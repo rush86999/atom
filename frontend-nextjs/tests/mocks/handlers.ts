@@ -8,10 +8,14 @@
  * - agentHandlers: Agent execution, chat streaming, workflow execution
  * - canvasHandlers: Form submissions, canvas status, canvas lifecycle
  * - deviceHandlers: Camera, screen recording, location, notifications, command execution
+ * - agentErrorHandlers: Agent API error scenarios (500, 503, 429, 404, timeout)
+ * - canvasErrorHandlers: Canvas API error scenarios (403, 500, 503, 404)
+ * - deviceErrorHandlers: Device API error scenarios (503, timeout, 403, network errors)
+ * - integrationErrorHandlers: OAuth/API integration errors (access_denied, timeout, 429, 503)
  *
  * Usage:
  * ```typescript
- * import { allHandlers, agentHandlers, overrideHandler } from '@/tests/mocks/handlers';
+ * import { allHandlers, agentHandlers, agentErrorHandlers, overrideHandler } from '@/tests/mocks/handlers';
  *
  * // Use default handlers
  * server.use(...allHandlers);
@@ -22,7 +26,53 @@
  *     return res(ctx.status(404), ctx.json({ error: 'Agent not found' }));
  *   })
  * );
+ *
+ * // Use predefined error scenarios
+ * server.use(...agentErrorHandlers.internalServerError);
+ * server.use(...agentErrorHandlers.serviceUnavailable);
+ *
+ * // Test error recovery flows
+ * test('recovers from 503 error', async () => {
+ *   server.use(...agentErrorHandlers.serviceUnavailable);
+ *   // ... test code that should retry and recover
+ * });
  * ```
+ *
+ * Common Error Testing Patterns:
+ *
+ * 1. Server Error (500) - Test error boundaries and user-friendly messages
+ *    ```typescript
+ *    server.use(...agentErrorHandlers.internalServerError);
+ *    await waitFor(() => expect(screen.getByText(/something went wrong/i)).toBeInTheDocument());
+ *    ```
+ *
+ * 2. Service Unavailable (503) - Test retry logic and graceful degradation
+ *    ```typescript
+ *    server.use(...agentErrorHandlers.serviceUnavailable);
+ *    // Verify loading state, then retry, then success
+ *    ```
+ *
+ * 3. Rate Limiting (429) - Test backoff and retry-after header handling
+ *    ```typescript
+ *    server.use(...agentErrorHandlers.rateLimited);
+ *    await waitFor(() => expect(screen.getByText(/too many requests/i)).toBeInTheDocument());
+ *    ```
+ *
+ * 4. Timeout - Test timeout handling and user feedback
+ *    ```typescript
+ *    server.use(...agentErrorHandlers.timeout);
+ *    await waitFor(() => expect(screen.getByText(/request timed out/i)).toBeInTheDocument());
+ *    ```
+ *
+ * 5. Governance Errors (403) - Test maturity level gates
+ *    ```typescript
+ *    server.use(...canvasErrorHandlers.governanceCheckFailed);
+ *    await waitFor(() => expect(screen.getByText(/insufficient maturity/i)).toBeInTheDocument());
+ *    ```
+ *
+ * Note: This file contains endpoint-specific handlers. For generic error handlers
+ * (network errors, malformed responses, etc.), see tests/mocks/errors.ts
+ */
  */
 
 import { rest, RestHandler } from 'msw';
@@ -487,6 +537,597 @@ export const deviceHandlers = [
     );
   }),
 ];
+
+// ============================================================================
+// Agent API Error Handlers (NEW - Phase 133)
+// ============================================================================
+
+/**
+ * Agent API error scenario handlers for testing robustness.
+ * These handlers simulate various error conditions for agent endpoints.
+ *
+ * Usage:
+ * ```typescript
+ * import { agentErrorHandlers } from '@/tests/mocks/handlers';
+ * server.use(...agentErrorHandlers.internalServerError);
+ * ```
+ */
+export const agentErrorHandlers = {
+  /**
+   * Internal Server Error (500) for GET /api/atom-agent/agents
+   * Tests: Error boundaries, user-friendly error messages, logging
+   */
+  internalServerError: [
+    rest.get('/api/atom-agent/agents', (req, res, ctx) => {
+      return res(
+        ctx.status(500),
+        ctx.json({
+          success: false,
+          error_code: 'INTERNAL_SERVER_ERROR',
+          error: 'Internal server error',
+          message: 'An unexpected error occurred. Please try again later.',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Service Unavailable (503) for GET /api/atom-agent/agents
+   * Tests: Retry logic, graceful degradation, maintenance mode
+   */
+  serviceUnavailable: [
+    rest.get('/api/atom-agent/agents', (req, res, ctx) => {
+      return res(
+        ctx.status(503),
+        ctx.set('Retry-After', '60'),
+        ctx.json({
+          success: false,
+          error_code: 'SERVICE_UNAVAILABLE',
+          error: 'Service unavailable',
+          message: 'The service is temporarily unavailable. Please try again later.',
+          retry_after: 60,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Rate Limited (429) for GET /api/atom-agent/agents
+   * Tests: Rate limit handling, backoff strategy, user notifications
+   */
+  rateLimited: [
+    rest.get('/api/atom-agent/agents', (req, res, ctx) => {
+      return res(
+        ctx.status(429),
+        ctx.set('Retry-After', '60'),
+        ctx.json({
+          success: false,
+          error_code: 'RATE_LIMIT_EXCEEDED',
+          error: 'Rate limit exceeded',
+          message: 'Too many requests. Please wait before trying again.',
+          retry_after: 60,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Not Found (404) for GET /api/atom-agent/agents/:agentId/status
+   * Tests: Missing agent handling, user-friendly 404 messages
+   */
+  agentNotFound: [
+    rest.get('/api/atom-agent/agents/:agentId/status', (req, res, ctx) => {
+      const { agentId } = req.params;
+      return res(
+        ctx.status(404),
+        ctx.json({
+          success: false,
+          error_code: 'AGENT_NOT_FOUND',
+          error: 'Agent not found',
+          message: `The agent '${agentId}' does not exist or has been deleted.`,
+          agent_id: agentId,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Internal Server Error (500) for GET /api/atom-agent/agents/:agentId/status
+   * Tests: Agent status endpoint failure handling
+   */
+  agentStatusError: [
+    rest.get('/api/atom-agent/agents/:agentId/status', (req, res, ctx) => {
+      return res(
+        ctx.status(500),
+        ctx.json({
+          success: false,
+          error_code: 'INTERNAL_SERVER_ERROR',
+          error: 'Internal server error',
+          message: 'Failed to retrieve agent status. Please try again later.',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Timeout (35s delay) for POST /api/atom-agent/chat/stream
+   * Tests: Timeout handling, user feedback for long-running requests
+   * Note: Uses ctx.delay(35000) which exceeds the 10s API_TIMEOUT in api.ts
+   */
+  chatStreamTimeout: [
+    rest.post('/api/atom-agent/chat/stream', async (req, res, ctx) => {
+      // Delay response for 35 seconds (longer than typical 30s timeout)
+      await new Promise((resolve) => setTimeout(resolve, 35000));
+      return res(
+        ctx.status(200),
+        ctx.json({
+          success: true,
+          response: 'Delayed response',
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Service Unavailable (503) for POST /api/atom-agent/chat/stream
+   * Tests: Chat streaming service unavailability handling
+   */
+  chatStreamUnavailable: [
+    rest.post('/api/atom-agent/chat/stream', (req, res, ctx) => {
+      return res(
+        ctx.status(503),
+        ctx.set('Retry-After', '30'),
+        ctx.json({
+          success: false,
+          error_code: 'SERVICE_UNAVAILABLE',
+          error: 'Chat service unavailable',
+          message: 'The chat service is temporarily unavailable. Please try again later.',
+          retry_after: 30,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+};
+
+// ============================================================================
+// Canvas API Error Handlers (NEW - Phase 133)
+// ============================================================================
+
+/**
+ * Canvas API error scenario handlers for testing robustness.
+ * These handlers simulate various error conditions for canvas endpoints.
+ */
+export const canvasErrorHandlers = {
+  /**
+   * Governance Check Failed (403) for POST /api/canvas/submit
+   * Tests: Maturity level gates, governance error messages, permission handling
+   */
+  governanceCheckFailed: [
+    rest.post('/api/canvas/submit', (req, res, ctx) => {
+      return res(
+        ctx.status(403),
+        ctx.json({
+          success: false,
+          error_code: 'GOVERNANCE_CHECK_FAILED',
+          error: 'Forbidden - Governance check failed',
+          message: 'Agent does not have permission to perform this action',
+          details: {
+            required_maturity: 'SUPERVISED',
+            current_maturity: 'INTERN',
+            action_type: 'submit_form',
+            canvas_id: 'canvas-test-123',
+          },
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Internal Server Error (500) for POST /api/canvas/submit
+   * Tests: Form submission error handling
+   */
+  submitServerError: [
+    rest.post('/api/canvas/submit', (req, res, ctx) => {
+      return res(
+        ctx.status(500),
+        ctx.json({
+          success: false,
+          error_code: 'INTERNAL_SERVER_ERROR',
+          error: 'Internal server error',
+          message: 'Failed to submit form. Please try again later.',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Service Unavailable (503) for POST /api/canvas/submit
+   * Tests: Canvas service unavailability handling
+   */
+  submitServiceUnavailable: [
+    rest.post('/api/canvas/submit', (req, res, ctx) => {
+      return res(
+        ctx.status(503),
+        ctx.set('Retry-After', '45'),
+        ctx.json({
+          success: false,
+          error_code: 'SERVICE_UNAVAILABLE',
+          error: 'Canvas service unavailable',
+          message: 'The canvas service is temporarily unavailable. Please try again later.',
+          retry_after: 45,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Not Found (404) for GET /api/canvas/status
+   * Tests: Missing canvas handling
+   */
+  canvasNotFound: [
+    rest.get('/api/canvas/status', (req, res, ctx) => {
+      const canvas_id = req.url.searchParams.get('canvas_id') || 'unknown';
+      return res(
+        ctx.status(404),
+        ctx.json({
+          success: false,
+          error_code: 'CANVAS_NOT_FOUND',
+          error: 'Canvas not found',
+          message: `The canvas '${canvas_id}' does not exist or has been closed.`,
+          canvas_id,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Gateway Timeout (504) for GET /api/canvas/status
+   * Tests: Gateway timeout handling for canvas status
+   */
+  canvasStatusTimeout: [
+    rest.get('/api/canvas/status', (req, res, ctx) => {
+      return res(
+        ctx.status(504),
+        ctx.json({
+          success: false,
+          error_code: 'GATEWAY_TIMEOUT',
+          error: 'Gateway timeout',
+          message: 'The request timed out while retrieving canvas status.',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Governance Check Failed (403) for POST /api/canvas/:canvasId/execute
+   * Tests: Canvas action governance enforcement
+   */
+  executeGovernanceFailed: [
+    rest.post('/api/canvas/:canvasId/execute', (req, res, ctx) => {
+      const { canvasId } = req.params;
+      return res(
+        ctx.status(403),
+        ctx.json({
+          success: false,
+          error_code: 'GOVERNANCE_CHECK_FAILED',
+          error: 'Forbidden - Governance check failed',
+          message: 'Agent maturity level insufficient for this action',
+          details: {
+            required_maturity: 'AUTONOMOUS',
+            current_maturity: 'SUPERVISED',
+            action_type: 'canvas_action',
+            canvas_id: canvasId,
+          },
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Internal Server Error (500) for POST /api/canvas/:canvasId/execute
+   * Tests: Canvas action execution error handling
+   */
+  executeServerError: [
+    rest.post('/api/canvas/:canvasId/execute', (req, res, ctx) => {
+      return res(
+        ctx.status(500),
+        ctx.json({
+          success: false,
+          error_code: 'INTERNAL_SERVER_ERROR',
+          error: 'Internal server error',
+          message: 'Failed to execute canvas action. Please try again later.',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+};
+
+// ============================================================================
+// Device API Error Handlers (NEW - Phase 133)
+// ============================================================================
+
+/**
+ * Device API error scenario handlers for testing robustness.
+ * These handlers simulate various error conditions for device endpoints.
+ */
+export const deviceErrorHandlers = {
+  /**
+   * Service Unavailable (503) for POST /api/devices/camera/snap
+   * Tests: Camera service unavailability handling
+   */
+  cameraUnavailable: [
+    rest.post('/api/devices/camera/snap', (req, res, ctx) => {
+      return res(
+        ctx.status(503),
+        ctx.json({
+          success: false,
+          error_code: 'DEVICE_UNAVAILABLE',
+          error: 'Camera service unavailable',
+          message: 'The camera service is temporarily unavailable. Please try again later.',
+          retry_after: 30,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Timeout (35s delay) for POST /api/devices/camera/snap
+   * Tests: Camera capture timeout handling
+   */
+  cameraTimeout: [
+    rest.post('/api/devices/camera/snap', async (req, res, ctx) => {
+      // Delay response for 35 seconds (longer than typical timeout)
+      await new Promise((resolve) => setTimeout(resolve, 35000));
+      return res(
+        ctx.status(200),
+        ctx.json({
+          success: true,
+          image_path: '/mock/capture.jpg',
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Governance Check Failed (403) for POST /api/devices/screen/record/start
+   * Tests: Screen recording maturity level gates
+   */
+  screenRecordingGovernanceFailed: [
+    rest.post('/api/devices/screen/record/start', (req, res, ctx) => {
+      return res(
+        ctx.status(403),
+        ctx.json({
+          success: false,
+          error_code: 'GOVERNANCE_CHECK_FAILED',
+          error: 'Forbidden - Governance check failed',
+          message: 'Agent maturity level insufficient for screen recording',
+          details: {
+            required_maturity: 'SUPERVISED',
+            current_maturity: 'INTERN',
+            action_type: 'screen_record_start',
+          },
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Internal Server Error (500) for POST /api/devices/screen/record/start
+   * Tests: Screen recording error handling
+   */
+  screenRecordingError: [
+    rest.post('/api/devices/screen/record/start', (req, res, ctx) => {
+      return res(
+        ctx.status(500),
+        ctx.json({
+          success: false,
+          error_code: 'INTERNAL_SERVER_ERROR',
+          error: 'Internal server error',
+          message: 'Failed to start screen recording. Please try again later.',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Service Unavailable (503) for POST /api/devices/location
+   * Tests: Location service unavailability handling
+   */
+  locationUnavailable: [
+    rest.post('/api/devices/location', (req, res, ctx) => {
+      return res(
+        ctx.status(503),
+        ctx.json({
+          success: false,
+          error_code: 'SERVICE_UNAVAILABLE',
+          error: 'Location service unavailable',
+          message: 'The location service is temporarily unavailable.',
+          retry_after: 20,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Network Error for POST /api/devices/location
+   * Tests: Location API network failure handling
+   * Note: In Node.js/jsdom, network errors are simulated with 503 responses
+   */
+  locationNetworkError: [
+    rest.post('/api/devices/location', (req, res, ctx) => {
+      // Simulate network error with 503 Service Unavailable
+      // Real network errors don't work in Node.js/jsdom environment
+      return res(
+        ctx.status(503),
+        ctx.json({
+          success: false,
+          error_code: 'NETWORK_ERROR',
+          error: 'Network error',
+          message: 'Failed to reach location service. Please check your connection.',
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+};
+
+// ============================================================================
+// Integration API Error Handlers (NEW - Phase 133)
+// ============================================================================
+
+/**
+ * Integration API error scenario handlers for testing OAuth and API integration robustness.
+ * These handlers simulate various error conditions for third-party service integrations.
+ */
+export const integrationErrorHandlers = {
+  /**
+   * OAuth Access Denied for all integration callbacks
+   * Tests: OAuth denial handling, user feedback for cancelled authorization
+   */
+  oauthAccessDenied: [
+    // Jira
+    rest.get('/api/integrations/jira/callback', (req, res, ctx) => {
+      return res(
+        ctx.status(401),
+        ctx.json({
+          error: 'access_denied',
+          error_description: 'User denied authorization',
+          state: req.url.searchParams.get('state'),
+        })
+      );
+    }),
+    // Slack
+    rest.get('/api/integrations/slack/callback', (req, res, ctx) => {
+      return res(
+        ctx.status(401),
+        ctx.json({
+          error: 'access_denied',
+          error_description: 'User denied authorization',
+        })
+      );
+    }),
+    // Microsoft 365
+    rest.get('/api/integrations/microsoft365/callback', (req, res, ctx) => {
+      return res(
+        ctx.status(401),
+        ctx.json({
+          error: 'access_denied',
+          error_description: 'User denied authorization',
+        })
+      );
+    }),
+    // Generic for all other integrations
+    rest.get('/api/integrations/*/callback', (req, res, ctx) => {
+      return res(
+        ctx.status(401),
+        ctx.json({
+          error: 'access_denied',
+          error_description: 'User denied authorization',
+        })
+      );
+    }),
+  ],
+
+  /**
+   * OAuth Timeout for integration connection endpoints
+   * Tests: OAuth flow timeout handling
+   */
+  oauthTimeout: [
+    rest.post('/api/integrations/*/connect', async (req, res, ctx) => {
+      // Delay response for 35 seconds to trigger timeout
+      await new Promise((resolve) => setTimeout(resolve, 35000));
+      return res(
+        ctx.status(200),
+        ctx.json({ authUrl: 'https://example.com/oauth/authorize' })
+      );
+    }),
+  ],
+
+  /**
+   * Rate Limited (429) for integration API endpoints
+   * Tests: Third-party API rate limit handling
+   */
+  apiRateLimited: [
+    rest.get('/api/integrations/jira/issues', (req, res, ctx) => {
+      return res(
+        ctx.status(429),
+        ctx.set('Retry-After', '3600'), // 1 hour
+        ctx.json({
+          success: false,
+          error_code: 'RATE_LIMIT_EXCEEDED',
+          error: 'Jira API rate limit exceeded',
+          message: 'Too many requests to Jira API. Please wait before trying again.',
+          retry_after: 3600,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+    rest.get('/api/integrations/slack/channels', (req, res, ctx) => {
+      return res(
+        ctx.status(429),
+        ctx.set('Retry-After', '60'), // 1 minute
+        ctx.json({
+          success: false,
+          error_code: 'RATE_LIMIT_EXCEEDED',
+          error: 'Slack API rate limit exceeded',
+          message: 'Too many requests to Slack API. Please wait before trying again.',
+          retry_after: 60,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+
+  /**
+   * Service Unavailable (503) for integration APIs
+   * Tests: Third-party service unavailability handling
+   */
+  serviceUnavailable: [
+    rest.get('/api/integrations/jira/projects', (req, res, ctx) => {
+      return res(
+        ctx.status(503),
+        ctx.json({
+          success: false,
+          error_code: 'SERVICE_UNAVAILABLE',
+          error: 'Jira service unavailable',
+          message: 'Jira API is temporarily unavailable. Please try again later.',
+          retry_after: 300,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+    rest.get('/api/integrations/slack/channels', (req, res, ctx) => {
+      return res(
+        ctx.status(503),
+        ctx.json({
+          success: false,
+          error_code: 'SERVICE_UNAVAILABLE',
+          error: 'Slack service unavailable',
+          message: 'Slack API is temporarily unavailable. Please try again later.',
+          retry_after: 60,
+          timestamp: new Date().toISOString(),
+        })
+      );
+    }),
+  ],
+};
 
 // ============================================================================
 // Form Submission Handlers (NEW - Phase 109)
@@ -1247,11 +1888,33 @@ export const integrationHandlers = [
 // All Handlers Combined
 // ============================================================================
 
+/**
+ * All default handlers for successful API responses.
+ * Error handlers are exported separately and should be used as needed.
+ */
 export const allHandlers = [
   ...commonHandlers,
   ...agentHandlers,
   ...canvasHandlers,
   ...deviceHandlers,
-  ...formSubmissionHandlers,  // NEW - Phase 109
-  ...integrationHandlers,     // NEW - Phase 130
+  ...formSubmissionHandlers,  // Phase 109
+  ...integrationHandlers,     // Phase 130
 ];
+
+/**
+ * All error scenario handlers for testing robustness.
+ * These are not included in allHandlers by default.
+ * Import and use specific error scenarios as needed in tests.
+ *
+ * Example:
+ * ```typescript
+ * import { agentErrorHandlers } from '@/tests/mocks/handlers';
+ * server.use(...agentErrorHandlers.serviceUnavailable);
+ * ```
+ */
+export const allErrorHandlers = {
+  agent: agentErrorHandlers,
+  canvas: canvasErrorHandlers,
+  device: deviceErrorHandlers,
+  integration: integrationErrorHandlers,
+};
