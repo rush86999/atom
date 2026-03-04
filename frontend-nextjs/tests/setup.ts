@@ -18,6 +18,10 @@ Object.defineProperties(globalThis, {
 
 import "@testing-library/jest-dom";
 
+// Configure jest-axe for accessibility testing
+import { toHaveNoViolations } from 'jest-axe';
+expect.extend(toHaveNoViolations);
+
 // Optional MSW server - only if no import errors
 let server: any;
 try {
