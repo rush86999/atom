@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 130 - Frontend Module Coverage Consistency
+**Current focus:** Phase 131 - Frontend Custom Hook Testing
 
 ## Current Position
 
-Phase: 130 of 26 (Frontend Module Coverage Consistency)
-Plan: 06 (CI Integration & Documentation)
+Phase: 131 of 26 (Frontend Custom Hook Testing)
+Plan: 01 (Simple State Hook Tests)
 Status: Complete
-Last activity: 2026-03-04 — Phase 130 Plan 06 completed (CI integration and documentation with coverage trend tracking. Coverage trend tracker script created with update/report/html commands. Developer documentation created (FRONTEND_COVERAGE.md). Phase verification document complete (130-VERIFICATION.md). ROADMAP.md updated with accurate coverage metrics (corrected 89.84% documentation error). All 6 plans complete, infrastructure operational, test execution pending.)
+Last activity: 2026-03-04 — Phase 131 Plan 01 completed (Simple state hook tests for use-toast, useUndoRedo, useVoiceIO with 73 tests covering initialization, state transitions, timer cleanup, history stack behavior, and delegation patterns. All tests passing with >85% coverage.)
 
-Progress: [███████] 100% (Plan 06/6 complete - Phase 130 complete)
+Progress: [█] 14% (Plan 01/7 complete - Phase 131 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 130: 8 plans)
-- Average duration: 7.2 minutes
-- Total execution time: 4 hours 41 minutes
+- Total plans completed: 40 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 131: 1 plan)
+- Average duration: 7.3 minutes
+- Total execution time: 4 hours 50 minutes
 
 **By Phase:**
 
@@ -30,11 +30,12 @@ Progress: [███████] 100% (Plan 06/6 complete - Phase 130 complete)
 | 127 | 12 | 8490s | 708s |
 | 128 | 8 | 2728s | 341s |
 | 129 | 5 | 2900s | 580s |
-| 130 | 8 | 1616s | 202s |
+| 130 | 6 | 1616s | 269s |
+| 131 | 1 | 562s | 562s |
 
 **Recent Trend:**
-- Last plan: 301s (130-05)
-- Trend: Accelerating
+- Last plan: 562s (131-01)
+- Trend: Normal
 
 *Updated after each plan completion*
 | Phase 127 P127-01 | 174 | 1 task | 2 files |
@@ -75,6 +76,7 @@ Progress: [███████] 100% (Plan 06/6 complete - Phase 130 complete)
 | Phase 130 P04 | 608 | 7 tasks | 8 files |
 | Phase 130 P05 | 301 | 6 tasks | 4 files |
 | Phase 130 P06 | 446 | 6 tasks | 6 files |
+| Phase 131 P01 | 562 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -96,6 +98,13 @@ Recent decisions affecting current work:
 - **Phase 130 (Plan 03)**: MSW handler organization by service (Jira, Slack, Microsoft365, etc.) improves maintainability and makes handler overrides easier
 - **Phase 130 (Plan 03)**: Integration test patterns documented: OAuth flows, data fetching, error handling (401, 429, network errors, timeouts), loading states, disconnection flows
 - **Phase 130 (Plan 03)**: Lean test strategy: comprehensive testing on CRITICAL components (75%+ coverage) while establishing basic patterns for HIGH/MEDIUM components provides good ROI
+- **Phase 131 (Plan 01)**: Simple state hooks tested with renderHook pattern from @testing-library/react - standard for all custom hook testing
+- **Phase 131 (Plan 01)**: Timer cleanup critical for memory leak prevention - use jest.useFakeTimers() for setTimeout/setInterval testing
+- **Phase 131 (Plan 01)**: History stack patterns (undo/redo) require testing past/present/future state transitions with correct flag management
+- **Phase 131 (Plan 01)**: Delegation testing (wrapper hooks) focuses on property alias verification, not re-testing underlying implementation
+- **Phase 131 (Plan 01)**: React strict mode causes multiple hook invocations in tests - use mock.calls.some() instead of toBeCalledWith()
+- **Phase 131 (Plan 01)**: Spread operator in object destructuring includes ALL original properties, increasing total property count
+
 - **Phase 130 (Plan 02)**: Graduated thresholds configured in jest.config.js: lib 90%, hooks 85%, canvas 85%, ui 80%, integrations 70%, pages 80%, global floor 75%
 - **Phase 130 (Plan 02)**: Coverage gap analysis script identifies 613 files below threshold (603 CRITICAL, 6 HIGH, 4 MEDIUM)
 - **Phase 130 (Plan 02)**: Test inventory estimates 1,201 test suites, 2,402-3,603 hours (100-150 days with 1 tester)
@@ -198,7 +207,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-04 (130-06 execution)
-Stopped at: Phase 130 complete - All 6 plans executed. Infrastructure operational with per-module thresholds, CI/CD enforcement, trend tracking, developer documentation, and phase verification. Test execution pending (130-03, 130-04 test waves). Coverage baseline: 1.41% overall. Target: 80%+ per module.
+Last session: 2026-03-04 (131-01 execution)
+Stopped at: Phase 131 Plan 01 complete - Simple state hook tests (use-toast, useUndoRedo, useVoiceIO) with 73 tests covering initialization, state transitions, timer cleanup, history stack behavior, and delegation patterns. All tests passing with >85% coverage. Testing patterns established for subsequent plans.
 Resume file: None
-Next phase: Phase 131 or subsequent frontend/backend coverage phase (per ROADMAP.md)
+Next phase: Phase 131 Plan 02 - Async hook tests (useChatMemory, useWebSocket)
