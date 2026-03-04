@@ -649,6 +649,601 @@ export const formSubmissionHandlers = [
 ];
 
 // ============================================================================
+// Integration API Handlers (NEW - Phase 130)
+// ============================================================================
+
+/**
+ * Integration component API handlers for third-party service mocking.
+ * These handlers mock OAuth flows and API integration endpoints for:
+ * - Jira, Slack, Microsoft 365, GitHub, Asana, Notion, Outlook, Zoom
+ * - Google Workspace, QuickBooks, Box, Trello, Zendesk
+ *
+ * Usage:
+ * ```typescript
+ * import { integrationHandlers } from '@/tests/mocks/handlers';
+ * server.use(...integrationHandlers);
+ * ```
+ */
+
+// Jira Integration Handlers
+export const jiraHandlers = [
+  // OAuth connection initiation
+  rest.post('/api/integrations/jira/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        authUrl: 'https://auth.atlassian.com/authorize',
+        state: expect.any(String),
+      })
+    );
+  }),
+
+  // OAuth callback handling
+  rest.get('/api/integrations/jira/callback', (req, res, ctx) => {
+    const { code, error } = Object.fromEntries(req.url.searchParams);
+
+    if (error === 'access_denied') {
+      return res(
+        ctx.status(401),
+        ctx.json({
+          error: 'access_denied',
+          error_description: 'User denied authorization',
+        })
+      );
+    }
+
+    if (!code) {
+      return res(
+        ctx.status(400),
+        ctx.json({ error: 'Missing authorization code' })
+      );
+    }
+
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        status: 'connected',
+        workspace: 'Test Workspace',
+      })
+    );
+  }),
+
+  // Fetch Jira projects
+  rest.get('/api/integrations/jira/projects', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        projects: [
+          {
+            id: '10000',
+            key: 'TEST',
+            name: 'Test Project',
+            projectTypeKey: 'software',
+            lead: {
+              displayName: 'John Doe',
+              emailAddress: 'john@example.com',
+              avatarUrls: {
+                '48x48': 'https://example.com/avatar48.jpg',
+              },
+            },
+            url: 'https://test.atlassian.net/browse/TEST',
+            description: 'A test project',
+            isPrivate: false,
+            archived: false,
+          },
+        ],
+      })
+    );
+  }),
+
+  // Fetch Jira issues
+  rest.get('/api/integrations/jira/issues', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        issues: [
+          {
+            id: '10001',
+            key: 'TEST-1',
+            fields: {
+              summary: 'Test issue summary',
+              status: { name: 'To Do' },
+              priority: { name: 'Medium' },
+              assignee: { displayName: 'John Doe' },
+            },
+          },
+        ],
+      })
+    );
+  }),
+
+  // Create Jira issue
+  rest.post('/api/integrations/jira/issues', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        issue: {
+          id: '10002',
+          key: 'TEST-2',
+          fields: { summary: 'New test issue' },
+        },
+      })
+    );
+  }),
+
+  // Fetch Jira users
+  rest.get('/api/integrations/jira/users', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        users: [
+          {
+            accountId: '12345',
+            displayName: 'John Doe',
+            emailAddress: 'john@example.com',
+            active: true,
+          },
+        ],
+      })
+    );
+  }),
+
+  // Fetch Jira sprints
+  rest.get('/api/integrations/jira/sprints', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        sprints: [
+          {
+            id: 1,
+            state: 'active',
+            name: 'Sprint 1',
+            startDate: '2024-01-15T10:00:00.000Z',
+            endDate: '2024-01-29T10:00:00.000Z',
+            originBoardId: 1,
+          },
+        ],
+      })
+    );
+  }),
+
+  // Update issue assignee
+  rest.put('/api/integrations/jira/issues/:issueId/assignee', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true })
+    );
+  }),
+
+  // Disconnect Jira
+  rest.post('/api/integrations/jira/disconnect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true })
+    );
+  }),
+
+  // Health check
+  rest.get('/api/integrations/jira/health', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }),
+];
+
+// Slack Integration Handlers
+export const slackHandlers = [
+  // OAuth connection
+  rest.post('/api/integrations/slack/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        authUrl: 'https://slack.com/oauth/v2/authorize',
+        state: expect.any(String),
+      })
+    );
+  }),
+
+  // OAuth callback
+  rest.get('/api/integrations/slack/callback', (req, res, ctx) => {
+    const { error } = Object.fromEntries(req.url.searchParams);
+
+    if (error === 'access_denied') {
+      return res(
+        ctx.status(401),
+        ctx.json({ error: 'access_denied' })
+      );
+    }
+
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        team: {
+          id: 'T1234567890',
+          name: 'Test Workspace',
+          domain: 'test-workspace',
+        },
+      })
+    );
+  }),
+
+  // Fetch channels
+  rest.get('/api/integrations/slack/channels', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        channels: [
+          {
+            id: 'C1234567890',
+            name: 'general',
+            is_channel: true,
+            is_archived: false,
+            members: 150,
+            topic: { value: 'Company-wide announcements' },
+          },
+          {
+            id: 'C0987654321',
+            name: 'engineering',
+            is_channel: true,
+            is_archived: false,
+            members: 45,
+          },
+        ],
+      })
+    );
+  }),
+
+  // Fetch messages
+  rest.get('/api/integrations/slack/messages/:channelId', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        messages: [
+          {
+            type: 'message',
+            text: 'Test message from bot',
+            ts: '1234567890.123456',
+          },
+        ],
+      })
+    );
+  }),
+
+  // Send message
+  rest.post('/api/integrations/slack/messages', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        message: {
+          type: 'message',
+          text: req.body?.text || 'New test message',
+          ts: '1234567892.123456',
+        },
+      })
+    );
+  }),
+
+  // Fetch users
+  rest.get('/api/integrations/slack/users', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        members: [
+          {
+            id: 'U1234567890',
+            name: 'john.doe',
+            deleted: false,
+            real_name: 'John Doe',
+            profile: {
+              email: 'john@example.com',
+              display_name: 'John Doe',
+              status_text: 'Working on Atom',
+              status_emoji: ':rocket:',
+            },
+          },
+        ],
+      })
+    );
+  }),
+
+  // Create webhook
+  rest.post('/api/integrations/slack/webhooks', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        webhook: {
+          id: 'WH123456',
+          url: 'https://hooks.slack.com/services/T123/B123/XXX',
+          channel: 'general',
+        },
+      })
+    );
+  }),
+
+  // Disconnect
+  rest.post('/api/integrations/slack/disconnect', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+];
+
+// Microsoft 365 Integration Handlers
+export const microsoft365Handlers = [
+  // OAuth connection
+  rest.post('/api/integrations/microsoft365/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+        state: expect.any(String),
+      })
+    );
+  }),
+
+  // OAuth callback
+  rest.get('/api/integrations/microsoft365/callback', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        user: {
+          displayName: 'John Doe',
+          email: 'john@example.com',
+        },
+      })
+    );
+  }),
+
+  // Fetch OneDrive files
+  rest.get('/api/integrations/microsoft365/onedrive/files', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        files: [
+          {
+            id: '01VAN3K3DZKBUM5VWEWPCQWYFQKW7QF5RA',
+            name: 'Document.docx',
+            size: 12345,
+            createdDateTime: '2024-01-15T10:00:00Z',
+          },
+        ],
+      })
+    );
+  }),
+
+  // Upload to OneDrive
+  rest.post('/api/integrations/microsoft365/onedrive/upload', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        file: {
+          id: 'new-file-id',
+          name: 'uploaded-file.txt',
+        },
+      })
+    );
+  }),
+
+  // Fetch Outlook emails
+  rest.get('/api/integrations/microsoft365/outlook/emails', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        emails: [
+          {
+            id: 'AAMkAGViNDUxoczRAAA=',
+            subject: 'Test Email',
+            from: {
+              emailAddress: {
+                name: 'John Doe',
+                address: 'john@example.com',
+              },
+            },
+            receivedDateTime: '2024-01-15T10:00:00Z',
+          },
+        ],
+      })
+    );
+  }),
+
+  // Send Outlook email
+  rest.post('/api/integrations/microsoft365/outlook/send', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        message: {
+          id: 'new-email-id',
+          subject: req.body?.subject || 'Test Subject',
+        },
+      })
+    );
+  }),
+
+  // Disconnect
+  rest.post('/api/integrations/microsoft365/disconnect', (req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ success: true }));
+  }),
+];
+
+// Generic integration handlers for remaining services
+export const genericIntegrationHandlers = [
+  // GitHub
+  rest.post('/api/integrations/github/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://github.com/login/oauth/authorize' })
+    );
+  }),
+  rest.get('/api/integrations/github/repos', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        repos: [{ id: 1, name: 'test-repo', full_name: 'user/test-repo' }],
+      })
+    );
+  }),
+
+  // Asana
+  rest.post('/api/integrations/asana/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://app.asana.com/oauth/authorize' })
+    );
+  }),
+  rest.get('/api/integrations/asana/tasks', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, tasks: [{ id: '1', name: 'Test task' }] })
+    );
+  }),
+
+  // Notion
+  rest.post('/api/integrations/notion/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://api.notion.com/oauth/authorize' })
+    );
+  }),
+  rest.get('/api/integrations/notion/pages', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, pages: [{ id: '1', title: 'Test page' }] })
+    );
+  }),
+
+  // Outlook (standalone)
+  rest.post('/api/integrations/outlook/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+      })
+    );
+  }),
+  rest.get('/api/integrations/outlook/emails', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, emails: [{ id: '1', subject: 'Test email' }] })
+    );
+  }),
+
+  // Zoom
+  rest.post('/api/integrations/zoom/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://zoom.us/oauth/authorize' })
+    );
+  }),
+  rest.get('/api/integrations/zoom/meetings', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, meetings: [{ id: '1', topic: 'Test meeting' }] })
+    );
+  }),
+
+  // Google Workspace
+  rest.post('/api/integrations/google/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://accounts.google.com/o/oauth2/v2/auth' })
+    );
+  }),
+  rest.get('/api/integrations/google/drive/files', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, files: [{ id: '1', name: 'test-file.pdf' }] })
+    );
+  }),
+
+  // QuickBooks
+  rest.post('/api/integrations/quickbooks/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://appcenter.intuit.com/connect/oauth2' })
+    );
+  }),
+  rest.get('/api/integrations/quickbooks/invoices', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        invoices: [{ id: '1', total: 100.0, customerName: 'Test Customer' }],
+      })
+    );
+  }),
+
+  // Box
+  rest.post('/api/integrations/box/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://account.box.com/api/oauth2/authorize' })
+    );
+  }),
+  rest.get('/api/integrations/box/files', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, files: [{ id: '1', name: 'test-file.pdf' }] })
+    );
+  }),
+
+  // Trello
+  rest.post('/api/integrations/trello/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://trello.com/1/authorize' })
+    );
+  }),
+  rest.get('/api/integrations/trello/boards', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, boards: [{ id: '1', name: 'Test Board' }] })
+    );
+  }),
+
+  // Zendesk
+  rest.post('/api/integrations/zendesk/connect', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ authUrl: 'https://zendesk.com/oauth/authorize' })
+    );
+  }),
+  rest.get('/api/integrations/zendesk/tickets', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({ success: true, tickets: [{ id: '1', subject: 'Test ticket', status: 'open' }] })
+    );
+  }),
+];
+
+// Export all integration handlers
+export const integrationHandlers = [
+  ...jiraHandlers,
+  ...slackHandlers,
+  ...microsoft365Handlers,
+  ...genericIntegrationHandlers,
+];
+
+// ============================================================================
 // All Handlers Combined
 // ============================================================================
 
@@ -658,4 +1253,5 @@ export const allHandlers = [
   ...canvasHandlers,
   ...deviceHandlers,
   ...formSubmissionHandlers,  // NEW - Phase 109
+  ...integrationHandlers,     // NEW - Phase 130
 ];
