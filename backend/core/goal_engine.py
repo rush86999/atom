@@ -1,9 +1,9 @@
 import asyncio
-from datetime import datetime, timedelta
 import logging
-from typing import Any, Dict, List, Optional
-import uuid
+from datetime import datetime, timedelta
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +26,14 @@ class Goal(BaseModel):
     sub_tasks: List[GoalSubTask] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
     owner_id: str = "default"
+    blueprint_id: Optional[str] = None
 
 class GoalEngine:
     def __init__(self):
         self.goals: Dict[str, Goal] = {}
         # Mock storage for now, would be a DB in production
     
-    async def create_goal_from_text(self, title: str, target_date: datetime, owner_id: str = "default") -> Goal:
+    async def create_goal_from_text(self, title: str, target_date: datetime, owner_id: str = "default", tenant_id: str = "default") -> Goal:
         """Create a new goal and automatically decompose it into sub-tasks"""
         goal = Goal(
             title=title,
@@ -40,12 +41,58 @@ class GoalEngine:
             owner_id=owner_id
         )
         
-        # Decompose goal into sub-tasks (Mock LLM behavior)
-        sub_tasks = await self.decompose_goal(title, target_date)
-        goal.sub_tasks = sub_tasks
+        # Determine if we should use the advanced Queen Agent or simple template
+        use_advanced = len(title.split()) > 3 or any(k in title.lower() for k in ["build", "create", "integrate", "automate"])
+        
+        if use_advanced:
+            try:
+                from core.database import SessionLocal
+                from core.llm_router import LLMRouter
+                from core.agents.queen_agent import QueenAgent
+                
+                with SessionLocal() as db:
+                    llm = LLMRouter()
+                    queen = QueenAgent(db, llm)
+                    blueprint = await queen.generate_blueprint(title, tenant_id=tenant_id)
+                    
+                    sub_tasks = []
+                    # Map blueprint nodes to sub-tasks
+                    now = datetime.utcnow()
+                    days_total = (target_date - now).days
+                    if days_total < 1: days_total = 7
+                    
+                    nodes = blueprint.get("nodes", [])
+                    for i, node in enumerate(nodes):
+                        # Approximate due date linearly
+                        node_due = now + timedelta(days=max(1, (i + 1) * days_total // len(nodes)))
+                        sub_tasks.append(GoalSubTask(
+                            title=node["name"],
+                            description=node.get("capability_required"),
+                            due_date=min(node_due, target_date)
+                        ))
+                    
+                    # Add missing capabilities as research tasks
+                    for missing in blueprint.get("missing_capabilities", []):
+                        sub_tasks.append(GoalSubTask(
+                            title=f"Research capability: {missing['name']}",
+                            description=missing.get("description"),
+                            due_date=now + timedelta(days=2)
+                        ))
+                    
+                    goal.sub_tasks = sub_tasks
+                    goal.blueprint_id = blueprint.get("blueprint_id")
+                    logger.info(f"Queen Architected Goal: {goal.title} with {len(goal.sub_tasks)} steps (Blueprint: {goal.blueprint_id})")
+            except Exception as e:
+                logger.error(f"Error using Queen Agent for goal: {e}")
+                # Fallback to simple decomposition
+                sub_tasks = await self.decompose_goal(title, target_date)
+                goal.sub_tasks = sub_tasks
+        else:
+            # Decompose goal into sub-tasks (Template-based fallback)
+            sub_tasks = await self.decompose_goal(title, target_date)
+            goal.sub_tasks = sub_tasks
         
         self.goals[goal.id] = goal
-        logger.info(f"Created goal: {goal.title} with {len(goal.sub_tasks)} sub-tasks")
         return goal
 
     async def decompose_goal(self, title: str, target_date: datetime) -> List[GoalSubTask]:
