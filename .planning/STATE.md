@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 133 of 26 (Frontend API Integration Robustness)
-Plan: 02 (User-Friendly Error Message Mapping)
+Plan: 01 (Exponential Backoff Retry Logic)
 Status: Complete
-Last activity: 2026-03-04 — Phase 133 Plan 02 completed (User-friendly error message mapping with 20+ error codes mapped, 56 comprehensive tests, API client integration with enhanceError. 3 tasks, 3 files, 4 minutes. 318 lines of error-mapping utilities, 653 lines of tests, API client enhanced with user-friendly error properties.)
+Last activity: 2026-03-04 — Phase 133 Plan 01 completed (Exponential backoff retry with @lifeomic/attempt integration, fixed infinite loop bug, 26 retry logic tests (100% pass rate), MSW retry scenario handlers (4 factory functions, 20 tests). 3 tasks, 4 files, 23 minutes. Deviation: Fixed infinite loop in retry interceptor using __isRetryRequest flag.)
 
-Progress: [██] 40% (Plan 02/5 complete)
+Progress: [██] 20% (Plan 01/5 complete)
 
 ## Performance Metrics
 
@@ -135,6 +135,10 @@ Recent decisions affecting current work:
 - **Phase 131 (Plan 01)**: Delegation testing (wrapper hooks) focuses on property alias verification, not re-testing underlying implementation
 - **Phase 131 (Plan 01)**: React strict mode causes multiple hook invocations in tests - use mock.calls.some() instead of toBeCalledWith()
 - **Phase 131 (Plan 01)**: Spread operator in object destructuring includes ALL original properties, increasing total property count
+- **Phase 133 (Plan 01)**: Retry interceptor requires __isRetryRequest flag to prevent infinite loop when retrying with apiClient
+- **Phase 133 (Plan 01)**: @lifeomic/attempt handleError callback is for side effects only (void return), not retry control - use isRetryableError before calling retry()
+- **Phase 133 (Plan 01)**: MSW retry scenario handlers use factory functions for reusable test patterns without full integration test complexity
+- **Phase 133 (Plan 01)**: Exponential backoff with jitter (factor: 2, randomization) prevents retry storms from synchronized client retries
 
 - **Phase 130 (Plan 02)**: Graduated thresholds configured in jest.config.js: lib 90%, hooks 85%, canvas 85%, ui 80%, integrations 70%, pages 80%, global floor 75%
 - **Phase 130 (Plan 02)**: Coverage gap analysis script identifies 613 files below threshold (603 CRITICAL, 6 HIGH, 4 MEDIUM)
