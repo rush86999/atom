@@ -32,20 +32,13 @@ try {
 
 // Establish API mocking before all tests (only if server loaded)
 if (server) {
-  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+  beforeAll(() => server?.listen({ onUnhandledRequest: 'error' }));
   // Reset any request handlers that we may add during the tests,
   // so they don't affect other tests
-  afterEach(() => server.resetHandlers());
+  afterEach(() => server?.resetHandlers());
   // Clean up after the tests are finished
-  afterAll(() => server.close());
+  afterAll(() => server?.close());
 }
-
-// Reset any request handlers that we may add during the tests,
-// so they don't affect other tests
-afterEach(() => server.resetHandlers());
-
-// Clean up after the tests are finished
-afterAll(() => server.close());
 
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = jest.fn();
