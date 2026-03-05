@@ -6,9 +6,10 @@
 # - For ARM Macs, use Cross or run in CI/CD
 #
 # Usage:
-#   ./coverage.sh                    # Generate JSON coverage report
-#   ./coverage.sh --html             # Generate HTML coverage report
+#   ./coverage.sh                    # Generate HTML coverage report (default)
+#   ./coverage.sh --html             # Generate HTML coverage report (explicit)
 #   ./coverage.sh --stdout           # Output to terminal
+#   ./coverage.sh --baseline         # Generate baseline report (Phase 140)
 
 set -e
 
@@ -27,9 +28,9 @@ if [[ "$ARCH" == "arm64" ]]; then
     exit 1
 fi
 
-# Default output format
-OUTPUT_FORMAT="Json"
-OUTPUT_DIR="coverage"
+# Default output format (changed to HTML for Phase 140 baseline)
+OUTPUT_FORMAT="Html"
+OUTPUT_DIR="coverage-report"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -43,9 +44,17 @@ while [[ $# -gt 0 ]]; do
             OUTPUT_DIR=""
             shift
             ;;
+        --baseline)
+            # Phase 140: Baseline measurement with --fail-under 0
+            OUTPUT_FORMAT="Html"
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--html|--stdout]"
+            echo "Usage: $0 [--html|--stdout|--baseline]"
+            echo "  --html     Generate HTML coverage report (default)"
+            echo "  --stdout   Output to terminal only"
+            echo "  --baseline Generate baseline report (Phase 140, no fail enforcement)"
             exit 1
             ;;
     esac
@@ -59,21 +68,22 @@ fi
 echo -e "${GREEN}Running cargo-tarpaulin for desktop coverage...${NC}"
 echo "Architecture: $ARCH"
 echo "Output format: $OUTPUT_FORMAT"
+echo "Configuration: tarpaulin.toml"
 
 # Build tarpaulin command
 if [[ "$OUTPUT_FORMAT" == "Stdout" ]]; then
     cargo tarpaulin \
         --verbose \
         --timeout 300 \
-        --exclude-files='tests/*' \
-        --output-dir "$OUTPUT_DIR" \
+        --config tarpaulin.toml \
         --out Stdout
 else
+    # Phase 140: Use --fail-under 0 for baseline measurement (no enforcement)
     cargo tarpaulin \
         --verbose \
         --timeout 300 \
-        --exclude-files='tests/*' \
-        --output-dir "$OUTPUT_DIR" \
+        --fail-under 0 \
+        --config tarpaulin.toml \
         --out "$OUTPUT_FORMAT"
 fi
 
@@ -81,8 +91,15 @@ EXIT_CODE=$?
 
 if [[ $EXIT_CODE -eq 0 ]]; then
     echo -e "${GREEN}Coverage report generated successfully!${NC}"
+    if [[ -f "$OUTPUT_DIR/index.html" ]]; then
+        echo "HTML Report: $OUTPUT_DIR/index.html"
+        echo "Open in browser: file://$(pwd)/$OUTPUT_DIR/index.html"
+    fi
     if [[ -f "$OUTPUT_DIR/coverage.json" ]]; then
-        echo "Report: $OUTPUT_DIR/coverage.json"
+        echo "JSON Report: $OUTPUT_DIR/coverage.json"
+    fi
+    if [[ -f "$OUTPUT_DIR/cobertura.xml" ]]; then
+        echo "Cobertura Report: $OUTPUT_DIR/cobertura.xml"
     fi
 else
     echo -e "${RED}Coverage generation failed with exit code $EXIT_CODE${NC}"
