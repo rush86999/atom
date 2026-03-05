@@ -1,0 +1,235 @@
+name: Mobile State Management Coverage
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/src/contexts/**'
+      - 'mobile/src/services/storageService.ts'
+      - 'mobile/src/__tests__/contexts/**'
+      - 'mobile/src/__tests__/services/storageService.test.ts'
+  push:
+    branches:
+      - main
+    paths:
+      - 'mobile/src/contexts/**'
+      - 'mobile/src/services/storageService.ts'
+      - 'mobile/src/__tests__/contexts/**'
+      - 'mobile/src/__tests__/services/storageService.test.ts'
+
+jobs:
+  state-management-coverage:
+    name: State Management Coverage Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Run coverage for state management
+        id: coverage
+        working-directory: ./mobile
+        run: |
+          npm test -- --coverage \
+            --coverageReporters="json-summary" \
+            --coverageReporters="lcov" \
+            --coverageReporters="text" \
+            --collectCoverageFrom="src/contexts/**/*.tsx" \
+            --collectCoverageFrom="src/services/storageService.ts" \
+            --testPathPattern="contexts|storageService" \
+            --passWithNoTests \
+            2>&1 | tee coverage-output.txt
+
+      - name: Extract coverage metrics
+        id: metrics
+        working-directory: ./mobile
+        run: |
+          # Install jq if not available
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+
+          # Extract coverage from coverage-summary.json
+          AUTH_CONTEXT=$(jq -r '."src/contexts/AuthContext.tsx".statements.pct // 0' coverage/coverage-summary.json)
+          DEVICE_CONTEXT=$(jq -r '."src/contexts/DeviceContext.tsx".statements.pct // 0' coverage/coverage-summary.json)
+          WEBSOCKET_CONTEXT=$(jq -r '."src/contexts/WebSocketContext.tsx".statements.pct // 0' coverage/coverage-summary.json)
+          STORAGE_SERVICE=$(jq -r '."src/services/storageService.ts".statements.pct // 0' coverage/coverage-summary.json)
+          CONTEXTS_TOTAL=$(jq -r '.total.statements.pct // 0' coverage/coverage-summary.json)
+
+          # Save to environment variables
+          echo "AUTH_CONTEXT_COVERAGE=$AUTH_CONTEXT" >> $GITHUB_ENV
+          echo "DEVICE_CONTEXT_COVERAGE=$DEVICE_CONTEXT" >> $GITHUB_ENV
+          echo "WEBSOCKET_CONTEXT_COVERAGE=$WEBSOCKET_CONTEXT" >> $GITHUB_ENV
+          echo "STORAGE_SERVICE_COVERAGE=$STORAGE_SERVICE" >> $GITHUB_ENV
+          echo "CONTEXTS_TOTAL_COVERAGE=$CONTEXTS_TOTAL" >> $GITHUB_ENV
+
+          echo "AuthContext: ${AUTH_CONTEXT}%"
+          echo "DeviceContext: ${DEVICE_CONTEXT}%"
+          echo "WebSocketContext: ${WEBSOCKET_CONTEXT}%"
+          echo "StorageService: ${STORAGE_SERVICE}%"
+          echo "Contexts Total: ${CONTEXTS_TOTAL}%"
+
+      - name: Check context coverage thresholds
+        id: thresholds
+        working-directory: ./mobile
+        run: |
+          # Convert to integer for comparison
+          AUTH_COV=${AUTH_CONTEXT_COVERAGE%.*}
+          DEVICE_COV=${DEVICE_CONTEXT_COVERAGE%.*}
+          WEBSOCKET_COV=${WEBSOCKET_CONTEXT_COVERAGE%.*}
+          STORAGE_COV=${STORAGE_SERVICE_COVERAGE%.*}
+          TOTAL_COV=${CONTEXTS_TOTAL_COVERAGE%.*}
+
+          # Check thresholds
+          FAILED=0
+
+          echo "## Coverage Threshold Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Coverage | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|----------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # AuthContext check (>=80%)
+          if [ $AUTH_COV -lt 80 ]; then
+            echo "| AuthContext.tsx | ${AUTH_COV}% | >=80% | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+            FAILED=1
+          else
+            echo "| AuthContext.tsx | ${AUTH_COV}% | >=80% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # DeviceContext check (>=80%)
+          if [ $DEVICE_COV -lt 80 ]; then
+            echo "| DeviceContext.tsx | ${DEVICE_COV}% | >=80% | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+            FAILED=1
+          else
+            echo "| DeviceContext.tsx | ${DEVICE_COV}% | >=80% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # WebSocketContext check (>=80%)
+          if [ $WEBSOCKET_COV -lt 80 ]; then
+            echo "| WebSocketContext.tsx | ${WEBSOCKET_COV}% | >=80% | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+            FAILED=1
+          else
+            echo "| WebSocketContext.tsx | ${WEBSOCKET_COV}% | >=80% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # StorageService check (>=75%)
+          if [ $STORAGE_COV -lt 75 ]; then
+            echo "| storageService.ts | ${STORAGE_COV}% | >=75% | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+            FAILED=1
+          else
+            echo "| storageService.ts | ${STORAGE_COV}% | >=75% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Contexts aggregate check (>=80%)
+          if [ $TOTAL_COV -lt 80 ]; then
+            echo "| Contexts Aggregate | ${TOTAL_COV}% | >=80% | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+            FAILED=1
+          else
+            echo "| Contexts Aggregate | ${TOTAL_COV}% | >=80% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall Status:**" >> $GITHUB_STEP_SUMMARY
+          if [ $FAILED -eq 1 ]; then
+            echo "❌ **FAILED** - One or more files below threshold" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ **PASSED** - All files meet thresholds" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment PR with coverage report
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const coverageOutput = fs.readFileSync('mobile/coverage-output.txt', 'utf8');
+
+            // Extract coverage table from output
+            const lines = coverageOutput.split('\n');
+            const tableStart = lines.findIndex(l => l.includes('----'));
+            const tableEnd = lines.findIndex(l => l.includes('Jest:'));
+            const coverageTable = lines.slice(tableStart, tableEnd).join('\n');
+
+            const comment = `## State Management Coverage Report
+
+            ${coverageTable}
+
+            **Thresholds:**
+            - Contexts (Auth, Device, WebSocket): >=80%
+            - Storage Service: >=75%
+
+            **Status:** ${{ job.status }}
+
+            <details>
+            <summary>View full output</summary>
+
+            \`\`\`
+            ${coverageOutput}
+            \`\`\`
+            </details>
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('State Management Coverage Report')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: state-management-coverage
+          path: |
+            mobile/coverage/lcov.info
+            mobile/coverage/coverage-summary.json
+          retention-days: 30
+
+      - name: Compare to previous coverage (if available)
+        if: github.event_name == 'pull_request'
+        working-directory: ./mobile
+        run: |
+          # Download previous coverage (if exists)
+          # This is a placeholder for trend tracking
+          # Implementation would require storing coverage data in an external service
+
+          echo "Coverage trend tracking not yet implemented"
+          echo "Consider integrating with Codecov or Coveralls for historical tracking"
