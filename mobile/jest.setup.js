@@ -51,30 +51,31 @@ jest.mock('react-native', () => {
   };
 
   // Create mock object without destructuring to avoid triggering Settings import
-  const mockReactNative = {
-    ...Object.keys(ReactNative).reduce((acc, key) => {
-      if (key !== 'Settings') {
-        acc[key] = ReactNative[key];
+  const mockReactNative = Object.keys(ReactNative).reduce((acc, key) => {
+    if (key !== 'Settings') {
+      acc[key] = ReactNative[key];
+    }
+    return acc;
+  }, {});
+
+  mockReactNative.NativeModules = {
+    ...ReactNative.NativeModules,
+    SettingsManager: MockSettingsManager,
+  };
+
+  mockReactNative.Settings = {
+    get: jest.fn(() => ({})),
+    set: jest.fn(() => {}),
+    watchKeys: jest.fn(() => ({ remove: jest.fn() })),
+  };
+
+  mockReactNative.TurboModuleRegistry = {
+    getEnforcing: jest.fn((name) => {
+      if (name === 'SettingsManager') {
+        return MockSettingsManager;
       }
-      return acc;
-    }, {} as any),
-    NativeModules: {
-      ...ReactNative.NativeModules,
-      SettingsManager: MockSettingsManager,
-    },
-    Settings: {
-      get: jest.fn(() => ({})),
-      set: jest.fn(() => {}),
-      watchKeys: jest.fn(() => ({ remove: jest.fn() })),
-    },
-    TurboModuleRegistry: {
-      getEnforcing: jest.fn((name: string) => {
-        if (name === 'SettingsManager') {
-          return MockSettingsManager;
-        }
-        return {};
-      }),
-    },
+      return {};
+    }),
   };
 
   return mockReactNative;
@@ -920,22 +921,27 @@ global.MockWebSocket = class MockWebSocket {
 /** Registry of AppState listeners for test utilities */
 global.appStateListeners = [];
 
-jest.mock('react-native/Libraries/AppState/AppState', () => ({
-  currentState: 'active',
-  addEventListener: jest.fn((type, callback) => {
-    if (type === 'change') {
-      global.appStateListeners.push(callback);
-    }
-    return {
-      remove: jest.fn(() => {
-        const index = global.appStateListeners.indexOf(callback);
-        if (index > -1) {
-          global.appStateListeners.splice(index, 1);
-        }
-      }),
-    };
-  }),
-}), { virtual: true });
+jest.mock('react-native/Libraries/AppState/AppState', () => {
+  const listeners = [];
+  global.appStateListeners = listeners;
+
+  return {
+    currentState: 'active',
+    addEventListener: jest.fn((type, callback) => {
+      if (type === 'change') {
+        listeners.push(callback);
+      }
+      return {
+        remove: jest.fn(() => {
+          const index = listeners.indexOf(callback);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+        }),
+      };
+    }),
+  };
+}, { virtual: true });
 
 // ============================================================================
 // expo-linking Mock
