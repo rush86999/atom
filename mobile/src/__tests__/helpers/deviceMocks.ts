@@ -123,6 +123,34 @@ export interface MockSyncResultOptions {
   timestamp?: Date;
 }
 
+/**
+ * Options for creating mock barcode scanning result
+ */
+export interface MockBarcodeResultOptions {
+  /** Barcode type (default: 'qr') */
+  type?: string;
+  /** Barcode data/URL (default: 'https://example.com') */
+  data?: string;
+  /** Whether to include 4 corner points (default: true) */
+  withCorners?: boolean;
+}
+
+/**
+ * Options for creating mock captured photo
+ */
+export interface MockPhotoOptions {
+  /** Photo URI (default: auto-generated) */
+  uri?: string;
+  /** Photo width (default: 1920) */
+  width?: number;
+  /** Photo height (default: 1080) */
+  height?: number;
+  /** File size in bytes (default: 1024000) */
+  size?: number;
+  /** EXIF metadata (default: undefined) */
+  exif?: any;
+}
+
 // ============================================================================
 // Camera Mock Factories
 // ============================================================================
@@ -158,6 +186,124 @@ export const createMockCameraRef = (options: MockCameraRefOptions = {}) => {
       }),
       stopRecording: jest.fn().mockResolvedValue(undefined),
     },
+  };
+};
+
+/**
+ * Options for creating mock barcode scanning result
+ */
+export interface MockBarcodeResultOptions {
+  /** Barcode type (default: 'qr') */
+  type?: string;
+  /** Barcode data/URL (default: 'https://example.com') */
+  data?: string;
+  /** Whether to include 4 corner points (default: true) */
+  withCorners?: boolean;
+}
+
+/**
+ * Create mock BarcodeScanningResult for testing barcode scanning
+ *
+ * @param options - Configuration options for the mock barcode
+ * @returns BarcodeScanningResult object with barcodes array
+ *
+ * @example
+ * const barcodeResult = createMockBarcodeResult({
+ *   type: 'qr',
+ *   data: 'https://example.com',
+ *   withCorners: true
+ * });
+ * const result = await cameraService.scanBarcode(barcodeResult);
+ */
+export const createMockBarcodeResult = (options: MockBarcodeResultOptions = {}) => {
+  const {
+    type = 'qr',
+    data = 'https://example.com',
+    withCorners = true,
+  } = options;
+
+  return {
+    barcodes: [
+      {
+        type,
+        rawValue: data,
+        cornerPoints: withCorners
+          ? [
+              { x: 0, y: 0 },
+              { x: 100, y: 0 },
+              { x: 100, y: 100 },
+              { x: 0, y: 100 },
+            ]
+          : [{ x: 0, y: 0 }, { x: 50, y: 0 }],
+      },
+    ],
+  };
+};
+
+/**
+ * Options for creating mock captured photo
+ */
+export interface MockPhotoOptions {
+  /** Photo URI (default: auto-generated) */
+  uri?: string;
+  /** Photo width (default: 1920) */
+  width?: number;
+  /** Photo height (default: 1080) */
+  height?: number;
+  /** File size in bytes (default: 1024000) */
+  size?: number;
+  /** EXIF metadata (default: undefined) */
+  exif?: any;
+}
+
+/**
+ * Create mock CapturedMedia object for testing photo operations
+ *
+ * @param options - Configuration options for the mock photo
+ * @returns CapturedMedia object with photo properties
+ *
+ * @example
+ * const photo = createMockPhoto({
+ *   width: 3840,
+ *   height: 2160,
+ *   exif: { Make: 'Apple', Model: 'iPhone 14' }
+ * });
+ * expect(photo.width).toBe(3840);
+ */
+export const createMockPhoto = (options: MockPhotoOptions = {}) => {
+  const {
+    uri = `file:///mock/photo-${Date.now()}.jpg`,
+    width = 1920,
+    height = 1080,
+    size = 1024000,
+    exif,
+  } = options;
+
+  return {
+    uri,
+    type: 'photo' as const,
+    width,
+    height,
+    size,
+    exif,
+  };
+};
+
+/**
+ * Create mock DocumentCorners for testing document edge detection
+ *
+ * @returns DocumentCorners object with 4 corner points
+ *
+ * @example
+ * const corners = createMockDocumentCorners();
+ * const result = await cameraService.cropToDocument('photo.jpg', corners);
+ */
+export const createMockDocumentCorners = () => {
+  return {
+    topLeft: { x: 10, y: 10 },
+    topRight: { x: 90, y: 10 },
+    bottomRight: { x: 90, y: 90 },
+    bottomLeft: { x: 10, y: 90 },
   };
 };
 
@@ -238,6 +384,139 @@ export const createMockGeofence = (options: MockGeofenceOptions = {}) => {
     notifyOnEntry,
     notifyOnExit,
   };
+};
+
+/**
+ * Create mock geofence notification for testing geofence events
+ *
+ * @param region - Geofence region (uses default if not provided)
+ * @param event - Event type ('enter' | 'exit')
+ * @param location - Location that triggered the event (uses default if not provided)
+ * @returns GeofenceNotification object
+ *
+ * @example
+ * const notification = createMockGeofenceNotification(
+ *   mockRegion,
+ *   'enter',
+ *   mockLocation
+ * );
+ * expect(notification.event).toBe('enter');
+ */
+export const createMockGeofenceNotification = (
+  region?: any,
+  event: 'enter' | 'exit' = 'enter',
+  location?: any
+) => {
+  const defaultRegion = createMockGeofence();
+  const defaultLocation = createMockLocation();
+
+  return {
+    region: region || defaultRegion,
+    event,
+    location: location || defaultLocation,
+    timestamp: Date.now(),
+  };
+};
+
+/**
+ * Create mock location history entry for testing history CRUD
+ *
+ * @param options - Override default location values
+ * @returns LocationHistoryEntry object
+ *
+ * @example
+ * const entry = createMockLocationHistoryEntry({
+ *   latitude: 37.7749,
+ *   longitude: -122.4194,
+ *   accuracy: 5
+ * });
+ * expect(entry.latitude).toBe(37.7749);
+ */
+export const createMockLocationHistoryEntry = (options: Partial<MockLocationOptions> = {}) => {
+  const {
+    latitude = 37.7749,
+    longitude = -122.4194,
+    accuracy = 10,
+    timestamp = Date.now(),
+  } = options;
+
+  return {
+    latitude,
+    longitude,
+    accuracy,
+    timestamp,
+  };
+};
+
+/**
+ * Create mock location history array for testing history operations
+ *
+ * @param count - Number of history entries to generate (default: 10)
+ * @param options - Override default location values
+ * @returns Array of LocationHistoryEntry objects
+ *
+ * @example
+ * const history = createMockLocationHistory(100);
+ * expect(history).toHaveLength(100);
+ * expect(history[0].latitude).toBeCloseTo(37.7749, 4);
+ */
+export const createMockLocationHistory = (
+  count: number = 10,
+  options: Partial<MockLocationOptions> = {}
+) => {
+  const {
+    latitude = 37.7749,
+    longitude = -122.4194,
+    accuracy = 10,
+    timestamp = Date.now(),
+  } = options;
+
+  return Array.from({ length: count }, (_, i) => ({
+    latitude: latitude + i * 0.0001,
+    longitude: longitude + i * 0.0001,
+    accuracy,
+    timestamp: timestamp + i * 1000,
+  }));
+};
+
+/**
+ * Create mock geocoding result for testing reverse geocoding
+ *
+ * @param options - Geocoding configuration options
+ * @returns Geocoding result object
+ *
+ * @example
+ * const geocode = createMockGeocodeResult({
+ *   street: '123 Main St',
+ *   city: 'San Francisco',
+ *   region: 'CA'
+ * });
+ * expect(geocode.city).toBe('San Francisco');
+ */
+export const createMockGeocodeResult = (options: {
+  street?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+} = {}) => {
+  const {
+    street = '123 Main St',
+    city = 'San Francisco',
+    region = 'CA',
+    postalCode = '94102',
+    country = 'USA',
+  } = options;
+
+  return [
+    {
+      street,
+      city,
+      region,
+      postalCode,
+      country,
+    },
+  ];
 };
 
 // ============================================================================
@@ -413,9 +692,10 @@ export const waitForSyncComplete = async (
  * @param targetProgress - Target progress to wait for
  * @param timeout - Timeout in milliseconds (default: 5000)
  * @returns Promise that resolves when target progress reached
+ * @throws Error if timeout exceeded
  *
  * @example
- * await waitForSyncProgress(0, 50); // Wait for 50% progress
+ * await waitForSyncProgress(50, 100); // Wait for progress to reach 100%
  */
 export const waitForSyncProgress = async (
   progress: number,
@@ -424,13 +704,19 @@ export const waitForSyncProgress = async (
 ): Promise<void> => {
   const startTime = Date.now();
 
+  // If already at or past target, return immediately
+  if (progress >= targetProgress) {
+    return;
+  }
+
   while (progress < targetProgress) {
     if (Date.now() - startTime > timeout) {
       throw new Error(
         `Sync progress did not reach ${targetProgress}% within ${timeout}ms`
       );
     }
-    await new Promise(resolve => setImmediate(resolve));
+    // Wait a bit before checking again (progress must be updated externally)
+    await new Promise(resolve => setTimeout(resolve, 50));
   }
 };
 
@@ -474,10 +760,17 @@ export const createMockSyncResult = (options: MockSyncResultOptions = {}) => {
 export default {
   // Camera mocks
   createMockCameraRef,
+  createMockBarcodeResult,
+  createMockPhoto,
+  createMockDocumentCorners,
 
   // Location mocks
   createMockLocation,
   createMockGeofence,
+  createMockGeofenceNotification,
+  createMockLocationHistoryEntry,
+  createMockLocationHistory,
+  createMockGeocodeResult,
 
   // Notification mocks
   createMockNotification,
