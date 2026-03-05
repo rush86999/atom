@@ -14,6 +14,73 @@
  * - expo-device: Device information
  */
 
+// ============================================================================
+// Mock SettingsManager BEFORE any other imports to prevent TurboModule errors
+// ============================================================================
+
+// Mock the Settings module entirely
+jest.mock('react-native/Libraries/Settings/Settings.ios.js', () => ({
+  default: {
+    get: jest.fn(() => ({})),
+    set: jest.fn(() => {}),
+    watchKeys: jest.fn(() => ({ remove: jest.fn() })),
+  },
+}), { virtual: true });
+
+jest.mock('react-native/Libraries/Settings/NativeSettingsManager', () => ({
+  default: {
+    getSettings: jest.fn(() => ({})),
+    setSettings: jest.fn(() => {}),
+    watchSettings: jest.fn(() => ({ remove: jest.fn() })),
+  },
+}), { virtual: true });
+
+// ============================================================================
+// Mock react-native with SettingsManager support BEFORE @testing-library/jest-native
+// ============================================================================
+
+jest.mock('react-native', () => {
+  const ReactNative = jest.requireActual('react-native');
+
+  // Mock SettingsManager to prevent TurboModule errors
+  const MockSettingsManager = {
+    settings: {},
+    getSettings: jest.fn(() => ({})),
+    setSettings: jest.fn(() => {}),
+    watchSettings: jest.fn(() => ({ remove: jest.fn() })),
+  };
+
+  // Create mock object without destructuring to avoid triggering Settings import
+  const mockReactNative = {
+    ...Object.keys(ReactNative).reduce((acc, key) => {
+      if (key !== 'Settings') {
+        acc[key] = ReactNative[key];
+      }
+      return acc;
+    }, {} as any),
+    NativeModules: {
+      ...ReactNative.NativeModules,
+      SettingsManager: MockSettingsManager,
+    },
+    Settings: {
+      get: jest.fn(() => ({})),
+      set: jest.fn(() => {}),
+      watchKeys: jest.fn(() => ({ remove: jest.fn() })),
+    },
+    TurboModuleRegistry: {
+      getEnforcing: jest.fn((name: string) => {
+        if (name === 'SettingsManager') {
+          return MockSettingsManager;
+        }
+        return {};
+      }),
+    },
+  };
+
+  return mockReactNative;
+});
+
+// Import jest-native matchers after React Native is mocked
 import '@testing-library/jest-native';
 
 // ============================================================================
@@ -845,6 +912,30 @@ global.MockWebSocket = class MockWebSocket {
     if (type === 'close' && this.onclose === listener) this.onclose = null;
   }
 };
+
+// ============================================================================
+// AppState Mock
+// ============================================================================
+
+/** Registry of AppState listeners for test utilities */
+global.appStateListeners = [];
+
+jest.mock('react-native/Libraries/AppState/AppState', () => ({
+  currentState: 'active',
+  addEventListener: jest.fn((type, callback) => {
+    if (type === 'change') {
+      global.appStateListeners.push(callback);
+    }
+    return {
+      remove: jest.fn(() => {
+        const index = global.appStateListeners.indexOf(callback);
+        if (index > -1) {
+          global.appStateListeners.splice(index, 1);
+        }
+      }),
+    };
+  }),
+}), { virtual: true });
 
 // ============================================================================
 // expo-linking Mock
