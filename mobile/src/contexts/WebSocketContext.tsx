@@ -595,7 +595,7 @@ export const useAgentChat = (agentId: string) => {
           }
         });
       }
-    });
+    };
 
     const handleStreamingComplete = (data: any) => {
       if (data.agent_id === agentId) {
