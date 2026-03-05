@@ -27,7 +27,135 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::io;
+
+/// Per-file coverage data
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileCoverage {
+    /// File path relative to project root
+    pub path: String,
+
+    /// Number of covered lines
+    pub covered: usize,
+
+    /// Total number of lines
+    pub total: usize,
+
+    /// Coverage percentage (0.0 to 100.0)
+    pub percentage: f64,
+}
+
+impl FileCoverage {
+    /// Create a new file coverage entry
+    pub fn new(path: String, covered: usize, total: usize) -> Self {
+        let percentage = if total > 0 {
+            (covered as f64 / total as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        Self {
+            path,
+            covered,
+            total,
+            percentage,
+        }
+    }
+
+    /// Check if this file has low coverage (<50%)
+    pub fn is_low_coverage(&self) -> bool {
+        self.percentage < 50.0
+    }
+
+    /// Check if this file has critical coverage gap (<30%)
+    pub fn is_critical_gap(&self) -> bool {
+        self.percentage < 30.0
+    }
+}
+
+/// Coverage breakdown with per-file details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoverageBreakdown {
+    /// Overall coverage percentage (0.0 to 100.0)
+    pub baseline_coverage: f64,
+
+    /// ISO8601 timestamp when baseline was measured
+    pub measured_at: String,
+
+    /// Total lines of code (excluding tests)
+    pub total_lines: usize,
+
+    /// Lines covered by tests
+    pub covered_lines: usize,
+
+    /// Platform where baseline was measured (macos, windows, linux)
+    pub platform: String,
+
+    /// Architecture (x86_64, aarch64, etc.)
+    pub arch: String,
+
+    /// Git commit SHA (if available)
+    pub commit_sha: Option<String>,
+
+    /// Per-file coverage breakdown (sorted by coverage ascending)
+    pub files_breakdown: Vec<FileCoverage>,
+
+    /// Files with critical coverage gaps (<30%)
+    pub high_priority_gaps: Vec<String>,
+}
+
+impl CoverageBreakdown {
+    /// Create a new coverage breakdown
+    pub fn new(
+        baseline_coverage: f64,
+        total_lines: usize,
+        covered_lines: usize,
+        platform: String,
+        arch: String,
+        mut files_breakdown: Vec<FileCoverage>,
+    ) -> Self {
+        // Sort files by coverage percentage (lowest first)
+        files_breakdown.sort_by(|a, b| {
+            a.percentage
+                .partial_cmp(&b.percentage)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Identify high-priority gaps (<30% coverage)
+        let high_priority_gaps = files_breakdown
+            .iter()
+            .filter(|f| f.is_critical_gap())
+            .map(|f| f.path.clone())
+            .collect();
+
+        Self {
+            baseline_coverage,
+            measured_at: chrono::Utc::now().to_rfc3339(),
+            total_lines,
+            covered_lines,
+            platform,
+            arch,
+            commit_sha: get_git_sha(),
+            files_breakdown,
+            high_priority_gaps,
+        }
+    }
+
+    /// Get files with low coverage (<50%)
+    pub fn get_low_coverage_files(&self) -> Vec<&FileCoverage> {
+        self.files_breakdown
+            .iter()
+            .filter(|f| f.is_low_coverage())
+            .collect()
+    }
+
+    /// Get fully covered files (>90%)
+    pub fn get_well_covered_files(&self) -> Vec<&FileCoverage> {
+        self.files_breakdown
+            .iter()
+            .filter(|f| f.percentage >= 90.0)
+            .collect()
+    }
+}
 
 /// Coverage baseline data structure
 ///
@@ -148,7 +276,7 @@ pub fn parse_coverage_report() -> Result<f64, String> {
 }
 
 /// Parse JSON coverage report
-fn parse_json_report(path: &str) -> Result<f64, String> {
+pub fn parse_json_report(path: &str) -> Result<f64, String> {
     let content = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path, e))?;
 
@@ -184,7 +312,7 @@ fn parse_json_report(path: &str) -> Result<f64, String> {
 }
 
 /// Parse HTML coverage report (basic extraction)
-fn parse_html_report(path: &str) -> Result<f64, String> {
+pub fn parse_html_report(path: &str) -> Result<f64, String> {
     let content = fs::read_to_string(path)
         .map_err(|e| format!("Failed to read {}: {}", path, e))?;
 
@@ -231,30 +359,150 @@ pub fn get_baseline_path() -> PathBuf {
     PathBuf::from("coverage/baseline.json")
 }
 
-/// Generate a new coverage baseline
+/// Generate coverage baseline with per-file breakdown
 ///
-/// This function parses the latest coverage report and creates
-/// a baseline.json file with the current coverage metrics.
-pub fn generate_baseline() -> Result<CoverageBaseline, String> {
-    // Parse coverage report
-    let coverage = parse_coverage_report()?;
+/// This function runs tarpaulin with JSON output, parses the results,
+/// and creates a detailed breakdown of coverage per file.
+pub fn generate_baseline_with_breakdown() -> Result<CoverageBreakdown, String> {
+    use std::process::Command;
+
+    println!("🔬 Running tarpaulin for breakdown analysis...");
+
+    // Run tarpaulin with JSON output
+    let output = Command::new("cargo")
+        .args([
+            "tarpaulin",
+            "--config",
+            "tarpaulin.toml",
+            "--out",
+            "Json",
+            "--output-dir",
+            "coverage-report",
+            "--timeout",
+            "300",
+            "--fail-under",
+            "0",
+        ])
+        .output()
+        .map_err(|e| format!("Failed to run tarpaulin: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Tarpaulin failed: {}", stderr));
+    }
+
+    // Parse the JSON coverage report
+    let json_path = "coverage-report/coverage.json";
+    let content = fs::read_to_string(json_path)
+        .map_err(|e| format!("Failed to read coverage.json: {}", e))?;
+
+    let json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse coverage.json: {}", e))?;
+
+    // Extract overall coverage and file breakdown
+    let (overall_coverage, files_breakdown) = parse_tarpaulin_json(&json)?;
+
+    // Calculate total lines
+    let total_lines: usize = files_breakdown.iter().map(|f: &FileCoverage| f.total).sum();
+    let covered_lines: usize = files_breakdown.iter().map(|f: &FileCoverage| f.covered).sum();
 
     // Get platform and architecture
     let platform = std::env::consts::OS.to_string();
     let arch = std::env::consts::ARCH.to_string();
 
-    // For now, use placeholder values for line counts
-    // In the future, we can parse these from the coverage report more accurately
-    let total_lines = 1757; // main.rs line count (from wc -l)
-    let covered_lines = ((coverage / 100.0) * total_lines as f64) as usize;
-
-    let baseline = CoverageBaseline::new(
-        coverage,
+    let breakdown = CoverageBreakdown::new(
+        overall_coverage,
         total_lines,
         covered_lines,
         platform,
         arch,
-    ).with_notes("Phase 140 baseline measurement".to_string());
+        files_breakdown,
+    );
+
+    // Write breakdown to file
+    let breakdown_path = PathBuf::from("coverage-report/baseline.json");
+    if let Some(parent) = breakdown_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+
+    let breakdown_json = serde_json::to_string_pretty(&breakdown)
+        .map_err(|e| format!("Failed to serialize breakdown: {}", e))?;
+
+    fs::write(&breakdown_path, breakdown_json)
+        .map_err(|e| format!("Failed to write breakdown: {}", e))?;
+
+    println!("✅ Coverage breakdown created:");
+    println!("   Overall coverage: {:.2}%", breakdown.baseline_coverage);
+    println!("   Total lines: {}", breakdown.total_lines);
+    println!("   Covered lines: {}", breakdown.covered_lines);
+    println!("   Files analyzed: {}", breakdown.files_breakdown.len());
+    println!("   High-priority gaps: {}", breakdown.high_priority_gaps.len());
+    println!("   File: {}", breakdown_path.display());
+
+    Ok(breakdown)
+}
+
+/// Parse tarpaulin JSON output and extract coverage data
+fn parse_tarpaulin_json(json: &serde_json::Value) -> Result<(f64, Vec<FileCoverage>), String> {
+    let mut files = Vec::new();
+    let mut total_coverage = 0.0;
+    let mut total_covered = 0;
+    let mut total_lines_count = 0;
+
+    // Tarpaulin JSON format: array of file coverage objects
+    if let Some(files_array) = json.as_array() {
+        for file_entry in files_array {
+            if let Some(file_path) = file_entry.get("path").and_then(|v| v.as_str()) {
+                // Skip test files
+                if file_path.contains("tests/") || file_path.contains("/tests/") {
+                    continue;
+                }
+
+                let covered = file_entry
+                    .get("covered")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize;
+                let total = file_entry
+                    .get("total")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize;
+
+                if total > 0 {
+                    files.push(FileCoverage::new(file_path.to_string(), covered, total));
+                    total_covered += covered;
+                    total_lines_count += total;
+                }
+            }
+        }
+    }
+
+    // Calculate overall coverage
+    if total_lines_count > 0 {
+        total_coverage = (total_covered as f64 / total_lines_count as f64) * 100.0;
+    }
+
+    Ok((total_coverage, files))
+}
+
+/// Generate a new coverage baseline
+///
+/// This function parses the latest coverage report and creates
+/// a baseline.json file with the current coverage metrics.
+///
+/// Note: This now uses the breakdown function internally for consistency.
+pub fn generate_baseline() -> Result<CoverageBaseline, String> {
+    // Use the breakdown function for more accurate measurement
+    let breakdown = generate_baseline_with_breakdown()?;
+
+    let baseline = CoverageBaseline::new(
+        breakdown.baseline_coverage,
+        breakdown.total_lines,
+        breakdown.covered_lines,
+        breakdown.platform,
+        breakdown.arch,
+    )
+    .with_notes("Phase 141 baseline measurement with breakdown".to_string());
 
     // Ensure directory exists
     let baseline_path = get_baseline_path();
@@ -436,5 +684,155 @@ mod tests {
 
         // Cleanup
         let _ = fs::remove_file(temp_path);
+    }
+
+    #[test]
+    fn test_file_coverage_creation() {
+        let file = FileCoverage::new("src/main.rs".to_string(), 500, 1000);
+
+        assert_eq!(file.path, "src/main.rs");
+        assert_eq!(file.covered, 500);
+        assert_eq!(file.total, 1000);
+        assert_eq!(file.percentage, 50.0);
+    }
+
+    #[test]
+    fn test_file_coverage_zero_total() {
+        let file = FileCoverage::new("src/test.rs".to_string(), 0, 0);
+
+        assert_eq!(file.percentage, 0.0);
+    }
+
+    #[test]
+    fn test_file_coverage_classification() {
+        let low_coverage = FileCoverage::new("src/low.rs".to_string(), 40, 100);
+        let critical_gap = FileCoverage::new("src/critical.rs".to_string(), 10, 100);
+        let well_covered = FileCoverage::new("src/good.rs".to_string(), 95, 100);
+
+        assert!(low_coverage.is_low_coverage());
+        assert!(!low_coverage.is_critical_gap()); // 40% is low but not critical (<30%)
+
+        assert!(critical_gap.is_low_coverage());
+        assert!(critical_gap.is_critical_gap()); // 10% is critical
+
+        assert!(!well_covered.is_low_coverage());
+        assert!(!well_covered.is_critical_gap());
+    }
+
+    #[test]
+    fn test_coverage_breakdown_sorting() {
+        let files = vec![
+            FileCoverage::new("src/good.rs".to_string(), 90, 100),
+            FileCoverage::new("src/bad.rs".to_string(), 10, 100),
+            FileCoverage::new("src/medium.rs".to_string(), 50, 100),
+        ];
+
+        let breakdown = CoverageBreakdown::new(
+            50.0,
+            300,
+            150,
+            "linux".to_string(),
+            "x86_64".to_string(),
+            files,
+        );
+
+        // Should be sorted by coverage ascending
+        assert_eq!(breakdown.files_breakdown[0].path, "src/bad.rs");
+        assert_eq!(breakdown.files_breakdown[1].path, "src/medium.rs");
+        assert_eq!(breakdown.files_breakdown[2].path, "src/good.rs");
+    }
+
+    #[test]
+    fn test_coverage_breakdown_high_priority_gaps() {
+        let files = vec![
+            FileCoverage::new("src/good.rs".to_string(), 90, 100),
+            FileCoverage::new("src/critical.rs".to_string(), 10, 100),
+            FileCoverage::new("src/warning.rs".to_string(), 40, 100),
+        ];
+
+        let breakdown = CoverageBreakdown::new(
+            46.67,
+            300,
+            140,
+            "macos".to_string(),
+            "arm64".to_string(),
+            files,
+        );
+
+        // Only critical.rs has <30% coverage
+        assert_eq!(breakdown.high_priority_gaps.len(), 1);
+        assert!(breakdown.high_priority_gaps.contains(&"src/critical.rs".to_string()));
+    }
+
+    #[test]
+    fn test_coverage_breakdown_low_coverage_files() {
+        let files = vec![
+            FileCoverage::new("src/good.rs".to_string(), 90, 100),
+            FileCoverage::new("src/bad.rs".to_string(), 20, 100),
+            FileCoverage::new("src/medium.rs".to_string(), 60, 100),
+        ];
+
+        let breakdown = CoverageBreakdown::new(
+            56.67,
+            300,
+            170,
+            "windows".to_string(),
+            "x86_64".to_string(),
+            files,
+        );
+
+        let low_coverage = breakdown.get_low_coverage_files();
+        assert_eq!(low_coverage.len(), 1);
+        assert_eq!(low_coverage[0].path, "src/bad.rs");
+    }
+
+    #[test]
+    fn test_coverage_breakdown_well_covered_files() {
+        let files = vec![
+            FileCoverage::new("src/excellent.rs".to_string(), 95, 100),
+            FileCoverage::new("src/bad.rs".to_string(), 20, 100),
+            FileCoverage::new("src/good.rs".to_string(), 92, 100),
+        ];
+
+        let breakdown = CoverageBreakdown::new(
+            69.0,
+            300,
+            207,
+            "linux".to_string(),
+            "x86_64".to_string(),
+            files,
+        );
+
+        let well_covered = breakdown.get_well_covered_files();
+        assert_eq!(well_covered.len(), 2);
+        assert!(well_covered.iter().any(|f| f.path == "src/excellent.rs"));
+        assert!(well_covered.iter().any(|f| f.path == "src/good.rs"));
+    }
+
+    #[test]
+    fn test_generate_baseline_with_breakdown_success() {
+        // This test validates the structure but doesn't actually run tarpaulin
+        // (which would require x86_64 and take time)
+
+        // Mock a coverage breakdown
+        let files = vec![
+            FileCoverage::new("src/main.rs".to_string(), 400, 1756),
+            FileCoverage::new("src/lib.rs".to_string(), 80, 100),
+        ];
+
+        let breakdown = CoverageBreakdown::new(
+            27.23,
+            1856,
+            480,
+            "macos".to_string(),
+            "aarch64".to_string(),
+            files,
+        );
+
+        // Verify structure
+        assert_eq!(breakdown.files_breakdown.len(), 2);
+        assert_eq!(breakdown.high_priority_gaps.len(), 1); // main.rs at 22.8%
+        assert_eq!(breakdown.baseline_coverage, 27.23);
+        assert!(breakdown.commit_sha.is_some());
     }
 }
