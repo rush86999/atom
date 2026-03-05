@@ -188,21 +188,83 @@
 
 | Rank | File | Statements | Business Impact | Complexity | Score | Priority |
 |------|------|------------|-----------------|------------|-------|----------|
-| 1 | `services/agentDeviceBridge.ts` | 194 | CRITICAL | HIGH | 5820 | **URGENT** |
-| 2 | `components/canvas/CanvasGestures.tsx` | 170 | HIGH | HIGH | 3400 | **HIGH** |
-| 3 | `services/cameraService.ts` | 200 | MEDIUM | HIGH | 2000 | **HIGH** |
-| 4 | `services/workflowSyncService.ts` | 180 | HIGH | MEDIUM | 1800 | **HIGH** |
-| 5 | `services/deviceSocket.ts` | 149 | CRITICAL | MEDIUM | 1788 | **HIGH** |
-| 6 | `components/canvas/CanvasForm.tsx` | 156 | HIGH | MEDIUM | 1560 | **HIGH** |
-| 7 | `components/chat/MessageInput.tsx` | 139 | HIGH | MEDIUM | 1390 | **MEDIUM** |
-| 8 | `services/canvasSyncService.ts` | 169 | HIGH | LOW | 845 | **MEDIUM** |
-| 9 | `screens/chat/ConversationListScreen.tsx` | 148 | HIGH | LOW | 740 | **MEDIUM** |
-| 10 | `services/canvasService.ts` | 142 | HIGH | LOW | 710 | **MEDIUM** |
+| 1 | `services/agentDeviceBridge.ts` | 194 | CRITICAL | HIGH | 1164 | **URGENT** |
+| 2 | `components/canvas/CanvasGestures.tsx` | 170 | HIGH | HIGH | 680 | **URGENT** |
+| 3 | `services/deviceSocket.ts` | 149 | CRITICAL | MEDIUM | 670 | **URGENT** |
+| 4 | `services/workflowSyncService.ts` | 180 | HIGH | MEDIUM | 540 | **URGENT** |
+| 5 | `services/canvasSyncService.ts` | 169 | HIGH | MEDIUM | 507 | **URGENT** |
+| 6 | `components/canvas/CanvasForm.tsx` | 156 | HIGH | MEDIUM | 468 | **URGENT** |
+| 7 | `screens/canvas/CanvasViewerScreen.tsx` | 144 | HIGH | MEDIUM | 432 | **URGENT** |
+| 8 | `components/chat/MessageInput.tsx` | 139 | HIGH | MEDIUM | 417 | **URGENT** |
+| 9 | `services/cameraService.ts` | 200 | MEDIUM | HIGH | 400 | **URGENT** |
+| 10 | `components/chat/MessageList.tsx` | 118 | HIGH | MEDIUM | 354 | **URGENT** |
 
 **Legend:**
-- **Business Impact:** CRITICAL (core functionality), HIGH (important UX), MEDIUM (nice-to-have)
-- **Complexity:** HIGH (async, state, WebSocket), MEDIUM (UI logic), LOW (simple rendering)
-- **Priority:** URGENT (Plan 03), HIGH (Plan 04), MEDIUM (Plan 05), LOW (Plan 06)
+- **Business Impact:** CRITICAL (core functionality, 3x), HIGH (important UX, 2x), MEDIUM (nice-to-have, 1x)
+- **Complexity:** HIGH (async, WebSocket, hardware, 2x), MEDIUM (UI logic, forms, 1.5x), LOW (simple rendering, 1x)
+- **Priority:** URGENT (score ≥ 500, Plan 03), HIGH (250-499, Plan 04), MEDIUM (100-249, Plan 05), LOW (< 100, Plan 06)
+
+### Detailed Rationale
+
+**1. services/agentDeviceBridge.ts (Score: 1164)**
+- **Why URGENT:** Mobile-backend agent integration is critical for app functionality
+- **Complexity:** HIGH - Async agent execution, WebSocket communication, state management
+- **Business Impact:** CRITICAL - App cannot execute agents without this service
+- **Testing Challenge:** Requires WebSocket mocking, async agent lifecycle testing
+
+**2. components/canvas/CanvasGestures.tsx (Score: 680)**
+- **Why URGENT:** Canvas touch interactions are core to user experience
+- **Complexity:** HIGH - Touch event handling, gesture recognition, state synchronization
+- **Business Impact:** HIGH - Canvas is a key differentiator feature
+- **Testing Challenge:** React Native gesture system mocking, touch event simulation
+
+**3. services/deviceSocket.ts (Score: 670)**
+- **Why URGENT:** Real-time device communication is essential
+- **Complexity:** MEDIUM - WebSocket connection management, event handling
+- **Business Impact:** CRITICAL - Real-time agent execution depends on this
+- **Testing Challenge:** WebSocket mocking, connection state testing
+
+**4. services/workflowSyncService.ts (Score: 540)**
+- **Why URGENT:** Workflow execution sync is critical for offline mode
+- **Complexity:** MEDIUM - Offline queue, conflict resolution, sync logic
+- **Business Impact:** HIGH - Workflows are a core feature
+- **Testing Challenge:** Offline/online state testing, conflict resolution
+
+**5. services/canvasSyncService.ts (Score: 507)**
+- **Why URGENT:** Canvas state sync for offline mode
+- **Complexity:** MEDIUM - State serialization, conflict resolution
+- **Business Impact:** HIGH - Canvas collaboration requires sync
+- **Testing Challenge:** State diff testing, merge conflict simulation
+
+**6. components/canvas/CanvasForm.tsx (Score: 468)**
+- **Why URGENT:** Canvas form rendering is user-facing
+- **Complexity:** MEDIUM - Form validation, dynamic fields, submission handling
+- **Business Impact:** HIGH - Users interact with forms directly
+- **Testing Challenge:** Form state testing, validation logic
+
+**7. screens/canvas/CanvasViewerScreen.tsx (Score: 432)**
+- **Why URGENT:** Canvas viewer is main entry point
+- **Complexity:** MEDIUM - Screen navigation, canvas loading, error handling
+- **Business Impact:** HIGH - First screen users see for canvas
+- **Testing Challenge:** Navigation testing, loading states
+
+**8. components/chat/MessageInput.tsx (Score: 417)**
+- **Why URGENT:** Chat input is critical for chat functionality
+- **Complexity:** MEDIUM - Input handling, validation, attachment logic
+- **Business Impact:** HIGH - Chat is a primary feature
+- **Testing Challenge:** Input validation, async submission
+
+**9. services/cameraService.ts (Score: 400)**
+- **Why URGENT:** Camera hardware integration
+- **Complexity:** HIGH - Native module integration, permission handling, async capture
+- **Business Impact:** MEDIUM - Camera is a secondary feature
+- **Testing Challenge:** Expo Camera mocking, permission testing
+
+**10. components/chat/MessageList.tsx (Score: 354)**
+- **Why URGENT:** Message rendering is chat core
+- **Complexity:** MEDIUM - List rendering, streaming updates, auto-scroll
+- **Business Impact:** HIGH - Users read messages here
+- **Testing Challenge:** List virtualization testing, streaming updates
 
 ---
 
