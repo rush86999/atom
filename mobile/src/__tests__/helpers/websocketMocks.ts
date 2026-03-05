@@ -32,7 +32,7 @@ export interface MockSocket {
   connected: boolean;
   /** Event handlers registry */
   eventHandlers: Map<string, Array<(...args: any[]) => void>>;
-  ** Rooms the socket has joined */
+  /** Rooms the socket has joined */
   rooms: Set<string>;
   /** Events emitted to server (for verification) */
   emittedEvents: Array<{ event: string; data: any }>;
