@@ -407,7 +407,12 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Platform differences tested with conditional rendering
   4. Permission flows tested for camera, location, notifications
   5. Platform-specific error states tested with appropriate fallbacks
-**Plans**: TBD
+**Plans**: 5 (Wave 1: 01, Wave 2: 02-03 parallel, Wave 3: 04, Wave 4: 05)
+- [ ] 139-01-PLAN.md — Platform-specific testing infrastructure (SafeAreaContext mock, StatusBar API, Platform.select)
+- [ ] 139-02-PLAN.md — iOS-specific tests (safe areas, StatusBar, Face ID, 50+ tests)
+- [ ] 139-03-PLAN.md — Android-specific tests (back button, runtime permissions, notification channels, 50+ tests)
+- [ ] 139-04-PLAN.md — Cross-platform tests (conditional rendering, feature parity, error handling, 50+ tests)
+- [ ] 139-05-PLAN.md — Coverage verification and CI integration (60%+ target, phase summary)
 
 ### Phase 140: Desktop Coverage Baseline
 **Goal**: Desktop coverage baseline established (Tauri/Rust coverage measured)
@@ -584,7 +589,7 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 136. Mobile Device Features | v5.2 | 0/TBD | Not started | - |
 | 137. Mobile Navigation | v5.2 | 6/6 | Complete | 2026-03-05 |
 | 138. Mobile State Management | v5.2 | 0/6 | Planning complete | 2026-03-05 |
-| 139. Mobile Platform-Specific | v5.2 | 0/TBD | Not started | - |
+| 139. Mobile Platform-Specific | v5.2 | 5/5 | Planning complete | 2026-03-05 |
 | 140. Desktop Coverage Baseline | v5.2 | 0/TBD | Not started | - |
 | 141. Desktop Coverage Expansion | v5.2 | 0/TBD | Not started | - |
 | 142. Desktop Rust Backend | v5.2 | 0/TBD | Not started | - |
