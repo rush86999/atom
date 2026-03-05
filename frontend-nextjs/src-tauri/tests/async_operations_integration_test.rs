@@ -190,3 +190,121 @@ async fn test_async_file_operations_chain_error_propagation() {
     // Cleanup
     let _ = fs::remove_file(&valid_file);
 }
+
+// ============================================================================
+// Task 3: Timeout and Result Propagation Tests
+// ============================================================================
+
+/// Test async timeout with successful operation
+#[tokio::test]
+async fn test_async_timeout_success() {
+    // Arrange: Create a fast operation
+    let fast_op = async {
+        sleep(Duration::from_millis(10)).await;
+        "done"
+    };
+
+    // Act: Wait with generous timeout
+    let result = timeout(Duration::from_millis(100), fast_op).await;
+
+    // Assert: Verify operation completes
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), "done");
+}
+
+/// Test async timeout with elapsed timeout
+#[tokio::test]
+async fn test_async_timeout_elapsed() {
+    // Arrange: Create a slow operation (1 second sleep)
+    let slow_op = async {
+        sleep(Duration::from_secs(1)).await;
+        "done"
+    };
+
+    // Act: Use short timeout (10ms)
+    let result = timeout(Duration::from_millis(10), slow_op).await;
+
+    // Assert: Verify Err(Elapsed) is returned
+    assert!(result.is_err());
+    // Elapsed is a private struct, so we verify via string representation
+    let error = result.unwrap_err();
+    assert!(error.to_string().contains("deadline has elapsed") || error.to_string().contains("timeout"));
+}
+
+/// Test async Result Ok propagation through chain
+#[tokio::test]
+async fn test_async_result_ok_propagation() {
+    // Arrange: Create async chain returning Ok
+    let result = async {
+        let step1 = async { Ok::<i32, String>(42) }.await?;
+        let step2 = async { Ok::<i32, String>(step1 * 2) }.await?;
+        Ok::<i32, String>(step2 + 10)
+    }.await;
+
+    // Assert: Verify Ok propagates through await points
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), 94); // (42 * 2) + 10
+}
+
+/// Test async Result Err propagation through chain
+#[tokio::test]
+async fn test_async_result_err_propagation() {
+    // Arrange: Create async chain returning Err
+    let result = async {
+        let step1 = async { Ok::<i32, String>(42) }.await?;
+        let step2 = async { Err::<i32, String>("Error in step2".to_string()) }.await?;
+        let step3 = async { Ok::<i32, String>(step2 + 10) }.await?;
+        Ok::<i32, String>(step3)
+    }.await;
+
+    // Assert: Verify Err propagates through await points
+    assert!(result.is_err());
+    let error_msg = result.unwrap_err();
+    assert_eq!(error_msg, "Error in step2");
+}
+
+/// Test async Result map and then in async context
+#[tokio::test]
+async fn test_async_result_map_and_then() {
+    // Arrange: Create Result to test combinators
+    let ok_result: Result<i32, String> = Ok(42);
+
+    // Act: Test Result::map() in async context
+    let mapped = async {
+        ok_result.map(|x| x * 2)
+    }.await;
+
+    // Assert: Verify map works correctly
+    assert_eq!(mapped, Ok(84));
+
+    // Act: Test Result::and_then() in async context (create new result to avoid move)
+    let and_then = async {
+        Ok(42).and_then(|x| if x > 40 { Ok(x * 2) } else { Err("Too small".to_string()) })
+    }.await;
+
+    // Assert: Verify and_then works correctly
+    assert_eq!(and_then, Ok(84));
+}
+
+/// Test async Result combinator short-circuits on error
+#[tokio::test]
+async fn test_async_result_combinator_error() {
+    // Arrange: Create multiple Results, one is Err
+    let result1: Result<i32, String> = Ok(10);
+    let result2: Result<i32, String> = Err("Error in result2".to_string());
+    let result3: Result<i32, String> = Ok(30);
+
+    // Act: Test combinator short-circuits on first error
+    let combined = async {
+        let r1 = result1?;
+        let r2 = result2?;
+        let r3 = result3?;
+        Ok::<i32, String>(r1 + r2 + r3)
+    }.await;
+
+    // Assert: Verify short-circuit returns first error
+    assert!(combined.is_err());
+    let error_msg = combined.unwrap_err();
+    assert_eq!(error_msg, "Error in result2");
+}
+
