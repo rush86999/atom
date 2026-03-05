@@ -121,7 +121,7 @@ Based on Phase 141 completion and remaining uncovered code in `src/main.rs` (175
 ```bash
 cd frontend-nextjs/src-tauri
 
-# Generate HTML coverage report (default)
+# Generate HTML coverage report (default, informational only)
 ./coverage.sh
 
 # Explicit HTML generation
@@ -132,7 +132,13 @@ cd frontend-nextjs/src-tauri
 
 # Baseline measurement (Phase 140)
 ./coverage.sh --baseline
+
+# Phase 142: Enforce coverage threshold (verify before pushing)
+./coverage.sh --enforce          # Enforce 80% threshold
+./coverage.sh --fail-under 75    # Enforce custom threshold (75% in this example)
 ```
+
+**Note:** Local coverage runs are informational by default (FAIL_UNDER=0). This allows development without blocking. CI/CD enforces the threshold automatically.
 
 ### Viewing Coverage Reports
 
@@ -150,6 +156,58 @@ start coverage-report/index.html  # Windows
 - Red highlighting: uncovered lines
 - Green highlighting: covered lines
 - Yellow highlighting: partially covered branches
+
+## Coverage Enforcement
+
+### Phase 142: 80% Coverage Target
+
+Phase 142 enforces 80% code coverage for the desktop Rust backend (src/main.rs and related modules). This quality gate prevents regression as new features are added.
+
+### CI/CD Enforcement
+
+Coverage is automatically enforced on all pull requests and pushes to main:
+
+- **PRs:** 75% threshold (allows 5% gap during development)
+- **Main branch:** 80% threshold (strict enforcement)
+- **Failure:** Build fails and PR cannot merge
+
+**How it works:**
+1. Tarpaulin runs with `--fail-under` flag during CI/CD
+2. If coverage below threshold, tarpaulin exits with error code
+3. GitHub Actions workflow fails, blocking PR merge
+4. PR comment shows coverage gap to target with actionable next steps
+
+### Local Development
+
+Run coverage locally without enforcement:
+
+```bash
+cd frontend-nextjs/src-tauri
+./coverage.sh              # Informational only (no enforcement)
+./coverage.sh --fail-under 0  # Explicit no enforcement
+```
+
+Run with enforcement to verify before pushing:
+
+```bash
+./coverage.sh --enforce    # Enforce 80% threshold
+./coverage.sh --fail-under 75  # Custom threshold
+```
+
+**Enforcement workflow:**
+1. Add tests for uncovered lines (see HTML report)
+2. Run `./coverage.sh --enforce` locally to verify
+3. If coverage meets threshold, push to PR
+4. CI/CD verifies and allows merge
+
+### Current Status
+
+- **Baseline (Phase 141):** 35% estimated
+- **Target (Phase 142):** 80%
+- **Gap:** +45 percentage points
+- **Enforcement:** Active in CI/CD (PR 75%, main 80%)
+
+**Warning:** Current coverage (35%) is below enforcement threshold. Builds will fail until tests from Plans 01-05 increase coverage to target. This is intentional - quality gate prevents regression.
 
 ### CI/CD Coverage Reports
 
@@ -178,9 +236,18 @@ out = ["Html", "Json"]
 output-dir = "coverage-report"
 
 [features]
-# Coverage threshold for future enforcement (Phase 142)
-# Phase 140: informational only (baseline measurement)
+# Coverage threshold for Phase 142
+# CI/CD enforces this with --fail-under 80
+# Local development runs without enforcement (use --fail-under 0)
 coverage_threshold = 80
+
+[enforcement]
+# Coverage enforcement settings
+# CI/CD: Always enforced (see .github/workflows/desktop-coverage.yml)
+# Local: Set FAIL_UNDER=0 environment variable to skip enforcement
+ci_threshold = 80
+pr_threshold = 75  # Allow 5% gap during PR review
+main_threshold = 80  # Strict enforcement on main branch
 
 [engine]
 # Use ptrace for compatibility across platforms
@@ -194,7 +261,10 @@ default = "ptrace"
 | `exclude-files` | `tests/*`, `*/tests/*` | Exclude test code from coverage calculations |
 | `out` | `Html`, `Json` | Generate visual HTML reports and machine-readable JSON |
 | `output-dir` | `coverage-report` | Directory for coverage reports |
-| `coverage_threshold` | `80` | Target percentage (informational in Phase 140, enforced in Phase 142) |
+| `coverage_threshold` | `80` | Target percentage (enforced in CI/CD via --fail-under) |
+| `ci_threshold` | `80` | CI/CD enforcement threshold |
+| `pr_threshold` | `75` | PR enforcement threshold (allows 5% gap) |
+| `main_threshold` | `80` | Main branch enforcement threshold |
 | `default` | `ptrace` | Tarpaulin engine for cross-platform compatibility |
 
 ### Customizing Coverage Thresholds
@@ -399,7 +469,7 @@ fn test_temp_directory_writable() {
 |-------|--------|-------------|--------|
 | **Phase 140** | Baseline | Infrastructure, measurement, documentation | ✅ Complete |
 | **Phase 141** | +20-30% | Platform-specific tests (Windows, macOS, Linux) | ✅ Complete (+35%) |
-| **Phase 142** | 80% overall | Integration tests, system tray, device capabilities | 🔄 Pending |
+| **Phase 142** | 80% overall | Integration tests, system tray, device capabilities, **enforcement** | 🔄 In Progress |
 | **Phase 143** | 80% enforced | Edge cases, quality gate enforcement | ⏳ Planned |
 
 ### Baseline vs Target
@@ -586,6 +656,35 @@ cargo tarpaulin --verbose --config tarpaulin.toml
    cargo test --list | grep platform
    ```
 
+### Coverage Enforcement Failures
+
+**Problem:** Coverage below 80% threshold causes build to fail
+
+**Current Status (Phase 142-06):**
+- Coverage enforcement is active in CI/CD
+- Current estimated coverage: 35% (Phase 141 baseline)
+- Target threshold: 80% (PR 75%, main 80%)
+- **Builds will fail until target is met** (this is intentional - quality gate)
+
+**Solutions:**
+1. **Add tests** for uncovered lines (see HTML report)
+2. **Check gaps** in specific modules:
+   ```bash
+   ./coverage.sh | grep -E "main.rs|platform_specific|integration"
+   ```
+3. **Run locally first** to verify before pushing:
+   ```bash
+   ./coverage.sh --enforce
+   ```
+4. **Focus on high-impact areas** (system tray, device capabilities, integration tests)
+
+**Expected workflow during Phase 142:**
+- Plans 01-05 add tests to increase coverage
+- Each plan increases coverage by 5-15 percentage points
+- By Plan 07, coverage should reach 80% threshold
+- Until then, CI/CD builds will fail (expected behavior)
+- Use `--fail-under 0` locally for development without blocking
+
 ### Coverage Percentage Not Increasing
 
 **Problem:** Adding tests but coverage percentage stays the same
@@ -643,10 +742,10 @@ cargo tarpaulin --verbose --config tarpaulin.toml
 
 ### Phase 142: Coverage Enforcement
 
-1. Add `--fail-under 80` to tarpaulin command
-2. Enforce per-module coverage thresholds
-3. Add PR comments with coverage trends
-4. Integrate with CI/CD quality gates
+1. Add --fail-under 80 to tarpaulin command ✅
+2. Enforce per-module coverage thresholds ✅
+3. Add PR comments with coverage trends ✅
+4. Integrate with CI/CD quality gates ✅
 
 ### Phase 143: Final Verification
 
