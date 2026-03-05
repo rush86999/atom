@@ -1,0 +1,196 @@
+name: Desktop Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    name: Generate Desktop Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better blame data
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin --version 0.27.0
+
+      - name: Generate coverage report
+        working-directory: frontend-nextjs/src-tauri
+        run: |
+          cargo tarpaulin \
+            --config tarpaulin.toml \
+            --out Html \
+            --output-dir coverage-report \
+            --timeout 300 \
+            --fail-under 0
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-coverage
+          path: frontend-nextjs/src-tauri/coverage-report/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload baseline JSON artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-baseline-json
+          path: frontend-nextjs/src-tauri/coverage/coverage.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Extract coverage percentage
+        id: coverage
+        working-directory: frontend-nextjs/src-tauri
+        run: |
+          if [ -f coverage-report/coverage.json ]; then
+            COVERAGE=$(node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync('coverage-report/coverage.json', 'utf8'));
+              console.log((data.coverage * 100).toFixed(2));
+            ")
+            echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "Coverage: $COVERAGE%"
+          else
+            echo "percentage=0.00" >> $GITHUB_OUTPUT
+            echo "No coverage data found"
+          fi
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const coverage = '${{ steps.coverage.outputs.percentage }}';
+            const target = 80;
+            const gap = (target - parseFloat(coverage)).toFixed(2);
+
+            const body = `## Desktop Coverage Report
+
+            | Metric | Value |
+            |--------|-------|
+            | **Coverage** | ${coverage}% |
+            | **Target** | ${target}% |
+            | **Gap** | ${gap} percentage points |
+
+            ${
+              parseFloat(coverage) >= target
+                ? '### ✅ Coverage Target Met'
+                : parseFloat(coverage) >= 60
+                  ? '### ⚠️ Coverage Below Target'
+                  : '### ❌ Critical Coverage Gap'
+            }
+
+            **Next Steps:**
+            ${
+              parseFloat(coverage) < 60
+                ? '- Focus on high-priority files (main.rs, IPC handlers)\n- Add platform-specific tests for Windows/macOS/Linux\n- Test error handling paths'
+                : '- Add tests for uncovered lines in coverage report\n- Focus on medium-priority features\n- Improve edge case coverage'
+            }
+
+            [View Coverage Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            `;
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## Desktop Coverage Report')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Add coverage summary
+        if: always()
+        run: |
+          echo "## Desktop Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Coverage** | ${{ steps.coverage.outputs.percentage }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target** | 80% |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | $([ "${{ steps.coverage.outputs.percentage }}" != "0.00" ] && echo "✅ Generated" || echo "⚠️ Not Found") |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- **desktop-coverage**: HTML coverage report (30 days)" >> $GITHUB_STEP_SUMMARY
+          echo "- **desktop-baseline-json**: Machine-readable coverage data (30 days)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check coverage threshold
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          COVERAGE="${{ steps.coverage.outputs.percentage }}"
+          THRESHOLD=80
+
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "⚠️ Coverage ${COVERAGE}% is below ${THRESHOLD}% threshold"
+            echo "::warning::Coverage ${COVERAGE}% is below ${THRESHOLD}% threshold (Phase 142 will enforce)"
+          else
+            echo "✅ Coverage ${COVERAGE}% meets ${THRESHOLD}% threshold"
+          fi
+
+      - name: Build fails on tarpaulin error
+        if: steps.coverage.outcome == 'failure'
+        run: |
+          echo "::error::Coverage generation failed. Check logs for details."
+          exit 1
