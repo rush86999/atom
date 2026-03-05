@@ -44,6 +44,7 @@ import { Text, View } from 'react-native';
 
 import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { flushPromises, setupFakeTimers, resetAllMocks } from '../helpers/testUtils';
 
 // Mock socket.io-client
 jest.mock('socket.io-client');
@@ -125,8 +126,8 @@ const renderWithWebSocketProvider = (component?: React.ReactNode) => {
 // ============================================================================
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  jest.useFakeTimers();
+  resetAllMocks();
+  setupFakeTimers();
 
   // Reset socket state
   mockSocketConnected = false;
@@ -161,16 +162,18 @@ describe('WebSocketContext - Connection', () => {
   it('should connect when authenticated', async () => {
     renderWithWebSocketProvider();
 
-    await waitFor(() => {
-      expect(io).toHaveBeenCalledWith(
-        'http://localhost:8000',
-        expect.objectContaining({
-          auth: { token: 'mock_access_token' },
-          transports: ['websocket'],
-          reconnection: true,
-        })
-      );
+    await act(async () => {
+      await flushPromises();
     });
+
+    expect(io).toHaveBeenCalledWith(
+      'http://localhost:8000',
+      expect.objectContaining({
+        auth: { token: 'mock_access_token' },
+        transports: ['websocket'],
+        reconnection: true,
+      })
+    );
   });
 
   it('should handle connection success', async () => {
@@ -182,13 +185,12 @@ describe('WebSocketContext - Connection', () => {
       if (mockSocketListeners.connect) {
         mockSocketListeners.connect();
       }
+      await flushPromises();
     });
 
-    await waitFor(() => {
-      expect(getByTestId('isConnected')).toHaveTextContent('true');
-      expect(getByTestId('isConnecting')).toHaveTextContent('false');
-      expect(getByTestId('connectionError')).toHaveTextContent('null');
-    });
+    expect(getByTestId('isConnected')).toHaveTextContent('true');
+    expect(getByTestId('isConnecting')).toHaveTextContent('false');
+    expect(getByTestId('connectionError')).toHaveTextContent('null');
   });
 
   it('should handle connection error', async () => {
@@ -199,12 +201,11 @@ describe('WebSocketContext - Connection', () => {
       if (mockSocketListeners.connect_error) {
         mockSocketListeners.connect_error(new Error('Connection failed'));
       }
+      await flushPromises();
     });
 
-    await waitFor(() => {
-      expect(getByTestId('isConnecting')).toHaveTextContent('false');
-      expect(getByTestId('connectionError')).toHaveTextContent('Connection failed');
-    });
+    expect(getByTestId('isConnecting')).toHaveTextContent('false');
+    expect(getByTestId('connectionError')).toHaveTextContent('Connection failed');
   });
 
   it('should track connecting state', async () => {
@@ -219,11 +220,10 @@ describe('WebSocketContext - Connection', () => {
       if (mockSocketListeners.connect) {
         mockSocketListeners.connect();
       }
+      await flushPromises();
     });
 
-    await waitFor(() => {
-      expect(getByTestId('isConnecting')).toHaveTextContent('false');
-    });
+    expect(getByTestId('isConnecting')).toHaveTextContent('false');
   });
 
   it('should track connection quality based on latency', async () => {
@@ -235,10 +235,11 @@ describe('WebSocketContext - Connection', () => {
       if (mockSocketListeners.connect) {
         mockSocketListeners.connect();
       }
+      await flushPromises();
     });
 
     // Simulate heartbeat with good latency
-    await act(async () => {
+    act(() => {
       jest.advanceTimersByTime(30000); // 30 seconds for heartbeat
       if (mockSocketOnceListeners.pong) {
         setTimeout(() => mockSocketOnceListeners.pong(), 100); // 100ms latency
@@ -246,9 +247,7 @@ describe('WebSocketContext - Connection', () => {
       }
     });
 
-    await waitFor(() => {
-      expect(getByTestId('connectionQuality')).toHaveTextContent('good');
-    });
+    expect(getByTestId('connectionQuality')).toHaveTextContent('good');
   });
 
   it('should cleanup on unmount', () => {
@@ -625,16 +624,19 @@ describe('WebSocketContext - Heartbeat', () => {
       if (mockSocketListeners.connect) {
         mockSocketListeners.connect();
       }
+      await flushPromises();
     });
 
     // Clear previous calls
-    (mockSocket.emit as jest.Mock).mockClear();
+    const initialEmitCalls = (mockSocket.emit as jest.Mock).mock.calls.length;
 
     // Advance time by 30 seconds
-    await act(async () => {
+    act(() => {
       jest.advanceTimersByTime(30000);
     });
 
+    // Should have at least one more emit call (the ping)
+    expect((mockSocket.emit as jest.Mock).mock.calls.length).toBeGreaterThan(initialEmitCalls);
     expect(mockSocket.emit).toHaveBeenCalledWith('ping');
   });
 
@@ -647,10 +649,11 @@ describe('WebSocketContext - Heartbeat', () => {
       if (mockSocketListeners.connect) {
         mockSocketListeners.connect();
       }
+      await flushPromises();
     });
 
     // Simulate excellent latency (< 100ms)
-    await act(async () => {
+    act(() => {
       jest.advanceTimersByTime(30000);
       if (mockSocketOnceListeners.pong) {
         setTimeout(() => mockSocketOnceListeners.pong(), 50);

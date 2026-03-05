@@ -439,58 +439,63 @@ jest.mock('expo-device', () => {
 // react-native-mmkv Mock (for existing tests)
 // ============================================================================
 
+// Create storage map at module level for persistence
 const mockMmkvStorage = new Map();
 
-const createMMKVMock = () => ({
-  set: jest.fn((key, value) => {
-    mockMmkvStorage.set(key, value);
-  }),
-  get: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : undefined;
-  }),
-  getString: jest.fn((key) => {
-    // This is the critical fix - return string or null
-    return mockMmkvStorage.has(key) ? String(mockMmkvStorage.get(key)) : null;
-  }),
-  getNumber: jest.fn((key) => {
-    const val = mockMmkvStorage.get(key);
-    return typeof val === 'number' ? val : null;
-  }),
-  getBoolean: jest.fn((key) => {
-    const val = mockMmkvStorage.get(key);
-    return typeof val === 'boolean' ? val : null;
-  }),
-  delete: jest.fn((key) => {
-    mockMmkvStorage.delete(key);
-  }),
-  contains: jest.fn((key) => {
-    return mockMmkvStorage.has(key);
-  }),
-  getAllKeys: jest.fn(() => {
-    return Array.from(mockMmkvStorage.keys());
-  }),
-  removeAll: jest.fn(() => {
-    mockMmkvStorage.clear();
-  }),
-  getSizeInBytes: jest.fn(() => {
-    return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
-      return acc + key.length + String(value).length;
-    }, 0);
-  }),
-});
-
-// Create a single global MMKV instance that will be used by all tests
-const globalMMKVInstance = createMMKVMock();
-
-// Support both MMKV() constructor and direct module usage
-const MMKVConstructor = jest.fn(() => globalMMKVInstance);
-MMKVConstructor.MKV = MMKVConstructor;
-
 jest.mock('react-native-mmkv', () => {
+  // Create mock instance inside the factory function
+  const createMMKVMock = () => ({
+    set: jest.fn((key, value) => {
+      mockMmkvStorage.set(key, value);
+    }),
+    get: jest.fn((key) => {
+      return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : undefined;
+    }),
+    getString: jest.fn((key) => {
+      // This is the critical fix - return string or null
+      return mockMmkvStorage.has(key) ? String(mockMmkvStorage.get(key)) : null;
+    }),
+    getNumber: jest.fn((key) => {
+      const val = mockMmkvStorage.get(key);
+      return typeof val === 'number' ? val : null;
+    }),
+    getBoolean: jest.fn((key) => {
+      const val = mockMmkvStorage.get(key);
+      return typeof val === 'boolean' ? val : null;
+    }),
+    delete: jest.fn((key) => {
+      mockMmkvStorage.delete(key);
+    }),
+    contains: jest.fn((key) => {
+      return mockMmkvStorage.has(key);
+    }),
+    getAllKeys: jest.fn(() => {
+      return Array.from(mockMmkvStorage.keys());
+    }),
+    removeAll: jest.fn(() => {
+      mockMmkvStorage.clear();
+    }),
+    getSizeInBytes: jest.fn(() => {
+      return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
+        return acc + key.length + String(value).length;
+      }, 0);
+    }),
+  });
+
+  // Create a single global MMKV instance that will be used by all tests
+  const globalMMKVInstance = createMMKVMock();
+
+  // Support both MMKV() constructor and direct module usage
+  const MMKVConstructor = jest.fn(() => globalMMKVInstance);
+
   const mockModule = {
     MMKV: MMKVConstructor,
     createMMKV: jest.fn(() => globalMMKVInstance),
   };
+
+  // Store instance globally for reset access
+  global.__mmkvGlobalInstance = globalMMKVInstance;
+
   // Default export
   Object.defineProperty(mockModule, 'default', {
     value: mockModule,
@@ -503,16 +508,18 @@ jest.mock('react-native-mmkv', () => {
 global.__resetMmkvMock = () => {
   mockMmkvStorage.clear();
   // Clear all mock call history
-  globalMMKVInstance.set.mockClear();
-  globalMMKVInstance.get.mockClear();
-  globalMMKVInstance.getString.mockClear();
-  globalMMKVInstance.getNumber.mockClear();
-  globalMMKVInstance.getBoolean.mockClear();
-  globalMMKVInstance.delete.mockClear();
-  globalMMKVInstance.contains.mockClear();
-  globalMMKVInstance.getAllKeys.mockClear();
-  globalMMKVInstance.removeAll.mockClear();
-  globalMMKVInstance.getSizeInBytes.mockClear();
+  if (global.__mmkvGlobalInstance) {
+    global.__mmkvGlobalInstance.set.mockClear();
+    global.__mmkvGlobalInstance.get.mockClear();
+    global.__mmkvGlobalInstance.getString.mockClear();
+    global.__mmkvGlobalInstance.getNumber.mockClear();
+    global.__mmkvGlobalInstance.getBoolean.mockClear();
+    global.__mmkvGlobalInstance.delete.mockClear();
+    global.__mmkvGlobalInstance.contains.mockClear();
+    global.__mmkvGlobalInstance.getAllKeys.mockClear();
+    global.__mmkvGlobalInstance.removeAll.mockClear();
+    global.__mmkvGlobalInstance.getSizeInBytes.mockClear();
+  }
 };
 
 // ============================================================================
