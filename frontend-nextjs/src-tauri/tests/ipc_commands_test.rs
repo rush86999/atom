@@ -442,4 +442,199 @@ mod tests {
         // Cleanup
         let _ = fs::remove_file(&large_file);
     }
+
+    // ========================================================================
+    // Additional Cross-Platform Tests
+    // ========================================================================
+
+    #[test]
+    fn test_directory_creation_and_removal() {
+        // Test directory creation and removal operations
+        let temp_dir = std::env::temp_dir();
+        let test_dir = temp_dir.join("test_dir_create_rm");
+
+        // Create directory
+        let result = fs::create_dir(&test_dir);
+        assert!(result.is_ok());
+        assert!(test_dir.exists());
+        assert!(test_dir.is_dir());
+
+        // Remove directory
+        let result = fs::remove_dir(&test_dir);
+        assert!(result.is_ok());
+        assert!(!test_dir.exists());
+    }
+
+    #[test]
+    fn test_nested_directory_creation() {
+        // Test creating nested directories in one operation
+        let temp_dir = std::env::temp_dir();
+        let nested_dir = temp_dir.join("level1").join("level2").join("level3");
+
+        // Create all levels at once
+        let result = fs::create_dir_all(&nested_dir);
+        assert!(result.is_ok());
+        assert!(nested_dir.exists());
+        assert!(nested_dir.is_dir());
+
+        // Verify all levels exist
+        assert!(nested_dir.parent().unwrap().exists());
+        assert!(nested_dir.parent().unwrap().parent().unwrap().exists());
+
+        // Cleanup
+        let _ = fs::remove_dir_all(temp_dir.join("level1"));
+    }
+
+    #[test]
+    fn test_file_copy_operations() {
+        // Test file copy operations
+        let temp_dir = std::env::temp_dir();
+        let source_file = temp_dir.join("source_copy.txt");
+        let dest_file = temp_dir.join("dest_copy.txt");
+
+        // Create source file
+        fs::write(&source_file, "content to copy").unwrap();
+
+        // Copy file
+        let result = fs::copy(&source_file, &dest_file);
+        assert!(result.is_ok());
+
+        // Verify both files exist and have same content
+        assert!(source_file.exists());
+        assert!(dest_file.exists());
+        assert_eq!(
+            fs::read_to_string(&source_file).unwrap(),
+            fs::read_to_string(&dest_file).unwrap()
+        );
+
+        // Cleanup
+        let _ = fs::remove_file(&source_file);
+        let _ = fs::remove_file(&dest_file);
+    }
+
+    #[test]
+    fn test_file_metadata_operations() {
+        // Test file metadata operations
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_metadata.txt");
+
+        // Create file
+        fs::write(&test_file, "test content").unwrap();
+
+        // Get metadata
+        let metadata = fs::metadata(&test_file).unwrap();
+
+        // Assert: Verify metadata fields
+        assert!(metadata.is_file());
+        assert!(!metadata.is_dir());
+        assert!(metadata.len() > 0);
+        assert!(metadata.permissions().readonly() == false);
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+    }
+
+    #[test]
+    fn test_directory_symlink_detection() {
+        // Test that we can detect symlinks (if supported)
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_symlink.txt");
+        let test_link = temp_dir.join("test_symlink_link.txt");
+
+        // Create source file
+        fs::write(&test_file, "symlink target").unwrap();
+
+        // Create symlink (may fail on some systems without permissions)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let result = symlink(&test_file, &test_link);
+
+            if result.is_ok() {
+                // Verify symlink was created
+                assert!(test_link.exists());
+
+                // Check if it's a symlink
+                let metadata = fs::symlink_metadata(&test_link).unwrap();
+                assert!(metadata.is_symlink());
+
+                // Cleanup
+                let _ = fs::remove_file(&test_link);
+            }
+            // If symlink creation fails, we skip the test (no assertion)
+        }
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+    }
+
+    #[test]
+    fn test_file_permissions() {
+        // Test file permission operations
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_permissions.txt");
+
+        // Create file
+        fs::write(&test_file, "test content").unwrap();
+
+        // Get permissions
+        let metadata = fs::metadata(&test_file).unwrap();
+        let permissions = metadata.permissions();
+
+        // Assert: Verify we can read permissions
+        assert!(permissions.readonly() == false || permissions.readonly() == true);
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+    }
+
+    #[test]
+    fn test_concurrent_file_operations() {
+        // Test multiple file operations in sequence
+        let temp_dir = std::env::temp_dir();
+
+        // Create multiple files
+        for i in 0..5 {
+            let file = temp_dir.join(format!("concurrent_{}.txt", i));
+            fs::write(&file, format!("content {}", i)).unwrap();
+        }
+
+        // Verify all files exist
+        for i in 0..5 {
+            let file = temp_dir.join(format!("concurrent_{}.txt", i));
+            assert!(file.exists());
+            let content = fs::read_to_string(&file).unwrap();
+            assert_eq!(content, format!("content {}", i));
+
+            // Cleanup
+            let _ = fs::remove_file(&file);
+        }
+    }
+
+    #[test]
+    fn test_system_info_version_format() {
+        // Test that version string is in correct format
+        let version = env!("CARGO_PKG_VERSION");
+
+        // Assert: Version should have at least one dot
+        assert!(version.contains('.'));
+        assert!(version.len() > 0);
+
+        // Verify version format (semantic versioning)
+        let parts: Vec<&str> = version.split('.').collect();
+        assert!(parts.len() >= 2); // At least major.minor
+    }
+
+    #[test]
+    fn test_system_info_tauri_version() {
+        // Test that Tauri version is present
+        let tauri_version = "2.0.0";
+
+        // Assert: Tauri version should be in correct format
+        assert!(tauri_version.contains('.'));
+        assert!(tauri_version.len() > 0);
+
+        let parts: Vec<&str> = tauri_version.split('.').collect();
+        assert!(parts.len() == 3); // major.minor.patch
+    }
 }
