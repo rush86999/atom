@@ -32,45 +32,57 @@ jest.mock('expo/virtual/env', () => ({
 // expo-camera Mock
 // ============================================================================
 
-jest.mock('expo-camera', () => ({
-  Camera: {
-    Constants: {
-      Type: {
-        back: 'back',
-        front: 'front',
+jest.mock('expo-camera', () => {
+  const CameraType = {
+    Front: 'front',
+    Back: 'back',
+  };
+
+  return {
+    Camera: {
+      Constants: {
+        Type: CameraType,
+        FlashMode: {
+          off: 'off',
+          on: 'on',
+          auto: 'auto',
+          torch: 'torch',
+        },
+        CameraPermissionStatus: {
+          granted: 'granted',
+          denied: 'denied',
+          notAsked: 'notAsked',
+        },
       },
-      FlashMode: {
-        off: 'off',
-        on: 'on',
-        auto: 'auto',
-        torch: 'torch',
-      },
-      CameraPermissionStatus: {
-        granted: 'granted',
-        denied: 'denied',
-        notAsked: 'notAsked',
-      },
+      Type: CameraType,
     },
-  },
-  CameraView: jest.fn(),
-  requestCameraPermissionsAsync: jest.fn().mockResolvedValue({
-    status: 'granted',
-    canAskAgain: true,
-    granted: true,
-    expires: 'never',
-  }),
-  getCameraPermissionsAsync: jest.fn().mockResolvedValue({
-    status: 'granted',
-    canAskAgain: true,
-    granted: true,
-    expires: 'never',
-  }),
-  takePictureAsync: jest.fn().mockResolvedValue({
-    uri: 'file:///mock/photo.jpg',
-    width: 1920,
-    height: 1080,
-  }),
-}));
+    CameraView: {
+      requestCameraPermissionsAsync: jest.fn().mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      }),
+      getCameraPermissionsAsync: jest.fn().mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      }),
+      isAvailableAsync: jest.fn().mockResolvedValue(true),
+      takePictureAsync: jest.fn().mockResolvedValue({
+        uri: 'file:///mock/photo.jpg',
+        width: 1920,
+        height: 1080,
+      }),
+      recordAsync: jest.fn().mockResolvedValue({
+        uri: 'file:///mock/video.mp4',
+      }),
+      savePhotoToLibraryAsync: jest.fn().mockResolvedValue(undefined),
+    },
+    CameraType,
+  };
+});
 
 // ============================================================================
 // expo-location Mock
@@ -457,12 +469,23 @@ jest.mock('@react-native-community/netinfo', () => {
 });
 
 // ============================================================================
+// Alert Mock (React Native)
+// ============================================================================
+
+jest.mock('react-native/Libraries/Alert/Alert', () => ({
+  alert: jest.fn(),
+}));
+
+// ============================================================================
 // Mock Timers for Async Tests
 // ============================================================================
 
 beforeEach(() => {
   // Use fake timers for all tests to prevent flaky async behavior
   jest.useFakeTimers();
+
+  // Reset Alert mock before each test
+  jest.requireMock('react-native/Libraries/Alert/Alert').alert.mockClear();
 });
 
 afterEach(() => {
