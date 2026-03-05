@@ -259,6 +259,129 @@ describe('NotificationService', () => {
   });
 
   // ========================================================================
+  // Push Token Registration with Backend Tests (5 new tests)
+  // ========================================================================
+
+  describe('Push Token Registration', () => {
+    beforeEach(async () => {
+      (global.fetch as jest.Mock).mockReset();
+      (Device as any).isDevice = true;
+      notificationService._resetState();
+    });
+
+    test('should register push token with backend API', async () => {
+      // Mock fetch to return success
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      } as Response);
+
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      const token = await notificationService.registerForPushNotifications('user-123', 'device-456');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/mobile/notifications/register'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': expect.stringContaining('Bearer'),
+          }),
+          body: expect.stringContaining('"device_token":'),
+        })
+      );
+      expect(token).not.toBeNull();
+    });
+
+    test('should handle backend API failure gracefully', async () => {
+      // Mock fetch to return error
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: 'Internal server error' }),
+      } as Response);
+
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const token = await notificationService.registerForPushNotifications('user-123', 'device-456');
+
+      // Token should still be returned even if backend fails (non-blocking)
+      expect(token).not.toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to register token with backend'
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should skip backend registration without userId', async () => {
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Call without userId
+      const token = await notificationService.registerForPushNotifications();
+
+      // Fetch should NOT be called
+      expect(global.fetch).not.toHaveBeenCalled();
+      // Token should still be returned
+      expect(token).not.toBeNull();
+    });
+
+    test('should return existing token if already registered', async () => {
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // First call - should fetch token
+      const token1 = await notificationService.registerForPushNotifications();
+      expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalled();
+
+      // Reset mock to track if it's called again
+      (Notifications.getExpoPushTokenAsync as jest.Mock).mockClear();
+
+      // Second call - should use cached token
+      const token2 = await notificationService.registerForPushNotifications();
+      expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+      expect(token1).toEqual(token2);
+    });
+
+    test('should require physical device for push token', async () => {
+      (Device as any).isDevice = false;
+
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const token = await notificationService.registerForPushNotifications();
+
+      expect(token).toBeNull();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'NotificationService: Push notifications only work on physical devices'
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  // ========================================================================
   // Notification Handlers Tests (5 tests)
   // ========================================================================
 
