@@ -752,4 +752,83 @@ describe('CameraService', () => {
       });
     });
   });
+
+  // ========================================================================
+  // Multiple Photo Capture Tests
+  // ========================================================================
+
+  describe('Multiple Photos', () => {
+    beforeEach(async () => {
+      // Initialize camera service to set permission status
+      await cameraService.initialize();
+
+      // Ensure permission is granted for capture tests
+      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      // Mock takePictureAsync for multiple calls
+      mockCameraRef.current.takePictureAsync.mockImplementation(async () => ({
+        uri: `file:///mock/photo-${Date.now()}.jpg`,
+        width: 1920,
+        height: 1080,
+      }));
+    });
+
+    test('should capture multiple photos', async () => {
+      const photos = await cameraService.captureMultiplePhotos(mockCameraRef, 3);
+
+      expect(photos).toHaveLength(3);
+      expect(mockCameraRef.current.takePictureAsync).toHaveBeenCalledTimes(3);
+      expect(photos[0].uri).toContain('photo-');
+      expect(photos[0].type).toBe('photo');
+      expect(photos[0].width).toBe(1920);
+      expect(photos[0].height).toBe(1080);
+    });
+
+    test('should get captured photos with index', async () => {
+      await cameraService.captureMultiplePhotos(mockCameraRef, 2);
+
+      const captured = cameraService.getCapturedPhotos();
+
+      expect(captured.photos).toHaveLength(2);
+      expect(captured.currentIndex).toBe(0);
+      expect(captured.photos[0].type).toBe('photo');
+    });
+
+    test('should delete captured photo at index', async () => {
+      await cameraService.captureMultiplePhotos(mockCameraRef, 3);
+
+      cameraService.deleteCapturedPhoto(1);
+
+      const captured = cameraService.getCapturedPhotos();
+      expect(captured.photos).toHaveLength(2);
+      expect(captured.photos[0].uri).toBeTruthy();
+      expect(captured.photos[1].uri).toBeTruthy();
+    });
+
+    test('should clear all captured photos', async () => {
+      await cameraService.captureMultiplePhotos(mockCameraRef, 3);
+
+      cameraService.clearCapturedPhotos();
+
+      const captured = cameraService.getCapturedPhotos();
+      expect(captured.photos).toHaveLength(0);
+      expect(captured.currentIndex).toBe(0);
+    });
+
+    test('should handle delete with invalid index gracefully', async () => {
+      await cameraService.captureMultiplePhotos(mockCameraRef, 3);
+
+      const beforeDelete = cameraService.getCapturedPhotos();
+      cameraService.deleteCapturedPhoto(10); // Invalid index
+      const afterDelete = cameraService.getCapturedPhotos();
+
+      expect(beforeDelete.photos).toHaveLength(afterDelete.photos.length);
+      expect(beforeDelete.photos[0].uri).toBe(afterDelete.photos[0].uri);
+    });
+  });
 });
