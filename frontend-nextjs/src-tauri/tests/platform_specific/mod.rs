@@ -104,11 +104,8 @@ pub mod macos;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
-// Cross-platform test modules (compiled and run on all platforms)
-pub mod cross_platform;
-
 // Conditional compilation tests (verify cfg! macro and #[cfg] patterns)
 pub mod conditional_compilation;
 
-// Re-exports for common types used across platform-specific tests
-pub use cross_platform::*;
+// System tray tests (logic-only testing without GUI context)
+pub mod system_tray;
