@@ -43,20 +43,149 @@ jobs:
         with:
           name: mobile-coverage
           path: mobile/coverage/coverage-final.json
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: warn
 
-      - name: Check coverage threshold
+      - name: Check device service coverage
         working-directory: ./mobile
         run: |
-          COVERAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct)")
-          echo "Current coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-            echo "Coverage $COVERAGE% is below 80% threshold"
-            echo "::warning::Coverage is below 80% threshold"
+          echo "### Device Service Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Statements | Lines | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Check cameraService
+          CAMERA_STMTS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('cameraService.ts')); console.log(file ? file.s.statements.pct : 0); } catch(e) { console.log(0); }")
+          CAMERA_LINES=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('cameraService.ts')); console.log(file ? file.s.lines.pct : 0); } catch(e) { console.log(0); }")
+          CAMERA_STATUS=$(echo "$CAMERA_LINES >= 80" | bc -l)
+          if [ "$CAMERA_STATUS" -eq 1 ]; then
+            echo "| cameraService | ${CAMERA_STMTS}% | ${CAMERA_LINES}% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
           else
-            echo "Coverage $COVERAGE% meets threshold"
+            echo "| cameraService | ${CAMERA_STMTS}% | ${CAMERA_LINES}% | ⚠️  BELOW |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::cameraService coverage ${CAMERA_LINES}% is below 80% threshold"
           fi
+
+          # Check locationService
+          LOCATION_STMTS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('locationService.ts')); console.log(file ? file.s.statements.pct : 0); } catch(e) { console.log(0); }")
+          LOCATION_LINES=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('locationService.ts')); console.log(file ? file.s.lines.pct : 0); } catch(e) { console.log(0); }")
+          LOCATION_STATUS=$(echo "$LOCATION_LINES >= 80" | bc -l)
+          if [ "$LOCATION_STATUS" -eq 1 ]; then
+            echo "| locationService | ${LOCATION_STMTS}% | ${LOCATION_LINES}% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| locationService | ${LOCATION_STMTS}% | ${LOCATION_LINES}% | ⚠️  BELOW |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::locationService coverage ${LOCATION_LINES}% is below 80% threshold"
+          fi
+
+          # Check notificationService
+          NOTIF_STMTS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('notificationService.ts')); console.log(file ? file.s.statements.pct : 0); } catch(e) { console.log(0); }")
+          NOTIF_LINES=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('notificationService.ts')); console.log(file ? file.s.lines.pct : 0); } catch(e) { console.log(0); }")
+          NOTIF_STATUS=$(echo "$NOTIF_LINES >= 80" | bc -l)
+          if [ "$NOTIF_STATUS" -eq 1 ]; then
+            echo "| notificationService | ${NOTIF_STMTS}% | ${NOTIF_LINES}% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| notificationService | ${NOTIF_STMTS}% | ${NOTIF_LINES}% | ⚠️  BELOW |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::notificationService coverage ${NOTIF_LINES}% is below 80% threshold"
+          fi
+
+          # Check offlineSyncService
+          SYNC_STMTS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('offlineSyncService.ts')); console.log(file ? file.s.statements.pct : 0); } catch(e) { console.log(0); }")
+          SYNC_LINES=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('offlineSyncService.ts')); console.log(file ? file.s.lines.pct : 0); } catch(e) { console.log(0); }")
+          SYNC_STATUS=$(echo "$SYNC_LINES >= 80" | bc -l)
+          if [ "$SYNC_STATUS" -eq 1 ]; then
+            echo "| offlineSyncService | ${SYNC_STMTS}% | ${SYNC_LINES}% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| offlineSyncService | ${SYNC_STMTS}% | ${SYNC_LINES}% | ⚠️  BELOW |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::offlineSyncService coverage ${SYNC_LINES}% is below 80% threshold"
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** 80% statements and lines for all device services" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See \`mobile/coverage-summary.md\` for detailed gap analysis." >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment PR with device coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // Read coverage data
+            let coverageData;
+            try {
+              coverageData = JSON.parse(fs.readFileSync('mobile/coverage/coverage-final.json', 'utf8'));
+            } catch (e) {
+              console.log('Coverage file not found');
+              return;
+            }
+
+            // Extract device service coverage
+            const getServiceCoverage = (serviceName) => {
+              const file = coverageData.find(f => f.path.includes(serviceName));
+              if (!file) return { statements: 0, lines: 0 };
+              return {
+                statements: file.s.statements.pct,
+                lines: file.s.lines.pct
+              };
+            };
+
+            const camera = getServiceCoverage('cameraService.ts');
+            const location = getServiceCoverage('locationService.ts');
+            const notif = getServiceCoverage('notificationService.ts');
+            const sync = getServiceCoverage('offlineSyncService.ts');
+
+            // Format coverage report
+            const report = `
+            ## 🔍 Device Service Coverage Report
+
+            | Service | Statements | Lines | Status |
+            |---------|------------|-------|--------|
+            | cameraService | ${camera.statements}% | ${camera.lines}% | ${camera.lines >= 80 ? '✅' : '⚠️'} |
+            | locationService | ${location.statements}% | ${location.lines}% | ${location.lines >= 80 ? '✅' : '⚠️'} |
+            | notificationService | ${notif.statements}% | ${notif.lines}% | ${notif.lines >= 80 ? '✅' : '⚠️'} |
+            | offlineSyncService | ${sync.statements}% | ${sync.lines}% | ${sync.lines >= 80 ? '✅' : '⚠️'} |
+
+            **Target:** 80% statements and lines for all device services
+
+            ${camera.lines < 80 || location.lines < 80 || notif.lines < 80 || sync.lines < 80 ? '⚠️ **Action Required:** Some services are below the 80% threshold. See `mobile/coverage-summary.md` for gap analysis.' : '✅ All services meet the 80% coverage target!'}
+
+            <details>
+            <summary>View coverage details</summary>
+
+            See [coverage report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            </details>
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Device Service Coverage Report')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
 
       - name: Upload coverage HTML
         uses: actions/upload-artifact@v4
