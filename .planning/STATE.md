@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 142 of 26 (Desktop Rust Backend Testing)
-Plan: 03 of 7 (COMPLETE)
-Status: Phase 142-03 COMPLETE - Async operations error path tests created with 25 tests covering file operations, timeouts, Result propagation, concurrent operations, and Tauri command errors. All tests passing (100% pass rate). Estimated +3-5% coverage increase for async error paths (20% → 30%). tokio::test runtime validated for async subprocess handling. Timeout scenarios tested with tokio::time::timeout. Result propagation verified through async chains. Concurrent operations tested with tokio::spawn and join. Tauri command errors validated (satellite, OCR, timeout patterns). async_operations_integration_test.rs created (605 lines). Handoff to Phase 142-04 (Integration Tests).
-Last activity: 2026-03-05 — Phase 142 Plan 03 executed: Async operations error path tests created with 25 tests, 5 tasks, 5 commits, 100% pass rate. Files created: async_operations_integration_test.rs (605 lines), 142-03-SUMMARY.md (394 lines). Modified: tests/integration/async_operations_test.rs (moved to root). Duration: 8 minutes (507 seconds).
+Plan: 06 of 7 (COMPLETE)
+Status: Phase 142-06 COMPLETE - Coverage enforcement infrastructure established with --fail-under 80 threshold, tiered enforcement (PR 75%, main 80%), enhanced coverage.sh script with --fail-under argument and --enforce flag, updated tarpaulin.toml with [enforcement] section documenting thresholds, and comprehensive documentation in DESKTOP_COVERAGE.md. All 4 tasks completed, 4 commits, 0 deviations. CI/CD workflow enforces threshold automatically, local development remains informational (FAIL_UNDER=0 default). Current coverage (35%) below target (80%) - builds will fail until Plans 01-05 increase coverage. This is intentional quality gate behavior. Handoff to Phase 142-07 (Final Verification and Phase Summary).
+Last activity: 2026-03-05 — Phase 142 Plan 06 executed: Coverage enforcement setup completed with 4 tasks, 4 commits, 100% pass rate. Files modified: desktop-coverage.yml (tiered thresholds, --fail-under flag), tarpaulin.toml (enforcement section), coverage.sh (--fail-under argument), DESKTOP_COVERAGE.md (enforcement documentation). Created: 142-06-SUMMARY.md (330 lines). Duration: 6 minutes (362 seconds).
 
-Progress: [███] 43% (3/7 plans executed in Phase 142)
+Progress: [█████▎] 86% (6/7 plans executed in Phase 142)
 
 ## Performance Metrics
 
