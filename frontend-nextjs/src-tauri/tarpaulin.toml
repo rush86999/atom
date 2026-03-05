@@ -1,0 +1,20 @@
+# Tarpaulin Configuration for Atom Desktop Coverage
+# https://github.com/simonvandel/tarpaulin
+
+[exclude-files]
+# Exclude test files from coverage calculations
+patterns = ["tests/*", "*/tests/*"]
+
+[report]
+# Output formats: HTML for visual inspection, JSON for baseline tracking
+out = ["Html", "Json"]
+output-dir = "coverage-report"
+
+[features]
+# Coverage threshold for future enforcement (Phase 142)
+# Phase 140: informational only (baseline measurement)
+coverage_threshold = 80
+
+[engine]
+# Use ptrace for compatibility across platforms
+default = "ptrace"
