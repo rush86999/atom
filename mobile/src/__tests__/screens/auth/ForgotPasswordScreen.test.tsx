@@ -14,7 +14,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
-import { ForgotPasswordScreen } from '../../../../screens/auth/ForgotPasswordScreen';
+import { ForgotPasswordScreen } from '../../../screens/auth/ForgotPasswordScreen';
 
 // Mock expo-secure-store
 jest.mock('expo-secure-store', () => ({
@@ -29,7 +29,7 @@ const mockNavigation = {
   goBack: jest.fn(),
 };
 
-jest.mock('../../../../contexts/AuthContext', () => ({
+jest.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({
     isAuthenticated: false,
   }),
@@ -448,7 +448,7 @@ describe('ForgotPasswordScreen', () => {
     });
 
     it('should auto-navigate to login if already authenticated', async () => {
-      const { useAuth } = require('../../../../contexts/AuthContext');
+      const { useAuth } = require('../../../contexts/AuthContext');
       useAuth.mockReturnValue({ isAuthenticated: true });
 
       render(
