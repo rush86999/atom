@@ -766,6 +766,11 @@ afterEach(() => {
   if (global.__resetMmkvMock) {
     global.__resetMmkvMock();
   }
+
+  // Reset AsyncStorage mock storage
+  if (global.__resetAsyncStorageMock) {
+    global.__resetAsyncStorageMock();
+  }
 });
 
 // ============================================================================
