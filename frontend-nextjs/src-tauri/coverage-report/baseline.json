@@ -1,0 +1,35 @@
+{
+  "baseline_coverage": 0.0,
+  "measured_at": "2026-03-05T20:10:00Z",
+  "total_lines": 1756,
+  "covered_lines": 0,
+  "platform": "darwin",
+  "arch": "x86_64",
+  "commit_sha": "unknown",
+  "notes": "Phase 141-01 baseline measurement - tarpaulin linking errors on macOS (see 141-01-SUMMARY.md for details). Actual baseline to be measured in CI/CD (ubuntu-latest runner). This is a placeholder documenting the measurement attempt.",
+  "high_priority_gaps": [
+    "File Dialogs (lines 24-165): 0% coverage",
+    "Device Capabilities (lines 200-450): 0% coverage",
+    "System Tray (lines 500-650): 0% coverage",
+    "IPC Commands (lines 700-1200): 0% coverage",
+    "Error Handling (throughout): 0% coverage"
+  ],
+  "files_breakdown": [
+    {
+      "path": "src/main.rs",
+      "covered": 0,
+      "total": 1756,
+      "percentage": 0.0
+    }
+  ],
+  "measurement_issues": [
+    "tarpaulin linking errors on macOS x86_64",
+    "cargo-tarpaulin requires x86_64 linux for reliable results",
+    "CI/CD workflow (.github/workflows/desktop-coverage.yml) will measure accurate baseline"
+  ],
+  "recommendations": [
+    "Run desktop-coverage.yml workflow in GitHub Actions for accurate baseline",
+    "CI/CD uses ubuntu-latest runner (x86_64) which avoids macOS linking issues",
+    "Baseline will be automatically extracted from workflow artifacts"
+  ]
+}
