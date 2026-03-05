@@ -382,6 +382,166 @@ describe('NotificationService', () => {
   });
 
   // ========================================================================
+  // Notification Listener Tests (6 new tests)
+  // ========================================================================
+
+  describe('Notification Listeners', () => {
+    beforeEach(() => {
+      notificationService._resetState();
+    });
+
+    test('should receive notification via onNotification subscriber', async () => {
+      const mockNotification = {
+        request: {
+          content: {
+            title: 'Test Notification',
+            body: 'Test Body',
+            data: { key: 'value' },
+          },
+        },
+      } as any;
+
+      let receivedNotification: any = null;
+      const unsubscribe = notificationService.onNotification((notification) => {
+        receivedNotification = notification;
+      });
+
+      // Manually trigger notification listener (simulating what happens internally)
+      (notificationService as any).notifyListeners(mockNotification);
+
+      expect(receivedNotification).toEqual(mockNotification);
+
+      unsubscribe();
+    });
+
+    test('should unsubscribe from notification listener', async () => {
+      const mockNotification = {
+        request: { content: { title: 'Test' } },
+      } as any;
+
+      let callCount = 0;
+      const unsubscribe = notificationService.onNotification(() => {
+        callCount++;
+      });
+
+      // Trigger notification
+      (notificationService as any).notifyListeners(mockNotification);
+      expect(callCount).toBe(1);
+
+      // Unsubscribe
+      unsubscribe();
+
+      // Trigger again - should not increment
+      (notificationService as any).notifyListeners(mockNotification);
+      expect(callCount).toBe(1); // Still 1, not 2
+    });
+
+    test('should receive notification response via onNotificationResponse subscriber', async () => {
+      const mockResponse = {
+        notification: {
+          request: {
+            content: { title: 'Test Notification' },
+          },
+        },
+        actionIdentifier: 'open',
+        userText: 'user input',
+      } as any;
+
+      let receivedResponse: any = null;
+      const unsubscribe = notificationService.onNotificationResponse((response) => {
+        receivedResponse = response;
+      });
+
+      // Trigger response listener
+      (notificationService as any).notifyResponseListeners(mockResponse);
+
+      expect(receivedResponse).toEqual(mockResponse);
+      expect(receivedResponse.actionIdentifier).toBe('open');
+      expect(receivedResponse.userText).toBe('user input');
+
+      unsubscribe();
+    });
+
+    test('should handle user action in notification response', async () => {
+      const mockResponse = {
+        notification: { request: { content: { title: 'Action Test' } } },
+        actionIdentifier: 'text_input',
+        userText: 'Hello',
+        timeStamp: 123456,
+      } as any;
+
+      let receivedResponse: any = null;
+      notificationService.onNotificationResponse((response) => {
+        receivedResponse = response;
+      });
+
+      (notificationService as any).notifyResponseListeners(mockResponse);
+
+      expect(receivedResponse).not.toBeNull();
+      expect(receivedResponse.actionIdentifier).toBe('text_input');
+      expect(receivedResponse.userText).toBe('Hello');
+      expect(receivedResponse.timeStamp).toBe(123456);
+    });
+
+    test('should notify all multiple notification listeners', async () => {
+      const mockNotification = {
+        request: { content: { title: 'Multi Listener Test' } },
+      } as any;
+
+      const calls: any[] = [];
+      const unsubscribe1 = notificationService.onNotification((n) => calls.push('listener1'));
+      const unsubscribe2 = notificationService.onNotification((n) => calls.push('listener2'));
+      const unsubscribe3 = notificationService.onNotification((n) => calls.push('listener3'));
+
+      // Trigger notification
+      (notificationService as any).notifyListeners(mockNotification);
+
+      expect(calls).toEqual(['listener1', 'listener2', 'listener3']);
+
+      unsubscribe1();
+      unsubscribe2();
+      unsubscribe3();
+    });
+
+    test('should isolate listener errors from other listeners', async () => {
+      const mockNotification = {
+        request: { content: { title: 'Error Test' } },
+      } as any;
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      let secondListenerCalled = false;
+      let thirdListenerCalled = false;
+
+      // First listener throws error
+      notificationService.onNotification(() => {
+        throw new Error('Listener error');
+      });
+
+      // Second and third listeners should still work
+      notificationService.onNotification(() => {
+        secondListenerCalled = true;
+      });
+
+      notificationService.onNotification(() => {
+        thirdListenerCalled = true;
+      });
+
+      // Trigger notification
+      (notificationService as any).notifyListeners(mockNotification);
+
+      expect(secondListenerCalled).toBe(true);
+      expect(thirdListenerCalled).toBe(true);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Listener error:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  // ========================================================================
   // Notification Handlers Tests (5 tests)
   // ========================================================================
 
