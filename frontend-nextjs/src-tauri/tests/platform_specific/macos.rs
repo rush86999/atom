@@ -158,3 +158,203 @@ mod platform_detection_tests {
         assert!(!cfg!(target_os = "linux"), "cfg! should return false for Linux");
     }
 }
+
+// ============================================================================
+// Path Handling Tests
+// ============================================================================
+
+#[cfg(target_os = "macos")]
+#[cfg(test)]
+mod path_handling_tests {
+    use super::*;
+
+    #[test]
+    fn test_macos_temp_directory_format() {
+        // Get temp directory
+        let temp_path = get_macos_temp_dir();
+        let temp_path_str = temp_path.to_string_lossy();
+
+        // Assert path starts with "/" (Unix absolute path)
+        assert!(temp_path_str.starts_with('/'),
+            "macOS temp dir should start with '/', got: {}",
+            temp_path_str
+        );
+
+        // Assert path does NOT contain backslashes (Windows-style)
+        assert!(!temp_path_str.contains('\\'),
+            "macOS temp dir should not contain backslashes, got: {}",
+            temp_path_str
+        );
+
+        // Assert temp directory exists
+        assert!(temp_path.exists(),
+            "macOS temp dir should exist: {}",
+            temp_path_str
+        );
+
+        // Assert temp directory is a directory
+        assert!(temp_path.is_dir(),
+            "macOS temp dir should be a directory: {}",
+            temp_path_str
+        );
+    }
+
+    #[test]
+    fn test_macos_temp_directory_writable() {
+        let temp_dir = get_macos_temp_dir();
+        let test_file = temp_dir.join("atom_macos_writable_test.txt");
+
+        // Write test file
+        fs::write(&test_file, b"test content")
+            .expect("Should be able to write to temp directory");
+
+        // Verify file exists
+        assert!(test_file.exists(), "Test file should exist");
+
+        // Read back and verify content
+        let content = fs::read_to_string(&test_file)
+            .expect("Should be able to read from temp directory");
+        assert_eq!(content, "test content", "Content should match");
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+        assert!(!test_file.exists(), "Test file should be cleaned up");
+    }
+
+    #[test]
+    fn test_macos_path_separator() {
+        // Verify get_platform_separator() returns "/" on macOS
+        let separator = get_platform_separator();
+        assert_eq!(separator, "/", "macOS should use forward slash separator");
+
+        // Create PathBuf with forward slashes
+        let path = PathBuf::from("/Users/test/file.txt");
+
+        // Verify file_name() returns "file.txt"
+        assert_eq!(path.file_name().unwrap().to_string_lossy(), "file.txt",
+            "File name should be extracted correctly");
+
+        // Verify extension() returns "txt"
+        assert_eq!(path.extension().unwrap().to_string_lossy(), "txt",
+            "Extension should be extracted correctly");
+
+        // Verify parent() returns "/Users/test"
+        assert_eq!(path.parent().unwrap().to_str().unwrap(), "/Users/test",
+            "Parent path should be extracted correctly");
+    }
+
+    #[test]
+    fn test_macos_home_directory() {
+        // Get HOME environment variable
+        let home_dir = env::var("HOME")
+            .expect("HOME environment variable should be set");
+
+        // Verify path starts with "/Users/"
+        assert!(home_dir.starts_with("/Users/"),
+            "macOS HOME should start with /Users/, got: {}",
+            home_dir
+        );
+
+        // Verify path exists
+        let home_path = PathBuf::from(&home_dir);
+        assert!(home_path.exists(),
+            "macOS HOME directory should exist: {}",
+            home_dir
+        );
+
+        // Create test path: $HOME/test_atom_file.txt
+        let test_path = home_path.join("test_atom_file.txt");
+
+        // Verify path components parse correctly
+        assert_eq!(test_path.parent().unwrap(), home_path,
+            "Test file parent should be HOME directory"
+        );
+        assert_eq!(test_path.file_name().unwrap().to_string_lossy(), "test_atom_file.txt",
+            "Test file name should be correct"
+        );
+    }
+
+    #[test]
+    fn test_macos_appdata_directory() {
+        // Get HOME directory
+        let home_dir = env::var("HOME")
+            .expect("HOME environment variable should be set");
+
+        // Test common macOS app data locations
+        let app_support = PathBuf::from(&home_dir).join("Library/Application Support");
+        let preferences = PathBuf::from(&home_dir).join("Library/Preferences");
+        let caches = PathBuf::from(&home_dir).join("Library/Caches");
+
+        // Verify paths start with home directory
+        assert!(app_support.starts_with(&home_dir),
+            "Application Support should be under HOME"
+        );
+        assert!(preferences.starts_with(&home_dir),
+            "Preferences should be under HOME"
+        );
+        assert!(caches.starts_with(&home_dir),
+            "Caches should be under HOME"
+        );
+
+        // Verify Library/Application Support directory exists or can be created
+        if app_support.exists() {
+            assert!(app_support.is_dir(),
+                "Application Support should be a directory"
+            );
+        }
+
+        // Verify Library/Preferences directory exists
+        if preferences.exists() {
+            assert!(preferences.is_dir(),
+                "Preferences should be a directory"
+            );
+        }
+
+        // Verify Library/Caches directory exists or can be created
+        if caches.exists() {
+            assert!(caches.is_dir(),
+                "Caches should be a directory"
+            );
+        }
+    }
+
+    #[test]
+    fn test_macos_absolute_vs_relative_paths() {
+        // Create absolute path
+        let absolute_path = PathBuf::from("/Users/test/document.pdf");
+
+        // Create relative path
+        let relative_path = PathBuf::from("test/document.pdf");
+
+        // Verify is_absolute() returns correct values
+        assert!(absolute_path.is_absolute(),
+            "Absolute path should be identified as absolute"
+        );
+        assert!(!relative_path.is_absolute(),
+            "Relative path should NOT be identified as absolute"
+        );
+
+        // Verify file_name() returns same value for both
+        assert_eq!(absolute_path.file_name(), relative_path.file_name(),
+            "file_name() should return same value for absolute and relative paths"
+        );
+        assert_eq!(absolute_path.file_name().unwrap().to_string_lossy(), "document.pdf",
+            "File name should be document.pdf"
+        );
+
+        // Verify extension() returns "pdf" for absolute path
+        assert_eq!(absolute_path.extension().unwrap().to_string_lossy(), "pdf",
+            "Extension should be pdf"
+        );
+
+        // Verify parent() for absolute path
+        assert_eq!(absolute_path.parent().unwrap().to_str().unwrap(), "/Users/test",
+            "Parent of absolute path should be correct"
+        );
+
+        // Verify parent() for relative path
+        assert_eq!(relative_path.parent().unwrap().to_str().unwrap(), "test",
+            "Parent of relative path should be correct"
+        );
+    }
+}
