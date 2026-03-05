@@ -6,6 +6,18 @@ on:
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
+    inputs:
+      threshold:
+        description: 'Coverage threshold percentage'
+        required: false
+        default: '80'
+        type: choice
+        options:
+          - '70'
+          - '75'
+          - '80'
+          - '85'
+          - '90'
 
 jobs:
   coverage:
@@ -54,12 +66,21 @@ jobs:
       - name: Generate coverage report
         working-directory: frontend-nextjs/src-tauri
         run: |
+          # Determine threshold based on event type
+          # PRs: 75% (allow 5% gap during development), main: 80% (strict)
+          THRESHOLD="${{ github.event_name == 'pull_request' && '75' || '80' }}"
+          THRESHOLD="${{ inputs.threshold || THRESHOLD }}"
+
+          echo "🎯 Coverage threshold: ${THRESHOLD}%"
+          echo "Event type: ${{ github.event_name }}"
+
           cargo tarpaulin \
             --config tarpaulin.toml \
             --out Html \
+            --out Json \
             --output-dir coverage-report \
             --timeout 300 \
-            --fail-under 0
+            --fail-under $THRESHOLD  # NEW: Enforce coverage threshold in CI/CD
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -102,7 +123,8 @@ jobs:
         with:
           script: |
             const coverage = '${{ steps.coverage.outputs.percentage }}';
-            const target = 80;
+            const eventType = '${{ github.event_name }}';
+            const target = eventType === 'pull_request' ? 75 : 80;  // PR: 75%, main: 80%
             const gap = (target - parseFloat(coverage)).toFixed(2);
 
             const body = `## Desktop Coverage Report
@@ -110,15 +132,27 @@ jobs:
             | Metric | Value |
             |--------|-------|
             | **Coverage** | ${coverage}% |
-            | **Target** | ${target}% |
-            | **Gap** | ${gap} percentage points |
+            | **Threshold** | ${target}% (${eventType === 'pull_request' ? 'PR (development)' : 'main (strict)'}) |
+            | **Gap** | ${gap} percentage points to target |
 
             ${
               parseFloat(coverage) >= target
                 ? '### ✅ Coverage Target Met'
                 : parseFloat(coverage) >= 60
-                  ? '### ⚠️ Coverage Below Target'
-                  : '### ❌ Critical Coverage Gap'
+                  ? '### ⚠️ Coverage Below Target (Enforcement Active)'
+                  : '### ❌ Critical Coverage Gap (Build Failed)'
+            }
+
+            **Enforcement:** ${
+              eventType === 'pull_request'
+                ? 'PR threshold: 75% (allows 5% gap during development)'
+                : 'Main threshold: 80% (strict enforcement)'
+            }
+
+            ${
+              parseFloat(coverage) < target
+                ? '**Coverage enforcement is active. Add tests to reach target.**\n\n'
+                : ''
             }
 
             **Next Steps:**
@@ -182,12 +216,16 @@ jobs:
           COVERAGE="${{ steps.coverage.outputs.percentage }}"
           THRESHOLD=80
 
+          # Enforcement now handled by --fail-under flag in tarpaulin step
+          # This step is informational only
           if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
             echo "⚠️ Coverage ${COVERAGE}% is below ${THRESHOLD}% threshold"
-            echo "::warning::Coverage ${COVERAGE}% is below ${THRESHOLD}% threshold (Phase 142 will enforce)"
+            echo "::warning::Coverage ${COVERAGE}% is below ${THRESHOLD}% threshold (enforced via --fail-under)"
           else
             echo "✅ Coverage ${COVERAGE}% meets ${THRESHOLD}% threshold"
           fi
+
+          echo "ℹ️  Enforcement handled by: cargo tarpaulin --fail-under ${THRESHOLD}"
 
       - name: Build fails on tarpaulin error
         if: steps.coverage.outcome == 'failure'
