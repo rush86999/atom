@@ -10,24 +10,24 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 141 of 26 (Desktop Coverage Expansion)
-Plan: 03 of 6
-Status: Phase 141 Plan 03 COMPLETE - macOS-specific testing with 17 tests for menu bar, dock, path handling, and temp operations. Created macos.rs test file (638 lines) with helper functions (get_macos_temp_dir, verify_unix_path_format), platform detection tests, temp directory validation (/var/folders or /tmp, forward slashes), path handling tests (separators, home directory, app data directories, absolute vs relative paths), and menu bar/system info tests (menu bar JSON structure, dock integration, system info, cfg! detection, Spotlight integration, Unix file operations). All tests use #[cfg(target_os = "macos")] guard for compile-time platform filtering. 3 tasks completed, 1 file created (638 lines), 0 deviations. Ready for Plan 04 (Linux-specific tests).
-Last activity: 2026-03-05 — Phase 141 Plan 03 executed: Created macOS-specific test suite with 17 tests covering menu bar, dock, path handling, temp operations, system info. Helper functions implemented (get_macos_temp_dir, verify_unix_path_format). Platform detection validated (get_current_platform, is_platform, cfg_assert, cfg! macro). Temp directory tested (Unix format, writability). Path handling validated (separators, home directory, app data, absolute/relative). Menu bar and system info tested (JSON structure, dock menu, system info, Spotlight, Unix permissions). 3 tasks, 1 file (638 lines), 17 cfg guards, 0 deviations.
+Plan: 04 of 6
+Status: Phase 141 Plan 04 COMPLETE - Linux-specific testing with 13 tests for XDG directories, temp operations, and path handling. Created linux.rs test file (562 lines) with helper functions (get_xdg_data_home, get_xdg_config_home, get_xdg_runtime_dir), platform detection tests, XDG directory validation (XDG_DATA_HOME, XDG_CONFIG_HOME, XDG_RUNTIME_DIR with fallbacks), path handling tests (separators, home directory), and temp/system info tests (/tmp format, writability, system info structure, cfg! detection, Unix file operations, desktop environment detection). All tests use #[cfg(target_os = "linux")] guard for compile-time platform filtering. 3 tasks completed, 1 file created (562 lines), 0 deviations. Ready for Plan 05 (Cross-platform testing).
+Last activity: 2026-03-05 — Phase 141 Plan 04 executed: Created Linux-specific test suite with 13 tests covering XDG directories, temp operations, path handling, system info. Helper functions implemented (get_xdg_data_home, get_xdg_config_home, get_xdg_runtime_dir with env var fallbacks). Platform detection validated (get_current_platform, is_platform, cfg_assert, cfg! macro). XDG directories tested (DATA_HOME, CONFIG_HOME, RUNTIME_DIR with fallbacks to $HOME/.local/share, $HOME/.config, /tmp). Path handling validated (separators, home directory, forward slashes). Temp directory tested (/tmp or /var/tmp format, writability, cleanup). System info tested (JSON structure, cfg! macro, Unix line endings, desktop environment detection). 3 tasks, 1 file (562 lines), 15 cfg guards, 0 deviations.
 
-Progress: [███░░░░░░░░░░░░░░░░░░░] 50% (3/6 plans executed in Phase 141)
+Progress: [████░░░░░░░░░░░░░░░░░░] 67% (4/6 plans executed in Phase 141)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 122 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 131: 7 plans + Phase 132: 5 plans + Phase 133: 5 plans + Phase 134: 11 plans + Phase 135: 7 plans + Phase 136: 7 plans + Phase 137: 6 plans + Phase 138: 6 plans + Phase 139: 5 plans + Phase 140: 3 plans + Phase 141: 2 plans)
+- Total plans completed: 123 (Phase 127: 12 plans + Phase 128: 8 plans + Phase 129: 5 plans + Phase 130: 6 plans + Phase 131: 7 plans + Phase 132: 5 plans + Phase 133: 5 plans + Phase 134: 11 plans + Phase 135: 7 plans + Phase 136: 7 plans + Phase 137: 6 plans + Phase 138: 6 plans + Phase 139: 5 plans + Phase 140: 3 plans + Phase 141: 3 plans)
 - Average duration: 7 minutes
-- Total execution time: 13 hours 51 minutes
+- Total execution time: 13 hours 56 minutes
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 141 | 2 | 1319s | 660s |
+| 141 | 3 | 1424s | 475s |
 | 140 | 3 | 681s | 227s |
 | 127 | 12 | 8490s | 708s |
 | 128 | 8 | 2728s | 341s |
@@ -41,10 +41,12 @@ Progress: [███░░░░░░░░░░░░░░░░░░░] 5
 | 136 | 1 | 900s | 900s |
 
 **Recent Trend:**
-- Last plan: 121s (141-02)
-- Trend: Low (Windows-specific test implementation)
+- Last plan: 305s (141-04)
+- Trend: Medium (Linux-specific test implementation with XDG directories)
 
 *Updated after each plan completion*
+| Phase 141 P141-04 | 305 | 3 tasks | 1 files |
+| Phase 141 P141-03 | 217 | 3 tasks | 1 files |
 | Phase 141 P141-02 | 121 | 3 tasks | 1 files |
 | Phase 141 P141-01 | 1198 | 3 tasks | 4 files |
 | Phase 140 P140-03 | 157 | 3 tasks | 3 files |
@@ -372,7 +374,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-05 (141-02 execution)
-Stopped at: Phase 141 Plan 02 COMPLETE - Windows-specific testing with 13 tests for file dialogs, path handling, and temp operations. Created windows.rs test file (699 lines) with helper functions (create_temp_test_file, verify_windows_path_format), platform detection tests, temp directory validation (TEMP environment variable, backslash paths), path handling tests (separators, drive letters, file extensions, PathBuf normalization), and system info tests (cfg! macro evaluation, environment variables, CRLF line endings, directory listing). All tests use #[cfg(target_os = "windows")] guard for compile-time platform filtering. 3 tasks completed, 1 file created (699 lines), 0 deviations.
+Last session: 2026-03-05 (141-04 execution)
+Stopped at: Phase 141 Plan 04 COMPLETE - Linux-specific testing with 13 tests for XDG directories, temp operations, and path handling. Created linux.rs test file (562 lines) with helper functions (get_xdg_data_home, get_xdg_config_home, get_xdg_runtime_dir), platform detection tests, XDG directory validation (XDG_DATA_HOME, XDG_CONFIG_HOME, XDG_RUNTIME_DIR with fallbacks to $HOME/.local/share, $HOME/.config, /tmp), path handling tests (separators, home directory, forward slashes), and temp/system info tests (/tmp or /var/tmp format, writability, system info structure, cfg! macro detection, Unix line endings, desktop environment detection). All tests use #[cfg(target_os = "linux")] guard for compile-time platform filtering. 3 tasks completed, 1 file created (562 lines), 0 deviations.
 Resume file: None
 Next phase: Execute Phase 141 Plan 03 - macOS-Specific Testing (menu bar, dock, Spotlight, Touch ID)
