@@ -542,6 +542,145 @@ describe('NotificationService', () => {
   });
 
   // ========================================================================
+  // Android Channel and Error Handling Tests (6 new tests)
+  // ========================================================================
+
+  describe('Android Channel and Error Handling', () => {
+    beforeEach(() => {
+      notificationService._resetState();
+    });
+
+    test('should configure Android channel on initialization', async () => {
+      const originalOS = Platform.OS;
+      (Platform.OS as any) = 'android';
+
+      await notificationService.initialize();
+
+      expect(Notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+        'atom-notifications',
+        expect.objectContaining({
+          name: 'Atom Notifications',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        })
+      );
+
+      (Platform.OS as any) = originalOS;
+    });
+
+    test('should skip Android channel configuration on iOS', async () => {
+      const originalOS = Platform.OS;
+      (Platform.OS as any) = 'ios';
+
+      await notificationService.initialize();
+
+      expect(Notifications.setNotificationChannelAsync).not.toHaveBeenCalled();
+
+      (Platform.OS as any) = originalOS;
+    });
+
+    test('should handle missing auth token gracefully', async () => {
+      (Device as any).isDevice = true;
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      } as Response);
+
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Auth token will be null (storage service returns null)
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const token = await notificationService.registerForPushNotifications('user-123', 'device-456');
+
+      // Fetch should still be called even without auth token
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/mobile/notifications/register'),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Authorization': expect.stringContaining('Bearer null'),
+          }),
+        })
+      );
+
+      expect(token).not.toBeNull();
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should handle E_NOTIFICATIONS_TOKEN_NOT_REGISTERED error', async () => {
+      (Device as any).isDevice = true;
+
+      const tokenError = new Error('Token not registered');
+      (tokenError as any).code = 'E_NOTIFICATIONS_TOKEN_NOT_REGISTERED';
+
+      (Notifications.getExpoPushTokenAsync as jest.Mock).mockRejectedValue(tokenError);
+
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const token = await notificationService.registerForPushNotifications();
+
+      expect(token).toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to register for push notifications:',
+        expect.any(Error)
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'NotificationService: Must request permissions first'
+      );
+
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should handle generic getExpoPushTokenAsync error', async () => {
+      (Device as any).isDevice = true;
+
+      (Notifications.getExpoPushTokenAsync as jest.Mock).mockRejectedValue(
+        new Error('Unknown error')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const token = await notificationService.registerForPushNotifications();
+
+      expect(token).toBeNull();
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to register for push notifications:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    test('should return denied status when getPermissionsAsync throws error', async () => {
+      (Notifications.getPermissionsAsync as jest.Mock).mockRejectedValue(
+        new Error('Permission check failed')
+      );
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const status = await notificationService.getPermissionStatus();
+
+      expect(status).toBe('denied');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'NotificationService: Failed to get permission status:',
+        expect.any(Error)
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  // ========================================================================
   // Notification Handlers Tests (5 tests)
   // ========================================================================
 
