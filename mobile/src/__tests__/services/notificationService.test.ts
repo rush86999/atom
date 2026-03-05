@@ -685,6 +685,10 @@ describe('NotificationService', () => {
   // ========================================================================
 
   describe('Notification Handlers', () => {
+    beforeEach(() => {
+      notificationService._resetState();
+    });
+
     test('should set handler on initialize', async () => {
       await notificationService.initialize();
       expect(Notifications.setNotificationHandler).toHaveBeenCalled();
@@ -783,7 +787,10 @@ describe('NotificationService', () => {
 
     test('should handle Android platform', async () => {
       const originalOS = Platform.OS;
-      (Platform.OS as any) = 'android';
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'android',
+        configurable: true,
+      });
       (Device as any).isDevice = true;
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
@@ -791,12 +798,18 @@ describe('NotificationService', () => {
       } as Response);
       const token = await notificationService.registerForPushNotifications();
       expect(token?.platform).toBe('android');
-      (Platform.OS as any) = originalOS;
+      Object.defineProperty(Platform, 'OS', {
+        get: () => originalOS,
+        configurable: true,
+      });
     });
 
     test('should skip channel on iOS', async () => {
       const originalOS = Platform.OS;
-      (Platform.OS as any) = 'ios';
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'ios',
+        configurable: true,
+      });
 
       // Reset service state and initialize
       notificationService._resetState();
@@ -804,7 +817,10 @@ describe('NotificationService', () => {
 
       // iOS doesn't use channels, so setNotificationChannelAsync shouldn't be called
       expect(Notifications.setNotificationChannelAsync).not.toHaveBeenCalled();
-      (Platform.OS as any) = originalOS;
+      Object.defineProperty(Platform, 'OS', {
+        get: () => originalOS,
+        configurable: true,
+      });
     });
 
     test('should detect simulator vs device', async () => {
