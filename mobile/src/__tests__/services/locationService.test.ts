@@ -667,6 +667,287 @@ describe('LocationService', () => {
   });
 
   // ========================================================================
+  // Geofence Event Notifications
+  // ========================================================================
+
+  describe('Geofence Events', () => {
+    test('should subscribe to enter events', async () => {
+      const mockCallback = jest.fn();
+      const unsubscribe = locationService.onGeofenceEvent(mockCallback);
+
+      // Add a geofence region
+      const region = {
+        id: 'region_1',
+        identifier: 'Test Region',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        radius: 100,
+        notifyOnEntry: true,
+        notifyOnExit: false,
+      };
+
+      await locationService.addGeofence(region);
+
+      // Get current location which triggers geofence check
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      await locationService.requestPermissions();
+
+      // Trigger location inside geofence
+      const insideLocation = {
+        coords: {
+          latitude: 37.7749,
+          longitude: -122.4194,
+          altitude: 100,
+          accuracy: 10,
+        },
+        timestamp: Date.now(),
+      };
+
+      (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(insideLocation);
+      await locationService.getCurrentLocation();
+
+      // Verify callback invoked with 'enter' event
+      expect(mockCallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'enter',
+          region: expect.objectContaining({ id: 'region_1' }),
+        })
+      );
+
+      unsubscribe();
+    });
+
+    test('should subscribe to exit events', async () => {
+      const mockCallback = jest.fn();
+      const unsubscribe = locationService.onGeofenceEvent(mockCallback);
+
+      // Add a geofence region
+      const region = {
+        id: 'region_2',
+        identifier: 'Test Region 2',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        radius: 100,
+        notifyOnEntry: false,
+        notifyOnExit: true,
+      };
+
+      await locationService.addGeofence(region);
+
+      // Request permissions
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      await locationService.requestPermissions();
+
+      // Trigger location outside geofence
+      const outsideLocation = {
+        coords: {
+          latitude: 37.78,
+          longitude: -122.42,
+          altitude: 100,
+          accuracy: 10,
+        },
+        timestamp: Date.now(),
+      };
+
+      (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(outsideLocation);
+      await locationService.getCurrentLocation();
+
+      // Verify callback invoked with 'exit' event
+      expect(mockCallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'exit',
+          region: expect.objectContaining({ id: 'region_2' }),
+        })
+      );
+
+      unsubscribe();
+    });
+
+    test('should unsubscribe removes callback', async () => {
+      const mockCallback = jest.fn();
+      const unsubscribe = locationService.onGeofenceEvent(mockCallback);
+
+      // Add a geofence region
+      const region = {
+        id: 'region_3',
+        identifier: 'Test Region 3',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        radius: 100,
+        notifyOnEntry: true,
+        notifyOnExit: true,
+      };
+
+      await locationService.addGeofence(region);
+
+      // Unsubscribe before triggering event
+      unsubscribe();
+
+      // Request permissions
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      await locationService.requestPermissions();
+
+      // Trigger location update
+      const insideLocation = {
+        coords: {
+          latitude: 37.7749,
+          longitude: -122.4194,
+          altitude: 100,
+          accuracy: 10,
+        },
+        timestamp: Date.now(),
+      };
+
+      (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(insideLocation);
+      await locationService.getCurrentLocation();
+
+      // Verify callback NOT invoked
+      expect(mockCallback).not.toHaveBeenCalled();
+    });
+
+    test('should notify multiple geofence listeners', async () => {
+      const mockCallback1 = jest.fn();
+      const mockCallback2 = jest.fn();
+      const unsubscribe1 = locationService.onGeofenceEvent(mockCallback1);
+      const unsubscribe2 = locationService.onGeofenceEvent(mockCallback2);
+
+      // Add two geofence regions
+      const region1 = {
+        id: 'region_4',
+        identifier: 'Test Region 4',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        radius: 100,
+        notifyOnEntry: true,
+        notifyOnExit: false,
+      };
+
+      const region2 = {
+        id: 'region_5',
+        identifier: 'Test Region 5',
+        latitude: 37.775,
+        longitude: -122.4195,
+        radius: 100,
+        notifyOnEntry: true,
+        notifyOnExit: false,
+      };
+
+      await locationService.addGeofence(region1);
+      await locationService.addGeofence(region2);
+
+      // Request permissions
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      await locationService.requestPermissions();
+
+      // Trigger location update inside both regions
+      const insideLocation = {
+        coords: {
+          latitude: 37.7749,
+          longitude: -122.4194,
+          altitude: 100,
+          accuracy: 10,
+        },
+        timestamp: Date.now(),
+      };
+
+      (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(insideLocation);
+      await locationService.getCurrentLocation();
+
+      // Verify both callbacks invoked
+      expect(mockCallback1).toHaveBeenCalled();
+      expect(mockCallback2).toHaveBeenCalled();
+
+      unsubscribe1();
+      unsubscribe2();
+    });
+
+    test('should include correct data in geofence notification', async () => {
+      const mockCallback = jest.fn();
+      const unsubscribe = locationService.onGeofenceEvent(mockCallback);
+
+      // Add a geofence region
+      const region = {
+        id: 'region_6',
+        identifier: 'Test Region 6',
+        latitude: 37.7749,
+        longitude: -122.4194,
+        radius: 100,
+        notifyOnEntry: true,
+        notifyOnExit: true,
+      };
+
+      await locationService.addGeofence(region);
+
+      // Request permissions
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      await locationService.requestPermissions();
+
+      // Trigger location update
+      const testLocation = {
+        coords: {
+          latitude: 37.7749,
+          longitude: -122.4194,
+          altitude: 100,
+          accuracy: 10,
+        },
+        timestamp: 1234567890,
+      };
+
+      (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(testLocation);
+      await locationService.getCurrentLocation();
+
+      // Verify notification structure
+      expect(mockCallback).toHaveBeenCalledWith(
+        expect.objectContaining({
+          region: expect.objectContaining({
+            id: 'region_6',
+            identifier: 'Test Region 6',
+          }),
+          event: 'enter',
+          location: expect.objectContaining({
+            latitude: 37.7749,
+            longitude: -122.4194,
+            timestamp: 1234567890,
+          }),
+          timestamp: expect.any(Number),
+        })
+      );
+
+      unsubscribe();
+    });
+  });
+
+  // ========================================================================
   // Platform-Specific Tests
   // ========================================================================
 
