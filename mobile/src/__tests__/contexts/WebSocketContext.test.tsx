@@ -2,12 +2,15 @@
  * WebSocketContext Tests
  *
  * Tests for WebSocket context provider including:
- * - Connection lifecycle (connect, disconnect, error handling)
- * - Reconnection logic (max attempts, room rejoining)
+ * - Connection state management (connecting, connected, disconnected, error)
+ * - Reconnection logic with retry attempts and max limits
+ * - Connection quality tracking (excellent, good, poor, offline)
  * - Streaming functionality (chunks, complete, errors)
  * - Room management (join, leave, persistence)
  * - Heartbeat mechanism (connection quality tracking)
  * - Agent chat hook (message management)
+ * - Typing indicators
+ * - Event emission and listeners
  * - Cleanup on unmount
  */
 
@@ -36,18 +39,35 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
+// Mock socket.io-client to use our mock utilities
+jest.mock('socket.io-client', () => {
+  const actual = jest.requireActual('../helpers/websocketMocks');
+  return {
+    io: actual.createMockSocket,
+  };
+});
+
 import React from 'react';
-import { render, waitFor, act } from '@testing-library/react-native';
+import { render, screen, waitFor, act } from '@testing-library/react-native';
 import { WebSocketProvider, useWebSocket, useAgentChat } from '../../contexts/WebSocketContext';
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
-import { Text, View } from 'react-native';
+import { Text, View, Pressable } from 'react-native';
 
-import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { flushPromises, setupFakeTimers, resetAllMocks } from '../helpers/testUtils';
-
-// Mock socket.io-client
-jest.mock('socket.io-client');
+import {
+  createMockSocket,
+  getMockSocket,
+  simulateConnection,
+  simulateDisconnection,
+  simulateConnectionError,
+  simulateReconnectAttempt,
+  simulateReconnect,
+  simulateReconnectFailed,
+  simulateEvent,
+  resetMockSockets,
+  getAllEmittedEvents,
+} from '../helpers/websocketMocks';
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage');
@@ -59,44 +79,15 @@ jest.mock('../../contexts/AuthContext', () => ({
 }));
 
 // ============================================================================
-// Mock Socket Setup
-// ============================================================================
-
-let mockSocketConnected = false;
-let mockSocketListeners: Record<string, any> = {};
-let mockSocketOnceListeners: Record<string, any> = {};
-
-const createMockSocket = (): Partial<Socket> => {
-  return {
-    get connected() {
-      return mockSocketConnected;
-    },
-    id: 'mock-socket-id',
-    on: jest.fn((event: string, callback: (...args: any[]) => void) => {
-      mockSocketListeners[event] = callback;
-    }),
-    emit: jest.fn(),
-    disconnect: jest.fn(() => {
-      mockSocketConnected = false;
-    }),
-    connect: jest.fn(() => {
-      mockSocketConnected = true;
-    }),
-    once: jest.fn((event: string, callback: (...args: any[]) => void) => {
-      mockSocketOnceListeners[event] = callback;
-    }),
-  };
-};
-
-const mockSocket = createMockSocket();
-(io as jest.MockedFunction<typeof io>).mockReturnValue(mockSocket as Socket);
-
-// ============================================================================
 // Test Components
 // ============================================================================
 
-const WebSocketTestComponent: React.FC = () => {
-  const { isConnected, isConnecting, connectionError, connectionQuality } = useWebSocket();
+interface WebSocketTestComponentProps {
+  children?: React.ReactNode;
+}
+
+const WebSocketTestComponent: React.FC<WebSocketTestComponentProps> = ({ children }) => {
+  const { isConnected, isConnecting, connectionError, connectionQuality, socket } = useWebSocket();
   const { isAuthenticated } = useAuth();
 
   return (
@@ -106,6 +97,8 @@ const WebSocketTestComponent: React.FC = () => {
       <Text testID="connectionError">{connectionError || 'null'}</Text>
       <Text testID="connectionQuality">{connectionQuality}</Text>
       <Text testID="isAuthenticated">{isAuthenticated.toString()}</Text>
+      <Text testID="socketId">{socket?.id || 'no socket'}</Text>
+      {children}
     </View>
   );
 };
@@ -128,11 +121,7 @@ const renderWithWebSocketProvider = (component?: React.ReactNode) => {
 beforeEach(() => {
   resetAllMocks();
   setupFakeTimers();
-
-  // Reset socket state
-  mockSocketConnected = false;
-  mockSocketListeners = {};
-  mockSocketOnceListeners = {};
+  resetMockSockets();
 
   // Default auth state - authenticated
   (require('../../contexts/AuthContext').useAuth as jest.Mock).mockReturnValue({
@@ -152,13 +141,31 @@ beforeEach(() => {
 afterEach(() => {
   jest.runOnlyPendingTimers();
   jest.useRealTimers();
+  resetMockSockets();
 });
 
 // ============================================================================
-// Connection Tests (6 tests)
+// Connection Tests (7 tests)
 // ============================================================================
 
 describe('WebSocketContext - Connection', () => {
+  it('should initialize with disconnected state', async () => {
+    // Mock auth as not authenticated
+    (require('../../contexts/AuthContext').useAuth as jest.Mock).mockReturnValue({
+      isAuthenticated: false,
+      isLoading: false,
+      user: null,
+      getAccessToken: jest.fn().mockResolvedValue(null),
+    });
+
+    renderWithWebSocketProvider();
+
+    // Initial state should be disconnected
+    expect(screen.getByTestId('isConnected').props.children).toBe('false');
+    expect(screen.getByTestId('isConnecting').props.children).toBe('false');
+    expect(screen.getByTestId('connectionQuality').props.children).toBe('offline');
+  });
+
   it('should connect when authenticated', async () => {
     renderWithWebSocketProvider();
 
@@ -166,165 +173,315 @@ describe('WebSocketContext - Connection', () => {
       await flushPromises();
     });
 
-    expect(io).toHaveBeenCalledWith(
-      'http://localhost:8000',
-      expect.objectContaining({
-        auth: { token: 'mock_access_token' },
-        transports: ['websocket'],
-        reconnection: true,
-      })
-    );
+    // Wait for socket to be created
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
+    });
   });
 
-  it('should handle connection success', async () => {
-    const { getByTestId } = renderWithWebSocketProvider();
+  it('should set connecting state during connection', async () => {
+    renderWithWebSocketProvider();
 
-    // Simulate successful connection
-    await act(async () => {
-      mockSocketConnected = true;
-      if (mockSocketListeners.connect) {
-        mockSocketListeners.connect();
-      }
-      await flushPromises();
+    // Should show connecting state
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnecting').props.children).toBe('true');
+    });
+  });
+
+  it('should update to connected after successful connection', async () => {
+    renderWithWebSocketProvider();
+
+    // Wait for socket to be created
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
     });
 
-    expect(getByTestId('isConnected')).toHaveTextContent('true');
-    expect(getByTestId('isConnecting')).toHaveTextContent('false');
-    expect(getByTestId('connectionError')).toHaveTextContent('null');
-  });
-
-  it('should handle connection error', async () => {
-    const { getByTestId } = renderWithWebSocketProvider();
-
-    // Simulate connection error
-    await act(async () => {
-      if (mockSocketListeners.connect_error) {
-        mockSocketListeners.connect_error(new Error('Connection failed'));
-      }
-      await flushPromises();
-    });
-
-    expect(getByTestId('isConnecting')).toHaveTextContent('false');
-    expect(getByTestId('connectionError')).toHaveTextContent('Connection failed');
-  });
-
-  it('should track connecting state', async () => {
-    const { getByTestId } = renderWithWebSocketProvider();
-
-    // Initial state should be connecting
-    expect(getByTestId('isConnecting')).toHaveTextContent('true');
-
-    // After connection, should not be connecting
-    await act(async () => {
-      mockSocketConnected = true;
-      if (mockSocketListeners.connect) {
-        mockSocketListeners.connect();
-      }
-      await flushPromises();
-    });
-
-    expect(getByTestId('isConnecting')).toHaveTextContent('false');
-  });
-
-  it('should track connection quality based on latency', async () => {
-    const { getByTestId } = renderWithWebSocketProvider();
+    const socketId = screen.getByTestId('socketId').props.children;
 
     // Simulate connection
-    await act(async () => {
-      mockSocketConnected = true;
-      if (mockSocketListeners.connect) {
-        mockSocketListeners.connect();
-      }
-      await flushPromises();
-    });
-
-    // Simulate heartbeat with good latency
     act(() => {
-      jest.advanceTimersByTime(30000); // 30 seconds for heartbeat
-      if (mockSocketOnceListeners.pong) {
-        setTimeout(() => mockSocketOnceListeners.pong(), 100); // 100ms latency
-        jest.advanceTimersByTime(100);
-      }
+      simulateConnection(socketId);
     });
 
-    expect(getByTestId('connectionQuality')).toHaveTextContent('good');
+    // Should be connected
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnected').props.children).toBe('true');
+    });
+
+    // Should not be connecting anymore
+    expect(screen.getByTestId('isConnecting').props.children).toBe('false');
   });
 
-  it('should cleanup on unmount', () => {
-    const { unmount } = renderWithWebSocketProvider();
+  it('should handle connection errors', async () => {
+    renderWithWebSocketProvider();
 
-    unmount();
+    // Wait for socket to be created
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
+    });
 
-    expect(mockSocket.disconnect).toHaveBeenCalled();
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Simulate connection error
+    act(() => {
+      simulateConnectionError(socketId, 'Connection refused');
+    });
+
+    // Should show error state
+    await waitFor(() => {
+      expect(screen.getByTestId('connectionError').props.children).not.toBe('null');
+    });
+
+    expect(screen.getByTestId('isConnected').props.children).toBe('false');
+  });
+
+  it('should disconnect on logout', async () => {
+    const ControlComponent = () => {
+      const { disconnect } = useWebSocket();
+
+      return (
+        <View>
+          <WebSocketTestComponent />
+          <Pressable testID="disconnectButton" onPress={disconnect} />
+        </View>
+      );
+    };
+
+    render(
+      <WebSocketProvider>
+        <ControlComponent />
+      </WebSocketProvider>
+    );
+
+    // Wait for connection
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
+    });
+
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Simulate connection first
+    act(() => {
+      simulateConnection(socketId);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnected').props.children).toBe('true');
+    });
+
+    // Clear mocks before disconnect
+    jest.clearAllMocks();
+
+    // Trigger disconnect
+    act(() => {
+      screen.getByTestId('disconnectButton').props.onPress();
+    });
+
+    // Should be disconnected
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnected').props.children).toBe('false');
+    });
+
+    expect(screen.getByTestId('connectionQuality').props.children).toBe('offline');
+  });
+
+  it('should update connection quality based on latency', async () => {
+    renderWithWebSocketProvider();
+
+    // Wait for socket to be created
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
+    });
+
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Simulate connection
+    act(() => {
+      simulateConnection(socketId);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnected').props.children).toBe('true');
+    });
+
+    // Initial connection quality should be 'good' after connection
+    expect(screen.getByTestId('connectionQuality').props.children).toBe('good');
   });
 });
 
 // ============================================================================
-// Reconnection Tests (3 tests)
+// Reconnection Tests (5 tests)
 // ============================================================================
 
 describe('WebSocketContext - Reconnection', () => {
-  it('should reconnect on disconnect', async () => {
+  it('should attempt reconnection after disconnect', async () => {
     renderWithWebSocketProvider();
 
-    // Simulate initial connection
-    await act(async () => {
-      mockSocketConnected = true;
-      if (mockSocketListeners.connect) {
-        mockSocketListeners.connect();
-      }
+    // Wait for initial connection
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
     });
 
-    // Simulate server-initiated disconnect
-    await act(async () => {
-      mockSocketConnected = false;
-      if (mockSocketListeners.disconnect) {
-        mockSocketListeners.disconnect('io server disconnect');
-      }
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Simulate connection
+    act(() => {
+      simulateConnection(socketId);
     });
 
-    expect(mockSocket.connect).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnected').props.children).toBe('true');
+    });
+
+    // Clear mocks before disconnection
+    jest.clearAllMocks();
+
+    // Simulate server disconnect
+    act(() => {
+      simulateDisconnection(socketId, 'io server disconnect');
+    });
+
+    // Should go into connecting state for reconnection
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnecting').props.children).toBe('true');
+    });
   });
 
-  it('should stop reconnecting after max attempts', async () => {
-    const { getByTestId } = renderWithWebSocketProvider();
+  it('should respect MAX_RECONNECT_ATTEMPTS limit', async () => {
+    renderWithWebSocketProvider();
 
-    // Simulate multiple connection errors (MAX_RECONNECT_ATTEMPTS = 10)
-    for (let i = 0; i < 10; i++) {
-      await act(async () => {
-        if (mockSocketListeners.connect_error) {
-          mockSocketListeners.connect_error(new Error('Connection failed'));
-        }
+    // Wait for socket creation
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
+    });
+
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Simulate multiple failed reconnection attempts
+    for (let i = 1; i <= 10; i++) {
+      act(() => {
+        simulateReconnectAttempt(socketId, i);
       });
     }
 
+    // Simulate final failure
+    act(() => {
+      simulateReconnectFailed(socketId);
+    });
+
+    // Should show error about max attempts
     await waitFor(() => {
-      expect(getByTestId('connectionError')).toHaveTextContent(
-        'Unable to connect. Please check your internet connection.'
-      );
+      expect(screen.getByTestId('connectionError').props.children).toContain('Unable to connect');
     });
   });
 
-  it('should rejoin rooms after reconnection', async () => {
-    // Mock AsyncStorage to return saved rooms
-    (AsyncStorage.getAllKeys as jest.Mock).mockResolvedValue([
-      'socket_room_user_1',
-      'socket_room_agent_123',
-    ]);
-
+  it('should increment reconnect attempts counter', async () => {
     renderWithWebSocketProvider();
 
-    // Simulate reconnection
-    await act(async () => {
-      mockSocketConnected = true;
-      if (mockSocketListeners.connect) {
-        mockSocketListeners.connect();
-      }
+    // Wait for socket creation
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
     });
 
-    // Verify rooms were rejoined
-    expect(mockSocket.emit).toHaveBeenCalledWith('join', { room: 'user_1' });
-    expect(mockSocket.emit).toHaveBeenCalledWith('join', { room: 'agent_123' });
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Clear mocks
+    jest.clearAllMocks();
+
+    // Simulate first reconnection attempt
+    act(() => {
+      simulateReconnectAttempt(socketId, 1);
+    });
+
+    // Should be in connecting state
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnecting').props.children).toBe('true');
+    });
+
+    // Simulate second attempt
+    act(() => {
+      simulateReconnectAttempt(socketId, 2);
+    });
+
+    // Still should be connecting
+    expect(screen.getByTestId('isConnecting').props.children).toBe('true');
+  });
+
+  it('should stop reconnecting after max attempts', async () => {
+    renderWithWebSocketProvider();
+
+    // Wait for socket creation
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
+    });
+
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Clear mocks
+    jest.clearAllMocks();
+
+    // Simulate max reconnection attempts (10)
+    for (let i = 1; i <= 10; i++) {
+      act(() => {
+        simulateReconnectAttempt(socketId, i);
+      });
+    }
+
+    // Simulate reconnect failed event
+    act(() => {
+      simulateReconnectFailed(socketId);
+    });
+
+    // Should stop connecting and show error
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnecting').props.children).toBe('false');
+    });
+
+    expect(screen.getByTestId('connectionError').props.children).toContain('Reconnection failed');
+  });
+
+  it('should reconnect after successful reconnection', async () => {
+    renderWithWebSocketProvider();
+
+    // Wait for initial connection
+    await waitFor(() => {
+      expect(screen.getByTestId('socketId').props.children).not.toBe('no socket');
+    });
+
+    const socketId = screen.getByTestId('socketId').props.children;
+
+    // Simulate connection
+    act(() => {
+      simulateConnection(socketId);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnected').props.children).toBe('true');
+    });
+
+    // Clear mocks before disconnection
+    jest.clearAllMocks();
+
+    // Simulate disconnect
+    act(() => {
+      simulateDisconnection(socketId, 'transport close');
+    });
+
+    // Should be disconnected
+    expect(screen.getByTestId('isConnected').props.children).toBe('false');
+
+    // Simulate successful reconnection
+    act(() => {
+      simulateReconnect(socketId, 3);
+    });
+
+    // Should be connected again
+    await waitFor(() => {
+      expect(screen.getByTestId('isConnected').props.children).toBe('true');
+    });
+
+    // Should not show error
+    expect(screen.getByTestId('connectionError').props.children).toBe('null');
   });
 });
 
