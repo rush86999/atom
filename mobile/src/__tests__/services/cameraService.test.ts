@@ -641,4 +641,115 @@ describe('CameraService', () => {
       expect(types).toContain('back');
     });
   });
+
+  // ========================================================================
+  // Barcode Scanning Tests
+  // ========================================================================
+
+  describe('Barcode Scanning', () => {
+    test('should scan QR code successfully', async () => {
+      const mockBarcodeResult = {
+        barcodes: [
+          {
+            type: 'qr',
+            rawValue: 'https://example.com',
+            cornerPoints: [
+              { x: 0, y: 0 },
+              { x: 100, y: 0 },
+              { x: 100, y: 100 },
+              { x: 0, y: 100 },
+            ],
+          },
+        ],
+      };
+
+      const result = await cameraService.scanBarcode(mockBarcodeResult as any);
+
+      expect(result).toEqual({
+        type: 'qr',
+        data: 'https://example.com',
+        corners: {
+          topLeft: { x: 0, y: 0 },
+          topRight: { x: 100, y: 0 },
+          bottomRight: { x: 100, y: 100 },
+          bottomLeft: { x: 0, y: 100 },
+        },
+      });
+    });
+
+    test('should return first barcode when multiple present', async () => {
+      const mockBarcodeResult = {
+        barcodes: [
+          {
+            type: 'qr',
+            rawValue: 'https://example.com',
+            cornerPoints: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],
+          },
+          {
+            type: 'code128',
+            rawValue: '123456789',
+            cornerPoints: [{ x: 10, y: 10 }, { x: 90, y: 10 }, { x: 90, y: 90 }, { x: 10, y: 90 }],
+          },
+          {
+            type: 'ean13',
+            rawValue: '9780141026626',
+            cornerPoints: [{ x: 20, y: 20 }, { x: 80, y: 20 }, { x: 80, y: 80 }, { x: 20, y: 80 }],
+          },
+        ],
+      };
+
+      const result = await cameraService.scanBarcode(mockBarcodeResult as any);
+
+      expect(result).toEqual({
+        type: 'qr',
+        data: 'https://example.com',
+        corners: {
+          topLeft: { x: 0, y: 0 },
+          topRight: { x: 100, y: 0 },
+          bottomRight: { x: 100, y: 100 },
+          bottomLeft: { x: 0, y: 100 },
+        },
+      });
+    });
+
+    test('should return null when no barcodes present', async () => {
+      const mockBarcodeResult = {
+        barcodes: [],
+      };
+
+      const result = await cameraService.scanBarcode(mockBarcodeResult as any);
+
+      expect(result).toBeNull();
+    });
+
+    test('should return null when barcode result is null', async () => {
+      const result = await cameraService.scanBarcode(null);
+
+      expect(result).toBeNull();
+    });
+
+    test('should return undefined corners when corner points missing', async () => {
+      const mockBarcodeResult = {
+        barcodes: [
+          {
+            type: 'qr',
+            rawValue: 'https://example.com',
+            cornerPoints: [
+              { x: 0, y: 0 },
+              { x: 100, y: 0 },
+              // Missing 2 corner points
+            ],
+          },
+        ],
+      };
+
+      const result = await cameraService.scanBarcode(mockBarcodeResult as any);
+
+      expect(result).toEqual({
+        type: 'qr',
+        data: 'https://example.com',
+        corners: undefined,
+      });
+    });
+  });
 });
