@@ -584,8 +584,8 @@ class ChatOrchestrator:
 
         elif intent == ChatIntent.TASK_MANAGEMENT:
             task_data = feature_responses.get(FeatureType.TASKS, {})
-            if task_data.get("data"):
-                return "I've updated your tasks across all platforms."
+            if task_data.get("success"):
+                return task_data.get("data", {}).get("message", "I've processed your task request.")
             return "I'll manage those tasks for you."
 
         elif intent == ChatIntent.WORKFLOW_CREATION:
@@ -706,7 +706,80 @@ class ChatOrchestrator:
     async def _handle_task_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
-        return {"success": True, "data": {"message": "Task logic here"}}
+        """Handle task creation and management requests via unified endpoints."""
+        try:
+            from core.unified_task_endpoints import create_task, CreateTaskRequest, get_current_user
+            import asyncio
+            from datetime import datetime, timedelta
+            from unittest.mock import MagicMock
+            
+            # 1. Use NLP to extract title and description
+            title = message
+            description = ""
+            if "data_intelligence" in self.ai_engines and hasattr(self.ai_engines["data_intelligence"], "extract_task_details"):
+                # Hypothetical method if it exists, otherwise fallback
+                extracted = self.ai_engines["data_intelligence"].extract_task_details(message)
+                title = extracted.get("title", message)
+                description = extracted.get("description", "")
+            else:
+                import re
+                # Clean up natural language prefixes
+                clean_msg = re.sub(r'^(?:please\s+)?(?:create|make|add|schedule)\s+(?:a\s+)?(?:task|todo|reminder)(?:\s+to|\s+that|\s+for|:|-)?\s*', '', message, flags=re.IGNORECASE).strip()
+                
+                if not clean_msg:
+                    clean_msg = message.strip()
+                    
+                parts = clean_msg.split(":", 1)
+                if len(parts) > 1 and len(parts[0]) < 30:
+                    title = parts[0].strip()
+                    description = parts[1].strip()
+                else:
+                    title = clean_msg
+                    description = ""
+            
+            # Shorten title if it's too long
+            if len(title) > 50:
+                description = title
+                title = title[:47] + "..."
+            
+            # Capitalize
+            if title:
+                title = title[0].upper() + title[1:]
+                
+            # 2. Construct unified task request
+            task_req = CreateTaskRequest(
+                title=title or "New Task",
+                description=description,
+                dueDate=datetime.now() + timedelta(days=1), # Default to tomorrow
+                priority="medium",
+                platform="local", # Use local mock backend for chat orchestrator tests
+                status="todo"
+            )
+            
+            # Mock the FastAPI current_user dependency for internal calls
+            mock_user = MagicMock()
+            mock_user.id = session.get("user_id", "system")
+            
+            # 3. Call the unified API endpoint directly
+            result = await create_task(task_data=task_req, current_user=mock_user)
+            
+            if result.get("success"):
+                task_id = result.get("task").id if hasattr(result.get("task"), "id") else "unknown"
+                return {
+                    "success": True, 
+                    "data": {
+                        "task": task_req.dict(),
+                        "message": f"I've added '{task_req.title}' to your Tasks.",
+                        "task_id": task_id
+                    },
+                    "suggested_actions": ["View My Tasks", "Add a deadline", "Assign to team"]
+                }
+            else:
+                return {"success": False, "error": "Internal task creation failed."}
+                
+        except Exception as e:
+            logger.error(f"Task handler failed: {e}")
+            return {"success": False, "error": str(e), "data": {"message": f"Failed to create task: {str(e)}"}}
 
     async def _handle_workflow_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]

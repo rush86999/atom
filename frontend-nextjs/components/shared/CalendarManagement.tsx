@@ -92,7 +92,12 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
     null,
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Sync with initialEvents
   useEffect(() => {
@@ -436,11 +441,11 @@ const CalendarManagement: React.FC<CalendarManagementProps> = ({
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="font-bold min-w-[150px] text-center text-sm">
-                    {view.currentDate.toLocaleDateString([], {
+                    {mounted ? view.currentDate.toLocaleDateString([], {
                       month: "long",
                       year: "numeric",
                       ...(view.type === "week" && { day: "numeric" }),
-                    })}
+                    }) : "Loading..."}
                   </span>
                   <Button
                     variant="ghost"
