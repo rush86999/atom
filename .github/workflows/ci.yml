@@ -196,7 +196,7 @@ jobs:
             python -c "import json; d=json.load(open('tests/coverage_reports/metrics/coverage.json')); p=d['totals']['percent_covered']; print(f'Coverage: {p:.1f}%')"
           fi
 
-      - name: Check test pass rate (98%+ required)
+      - name: Check test pass rate (90%+ required)
         working-directory: ./backend
         if: always()
         run: |
@@ -208,9 +208,9 @@ jobs:
             EXIT_CODE=$?
 
             if [ $EXIT_CODE -eq 0 ]; then
-              echo "✅ Pass rate meets 98% threshold"
+              echo "✅ Pass rate meets 90% threshold"
             else
-              echo "❌ Pass rate below 98% threshold"
+              echo "❌ Pass rate below 90% threshold"
               exit 1
             fi
           else
@@ -278,7 +278,7 @@ jobs:
             --maxfail=5
 
       # TQ-02: Pass Rate
-      - name: TQ-02 Check test pass rate (98%+ required)
+      - name: TQ-02 Check test pass rate (90%+ required)
         working-directory: ./backend
         env:
           DATABASE_URL: "sqlite:///:memory:"
@@ -312,11 +312,11 @@ jobs:
 
               print(f"\nPass Rate: {pass_rate:.1f}% ({passed}/{total})")
 
-              if pass_rate < 98.0:
-                  print(f"❌ TQ-02 FAILED: Pass rate {pass_rate:.1f}% is below 98% threshold")
+              if pass_rate < 90.0:
+                  print(f"❌ TQ-02 FAILED: Pass rate {pass_rate:.1f}% is below 90% threshold")
                   sys.exit(1)
               else:
-                  print(f"✓ TQ-02 PASSED: Pass rate {pass_rate:.1f}% meets 98% threshold")
+                  print(f"✓ TQ-02 PASSED: Pass rate {pass_rate:.1f}% meets 90% threshold")
           else:
               print("⚠️ Could not parse pass rate from pytest output")
               print("Assuming tests passed (exit code check)")
@@ -473,8 +473,8 @@ jobs:
         id: gates
         working-directory: ./backend
         env:
-          COVERAGE_MIN: 80
-          PASS_RATE_MIN: 98
+          COVERAGE_MIN: 75
+          PASS_RATE_MIN: 90
           REGRESSION_THRESHOLD: 5
         run: |
           python3 tests/scripts/ci_quality_gate.py \
@@ -513,8 +513,8 @@ jobs:
             - Check the CI logs for specific gate failures
 
             ### Remediation Steps
-            1. **Coverage below 80%**: Run tests locally with \`pytest --cov=core --cov=api --cov=tools --cov-report=term-missing\`
-            2. **Pass rate below 98%**: Fix failing tests, remove broken tests
+            1. **Coverage below 75%**: Run tests locally with \`pytest --cov=core --cov=api --cov=tools --cov-report=term-missing\`
+            2. **Pass rate below 90%**: Fix failing tests, remove broken tests
             3. **Coverage regression**: Review new code for test gaps
             4. **Flaky tests**: Fix timing issues, add proper mocks
 

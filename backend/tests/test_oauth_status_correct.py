@@ -84,7 +84,7 @@ def test_oauth_status_endpoints():
         "results": results
     }
     
-    filename = f"oauth_status_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = f"reports/test-results/oauth_status_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     with open(filename, 'w') as f:
         json.dump(report, f, indent=2)
     

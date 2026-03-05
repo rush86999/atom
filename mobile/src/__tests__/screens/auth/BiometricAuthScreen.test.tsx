@@ -14,7 +14,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { BiometricAuthScreen } from '../../../../screens/auth/BiometricAuthScreen';
+import { BiometricAuthScreen } from '../../../screens/auth/BiometricAuthScreen';
 
 // Mock expo-local-authentication
 jest.mock('expo-local-authentication', () => ({
@@ -39,7 +39,7 @@ const mockNavigation = {
 const mockAuthenticateWithBiometric = jest.fn();
 const mockLogin = jest.fn();
 
-jest.mock('../../../../contexts/AuthContext', () => ({
+jest.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({
     authenticateWithBiometric: mockAuthenticateWithBiometric,
     login: mockLogin,
