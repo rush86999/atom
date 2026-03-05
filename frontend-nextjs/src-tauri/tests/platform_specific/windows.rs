@@ -151,5 +151,215 @@ fn test_windows_platform_detection() {
 }
 
 // ========================================================================
-// Placeholder for Task 2 tests (to be added in next task)
+// Temp Directory Tests
 // ========================================================================
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_temp_directory_format() {
+    // Get TEMP environment variable or use default
+    let temp_path = env::var("TEMP")
+        .unwrap_or_else(|_| r"C:\Temp".to_string());
+
+    // Assert path contains backslash (Windows separator)
+    assert!(
+        temp_path.contains('\\'),
+        "TEMP path should contain backslash: {}",
+        temp_path
+    );
+
+    // Assert path exists
+    let path_buf = PathBuf::from(&temp_path);
+    assert!(
+        path_buf.exists(),
+        "TEMP directory should exist: {}",
+        temp_path
+    );
+
+    // Verify parent directory exists
+    if let Some(parent) = path_buf.parent() {
+        assert!(
+            parent.exists(),
+            "TEMP parent directory should exist: {}",
+            parent.display()
+        );
+    }
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_temp_directory_writable() {
+    // Create test file in temp directory
+    let test_file = create_temp_test_file("test content");
+
+    // Verify file exists
+    assert!(
+        test_file.exists(),
+        "Test file should exist in temp directory"
+    );
+
+    // Read back and verify content matches
+    let content = fs::read_to_string(&test_file)
+        .expect("Failed to read test file");
+    assert_eq!(content, "test content", "Content should match");
+
+    // Cleanup
+    let _ = fs::remove_file(&test_file);
+    assert!(
+        !test_file.exists(),
+        "Test file should be cleaned up"
+    );
+}
+
+// ========================================================================
+// Path Separator Tests
+// ========================================================================
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_path_separator() {
+    // Test get_platform_separator() returns backslash
+    let separator = get_platform_separator();
+    assert_eq!(
+        separator, "\\",
+        "Windows path separator should be backslash"
+    );
+
+    // Create PathBuf with backslashes
+    let path = PathBuf::from(r"C:\Users\test\file.txt");
+
+    // Verify file_name() returns "file.txt"
+    assert_eq!(
+        path.file_name().unwrap().to_string_lossy(),
+        "file.txt",
+        "file_name() should extract filename"
+    );
+
+    // Verify extension() returns "txt"
+    assert_eq!(
+        path.extension().unwrap().to_string_lossy(),
+        "txt",
+        "extension() should extract extension"
+    );
+
+    // Verify parent() returns "C:\Users\test"
+    let parent = path.parent().unwrap();
+    assert_eq!(
+        parent.to_string_lossy(),
+        r"C:\Users\test",
+        "parent() should return parent directory"
+    );
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_path_buf_normalization() {
+    // Create path with mixed separators
+    let path = PathBuf::from(r"C:\Users/test\file.txt");
+
+    // Verify PathBuf normalizes to backslashes
+    let path_str = path.to_string_lossy();
+    assert!(
+        path_str.contains('\\'),
+        "PathBuf should normalize to backslashes: {}",
+        path_str
+    );
+
+    // Assert is_absolute() returns true for Windows absolute paths
+    assert!(
+        path.is_absolute(),
+        "Windows absolute path should return true for is_absolute()"
+    );
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_drive_letter_parsing() {
+    // Test various Windows paths with drive letters
+    let paths = vec![
+        r"C:\",
+        r"D:\Data",
+        r"E:\Files\test.txt",
+        r"F:\Program Files\Application",
+    ];
+
+    for path in paths {
+        // Verify each starts with drive letter pattern: [A-Z]:
+        assert!(
+            path.len() >= 2,
+            "Path should be at least 2 characters: {}",
+            path
+        );
+
+        let first_char = path.as_bytes()[0];
+        assert!(
+            first_char.is_ascii_alphabetic(),
+            "First char should be letter: {}",
+            path
+        );
+
+        assert_eq!(
+            &path[1..2],
+            ":",
+            "Second char should be colon: {}",
+            path
+        );
+
+        // Verify Windows path format
+        assert!(
+            verify_windows_path_format(path),
+            "Path should match Windows format: {}",
+            path
+        );
+    }
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_file_extensions() {
+    // Test file extension extraction
+    let test_cases = vec![
+        ("test.txt", "txt", "test"),
+        ("document.pdf", "pdf", "document"),
+        ("image.png", "png", "image"),
+        ("archive.zip", "zip", "archive"),
+        ("data.json", "json", "data"),
+        ("README", "", "README"), // No extension
+    ];
+
+    for (filename, expected_ext, expected_stem) in vec![
+        ("test.txt", Some("txt"), Some("test")),
+        ("document.pdf", Some("pdf"), Some("document")),
+        ("image.png", Some("png"), Some("image")),
+        ("archive.zip", Some("zip"), Some("archive")),
+        ("README", None, Some("README")),
+    ] {
+        let path = PathBuf::from(filename);
+
+        // Verify extension()
+        if let Some(ext) = expected_ext {
+            assert_eq!(
+                path.extension().unwrap().to_string_lossy(),
+                ext,
+                "Extension should match for {}",
+                filename
+            );
+        } else {
+            assert!(
+                path.extension().is_none(),
+                "Extension should be None for {}",
+                filename
+            );
+        }
+
+        // Verify file_stem()
+        if let Some(stem) = expected_stem {
+            assert_eq!(
+                path.file_stem().unwrap().to_string_lossy(),
+                stem,
+                "File stem should match for {}",
+                filename
+            );
+        }
+    }
+}
