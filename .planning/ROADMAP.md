@@ -352,7 +352,14 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Notifications tested with local and push notification flows
   4. Offline sync tested with network switching and queue persistence
   5. Device feature error states tested with graceful degradation
-**Plans**: TBD
+**Plans**: 7 plans (Wave 1: 01-05 parallel, Wave 2: 06, Wave 3: 07)
+- [ ] 136-01-PLAN.md — Camera service enhancement (barcode, multiple photos, manipulation, platform-specific)
+- [ ] 136-02-PLAN.md — Location service enhancement (background tracking, geofence events, history, settings, battery)
+- [ ] 136-03-PLAN.md — Notification service enhancement (push token, listeners, Android channels, badge, scheduled)
+- [ ] 136-04-PLAN.md — Offline sync service enhancement (network switching, periodic sync, cleanup, quota, quality metrics)
+- [ ] 136-05-PLAN.md — Device mock utilities (8 factory functions for consistent test mocks)
+- [ ] 136-06-PLAN.md — Device feature integration tests (permission flows, network switching)
+- [ ] 136-07-PLAN.md — Coverage verification and CI integration (80%+ target, coverage report, phase summary)
 
 ### Phase 137: Mobile Navigation Testing
 **Goal**: Navigation tested (React Navigation screens, deep links, route parameters)
@@ -364,7 +371,13 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Route parameters tested with type validation and defaults
   4. Navigation state tested with back stack and tab navigation
   5. Navigation errors tested with fallback screens
-**Plans**: TBD
+**Plans**: 6 plans (Wave 1: 01-02 parallel, Wave 2: 03-04 parallel, Wave 3: 05-06 parallel)
+- [ ] 137-01-PLAN.md — React Navigation screen testing (functional mocks, tab/stack navigation)
+- [ ] 137-02-PLAN.md — Auth flow and deep linking tests (20+ routes, conditional rendering)
+- [ ] 137-03-PLAN.md — Route parameter validation tests (7 ParamList types)
+- [ ] 137-04-PLAN.md — Navigation state management tests (back stack, tab state, reset)
+- [ ] 137-05-PLAN.md — Navigation error handling tests (invalid deep links, fallback screens)
+- [ ] 137-06-PLAN.md — Coverage verification and phase summary (80%+ target, CI integration)
 
 ### Phase 138: Mobile State Management Testing
 **Goal**: State management tested (Redux slices, Context providers, AsyncStorage)
