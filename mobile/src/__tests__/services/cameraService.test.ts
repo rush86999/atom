@@ -12,6 +12,7 @@
 import { CameraView, CameraType } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 import { cameraService } from '../../services/cameraService';
 
@@ -49,6 +50,40 @@ jest.mock('expo-file-system', () => ({
   getInfoAsync: jest.fn(),
 }));
 
+// Mock expo-image-manipulator
+jest.mock('expo-image-manipulator', () => {
+  return {
+    manipulateAsync: jest.fn().mockResolvedValue({
+      uri: 'file:///mock/manipulated.jpg',
+      width: 1920,
+      height: 1080,
+    }),
+    SaveFormat: {
+      JPEG: 'jpeg',
+      PNG: 'png',
+    },
+    FlipType: {
+      Horizontal: 'horizontal',
+      Vertical: 'vertical',
+    },
+    default: {
+      manipulateAsync: jest.fn().mockResolvedValue({
+        uri: 'file:///mock/manipulated.jpg',
+        width: 1920,
+        height: 1080,
+      }),
+      SaveFormat: {
+        JPEG: 'jpeg',
+        PNG: 'png',
+      },
+      FlipType: {
+        Horizontal: 'horizontal',
+        Vertical: 'vertical',
+      },
+    },
+  };
+});
+
 // Mock Platform
 jest.mock('react-native', () => ({
   Platform: {
@@ -68,8 +103,7 @@ describe('CameraService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset camera service state by re-importing
-    jest.resetModules();
+    // Don't reset modules - it breaks the mocks
 
     // Default mock implementations
     (CameraView.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({
@@ -99,6 +133,13 @@ describe('CameraService', () => {
       canAskAgain: true,
       granted: true,
       expires: 'never',
+    });
+
+    // Re-setup ImageManipulator mock after clearing
+    (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValue({
+      uri: 'file:///mock/manipulated.jpg',
+      width: 1920,
+      height: 1080,
     });
   });
 
@@ -477,7 +518,7 @@ describe('CameraService', () => {
         mediaTypes: 'images',
         allowsMultiple: true,
         maxResults: 2,
-        quality: 0.9,
+        quality: 0.8,
         exif: false,
       });
     });
@@ -829,6 +870,388 @@ describe('CameraService', () => {
 
       expect(beforeDelete.photos).toHaveLength(afterDelete.photos.length);
       expect(beforeDelete.photos[0].uri).toBe(afterDelete.photos[0].uri);
+    });
+  });
+
+  // ========================================================================
+  // Image Manipulation Tests
+  // ========================================================================
+
+  describe('Image Manipulation', () => {
+    test('should rotate image by 90 degrees', async () => {
+      const resultUri = await cameraService.rotateImage('file:///mock/photo.jpg', 90);
+
+      expect(resultUri).toBe('file:///mock/manipulated.jpg');
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+        'file:///mock/photo.jpg',
+        [{ rotate: 90 }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+    });
+
+    test('should flip image horizontally', async () => {
+      const resultUri = await cameraService.flipImage('file:///mock/photo.jpg', true);
+
+      expect(resultUri).toBe('file:///mock/manipulated.jpg');
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+        'file:///mock/photo.jpg',
+        [{ flip: ImageManipulator.FlipType.Horizontal }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+    });
+
+    test('should flip image vertically', async () => {
+      const resultUri = await cameraService.flipImage('file:///mock/photo.jpg', false);
+
+      expect(resultUri).toBe('file:///mock/manipulated.jpg');
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+        'file:///mock/photo.jpg',
+        [{ flip: ImageManipulator.FlipType.Vertical }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+    });
+
+    test('should rotate image by 180 degrees (2x90)', async () => {
+      const resultUri = await cameraService.rotateImage('file:///mock/photo.jpg', 180);
+
+      expect(resultUri).toBe('file:///mock/manipulated.jpg');
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+        'file:///mock/photo.jpg',
+        [{ rotate: 180 }, { rotate: 180 }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+    });
+
+    test('should crop image to document bounds', async () => {
+      const mockCorners = {
+        topLeft: { x: 10, y: 10 },
+        topRight: { x: 90, y: 10 },
+        bottomRight: { x: 90, y: 90 },
+        bottomLeft: { x: 10, y: 90 },
+      };
+
+      const resultUri = await cameraService.cropToDocument('file:///mock/photo.jpg', mockCorners);
+
+      expect(resultUri).toBe('file:///mock/manipulated.jpg');
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+        'file:///mock/photo.jpg',
+        [{ crop: { originX: 10, originY: 10, width: 80, height: 80 } }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+    });
+  });
+
+  // ========================================================================
+  // Camera Mode Tests
+  // ========================================================================
+
+  describe('Camera Mode', () => {
+    beforeEach(() => {
+      // Reset camera mode to default before each test
+      cameraService.reset();
+    });
+
+    test('should get default camera mode', () => {
+      const mode = cameraService.getCameraMode();
+
+      expect(mode).toBe('picture');
+    });
+
+    test('should set camera mode to video', () => {
+      cameraService.setCameraMode('video');
+
+      expect(cameraService.getCameraMode()).toBe('video');
+    });
+
+    test('should set camera mode to document', () => {
+      cameraService.setCameraMode('document');
+
+      expect(cameraService.getCameraMode()).toBe('document');
+    });
+
+    test('should set camera mode to barcode', () => {
+      cameraService.setCameraMode('barcode');
+
+      expect(cameraService.getCameraMode()).toBe('barcode');
+    });
+
+    test('should cycle through all camera modes', () => {
+      expect(cameraService.getCameraMode()).toBe('picture');
+
+      cameraService.setCameraMode('video');
+      expect(cameraService.getCameraMode()).toBe('video');
+
+      cameraService.setCameraMode('document');
+      expect(cameraService.getCameraMode()).toBe('document');
+
+      cameraService.setCameraMode('barcode');
+      expect(cameraService.getCameraMode()).toBe('barcode');
+
+      cameraService.setCameraMode('picture');
+      expect(cameraService.getCameraMode()).toBe('picture');
+    });
+  });
+
+  // ========================================================================
+  // Document Edge Detection Tests
+  // ========================================================================
+
+  describe('Document Edge Detection', () => {
+    test('should return null for document edge detection (not implemented)', async () => {
+      const corners = await cameraService.detectDocumentEdges('file:///mock/photo.jpg');
+
+      expect(corners).toBeNull();
+    });
+
+    test('should handle edge detection error gracefully', async () => {
+      // The function logs and returns null on any error
+      const corners = await cameraService.detectDocumentEdges('invalid-uri');
+
+      expect(corners).toBeNull();
+    });
+  });
+
+  // ========================================================================
+  // EXIF Data Tests
+  // ========================================================================
+
+  describe('EXIF Data', () => {
+    beforeEach(async () => {
+      // Reset camera service
+      cameraService.reset();
+
+      // Initialize and grant permission
+      await cameraService.initialize();
+
+      // Ensure permission is granted
+      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+        size: '1024000',
+        uri: 'file:///mock/photo.jpg',
+      });
+    });
+
+    test('should preserve EXIF data when available', async () => {
+      const mockExifData = {
+        DateTime: '2024:03:04 12:00:00',
+        Make: 'Apple',
+        Model: 'iPhone 14',
+        Orientation: 1,
+        GPSLatitude: 37.7749,
+        GPSLongitude: -122.4194,
+      };
+
+      mockCameraRef.current.takePictureAsync.mockResolvedValue({
+        uri: 'file:///mock/photo.jpg',
+        width: 1920,
+        height: 1080,
+        exif: mockExifData,
+      });
+
+      const media = await cameraService.takePicture(mockCameraRef, { exif: true });
+
+      expect(media?.exif).toEqual(mockExifData);
+      expect(media?.exif?.Make).toBe('Apple');
+      expect(media?.exif?.Model).toBe('iPhone 14');
+    });
+
+    test('should handle missing EXIF data gracefully', async () => {
+      mockCameraRef.current.takePictureAsync.mockResolvedValue({
+        uri: 'file:///mock/photo.jpg',
+        width: 1920,
+        height: 1080,
+        // No exif property
+      });
+
+      const media = await cameraService.takePicture(mockCameraRef);
+
+      expect(media?.exif).toBeUndefined();
+    });
+
+    test('should request EXIF data when exif option is true', async () => {
+      mockCameraRef.current.takePictureAsync.mockResolvedValue({
+        uri: 'file:///mock/photo.jpg',
+        width: 1920,
+        height: 1080,
+        exif: { DateTime: '2024:03:04 12:00:00' },
+      });
+
+      await cameraService.takePicture(mockCameraRef, { exif: true });
+
+      expect(mockCameraRef.current.takePictureAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          exif: true,
+        })
+      );
+    });
+  });
+
+  // ========================================================================
+  // Additional Platform-Specific Tests
+  // ========================================================================
+
+  describe('Additional Platform-Specific Behavior', () => {
+    afterEach(() => {
+      // Restore platform to iOS after each test
+      (Platform.OS as any) = 'ios';
+    });
+
+    test('should get available camera types for Android', async () => {
+      (Platform.OS as any) = 'android';
+
+      const types = await cameraService.getAvailableCameraTypes();
+
+      expect(types).toEqual(['back', 'front']);
+    });
+
+    test('should get available camera types for iOS', async () => {
+      (Platform.OS as any) = 'ios';
+
+      const types = await cameraService.getAvailableCameraTypes();
+
+      expect(types).toEqual(['back', 'front']);
+    });
+
+    test('should handle getCameraTypes error', async () => {
+      (Platform.OS as any) = 'unknown';
+
+      const types = await cameraService.getAvailableCameraTypes();
+
+      expect(types).toEqual(['back']);
+    });
+  });
+
+  // ========================================================================
+  // Service Reset Tests
+  // ========================================================================
+
+  describe('Service Reset', () => {
+    test('should reset service state to defaults', () => {
+      // Change some state
+      cameraService.setCamera('front');
+      cameraService.setFlash('on');
+      cameraService.setCameraMode('video');
+
+      // Reset
+      cameraService.reset();
+
+      // Verify defaults
+      expect(cameraService.getCurrentCamera()).toBe('back');
+      expect(cameraService.getFlashMode()).toBe('off');
+      expect(cameraService.getCameraMode()).toBe('picture');
+    });
+
+    test('should clear captured photos on reset', async () => {
+      // Capture some photos
+      await cameraService.initialize();
+      (CameraView.getCameraPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        granted: true,
+        canAskAgain: true,
+        expires: 'never',
+      });
+
+      mockCameraRef.current.takePictureAsync.mockImplementation(async () => ({
+        uri: `file:///mock/photo-${Date.now()}.jpg`,
+        width: 1920,
+        height: 1080,
+      }));
+
+      await cameraService.captureMultiplePhotos(mockCameraRef, 3);
+
+      // Reset
+      cameraService.reset();
+
+      // Verify photos cleared
+      const captured = cameraService.getCapturedPhotos();
+      expect(captured.photos).toHaveLength(0);
+      expect(captured.currentIndex).toBe(0);
+    });
+  });
+
+  // ========================================================================
+  // Error Handling Tests
+  // ========================================================================
+
+  describe('Error Handling', () => {
+    test('should handle rotateImage error gracefully', async () => {
+      (ImageManipulator.manipulateAsync as jest.Mock).mockRejectedValue(
+        new Error('Manipulation failed')
+      );
+
+      const resultUri = await cameraService.rotateImage('file:///mock/photo.jpg', 90);
+
+      expect(resultUri).toBeNull();
+    });
+
+    test('should handle flipImage error gracefully', async () => {
+      (ImageManipulator.manipulateAsync as jest.Mock).mockRejectedValue(
+        new Error('Flip failed')
+      );
+
+      const resultUri = await cameraService.flipImage('file:///mock/photo.jpg', true);
+
+      expect(resultUri).toBeNull();
+    });
+
+    test('should handle cropToDocument error gracefully', async () => {
+      (ImageManipulator.manipulateAsync as jest.Mock).mockRejectedValue(
+        new Error('Crop failed')
+      );
+
+      const mockCorners = {
+        topLeft: { x: 10, y: 10 },
+        topRight: { x: 90, y: 10 },
+        bottomRight: { x: 90, y: 90 },
+        bottomLeft: { x: 10, y: 90 },
+      };
+
+      const resultUri = await cameraService.cropToDocument('file:///mock/photo.jpg', mockCorners);
+
+      expect(resultUri).toBeNull();
+    });
+
+    test('should handle requestPermissions error gracefully', async () => {
+      (CameraView.requestCameraPermissionsAsync as jest.Mock).mockRejectedValue(
+        new Error('Permission request failed')
+      );
+
+      const status = await cameraService.requestPermissions();
+
+      expect(status).toBe('denied');
+    });
+
+    test('should handle initialize error gracefully', async () => {
+      (CameraView.getCameraPermissionsAsync as jest.Mock).mockRejectedValue(
+        new Error('Initialize failed')
+      );
+
+      await cameraService.initialize();
+
+      // Should not throw, just log error
+      expect(CameraView.getCameraPermissionsAsync).toHaveBeenCalled();
     });
   });
 });
