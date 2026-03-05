@@ -38,7 +38,26 @@ jest.mock('expo-camera', () => {
     Back: 'back',
   };
 
+  const requestCameraPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  });
+
+  const getCameraPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  });
+
+  const isAvailableAsync = jest.fn().mockResolvedValue(true);
+
   return {
+    requestCameraPermissionsAsync,
+    getCameraPermissionsAsync,
+    isAvailableAsync,
     Camera: {
       Constants: {
         Type: CameraType,
@@ -55,21 +74,14 @@ jest.mock('expo-camera', () => {
         },
       },
       Type: CameraType,
+      requestCameraPermissionsAsync,
+      getCameraPermissionsAsync,
+      isAvailableAsync,
     },
     CameraView: {
-      requestCameraPermissionsAsync: jest.fn().mockResolvedValue({
-        status: 'granted',
-        canAskAgain: true,
-        granted: true,
-        expires: 'never',
-      }),
-      getCameraPermissionsAsync: jest.fn().mockResolvedValue({
-        status: 'granted',
-        canAskAgain: true,
-        granted: true,
-        expires: 'never',
-      }),
-      isAvailableAsync: jest.fn().mockResolvedValue(true),
+      requestCameraPermissionsAsync,
+      getCameraPermissionsAsync,
+      isAvailableAsync,
       takePictureAsync: jest.fn().mockResolvedValue({
         uri: 'file:///mock/photo.jpg',
         width: 1920,
@@ -88,26 +100,29 @@ jest.mock('expo-camera', () => {
 // expo-location Mock
 // ============================================================================
 
-jest.mock('expo-location', () => ({
-  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({
+jest.mock('expo-location', () => {
+  const requestForegroundPermissionsAsync = jest.fn().mockResolvedValue({
     status: 'granted',
     canAskAgain: true,
     granted: true,
     expires: 'never',
-  }),
-  getForegroundPermissionsAsync: jest.fn().mockResolvedValue({
+  });
+
+  const getForegroundPermissionsAsync = jest.fn().mockResolvedValue({
     status: 'granted',
     canAskAgain: true,
     granted: true,
     expires: 'never',
-  }),
-  requestBackgroundPermissionsAsync: jest.fn().mockResolvedValue({
+  });
+
+  const requestBackgroundPermissionsAsync = jest.fn().mockResolvedValue({
     status: 'granted',
     canAskAgain: true,
     granted: true,
     expires: 'never',
-  }),
-  getCurrentPositionAsync: jest.fn().mockResolvedValue({
+  });
+
+  const getCurrentPositionAsync = jest.fn().mockResolvedValue({
     coords: {
       latitude: 37.7749,
       longitude: -122.4194,
@@ -118,12 +133,9 @@ jest.mock('expo-location', () => ({
       speed: 0,
     },
     timestamp: Date.now(),
-  }),
-  getLastKnownPositionAsync: jest.fn().mockResolvedValue(null),
-  watchPositionAsync: jest.fn().mockReturnValue({
-    remove: jest.fn(),
-  }),
-  geocodeAsync: jest.fn().mockResolvedValue([
+  });
+
+  const mockGeocodeResult = [
     {
       latitude: 37.7749,
       longitude: -122.4194,
@@ -133,67 +145,101 @@ jest.mock('expo-location', () => ({
       country: 'USA',
       postalCode: '94103',
     },
-  ]),
-  reverseGeocodeAsync: jest.fn().mockResolvedValue([
-    {
-      latitude: 37.7749,
-      longitude: -122.4194,
-      street: '123 Market St',
-      city: 'San Francisco',
-      region: 'CA',
-      country: 'USA',
-      postalCode: '94103',
+  ];
+
+  return {
+    requestForegroundPermissionsAsync,
+    getForegroundPermissionsAsync,
+    requestBackgroundPermissionsAsync,
+    getCurrentPositionAsync,
+    getLastKnownPositionAsync: jest.fn().mockResolvedValue(null),
+    watchPositionAsync: jest.fn().mockReturnValue({
+      remove: jest.fn(),
+    }),
+    geocodeAsync: jest.fn().mockResolvedValue(mockGeocodeResult),
+    reverseGeocodeAsync: jest.fn().mockResolvedValue(mockGeocodeResult),
+    Accuracy: {
+      Low: 1,
+      Balanced: 2,
+      High: 3,
+      Highest: 4,
     },
-  ]),
-}));
+    PermissionStatus: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      UNDETERMINED: 'undetermined',
+    },
+  };
+});
 
 // ============================================================================
 // expo-notifications Mock
 // ============================================================================
 
 jest.mock('expo-notifications', () => {
-  const createMockNotifications = () => ({
-    requestPermissionsAsync: jest.fn().mockResolvedValue({
-      status: 'granted',
-      canAskAgain: true,
-      granted: true,
-      expires: 'never',
-      ios: {
-        allowsAlert: true,
-        allowsBadge: true,
-        allowsSound: true,
-      },
-      android: {},
-    }),
-    getPermissionsAsync: jest.fn().mockResolvedValue({
-      status: 'granted',
-      canAskAgain: true,
-      granted: true,
-      expires: 'never',
-    }),
-    getBadgeCountAsync: jest.fn().mockResolvedValue(0),
-    setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
-    scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id-123'),
-    cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
-    cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-    getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
-    getExpoPushTokenAsync: jest.fn().mockResolvedValue({
-      type: 'expo',
-      data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
-    }),
-    presentNotificationAsync: jest.fn().mockResolvedValue(undefined),
-    dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
-    dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-    getAllNotificationsAsync: jest.fn().mockResolvedValue([]),
-    setNotificationHandler: jest.fn(),
-    setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
-    addNotificationReceivedListener: jest.fn().mockReturnValue({
-      remove: jest.fn(),
-    }),
-    addNotificationResponseReceivedListener: jest.fn().mockReturnValue({
-      remove: jest.fn(),
-    }),
-    removeNotificationSubscription: jest.fn(),
+  const requestPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+    ios: {
+      allowsAlert: true,
+      allowsBadge: true,
+      allowsSound: true,
+    },
+    android: {},
+  });
+
+  const getPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  });
+
+  const getBadgeCountAsync = jest.fn().mockResolvedValue(0);
+  const setBadgeCountAsync = jest.fn().mockResolvedValue(undefined);
+  const scheduleNotificationAsync = jest.fn().mockResolvedValue('notification-id-123');
+  const cancelScheduledNotificationAsync = jest.fn().mockResolvedValue(undefined);
+  const cancelAllScheduledNotificationsAsync = jest.fn().mockResolvedValue(undefined);
+  const getAllScheduledNotificationsAsync = jest.fn().mockResolvedValue([]);
+  const getExpoPushTokenAsync = jest.fn().mockResolvedValue({
+    type: 'expo',
+    data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+  });
+  const presentNotificationAsync = jest.fn().mockResolvedValue(undefined);
+  const dismissNotificationAsync = jest.fn().mockResolvedValue(undefined);
+  const dismissAllNotificationsAsync = jest.fn().mockResolvedValue(undefined);
+  const getAllNotificationsAsync = jest.fn().mockResolvedValue([]);
+  const setNotificationHandler = jest.fn();
+  const setNotificationChannelAsync = jest.fn().mockResolvedValue(undefined);
+  const addNotificationReceivedListener = jest.fn().mockReturnValue({
+    remove: jest.fn(),
+  });
+  const addNotificationResponseReceivedListener = jest.fn().mockReturnValue({
+    remove: jest.fn(),
+  });
+  const removeNotificationSubscription = jest.fn();
+
+  const mockNotifications = {
+    requestPermissionsAsync,
+    getPermissionsAsync,
+    getBadgeCountAsync,
+    setBadgeCountAsync,
+    scheduleNotificationAsync,
+    cancelScheduledNotificationAsync,
+    cancelAllScheduledNotificationsAsync,
+    getAllScheduledNotificationsAsync,
+    getExpoPushTokenAsync,
+    presentNotificationAsync,
+    dismissNotificationAsync,
+    dismissAllNotificationsAsync,
+    getAllNotificationsAsync,
+    setNotificationHandler,
+    setNotificationChannelAsync,
+    addNotificationReceivedListener,
+    addNotificationResponseReceivedListener,
+    removeNotificationSubscription,
     NotificationContentInput: jest.fn(),
     NotificationRequestInput: jest.fn(),
     AndroidImportance: {
@@ -202,9 +248,7 @@ jest.mock('expo-notifications', () => {
       LOW: 'low',
       MIN: 'min',
     },
-  });
-
-  const mockNotifications = createMockNotifications();
+  };
 
   return {
     ...mockNotifications,
@@ -218,22 +262,28 @@ jest.mock('expo-notifications', () => {
 // expo-local-authentication Mock
 // ============================================================================
 
-jest.mock('expo-local-authentication', () => ({
-  hasHardwareAsync: jest.fn().mockResolvedValue(true),
-  isEnrolledAsync: jest.fn().mockResolvedValue(true),
-  authenticateAsync: jest.fn().mockResolvedValue({
+jest.mock('expo-local-authentication', () => {
+  const hasHardwareAsync = jest.fn().mockResolvedValue(true);
+  const isEnrolledAsync = jest.fn().mockResolvedValue(true);
+  const authenticateAsync = jest.fn().mockResolvedValue({
     success: true,
     error: undefined,
     warning: undefined,
-  }),
-  supportedAuthenticationTypesAsync: jest.fn().mockResolvedValue([1, 2]),
-  getEnrolledLevelAsync: jest.fn().mockResolvedValue(2),
-  AuthenticationType: {
-    FACIAL_RECOGNITION: 1,
-    FINGERPRINT: 2,
-    IRIS: 3,
-  },
-}));
+  });
+
+  return {
+    hasHardwareAsync,
+    isEnrolledAsync,
+    authenticateAsync,
+    supportedAuthenticationTypesAsync: jest.fn().mockResolvedValue([1, 2]),
+    getEnrolledLevelAsync: jest.fn().mockResolvedValue(2),
+    AuthenticationType: {
+      FACIAL_RECOGNITION: 1,
+      FINGERPRINT: 2,
+      IRIS: 3,
+    },
+  };
+});
 
 // ============================================================================
 // expo-secure-store Mock
@@ -475,6 +525,64 @@ jest.mock('@react-native-community/netinfo', () => {
 jest.mock('react-native/Libraries/Alert/Alert', () => ({
   alert: jest.fn(),
 }));
+
+// ============================================================================
+// expo-image-manipulator Mock
+// ============================================================================
+
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn().mockResolvedValue({
+    uri: 'file:///mock/manipulated.jpg',
+    width: 1920,
+    height: 1080,
+  }),
+  ImageManipulator: {
+    SaveFormat: {
+      JPEG: 'jpeg',
+      PNG: 'png',
+    },
+  },
+}), { virtual: true });
+
+// ============================================================================
+// expo-web-browser Mock
+// ============================================================================
+
+jest.mock('expo-web-browser', () => ({
+  openBrowserAsync: jest.fn().mockResolvedValue(undefined),
+  WebBrowser: {
+    dismissBrowser: jest.fn().mockResolvedValue(undefined),
+    openAuthSessionAsync: jest.fn().mockResolvedValue({
+      type: 'success',
+      url: 'http://localhost:8000/auth/callback',
+    }),
+  },
+}), { virtual: true });
+
+// ============================================================================
+// expo-haptics Mock
+// ============================================================================
+
+jest.mock('expo-haptics', () => ({
+  ImpactFeedbackStyle: {
+    Light: 0,
+    Medium: 1,
+    Heavy: 2,
+    Rigid: 3,
+    Soft: 4,
+  },
+  NotificationFeedbackType: {
+    Success: 0,
+    Warning: 1,
+    Error: 2,
+  },
+  SelectionFeedbackType: {
+    Change: 0,
+  },
+  impactAsync: jest.fn().mockResolvedValue(undefined),
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
+  selectionAsync: jest.fn().mockResolvedValue(undefined),
+}), { virtual: true });
 
 // ============================================================================
 // Mock Timers for Async Tests
