@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 141 - Desktop Coverage Expansion
+**Current focus:** Phase 142 - Desktop Rust Backend Testing
 
 ## Current Position
 
-Phase: 141 of 26 (Desktop Coverage Expansion)
-Plan: 06 of 6 (COMPLETE)
-Status: Phase 141 COMPLETE - Coverage verification and reporting with 83 tests total across Windows/macOS/Linux/IPC categories. Generated final_coverage.json with 35% estimated coverage (0% → 35%, +35pp increase). Test inventory created: Windows (13 tests), macOS (17 tests), Linux (13 tests), Conditional compilation (11 tests), IPC commands (29 tests). Coverage matrix shows 100% pass rate (83/83). Platform-specific coverage: Windows 40%, macOS 45%, Linux 40%, Cross-platform 35%. main.rs coverage breakdown: File Dialogs 40%, Device Capabilities 15%, System Tray 0%, IPC Commands 65%, Error Handling 20%. Remaining gaps identified: System tray (151 lines, 0%), device capabilities (251 lines, 15%), async error paths (partial), full Tauri integration (partial). ROADMAP.md updated with Phase 141 completion status. DESKTOP_COVERAGE.md updated with current baseline (35%) and Phase 142 recommendations. Handoff to Phase 142: Add --fail-under 80 enforcement, system tray tests (+5-8%), device capability tests (+10-12%), integration tests (+10-15%), target 80% overall (requires +45pp from 35% baseline). Note: Accurate coverage measurement requires CI/CD workflow (tarpaulin linking errors on macOS).
-Last activity: 2026-03-05 — Phase 141 Plan 06 executed: Final coverage report generated with 35% estimated coverage, 83 tests documented, ROADMAP and DESKTOP_COVERAGE updated, Phase 141 complete with handoff to Phase 142. 3 tasks, 2 files created (final_coverage.json, 141-06-SUMMARY.md), 2 files modified (ROADMAP.md, DESKTOP_COVERAGE.md), 3 commits, 0 deviations.
+Phase: 142 of 26 (Desktop Rust Backend Testing)
+Plan: 02 of 7 (COMPLETE)
+Status: Phase 142-02 COMPLETE - Device capability integration tests created with 21 async tests covering camera_snap, screen_record_start/stop, error handling, and state management. All tests passing (100% pass rate). Estimated +10-12% coverage increase for device capabilities code (lines 1000-1350, 15% → 25-27%). Platform-specific ffmpeg arguments tested (macOS avfoundation, Windows gdigrab, Linux x11grab). Async tokio runtime validated for subprocess handling. Command structure tests verify without hardware execution. integration/mod.rs and integration_mod.rs updated. Handoff to Phase 142-03 (Async Error Path Tests).
+Last activity: 2026-03-05 — Phase 142 Plan 02 executed: Device capability integration tests created with 21 tests, 6 tasks, 6 commits, 100% pass rate. Files created: device_capabilities_integration_test.rs (726 lines), 142-02-SUMMARY.md (311 lines). Modified: integration/mod.rs, integration_mod.rs. Duration: 8 minutes (480 seconds).
 
-Progress: [████████████████████████] 100% (6/6 plans executed in Phase 141)
+Progress: [██] 29% (2/7 plans executed in Phase 142)
 
 ## Performance Metrics
 
@@ -151,6 +151,7 @@ Progress: [███████████████████████
 | Phase 141 P02 | 121 | 3 tasks | 1 files |
 | Phase 141 P03 | 293 | 3 tasks | 1 files |
 | Phase 141 P05 | 300 | 3 tasks | 1 files |
+| Phase 142 P01 | 427 | 4 tasks | 2 files |
 
 ## Accumulated Context
 
