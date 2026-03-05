@@ -234,7 +234,7 @@ describe('Login Flow', () => {
     );
 
     await waitFor(() => {
-      expect(getByTestId('error').props.children).toBe('Too many login attempts');
+      expect(getByTestId('error').props.children).toBe('Too many login attempts. Please try again later.');
     });
   });
 
