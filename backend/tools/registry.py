@@ -333,6 +333,7 @@ class ToolRegistry:
         self._register_canvas_tools()
         self._register_browser_tools()
         self._register_device_tools()
+        self._register_productivity_tools()
 
         logger.info(f"Tool registry initialized with {len(self._tools)} tools")
 
@@ -515,6 +516,20 @@ class ToolRegistry:
                     )
             except Exception as e:
                 logger.warning(f"Could not register device tool {func_name}: {e}")
+
+    def _register_productivity_tools(self):
+        """Register productivity tools (Calendar, Notion) with metadata."""
+        try:
+            from tools.calendar_tool import register_calendar_tool
+            register_calendar_tool(self)
+        except Exception as e:
+            logger.warning(f"Could not register calendar tool: {e}")
+
+        try:
+            from tools.productivity_tool import register_notion_tool
+            register_notion_tool(self)
+        except Exception as e:
+            logger.warning(f"Could not register notion tool: {e}")
 
     def _get_function(self, module_name: str, function_name: str) -> Optional[Callable]:
         """Get function from module."""

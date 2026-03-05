@@ -6148,32 +6148,6 @@ class AgentSkill(Base):
     skill = relationship("Skill", backref="assigned_agents")
 
 
-class AgentEvolutionTrace(Base):
-    """Track agent evolution and learning across generations"""
-    __tablename__ = "agent_evolution_traces"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False)
-    agent_id = Column(String(255), ForeignKey('agent_registry.id', ondelete='CASCADE'), nullable=False)
-    parent_agent_id = Column(String(255), ForeignKey('agent_registry.id', ondelete='SET NULL'), nullable=True)
-    generation = Column(Integer, nullable=False, default=0)
-    evolution_type = Column(SQLEnum('performance_based', 'novelty_based', 'combined', 'manual', name='evolutiontype'), nullable=False)
-    performance_score = Column(Float, nullable=True)
-    novelty_score = Column(Float, nullable=True)
-    combined_score = Column(Float, nullable=True)
-    config_diff = Column(JSON, nullable=True)  # Changes from parent config
-    evolution_metadata = Column(JSON, nullable=True)  # Additional evolution metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    # Relationships
-    tenant = relationship("Tenant", backref="agent_evolution_traces")
-    agent = relationship("AgentRegistry", foreign_keys=[agent_id], backref="evolution_traces")
-    parent_agent = relationship("AgentRegistry", foreign_keys=[parent_agent_id], backref="child_evolution_traces")
-
-    def __repr__(self):
-        return f"<AgentEvolutionTrace(id={self.id}, agent_id={self.agent_id}, generation={self.generation})>"
-
-
 class CanvasComponent(Base):
     """
     Minimal CanvasComponent for skill UI support.
