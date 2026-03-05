@@ -11,16 +11,18 @@ import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator from '../../../navigation/AppNavigator';
 
 // Mock all screens
-jest.mock('../../../screens/workflows/WorkflowsListScreen', () => 'WorkflowsListScreen');
-jest.mock('../../../screens/workflows/WorkflowDetailScreen', () => 'WorkflowDetailScreen');
-jest.mock('../../../screens/workflows/WorkflowTriggerScreen', () => 'WorkflowTriggerScreen');
-jest.mock('../../../screens/workflows/ExecutionProgressScreen', () => 'ExecutionProgressScreen');
-jest.mock('../../../screens/workflows/WorkflowLogsScreen', () => 'WorkflowLogsScreen');
-jest.mock('../../../screens/analytics/AnalyticsDashboardScreen', () => 'AnalyticsDashboardScreen');
-jest.mock('../../../screens/agent/AgentListScreen', () => 'AgentListScreen');
-jest.mock('../../../screens/agent/AgentChatScreen', () => 'AgentChatScreen');
-jest.mock('../../../screens/chat/ChatTabScreen', () => 'ChatTabScreen');
-jest.mock('../../../screens/settings/SettingsScreen', () => 'SettingsScreen');
+jest.mock('../../screens/workflows/WorkflowsListScreen', () => 'WorkflowsListScreen');
+jest.mock('../../screens/workflows/WorkflowDetailScreen', () => 'WorkflowDetailScreen');
+jest.mock('../../screens/workflows/WorkflowTriggerScreen', () => 'WorkflowTriggerScreen');
+jest.mock('../../screens/workflows/ExecutionProgressScreen', () => 'ExecutionProgressScreen');
+jest.mock('../../screens/workflows/WorkflowLogsScreen', () => 'WorkflowLogsScreen');
+jest.mock('../../screens/analytics/AnalyticsDashboardScreen', () => 'AnalyticsDashboardScreen');
+jest.mock('../../screens/agent/AgentListScreen', () => 'AgentListScreen');
+jest.mock('../../screens/agent/AgentChatScreen', () => 'AgentChatScreen');
+jest.mock('../../screens/chat', () => ({
+  ChatTabScreen: 'ChatTabScreen',
+}));
+jest.mock('../../screens/settings/SettingsScreen', () => 'SettingsScreen');
 
 // Mock Ionicons
 jest.mock('@expo/vector-icons', () => ({
