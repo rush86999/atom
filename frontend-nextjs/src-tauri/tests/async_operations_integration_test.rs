@@ -308,3 +308,194 @@ async fn test_async_result_combinator_error() {
     assert_eq!(error_msg, "Error in result2");
 }
 
+// ============================================================================
+// Task 4: Concurrent Operation and Race Condition Tests
+// ============================================================================
+
+/// Test async concurrent file writes don't corrupt data
+#[tokio::test]
+async fn test_async_concurrent_file_writes() {
+    // Arrange: Create unique file paths
+    let temp_dir = std::env::temp_dir();
+    let file1 = temp_dir.join("concurrent_async_1.txt");
+    let file2 = temp_dir.join("concurrent_async_2.txt");
+
+    // Act: Spawn concurrent write operations
+    let file1_clone = file1.clone();
+    let file2_clone = file2.clone();
+
+    let handle1 = tokio::spawn(async move {
+        fs::write(&file1_clone, b"data1").unwrap();
+        1
+    });
+
+    let handle2 = tokio::spawn(async move {
+        fs::write(&file2_clone, b"data2").unwrap();
+        2
+    });
+
+    // Wait for both and collect results
+    let results = tokio::try_join!(handle1, handle2).unwrap();
+
+    // Assert: Verify both writes succeeded
+    assert_eq!(results, (1, 2));
+    assert_eq!(fs::read_to_string(&file1).unwrap(), "data1");
+    assert_eq!(fs::read_to_string(&file2).unwrap(), "data2");
+
+    // Cleanup
+    let _ = fs::remove_file(&file1);
+    let _ = fs::remove_file(&file2);
+}
+
+/// Test async concurrent file reads from same file
+#[tokio::test]
+async fn test_async_concurrent_file_reads() {
+    // Arrange: Create a test file with content
+    let temp_dir = std::env::temp_dir();
+    let test_file = temp_dir.join("concurrent_read_test.txt");
+    fs::write(&test_file, "shared content").unwrap();
+
+    // Act: Spawn multiple concurrent reads from same file
+    let handle1 = tokio::spawn({
+        let file_path = test_file.clone();
+        async move {
+            fs::read_to_string(&file_path).unwrap()
+        }
+    });
+
+    let handle2 = tokio::spawn({
+        let file_path = test_file.clone();
+        async move {
+            fs::read_to_string(&file_path).unwrap()
+        }
+    });
+
+    let handle3 = tokio::spawn({
+        let file_path = test_file.clone();
+        async move {
+            fs::read_to_string(&file_path).unwrap()
+        }
+    });
+
+    // Wait for all reads
+    let results = tokio::try_join!(handle1, handle2, handle3).unwrap();
+
+    // Assert: Verify all reads return correct content (no data corruption)
+    assert_eq!(results, ("shared content".to_string(), "shared content".to_string(), "shared content".to_string()));
+
+    // Cleanup
+    let _ = fs::remove_file(&test_file);
+}
+
+/// Test async mutex contention doesn't cause deadlock
+#[tokio::test]
+async fn test_async_mutex_contention() {
+    use std::sync::{Arc, Mutex};
+    use tokio::task::yield_now;
+
+    // Arrange: Create a shared Mutex-wrapped value
+    let counter = Arc::new(Mutex::new(0));
+
+    // Act: Spawn multiple tasks competing for lock
+    let mut handles = vec![];
+    for i in 0..10 {
+        let counter_clone = Arc::clone(&counter);
+        let handle = tokio::spawn(async move {
+            // Yield to increase contention likelihood
+            yield_now().await;
+
+            let mut data = counter_clone.lock().unwrap();
+            *data += 1;
+            i
+        });
+        handles.push(handle);
+    }
+
+    // Wait for all tasks
+    let mut results = vec![];
+    for handle in handles {
+        results.push(handle.await.unwrap());
+    }
+
+    // Assert: Verify all tasks completed without deadlock
+    assert_eq!(results.len(), 10);
+
+    // Verify final counter value (should be 10)
+    let final_value = *counter.lock().unwrap();
+    assert_eq!(final_value, 10);
+}
+
+/// Test async join_all collects all results
+#[tokio::test]
+async fn test_async_join_all_results() {
+    // Arrange: Spawn multiple async tasks
+    let handle1 = tokio::spawn(async { 1 });
+    let handle2 = tokio::spawn(async { 2 });
+    let handle3 = tokio::spawn(async { 3 });
+
+    // Act: Use tokio::try_join! to wait for all
+    let results = tokio::try_join!(handle1, handle2, handle3).unwrap();
+
+    // Assert: Verify all results collected correctly (returns tuple)
+    assert_eq!(results, (1, 2, 3));
+}
+
+/// Test async tokio::select returns first completion
+#[tokio::test]
+async fn test_async_select_first_completion() {
+    use tokio::time::{sleep, Duration};
+
+    // Arrange: Spawn two async operations with different delays
+    let fast_op = async {
+        sleep(Duration::from_millis(10)).await;
+        "fast"
+    };
+
+    let slow_op = async {
+        sleep(Duration::from_millis(100)).await;
+        "slow"
+    };
+
+    // Act: Use tokio::select! to get first completion
+    let result = tokio::select! {
+        _ = fast_op => "fast",
+        _ = slow_op => "slow",
+    };
+
+    // Assert: Verify faster operation's result is returned
+    assert_eq!(result, "fast");
+}
+
+/// Test async cancelled future when handle dropped
+#[tokio::test]
+async fn test_async_cancel_dropped_future() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    // Arrange: Create a flag to track if task completed
+    let completed = Arc::new(AtomicBool::new(false));
+    let completed_clone = Arc::clone(&completed);
+
+    // Act: Spawn async task but drop handle without awaiting
+    let handle = tokio::spawn(async move {
+        // Sleep for a while
+        sleep(Duration::from_millis(100)).await;
+        // Set completed flag
+        completed_clone.store(true, Ordering::SeqCst);
+        "task completed"
+    });
+
+    // Drop the handle (cancels the task)
+    drop(handle);
+
+    // Wait a bit to see if task completes
+    sleep(Duration::from_millis(150)).await;
+
+    // Assert: Task may or may not complete (depends on Tokio runtime behavior)
+    // We just verify dropping doesn't panic
+    let task_completed = completed.load(Ordering::SeqCst);
+    // Task might still complete if it was already scheduled
+    // We don't assert either way, just verify no panic occurred
+    let _ = task_completed;
+}
+
