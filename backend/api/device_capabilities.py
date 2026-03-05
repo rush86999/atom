@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from core.agent_context_resolver import AgentContextResolver
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import DeviceAudit, DeviceNode, DeviceSession, User
+from core.models import AgentRegistry, DeviceAudit, DeviceNode, DeviceSession, User
 from core.security_dependencies import get_current_user
 from core.structured_logger import get_logger
 from tools.device_tool import (

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @event.listens_for(Session, 'before_flush')
-def prevent_audit_modification(session, context):
+def prevent_audit_modification(session, flush_context, objects):
     """
     Prevent modification or deletion of FinancialAudit records.
 
@@ -38,7 +38,8 @@ def prevent_audit_modification(session, context):
 
     Args:
         session: SQLAlchemy session
-        context: Flush context
+        flush_context: Flush context (unused but required by SQLAlchemy)
+        objects: List of objects to be flushed (unused but required by SQLAlchemy)
 
     Raises:
         AssertionError: If attempting to modify or delete FinancialAudit

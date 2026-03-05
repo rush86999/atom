@@ -1,5 +1,13 @@
 // API client for ATOM platform frontend-backend integration
 import axios from "axios";
+import {
+  getUserFriendlyErrorMessage,
+  getErrorAction,
+  getErrorSeverity,
+  isRetryableError,
+  enhanceError,
+} from "./error-mapping";
+import { retry } from "@lifeomic/attempt";
 
 // Base API configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
@@ -8,7 +16,6 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
 const API_TIMEOUT = 10000; // 10 seconds
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
 
 // Create axios instance with default configuration
 const apiClient = axios.create({
@@ -38,23 +45,68 @@ apiClient.interceptors.request.use(
   },
 );
 
-// Response interceptor with retry logic
+// Response interceptor with exponential backoff retry logic
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: any) => {
-    const config = error.config as any;
+    const originalRequest = error.config;
 
-    if (!config || !config.retryCount) {
-      config.retryCount = 0;
+    // Log technical error for debugging (not user-facing)
+    console.error('[API Error]', {
+      code: error.code,
+      status: error.response?.status,
+      message: error.message,
+      url: originalRequest?.url,
+    });
+
+    // Don't retry if no config or request already marked to not retry
+    if (!originalRequest || originalRequest.__isRetryRequest === true) {
+      // Enhance error with user-friendly properties before rejecting
+      return Promise.reject(enhanceError(error));
     }
 
-    if (config.retryCount < MAX_RETRIES) {
-      config.retryCount += 1;
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-      return apiClient(config);
+    // Check if retry is explicitly disabled
+    if (originalRequest.retry === false) {
+      // Enhance error with user-friendly properties before rejecting
+      return Promise.reject(enhanceError(error));
     }
 
-    return Promise.reject(error);
+    // Mark the request to bypass this interceptor to prevent infinite loop
+    // This allows @lifeomic/attempt to handle retries without going through the interceptor again
+    originalRequest.__isRetryRequest = true;
+
+    // Use @lifeomic/attempt retry for exponential backoff and jitter
+    try {
+      const response = await retry(
+        async () => {
+          return await apiClient(originalRequest);
+        },
+        {
+          maxAttempts: MAX_RETRIES,
+          delay: 1000, // Initial 1 second delay
+          factor: 2, // Exponential backoff: 1s, 2s, 4s
+          jitter: true, // Add randomness to prevent retry storms
+          minDelay: 500,
+          maxDelay: 10000,
+          timeout: API_TIMEOUT,
+          handleError: (attemptError: any, attemptContext: any) => {
+            // Use isRetryableError from error-mapping for consistent retry logic
+            return isRetryableError(attemptError);
+          },
+          beforeAttempt: (context: any) => {
+            // Log retry attempts for debugging (context.attemptNum is 1-indexed)
+            if (context.attemptNum > 1) {
+              console.log(`Retry attempt ${context.attemptNum} of ${MAX_RETRIES}`);
+            }
+          },
+        }
+      );
+
+      return response;
+    } catch (retryError) {
+      // Enhance retry error with user-friendly properties before rejecting
+      return Promise.reject(enhanceError(retryError));
+    }
   },
 );
 

@@ -1,0 +1,65 @@
+{
+  "phase": "124-episode-property-tests",
+  "completed_at": "2026-03-02",
+  "success_criteria": {
+    "segmentation_invariants_validated": true,
+    "retrieval_ranking_invariants_validated": true,
+    "lifecycle_transitions_validated": true,
+    "max_examples_aligned": true
+  },
+  "test_counts": {
+    "segmentation_tests": 33,
+    "retrieval_tests": 41,
+    "lifecycle_tests": 16,
+    "total_property_tests": 90
+  },
+  "hypothesis_examples": {
+    "segmentation_total": 7000,
+    "retrieval_total": 4900,
+    "lifecycle_total": 800
+  },
+  "max_examples_distribution": {
+    "max_200": 3,
+    "max_100": 43,
+    "max_50": 44
+  },
+  "coverage_gaps_filled": {
+    "edge_case_tests": 5,
+    "feedback_recency_tests": 5,
+    "state_transition_tests": 6
+  },
+  "test_execution": {
+    "total_tests": 90,
+    "passed": 90,
+    "failed": 0,
+    "pass_rate": "100%",
+    "execution_time_seconds": 6.88
+  },
+  "invariant_coverage": {
+    "segmentation_invariants": {
+      "time_gap_tests": 3,
+      "topic_change_tests": 2,
+      "task_completion_tests": 1,
+      "additional_tests": 27,
+      "total": 33,
+      "required_coverage": "100%"
+    },
+    "retrieval_invariants": {
+      "feedback_tests": 9,
+      "recency_tests": 3,
+      "combined_tests": 2,
+      "additional_tests": 27,
+      "total": 41,
+      "required_coverage": "100%"
+    },
+    "lifecycle_invariants": {
+      "decay_tests": 3,
+      "consolidation_tests": 5,
+      "archival_tests": 4,
+      "transition_tests": 1,
+      "additional_tests": 3,
+      "total": 16,
+      "required_coverage": "100%"
+    }
+  }
+}

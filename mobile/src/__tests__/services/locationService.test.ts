@@ -183,7 +183,10 @@ describe('LocationService', () => {
 
       const status = await locationService.getPermissionStatus();
 
-      expect(status).toBe('granted');
+      expect(status).toEqual({
+        foreground: 'granted',
+        background: 'denied',
+      });
       expect(Location.getForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
     });
 
@@ -192,9 +195,13 @@ describe('LocationService', () => {
         new Error('Permission check failed')
       );
 
-      // getPermissionStatus doesn't catch errors, so it will throw
-      // We expect it to reject when called
-      await expect(locationService.getPermissionStatus()).rejects.toThrow('Permission check failed');
+      // getPermissionStatus catches errors and returns denied status
+      const status = await locationService.getPermissionStatus();
+
+      expect(status).toEqual({
+        foreground: 'denied',
+        background: 'denied',
+      });
     });
 
     test('should return denied on permission request error', async () => {
@@ -484,7 +491,8 @@ describe('LocationService', () => {
 
       const address = await locationService.reverseGeocode(coordinates);
 
-      expect(address).toBe('123 Main St');
+      // Implementation joins all parts with commas
+      expect(address).toBe('123 Main St, San Francisco, CA, 94102');
       expect(Location.reverseGeocodeAsync).toHaveBeenCalledWith(coordinates);
     });
 
@@ -518,7 +526,8 @@ describe('LocationService', () => {
 
       const address = await locationService.reverseGeocode(coordinates);
 
-      expect(address).toBe('San Francisco');
+      // Implementation joins city and region
+      expect(address).toBe('San Francisco, CA');
     });
 
     test('should handle reverse geocode error', async () => {

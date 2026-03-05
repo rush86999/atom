@@ -75,7 +75,41 @@ const mockApiGet = jest.fn(() =>
 
 jest.mock('../../../services/api', () => ({
   apiService: {
-    get: () => mockApiGet(),
+    get: jest.fn(() =>
+      Promise.resolve({
+        success: true,
+        data: {
+          id: 'canvas-123',
+          type: 'chart',
+          components: [
+            {
+              id: 'comp-1',
+              type: 'markdown',
+              data: {
+                content: '# Test Canvas\n\nThis is a test canvas.',
+              },
+            },
+            {
+              id: 'comp-2',
+              type: 'chart',
+              data: {
+                type: 'line',
+                data: {
+                  labels: ['Jan', 'Feb', 'Mar'],
+                  datasets: [
+                    {
+                      label: 'Sales',
+                      data: [10, 20, 30],
+                    },
+                  ],
+                },
+                show_legend: true,
+              },
+            },
+          ],
+        },
+      })
+    ),
     post: jest.fn(() =>
       Promise.resolve({
         success: true,

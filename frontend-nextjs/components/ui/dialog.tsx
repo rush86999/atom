@@ -12,6 +12,7 @@ interface DialogProps {
 interface DialogContentProps {
     children: React.ReactNode;
     className?: string;
+    id?: string;
 }
 
 interface DialogHeaderProps {
@@ -22,6 +23,7 @@ interface DialogHeaderProps {
 interface DialogTitleProps {
     children: React.ReactNode;
     className?: string;
+    id?: string;
 }
 
 interface DialogFooterProps {
@@ -61,7 +63,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
     );
 }
 
-export function DialogContent({ children, className }: DialogContentProps) {
+export function DialogContent({ children, className, id = 'dialog-content' }: DialogContentProps) {
     return (
         <div
             className={cn(
@@ -70,6 +72,9 @@ export function DialogContent({ children, className }: DialogContentProps) {
             )}
             role="dialog"
             aria-modal="true"
+            aria-labelledby={`${id}-title`}
+            aria-describedby={`${id}-description`}
+            id={id}
         >
             {children}
         </div>
@@ -84,17 +89,17 @@ export function DialogHeader({ children, className }: DialogHeaderProps) {
     );
 }
 
-export function DialogTitle({ children, className }: DialogTitleProps) {
+export function DialogTitle({ children, className, id = 'dialog-content-title' }: DialogTitleProps) {
     return (
-        <h2 className={cn("text-lg font-semibold leading-none tracking-tight", className)}>
+        <h2 id={id} className={cn("text-lg font-semibold leading-none tracking-tight", className)}>
             {children}
         </h2>
     );
 }
 
-export function DialogDescription({ children, className }: { children: React.ReactNode; className?: string }) {
+export function DialogDescription({ children, className, id = 'dialog-content-description' }: { children: React.ReactNode; className?: string; id?: string }) {
     return (
-        <p className={cn("text-sm text-gray-500 dark:text-gray-400", className)}>
+        <p id={id} className={cn("text-sm text-gray-500 dark:text-gray-400", className)}>
             {children}
         </p>
     );

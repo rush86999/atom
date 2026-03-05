@@ -426,14 +426,22 @@ describe('PlatformPermissions - Permission Edge Cases', () => {
   });
 
   test('should handle permission request timeout', async () => {
-    // Simulate permission request timeout (no response from system)
-    (Camera.requestCameraPermissionsAsync as jest.Mock).mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(createPermissionMock('notAsked')), 100))
-    );
+    // Use real timers for this test since we're using setTimeout
+    jest.useRealTimers();
 
-    const result = await Camera.requestCameraPermissionsAsync();
+    try {
+      // Simulate permission request timeout (no response from system)
+      (Camera.requestCameraPermissionsAsync as jest.Mock).mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve(createPermissionMock('notAsked')), 100))
+      );
 
-    expect(result.status).toBe('notAsked');
+      const result = await Camera.requestCameraPermissionsAsync();
+
+      expect(result.status).toBe('notAsked');
+    } finally {
+      // Restore fake timers for other tests
+      jest.useFakeTimers();
+    }
   });
 
   test('should handle iOS permission change in settings (no app restart)', async () => {

@@ -5,13 +5,22 @@
  */
 
 import React from 'react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { ChakraProvider } from '@chakra-ui/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { ThemeProvider } from '@emotion/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import WhatsAppBusinessIntegration from '../WhatsAppBusinessIntegration';
 
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
+
 // Mock fetch API
-global.fetch = jest.fn();
 
 // Test data
 const mockConversations = [

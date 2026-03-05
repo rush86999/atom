@@ -25,7 +25,9 @@
     "eject": "react-scripts eject",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "openapi:diff": "openapi-diff openapi.json openapi_new.json --format=json",
+    "openapi:generate": "python3 tests/scripts/generate_openapi_spec.py"
   },
   "eslintConfig": {
     "extends": [
@@ -49,6 +51,7 @@
     "@types/react": "^18.2.42",
     "@types/react-dom": "^18.2.17",
     "@types/react-icons": "^4.2.11",
+    "openapi-diff": "^0.25.0",
     "react-scripts": "5.0.1"
   },
   "keywords": [

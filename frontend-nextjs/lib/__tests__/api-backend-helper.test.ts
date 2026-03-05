@@ -16,7 +16,6 @@ import {
 } from '../api-backend-helper';
 
 // Mock fetch
-global.fetch = jest.fn();
 
 // Mock environment variables
 const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;

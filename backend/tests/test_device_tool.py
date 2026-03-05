@@ -460,5 +460,325 @@ class TestDeviceHelpers:
         assert result[0]["device_id"] == "test-device-123"
 
 
+# ============================================================================
+# Execute Device Command Tests (Zero Coverage Function)
+# ============================================================================
+
+class TestExecuteDeviceCommandWrapper:
+    """Tests for execute_device_command generic wrapper."""
+
+    @pytest.mark.asyncio
+    async def test_camera_command_routing(self, mock_db):
+        """Test camera command routes to device_camera_snap."""
+        with patch('tools.device_tool.device_camera_snap') as mock_camera:
+            mock_camera.return_value = {"success": True, "file_path": "/tmp/test.jpg"}
+
+            from tools.device_tool import execute_device_command
+            result = await execute_device_command(
+                db=mock_db,
+                user_id=str(uuid.uuid4()),
+                agent_id=None,
+                device_id="test-device",
+                command_type="camera",
+                parameters={"timeout": 10}
+            )
+
+            assert result["success"] is True
+            mock_camera.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_location_command_routing(self, mock_db):
+        """Test location command routes to device_get_location."""
+        with patch('tools.device_tool.device_get_location') as mock_location:
+            mock_location.return_value = {
+                "success": True,
+                "latitude": 37.7749,
+                "longitude": -122.4194
+            }
+
+            from tools.device_tool import execute_device_command
+            result = await execute_device_command(
+                db=mock_db,
+                user_id=str(uuid.uuid4()),
+                agent_id=None,
+                device_id="test-device",
+                command_type="location",
+                parameters={"high_accuracy": True}
+            )
+
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_notification_command_routing(self, mock_db):
+        """Test notification command routes to device_send_notification."""
+        with patch('tools.device_tool.device_send_notification') as mock_notification:
+            mock_notification.return_value = {
+                "success": True,
+                "message": "Notification sent"
+            }
+
+            from tools.device_tool import execute_device_command
+            result = await execute_device_command(
+                db=mock_db,
+                user_id=str(uuid.uuid4()),
+                agent_id=None,
+                device_id="test-device",
+                command_type="notification",
+                parameters={"title": "Test", "body": "Test body"}
+            )
+
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_command_routing(self, mock_db):
+        """Test shell command routing."""
+        with patch('tools.device_tool.device_execute_command') as mock_command:
+            mock_command.return_value = {
+                "success": True,
+                "output": "Command output"
+            }
+
+            from tools.device_tool import execute_device_command
+            result = await execute_device_command(
+                db=mock_db,
+                user_id=str(uuid.uuid4()),
+                agent_id=None,
+                device_id="test-device",
+                command_type="command",
+                parameters={"command": "ls", "timeout": 30}
+            )
+
+            assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_unknown_command_type(self, mock_db):
+        """Test unknown command type returns error."""
+        from tools.device_tool import execute_device_command
+        result = await execute_device_command(
+            db=mock_db,
+            user_id=str(uuid.uuid4()),
+            agent_id=None,
+            device_id="test-device",
+            command_type="unknown",
+            parameters={}
+        )
+
+        assert result["success"] is False
+        assert "Unknown command type" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_command_routing_with_exception(self, mock_db):
+        """Test command routing handles exceptions gracefully."""
+        with patch('tools.device_tool.device_camera_snap') as mock_camera:
+            mock_camera.side_effect = Exception("Device error")
+
+            from tools.device_tool import execute_device_command
+            result = await execute_device_command(
+                db=mock_db,
+                user_id=str(uuid.uuid4()),
+                agent_id=None,
+                device_id="test-device",
+                command_type="camera",
+                parameters={}
+            )
+
+            assert result["success"] is False
+            assert "Device error" in result["error"]
+
+
+# ============================================================================
+# Session Cleanup Tests (Zero Coverage Function)
+# ============================================================================
+
+class TestSessionCleanup:
+    """Tests for DeviceSessionManager cleanup."""
+
+    def test_cleanup_expired_sessions_none_expired(self):
+        """Test cleanup with no expired sessions."""
+        manager = get_device_session_manager()
+        user_id = str(uuid.uuid4())
+
+        # Create fresh session
+        session = manager.create_session(
+            user_id=user_id,
+            device_node_id="test-device",
+            session_type="camera"
+        )
+
+        cleaned = manager.cleanup_expired_sessions()
+
+        assert cleaned == 0
+        assert manager.get_session(session["session_id"]) is not None
+
+    def test_cleanup_expired_sessions_some_expired(self):
+        """Test cleanup removes expired sessions."""
+        from datetime import timedelta
+
+        manager = get_device_session_manager()
+        user_id = str(uuid.uuid4())
+
+        # Create old session
+        old_session = manager.create_session(
+            user_id=user_id,
+            device_node_id="test-device",
+            session_type="camera"
+        )
+        # Manually set last_used to be old
+        old_session["last_used"] = datetime.now() - timedelta(minutes=70)
+
+        # Create new session
+        new_session = manager.create_session(
+            user_id=user_id,
+            device_node_id="test-device",
+            session_type="location"
+        )
+
+        cleaned = manager.cleanup_expired_sessions()
+
+        assert cleaned >= 1
+        assert manager.get_session(old_session["session_id"]) is None
+        assert manager.get_session(new_session["session_id"]) is not None
+
+    def test_cleanup_expired_sessions_all_expired(self):
+        """Test cleanup removes all sessions when all expired."""
+        from datetime import timedelta
+
+        manager = get_device_session_manager()
+        user_id = str(uuid.uuid4())
+
+        # Create multiple expired sessions
+        session1 = manager.create_session(
+            user_id=user_id,
+            device_node_id="test-device",
+            session_type="camera"
+        )
+        session1["last_used"] = datetime.now() - timedelta(minutes=80)
+
+        session2 = manager.create_session(
+            user_id=user_id,
+            device_node_id="test-device",
+            session_type="location"
+        )
+        session2["last_used"] = datetime.now() - timedelta(minutes=90)
+
+        cleaned = manager.cleanup_expired_sessions()
+
+        assert cleaned == 2
+        assert manager.get_session(session1["session_id"]) is None
+        assert manager.get_session(session2["session_id"]) is None
+
+    def test_cleanup_expired_sessions_returns_count(self):
+        """Test cleanup returns correct count of expired sessions."""
+        from datetime import timedelta
+
+        manager = get_device_session_manager()
+        user_id = str(uuid.uuid4())
+
+        # Create sessions with different ages
+        for i in range(5):
+            session = manager.create_session(
+                user_id=user_id,
+                device_node_id=f"device-{i}",
+                session_type="camera"
+            )
+            # Make first 3 expired
+            if i < 3:
+                session["last_used"] = datetime.now() - timedelta(minutes=70 + i)
+
+        cleaned = manager.cleanup_expired_sessions()
+
+        assert cleaned == 3
+
+
+# ============================================================================
+# Governance Check Tests (Partial Coverage Function - 22%)
+# ============================================================================
+
+class TestCheckDeviceGovernance:
+    """Tests for _check_device_governance function."""
+
+    @pytest.mark.asyncio
+    async def test_check_governance_feature_flag_disabled(self):
+        """Test governance check when feature flag disabled."""
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance') as mock_flag:
+            mock_flag.return_value = False
+
+            from tools.device_tool import _check_device_governance
+            result = await _check_device_governance(
+                db=None,
+                agent_id=str(uuid.uuid4()),
+                action_type="camera_snap",
+                user_id=str(uuid.uuid4())
+            )
+
+            assert result["allowed"] is True
+            assert "disabled or emergency bypass" in result["reason"]
+            assert result["governance_check_passed"] is True
+
+    @pytest.mark.asyncio
+    async def test_check_governance_allowed(self):
+        """Test governance check when agent has permission."""
+        mock_gov_service = Mock()
+        mock_gov_service.can_perform_action = Mock(return_value={
+            "allowed": True,
+            "reason": "Agent has INTERN maturity"
+        })
+
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=True):
+            with patch('core.service_factory.ServiceFactory.get_governance_service', return_value=mock_gov_service):
+                from tools.device_tool import _check_device_governance
+                result = await _check_device_governance(
+                    db=Mock(),
+                    agent_id=str(uuid.uuid4()),
+                    action_type="camera_snap",
+                    user_id=str(uuid.uuid4())
+                )
+
+                assert result["allowed"] is True
+                assert result["governance_check_passed"] is True
+
+    @pytest.mark.asyncio
+    async def test_check_governance_denied(self):
+        """Test governance check when agent lacks permission."""
+        mock_gov_service = Mock()
+        mock_gov_service.can_perform_action = Mock(return_value={
+            "allowed": False,
+            "reason": "Agent is STUDENT maturity"
+        })
+
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=True):
+            with patch('core.service_factory.ServiceFactory.get_governance_service', return_value=mock_gov_service):
+                from tools.device_tool import _check_device_governance
+                result = await _check_device_governance(
+                    db=Mock(),
+                    agent_id=str(uuid.uuid4()),
+                    action_type="camera_snap",
+                    user_id=str(uuid.uuid4())
+                )
+
+                assert result["allowed"] is False
+                assert result["governance_check_passed"] is False
+
+    @pytest.mark.asyncio
+    async def test_check_governance_exception_fail_open(self):
+        """Test governance check fails open on exception."""
+        mock_gov_service = Mock()
+        mock_gov_service.can_perform_action = Mock(side_effect=Exception("Governance service error"))
+
+        with patch('core.feature_flags.FeatureFlags.should_enforce_governance', return_value=True):
+            with patch('core.service_factory.ServiceFactory.get_governance_service', return_value=mock_gov_service):
+                from tools.device_tool import _check_device_governance
+                result = await _check_device_governance(
+                    db=Mock(),
+                    agent_id=str(uuid.uuid4()),
+                    action_type="camera_snap",
+                    user_id=str(uuid.uuid4())
+                )
+
+                # Should fail open (allow on error)
+                assert result["allowed"] is True
+                assert "Governance check failed" in result["reason"]
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

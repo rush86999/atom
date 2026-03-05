@@ -1,0 +1,146 @@
+name: Frontend Accessibility Tests
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'frontend-nextjs/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'frontend-nextjs/**'
+  workflow_dispatch:
+
+jobs:
+  accessibility:
+    name: Accessibility Tests (WCAG 2.1 AA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Clear Jest cache
+        working-directory: ./frontend-nextjs
+        run: npx jest --clearCache
+
+      - name: Run accessibility tests
+        id: a11y-tests
+        working-directory: ./frontend-nextjs
+        run: npm run test:ci -- --testPathPattern="\.a11y\.test\.tsx$" --maxWorkers=2
+
+      - name: Generate accessibility report
+        if: always()
+        working-directory: ./frontend-nextjs
+        run: |
+          # Run tests again with JSON output for parsing
+          npm run test:ci -- --testPathPattern="\.a11y\.test\.tsx$" --json --outputFile=a11y-test-results.json --maxWorkers=2 || true
+
+      - name: Upload accessibility test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-test-results
+          path: frontend-nextjs/a11y-test-results.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Comment PR with accessibility violations
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const resultsPath = 'frontend-nextjs/a11y-test-results.json';
+
+            // Check if test results exist
+            if (!fs.existsSync(resultsPath)) {
+              console.log('Accessibility test results not found');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+            const totalTests = results.numTotalTests || 0;
+            const failedTests = results.numFailedTests || 0;
+            const passedTests = totalTests - failedTests;
+            const passRate = totalTests > 0 ? ((passedTests / totalTests) * 100).toFixed(2) : '0.00';
+
+            // Build comment
+            let comment = '## ♿ Accessibility Test Results\n\n';
+            comment += `**Total Tests:** ${totalTests}\n`;
+            comment += `**Passed:** ${passedTests}\n`;
+            comment += `**Failed:** ${failedTests}\n`;
+            comment += `**Pass Rate:** ${passRate}%\n\n`;
+
+            if (failedTests > 0) {
+              comment += '### ⚠️ Accessibility Violations Found\n\n';
+              comment += 'This PR has accessibility violations that must be fixed before merging.\n\n';
+              comment += '### Common WCAG 2.1 AA Violations\n\n';
+              comment += '| Category | Impact | Affected Components |\n';
+              comment += '|----------|--------|---------------------|\n';
+              comment += '| Missing alt text | Critical | Images, icons |\n';
+              comment += '| Missing form labels | Critical | Inputs, selects |\n';
+              comment += '| Low color contrast | Serious | Text, buttons |\n';
+              comment += '| Missing ARIA labels | Serious | Icon buttons |\n';
+              comment += '| Invalid HTML structure | Serious | All components |\n\n';
+              comment += '### Remediation Steps\n\n';
+              comment += '1. Run accessibility tests locally: `cd frontend-nextjs && npm test -- --testPathPattern="\\.a11y\\.test\\.tsx$"`\n';
+              comment += '2. Fix WCAG violations in affected components\n';
+              comment += '3. Verify fixes with axe DevTools browser extension\n';
+              comment += '4. Manual test with screen readers (NVDA, JAWS, VoiceOver)\n';
+              comment += '5. Commit fixes and push to this branch\n\n';
+              comment += '### Resources\n\n';
+              comment += '- [WCAG 2.1 AA Quick Reference](https://www.w3.org/WAI/WCAG21/quickref/)\n';
+              comment += '- [axe DevTools Extension](https://www.deque.com/axe/devtools/)\n';
+              comment += '- [WebAIM Contrast Checker](https://webaim.org/resources/contrastchecker/)\n';
+              comment += '- [frontend-nextjs/ACCESSIBILITY.md](https://github.com/rushiparikh/atom/blob/main/frontend-nextjs/ACCESSIBILITY.md)\n';
+            } else {
+              comment += '### ✅ No Accessibility Violations\n\n';
+              comment += 'All accessibility tests passed! WCAG 2.1 AA compliance verified.\n\n';
+              comment += '**Note:** Automated tests catch ~70% of issues. Manual testing with screen readers is still required for full compliance.\n';
+            }
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## ♿ Accessibility Test Results')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment,
+              });
+            }
+
+      - name: Fail if accessibility tests failed
+        if: steps.a11y-tests.outcome == 'failure'
+        run: exit 1

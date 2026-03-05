@@ -221,14 +221,54 @@ export const waitForAsync = async (
 };
 
 /**
- * Flush all pending promises
- * Useful for testing async operations that use setTimeout or Promises
+ * Flush all pending promises in the fake timer queue
+ * Use with jest.useFakeTimers() for reliable async testing
  *
  * @example
+ * jest.useFakeTimers();
  * await flushPromises();
  * expect(mockFunction).toHaveBeenCalled();
  */
 export const flushPromises = async (): Promise<void> => {
+  return new Promise(resolve => {
+    setImmediate(resolve);
+    jest.runAllTimers();
+  });
+};
+
+/**
+ * Wait for a condition to be true with fake timers
+ * Alternative to waitFor() when using fake timers
+ *
+ * @param condition - Function that returns true when condition is met
+ * @param timeout - Timeout in milliseconds (default: 5000)
+ *
+ * @example
+ * await waitForCondition(() => result.current.connected === true);
+ */
+export const waitForCondition = async (
+  condition: () => boolean,
+  timeout = 5000,
+): Promise<void> => {
+  const startTime = Date.now();
+  while (!condition()) {
+    if (Date.now() - startTime > timeout) {
+      throw new Error(`Condition not met within ${timeout}ms`);
+    }
+    await flushPromises();
+  }
+};
+
+/**
+ * Legacy flushPromises with setTimeout for non-fake-timer tests
+ * Useful for testing async operations that use setTimeout or Promises
+ *
+ * @deprecated Use flushPromises() with fake timers instead
+ * @example
+ * await flushPromisesLegacy();
+ * expect(mockFunction).toHaveBeenCalled();
+ */
+export const flushPromisesLegacy = async (): Promise<void> => {
   return new Promise((resolve) => {
     setTimeout(resolve, 0);
   });
@@ -260,9 +300,63 @@ export const advanceTimersByTime = async (ms: number): Promise<void> => {
   await flushPromises();
 };
 
+/**
+ * Advance timers by a specific amount (synchronous version)
+ * Use when you need to advance timers without awaiting promises
+ * @param ms - Milliseconds to advance
+ *
+ * @example
+ * jest.useFakeTimers();
+ * advanceTimersByTimeSync(30000); // Advance 30 seconds for heartbeat tests
+ */
+export const advanceTimersByTimeSync = (ms: number): void => {
+  jest.advanceTimersByTime(ms);
+};
+
 // ============================================================================
 // Cleanup Utilities
 // ============================================================================
+
+/**
+ * Reset all mocks and timers to clean state
+ * Call in beforeEach for consistent test isolation
+ *
+ * @example
+ * beforeEach(() => {
+ *   resetAllMocks();
+ * });
+ */
+export const resetAllMocks = (): void => {
+  jest.clearAllMocks();
+  jest.clearAllTimers();
+  jest.useRealTimers();
+
+  // Reset Expo module mocks
+  if (global.__resetMmkvMock) {
+    global.__resetMmkvMock();
+  }
+  if (global.__resetAsyncStorageMock) {
+    global.__resetAsyncStorageMock();
+  }
+  if (global.__resetSecureStoreMock) {
+    global.__resetSecureStoreMock();
+  }
+};
+
+/**
+ * Setup fake timers for async tests
+ * Call in beforeEach for tests using setTimeout/setInterval
+ *
+ * @example
+ * beforeEach(() => {
+ *   setupFakeTimers();
+ * });
+ */
+export const setupFakeTimers = (): void => {
+  jest.useFakeTimers({
+    doNotFake: ['requestAnimationFrame', 'performance'],
+  });
+};
 
 /**
  * Clean up all mocks and restore original implementations
@@ -371,6 +465,32 @@ export const onlyOnPlatform = (
 // ============================================================================
 
 /**
+ * Create a mock WebSocket with realistic connection behavior
+ * For testing WebSocket-dependent components
+ *
+ * @param connected - Initial connection state (default: true)
+ *
+ * @example
+ * const mockSocket = createMockWebSocket(true);
+ * expect(mockSocket.connected).toBe(true);
+ * expect(mockSocket.send).toBeDefined();
+ */
+export const createMockWebSocket = (connected = true) => {
+  return {
+    url: 'ws://localhost:8000',
+    connected,
+    onopen: null,
+    onmessage: null,
+    onerror: null,
+    onclose: null,
+    send: jest.fn(),
+    close: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+  };
+};
+
+/**
  * Create a mock function with implementation
  * @param implementation - Implementation function
  * @returns Mock function
@@ -473,10 +593,15 @@ export default {
   // Async utilities
   waitForAsync,
   flushPromises,
+  flushPromisesLegacy,
+  waitForCondition,
   wait,
   advanceTimersByTime,
+  advanceTimersByTimeSync,
 
   // Cleanup
+  resetAllMocks,
+  setupFakeTimers,
   cleanupTest,
   cleanupTestWithReset,
 
@@ -486,6 +611,7 @@ export default {
   onlyOnPlatform,
 
   // Mock helpers
+  createMockWebSocket,
   createMockFn,
   createMockAsyncFn,
 

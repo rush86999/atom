@@ -127,6 +127,10 @@ pipdeptree>=2.13.0,<3.0.0
 # Property-based Testing
 hypothesis>=6.92.0,<7.0.0
 
+# API Contract Testing (Phase 128)
+schemathesis>=3.6.0
+openapi-spec-validator>=0.5.0
+
 # Coverage delta calculation for PR comments (Phase 110)
 diff-cover>=8.0.0
 

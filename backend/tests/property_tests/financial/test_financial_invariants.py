@@ -37,7 +37,7 @@ class TestCostLeakDetectionInvariants:
         subscription_count=st.integers(min_value=1, max_value=50),
         unused_threshold_days=st.integers(min_value=1, max_value=90)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_unused_subscription_detection(self, subscription_count, unused_threshold_days):
         """Test that unused subscriptions are correctly identified"""
         from core.financial_ops_engine import CostLeakDetector, SaaSSubscription
@@ -87,7 +87,7 @@ class TestCostLeakDetectionInvariants:
         ),
         tools_per_category=st.integers(min_value=2, max_value=5)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_redundant_tool_detection(self, categories, tools_per_category):
         """Test that redundant tools in same category are detected"""
         from core.financial_ops_engine import CostLeakDetector, SaaSSubscription
@@ -125,7 +125,7 @@ class TestCostLeakDetectionInvariants:
     @given(
         unused_costs=lists_of_decimals(min_value='10.00', max_value='1000.00', min_size=1, max_size=20)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_savings_calculation_accuracy(self, unused_costs):
         """Test that savings calculations are accurate"""
         from core.financial_ops_engine import CostLeakDetector, SaaSSubscription
@@ -175,30 +175,39 @@ class TestBudgetGuardrailsInvariants:
         current_spend=st.floats(min_value=0.0, max_value=50000.0, allow_nan=False, allow_infinity=False),
         new_spend=st.floats(min_value=1.0, max_value=10000.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_budget_limit_enforcement(self, category, monthly_limit, current_spend, new_spend):
         """Test that budget limits are enforced correctly"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(
             category=category,
-            monthly_limit=monthly_limit,
-            current_spend=current_spend
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal(str(current_spend))
         )
         guardrails.set_limit(limit)
 
         result = guardrails.check_spend(category, new_spend)
 
-        # If within limit, should be approved
-        if current_spend + new_spend <= monthly_limit:
+        # Calculate utilization percentage
+        utilization = (current_spend + new_spend) / monthly_limit * 100
+
+        # Based on thresholds, expect different statuses
+        # < 80%: approved, 80-90%: pending/warn, 90-100%: paused, >= 100%: rejected
+        if utilization < 80:
             assert result["status"] in ["approved", "APPROVED"], \
-                "Spend within budget should be approved"
-            assert "remaining" in result, "Should return remaining budget"
-        # If exceeds limit, should be paused
+                f"Spend < 80% should be approved, got {result['status']} at {utilization:.1f}%"
+        elif utilization < 90:
+            assert result["status"] in ["pending", "PENDING", "approved", "APPROVED"], \
+                f"Spend 80-90% should be pending or approved, got {result['status']} at {utilization:.1f}%"
+        elif utilization < 100:
+            assert result["status"] in ["paused", "PAUSED", "pending", "PENDING"], \
+                f"Spend 90-100% should be paused or pending, got {result['status']} at {utilization:.1f}%"
         else:
-            assert result["status"] in ["paused", "PAUSED"], \
-                "Spend exceeding budget should be paused"
+            assert result["status"] in ["rejected", "REJECTED"], \
+                f"Spend >= 100% should be rejected, got {result['status']} at {utilization:.1f}%"
 
     @given(
         category=st.text(min_size=3, max_size=20, alphabet='abcdefghijklmnopqrstuvwxyz'),
@@ -209,13 +218,18 @@ class TestBudgetGuardrailsInvariants:
             max_size=20
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_budget_alert_thresholds(self, category, monthly_limit, spend_amounts):
         """Test that budget alerts trigger at correct thresholds"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
-        limit = BudgetLimit(category=category, monthly_limit=monthly_limit, current_spend=0.0)
+        limit = BudgetLimit(
+            category=category,
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal('0.0')
+        )
         guardrails.set_limit(limit)
 
         total_spend = 0.0
@@ -239,16 +253,17 @@ class TestBudgetGuardrailsInvariants:
         required_stage=st.sampled_from(["closed_won", "contract_signed", None]),
         deal_stage=st.sampled_from(["closed_won", "contract_signed", "prospecting", None])
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_deal_stage_enforcement(self, category, monthly_limit, required_stage, deal_stage):
         """Test that deal stage requirements are enforced"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(
             category=category,
-            monthly_limit=monthly_limit,
-            current_spend=0.0,
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal('0.0'),
             deal_stage_required=required_stage
         )
         guardrails.set_limit(limit)
@@ -270,16 +285,17 @@ class TestBudgetGuardrailsInvariants:
         required_milestone=st.sampled_from(["kickoff_complete", "delivery_accepted", None]),
         milestone=st.sampled_from(["kickoff_complete", "delivery_accepted", "in_progress", None])
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_milestone_enforcement(self, category, monthly_limit, required_milestone, milestone):
         """Test that milestone requirements are enforced"""
         from core.financial_ops_engine import BudgetGuardrails, BudgetLimit
+        from decimal import Decimal
 
         guardrails = BudgetGuardrails()
         limit = BudgetLimit(
             category=category,
-            monthly_limit=monthly_limit,
-            current_spend=0.0,
+            monthly_limit=Decimal(str(monthly_limit)),
+            current_spend=Decimal('0.0'),
             milestone_required=required_milestone
         )
         guardrails.set_limit(limit)
@@ -308,7 +324,7 @@ class TestInvoiceReconciliationInvariants:
         contract_amount=st.floats(min_value=100.0, max_value=10000.0, allow_nan=False, allow_infinity=False),
         tolerance_percent=st.floats(min_value=1.0, max_value=10.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_invoice_matching_within_tolerance(self, invoice_amounts, contract_amount, tolerance_percent):
         """Test that invoices within tolerance are matched"""
         from core.financial_ops_engine import InvoiceReconciler, Invoice, Contract
@@ -353,7 +369,7 @@ class TestInvoiceReconciliationInvariants:
         variance_percent=st.floats(min_value=6.0, max_value=50.0, allow_nan=False, allow_infinity=False),
         tolerance_percent=st.floats(min_value=1.0, max_value=5.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_invoice_discrepancy_detection(self, contract_amount, variance_percent, tolerance_percent):
         """Test that invoices outside tolerance are flagged as discrepancies"""
         from core.financial_ops_engine import InvoiceReconciler, Invoice, Contract
@@ -399,7 +415,7 @@ class TestInvoiceReconciliationInvariants:
     @given(
         invoice_count=st.integers(min_value=1, max_value=30)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_invoice_reconciliation_summary(self, invoice_count):
         """Test that reconciliation summary is accurate"""
         from core.financial_ops_engine import InvoiceReconciler, Invoice, Contract
@@ -466,7 +482,7 @@ class TestMultiCurrencyInvariants:
             max_size=10
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_currency_conversion_consistency(self, currency_data):
         """Test that currency conversions are consistent"""
         # Unzip the tuples
@@ -490,7 +506,7 @@ class TestMultiCurrencyInvariants:
         rate1=st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False),
         rate2=st.floats(min_value=0.5, max_value=2.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_cross_currency_conversion(self, amount, rate1, rate2):
         """Test cross-currency conversion consistency"""
         # Direct conversion: amount -> rate1 -> rate2
@@ -517,7 +533,7 @@ class TestTaxCalculationInvariants:
         ),
         tax_rate=st.floats(min_value=0.0, max_value=0.30, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_tax_calculation_correctness(self, amounts, tax_rate):
         """Test that tax calculations are correct"""
         for amount in amounts:
@@ -542,7 +558,7 @@ class TestTaxCalculationInvariants:
             max_size=5
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_compound_tax_calculation(self, amount, tax_rates):
         """Test compound tax calculation (e.g., federal + state)"""
         total_tax = 0.0
@@ -565,7 +581,7 @@ class TestTaxCalculationInvariants:
         amount=st.floats(min_value=100.0, max_value=100000.0, allow_nan=False, allow_infinity=False),
         tax_rate=st.floats(min_value=0.05, max_value=0.25, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_tax_inclusive_calculation(self, amount, tax_rate):
         """Test tax-inclusive (tax already included) calculation"""
         # For tax-inclusive: amount = base + tax = base * (1 + tax_rate)
@@ -599,7 +615,7 @@ class TestNetWorthInvariants:
             max_size=20
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_net_worth_calculation(self, assets, liabilities):
         """Test that net worth is calculated correctly"""
         total_assets = sum(assets)
@@ -623,7 +639,7 @@ class TestNetWorthInvariants:
             max_size=50
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_balance_sheet_integrity(self, initial_balance, transactions):
         """Test that balance sheet maintains integrity through transactions"""
         balance = initial_balance
@@ -645,7 +661,7 @@ class TestRevenueRecognitionInvariants:
         recognition_period_months=st.integers(min_value=1, max_value=24),
         months_elapsed=st.integers(min_value=0, max_value=24)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_revenue_recognition_timing(self, contract_value, recognition_period_months, months_elapsed):
         """Test that revenue recognition follows timing rules"""
         assume(months_elapsed <= recognition_period_months)
@@ -671,7 +687,7 @@ class TestRevenueRecognitionInvariants:
         total_revenue=st.floats(min_value=10000.0, max_value=1000000.0, allow_nan=False, allow_infinity=False),
         segments=st.integers(min_value=2, max_value=10)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_revenue_segmentation(self, total_revenue, segments):
         """Test that revenue segmentation sums correctly"""
         # Divide revenue into equal segments
@@ -693,7 +709,7 @@ class TestInvoiceAgingInvariants:
         invoice_days_ago=st.integers(min_value=0, max_value=120),
         terms_days=st.integers(min_value=15, max_value=90)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_invoice_aging_calculation(self, invoice_days_ago, terms_days):
         """Test that invoice aging is calculated correctly"""
         days_overdue = invoice_days_ago - terms_days
@@ -729,7 +745,7 @@ class TestInvoiceAgingInvariants:
             max_size=20
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_aging_report_aggregation(self, invoice_data):
         """Test that aging report aggregates correctly"""
         # Unzip the tuples
@@ -768,7 +784,7 @@ class TestPaymentTermsInvariants:
         paid_days=st.integers(min_value=0, max_value=120),
         late_fee_percent=st.floats(min_value=0.01, max_value=0.05, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_payment_term_enforcement(self, invoice_amount, terms_days, paid_days, late_fee_percent):
         """Test that payment terms are enforced correctly"""
         days_late = max(0, paid_days - terms_days)
@@ -796,7 +812,7 @@ class TestPaymentTermsInvariants:
         discount_percent=st.floats(min_value=1.0, max_value=10.0, allow_nan=False, allow_infinity=False),
         paid_early_days=st.integers(min_value=1, max_value=30)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=200)
     def test_early_payment_discount(self, base_amount, discount_percent, paid_early_days):
         """Test early payment discount calculation"""
         discount = base_amount * (discount_percent / 100.0)

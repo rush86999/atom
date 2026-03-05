@@ -1,0 +1,170 @@
+{
+  "phase": "127",
+  "name": "Backend Final Gap Closure",
+  "completed_at": "2026-03-03T13:28:26.021973+00:00",
+  "goal": "Achieve 80% backend coverage from 26.15% baseline",
+  "baseline_coverage": 26.15,
+  "final_coverage": 26.15,
+  "overall_improvement": 0.0,
+  "individual_file_improvements": [
+    {
+      "file": "core/atom_agent_endpoints.py",
+      "component": "endpoints",
+      "baseline": 11.97982345523329,
+      "final": 17.150063051702396,
+      "improvement": 5.17
+    },
+    {
+      "file": "core/models.py",
+      "component": "models",
+      "baseline": 96.99,
+      "final": 97.2,
+      "improvement": 0.21
+    },
+    {
+      "file": "core/workflow_engine.py",
+      "component": "workflow",
+      "baseline": 6.36,
+      "final": 6.36,
+      "improvement": 0.0
+    }
+  ],
+  "target_coverage": 80.0,
+  "target_met": false,
+  "gap_remaining": 53.85,
+  "plans_completed": [
+    {
+      "plan": "127-01",
+      "title": "Baseline Coverage Measurement",
+      "status": "complete"
+    },
+    {
+      "plan": "127-02",
+      "title": "Gap Analysis & Test Planning",
+      "status": "complete"
+    },
+    {
+      "plan": "127-03",
+      "title": "Models.py Coverage Tests",
+      "status": "complete"
+    },
+    {
+      "plan": "127-04",
+      "title": "Workflow Engine Property Tests",
+      "status": "complete"
+    },
+    {
+      "plan": "127-05",
+      "title": "Agent Endpoints Integration Tests",
+      "status": "complete"
+    },
+    {
+      "plan": "127-06",
+      "title": "Final Verification",
+      "status": "complete"
+    }
+  ],
+  "tests_added": {
+    "total": 53,
+    "by_component": {
+      "models": 20,
+      "workflow": 20,
+      "endpoints": 13
+    },
+    "test_files": [
+      "tests/test_models_coverage.py",
+      "tests/test_workflow_engine_coverage.py",
+      "tests/test_atom_agent_endpoints_coverage.py",
+      "tests/test_atom_agent_endpoints_unit_coverage.py"
+    ]
+  },
+  "component_improvements": {
+    "models": {
+      "file": "core/models.py",
+      "baseline_coverage": 96.99,
+      "new_coverage": 97.2,
+      "improvement": 0.21,
+      "lines_covered_before": 2774,
+      "lines_covered_after": 2780,
+      "lines_added": 6,
+      "total_statements": 2860,
+      "missing_lines": 80
+    },
+    "workflow": {
+      "file": "core/workflow_engine.py",
+      "baseline_coverage": 6.36,
+      "new_coverage": 6.36,
+      "improvement": 0.0,
+      "lines_covered_before": 74,
+      "lines_covered_after": 74,
+      "lines_added": 0,
+      "tests_added": 20,
+      "test_types": [
+        "property-based",
+        "Hypothesis",
+        "DAG validation",
+        "topological sort",
+        "execution order",
+        "edge cases",
+        "variable resolution"
+      ],
+      "notes": "Tests validate workflow engine algorithms independently (DAG validation, topological sort, dependency resolution). These tests ensure correctness of core logic used by workflow_engine.py. Actual coverage increase requires integration tests that call WorkflowEngine methods directly.",
+      "coverage_note": "No coverage increase because tests validate algorithms independently, not via WorkflowEngine class methods. Recommended follow-up: Add integration tests that execute workflows through WorkflowEngine.execute() to increase actual coverage."
+    },
+    "endpoints": {
+      "file": "core/atom_agent_endpoints.py",
+      "baseline_coverage": 11.97982345523329,
+      "new_coverage": 17.150063051702396,
+      "improvement": 5.17,
+      "lines_covered_before": 95,
+      "lines_covered_after": 136,
+      "lines_added": 41
+    }
+  },
+  "top_improvements": [
+    {
+      "file": "core/atom_agent_endpoints.py",
+      "component": "endpoints",
+      "baseline": 11.97982345523329,
+      "final": 17.150063051702396,
+      "improvement": 5.17
+    },
+    {
+      "file": "core/models.py",
+      "component": "models",
+      "baseline": 96.99,
+      "final": 97.2,
+      "improvement": 0.21
+    },
+    {
+      "file": "core/workflow_engine.py",
+      "component": "workflow",
+      "baseline": 6.36,
+      "final": 6.36,
+      "improvement": 0.0
+    }
+  ],
+  "next_steps": [
+    "If target met: Proceed to Phase 128 (Backend API Contract Testing)",
+    "Gap remains (53.85 pp): Continue systematic test addition for high-impact files",
+    "Focus on integration tests that actually increase coverage (not property tests)",
+    "Prioritize files with most missing lines: workflow_engine.py (1089 lines), byok_handler.py (582 lines)",
+    "Add endpoint integration tests for all API routes (200+ tests needed)",
+    "Add service layer unit tests for core business logic (150+ tests needed)",
+    "Continue enforcing 80% coverage gate in CI"
+  ],
+  "quality_gate": {
+    "threshold": 80.0,
+    "current": 26.15,
+    "enforced": true,
+    "status": "fail"
+  },
+  "key_findings": [
+    "Overall backend coverage unchanged at 26.15% (improvements isolated to 3 files)",
+    "Individual file improvements: models.py (+0.21 pp), atom_agent_endpoints.py (+5.17 pp)",
+    "Property tests for workflow_engine.py don't increase coverage (test algorithms independently)",
+    "80% target requires 53.85 percentage points improvement (significant work remaining)",
+    "Current tests improve code correctness but don't substantially increase coverage metrics",
+    "Integration tests needed for actual coverage increase (not unit/property tests)"
+  ]
+}

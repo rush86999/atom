@@ -1,0 +1,29 @@
+{
+  "file": "api/health_routes.py",
+  "baseline_coverage": 42.11,
+  "baseline_covered_lines": 48,
+  "baseline_total_lines": 114,
+  "final_coverage": 58.77,
+  "final_covered_lines": 67,
+  "final_total_lines": 114,
+  "improvement": 16.66,
+  "target": 60.0,
+  "target_achieved": false,
+  "target_gap": 1.23,
+  "tests_added": 12,
+  "test_classes_added": 3,
+  "timestamp": "2026-03-02T16:35:00Z",
+  "test_breakdown": {
+    "TestDatabaseConnectivityIntegration": 5,
+    "TestReadinessProbeErrorPaths": 4,
+    "TestHealthRoutesPerformance": 3
+  },
+  "notes": [
+    "Added 12 integration tests with real database connectivity",
+    "Coverage improved from 42.11% to 58.77% (+16.66 percentage points)",
+    "Target gap: 1.23 percentage points below 60% goal",
+    "Integration tests use db_session fixture (SQLite) for real DB queries",
+    "Error paths, pool status, performance warnings all covered",
+    "Remaining coverage requires sync subsystem integration tests"
+  ]
+}
