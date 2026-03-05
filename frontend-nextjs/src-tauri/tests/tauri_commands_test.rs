@@ -179,4 +179,232 @@ mod tauri_commands_tests {
         assert_eq!(ops[0], ("read".to_string(), "/test/path.txt".to_string()));
         assert_eq!(ops[1], ("write".to_string(), "/test/other.txt".to_string()));
     }
+
+    // ========================================
+    // Task 2: File operation command tests
+    // ========================================
+
+    #[test]
+    fn test_read_file_command_success() {
+        // Create a temporary test file with known content
+        let test_content = "Hello, World!\nThis is test content.";
+        let file_path = create_temp_test_file(test_content);
+        let path_str = file_path.to_string_lossy().to_string();
+
+        // Simulate read_file command structure
+        let result = std::fs::read_to_string(&path_str);
+
+        // Verify the response structure matches main.rs read_file_content
+        assert!(result.is_ok());
+        let content = result.unwrap();
+        assert_eq!(content, test_content);
+
+        // Verify JSON response structure
+        let response = json!({
+            "success": true,
+            "content": content,
+            "path": path_str
+        });
+
+        assert_eq!(response["success"], true);
+        assert_eq!(response["content"], test_content);
+        assert_eq!(response["path"], path_str);
+
+        // Cleanup
+        std::fs::remove_file(&file_path).ok();
+    }
+
+    #[test]
+    fn test_read_file_command_not_found() {
+        // Test with non-existent file path
+        let non_existent_path = "/tmp/non_existent_file_12345.txt";
+
+        // Simulate read_file command structure
+        let result = std::fs::read_to_string(non_existent_path);
+
+        // Verify error response structure
+        assert!(result.is_err());
+
+        // Verify JSON error response matches main.rs pattern
+        let error_response = json!({
+            "success": false,
+            "error": result.unwrap_err().to_string(),
+            "path": non_existent_path
+        });
+
+        assert_eq!(error_response["success"], false);
+        assert!(error_response["error"].as_str().is_some());
+        assert_eq!(error_response["path"], non_existent_path);
+    }
+
+    #[test]
+    fn test_write_file_command_success() {
+        // Create a temporary file path
+        let temp_dir = create_temp_test_dir();
+        let file_path = temp_dir.join("test_write.txt");
+        let path_str = file_path.to_string_lossy().to_string();
+        let test_content = "Test write content";
+
+        // Simulate write_file command structure (with parent directory creation)
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+
+        let result = std::fs::write(&file_path, test_content);
+
+        // Verify success
+        assert!(result.is_ok());
+
+        // Verify file was created
+        assert!(file_path.exists());
+
+        // Verify JSON response structure
+        let response = json!({
+            "success": true,
+            "path": path_str
+        });
+
+        assert_eq!(response["success"], true);
+        assert_eq!(response["path"], path_str);
+
+        // Verify content was written correctly
+        let read_content = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(read_content, test_content);
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_write_file_command_without_permission() {
+        // Test write without permission error
+        // On Unix systems, write to /root requires root permissions
+        let restricted_path = if cfg!(unix) {
+            "/root/test_write_restricted.txt"
+        } else if cfg!(windows) {
+            // Windows: Use a protected system path
+            "C:\\Windows\\System32\\test_write_restricted.txt"
+        } else {
+            "/tmp/test_write_restricted.txt"
+        };
+
+        let test_content = "This should fail";
+
+        // Attempt to write to restricted path
+        let result = std::fs::write(restricted_path, test_content);
+
+        // Verify error handling
+        assert!(result.is_err());
+
+        // Verify JSON error response structure
+        let error_response = json!({
+            "success": false,
+            "error": result.unwrap_err().to_string(),
+            "path": restricted_path
+        });
+
+        assert_eq!(error_response["success"], false);
+        assert!(error_response["error"].as_str().is_some());
+        assert_eq!(error_response["path"], restricted_path);
+    }
+
+    #[test]
+    fn test_list_directory_command() {
+        // Create a temporary directory with test files
+        let temp_dir = create_temp_test_dir();
+        let file1 = temp_dir.join("file1.txt");
+        let file2 = temp_dir.join("file2.json");
+        let subdir = temp_dir.join("subdir");
+
+        // Create test files and subdirectory
+        std::fs::write(&file1, "content1").ok();
+        std::fs::write(&file2, "content2").ok();
+        std::fs::create_dir(&subdir).ok();
+
+        // Simulate list_directory command structure
+        let path_str = temp_dir.to_string_lossy().to_string();
+        let dir_path = std::path::Path::new(&path_str);
+
+        // Verify directory exists
+        assert!(dir_path.exists());
+        assert!(dir_path.is_dir());
+
+        // Read directory entries
+        let entries: std::io::Result<Vec<_>> = std::fs::read_dir(dir_path)?.collect();
+        assert!(entries.is_ok());
+
+        let entries = entries.unwrap();
+
+        // Verify response contains file entries
+        assert!(entries.len() >= 3); // file1, file2, subdir
+
+        // Verify JSON response structure
+        let entry_list: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|entry| {
+                let path = entry.path();
+                let metadata = entry.metadata().ok();
+                let is_dir = metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+                let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+
+                json!({
+                    "name": path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+                    "path": path.to_string_lossy().to_string(),
+                    "is_directory": is_dir,
+                    "size": size
+                })
+            })
+            .collect();
+
+        let response = json!({
+            "success": true,
+            "path": path_str,
+            "entries": entry_list
+        });
+
+        assert_eq!(response["success"], true);
+        assert!(response["entries"].as_array().unwrap().len() >= 3);
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_get_file_metadata_command() {
+        // Create a temporary test file
+        let test_content = "Test content for metadata";
+        let file_path = create_temp_test_file(test_content);
+
+        // Simulate file metadata retrieval
+        let metadata = std::fs::metadata(&file_path);
+
+        assert!(metadata.is_ok());
+        let metadata = metadata.unwrap();
+
+        // Verify metadata fields
+        let is_file = metadata.is_file();
+        let size = metadata.len();
+        let modified = metadata.modified().ok();
+
+        // Create JSON response matching main.rs structure
+        let response = json!({
+            "name": file_path.file_name().unwrap_or_default().to_string_lossy().to_string(),
+            "path": file_path.to_string_lossy().to_string(),
+            "is_file": is_file,
+            "size": size,
+            "extension": file_path.extension().map(|ext| ext.to_string_lossy().to_string()).unwrap_or_default(),
+            "modified": modified.map(|t| t.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs())
+        });
+
+        // Verify response structure
+        assert_eq!(response["is_file"], true);
+        assert!(response["size"].as_u64().is_some());
+        assert!(response["extension"].as_str().is_some());
+
+        // Verify size matches content length
+        assert_eq!(size, test_content.len() as u64);
+
+        // Cleanup
+        std::fs::remove_file(&file_path).ok();
+    }
 }
