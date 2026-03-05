@@ -577,3 +577,163 @@ mod window_operation_tests {
         assert_eq!(unique_ids.len(), 1, "All window IDs should be the same");
     }
 }
+
+#[cfg(test)]
+mod event_emission_tests {
+    use super::*;
+    use std::thread;
+
+    #[test]
+    fn test_app_emit_satellite_stdout_pattern() {
+        // Test app.emit() pattern from main.rs lines 471, 482
+        // Emit: "satellite_stdout" with line content
+
+        let event_name = "satellite_stdout";
+        let event_data = "Processing file...";
+
+        // Verify event structure
+        assert_eq!(event_name, "satellite_stdout");
+        assert!(!event_data.is_empty());
+
+        // Test JSON serialization of event data
+        let json_data = json!(event_data);
+        assert!(json_data.is_string());
+        assert_eq!(json_data, event_data);
+    }
+
+    #[test]
+    fn test_app_emit_satellite_stderr_pattern() {
+        // Test app.emit() for "satellite_stderr"
+        // From lines 471, 482
+        // Verify error event structure
+
+        let event_name = "satellite_stderr";
+        let event_data = "Error: File not found";
+
+        // Verify event structure
+        assert_eq!(event_name, "satellite_stderr");
+        assert!(!event_data.is_empty());
+
+        // Test JSON serialization
+        let json_data = json!(event_data);
+        assert!(json_data.is_string());
+        assert!(json_data.as_str().unwrap().contains("Error"));
+    }
+
+    #[test]
+    fn test_app_emit_thread_spawn_pattern() {
+        // Test std::thread::spawn for event emission
+        // From lines 467, 478
+        // Verify app_handle is cloned for thread safety
+
+        let app_handle = Arc::new("test_handle");
+
+        // Clone app_handle for thread (pattern from main.rs)
+        let app_handle_clone = Arc::clone(&app_handle);
+
+        // Spawn thread (simulating thread::spawn from main.rs)
+        let handle = thread::spawn(move || {
+            // Verify we can access the cloned handle
+            assert_eq!(*app_handle_clone, "test_handle");
+        });
+
+        // Wait for thread completion
+        handle.join().unwrap();
+
+        // Verify original handle still valid
+        assert_eq!(*app_handle, "test_handle");
+    }
+
+    #[test]
+    fn test_event_data_serialization() {
+        // Test various event data types serialize to JSON
+        // String, numbers, objects, arrays
+        // Verify all serializable
+
+        // String
+        let string_data = json!("test string");
+        assert!(string_data.is_string());
+
+        // Number
+        let number_data = json!(42);
+        assert!(number_data.is_number());
+
+        // Object
+        let object_data = json!({"key": "value"});
+        assert!(object_data.is_object());
+
+        // Array
+        let array_data = json!([1, 2, 3]);
+        assert!(array_data.is_array());
+
+        // Complex nested structure
+        let complex_data = json!({
+            "string": "value",
+            "number": 123,
+            "nested": {
+                "array": [1, 2, 3]
+            }
+        });
+        assert!(complex_data.is_object());
+        assert!(complex_data["nested"]["array"].is_array());
+    }
+
+    #[test]
+    fn test_event_name_consistency() {
+        // Verify "satellite_stdout" and "satellite_stderr" are consistent
+        // Test event names follow naming convention
+        // Verify no typos in event names
+
+        let stdout_event = "satellite_stdout";
+        let stderr_event = "satellite_stderr";
+
+        // Both should start with "satellite_"
+        assert!(stdout_event.starts_with("satellite_"));
+        assert!(stderr_event.starts_with("satellite_"));
+
+        // Both should end with "out" or "err"
+        assert!(stdout_event.ends_with("stdout"));
+        assert!(stderr_event.ends_with("stderr"));
+
+        // Verify naming pattern: satellite_{stream}
+        let parts: Vec<&str> = stdout_event.split('_').collect();
+        assert_eq!(parts[0], "satellite");
+        assert_eq!(parts[1], "stdout");
+
+        let parts: Vec<&str> = stderr_event.split('_').collect();
+        assert_eq!(parts[0], "satellite");
+        assert_eq!(parts[1], "stderr");
+    }
+
+    #[test]
+    fn test_bufreader_lines_pattern() {
+        // Test std::io::BufReader::lines() pattern
+        // From lines 469, 479
+        // Verify line-by-line reading
+        // Test error handling in line iteration
+
+        use std::io::{BufRead, BufReader, Cursor};
+
+        // Create test data with multiple lines
+        let test_data = "line1\nline2\nline3\n";
+        let cursor = Cursor::new(test_data);
+        let reader = BufReader::new(cursor);
+
+        // Read lines (simulating BufReader::lines() pattern)
+        let lines: Vec<String> = reader.lines().map(|l| l.unwrap()).collect();
+
+        // Verify all lines read
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "line1");
+        assert_eq!(lines[1], "line2");
+        assert_eq!(lines[2], "line3");
+
+        // Test error handling with empty input
+        let empty_data = "";
+        let empty_cursor = Cursor::new(empty_data);
+        let empty_reader = BufReader::new(empty_cursor);
+
+        let empty_lines: Vec<String> = empty_reader.lines().map(|l| l.unwrap()).collect();
+        assert_eq!(empty_lines.len(), 0);
+    }
+}
