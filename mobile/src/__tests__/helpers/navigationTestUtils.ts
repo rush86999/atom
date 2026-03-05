@@ -316,7 +316,7 @@ export const isRouteInParamList = (
   routeName: string
 ): boolean => {
   const paramList = PARAM_LIST_DEFINITIONS[paramListName];
-  return paramList && routeName in paramList;
+  return !!(paramList && routeName in paramList);
 };
 
 /**
