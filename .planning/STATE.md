@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 141 of 26 (Desktop Coverage Expansion)
-Plan: 02 of 6
-Status: Phase 141 Plan 02 COMPLETE - Windows-specific testing with 13 tests for file dialogs, path handling, and temp operations. Created windows.rs test file (699 lines) with helper functions (create_temp_test_file, verify_windows_path_format), platform detection tests, temp directory validation (TEMP environment variable, backslash paths), path handling tests (separators, drive letters, file extensions, PathBuf normalization), and system info tests (cfg! macro evaluation, environment variables, CRLF line endings, directory listing). All tests use #[cfg(target_os = "windows")] guard for compile-time platform filtering. 3 tasks completed, 1 file created (699 lines), 0 deviations. Ready for Plan 03 (macOS-specific tests).
-Last activity: 2026-03-05 — Phase 141 Plan 02 executed: Created Windows-specific test suite with 13 tests covering file dialogs, path handling, temp operations, system info. Helper functions implemented (create_temp_test_file, verify_windows_path_format). Platform detection validated (get_current_platform, is_platform, cfg_assert). Temp directory tested (format, writability, environment variables). Path handling validated (separators, normalization, drive letters, extensions). System info tested (JSON structure, cfg! evaluation, file operations). 3 tasks, 1 file (699 lines), 15 cfg guards, 0 deviations.
+Plan: 03 of 6
+Status: Phase 141 Plan 03 COMPLETE - macOS-specific testing with 17 tests for menu bar, dock, path handling, and temp operations. Created macos.rs test file (638 lines) with helper functions (get_macos_temp_dir, verify_unix_path_format), platform detection tests, temp directory validation (/var/folders or /tmp, forward slashes), path handling tests (separators, home directory, app data directories, absolute vs relative paths), and menu bar/system info tests (menu bar JSON structure, dock integration, system info, cfg! detection, Spotlight integration, Unix file operations). All tests use #[cfg(target_os = "macos")] guard for compile-time platform filtering. 3 tasks completed, 1 file created (638 lines), 0 deviations. Ready for Plan 04 (Linux-specific tests).
+Last activity: 2026-03-05 — Phase 141 Plan 03 executed: Created macOS-specific test suite with 17 tests covering menu bar, dock, path handling, temp operations, system info. Helper functions implemented (get_macos_temp_dir, verify_unix_path_format). Platform detection validated (get_current_platform, is_platform, cfg_assert, cfg! macro). Temp directory tested (Unix format, writability). Path handling validated (separators, home directory, app data, absolute/relative). Menu bar and system info tested (JSON structure, dock menu, system info, Spotlight, Unix permissions). 3 tasks, 1 file (638 lines), 17 cfg guards, 0 deviations.
 
-Progress: [██░░░░░░░░░░░░░░░░░░░] 33% (2/6 plans executed in Phase 141)
+Progress: [███░░░░░░░░░░░░░░░░░░░] 50% (3/6 plans executed in Phase 141)
 
 ## Performance Metrics
 
@@ -145,6 +145,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░░] 33% 
 | Phase 140 P01 | 464 | 3 tasks | 4 files |
 | Phase 140 P02 | 217 | 3 tasks | 4 files |
 | Phase 141 P02 | 121 | 3 tasks | 1 files |
+| Phase 141 P03 | 293 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
