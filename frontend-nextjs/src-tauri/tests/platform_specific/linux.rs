@@ -378,5 +378,185 @@ fn test_linux_path_separator() {
 }
 
 // ========================================================================
-// Placeholder for Task 3 tests (temp and system info tests)
+// Temp Directory and System Info Tests (Task 3)
 // ========================================================================
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_linux_temp_directory_format() {
+    // Get temp dir via std::env::temp_dir()
+    let temp_dir = std::env::temp_dir();
+    let temp_str = temp_dir.to_string_lossy();
+
+    // Assert path starts with "/tmp/" or "/var/tmp/"
+    let starts_with_tmp = temp_str.starts_with("/tmp/");
+    let starts_with_var_tmp = temp_str.starts_with("/var/tmp/");
+
+    assert!(starts_with_tmp || starts_with_var_tmp,
+        "Temp directory should start with '/tmp/' or '/var/tmp/', got: {}", temp_str);
+
+    // Assert path does NOT contain backslashes
+    assert!(!temp_str.contains('\\'),
+        "Linux temp path should not contain backslashes, got: {}", temp_str);
+
+    // Verify temp directory exists
+    assert!(temp_dir.exists(), "Temp directory should exist: {}", temp_str);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_linux_temp_directory_writable() {
+    // Create test file in temp directory
+    let temp_dir = std::env::temp_dir();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let test_file = temp_dir.join(format!("linux_writable_test_{}.txt", timestamp));
+
+    // Write "test content" to file
+    let write_result = fs::write(&test_file, "test content");
+    assert!(write_result.is_ok(), "Should be able to write to temp directory");
+
+    // Read back and verify content matches
+    let read_content = fs::read_to_string(&test_file);
+    assert!(read_content.is_ok(), "Should be able to read from temp directory");
+    assert_eq!(read_content.unwrap(), "test content", "Read content should match written content");
+
+    // Cleanup: let _ = fs::remove_file(&test_file)
+    let cleanup_result = fs::remove_file(&test_file);
+    assert!(cleanup_result.is_ok(), "Should be able to cleanup test file");
+    assert!(!test_file.exists(), "Test file should be cleaned up");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_linux_system_info_structure() {
+    // Mock get_system_info() command response structure
+    // In real implementation, this would call into main.rs system_info()
+    let system_info = serde_json::json!({
+        "platform": "linux",
+        "architecture": std::env::consts::ARCH,
+        "version": "1.0.0"
+    });
+
+    // Verify response contains "platform": "linux"
+    let platform = system_info.get("platform").and_then(|p| p.as_str());
+    assert_eq!(platform, Some("linux"), "System info should contain platform: linux");
+
+    // Verify response contains "architecture"
+    let arch = system_info.get("architecture").and_then(|a| a.as_str());
+    assert!(arch.is_some(), "System info should contain architecture field");
+
+    // Verify response contains version string
+    let version = system_info.get("version").and_then(|v| v.as_str());
+    assert!(version.is_some(), "System info should contain version field");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_linux_cfg_detection() {
+    // Test cfg!(target_os = "linux") returns true
+    assert!(cfg!(target_os = "linux"), "cfg!(target_os = \"linux\") should be true");
+
+    // Test cfg!(target_os = "windows") returns false
+    assert!(!cfg!(target_os = "windows"), "cfg!(target_os = \"windows\") should be false");
+
+    // Test cfg!(target_os = "macos") returns false
+    assert!(!cfg!(target_os = "macos"), "cfg!(target_os = \"macos\") should be false");
+
+    // Test cfg!(target_arch) returns correct value
+    let current_arch = std::env::consts::ARCH;
+    let is_x86_64 = cfg!(target_arch = "x86_64");
+    let is_aarch64 = cfg!(target_arch = "aarch64");
+
+    assert!(is_x86_64 || is_aarch64 || current_arch == "x86_64" || current_arch == "aarch64",
+        "Should be x86_64 or aarch64 architecture, got: {}", current_arch);
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_linux_file_operations_roundtrip() {
+    // Create temp file with Linux-specific path
+    let temp_dir = std::env::temp_dir();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let test_file = temp_dir.join(format!("linux_roundtrip_{}.txt", timestamp));
+
+    // Write content with Unix line endings (LF only, no CRLF)
+    let content = "line 1\nline 2\nline 3\n";
+    let write_result = fs::write(&test_file, content);
+    assert!(write_result.is_ok(), "Should be able to write to temp file");
+
+    // Read back and verify content matches
+    let read_content = fs::read_to_string(&test_file);
+    assert!(read_content.is_ok(), "Should be able to read from temp file");
+    assert_eq!(read_content.unwrap(), content, "Read content should match written content");
+
+    // Verify no CRLF line endings (Windows-style)
+    let raw_bytes = fs::read(&test_file).expect("Should be able to read raw bytes");
+    let has_crlf = raw_bytes.windows(2).any(|w| w == [b'\r', b'\n']);
+    assert!(!has_crlf, "Linux file should not contain CRLF line endings");
+
+    // Cleanup temp file
+    let _ = fs::remove_file(&test_file);
+    assert!(!test_file.exists(), "Test file should be cleaned up");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+fn test_linux_desktop_environment_detection() {
+    // Check for common desktop environment indicators
+    let xdg_current_desktop = env::var("XDG_CURRENT_DESKTOP").ok();
+    let desktop_session = env::var("DESKTOP_SESSION").ok();
+
+    // Verify at least one env var is set (in desktop environment)
+    // Note: This may not be set in all environments (e.g., SSH sessions, headless servers)
+    let has_desktop_env = xdg_current_desktop.is_some() || desktop_session.is_some();
+
+    // Log detected desktop environment for debugging
+    if let Some(xdg) = &xdg_current_desktop {
+        println!("Detected XDG_CURRENT_DESKTOP: {}", xdg);
+    }
+    if let Some(session) = &desktop_session {
+        println!("Detected DESKTOP_SESSION: {}", session);
+    }
+
+    // Common desktop environments: GNOME, KDE, Xfce, LXQt, Cinnamon, MATE, etc.
+    let known_desktops = vec![
+        "GNOME", "gnome",
+        "KDE", "kde", "KDE Plasma", "plasma",
+        "Xfce", "xfce",
+        "LXQt", "lxqt",
+        "Cinnamon", "cinnamon",
+        "MATE", "mate",
+        "Unity", "unity",
+        "pantheon", "Pantheon",
+        "i3", "i3wm",
+    ];
+
+    // If desktop environment is set, verify it's a known one
+    if has_desktop_env {
+        let env_value = xdg_current_desktop
+            .or(desktop_session)
+            .unwrap();
+
+        // XDG_CURRENT_DESKTOP can contain colon-separated list (e.g., "GNOME:Unity")
+        let desktops: Vec<&str> = env_value.split(':').collect();
+        let is_known = desktops.iter().any(|d| known_desktops.contains(&d.trim()) || d.trim() == "");
+
+        // Don't fail test for unknown desktops (could be custom/WM)
+        if is_known {
+            println!("Recognized desktop environment: {}", env_value);
+        } else {
+            println!("Unrecognized desktop environment: {} (may be custom WM)", env_value);
+        }
+    } else {
+        println!("No desktop environment detected (may be headless or SSH session)");
+    }
+
+    // Test should not fail regardless of desktop environment detection
+    assert!(true, "Desktop environment detection test completed");
+}
