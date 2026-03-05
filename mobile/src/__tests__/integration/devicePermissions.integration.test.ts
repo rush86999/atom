@@ -656,4 +656,63 @@ describe('Device Permissions Integration', () => {
       expect(mockGetPermission).toHaveBeenCalledTimes(2);
     });
   });
+
+  // ========================================================================
+  // Permission Denial Recovery
+  // ========================================================================
+
+  describe('Permission Denial Recovery', () => {
+    test('should recover from permission denial after opening settings', async () => {
+      const mockRequestPermission = jest.spyOn(Camera, 'requestCameraPermissionsAsync')
+        .mockResolvedValueOnce({
+          status: 'denied',
+          canAskAgain: true,
+          granted: false,
+          expires: 'never',
+        })
+        .mockResolvedValueOnce({
+          status: 'granted', // User granted permission after opening settings
+          canAskAgain: true,
+          granted: true,
+          expires: 'never',
+        });
+
+      const mockGetPermission = jest.spyOn(Camera, 'getCameraPermissionsAsync')
+        .mockResolvedValueOnce({
+          status: 'denied',
+          canAskAgain: true,
+          granted: false,
+          expires: 'never',
+        })
+        .mockResolvedValueOnce({
+          status: 'granted',
+          canAskAgain: true,
+          granted: true,
+          expires: 'never',
+        });
+
+      // Initial permission request (denied)
+      const result1 = await Camera.requestCameraPermissionsAsync();
+      expect(result1.status).toBe('denied');
+      expect(result1.granted).toBe(false);
+
+      // Check current status (still denied)
+      const status1 = await Camera.getCameraPermissionsAsync();
+      expect(status1.granted).toBe(false);
+
+      // Simulate user opening app settings and granting permission
+      // (In real app, would trigger Linking.openURL('app-settings:'))
+      // After settings change, request permissions again
+      const result2 = await Camera.requestCameraPermissionsAsync();
+      expect(result2.status).toBe('granted');
+      expect(result2.granted).toBe(true);
+
+      // Verify permission now granted
+      const status2 = await Camera.getCameraPermissionsAsync();
+      expect(status2.granted).toBe(true);
+
+      expect(mockRequestPermission).toHaveBeenCalledTimes(2);
+      expect(mockGetPermission).toHaveBeenCalledTimes(2);
+    });
+  });
 });
