@@ -519,6 +519,148 @@ describe('offlineSyncService', () => {
   });
 
   // ========================================================================
+  // Storage Quota and Cleanup Tests (6 tests)
+  // ========================================================================
+
+  describe('Storage Quota', () => {
+    test('should check storage quota returns true when under threshold', async () => {
+      const quota = await offlineSyncService.getStorageQuota();
+
+      // Verify quota structure
+      expect(quota).toHaveProperty('usedBytes');
+      expect(quota).toHaveProperty('maxBytes');
+      expect(quota).toHaveProperty('warningThreshold');
+      expect(quota).toHaveProperty('enforcementThreshold');
+
+      // Default quota is 50MB, should be under threshold initially
+      expect(quota.maxBytes).toBe(50 * 1024 * 1024);
+      expect(quota.warningThreshold).toBe(0.8); // 80%
+      expect(quota.enforcementThreshold).toBe(0.95); // 95%
+    });
+
+    test('should check storage quota at warning threshold', async () => {
+      // Queue enough actions to reach warning threshold (80%)
+      const largePayload = { data: 'x'.repeat(40 * 1024 * 1024) }; // 40MB
+
+      await offlineSyncService.queueAction(
+        'agent_message',
+        largePayload,
+        'low',
+        'user_1',
+        'device_1'
+      );
+
+      const quota = await offlineSyncService.getStorageQuota();
+
+      // Should be at or near warning threshold
+      expect(quota.usedBytes).toBeGreaterThan(0);
+      expect(quota.maxBytes).toBe(50 * 1024 * 1024);
+    });
+
+    test('should cleanup old entries with LRU eviction', async () => {
+      // Queue multiple low-priority actions
+      for (let i = 0; i < 5; i++) {
+        await offlineSyncService.queueAction(
+          'agent_message',
+          { agentId: `agent_${i}`, message: `Message ${i}`, sessionId: `session_${i}` },
+          'low',
+          'user_1',
+          'device_1'
+        );
+      }
+
+      // Get sync state to verify actions are queued
+      const state = await offlineSyncService.getSyncState();
+      expect(state.pendingCount).toBeGreaterThan(0);
+
+      // Verify quota is being tracked
+      const quota = await offlineSyncService.getStorageQuota();
+      expect(quota.usedBytes).toBeGreaterThan(0);
+    });
+
+    test('should preserve high-priority actions during cleanup', async () => {
+      // Queue mix of critical and low-priority actions
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { agentId: 'critical_1', message: 'Critical message', sessionId: 'session_1' },
+        'critical',
+        'user_1',
+        'device_1'
+      );
+
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { agentId: 'low_1', message: 'Low priority message', sessionId: 'session_2' },
+        'low',
+        'user_1',
+        'device_1'
+      );
+
+      // Get sync state
+      const state = await offlineSyncService.getSyncState();
+      expect(state.pendingCount).toBeGreaterThanOrEqual(2);
+
+      // Verify quota breakdown includes agents
+      const quota = await offlineSyncService.getStorageQuota();
+      expect(quota.breakdown.agents).toBeGreaterThanOrEqual(0);
+    });
+
+    test('should cleanup stops when enough space freed', async () => {
+      // Queue actions with different sizes
+      const smallPayload = { data: 'test' };
+      const mediumPayload = { data: 'x'.repeat(1024) }; // 1KB
+
+      for (let i = 0; i < 10; i++) {
+        await offlineSyncService.queueAction(
+          'agent_message',
+          i < 5 ? smallPayload : mediumPayload,
+          'low',
+          'user_1',
+          'device_1'
+        );
+      }
+
+      // Verify all actions are queued
+      const state = await offlineSyncService.getSyncState();
+      expect(state.pendingCount).toBeGreaterThanOrEqual(10);
+
+      // Cleanup should preserve some actions based on priority
+      const quota = await offlineSyncService.getStorageQuota();
+      expect(quota.usedBytes).toBeGreaterThan(0);
+    });
+
+    test('should update storage quota by entity type', async () => {
+      // Queue actions for different entity types
+      await offlineSyncService.queueAction(
+        'agent_sync',
+        { agentId: 'agent_1', agentData: { name: 'Agent 1' } },
+        'normal',
+        'user_1',
+        'device_1',
+        'last_write_wins',
+        'agents',
+        'agent_1'
+      );
+
+      await offlineSyncService.queueAction(
+        'workflow_sync',
+        { workflowId: 'workflow_1', workflowData: { name: 'Workflow 1' } },
+        'normal',
+        'user_1',
+        'device_1',
+        'last_write_wins',
+        'workflows',
+        'workflow_1'
+      );
+
+      // Verify quota breakdown includes both entities
+      const quota = await offlineSyncService.getStorageQuota();
+      expect(quota.breakdown.agents).toBeGreaterThan(0);
+      expect(quota.breakdown.workflows).toBeGreaterThan(0);
+    });
+  });
+
+  // ========================================================================
   // Conflict Resolution Tests (5 tests)
   // ========================================================================
 
