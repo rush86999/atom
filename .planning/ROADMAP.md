@@ -380,16 +380,22 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - [ ] 137-06-PLAN.md — Coverage verification and phase summary (80%+ target, CI integration)
 
 ### Phase 138: Mobile State Management Testing
-**Goal**: State management tested (Redux slices, Context providers, AsyncStorage)
+**Goal**: State management tested (Context providers, AsyncStorage, State hydration)
 **Depends on**: Phase 137
 **Requirements**: MOBILE-04
 **Success Criteria** (what must be TRUE):
-  1. Redux slices tested with action and reducer validation
-  2. Context providers tested with provider value and updates
-  3. AsyncStorage persistence tested with read/write/delete operations
+  1. Context providers tested with provider value and updates (not Redux - app uses Context API)
+  2. Context state mutations tested with action validation
+  3. AsyncStorage/MMKV persistence tested with read/write/delete operations
   4. State hydration tested with app startup and cache restoration
   5. State sync tested across app background/foreground transitions
-**Plans**: TBD
+**Plans**: 6 (Wave 1: 01-03 parallel, Wave 2: 04-05 parallel, Wave 3: 06)
+- [ ] 138-01-PLAN.md — WebSocketContext tests (connection, reconnection, streaming, rooms)
+- [ ] 138-02-PLAN.md — StorageService tests (MMKV, AsyncStorage, quota, cleanup)
+- [ ] 138-03-PLAN.md — State hydration tests (auth/device state restoration on startup)
+- [ ] 138-04-PLAN.md — App lifecycle tests (background/foreground state persistence)
+- [ ] 138-05-PLAN.md — Context integration tests (multi-provider scenarios)
+- [ ] 138-06-PLAN.md — Coverage verification and CI integration (80%+ target, report)
 
 ### Phase 139: Mobile Platform-Specific Testing
 **Goal**: Platform-specific tests (iOS vs Android differences, safe area, permissions)
@@ -576,8 +582,8 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 134. Frontend Failing Tests Fix | v5.2 | 11/11 | Partial | 2026-03-04 |
 | 135. Mobile Coverage Foundation | v5.2 | 6/6 | Planning complete | 2026-03-04 |
 | 136. Mobile Device Features | v5.2 | 0/TBD | Not started | - |
-| 137. Mobile Navigation | v5.2 | 0/TBD | Not started | - |
-| 138. Mobile State Management | v5.2 | 0/TBD | Not started | - |
+| 137. Mobile Navigation | v5.2 | 6/6 | Complete | 2026-03-05 |
+| 138. Mobile State Management | v5.2 | 0/6 | Planning complete | 2026-03-05 |
 | 139. Mobile Platform-Specific | v5.2 | 0/TBD | Not started | - |
 | 140. Desktop Coverage Baseline | v5.2 | 0/TBD | Not started | - |
 | 141. Desktop Coverage Expansion | v5.2 | 0/TBD | Not started | - |
