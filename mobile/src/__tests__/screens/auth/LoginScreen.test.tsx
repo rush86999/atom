@@ -14,7 +14,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LoginScreen } from '../../../../screens/auth/LoginScreen';
+import { LoginScreen } from '../../../screens/auth/LoginScreen';
 
 // Mock dependencies
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -34,7 +34,7 @@ const mockLogin = jest.fn();
 const mockIsBiometricAvailable = jest.fn();
 const mockAuthenticateWithBiometric = jest.fn();
 
-jest.mock('../../../../contexts/AuthContext', () => ({
+jest.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({
     login: mockLogin,
     isBiometricAvailable: mockIsBiometricAvailable,
