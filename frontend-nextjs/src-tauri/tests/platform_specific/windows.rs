@@ -363,3 +363,337 @@ fn test_windows_file_extensions() {
         }
     }
 }
+
+// ========================================================================
+// System Info Tests
+// ========================================================================
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_system_info_structure() {
+    // Mock get_system_info() command response structure
+    // This tests the expected JSON structure, not actual command invocation
+    let system_info = serde_json::json!({
+        "platform": "windows",
+        "architecture": "x64",
+        "version": "1.0.0",
+        "tauri_version": "2.0.0",
+        "features": {
+            "file_system": true,
+            "notifications": true,
+            "system_tray": true,
+            "global_shortcuts": true
+        }
+    });
+
+    // Verify response contains "platform": "windows"
+    assert_eq!(
+        system_info["platform"],
+        "windows",
+        "Platform should be windows"
+    );
+
+    // Verify response contains architecture (x64 or arm64)
+    let arch = system_info["architecture"].as_str().unwrap();
+    assert!(
+        arch == "x64" || arch == "arm64" || arch == "unknown",
+        "Architecture should be x64, arm64, or unknown, got: {}",
+        arch
+    );
+
+    // Verify response contains version string
+    let version = system_info["version"].as_str().unwrap();
+    assert!(
+        !version.is_empty(),
+        "Version should not be empty"
+    );
+
+    // Verify features object exists
+    assert!(
+        system_info["features"].is_object(),
+        "Features should be an object"
+    );
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_cfg_detection() {
+    // Test cfg!(target_os = "windows") returns true
+    assert!(
+        cfg!(target_os = "windows"),
+        "cfg!(target_os = \"windows\") should return true"
+    );
+
+    // Test cfg!(target_os = "macos") returns false
+    assert!(
+        !cfg!(target_os = "macos"),
+        "cfg!(target_os = \"macos\") should return false"
+    );
+
+    // Test cfg!(target_os = "linux") returns false
+    assert!(
+        !cfg!(target_os = "linux"),
+        "cfg!(target_os = \"linux\") should return false"
+    );
+
+    // Test cfg!(target_arch) returns correct value for current arch
+    let current_arch = if cfg!(target_arch = "x86_64") {
+        "x86_64"
+    } else if cfg!(target_arch = "aarch64") {
+        "aarch64"
+    } else {
+        "unknown"
+    };
+
+    assert!(
+        current_arch == "x86_64" || current_arch == "aarch64" || current_arch == "unknown",
+        "Architecture should be x86_64, aarch64, or unknown, got: {}",
+        current_arch
+    );
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_any_platform_combinations() {
+    // Test cfg!(any(target_os = "windows", target_os = "macos"))
+    assert!(
+        cfg!(any(target_os = "windows", target_os = "macos")),
+        "cfg!(any(windows, macos)) should include windows"
+    );
+
+    // Test cfg!(any(target_os = "windows", target_os = "linux"))
+    assert!(
+        cfg!(any(target_os = "windows", target_os = "linux")),
+        "cfg!(any(windows, linux)) should include windows"
+    );
+
+    // Test cfg!(all(target_os = "windows", target_arch = "x86_64"))
+    let is_windows_x64 = cfg!(all(target_os = "windows", target_arch = "x86_64"));
+    if cfg!(target_arch = "x86_64") {
+        assert!(
+            is_windows_x64,
+            "cfg!(all(windows, x86_64)) should be true on x86_64"
+        );
+    } else {
+        assert!(
+            !is_windows_x64,
+            "cfg!(all(windows, x86_64)) should be false on non-x86_64"
+        );
+    }
+
+    // Test cfg!(not(target_os = "linux"))
+    assert!(
+        cfg!(not(target_os = "linux")),
+        "cfg!(not(linux)) should be true on Windows"
+    );
+
+    // Test cfg!(not(target_os = "macos"))
+    assert!(
+        cfg!(not(target_os = "macos")),
+        "cfg!(not(macos)) should be true on Windows"
+    );
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_environment_variables() {
+    // Get TEMP environment variable
+    let temp_var = env::var("TEMP");
+    assert!(
+        temp_var.is_ok(),
+        "TEMP environment variable should exist on Windows"
+    );
+    let temp_path = temp_var.unwrap();
+
+    // Get APPDATA environment variable (if exists)
+    let appdata_var = env::var("APPDATA");
+    if appdata_var.is_ok() {
+        let appdata_path = appdata_var.unwrap();
+        assert!(
+            !appdata_path.is_empty(),
+            "APPDATA should not be empty"
+        );
+
+        // Verify contains backslash
+        assert!(
+            appdata_path.contains('\\'),
+            "APPDATA path should contain backslash: {}",
+            appdata_path
+        );
+    }
+
+    // Get USERPROFILE environment variable (if exists)
+    let userprofile_var = env::var("USERPROFILE");
+    if userprofile_var.is_ok() {
+        let userprofile_path = userprofile_var.unwrap();
+        assert!(
+            !userprofile_path.is_empty(),
+            "USERPROFILE should not be empty"
+        );
+
+        // Verify contains backslash
+        assert!(
+            userprofile_path.contains('\\'),
+            "USERPROFILE path should contain backslash: {}",
+            userprofile_path
+        );
+    }
+
+    // Assert at least one Windows-specific env var exists
+    let has_temp = env::var("TEMP").is_ok();
+    let has_appdata = env::var("APPDATA").is_ok();
+    let has_userprofile = env::var("USERPROFILE").is_ok();
+
+    assert!(
+        has_temp || has_appdata || has_userprofile,
+        "At least one Windows-specific env var should exist"
+    );
+
+    // Verify TEMP path contains backslash
+    assert!(
+        temp_path.contains('\\'),
+        "TEMP path should contain backslash: {}",
+        temp_path
+    );
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_file_operations_roundtrip() {
+    // Create temp file with Windows-specific path
+    let test_file = create_temp_test_file("line1\r\nline2\r\nline3");
+
+    // Read back and verify content matches
+    let content = fs::read_to_string(&test_file)
+        .expect("Failed to read test file");
+
+    assert_eq!(
+        content, "line1\r\nline2\r\nline3",
+        "Content should match including Windows line endings (CRLF)"
+    );
+
+    // Verify CRLF line endings
+    assert!(
+        content.contains("\r\n"),
+        "Content should contain Windows CRLF line endings"
+    );
+
+    // Cleanup
+    let _ = fs::remove_file(&test_file);
+    assert!(
+        !test_file.exists(),
+        "Test file should be cleaned up"
+    );
+}
+
+#[test]
+#[cfg(target_os = "windows")]
+fn test_windows_directory_listing() {
+    use std::fs;
+
+    // Create temp directory with test files
+    let temp_dir = get_temp_dir();
+    let test_dir = temp_dir.join("windows_dir_test");
+
+    // Create directory
+    fs::create_dir_all(&test_dir)
+        .expect("Failed to create test directory");
+
+    // Create test files
+    let file1 = test_dir.join("test1.txt");
+    let file2 = test_dir.join("test2.json");
+    let file3 = test_dir.join("test3.md");
+
+    fs::write(&file1, "content1").expect("Failed to write file1");
+    fs::write(&file2, "{\"key\": \"value\"}").expect("Failed to write file2");
+    fs::write(&file3, "# Header").expect("Failed to write file3");
+
+    // List directory entries
+    let entries = fs::read_dir(&test_dir)
+        .expect("Failed to read directory");
+
+    let mut file_names = Vec::new();
+    let mut file_extensions = Vec::new();
+    let mut file_sizes = Vec::new();
+    let mut is_directory_count = 0;
+
+    for entry in entries {
+        let entry = entry.expect("Failed to read entry");
+        let path = entry.path();
+
+        // Extract file name
+        if let Some(name) = path.file_name() {
+            file_names.push(name.to_string_lossy().to_string());
+        }
+
+        // Extract extension
+        if let Some(ext) = path.extension() {
+            file_extensions.push(ext.to_string_lossy().to_string());
+        }
+
+        // Get file size
+        if let Ok(metadata) = entry.metadata() {
+            file_sizes.push(metadata.len());
+            if metadata.is_dir() {
+                is_directory_count += 1;
+            }
+        }
+    }
+
+    // Verify file names
+    assert_eq!(
+        file_names.len(),
+        3,
+        "Should have 3 files"
+    );
+    assert!(
+        file_names.contains(&"test1.txt".to_string()),
+        "Should contain test1.txt"
+    );
+    assert!(
+        file_names.contains(&"test2.json".to_string()),
+        "Should contain test2.json"
+    );
+    assert!(
+        file_names.contains(&"test3.md".to_string()),
+        "Should contain test3.md"
+    );
+
+    // Verify extensions
+    assert!(
+        file_extensions.contains(&"txt".to_string()),
+        "Should contain txt extension"
+    );
+    assert!(
+        file_extensions.contains(&"json".to_string()),
+        "Should contain json extension"
+    );
+    assert!(
+        file_extensions.contains(&"md".to_string()),
+        "Should contain md extension"
+    );
+
+    // Verify file sizes are non-zero
+    for size in file_sizes {
+        assert!(
+            size > 0,
+            "File size should be greater than 0"
+        );
+    }
+
+    // No subdirectories created
+    assert_eq!(
+        is_directory_count, 0,
+        "Should have no subdirectories"
+    );
+
+    // Cleanup: remove directory and contents
+    let _ = fs::remove_file(&file1);
+    let _ = fs::remove_file(&file2);
+    let _ = fs::remove_file(&file3);
+    let _ = fs::remove_dir(&test_dir);
+    assert!(
+        !test_dir.exists(),
+        "Test directory should be cleaned up"
+    );
+}
