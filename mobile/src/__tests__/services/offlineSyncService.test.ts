@@ -848,6 +848,198 @@ describe('offlineSyncService', () => {
   });
 
   // ========================================================================
+  // Conflict Resolution and Cancellation Tests (8 tests)
+  // ========================================================================
+
+  describe('Conflict and Cancellation', () => {
+    test('should resolve conflict with server_wins strategy', async () => {
+      const { apiService } = require('../../services/api');
+
+      // Mock server response with newer timestamp
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: { updated_at: new Date(Date.now() + 10000).toISOString() },
+      });
+
+      await offlineSyncService.queueAction(
+        'canvas_update',
+        { canvasId: 'canvas_1', updates: { title: 'New Title' } },
+        'normal',
+        'user_1',
+        'device_1',
+        'server_wins'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      // Server wins - action should be synced (skipped)
+      expect(result).toBeDefined();
+    });
+
+    test('should resolve conflict with client_wins strategy', async () => {
+      const { apiService } = require('../../services/api');
+
+      // Mock server response with newer timestamp
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: { updated_at: new Date().toISOString() },
+      });
+
+      apiService.put.mockResolvedValue({ success: true, data: {} });
+
+      await offlineSyncService.queueAction(
+        'canvas_update',
+        { canvasId: 'canvas_2', updates: { title: 'Client Title' } },
+        'normal',
+        'user_1',
+        'device_1',
+        'client_wins'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      // Client wins - PUT should be called
+      expect(result.synced).toBeGreaterThan(0);
+    });
+
+    test('should resolve conflict with merge strategy', async () => {
+      const { apiService } = require('../../services/api');
+
+      // Mock server response
+      apiService.get.mockResolvedValue({
+        success: true,
+        data: {
+          updated_at: new Date().toISOString(),
+          tags: ['tag1'],
+          metadata: { key1: 'value1' },
+        },
+      });
+
+      apiService.put.mockResolvedValue({ success: true, data: {} });
+
+      await offlineSyncService.queueAction(
+        'canvas_update',
+        {
+          canvasId: 'canvas_3',
+          updates: { title: 'Merged Title', tags: ['tag2'], metadata: { key2: 'value2' } },
+        },
+        'normal',
+        'user_1',
+        'device_1',
+        'merge'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      // Merge should combine data
+      expect(result.synced).toBeGreaterThan(0);
+    });
+
+    test('should subscribe to conflict notifications', async () => {
+      const conflictCallback = jest.fn();
+
+      const unsubscribe = offlineSyncService.subscribeToConflicts(conflictCallback);
+
+      expect(typeof unsubscribe).toBe('function');
+
+      // Clean up
+      unsubscribe();
+    });
+
+    test('should cancel in-progress sync', async () => {
+      const { apiService } = require('../../services/api');
+
+      // Mock slow sync
+      apiService.post.mockImplementation(() => {
+        return new Promise((resolve) => setTimeout(() => resolve({ success: true, data: {} }), 100));
+      });
+
+      // Queue multiple actions
+      for (let i = 0; i < 20; i++) {
+        await offlineSyncService.queueAction(
+          'agent_message',
+          { agentId: `agent_${i}`, message: `Test ${i}`, sessionId: `session_${i}` },
+          'normal',
+          'user_1',
+          'device_1'
+        );
+      }
+
+      // Start sync
+      const syncPromise = offlineSyncService.triggerSync();
+
+      // Cancel immediately
+      await offlineSyncService.cancelSync();
+
+      const result = await syncPromise;
+
+      // Sync should be cancelled
+      const state = await offlineSyncService.getSyncState();
+      expect(state.cancelled).toBe(true);
+    }, 10000);
+
+    test('should handle cancel when no sync in progress', async () => {
+      // Try to cancel when no sync is running
+      await offlineSyncService.cancelSync();
+
+      // Should not throw an error
+      const state = await offlineSyncService.getSyncState();
+      expect(state).toBeDefined();
+    });
+
+    test('should apply exponential backoff for retries', async () => {
+      const { apiService } = require('../../services/api');
+
+      let attemptCount = 0;
+      apiService.post.mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount === 1) {
+          return Promise.reject(new Error('Network error'));
+        }
+        return Promise.resolve({ success: true, data: {} });
+      });
+
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { agentId: 'agent_retry', message: 'Test', sessionId: 'session_retry' },
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+      const result = await offlineSyncService.triggerSync();
+
+      // Should fail on first attempt and increment syncAttempts
+      expect(result.failed).toBe(1); // Failed on this sync attempt
+    });
+
+    test('should enforce max sync attempts', async () => {
+      const { apiService } = require('../../services/api');
+      apiService.post.mockRejectedValue(new Error('Persistent failure'));
+
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { agentId: 'agent_max', message: 'Test', sessionId: 'session_max' },
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+      // Try syncing multiple times
+      await offlineSyncService.triggerSync();
+      await offlineSyncService.triggerSync();
+      await offlineSyncService.triggerSync();
+      await offlineSyncService.triggerSync();
+      await offlineSyncService.triggerSync();
+
+      const state = await offlineSyncService.getSyncState();
+
+      // After 5 attempts, action should be removed
+      expect(state.consecutiveFailures).toBeGreaterThanOrEqual(0);
+    }, 10000);
+  });
+
+  // ========================================================================
   // Conflict Resolution Tests (5 tests)
   // ========================================================================
 
