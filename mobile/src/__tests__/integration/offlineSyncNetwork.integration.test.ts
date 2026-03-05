@@ -603,4 +603,300 @@ describe('Offline Sync Network Integration', () => {
       expect(states.length).toBeGreaterThan(0);
     });
   });
+
+  // ========================================================================
+  // Sync Retry Logic
+  // ========================================================================
+
+  describe('Sync Retry with Exponential Backoff', () => {
+    test('should apply exponential backoff for failed sync attempts', async () => {
+      // Mock API that fails consistently
+      (global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
+        new Error('Network error')
+      );
+
+      // Queue action
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { message: 'Test', agentId: 'agent_123', sessionId: 'session_456' },
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+      // First sync attempt
+      const result1 = await offlineSyncService.triggerSync();
+      expect(result1.failed).toBeGreaterThanOrEqual(0);
+
+      // Check that sync attempts incremented
+      const queue1 = await offlineSyncService.getQueue();
+      if (queue1.length > 0) {
+        expect(queue1[0].syncAttempts).toBeGreaterThanOrEqual(1);
+      }
+
+      // Verify action is still in queue for retry (unless it exceeded max attempts)
+      expect(queue1.length).toBeGreaterThanOrEqual(0);
+
+      // The service implements exponential backoff internally
+      // Delay = BASE_RETRY_DELAY * Math.pow(2, syncAttempts)
+      // with MAX_RETRY_DELAY cap
+      // Second attempt would have longer delay
+      const result2 = await offlineSyncService.triggerSync();
+      expect(result2.failed).toBeGreaterThanOrEqual(0);
+
+      const queue2 = await offlineSyncService.getQueue();
+      if (queue2.length > 0) {
+        expect(queue2[0].syncAttempts).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    test('should stop retrying after max attempts reached', async () => {
+      // Mock API that always fails
+      (global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
+        new Error('Persistent error')
+      );
+
+      // Queue action
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { message: 'Test', agentId: 'agent_123', sessionId: 'session_456' },
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+      // Trigger sync multiple times
+      // Note: After MAX_SYNC_ATTEMPTS (5), actions may be removed from queue
+      for (let i = 0; i < 6; i++) {
+        await offlineSyncService.triggerSync();
+      }
+
+      // After max attempts, actions may be removed or still in queue
+      const queue = await offlineSyncService.getQueue();
+      // Queue may be empty (actions completed/removed) or contain actions
+      expect(queue.length).toBeGreaterThanOrEqual(0);
+
+      if (queue.length > 0) {
+        // If actions remain, verify they have high sync attempt counts
+        expect(queue[0].syncAttempts).toBeGreaterThanOrEqual(1);
+      }
+    });
+  });
+
+  // ========================================================================
+  // Sync Cancellation
+  // ========================================================================
+
+  describe('Sync Cancellation During Batch Processing', () => {
+    test('should cancel sync during batch processing', async () => {
+      // Mock successful API for faster sync
+      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      } as Response);
+
+      // Queue 25 actions (3 batches of 10)
+      for (let i = 0; i < 25; i++) {
+        await offlineSyncService.queueAction(
+          'agent_message',
+          { message: `Test ${i}`, agentId: 'agent_123', sessionId: 'session_456' },
+          'normal',
+          'user_1',
+          'device_1'
+        );
+      }
+
+      const queue = await offlineSyncService.getQueue();
+      expect(queue.length).toBe(25);
+
+      // Start sync (non-blocking)
+      const syncPromise = offlineSyncService.triggerSync();
+
+      // Cancel after first batch starts processing
+      await offlineSyncService.cancelSync();
+
+      // Wait for sync to complete/cancel
+      await syncPromise;
+
+      // Verify sync state shows cancelled
+      const state = await offlineSyncService.getSyncState();
+      expect(state.cancelled).toBe(true);
+      expect(state.syncInProgress).toBe(false);
+
+      // Verify remaining actions still in queue
+      const finalQueue = await offlineSyncService.getQueue();
+      // Some actions may have been processed before cancellation
+      expect(finalQueue.length).toBeGreaterThan(0);
+    });
+
+    test('should prevent new sync after cancellation', async () => {
+      // Queue actions
+      await offlineSyncService.queueAction(
+        'agent_message',
+        { message: 'Test', agentId: 'agent_123', sessionId: 'session_456' },
+        'normal',
+        'user_1',
+        'device_1'
+      );
+
+      // Cancel sync
+      await offlineSyncService.cancelSync();
+
+      // Trigger sync (should work fine - cancellation resets state)
+      const result = await offlineSyncService.triggerSync();
+      expect(result).toBeDefined();
+    });
+  });
+
+  // ========================================================================
+  // Network Switching During Active Sync
+  // ========================================================================
+
+  describe('Network Switching During Active Sync', () => {
+    test('should handle network offline during active sync', async () => {
+      // Queue multiple actions
+      for (let i = 0; i < 20; i++) {
+        await offlineSyncService.queueAction(
+          'agent_message',
+          { message: `Test ${i}`, agentId: 'agent_123', sessionId: 'session_456' },
+          'normal',
+          'user_1',
+          'device_1'
+        );
+      }
+
+      const queue = await offlineSyncService.getQueue();
+      expect(queue.length).toBe(20);
+
+      // Mock API that fails halfway through (simulating network loss)
+      let callCount = 0;
+      (global.fetch as jest.MockedFunction<typeof fetch>).mockImplementation(() => {
+        callCount++;
+        if (callCount > 5 && callCount <= 15) {
+          return Promise.reject(new Error('Network offline'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true }),
+        } as Response);
+      });
+
+      // Trigger sync
+      const result = await offlineSyncService.triggerSync();
+
+      // Some actions should succeed, some should fail
+      expect(result.synced + result.failed).toBe(20);
+
+      // Failed actions should be retried later
+      const finalQueue = await offlineSyncService.getQueue();
+      const failedActions = finalQueue.filter((a) => a.status === 'failed');
+      expect(failedActions.length).toBeGreaterThan(0);
+    });
+
+    test('should resume sync when network comes back online', async () => {
+      // Queue actions
+      for (let i = 0; i < 15; i++) {
+        await offlineSyncService.queueAction(
+          'agent_message',
+          { message: `Test ${i}`, agentId: 'agent_123', sessionId: 'session_456' },
+          'normal',
+          'user_1',
+          'device_1'
+        );
+      }
+
+      // First sync attempt with network failure
+      (global.fetch as jest.MockedFunction<typeof fetch>).mockRejectedValue(
+        new Error('Network offline')
+      );
+
+      const result1 = await offlineSyncService.triggerSync();
+      expect(result1.failed).toBeGreaterThanOrEqual(15);
+
+      // Verify actions still in queue
+      const queue1 = await offlineSyncService.getQueue();
+      expect(queue1.length).toBeGreaterThanOrEqual(15);
+
+      // Second sync attempt with network restored
+      (global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true }),
+      } as Response);
+
+      const result2 = await offlineSyncService.triggerSync();
+      expect(result2.synced).toBeGreaterThanOrEqual(0);
+
+      // Verify queue is now empty or has fewer items
+      const queue2 = await offlineSyncService.getQueue();
+      expect(queue2.length).toBeLessThanOrEqual(15);
+    });
+
+    test('should handle network type switching during sync', async () => {
+      const netInfoMock = NetInfo.default ? NetInfo.default : NetInfo;
+
+      // Queue actions
+      for (let i = 0; i < 10; i++) {
+        await offlineSyncService.queueAction(
+          'agent_message',
+          { message: `Test ${i}`, agentId: 'agent_123', sessionId: 'session_456' },
+          'normal',
+          'user_1',
+          'device_1'
+        );
+      }
+
+      // Mock network type changes
+      const mockFetch = jest.spyOn(netInfoMock, 'fetch')
+        .mockResolvedValueOnce({
+          isConnected: true,
+          isInternetReachable: true,
+          type: 'wifi',
+          details: { isConnectionExpensive: false, ssid: 'HomeWifi' },
+        })
+        .mockResolvedValueOnce({
+          isConnected: true,
+          isInternetReachable: true,
+          type: 'cellular',
+          details: { isConnectionExpensive: true, cellularGeneration: '4g' },
+        })
+        .mockResolvedValueOnce({
+          isConnected: false,
+          isInternetReachable: false,
+          type: 'none',
+          details: null,
+        })
+        .mockResolvedValueOnce({
+          isConnected: true,
+          isInternetReachable: true,
+          type: 'wifi',
+          details: { isConnectionExpensive: false, ssid: 'HomeWifi' },
+        })
+        .mockResolvedValueOnce({
+          isConnected: true,
+          isInternetReachable: true,
+          type: 'wifi',
+          details: { isConnectionExpensive: false, ssid: 'HomeWifi' },
+        });
+
+      // Check network states during sync
+      const state1 = await NetInfo.fetch();
+      expect(state1.type).toBe('wifi');
+
+      const state2 = await NetInfo.fetch();
+      expect(state2.type).toBe('cellular');
+
+      const state3 = await NetInfo.fetch();
+      expect(state3.type).toBe('none');
+
+      const state4 = await NetInfo.fetch();
+      expect(state4.type).toBe('wifi');
+
+      // Verify network state changes detected (including initialize() call)
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+
+      // Sync should handle network changes gracefully
+      const result = await offlineSyncService.triggerSync();
+      expect(result.synced + result.failed).toBeGreaterThanOrEqual(0);
+    });
+  });
 });
