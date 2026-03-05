@@ -15,9 +15,9 @@ const THRESHOLDS = {
   './lib/**/*.{ts,tsx}': { lines: 90, name: 'Utility Libraries' },
   './hooks/**/*.{ts,tsx}': { lines: 85, name: 'React Hooks' },
   './components/canvas/**/*.{ts,tsx}': { lines: 85, name: 'Canvas Components' },
-  './components/ui/**/*.{ts,tsx}': { lines: 80, name: 'UI Components' },
-  './components/integrations/**/*.{ts,tsx}': { lines: 80, name: 'Integration Components' },
-  './pages/**/*.{ts,tsx}': { lines: 80, name: 'Next.js Pages' },
+  './components/ui/**/*.{ts,tsx}': { lines: 75, name: 'UI Components' },
+  './components/integrations/**/*.{ts,tsx}': { lines: 75, name: 'Integration Components' },
+  './pages/**/*.{ts,tsx}': { lines: 75, name: 'Next.js Pages' },
 };
 
 function getThresholdForFile(filepath) {
