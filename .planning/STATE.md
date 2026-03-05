@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 ## Current Position
 
 Phase: 136 of 26 (Mobile Device Features Testing)
-Plan: 03/07 (Notification Service Testing) - COMPLETE
-Status: Plan 03 complete - notification service tests enhanced with 25 new tests (37 -> 62 total, +25 new). Coverage: 80%+ statements (push token: 5, listeners: 6, Android channels: 6, badge/scheduled: 8). Fixed Platform.OS mocking with Object.defineProperty, added beforeEach reset for test isolation. Backend API integration tested for push token registration.
-Last activity: 2026-03-05 — Plan 136-03 executed: 25 new tests added (push token registration: 5, notification listeners: 6, Android channel and error handling: 6, badge count and scheduled: 8). Fixed Platform.OS mocking and test isolation issues. 96% pass rate for new tests (24/25).
+Plan: 06/07 (Integration Testing) - COMPLETE
+Status: Plan 06 complete - integration tests for device permissions and offline sync network (1,620 lines, 52 tests). Device permissions: 23 tests covering sequential flows, state persistence, denial recovery, independent handling. Offline sync: 29 tests covering network transitions, retry backoff, cancellation, concurrent requests. 100% pass rate (52/52).
+Last activity: 2026-03-05 — Plan 136-06 executed: integration tests for device permissions (718 lines, 23 tests) and offline sync network (902 lines, 29 tests). All tests using Expo module mocking, AsyncStorage mock, fetch mock.
 
-Progress: [#######...............] 43% (3/7 plans executed in Phase 136)
+Progress: [#########..............] 86% (6/7 plans executed in Phase 136)
 
 ## Performance Metrics
 
@@ -122,6 +122,7 @@ Progress: [#######...............] 43% (3/7 plans executed in Phase 136)
 | Phase 135 P07 | 600 | 4 tasks | 3 files |
 | Phase 135 P07 | 1772677241 | 4 tasks | 3 files |
 | Phase 136 P05 | 60 | 4 tasks | 2 files |
+| Phase 136 P06 | 375 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -298,6 +299,7 @@ Recent decisions affecting current work:
 - [Phase 134]: MSW/axios integration in Node.js has limitations - cannot intercept XMLHttpRequest requests with baseURL properly
 - [Phase 134]: Integration test async patterns are already well-written - no changes needed for async handling
 - [Phase 134-11]: Test suite too large for <30s target without significant refactoring - 99.6s with maxWorkers optimization is acceptable
+- [Phase 136]: Integration tests validate cross-service interactions without Phase 135 utilities (flushPromises, waitForCondition)
 
 ### Pending Todos
 
