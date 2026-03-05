@@ -37,7 +37,8 @@ interface AsyncStorageState {
   atom_device_registered?: string; // 'true' | 'false'
   atom_device_capabilities?: string; // JSON string
   atom_last_sync?: string; // ISO date string
-  socket_room_*?: string; // Room subscriptions
+  // Room subscriptions stored as 'socket_room_{roomName}' keys
+  // Cannot use wildcard in TypeScript interface
 }
 
 interface MMKVState {
