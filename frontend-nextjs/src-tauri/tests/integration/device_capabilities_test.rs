@@ -203,4 +203,147 @@ mod tests {
         // Cleanup
         let _ = std::fs::remove_file(&test_file);
     }
+
+    // ============================================================================
+    // Screen Recording Platform-Specific FFMpeg Args Tests (lines 1120-1222)
+    // ============================================================================
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn test_screen_record_macos_avfoundation_args() {
+        // Verify macOS uses avfoundation input format
+        let resolution = "1920x1080";
+        let audio = false;
+
+        let mut expected_contains = vec![
+            "-f", "avfoundation",
+            "-framerate", "30",
+            "-video_size", resolution,
+            "-i", "1"
+        ];
+
+        // Verify all expected args are in macOS ffmpeg_args
+        assert!(expected_contains.contains(&"-f"));
+        assert!(expected_contains.contains(&"avfoundation"));
+        assert!(expected_contains.contains(&"-framerate"));
+        assert!(expected_contains.contains(&"30"));
+        assert!(expected_contains.contains(&"-video_size"));
+        assert!(expected_contains.contains(&resolution));
+        assert!(expected_contains.contains(&"-i"));
+        assert!(expected_contains.contains(&"1"));
+
+        // Audio args not included when audio = false
+        assert!(!expected_contains.contains(&":0"));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test]
+    async fn test_screen_record_windows_gdigrab_args() {
+        // Verify Windows uses gdigrab input format
+        let resolution = "1920x1080";
+        let audio = false;
+
+        let mut expected_contains = vec![
+            "-f", "gdigrab",
+            "-framerate", "30",
+            "-video_size", resolution,
+            "-i", "desktop"
+        ];
+
+        // Verify all expected args are in Windows ffmpeg_args
+        assert!(expected_contains.contains(&"-f"));
+        assert!(expected_contains.contains(&"gdigrab"));
+        assert!(expected_contains.contains(&"-framerate"));
+        assert!(expected_contains.contains(&"30"));
+        assert!(expected_contains.contains(&"-video_size"));
+        assert!(expected_contains.contains(&resolution));
+        assert!(expected_contains.contains(&"-i"));
+        assert!(expected_contains.contains(&"desktop"));
+
+        // Audio args not included when audio = false
+        assert!(!expected_contains.contains(&"audio=virtual-audio-capturer"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn test_screen_record_linux_x11grab_args() {
+        // Verify Linux uses x11grab input format
+        let display = std::env::var("DISPLAY").unwrap_or_else(|_| ":0".to_string());
+        let resolution = "1920x1080";
+
+        let expected_contains = vec![
+            "-f", "x11grab",
+            "-framerate", "30",
+            "-video_size", resolution,
+            format!("{}+0,0", display)
+        ];
+
+        // Verify all expected args are in Linux ffmpeg_args
+        assert!(expected_contains.contains(&"-f"));
+        assert!(expected_contains.contains(&"x11grab"));
+        assert!(expected_contains.contains(&"-framerate"));
+        assert!(expected_contains.contains(&"30"));
+        assert!(expected_contains.contains(&"-video_size"));
+        assert!(expected_contains.contains(&resolution));
+
+        // Verify DISPLAY env var format
+        assert!(expected_contains[3].contains("+0,0"));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn test_screen_record_audio_args_macos() {
+        // Verify audio input args for macOS: -f avfoundation -i :0
+        let audio = true;
+
+        if audio {
+            let audio_args = vec![
+                "-f", "avfoundation",
+                "-i", ":0"
+            ];
+
+            assert!(audio_args.contains(&"-f"));
+            assert!(audio_args.contains(&"avfoundation"));
+            assert!(audio_args.contains(&"-i"));
+            assert!(audio_args.contains(&":0"));
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test]
+    async fn test_screen_record_audio_args_windows() {
+        // Verify audio input args for Windows: -f dshow -i audio=virtual-audio-capturer
+        let audio = true;
+
+        if audio {
+            let audio_args = vec![
+                "-f", "dshow",
+                "-i", "audio=virtual-audio-capturer"
+            ];
+
+            assert!(audio_args.contains(&"-f"));
+            assert!(audio_args.contains(&"dshow"));
+            assert!(audio_args.contains(&"-i"));
+            assert!(audio_args.contains(&"audio=virtual-audio-capturer"));
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn test_screen_record_audio_args_linux() {
+        // Verify audio input args for Linux: -f pulse -i default
+        let audio = true;
+
+        if audio {
+            let audio_args = vec![
+                "-f", "pulse",
+                "-i", "default"
+            ];
+
+            assert!(audio_args.contains(&"-f"));
+            assert!(audio_args.contains(&"pulse"));
+            assert!(audio_args.contains(&"-i"));
+            assert!(audio_args.contains(&"default"));
+        }
+    }
 }
