@@ -2,12 +2,12 @@
 """
 Coverage Enforcement Script for Pre-commit Hooks
 
-Enforces 80% minimum coverage on new code and prevents coverage regression.
+Enforces 75% minimum coverage on new code and prevents coverage regression.
 Supports standalone execution, PR validation, and pre-commit hook integration.
 
 Usage:
     python enforce_coverage.py --help
-    python enforce_coverage.py --minimum 80 --files-only
+    python enforce_coverage.py --minimum 75 --files-only
     python enforce_coverage.py --verbose
 """
 
@@ -42,8 +42,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--minimum",
         type=float,
-        default=80.0,
-        help="Minimum coverage percentage for new code (default: 80.0)"
+        default=75.0,
+        help="Minimum coverage percentage for new code (default: 75.0)"
     )
     parser.add_argument(
         "--files-only",

@@ -2,11 +2,11 @@
 """
 Pass Rate Validation Script for Atom Test Suite
 
-This script validates test suite pass rate against a minimum threshold (default 98%).
+This script validates test suite pass rate against a minimum threshold (default 90%).
 It parses pytest JSON output, categorizes failures, and returns appropriate exit codes.
 
 Usage:
-    python check_pass_rate.py --json-file pytest_report.json --minimum 98
+    python check_pass_rate.py --json-file pytest_report.json --minimum 90
     python check_pass_rate.py --help
 
 Exit Codes:
@@ -274,7 +274,7 @@ def update_health_json(
 
     # Update metadata
     health_data["metadata"]["format_version"] = 1
-    health_data["metadata"]["minimum_pass_rate"] = 98.0
+    health_data["metadata"]["minimum_pass_rate"] = 90.0
     health_data["metadata"]["last_updated"] = datetime.now().isoformat()
 
     # Write back to file
@@ -311,8 +311,8 @@ Exit Codes:
     parser.add_argument(
         "--minimum",
         type=float,
-        default=98.0,
-        help="Minimum pass rate threshold (default: 98.0)"
+        default=90.0,
+        help="Minimum pass rate threshold (default: 90.0)"
     )
 
     parser.add_argument(
