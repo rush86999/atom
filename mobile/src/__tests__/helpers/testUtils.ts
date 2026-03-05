@@ -572,6 +572,73 @@ export const assertRendersWithoutThrow = (component: React.ReactElement): void =
 };
 
 // ============================================================================
+// SafeArea Testing Helpers
+// ============================================================================
+
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { RenderAPI } from '@testing-library/react-native';
+
+/**
+ * Render component with SafeAreaProvider and custom insets
+ * @param component - Component to render
+ * @param insets - Custom safe area insets (optional)
+ * @returns RenderAPI from @testing-library/react-native
+ *
+ * @example
+ * const { getByTestId } = renderWithSafeArea(
+ *   <MyComponent />,
+ *   { top: 44, bottom: 34, left: 0, right: 0 } // iPhone 13 Pro
+ * );
+ */
+export const renderWithSafeArea = (
+  component: React.ReactElement,
+  insets?: { top: number; bottom: number; left: number; right: number }
+): RenderAPI => {
+  const initialMetrics = insets ? {
+    frame: { x: 0, y: 0, width: 390, height: 844 },
+    insets,
+  } : undefined;
+
+  return render(
+    <SafeAreaProvider initialMetrics={initialMetrics}>
+      {component}
+    </SafeAreaProvider>
+  );
+};
+
+/**
+ * Create iOS device safe area metrics
+ * @param device - iOS device type
+ * @returns Safe area insets for device
+ */
+export const getiOSInsets = (
+  device: 'iPhone8' | 'iPhone13Pro' | 'iPhone14ProMax'
+): { top: number; bottom: number; left: number; right: number } => {
+  const insets = {
+    iPhone8: { top: 20, bottom: 0, left: 0, right: 0 },      // No notch
+    iPhone13Pro: { top: 44, bottom: 34, left: 0, right: 0 },  // Notch + home indicator
+    iPhone14ProMax: { top: 47, bottom: 34, left: 0, right: 0 }, // Dynamic Island
+  };
+  return insets[device];
+};
+
+/**
+ * Create Android device safe area metrics
+ * @param hasGestureNavigation - Device uses gesture navigation (default: true)
+ * @returns Safe area insets for Android device
+ */
+export const getAndroidInsets = (
+  hasGestureNavigation = true
+): { top: number; bottom: number; left: number; right: number } => {
+  return {
+    top: 0,  // Status bar handled separately
+    bottom: hasGestureNavigation ? 0 : 48,  // Navigation bar
+    left: 0,
+    right: 0,
+  };
+};
+
+// ============================================================================
 // Export All
 // ============================================================================
 
@@ -609,6 +676,11 @@ export default {
   testEachPlatform,
   skipOnPlatform,
   onlyOnPlatform,
+
+  // SafeArea testing
+  renderWithSafeArea,
+  getiOSInsets,
+  getAndroidInsets,
 
   // Mock helpers
   createMockWebSocket,
