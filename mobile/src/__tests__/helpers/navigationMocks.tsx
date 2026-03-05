@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 
 /**
  * Create a mock screen component with testID
@@ -32,10 +32,10 @@ import { View, Text, StyleSheet } from 'react-native';
 export const createMockScreen = (screenName: string, testId: string) => {
   return function MockScreen({ route, navigation }: any) {
     return (
-      <View testID={testId} style={styles.mockScreen}>
+      <View testID={testId} >
         <Text testID={`${testId}-name`}>{screenName}</Text>
         {route?.params && (
-          <Text testID={`${testId}-params`} style={styles.paramsText}>
+          <Text testID={`${testId}-params`} >
             {JSON.stringify(route.params)}
           </Text>
         )}
@@ -64,49 +64,152 @@ export const createMockScreen = (screenName: string, testId: string) => {
  */
 export const mockAllScreens = () => {
   // Auth screens
-  jest.mock('../../screens/auth/LoginScreen', () =>
-    createMockScreen('Login', 'login-screen')
-  );
-  jest.mock('../../screens/auth/RegisterScreen', () =>
-    createMockScreen('Register', 'register-screen')
-  );
-  jest.mock('../../screens/auth/ForgotPasswordScreen', () =>
-    createMockScreen('ForgotPassword', 'forgot-password-screen')
-  );
-  jest.mock('../../screens/auth/BiometricAuthScreen', () =>
-    createMockScreen('BiometricAuth', 'biometric-auth-screen')
-  );
+  jest.mock('../../screens/auth/LoginScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockLoginScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'login-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'login-screen-name' }, 'Login')
+      );
+    };
+  });
+
+  jest.mock('../../screens/auth/RegisterScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockRegisterScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'register-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'register-screen-name' }, 'Register')
+      );
+    };
+  });
+
+  jest.mock('../../screens/auth/ForgotPasswordScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockForgotPasswordScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'forgot-password-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'forgot-password-screen-name' }, 'ForgotPassword')
+      );
+    };
+  });
+
+  jest.mock('../../screens/auth/BiometricAuthScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockBiometricAuthScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'biometric-auth-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'biometric-auth-screen-name' }, 'BiometricAuth')
+      );
+    };
+  });
 
   // Workflow screens
-  jest.mock('../../screens/workflows/WorkflowsListScreen', () =>
-    createMockScreen('WorkflowsList', 'workflows-list-screen')
-  );
-  jest.mock('../../screens/workflows/WorkflowDetailScreen', () =>
-    createMockScreen('WorkflowDetail', 'workflow-detail-screen')
-  );
+  jest.mock('../../screens/workflows/WorkflowsListScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockWorkflowsListScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'workflows-list-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'workflows-list-screen-name' }, 'WorkflowsList')
+      );
+    };
+  });
+
+  jest.mock('../../screens/workflows/WorkflowDetailScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockWorkflowDetailScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'workflow-detail-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'workflow-detail-screen-name' }, 'WorkflowDetail')
+      );
+    };
+  });
+
+  jest.mock('../../screens/workflows/WorkflowTriggerScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockWorkflowTriggerScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'workflow-trigger-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'workflow-trigger-screen-name' }, 'WorkflowTrigger')
+      );
+    };
+  });
+
+  jest.mock('../../screens/workflows/ExecutionProgressScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockExecutionProgressScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'execution-progress-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'execution-progress-screen-name' }, 'ExecutionProgress')
+      );
+    };
+  });
+
+  jest.mock('../../screens/workflows/WorkflowLogsScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockWorkflowLogsScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'workflow-logs-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'workflow-logs-screen-name' }, 'WorkflowLogs')
+      );
+    };
+  });
 
   // Analytics screens
-  jest.mock('../../screens/analytics/AnalyticsDashboardScreen', () =>
-    createMockScreen('AnalyticsDashboard', 'analytics-dashboard-screen')
-  );
+  jest.mock('../../screens/analytics/AnalyticsDashboardScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockAnalyticsDashboardScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'analytics-dashboard-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'analytics-dashboard-screen-name' }, 'AnalyticsDashboard')
+      );
+    };
+  });
 
   // Agent screens
-  jest.mock('../../screens/agents/AgentListScreen', () =>
-    createMockScreen('AgentList', 'agent-list-screen')
-  );
-  jest.mock('../../screens/agents/AgentChatScreen', () =>
-    createMockScreen('AgentChat', 'agent-chat-screen')
-  );
+  jest.mock('../../screens/agent/AgentListScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockAgentListScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'agent-list-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'agent-list-screen-name' }, 'AgentList')
+      );
+    };
+  });
 
-  // Chat screens
-  jest.mock('../../screens/chat/ChatTabScreen', () =>
-    createMockScreen('ChatTab', 'chat-tab-screen')
-  );
+  jest.mock('../../screens/agent/AgentChatScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockAgentChatScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'agent-chat-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'agent-chat-screen-name' }, 'AgentChat')
+      );
+    };
+  });
+
+  // Chat screens (barrel export)
+  jest.mock('../../screens/chat', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return {
+      ChatTabScreen: function MockChatTabScreen({ route, navigation }: any) {
+        return React.createElement(View, { testID: 'chat-tab-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+          React.createElement(Text, { testID: 'chat-tab-screen-name' }, 'ChatTab')
+        );
+      }
+    };
+  });
 
   // Settings screens
-  jest.mock('../../screens/settings/SettingsScreen', () =>
-    createMockScreen('Settings', 'settings-screen')
-  );
+  jest.mock('../../screens/settings/SettingsScreen', () => {
+    const React = require('react');
+    const { View, Text } = require('react-native');
+    return function MockSettingsScreen({ route, navigation }: any) {
+      return React.createElement(View, { testID: 'settings-screen', style: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 16 } },
+        React.createElement(Text, { testID: 'settings-screen-name' }, 'Settings')
+      );
+    };
+  });
 };
 
 /**
@@ -131,10 +234,10 @@ export const mockAllScreens = () => {
 export const createMockScreenWithContent = (testId: string, content: React.ReactNode) => {
   return function MockScreen({ route, navigation }: any) {
     return (
-      <View testID={testId} style={styles.mockScreen}>
+      <View testID={testId} >
         {content}
         {route?.params && (
-          <Text testID={`${testId}-params`} style={styles.paramsText}>
+          <Text testID={`${testId}-params`} >
             {JSON.stringify(route.params)}
           </Text>
         )}
@@ -179,10 +282,10 @@ export const createMockScreenWithNavigation = (
     }, [navigation]);
 
     return (
-      <View testID={testId} style={styles.mockScreen}>
+      <View testID={testId} >
         <Text testID={`${testId}-name`}>{screenName}</Text>
         {route?.params && (
-          <Text testID={`${testId}-params`} style={styles.paramsText}>
+          <Text testID={`${testId}-params`} >
             {JSON.stringify(route.params)}
           </Text>
         )}
@@ -202,7 +305,7 @@ export const createMockScreenWithNavigation = (
  */
 export const createMockAppNavigator = () => {
   return function MockAppNavigator() {
-    return <View testID="app-navigator" style={styles.mockScreen} />;
+    return <View testID="app-navigator"  />;
   };
 };
 
@@ -252,18 +355,25 @@ export const mockIonicons = () => {
   }));
 };
 
-const styles = StyleSheet.create({
-  mockScreen: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-  },
-  paramsText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'monospace',
-  },
-});
+/**
+ * TestIDs for all mocked screens
+ * Use these in tests to query for specific screens
+ */
+export const SCREEN_TEST_IDS = {
+  // Tab screens
+  WORKFLOWS_LIST: 'workflows-list-screen',
+  ANALYTICS_DASHBOARD: 'analytics-dashboard-screen',
+  AGENT_LIST: 'agent-list-screen',
+  CHAT_TAB: 'chat-tab-screen',
+  SETTINGS: 'settings-screen',
+
+  // Stack screens (WorkflowStack)
+  WORKFLOW_DETAIL: 'workflow-detail-screen',
+  WORKFLOW_TRIGGER: 'workflow-trigger-screen',
+  EXECUTION_PROGRESS: 'execution-progress-screen',
+  WORKFLOW_LOGS: 'workflow-logs-screen',
+
+  // Stack screens (AgentStack, ChatStack)
+  AGENT_CHAT: 'agent-chat-screen',
+} as const;
+
