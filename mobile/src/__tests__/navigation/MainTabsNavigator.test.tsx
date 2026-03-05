@@ -8,7 +8,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from '../../../navigation/AppNavigator';
+import AppNavigator from '../../navigation/AppNavigator';
 
 // Mock all screens
 jest.mock('../../screens/workflows/WorkflowsListScreen', () => 'WorkflowsListScreen');
