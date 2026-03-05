@@ -1,5 +1,10 @@
 # Tarpaulin Configuration for Atom Desktop Coverage
 # https://github.com/simonvandel/tarpaulin
+#
+# Phase 142: Desktop Rust Backend Testing
+# Target: 80% coverage for src/main.rs and related modules
+# Current baseline: 35% (Phase 141)
+# Gap: +45 percentage points required
 
 [exclude-files]
 # Exclude test files from coverage calculations
@@ -11,9 +16,18 @@ out = ["Html", "Json"]
 output-dir = "coverage-report"
 
 [features]
-# Coverage threshold for future enforcement (Phase 142)
-# Phase 140: informational only (baseline measurement)
+# Coverage threshold for Phase 142
+# CI/CD enforces this with --fail-under 80
+# Local development runs without enforcement (use --fail-under 0)
 coverage_threshold = 80
+
+[enforcement]
+# Coverage enforcement settings
+# CI/CD: Always enforced (see .github/workflows/desktop-coverage.yml)
+# Local: Set FAIL_UNDER=0 environment variable to skip enforcement
+ci_threshold = 80
+pr_threshold = 75  # Allow 5% gap during PR review
+main_threshold = 80  # Strict enforcement on main branch
 
 [engine]
 # Use ptrace for compatibility across platforms
