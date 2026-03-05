@@ -545,6 +545,39 @@ jest.mock('expo-image-manipulator', () => ({
 }), { virtual: true });
 
 // ============================================================================
+// expo-file-system Mock
+// ============================================================================
+
+jest.mock('expo-file-system', () => ({
+  documentDirectory: '/mock/documents/',
+  cacheDirectory: '/mock/cache/',
+  getInfoAsync: jest.fn().mockResolvedValue({
+    exists: true,
+    isDirectory: false,
+    uri: 'file:///mock/file.txt',
+    size: 1024,
+  }),
+  readAsStringAsync: jest.fn().mockResolvedValue('mock file content'),
+  writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  FileSystem: {
+    documentDirectory: '/mock/documents/',
+    cacheDirectory: '/mock/cache/',
+    getInfoAsync: jest.fn().mockResolvedValue({
+      exists: true,
+      isDirectory: false,
+      uri: 'file:///mock/file.txt',
+      size: 1024,
+    }),
+    readAsStringAsync: jest.fn().mockResolvedValue('mock file content'),
+    writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+    deleteAsync: jest.fn().mockResolvedValue(undefined),
+    makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  },
+}), { virtual: true });
+
+// ============================================================================
 // expo-web-browser Mock
 // ============================================================================
 
@@ -582,6 +615,19 @@ jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn().mockResolvedValue(undefined),
   notificationAsync: jest.fn().mockResolvedValue(undefined),
   selectionAsync: jest.fn().mockResolvedValue(undefined),
+}), { virtual: true });
+
+// ============================================================================
+// expo-sharing Mock
+// ============================================================================
+
+jest.mock('expo-sharing', () => ({
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  Sharing: {
+    shareAsync: jest.fn().mockResolvedValue(undefined),
+    isAvailableAsync: jest.fn().mockResolvedValue(true),
+  },
 }), { virtual: true });
 
 // ============================================================================
