@@ -328,3 +328,132 @@ jobs:
           files: ./mobile/coverage/lcov.info
           flags: mobile
           fail_ci_if_error: false
+
+  # Platform-Specific Test Jobs
+  platform-specific-tests:
+    name: Platform-Specific Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Run platform-specific tests
+        working-directory: ./mobile
+        run: npm test -- --testPathPattern=platform-specific --coverage --watchAll=false
+
+      - name: Generate coverage report
+        if: success()
+        working-directory: ./mobile
+        run: |
+          echo "## Platform-Specific Test Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Coverage Summary:" >> $GITHUB_STEP_SUMMARY
+          npm run test:coverage 2>/dev/null || echo "Coverage script not available" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage reports
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-platform-coverage
+          path: |
+            mobile/coverage/
+            mobile/coverage-final.json
+          retention-days: 30
+
+      - name: Check coverage thresholds
+        working-directory: ./mobile
+        run: |
+          # Check if coverage meets minimum threshold (60%)
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(node -e "const c=require('./coverage/coverage-summary.json'); console.log(c.total.lines.pct);")
+            echo "Coverage: ${COVERAGE}%"
+            if (( $(echo "${COVERAGE} < 60" | bc -l) )); then
+              echo "Coverage ${COVERAGE}% is below 60% threshold"
+              exit 1
+            fi
+            echo "Coverage ${COVERAGE}% meets 60% threshold"
+          else
+            echo "Coverage report not found"
+            exit 1
+          fi
+
+  ios-tests:
+    name: iOS Platform Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Run iOS-specific tests
+        working-directory: ./mobile
+        run: npm test -- --testPathPattern=platform-specific/ios --passWithNoTests
+
+  android-tests:
+    name: Android Platform Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Run Android-specific tests
+        working-directory: ./mobile
+        run: npm test -- --testPathPattern=platform-specific/android --passWithNoTests
+
+  cross-platform-tests:
+    name: Cross-Platform Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Run cross-platform tests
+        working-directory: ./mobile
+        run: npm test -- --testPathPattern=conditionalRendering|platformParity|platformErrors --passWithNoTests
