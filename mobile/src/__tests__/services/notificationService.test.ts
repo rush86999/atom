@@ -813,4 +813,84 @@ describe('NotificationService', () => {
       expect(status).toBe('denied');
     });
   });
+
+  // ========================================================================
+  // Badge Count and Scheduled Notification Lifecycle Tests (8 new tests)
+  // ========================================================================
+
+  describe('Badge Count and Scheduled Notifications', () => {
+    beforeEach(async () => {
+      notificationService._resetState();
+      await notificationService.initialize();
+    });
+
+    test('should set badge count', async () => {
+      await notificationService.setBadgeCount(5);
+      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(5);
+    });
+
+    test('should get badge count', async () => {
+      (Notifications.getBadgeCountAsync as jest.Mock).mockResolvedValue(3);
+
+      const count = await notificationService.getBadgeCount();
+      expect(count).toBe(3);
+      expect(Notifications.getBadgeCountAsync).toHaveBeenCalled();
+    });
+
+    test('should increment badge count', async () => {
+      (Notifications.getBadgeCountAsync as jest.Mock).mockResolvedValue(3);
+
+      const currentCount = await notificationService.getBadgeCount();
+      const newCount = currentCount + 1;
+
+      await notificationService.setBadgeCount(newCount);
+      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(4);
+    });
+
+    test('should clear badge count', async () => {
+      await notificationService.setBadgeCount(0);
+      expect(Notifications.setBadgeCountAsync).toHaveBeenCalledWith(0);
+    });
+
+    test('should schedule notification with trigger', async () => {
+      const identifier = await notificationService.scheduleNotification(
+        { title: 'Scheduled Test', body: 'Test Body' },
+        10
+      );
+
+      expect(identifier).toBe('notification-id-123');
+      expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          trigger: { seconds: 10 },
+        })
+      );
+    });
+
+    test('should require permission for scheduled notification', async () => {
+      // Reset and initialize with denied permission
+      notificationService._resetState();
+      (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'denied',
+        canAskAgain: false,
+        granted: false,
+        expires: 'never',
+      });
+      await notificationService.initialize();
+
+      await expect(
+        notificationService.scheduleNotification({ title: 'Test', body: 'Test' }, 10)
+      ).rejects.toThrow('Permission not granted');
+    });
+
+    test('should cancel scheduled notification', async () => {
+      await notificationService.cancelNotification('notif-id-123');
+      expect(Notifications.cancelScheduledNotificationAsync).toHaveBeenCalledWith('notif-id-123');
+    });
+
+    test('should cancel all notifications', async () => {
+      await notificationService.cancelAllNotifications();
+      expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
+      expect(Notifications.dismissAllNotificationsAsync).toHaveBeenCalled();
+    });
+  });
 });
