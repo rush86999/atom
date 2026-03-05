@@ -11,10 +11,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { AuthNavigator } from '../../../navigation/AuthNavigator';
 
 // Mock all auth screens
-jest.mock('../../../screens/auth/LoginScreen', () => 'LoginScreen');
-jest.mock('../../../screens/auth/RegisterScreen', () => 'RegisterScreen');
-jest.mock('../../../screens/auth/ForgotPasswordScreen', () => 'ForgotPasswordScreen');
-jest.mock('../../../screens/auth/BiometricAuthScreen', () => 'BiometricAuthScreen');
+jest.mock('../../screens/auth/LoginScreen', () => 'LoginScreen');
+jest.mock('../../screens/auth/RegisterScreen', () => 'RegisterScreen');
+jest.mock('../../screens/auth/ForgotPasswordScreen', () => 'ForgotPasswordScreen');
+jest.mock('../../screens/auth/BiometricAuthScreen', () => 'BiometricAuthScreen');
 
 // Mock Ionicons
 jest.mock('@expo/vector-icons', () => ({
