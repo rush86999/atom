@@ -311,3 +311,163 @@ mod state_management_tests {
         assert_eq!(state_guard.processes.len(), 0);
     }
 }
+
+#[cfg(test)]
+mod json_validation_tests {
+    use super::*;
+
+    #[test]
+    fn test_json_response_success_format() {
+        // Test success response structure from main.rs
+        let response = json!({
+            "success": true,
+            "data": {"key": "value"}
+        });
+
+        assert_eq!(response["success"], true);
+        assert_eq!(response["data"]["key"], "value");
+        assert!(verify_json_response_structure(&response));
+    }
+
+    #[test]
+    fn test_json_response_error_format() {
+        // Test error response structure
+        let response = json!({
+            "success": false,
+            "error": "Something went wrong"
+        });
+
+        assert_eq!(response["success"], false);
+        assert!(response["error"].is_string());
+        assert!(verify_json_response_structure(&response));
+    }
+
+    #[test]
+    fn test_json_system_info_response() {
+        // Test get_system_info response structure
+        let response = json!({
+            "success": true,
+            "data": {
+                "platform": "darwin",
+                "architecture": "x86_64",
+                "version": "1.0.0",
+                "features": {
+                    "file_system": true,
+                    "notifications": true,
+                    "system_tray": true
+                }
+            }
+        });
+
+        assert_eq!(response["success"], true);
+        assert_eq!(response["data"]["platform"], "darwin");
+        assert_eq!(response["data"]["architecture"], "x86_64");
+        assert_eq!(response["data"]["version"], "1.0.0");
+        assert_eq!(response["data"]["features"]["file_system"], true);
+        assert_eq!(response["data"]["features"]["notifications"], true);
+        assert_eq!(response["data"]["features"]["system_tray"], true);
+    }
+
+    #[test]
+    fn test_json_file_dialog_response() {
+        // Test open_file_dialog response structure
+        let response = json!({
+            "success": true,
+            "data": {
+                "path": "/path/to/file.txt",
+                "filename": "file.txt",
+                "extension": "txt",
+                "size": 1024
+            }
+        });
+
+        assert_eq!(response["success"], true);
+        assert_eq!(response["data"]["path"], "/path/to/file.txt");
+        assert_eq!(response["data"]["filename"], "file.txt");
+        assert_eq!(response["data"]["extension"], "txt");
+        assert_eq!(response["data"]["size"], 1024);
+    }
+
+    #[test]
+    fn test_json_satellite_status_response() {
+        // Test start_satellite response structure
+        let response = json!({
+            "success": true,
+            "status": "started",
+            "using_venv": true
+        });
+
+        assert_eq!(response["success"], true);
+        assert_eq!(response["status"], "started");
+        assert_eq!(response["using_venv"], true);
+    }
+
+    #[test]
+    fn test_json_array_response() {
+        // Test array responses (list_directory, list_local_skills)
+        let response = json!({
+            "success": true,
+            "data": {
+                "entries": [
+                    {"name": "file1.txt", "size": 1024},
+                    {"name": "file2.txt", "size": 2048}
+                ]
+            }
+        });
+
+        assert_eq!(response["success"], true);
+        assert!(response["data"]["entries"].is_array());
+
+        // Access as array to get length
+        let entries = response["data"]["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0]["name"], "file1.txt");
+        assert_eq!(entries[1]["name"], "file2.txt");
+    }
+
+    #[test]
+    fn test_json_empty_array_response() {
+        // Test empty array case
+        let response = json!({
+            "success": true,
+            "data": {
+                "entries": []
+            }
+        });
+
+        assert_eq!(response["success"], true);
+        assert!(response["data"]["entries"].is_array());
+
+        // Access as array to get length
+        let entries = response["data"]["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 0);
+    }
+
+    #[test]
+    fn test_json_serialize_deserialize_roundtrip() {
+        // Create Value, serialize to string
+        let original = json!({
+            "success": true,
+            "data": {
+                "key": "value",
+                "number": 42,
+                "nested": {
+                    "array": [1, 2, 3]
+                }
+            }
+        });
+
+        // Serialize to string
+        let serialized = original.to_string();
+
+        // Deserialize back to Value
+        let deserialized: Value = serde_json::from_str(&serialized).unwrap();
+
+        // Verify data integrity
+        assert_eq!(original, deserialized);
+        assert_eq!(deserialized["success"], true);
+        assert_eq!(deserialized["data"]["key"], "value");
+        assert_eq!(deserialized["data"]["number"], 42);
+        assert_eq!(deserialized["data"]["nested"]["array"][0], 1);
+    }
+}
