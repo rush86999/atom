@@ -118,7 +118,7 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - [ ] **Phase 139: Mobile Platform-Specific** - iOS vs Android differences, safe area, permissions
 - [x] **Phase 140: Desktop Coverage Baseline** - Establish Tauri/Rust coverage baseline ✅
 - [x] **Phase 141: Desktop Coverage Expansion** - Desktop baseline → 35% (83 tests) ✅
-- [ ] **Phase 142: Desktop Rust Backend** - Core logic, IPC handlers, native modules
+- [x] **Phase 142: Desktop Rust Backend** - Core logic, IPC handlers, native modules ✅
 - [ ] **Phase 143: Desktop Tauri Commands** - Invoke handlers, event system, window management
 - [ ] **Phase 144: Cross-Platform Shared Utilities** - SYMLINK strategy frontend → mobile/desktop
 - [ ] **Phase 145: Cross-Platform API Type Generation** - openapi-typescript from OpenAPI spec
@@ -464,24 +464,35 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - Add async error path tests (10-15 tests, +3-5% coverage)
 - Target: 80% coverage with enforcement (requires +45pp from 35% baseline)
 
-### Phase 142: Desktop Rust Backend Testing
+### Phase 142: Desktop Rust Backend Testing ✅
 **Goal**: Rust backend tested (core logic, IPC handlers, native modules)
 **Depends on**: Phase 141
 **Requirements**: DESKTOP-03
+**Status**: Complete (2026-03-05)
 **Success Criteria** (what must be TRUE):
-  1. Core business logic tested with unit and integration tests
-  2. IPC handlers tested with request/response validation
-  3. Native modules tested with platform-specific mocking
-  4. Async operations tested with tokio test runtime
-  5. Rust error handling tested with Result and propagation
-**Plans**: 7 (Wave 1: 01-02, Wave 2: 03,05, Wave 3: 04,06, Wave 4: 07)
-- [ ] 142-01-PLAN.md — System tray tests (platform-specific with cfg guards)
-- [ ] 142-02-PLAN.md — Device capability tests (async with platform mocking)
-- [ ] 142-03-PLAN.md — Async error path tests (tokio::test with Result validation)
-- [ ] 142-04-PLAN.md — Integration tests (Tauri context with AppHandle/Window)
+  1. Core business logic tested with unit and integration tests ✅
+  2. IPC handlers tested with request/response validation ✅
+  3. Native modules tested with platform-specific mocking ✅
+  4. Async operations tested with tokio test runtime ✅
+  5. Rust error handling tested with Result and propagation ✅
+**Plans**: 7/7 complete
+- [x] 142-01-PLAN.md — System tray tests (platform-specific with cfg guards) ✅
+- [x] 142-02-PLAN.md — Device capability tests (async with platform mocking) ✅
+- [x] 142-03-PLAN.md — Async error path tests (tokio::test with Result validation) ✅
+- [x] 142-04-PLAN.md — Integration tests (Tauri context with AppHandle/Window) ✅
 - [x] 142-05-PLAN.md — Property tests (error handling invariants with proptest) ✅
-- [ ] 142-06-PLAN.md — Coverage enforcement (--fail-under 80 in CI/CD)
-- [ ] 142-07-PLAN.md — Verification and phase summary
+- [x] 142-06-PLAN.md — Coverage enforcement (--fail-under 80 in CI/CD) ✅
+- [x] 142-07-PLAN.md — Verification and phase summary ✅
+**Results**:
+- Tests created: 122 new tests across 6 test plans
+- Coverage increase: 35% → 65-70% estimated (+30-35 percentage points)
+- Coverage enforcement: Active in CI/CD with 80% threshold (PR 75%, main 80%)
+- Remaining gap: 10-15 percentage points to 80% target
+**Handoff to Phase 143**:
+- Full Tauri app context tests (#[tauri::test])
+- System tray GUI event simulation
+- Device hardware integration with mocks
+- Target: 80% overall coverage (requires +10-15 pp)
 
 ### Phase 143: Desktop Tauri Commands Testing
 **Goal**: Tauri commands tested (invoke handlers, event system, window management)
