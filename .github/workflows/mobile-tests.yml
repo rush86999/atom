@@ -103,6 +103,49 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See \`mobile/coverage-summary.md\` for detailed gap analysis." >> $GITHUB_STEP_SUMMARY
 
+      - name: Check navigation coverage
+        working-directory: ./mobile
+        run: |
+          echo "### Navigation Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Statements | Branches | Functions | Lines | Status |" >> $GITHUB_STEP_SUMMARY
+          echo("|------|------------|----------|-----------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          # Check AppNavigator
+          APPNAV_STMTS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AppNavigator.tsx')); console.log(file ? file.s.statements.pct : 0); } catch(e) { console.log(0); }")
+          APPNAV_BRANCH=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AppNavigator.tsx')); console.log(file ? file.s.branches.pct : 0); } catch(e) { console.log(0); }")
+          APPNAV_FUNCS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AppNavigator.tsx')); console.log(file ? file.s.functions.pct : 0); } catch(e) { console.log(0); }")
+          APPNAV_LINES=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AppNavigator.tsx')); console.log(file ? file.s.lines.pct : 0); } catch(e) { console.log(0); }")
+          APPNAV_STATUS=$(echo "$APPNAV_LINES >= 80" | bc -l)
+          if [ "$APPNAV_STATUS" -eq 1 ]; then
+            echo "| AppNavigator | ${APPNAV_STMTS}% | ${APPNAV_BRANCH}% | ${APPNAV_FUNCS}% | ${APPNAV_LINES}% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| AppNavigator | ${APPNAV_STMTS}% | ${APPNAV_BRANCH}% | ${APPNAV_FUNCS}% | ${APPNAV_LINES}% | ⚠️  BELOW |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::AppNavigator coverage ${APPNAV_LINES}% is below 80% threshold"
+          fi
+
+          # Check AuthNavigator
+          AUTHNAV_STMTS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AuthNavigator.tsx')); console.log(file ? file.s.statements.pct : 0); } catch(e) { console.log(0); }")
+          AUTHNAV_BRANCH=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AuthNavigator.tsx')); console.log(file ? file.s.branches.pct : 0); } catch(e) { console.log(0); }")
+          AUTHNAV_FUNCS=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AuthNavigator.tsx')); console.log(file ? file.s.functions.pct : 0); } catch(e) { console.log(0); }")
+          AUTHNAV_LINES=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const file = JSON.parse(c).find(f => f.path.includes('AuthNavigator.tsx')); console.log(file ? file.s.lines.pct : 0); } catch(e) { console.log(0); }")
+          AUTHNAV_STATUS=$(echo "$AUTHNAV_LINES >= 80" | bc -l)
+          if [ "$AUTHNAV_STATUS" -eq 1 ]; then
+            echo "| AuthNavigator | ${AUTHNAV_STMTS}% | ${AUTHNAV_BRANCH}% | ${AUTHNAV_FUNCS}% | ${AUTHNAV_LINES}% | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| AuthNavigator | ${AUTHNAV_STMTS}% | ${AUTHNAV_BRANCH}% | ${AUTHNAV_FUNCS}% | ${AUTHNAV_LINES}% | ⚠️  BELOW |" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::AuthNavigator coverage ${AUTHNAV_LINES}% is below 80% threshold"
+          fi
+
+          # Calculate overall navigation coverage
+          NAV_LINES=$(node -e "try { const c = require('fs').readFileSync('coverage/coverage-final.json', 'utf8'); const files = JSON.parse(c).filter(f => f.path.includes('AppNavigator.tsx') || f.path.includes('AuthNavigator.tsx')); const totalStmts = files.reduce((sum, f) => sum + f.s.statements.total, 0); const coveredStmts = files.reduce((sum, f) => sum + f.s.statements.covered, 0); const totalLines = files.reduce((sum, f) => sum + f.s.lines.total, 0); const coveredLines = files.reduce((sum, f) => sum + f.s.lines.covered, 0); console.log(Math.round((coveredLines / totalLines) * 100)); } catch(e) { console.log(0); }")
+          NAV_STATUS=$(echo "$NAV_LINES >= 80" | bc -l)
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall:** ${NAV_LINES}% coverage (target: 80%)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See \`mobile/coverage-navigation-summary.md\` for detailed gap analysis." >> $GITHUB_STEP_SUMMARY
+
       - name: Comment PR with device coverage
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -167,6 +210,89 @@ jobs:
             const botComment = comments.find(comment =>
               comment.user.type === 'Bot' &&
               comment.body.includes('Device Service Coverage Report')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+            }
+
+      - name: Comment PR with navigation coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // Read coverage data
+            let coverageData;
+            try {
+              coverageData = JSON.parse(fs.readFileSync('mobile/coverage/coverage-final.json', 'utf8'));
+            } catch (e) {
+              console.log('Coverage file not found');
+              return;
+            }
+
+            // Extract navigation coverage
+            const getFileCoverage = (fileName) => {
+              const file = coverageData.find(f => f.path.includes(fileName));
+              if (!file) return { statements: 0, branches: 0, functions: 0, lines: 0 };
+              return {
+                statements: file.s.statements.pct,
+                branches: file.s.branches.pct,
+                functions: file.s.functions.pct,
+                lines: file.s.lines.pct
+              };
+            };
+
+            const appNav = getFileCoverage('AppNavigator.tsx');
+            const authNav = getFileCoverage('AuthNavigator.tsx');
+            const overallLines = Math.round((appNav.lines + authNav.lines) / 2);
+
+            // Format coverage report
+            const report = `
+            ## 🧭 Navigation Coverage Report
+
+            | File | Statements | Branches | Functions | Lines | Status |
+            |------|------------|----------|-----------|-------|--------|
+            | AppNavigator | ${appNav.statements}% | ${appNav.branches}% | ${appNav.functions}% | ${appNav.lines}% | ${appNav.lines >= 80 ? '✅' : '⚠️'} |
+            | AuthNavigator | ${authNav.statements}% | ${authNav.branches}% | ${authNav.functions}% | ${authNav.lines}% | ${authNav.lines >= 80 ? '✅' : '⚠️'} |
+
+            **Overall:** ${overallLines}% coverage (target: 80%)
+
+            ${appNav.lines < 80 || authNav.lines < 80 ? '⚠️ **Action Required:** Some navigation files are below the 80% threshold. See `mobile/coverage-navigation-summary.md` for gap analysis.' : '✅ All navigation files meet the 80% coverage target!'}
+
+            <details>
+            <summary>View coverage details</summary>
+
+            See [coverage report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) | [gap analysis](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/mobile/coverage-navigation-summary.md)
+            </details>
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Navigation Coverage Report')
             );
 
             if (botComment) {
