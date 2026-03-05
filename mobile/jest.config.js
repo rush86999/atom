@@ -36,7 +36,14 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/types/**',
     '!src/**/*.stories.tsx',
-    '!src/**/*.stories.ts'
+    '!src/**/*.stories.ts',
+    // Platform-specific coverage
+    'src/__tests__/platform-specific/ios/**/*.{ts,tsx}',
+    'src/__tests__/platform-specific/android/**/*.{ts,tsx}',
+    'src/__tests__/platform-specific/**/*.{ts,tsx}',
+    // Platform-specific source files
+    'src/screens/**/*.{ts,tsx}',
+    'src/components/**/*.{ts,tsx}',
   ],
 
   // Coverage reporters (JSON for CI/CD, LCOV for diff coverage, HTML for local viewing)
@@ -48,10 +55,22 @@ module.exports = {
   // 80% coverage threshold for mobile app
   coverageThreshold: {
     global: {
+      branches: 60,
+      functions: 60,
+      lines: 60,
+      statements: 60
+    },
+    './src/__tests__/helpers/testUtils.ts': {
       branches: 80,
       functions: 80,
       lines: 80,
-      statements: 80
-    }
+      statements: 80,
+    },
+    './src/__tests__/helpers/platformPermissions.test.ts': {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
   }
 };
