@@ -619,6 +619,7 @@ jest.mock('expo-file-system', () => ({
 // ============================================================================
 
 jest.mock('expo-web-browser', () => ({
+  maybeCompleteAuthSession: jest.fn(),
   openBrowserAsync: jest.fn().mockResolvedValue(undefined),
   WebBrowser: {
     dismissBrowser: jest.fn().mockResolvedValue(undefined),
@@ -652,6 +653,32 @@ jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn().mockResolvedValue(undefined),
   notificationAsync: jest.fn().mockResolvedValue(undefined),
   selectionAsync: jest.fn().mockResolvedValue(undefined),
+}), { virtual: true });
+
+// ============================================================================
+// react-native-svg Mock (for Victory charts in AnalyticsDashboardScreen)
+// ============================================================================
+
+jest.mock('react-native-svg', () => ({
+  Svg: 'Svg',
+  Circle: 'Circle',
+  Ellipse: 'Ellipse',
+  G: 'G',
+  Text: 'Text',
+  TSpan: 'TSpan',
+  Path: 'Path',
+  Line: 'Line',
+  Rect: 'Rect',
+  Use: 'Use',
+  Image: 'Image',
+  Symbol: 'Symbol',
+  Defs: 'Defs',
+  LinearGradient: 'LinearGradient',
+  RadialGradient: 'RadialGradient',
+  Stop: 'Stop',
+  ClipPath: 'ClipPath',
+  Pattern: 'Pattern',
+  Mask: 'Mask',
 }), { virtual: true });
 
 // ============================================================================
@@ -762,3 +789,25 @@ global.MockWebSocket = class MockWebSocket {
     if (type === 'close' && this.onclose === listener) this.onclose = null;
   }
 };
+
+// ============================================================================
+// expo-linking Mock
+// ============================================================================
+
+jest.mock('expo-linking', () => ({
+  parse: jest.fn((url: string) => {
+    const urlObj = new URL(url.replace('atom://', 'http://'));
+    return {
+      path: urlObj.pathname,
+      hostname: urlObj.hostname,
+      queryParams: Object.fromEntries(urlObj.searchParams.entries()),
+      pathSegments: urlObj.pathname.split('/').filter(Boolean),
+    };
+  }),
+  createURL: jest.fn((path: string) => `atom://${path}`),
+  openURL: jest.fn().mockResolvedValue(undefined),
+  canOpenURL: jest.fn().mockResolvedValue(true),
+  getInitialURL: jest.fn().mockResolvedValue(null),
+  addEventListener: jest.fn(() => jest.fn()),
+  removeEventListener: jest.fn(),
+}), { virtual: true });
