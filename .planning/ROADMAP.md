@@ -474,7 +474,14 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Native modules tested with platform-specific mocking
   4. Async operations tested with tokio test runtime
   5. Rust error handling tested with Result and propagation
-**Plans**: TBD
+**Plans**: 7 (Wave 1: 01-02, Wave 2: 03,05, Wave 3: 04,06, Wave 4: 07)
+- [ ] 142-01-PLAN.md — System tray tests (platform-specific with cfg guards)
+- [ ] 142-02-PLAN.md — Device capability tests (async with platform mocking)
+- [ ] 142-03-PLAN.md — Async error path tests (tokio::test with Result validation)
+- [ ] 142-04-PLAN.md — Integration tests (Tauri context with AppHandle/Window)
+- [x] 142-05-PLAN.md — Property tests (error handling invariants with proptest) ✅
+- [ ] 142-06-PLAN.md — Coverage enforcement (--fail-under 80 in CI/CD)
+- [ ] 142-07-PLAN.md — Verification and phase summary
 
 ### Phase 143: Desktop Tauri Commands Testing
 **Goal**: Tauri commands tested (invoke handlers, event system, window management)
@@ -617,8 +624,8 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 138. Mobile State Management | v5.2 | 0/6 | Planning complete | 2026-03-05 |
 | 139. Mobile Platform-Specific | v5.2 | 5/5 | Complete | 2026-03-05 |
 | 140. Desktop Coverage Baseline | v5.2 | 3/3 | Complete | 2026-03-05 |
-| 141. Desktop Coverage Expansion | v5.2 | 0/6 | Planning complete | 2026-03-05 |
-| 142. Desktop Rust Backend | v5.2 | 0/TBD | Not started | - |
+| 141. Desktop Coverage Expansion | v5.2 | 6/6 | Complete | 2026-03-05 |
+| 142. Desktop Rust Backend | v5.2 | 0/7 | Planning complete | 2026-03-05 |
 | 143. Desktop Tauri Commands | v5.2 | 0/TBD | Not started | - |
 | 144. Cross-Platform Shared Utilities | v5.2 | 0/TBD | Not started | - |
 | 145. Cross-Platform API Type Generation | v5.2 | 0/TBD | Not started | - |
