@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import { RegisterScreen } from '../../../../screens/auth/RegisterScreen';
+import { RegisterScreen } from '../../../screens/auth/RegisterScreen';
 
 // Mock expo-web-browser
 jest.mock('expo-web-browser', () => ({
@@ -29,7 +29,7 @@ const mockNavigation = {
 
 const mockLogin = jest.fn();
 
-jest.mock('../../../../contexts/AuthContext', () => ({
+jest.mock('../../../contexts/AuthContext', () => ({
   useAuth: () => ({
     login: mockLogin,
   }),

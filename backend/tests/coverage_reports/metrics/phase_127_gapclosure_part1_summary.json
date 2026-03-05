@@ -1,0 +1,35 @@
+{
+  "timestamp": "2026-03-03T14:21:13.526131+00:00",
+  "baseline_percentage": 26.15,
+  "measurement_method": "isolated_test_runs",
+  "target_percentage": 80.0,
+  "gap_remaining": 53.85,
+  "status": "FILE_SPECIFIC_IMPROVEMENT",
+  "tests_added": {
+    "workflow_engine_integration": 23,
+    "world_model_integration": 21,
+    "total": 44
+  },
+  "file_specific_coverage": {
+    "core/workflow_engine.py": {
+      "baseline": 6.36,
+      "isolated_run": 15.0,
+      "improvement": 8.64,
+      "note": "Measured running only test_workflow_engine_integration.py"
+    },
+    "core/agent_world_model.py": {
+      "baseline": 17.16867469879518,
+      "isolated_run": null,
+      "improvement": null,
+      "note": "Tests use mocked LanceDB, limited coverage increase"
+    }
+  },
+  "next_step": "Execute Plan 08B for episode services",
+  "notes": [
+    "Overall backend coverage unchanged at 26.15% when running full test suite",
+    "File-specific coverage measured in isolated runs shows improvement",
+    "Integration tests call actual class methods (not just algorithms)",
+    "workflow_engine.py: +8.64 pp improvement (6.36% \u2192 15.0%)",
+    "Next phase should target episode services for larger coverage gains"
+  ]
+}

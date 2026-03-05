@@ -1,263 +1,281 @@
 # Project Research Summary
 
-**Project:** Atom Test Coverage Initiative v4.0 — Platform Integration & Property-Based Testing
-**Domain:** Multi-platform testing infrastructure (Next.js, React Native, Tauri, Python)
-**Researched:** February 26, 2026
+**Project:** Atom Frontend Testing Coverage Expansion
+**Domain:** Multi-platform testing architecture (React/Next.js, React Native, Tauri/Rust, Python)
+**Researched:** March 3, 2026
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Atom v4.0 requires a unified testing architecture that integrates four distinct platforms (Python backend, Next.js frontend, React Native mobile, Tauri desktop) with property-based testing parity. The existing backend has comprehensive Hypothesis property tests (100+ files), while frontend/mobile have Jest configured but limited test coverage (40% pass rate, 21/35 frontend tests failing). The recommended approach uses a **platform-first testing strategy** where each platform runs tests independently in CI, then aggregates results via Python scripts for unified coverage reporting.
+Atom requires a unified 4-platform testing architecture to achieve consistent 80%+ coverage across backend (Python 74.6%), frontend (Next.js 89.84%), mobile (React Native 16.16%), and desktop (Tauri TBD). The existing infrastructure is production-ready with `aggregate_coverage.py` handling multi-format coverage aggregation, unified CI workflows, and comprehensive property testing (250+ Hypothesis tests in backend, 84 FastCheck tests in frontend). The recommended approach is **backend-first API contract testing** using OpenAPI as source of truth, followed by **shared test utilities via symlinks**, **platform-weighted coverage quality gates** (backend 70%, frontend 20%, mobile 5%, desktop 5%), and **cross-platform property testing** for state invariants.
 
-The most critical risk is **fragmented testing infrastructure** — frontend/mobile/desktop tests currently run in isolation without unified quality gates. Research shows this leads to inconsistent coverage, missed integration bugs, and slow feedback loops. Mitigation requires: (1) centralized coverage aggregation using pytest-cov as source of truth, (2) FastCheck for JavaScript/TypeScript property tests (matching Hypothesis patterns), (3) unified CI orchestration with parallel platform execution, and (4) incremental rollout starting with backend+frontend integration before adding mobile/desktop.
-
-Key differentiator: Property-based testing for frontend state management (Redux/Zustand reducers, API contracts, data transformations) using FastCheck — an approach not widely adopted in production but highly recommended for catching edge cases in business logic invariants. This extends Atom's existing Hypothesis-based property test patterns to JavaScript/TypeScript platforms.
+Key risks include **platform-specific coverage gaps** (mobile at 16.16% dragging down overall metrics), **floating-point precision errors** in any financial calculations, **inadequate audit trail testing** for compliance, and **test utility duplication** across platforms causing maintenance burden. Mitigation strategies include **minimum per-platform coverage thresholds** (backend ≥70%, frontend ≥80%, mobile ≥50%, desktop ≥40%), **Decimal-first design** for all monetary values, **shared test helpers via symlinks** to ensure consistency, and **property-based testing** for financial invariants (double-entry bookkeeping, conservation of value).
 
 ## Key Findings
 
 ### Recommended Stack
 
 **Core technologies:**
-- **Jest (30.0.5/29.7.0)** — Test runner for Next.js and React Native — Already configured with 80% coverage threshold, jsdom/jest-expo presets working
-- **pytest (8.4.2)** — Backend orchestration and unified reporting — Existing infrastructure with CI/CD integration, coverage enforcement
-- **Hypothesis (6.151.5)** — Python property-based testing — Already in use with 60+ property test files, proven patterns
-- **FastCheck (4.5.3)** — TypeScript/JavaScript property-based testing — Hypothesis equivalent for JS/TS, integrates with Jest, type-safe
-- **Playwright Python (1.58.0) + Node (1.58.2)** — Cross-platform E2E — Backend has 17 tests, frontend needs integration
-- **Detox (20.47.0)** — React Native grey-box E2E — 10x faster than Appium, grey-box architecture
-- **pytest-cov (4.1.0)** — Python coverage aggregation — Already configured, use as source of truth
+- **Jest 30.0.5** — Already configured with 80% thresholds, 37% faster than Jest 29, React 19 compatible
+- **React Testing Library 16.3** — Current, industry-standard 2025 approach, avoids implementation details
+- **FastCheck 4.5.3** — Property-based testing for state invariants, 84 tests already passing
+- **@testing-library/react-hooks 8.0.1** — Isolated hook testing for custom hooks not fully covered by component tests
+- **jest-axe 8.0.0 + @axe-core/react 4.10.0** — WCAG compliance testing, missing a11y coverage
+- **MSW 1.3.5** — Already installed for API mocking, integration test patterns needed
+- **WebdriverIO 9.24.0** — Already installed for E2E, use existing infrastructure (skip Cypress)
+- **Schemathesis** — OpenAPI contract testing for backend APIs, generate TypeScript types automatically
+- **openapi-typescript** — Auto-generate TypeScript types from backend OpenAPI spec for compile-time safety
 
-**Integration strategy:** Frontend/mobile tests run in native Jest environments but report to unified pytest-based CI pipeline using JSON report aggregation. Python scripts parse all coverage formats (pytest JSON, Jest JSON) and produce unified reports.
+**What NOT to add:**
+- Vitest (Jest 30 is faster, already configured)
+- Cypress (WebdriverIO already installed)
+- Enzyme (deprecated 2022, React 19 incompatible)
+- Visual regression tools (Percy/Chromatic deferred until post-80% coverage)
+- XState (defer until state complexity warrants formal state machines)
 
 ### Expected Features
 
 **Must have (table stakes):**
-- **Component Integration Tests** — Verify components work together with state management, API calls, routing — React Testing Library for Next.js, React Native Testing Library for mobile
-- **API Contract Validation** — Frontend must correctly call backend APIs and handle responses — Test request/response shapes, error handling, timeout scenarios
-- **State Management Consistency** — Redux/Zustand/Context state must be predictable and consistent — Test state updates, selectors, async actions, middleware
-- **Form Validation & Submission** — Forms must validate correctly and submit data to backend — Test validation rules, error display, success/error states
-- **Navigation & Routing** — Users must navigate between screens/pages correctly — Test routing, navigation params, deep links, back navigation
-- **Authentication Flow** — Login/register/logout must work correctly with token storage — Test auth flows, token refresh, session persistence, biometric auth
-- **Offline Data Sync** — Mobile/desktop must handle offline mode gracefully — Test offline queue, sync on reconnect, conflict resolution
-- **Device Feature Mocking** — Camera, location, notifications must work across platforms — Mock Expo modules, device APIs, test permissions
+- **Leaf component tests** — Button, Input, Card components with render/props/interaction tests
+- **Composite component tests** — Forms, modals, tables with data flow and event propagation
+- **State management tests** — Redux/Context/hook tests for state transitions and error handling
+- **API mocking with MSW** — Integration tests with loading/error/success states
+- **Form validation tests** — Required fields, format validation, error messages
+- **Hook isolation tests** — Custom hooks tested with renderHook, not just indirectly through components
+- **Accessibility tests** — jest-axe for WCAG compliance, keyboard navigation, ARIA attributes
+- **Error boundary tests** — Error catching, fallback UI, error logging
+- **Routing tests** — Navigation, route parameters, query strings, deep links
 
-**Should have (competitive differentiators):**
-- **Property-Based State Testing** — Use fast-check to generate random state transitions and verify invariants — State machines, Redux reducers, context providers should maintain invariants
-- **Visual Regression Testing** — Detect unintended UI changes across releases — Percy, Chromatic, or Playwright screenshots
-- **Cross-Platform Consistency** — Verify feature parity across web/mobile/desktop — Same tests run on multiple platforms, validate consistent behavior
-- **Performance Regression Tests** — Detect rendering performance degradation — Lighthouse CI, render time budgets, bundle size tracking
-- **Accessibility Testing** — Ensure WCAG compliance with automated tests — jest-axe, aria labels, keyboard navigation, screen reader tests
-- **End-to-End User Flows** — Test complete workflows from UI to backend — Playwright for web, Detox for mobile
+**Should have (competitive):**
+- **Property-based testing** — FastCheck for state machine invariants, reducer purity, data transformations
+- **API contract testing** — OpenAPI spec validation, auto-generated TypeScript types, breaking change detection
+- **Cross-platform state testing** — FastCheck invariants shared across frontend/mobile/desktop
+- **Contract testing** — OpenAPI schema validation, request/response shape verification
+- **Mutation testing** — StrykerJS to identify weak tests, dead code
+- **Integration tests** — Component + state + API flows using MSW
 
 **Defer (v2+):**
-- **Mutation Testing** — Verify test quality by mutating code — Requires baseline test quality first
-- **Memory Leak Detection** — Find memory leaks in long-running sessions — Advanced performance testing
+- **Visual regression testing** — Percy/Chromatic requires screenshot infrastructure, not coverage blocker
+- **Performance regression testing** — Lighthouse CI, render time budgets
+- **Cross-browser testing** — BrowserStack/Playwright, higher maintenance
+- **Memory leak testing** — Specialized tooling, complex setup
 
 ### Architecture Approach
 
-**Platform-first testing architecture:** Each platform runs tests independently in CI (pytest for backend, Jest for frontend/mobile, cargo test for Tauri), then uploads coverage artifacts to a unified aggregation job. Python scripts parse multiple coverage formats and produce unified reports with per-platform breakdowns. Quality gates enforce 50% overall coverage + 98% pass rate across all platforms.
-
 **Major components:**
-1. **Platform-Specific Test Runners** — pytest (backend), Jest (frontend/mobile), cargo test (desktop Rust) — Each runs independently in parallel CI jobs
-2. **Coverage Aggregator** — Python script (`backend/tests/scripts/aggregate_coverage.py`) — Parses pytest JSON, Jest JSON, Rust coverage; produces unified report
-3. **Unified Quality Gates** — Python script (`unified_quality_gate.py`) — Enforces coverage thresholds, pass rate, flaky test detection
-4. **Property Test Frameworks** — Hypothesis (Python), FastCheck (JavaScript/TypeScript) — Shared invariant testing patterns across platforms
-5. **CI Orchestration** — GitHub Actions workflows — Parallel test execution, artifact upload/download, aggregation job
+1. **Backend Contract Foundation** — OpenAPI spec as source of truth, Schemathesis validates all endpoints, auto-generates TypeScript types for frontend/mobile/desktop
+2. **Shared Test Utilities** — `frontend-nextjs/shared/` with test-helpers, api-clients, state-validators, symlinked by mobile/desktop to prevent duplication
+3. **Coverage Aggregation** — `aggregate_coverage.py` parses pytest/Jest/jest-expo/tarpaulin formats, calculates weighted coverage (70% backend, 20% frontend, 5% mobile, 5% desktop), enforces minimum per-platform thresholds
+4. **Property Testing Layer** — FastCheck for JS platforms (canvas state, agent maturity), Hypothesis for Python (financial invariants, governance), proptest for Rust
+5. **Cross-Platform E2E** — Playwright (web), Detox (mobile), Tauri driver (desktop) unified in single workflow
 
-**Data flow:** Developer push → Trigger CI jobs (backend, frontend, mobile, desktop in parallel) → Upload coverage artifacts → Download all artifacts → Aggregate coverage → Quality gate evaluation → PR comment with breakdown
+**Integration points:**
+- API contracts: Backend OpenAPI → openapi-typescript → frontend/src/types/api-generated.ts → SYMLINK → mobile/desktop
+- Shared utilities: frontend-nextjs/shared/ → SYMLINK → mobile/src/shared, desktop/src/shared
+- Coverage aggregation: All platforms → aggregate_coverage.py → unified report → PR comment
+- State invariants: FastCheck tests in frontend → SYMLINK → mobile reuse
 
 ### Critical Pitfalls
 
-1. **Monolithic Test Workflow** — Single CI job running all platforms sequentially causes 40+ minute feedback loops — **Avoid:** Use platform-specific jobs with parallel execution
-2. **Coverage Without Context** — Reporting single percentage without breakdown masks regressions in specific platforms — **Avoid:** Provide detailed per-platform breakdown with trends
-3. **Property Tests for Everything** — Replacing all unit tests with property tests slows execution 100x without proportional bug-finding value — **Avoid:** Use property tests for critical invariants only (state machines, data transformations, API contracts)
-4. **Fragmented Coverage Reporting** — No unified view of coverage across platforms leads to inconsistent quality — **Avoid:** Centralize aggregation using Python scripts as source of truth
-5. **Test Data Edge Cases Missing** — Financial test data uses typical values but misses critical edge cases (zero, negative, maximum limits) — **Avoid:** Use property-based testing with explicit min/max values in Hypothesis strategies
+1. **Floating-point precision in financial calculations** — Using `float` instead of `Decimal` causes accumulation errors that violate accounting standards (GAAP/IFRS) and create reconciliation failures. Prevention: Use `decimal.Decimal` for all monetary values, store amounts as integer cents, define banker's rounding (half-even) strategy, property test precision invariants.
+
+2. **Inadequate audit trail testing** — Tests verify audit entries exist but don't validate completeness, integrity, or traceability. Prevention: Test audit trail completeness (every financial operation logged), property test audit invariants (count = operations, timestamps non-decreasing), end-to-end traceability tests, test audit entry immutability.
+
+3. **Property testing without financial invariants** — Property tests focus on implementation details instead of domain-specific invariants (double-entry bookkeeping, conservation of value). Prevention: Identify financial invariants first (debits == credits, balance sheet equation), use established property patterns (round-trip, inductive, invariant preservation), require bug-finding evidence in docstrings.
+
+4. **Payment integration mock mismatch** — Mocks don't match real provider behavior, missing race conditions, webhook failures, idempotency issues. Prevention: Use provider test mode (Stripe Test Mode, PayPal Sandbox), test failure modes (declined cards, timeouts), test webhook reliability, test idempotency explicitly, use VCR/recording.
+
+5. **Sequential platform testing** — Single CI job running all platform tests sequentially causes 40+ minute feedback loops. Prevention: Platform-specific jobs with parallel execution (EXISTING in unified-tests.yml), fast feedback per platform.
+
+6. **Duplicated test utilities across platforms** — Copy-pasting mock factories to frontend, mobile, desktop causes divergence and maintenance burden. Prevention: Shared test utilities via symlinks (frontend-nextjs/shared/), single source of truth.
+
+7. **Ignoring platform-specific coverage gaps** — Overall 80% coverage masks mobile at 16.16% and desktop at TBD. Prevention: Weighted coverage calculation + minimum per-platform thresholds (backend ≥70%, frontend ≥80%, mobile ≥50%, desktop ≥40%).
+
+8. **Rounding strategy inconsistency** — Different parts of system use different rounding strategies (traditional vs. banker's), causing reconciliation failures. Prevention: Document rounding strategy (banker's half-even), use explicit rounding, property test rounding invariants, cross-language consistency.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Backend + Frontend Integration (Week 1-2)
-**Rationale:** Backend has established property test patterns (Hypothesis) and CI infrastructure. Frontend shares TypeScript types with backend API, making integration highest impact. Fixes 21 failing frontend tests (40% → 100% pass rate).
+### Phase 1: Core Accounting Logic & Foundation
+**Rationale:** Precision errors are foundational — if caught late, require rewriting all financial calculations. Decimal-first design pattern must be established before any financial calculations are written.
+**Delivers:** Decimal-based calculation functions, banker's rounding strategy, property tests for precision invariants, edge case testing (zero, negative, large amounts), rounding invariants.
+**Addresses:** Table stakes — core numerical accuracy, financial correctness foundation
+**Avoids:** Floating-point precision errors causing reconciliation failures and compliance violations, rounding strategy inconsistency, missing test data edge cases
+**Features from FEATURES.md:** Core accounting logic, property testing for invariants, edge case testing
 
-**Delivers:**
-- Unified coverage aggregation (pytest + Jest)
-- Frontend integration tests (API contracts, state management, form validation)
-- FastCheck property tests for frontend invariants (10-15 tests)
+### Phase 2: Payment Integration Testing
+**Rationale:** Payment integrations have complex race conditions that benefit from property tests. Idempotency and webhook reliability are critical for production.
+**Delivers:** Payment integration tests with realistic failure modes, idempotency tests, webhook reliability tests, reconciliation tests with tolerance thresholds, discrepancy workflow tests
+**Uses:** Stack from STACK.md — Schemathesis for API contracts, MSW for mocking, VCR/recording for real provider responses
+**Implements:** Architecture component — API contract testing with OpenAPI, integration test patterns
+**Addresses:** Critical pitfall — Payment integration mock mismatch, reconciliation test coverage gaps
+**Features from FEATURES.md:** API mocking with MSW, integration tests, contract testing
+**Avoids:** Production payment failures, duplicate charges, lost payments, reconciliation failures
 
-**Addresses:**
-- Component Integration Tests, API Contract Validation, State Management Consistency (from FEATURES.md)
-- Property-Based State Testing (differentiator)
+### Phase 3: Cost Tracking & Budgets
+**Rationale:** Budget tracking depends on accurate precision from Phase 1. Performance issues appear with large datasets, requiring benchmarks and parallel execution.
+**Delivers:** Budget enforcement tests with concurrent checks, cost leak detection tests, savings calculation accuracy tests, performance benchmarks for large datasets (10,000+ transactions)
+**Uses:** Hypothesis property tests for budget guardrail invariants, pytest-xdist for parallel execution, pytest-benchmark for performance validation
+**Implements:** Architecture component — Property testing layer for financial invariants
+**Addresses:** Moderate pitfall — Budget guardrail race conditions, slow financial tests blocking CI
+**Features from FEATURES.md:** Property-based testing, performance tests
+**Avoids:** Budget overruns, spend blocking, CI pipeline slowdowns
 
-**Uses:**
-- FastCheck 4.5.3 for property tests, pytest-json-report 1.5.0 for unified reporting
-- Playwright Node 1.58.2 for E2E, React Testing Library 16.3.0 for component tests
+### Phase 4: Audit Trails & Compliance
+**Rationale:** Audit trails span all phases and require complete implementation of all financial operations to test meaningfully. SOX compliance requires completeness testing.
+**Delivers:** Audit trail completeness tests, integrity tests (immutability), traceability tests (reconstruct transaction from log), cross-service audit propagation tests, aging report tests with boundary conditions
+**Uses:** Property tests for audit invariants (count, ordering, immutability), end-to-end integration tests
+**Implements:** Architecture component — Cross-platform E2E testing
+**Addresses:** Critical pitfall — Inadequate audit trail testing
+**Features from FEATURES.md:** Integration tests, E2E critical path tests
+**Avoids:** SOX compliance failures, untraceable transactions, forensic analysis failures, reconciliation nightmares
 
-**Implements:**
-- Coverage aggregator script (`backend/tests/scripts/aggregate_coverage.py`)
-- Unified CI workflow (`.github/workflows/unified-tests.yml`)
-- Frontend tests workflow (`.github/workflows/frontend-tests.yml`)
+### Phase 5: Frontend Hook & Component Testing
+**Rationale:** Frontend has high coverage (89.84%) but gaps in custom hooks and accessibility. Hook testing requires @testing-library/react-hooks, a11y testing requires jest-axe.
+**Delivers:** Isolated hook tests for all custom hooks (useCanvasState, useAgentExecution, useAudioControl), accessibility tests with jest-axe for all critical components, leaf component coverage for missing UI elements
+**Uses:** @testing-library/react-hooks for hook isolation, jest-axe for WCAG compliance, React Testing Library for component testing
+**Implements:** Architecture component — Shared test utilities (test-helpers.ts)
+**Addresses:** Table stakes gaps — Hook isolation, accessibility compliance
+**Features from FEATURES.md:** Hook tests, accessibility tests, leaf component tests
+**Avoids:** Accessibility violations, hook edge cases, component rendering bugs
 
-**Avoids:**
-- Monolithic test workflow pitfall (parallel execution)
-- Fragmented coverage reporting (unified aggregation)
+### Phase 6: Shared Utilities & Cross-Platform Integration
+**Rationale:** Shared test utilities prevent duplication across frontend/mobile/desktop. SYMLINK strategy ensures consistency and reduces maintenance burden.
+**Delivers:** Shared test helpers (mockAgent, mockCanvasPresentation), shared API clients (type-safe wrappers), shared state validators (FastCheck invariants), SYMLINK setup for mobile/desktop
+**Uses:** frontend-nextjs/shared/ as single source of truth, symlinks for cross-platform sharing
+**Implements:** Architecture component — Shared test utilities integration point
+**Addresses:** Anti-pattern — Duplicated test utilities across platforms
+**Features from FEATURES.md:** Integration tests, cross-platform testing
+**Avoids:** Test utility divergence, maintenance burden, inconsistent test data
 
-### Phase 2: Mobile Integration (Week 3-4)
-**Rationale:** Mobile has Jest infrastructure configured (jest-expo), just needs integration with unified coverage. Property test patterns from Phase 1 can be reused.
+### Phase 7: API Contract Testing & Type Generation
+**Rationale:** Backend OpenAPI spec as source of truth enables compile-time type safety across all platforms. Breaking changes detected immediately during TypeScript compilation.
+**Delivers:** OpenAPI spec generation from FastAPI, Schemathesis contract tests, auto-generated TypeScript types (api-generated.ts), CI workflow for contract validation
+**Uses:** Schemathesis for Python contract testing, openapi-typescript for type generation, GitHub Actions for automated validation
+**Implements:** Architecture component — Backend contract foundation integration point
+**Addresses:** Should-have feature — API contract testing
+**Features from FEATURES.md:** Contract testing, mutation testing
+**Avoids:** Breaking changes in production, type mismatches between backend and frontend
 
-**Delivers:**
-- Mobile integration tests (device features, offline sync, platform permissions)
-- FastCheck property tests for mobile invariants (5-10 tests)
-- Cross-platform consistency tests
+### Phase 8: Weighted Coverage Quality Gates
+**Rationale:** Overall 80% coverage masks platform-specific gaps (mobile at 16.16%). Weighted calculation enforces minimum per-platform thresholds.
+**Delivers:** Weighted coverage calculation (backend 70%, frontend 20%, mobile 5%, desktop 5%), minimum per-platform thresholds (backend ≥70%, frontend ≥80%, mobile ≥50%, desktop ≥40%), CI quality gate enforcement
+**Uses:** aggregate_coverage.py (existing, modified for weighting), ci_quality_gate.py (existing, modified for thresholds)
+**Implements:** Architecture component — Coverage aggregation integration point
+**Addresses:** Critical pitfall — Ignoring platform-specific coverage gaps
+**Features from FEATURES.md:** Coverage targets by category
+**Avoids:** Gaming the system with easy frontend tests, masking low coverage on minor platforms
 
-**Addresses:**
-- Offline Data Sync, Device Feature Mocking, Authentication Flow (from FEATURES.md)
-- Cross-Platform Consistency (differentiator)
+### Phase 9: Cross-Platform Property Testing Expansion
+**Rationale:** Property tests for state invariants catch edge cases unit tests miss. FastCheck invariants shared across frontend/mobile/desktop ensure consistency.
+**Delivers:** FastCheck property tests for canvas state invariants, agent maturity invariants, offline queue invariants, cross-platform validation (frontend → mobile via SYMLINK), Rust proptest equivalents for desktop
+**Uses:** FastCheck for JS/TS platforms, Hypothesis for Python, proptest for Rust, shared state-validators.ts
+**Implements:** Architecture component — Property testing layer
+**Addresses:** Should-have feature — Property-based testing, differentiator
+**Features from FEATURES.md:** Property-based testing, state machine tests
+**Avoids:** State corruption bugs, illegal transitions, inconsistent data across platforms
 
-**Uses:**
-- Detox 20.47.0 for grey-box E2E, React Native Testing Library 13.3.3
-- expo-mock for device API mocking, detox-expo-helpers for Expo integration
-
-**Implements:**
-- Mobile tests workflow (modify existing `.github/workflows/mobile-ci.yml`)
-- Extend coverage aggregator for jest-expo coverage format
-
-**Avoids:**
-- Test data edge cases missing (property tests with device-specific strategies)
-- Fragmented coverage (mobile included in unified report)
-
-### Phase 3: Desktop Testing (Week 5)
-**Rationale:** Desktop is most complex (Rust + JavaScript), defer until patterns established from Phases 1-2. Tauri requires native module mocking and cross-platform validation.
-
-**Delivers:**
-- Tauri integration tests (native API mocks, cross-platform tests)
-- Rust property tests (QuickCheck) + JavaScript property tests
-- Desktop-specific feature tests (menu bar, notifications, auto-updates)
-
-**Addresses:**
-- Desktop integration (system APIs, filesystem access, Tauri commands)
-- Cross-Platform Consistency (differentiator)
-
-**Uses:**
-- tauri-driver 2.10.1 for WebDriver E2E, cargo test for Rust backend
-- Tauri API mocks for @tauri-apps/plugin-* modules
-
-**Implements:**
-- Desktop tests workflow (`.github/workflows/desktop-tests.yml`)
-- Extend coverage aggregator for Rust coverage (tarpaulin or covector)
-
-**Avoids:**
-- Property tests for everything pitfall (focus on critical invariants only)
-- Cross-platform inconsistencies (shared test suite where possible)
-
-### Phase 4: Property Testing Expansion (Week 6)
-**Rationale:** Property test patterns proven in Phases 1-3, now expand to cover critical invariants across all platforms. Requires deep understanding of business logic invariants.
-
-**Delivers:**
-- 30+ property tests across all platforms (backend Hypothesis, frontend/mobile FastCheck, desktop QuickCheck)
-- Documented property testing patterns for each platform
-- Invariant identification (state transitions, data validation, API contracts)
-
-**Addresses:**
-- Property-Based State Testing (differentiator — full implementation)
-- Component Contract Tests, Data Transformation Invariants (differentiator)
-
-**Uses:**
-- Hypothesis 6.151.5 (backend), FastCheck 4.5.3 (frontend/mobile), QuickCheck (Rust)
-- Existing Atom property test patterns (governance maturity invariants, financial invariants)
-
-**Implements:**
-- `frontend-nextjs/tests/property/` directory
-- `mobile/src/__tests__/property/` directory
-- `frontend-nextjs/src-tauri/tests/property_tests.rs`
-
-**Avoids:**
-- Property tests for everything pitfall (critical invariants only, 50-100 examples)
-- Weak properties (require bug-finding evidence in docstrings)
-
-### Phase 5: Cross-Platform Integration & E2E (Week 7-8)
-**Rationale:** Depends on all platforms being testable. Validates backend API integration with frontend/mobile/desktop end-to-end.
-
-**Delivers:**
-- Cross-platform integration tests (same tests run on web/mobile/desktop)
-- E2E user flows (authentication, navigation, data persistence)
-- Visual regression testing (optional, if time permits)
-
-**Addresses:**
-- End-to-End User Flows (differentiator)
-- Visual Regression Testing (differentiator, optional)
-
-**Uses:**
-- Playwright for web E2E, Detox for mobile E2E, tauri-driver for desktop E2E
-- Percy/Chromatic for visual regression (optional)
-
-**Implements:**
-- Shared test suite for cross-platform validation
-- E2E test workflows (`.github/workflows/e2e-tests.yml`)
-
-**Avoids:**
-- E2E tests for everything pitfall (critical user workflows only)
-- Slow tests blocking CI (separate E2E job, run on merge to main)
+### Phase 10: Cross-Platform E2E Orchestration
+**Rationale:** E2E tests validate end-to-end user experience across all platforms. Slowest tests, depend on stable unit/integration tests.
+**Delivers:** Playwright E2E tests (web), Detox E2E tests (mobile), Tauri E2E tests (desktop), unified workflow with aggregation, critical workflow tests (agent execution, canvas presentation)
+**Uses:** Playwright (existing), Detox (new for mobile), Tauri driver (new for desktop), e2e_unified.yml workflow
+**Implements:** Architecture component — Cross-platform E2E testing
+**Addresses:** Should-have feature — E2E critical path tests
+**Features from FEATURES.md:** E2E critical path tests
+**Avoids:** Integration bugs, API contract mismatches, state sync issues
 
 ### Phase Ordering Rationale
 
-- **Backend + Frontend first:** Both use TypeScript (backend API + frontend share types), highest impact, fixes immediate pain point (21 failing frontend tests)
-- **Mobile second:** Already has Jest infrastructure, easy integration, property test patterns reusable from Phase 1
-- **Desktop third:** Most complex (Rust + JavaScript), need to establish patterns first, Tauri testing less documented
-- **Property tests fourth:** Require deep understanding of invariants, better to write after integration tests stable
-- **Cross-platform last:** Depends on all platforms being testable, validates end-to-end integration
+- **Backend-first foundation**: OpenAPI spec enables all downstream contract testing, single source of truth for types
+- **Precision before payments**: Decimal-first design prevents rewriting all financial calculations later
+- **Payments before budgets**: Budget tracking depends on accurate precision from Phase 1, payment race conditions benefit from property tests
+- **Foundation before expansion**: Shared utilities reduce duplication before expanding test suite, prevent maintenance burden
+- **Contracts before integration**: API contracts enable compile-time safety, breaking changes detected immediately
+- **Weighted coverage before completion**: Platform minimums enforced after infrastructure ready, prevent gaming the system
+- **Property tests after stable foundation**: Require domain knowledge, better after contract validation stable
+- **E2E last**: Slowest tests, depend on stable unit/integration tests, used for smoke testing before deployment
 
 ### Research Flags
 
-**Phases likely needing deeper research during planning:**
-- **Phase 2 (Mobile):** Device feature mocking patterns — Expo module APIs vary, iOS vs Android differences need research
-- **Phase 3 (Desktop):** Tauri native module mocking strategies — Less documentation than web/mobile, may need prototype testing
-- **Phase 4 (Property Tests):** Invariant identification for frontend state — FastCheck adoption low, few real-world examples, may need research into generator strategies for complex UI state
+Phases likely needing deeper research during planning:
+- **Phase 2 (Payment Integration)**: MEDIUM risk — Payment provider testing patterns vary by provider (Stripe vs. PayPal vs. Braintree), need specific research on providers used in Atom
+- **Phase 4 (Audit Trails)**: HIGH risk — SOX compliance requirements are strict, gaps are expensive to fix post-deployment
+- **Phase 9 (Property Testing)**: MEDIUM risk — Property test performance may be slow with 100+ examples, need benchmarking with Atom's existing property test suite
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Backend + Frontend):** Well-documented, established patterns — Jest, React Testing Library, pytest all have comprehensive documentation
-- **Phase 5 (Cross-Platform E2E):** Standard E2E patterns — Playwright, Detox both mature tools with extensive guides
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (Core Accounting)**: HIGH confidence — Decimal-first design, banker's rounding, property testing invariants well-documented
+- **Phase 5 (Frontend Hooks)**: HIGH confidence — @testing-library/react-hooks, jest-axe are industry standards with established patterns
+- **Phase 6 (Shared Utilities)**: HIGH confidence — SYMLINK strategy, shared test helpers are straightforward DRY principle
+- **Phase 7 (API Contracts)**: HIGH confidence — Schemathesis, openapi-typescript, FastAPI OpenAPI generation are well-documented
+- **Phase 8 (Weighted Coverage)**: HIGH confidence — aggregate_coverage.py exists, weighting logic is straightforward math
+- **Phase 10 (E2E Orchestration)**: HIGH confidence — Playwright existing, Detox and Tauri have standard patterns
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack (Jest, pytest, FastCheck, Detox) | HIGH | All package versions verified via npm/pip, integration strategy based on existing working setup |
-| Features (component integration, API contracts) | MEDIUM | Mix of official docs (React Testing Library, FastCheck) and codebase analysis (21 failing frontend tests, 25+ mobile tests) |
-| Architecture (platform-first, aggregation) | HIGH | Based on existing Atom infrastructure (pytest, Hypothesis patterns, CI/CD workflows), proven architectural patterns |
-| Pitfalls (monolithic workflow, fragmented coverage) | HIGH | Anti-patterns identified from existing infrastructure analysis, well-documented CI/CD best practices |
+| Stack (Jest, RTL, FastCheck) | HIGH | All package versions verified from package.json, official documentation, 2025 industry standards |
+| Features (testing patterns) | HIGH | React Testing Library official docs, industry best practices from 2025-2026, existing Atom test infrastructure analysis |
+| Architecture (cross-platform) | HIGH | Existing infrastructure analysis (aggregate_coverage.py, unified-tests.yml), 2026 ecosystem research, established integration patterns |
+| Pitfalls (finance-specific) | HIGH | Multiple authoritative sources on IEEE 754 limitations, SOX compliance documentation, existing Atom property test patterns (38 tests in governance, 814 lines financial, 705 lines accounting) |
 
-**Overall confidence:** HIGH (stack verification + existing infrastructure analysis + official documentation)
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **FastCheck generator strategies for complex UI state:** FastCheck adoption is low in production, few real-world examples for React state management — May need prototype testing during Phase 1 planning
-- **Tauri native module mocking:** Less documentation than web/mobile, may need spike research during Phase 3 planning — Mitigation: Start with cargo test for Rust logic, defer complex mocking if patterns unclear
-- **Cross-platform test sharing:** Limited patterns for shared test suites across web/mobile/desktop — Mitigation: Start with platform-specific tests, consolidate shared patterns in Phase 5
-- **Visual regression testing infrastructure:** Tool fragmentation (Percy vs Chromatic), unclear best practices — Defer to Phase 5 optional, skip if time-constrained
+- **Specific payment provider testing patterns**: Stripe/PayPal/Braintree have different webhook formats — Phase 2 should research specific providers used in Atom
+- **Currency exchange rate precision**: Banker's rounding (half-even) research shows complexity — may need dedicated phase for multi-currency if Atom supports international payments
+- **Property test performance**: 100+ examples for financial invariants may be slow — need benchmarking with Atom's existing property test suite (250+ Hypothesis tests)
+- **Mobile E2E testing patterns**: Detox for React Native has iOS/Android differences — Phase 10 should research specific emulator/simulator requirements
+- **Desktop coverage baseline**: Tauri/Rust coverage is TBD — need to establish baseline before setting minimum threshold (currently 40% in Phase 8)
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- **Backend test infrastructure** — pytest 8.4.2, Hypothesis 6.151.5, pytest-playwright 1.58.0 verified via `pip list`
-- **Frontend Testing Stack** — Jest 30.0.5, @testing-library/react 16.3.0 verified via frontend-nextjs/package.json
-- **Mobile Testing Stack** — jest-expo 50.0.0, React Native 0.73.6 verified via mobile/package.json
-- **FastCheck official documentation** — Property-based testing framework for TypeScript/JavaScript (https://fast-check.dev/)
-- **Detox documentation** — React Native grey-box E2E testing (https://wix.github.io/Detox/)
-- **Tauri Testing documentation** — Desktop application testing patterns (https://tauri.app/v2/guides/testing/)
-- **Existing Atom property tests** — 1,205 lines of governance maturity tests, 814 lines of financial invariants, 705 lines of accounting invariants
+- **Jest 30 Documentation** — Test runner configuration, 37% faster than Jest 29, 77% less memory
+- **React Testing Library** — Authoritative component testing patterns, avoid implementation details
+- **@testing-library/react-hooks** — GitHub repository, isolated hook testing
+- **jest-axe** — NPM package, WCAG 2.1 compliance testing
+- **MSW (Mock Service Worker)** — Official documentation, API mocking for integration tests
+- **FastCheck** — Official documentation, property-based testing for TypeScript/JavaScript
+- **Schemathesis** — Python contract testing framework, OpenAPI validation
+- **openapi-typescript** — TypeScript type generation from OpenAPI specs
+- **Existing Atom infrastructure** — aggregate_coverage.py (755 lines), unified-tests.yml, api-contracts.test.ts, ci_quality_gate.py, e2e-unified.yml
+- **Existing Atom property tests** — 250+ Hypothesis tests (backend), 84 FastCheck tests (frontend), 814 lines financial invariants, 705 lines accounting invariants, 1205 lines governance invariants
 
 ### Secondary (MEDIUM confidence)
-- **Playwright documentation** — Cross-browser automation (https://playwright.dev/)
-- **React Testing Library** — Component testing patterns, queries, async utilities
-- **pytest-json-report** — Unified JSON reporting (https://github.com/numirias/pytest-json-report)
-- **CI/CD workflows** — `.github/workflows/ci.yml`, `test-coverage.yml`, `mobile-ci.yml` analysis showing existing backend/mobile integration
+- **React-Boilerplate测试体系** — 98% coverage standards (Feb 2026)
+- **NextUI组件测试覆盖率提升** — From 70% to 95% coverage improvements
+- **Vitest Component Testing Guide** — Modern error boundary testing patterns (Jan 2026)
+- **React Error Boundary Testing Guide** — Error boundary testing with React Testing Library (Feb 2026)
+- **Frontend Testing Anti-Patterns** — Brittle selectors, implementation details testing
+- **Cross-Platform Testing Architecture Trends 2026** — AI-driven testing, distributed frameworks
+- **React Native State Management: Zustand vs Redux** — Cross-platform state patterns
+- **Detox for React Native E2E Testing** — Mobile E2E automation
+- **Playwright + Detox + Tauri for Multi-Platform E2E** — Unified testing frameworks
+- **Stripe Testing Documentation** — Comprehensive test cards for declines, disputes, refunds
+- **pytest Mock Technology Complete Guide** — Payment gateway mock implementation (June 2025)
+- **Common Problems in Payment Systems** — Testing challenges with third-party payment systems
+- **CI/CD Performance Testing Pitfalls** — 6-10x CI performance improvements
+- **Big Data Testing Challenges** — Performance testing with large datasets
+- **致命精度陷阱:金融与科学计算中的数值准确性实战指南** — Numerical accuracy in financial trading, IEEE 754 limitations (Dec 2025)
+- **Java精确计算实战(从浮点错误到BigDecimal完美解决方案)** — Floating-point errors in financial systems, audit inconsistencies, compliance risks (Oct 2025)
+- **银行家舍入规则(IEEE 754 标准)详解** — IEEE 754 banker's rounding specification with examples
+- **Float and Decimal Golden Rule** — Performance testing with 1M records comparing FLOAT vs DECIMAL (July 2025)
+- **Audit Trail Testing - Walk-Through Testing** — Adequate audit trail documentation requirements (DOD Financial Management)
+- **SOX Testing Best Practices** — SOX 404 control testing methodologies
 
-### Tertiary (LOW confidence — needs validation)
-- **Property-based testing for React** — Limited adoption, few production examples (FastCheck ecosystem growing but not mainstream)
-- **Cross-platform testing patterns** — Platform-specific differences hard to generalize, may need phase-specific research
-- **Visual regression testing** — Multiple tools (Percy, Chromatic), unclear best practices (defer to Phase 5 optional)
+### Tertiary (LOW confidence)
+- **Hacker News: Floating Point in Financial Systems** — Community discussion on binary floating-point vs. fixed-point for accounting (May 2025)
+- **Banker's rounding(银行家舍入法)** — Q&A format explaining half-even rounding
+- **兑换外币小数点后的怎么算** — Q&A on foreign exchange precision requirements
+- **Cross-platform testing patterns** — Limited patterns for shared test suites across web/mobile/desktop (needs validation)
+- **Visual regression testing** — Tool fragmentation (Percy vs Chromatic), unclear industry standards
+- **Performance regression testing** — Lighthouse CI patterns still evolving
+- **Mutation testing adoption** — StrykerJS usage patterns not widely documented
 
 ---
-*Research completed: February 26, 2026*
+
+*Research completed: March 3, 2026*
 *Ready for roadmap: yes*

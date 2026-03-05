@@ -1,0 +1,114 @@
+name: Frontend Module Coverage Gates
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'frontend-nextjs/**'
+      - '.github/workflows/frontend-module-coverage.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend-nextjs/**'
+  workflow_dispatch:
+
+jobs:
+  module-coverage:
+    name: Module Coverage Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Clear Jest cache
+        working-directory: ./frontend-nextjs
+        run: npx jest --clearCache
+
+      - name: Run tests with coverage
+        working-directory: ./frontend-nextjs
+        run: npm run test:ci -- --maxWorkers=2
+
+      - name: Check module thresholds
+        id: coverage-check
+        working-directory: ./frontend-nextjs
+        run: |
+          node scripts/check-module-coverage.js --reporter=github-actions
+        continue-on-error: true
+
+      - name: Generate coverage report
+        if: always()
+        working-directory: ./frontend-nextjs
+        run: |
+          node scripts/coverage-audit.js --format=markdown > coverage-report.md
+
+      - name: Comment PR with coverage report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('frontend-nextjs/coverage-report.md', 'utf8');
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## Frontend Module Coverage Report')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report,
+              });
+            }
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-report
+          path: |
+            frontend-nextjs/coverage/
+            frontend-nextjs/coverage-report.md
+          retention-days: 30
+
+      - name: Fail if coverage check failed
+        if: steps.coverage-check.outcome == 'failure'
+        run: exit 1
+
+      - name: Upload coverage to Codecov (optional)
+        if: github.event_name == 'pull_request'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./frontend-nextjs/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false

@@ -400,6 +400,14 @@ try:
     except ImportError as e:
         logger.error(f"Failed to load System Health routes: {e}")
 
+    # 1.6 Business Facts Routes (Safe Import)
+    try:
+        from api.admin.business_facts_routes import router as business_facts_router
+        app.include_router(business_facts_router, prefix="") # Already has valid prefix
+        logger.info("✓ Business Facts Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Business Facts routes not found: {e}")
+
     # 2. Workflow Engine
     try:
         from core.availability_endpoints import router as availability_router

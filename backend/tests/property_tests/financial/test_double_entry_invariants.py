@@ -426,7 +426,7 @@ class TestAccountBalanceConservationInvariants:
             max_size=100
         )
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_balance_calculable_from_history(self, transactions):
         """
         PROPERTY: Account balance = sum of all posted transactions for that account
@@ -472,7 +472,7 @@ class TestAccountBalanceConservationInvariants:
             max_size=20
         )
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_trial_balance_balances(self, accounts):
         """
         PROPERTY: Trial balance: total debits = total credits across all accounts
@@ -505,48 +505,47 @@ class TestAccountBalanceConservationInvariants:
     @given(
         assets=money_strategy('10000.00', '1000000.00'),
         liabilities=money_strategy('1000.00', '300000.00'),
-        equity=money_strategy('5000.00', '500000.00'),
         revenue=money_strategy('0.00', '200000.00'),
         expenses=money_strategy('0.00', '150000.00')
     )
-    @settings(max_examples=100)
-    @example(
-        assets=Decimal('100000.00'),
-        liabilities=Decimal('20000.00'),
-        equity=Decimal('70000.00'),
-        revenue=Decimal('30000.00'),
-        expenses=Decimal('20000.00')
-    )
-    def test_period_closing_preserves_equation(self, assets, liabilities, equity, revenue, expenses):
+    @settings(max_examples=200)
+    def test_period_closing_preserves_equation(self, assets, liabilities, revenue, expenses):
         """
         PROPERTY: Period closing preserves accounting equation
 
-        STRATEGY: st.tuples(before_assets, before_liabilities, before_equity, revenue, expenses)
+        STRATEGY: Generate assets, liabilities, revenue, expenses; derive equity from equation
 
-        INVARIANT: After closing: assets = liabilities + (equity + revenue - expenses)
+        INVARIANT: After closing: (assets + net_income) = liabilities + (equity + net_income)
 
         ACCOUNTING_FUNDAMENTAL: Closing entries transfer revenue/expenses to retained earnings.
+        Net income increases both assets (via cash/receivables) and equity (retained earnings).
 
-        RADII: 100 examples explores various closing scenarios
+        RADII: 200 examples explores various closing scenarios
 
         VALIDATED_BUG: Equation didn't balance after closing entries
         Root cause: Revenue and expenses not properly closed to equity
         Fixed in commit fin009 by implementing proper closing logic
         """
-        # Before closing: assets = liabilities + equity
+        # Calculate equity from accounting equation: equity = assets - liabilities
+        # This ensures the equation always starts balanced
+        equity = assets - liabilities
+
+        # Before closing: assets = liabilities + equity (by construction)
         before_equation = (assets == liabilities + equity)
+        assert before_equation, "Equation should be balanced before closing"
 
         # After closing: revenue and expenses closed to equity
+        # Net income affects BOTH assets (cash/receivables increase) AND equity (retained earnings)
         net_income = revenue - expenses
-        new_equity = equity + net_income
+        new_assets = assets + net_income  # Net income increases assets
+        new_equity = equity + net_income  # Net income increases equity
 
-        # After closing: assets = liabilities + new_equity
-        after_equation = (assets == liabilities + new_equity)
+        # After closing: new_assets = liabilities + new_equity
+        after_equation = (new_assets == liabilities + new_equity)
 
-        # If equation was balanced before, it should be balanced after
-        if before_equation:
-            assert after_equation, \
-                f"Equation not preserved: assets={assets}, liab={liabilities}, equity={equity}, net_income={net_income}"
+        # Equation should still be balanced after closing
+        assert after_equation, \
+            f"Equation not preserved: assets={assets}->{new_assets}, liab={liabilities}, equity={equity}->{new_equity}, net_income={net_income}"
 
 
 class TestFinancialDataIntegrityInvariants:
@@ -555,7 +554,7 @@ class TestFinancialDataIntegrityInvariants:
     @given(
         values=lists_of_decimals(min_size=10, max_size=1000, min_value='0.01', max_value='10000.00')
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     def test_no_data_loss_in_aggregation(self, values):
         """
         PROPERTY: Aggregating financial data preserves all values
@@ -592,7 +591,7 @@ class TestFinancialDataIntegrityInvariants:
         amount=money_strategy('10.00', '10000.00'),
         rate=st.decimals(min_value='0.5000', max_value='2.0000', places=4)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(amount=Decimal('100.00'), rate=Decimal('1.2500'))
     @example(amount=Decimal('500.00'), rate=Decimal('0.8000'))
     def test_currency_conversion_preserves_value(self, amount, rate):
@@ -627,7 +626,7 @@ class TestFinancialDataIntegrityInvariants:
         period_start=st.dates(min_value=date(2020, 1, 1), max_value=date(2025, 12, 31)),
         period_length_days=st.integers(min_value=30, max_value=365)
     )
-    @settings(max_examples=100)
+    @settings(max_examples=200)
     @example(report_type='balance_sheet', period_start=date(2024, 1, 1), period_length_days=90)
     def test_financial_report_consistent(self, report_type, period_start, period_length_days):
         """

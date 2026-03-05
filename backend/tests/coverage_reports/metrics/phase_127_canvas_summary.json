@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-03-03T14:41:54.269413+00:00",
+  "plan": "127-11",
+  "baseline_percentage": 26.15,
+  "canvas_tool_coverage": 40.76,
+  "canvas_routes_coverage": 0.0,
+  "tests_added": 20,
+  "files_covered": [
+    "canvas_tool.py"
+  ],
+  "test_pass_rate": "100% (20/20 canvas_tool tests)",
+  "canvas_routes_tests": "10 failures due to auth mocking issues",
+  "target_80_gap_remaining": 53.85,
+  "notes": "Canvas tool coverage increased from 0% to 41% with integration tests"
+}

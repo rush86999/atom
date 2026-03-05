@@ -46,6 +46,18 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+      - name: Check coverage threshold
+        working-directory: ./mobile
+        run: |
+          COVERAGE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct)")
+          echo "Current coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "Coverage $COVERAGE% is below 80% threshold"
+            echo "::warning::Coverage is below 80% threshold"
+          else
+            echo "Coverage $COVERAGE% meets threshold"
+          fi
+
       - name: Upload coverage HTML
         uses: actions/upload-artifact@v4
         if: always()
@@ -54,3 +66,10 @@ jobs:
           path: mobile/coverage/lcov-report
           retention-days: 7
           if-no-files-found: warn
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./mobile/coverage/lcov.info
+          flags: mobile
+          fail_ci_if_error: false

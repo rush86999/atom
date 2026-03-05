@@ -12,7 +12,6 @@ import {
 } from '../graphqlClient';
 
 // Mock fetch
-global.fetch = jest.fn();
 
 // Mock constants
 jest.mock('../constants', () => ({

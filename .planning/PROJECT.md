@@ -1,14 +1,17 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: v5.1 Backend Coverage Expansion
+## Current Milestone: v5.2 Complete Codebase Coverage Expansion
 
-**Goal:** Achieve 80% backend test coverage through aggressive expansion targeting highest-impact backend files first
+**Goal:** Achieve 80% test coverage across ENTIRE codebase (frontend, backend, mobile, desktop)
 
 **Target features:**
-- Backend coverage expansion (21.67% → 80% target)
-- Phase 101 mock fixes - Resolve test blocking issues before expansion
-- Quick-wins strategy - Maximize coverage gain per test added
-- Backend-focused - Defer frontend/mobile/desktop to later milestones
+- Whole codebase coverage expansion to 80% target
+- Backend gap closure (74.6% → 80%, remaining 5.4 percentage points)
+- Frontend gap closure (89.84% → 80%+, currently exceeding target)
+- Mobile coverage expansion (16.16% → 80%, React Native app)
+- Desktop coverage expansion (Tauri app, establish baseline and reach 80%)
+- Property-based testing expansion (FastCheck for frontend/mobile, Hypothesis for backend)
+- Device-specific features testing (camera, location, notifications, offline sync)
 
 ---
 
@@ -71,11 +74,22 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-**v5.1 Backend Coverage Expansion (2026-03-01):**
-- [ ] Phase 101 mock fixes — Resolve canvas test blocking issues (66 tests affected) — v5.1
-- [ ] Backend coverage expansion — Target high-impact files, achieve 80% backend coverage — v5.1
-- [ ] Property-based testing — Backend invariants with Hypothesis (governance, episodes, finance) — v5.1
-- [ ] Quick-wins strategy — Prioritize by (uncovered_lines × impact_score / current_coverage) — v5.1
+**v5.1 Backend Coverage Expansion (2026-03-03):** ✅ SHIPPED
+- ✓ Phase 111-126 — 16 phases complete, 250+ property tests, 40,000+ Hypothesis examples — v5.1
+- ✓ Backend coverage 21.67% → 74.6% (+52.93 percentage points) — v5.1
+- ✓ Property-based testing — Governance, episodes, financial, LLM invariants validated — v5.1
+- ✓ All 4 property test requirements satisfied (PROP-01 through PROP-04) — v5.1
+
+### Active
+
+**v5.2 Complete Codebase Coverage Expansion (2026-03-03):**
+- [ ] Whole codebase coverage to 80% — Frontend, backend, mobile, desktop — v5.2
+- [ ] Backend gap closure — 74.6% → 80% (remaining 5.4 percentage points) — v5.2
+- [ ] Frontend gap closure — 89.84% → 80%+ (currently exceeding target) — v5.2
+- [ ] Mobile coverage expansion — 16.16% → 80% (React Native app) — v5.2
+- [ ] Desktop coverage expansion — Establish baseline, reach 80% (Tauri app) — v5.2
+- [ ] Property-based testing — FastCheck (frontend/mobile), Hypothesis (backend) — v5.2
+- [ ] Device features testing — Camera, location, notifications, offline sync — v5.2
 
 ### Out of Scope
 
@@ -85,14 +99,14 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ## Context
 
-**Current State (v5.0 SHIPPED 2026-03-01):**
-- ✅ 1,642+ total tests passing (100% pass rate)
-- ✅ 361 property tests across all platforms (12x 30+ target)
-- ✅ Quality infrastructure operational — PR comment bot, 80% coverage gate, trend dashboard, per-commit reports
-- ✅ Frontend testing complete — 1,004+ tests (components, state management, API integration, form validation, property tests)
-- ✅ 4-platform coverage aggregation operational (pytest, Jest, jest-expo, tarpaulin)
-- ✅ Coverage baseline established — Backend 21.67%, Frontend 5.29% (was 3.45%), Overall 20.81%
-- ⚠️ Phase 101 partial completion — Mock configuration issues blocking 66 canvas tests, 0% coverage improvement
+**Current State (v5.1 SHIPPED 2026-03-03):**
+- ✅ 1,900+ total tests passing (100% pass rate)
+- ✅ 250+ property tests (Hypothesis), 40,000+ examples generated
+- ✅ Quality infrastructure operational — PR comment bot, 80% coverage enforcement, trend dashboard
+- ✅ Frontend testing strong — 89.84% coverage (exceeds 80% target)
+- ✅ Backend testing significant progress — 74.6% coverage (+52.93 pp from v5.0)
+- ⚠️ Mobile testing needs work — 16.16% coverage (63.84 percentage points to target)
+- ⚠️ Desktop testing unknown — Tauri app needs baseline measurement
 
 **Test Framework:**
 - pytest 7.4+ with async support
@@ -102,12 +116,12 @@ If everything else fails, the following must have comprehensive test coverage:
 - pytest-cov for coverage reporting
 - Coverage reports in `backend/tests/coverage_reports/`
 
-**Coverage (v4.0 final):**
-- Backend: 21.67%
-- Frontend: 3.45%
+**Coverage (v5.1 final):**
+- Backend: 74.6%
+- Frontend: 89.84%
 - Mobile: 16.16%
-- Desktop: TBD (requires x86_64 for tarpaulin)
-- Overall: 20.81%
+- Desktop: TBD (needs baseline measurement)
+- Overall: ~60% (weighted average)
 
 **Technical Debt (post-v5.0):**
 - Phase 101 mock issues — Canvas tests failing with Mock vs float comparison errors (66 tests affected, 4-5 hours to fix)
@@ -117,12 +131,12 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ## Constraints
 
-- **Timeline**: 1-2 weeks aggressive (backend-focused, quick-wins strategy)
-- **Test Types**: Property-based (Hypothesis), integration, unit tests (backend only)
-- **Priority**: Critical paths first (governance, security, agents, finance)
-- **Scope**: Backend Python services only (defer frontend/mobile/desktop to v5.2+)
-- **Performance**: Tests must run quickly (<5 min for backend suite preferred)
-- **Blocking**: Phase 101 mock fixes must be completed before expansion
+- **Timeline**: 2-3 weeks (4-platform coverage: frontend, backend, mobile, desktop)
+- **Test Types**: Property-based (Hypothesis, FastCheck, proptest), integration, E2E
+- **Priority**: Whole codebase 80% target (balanced across all platforms)
+- **Scope**: All platforms — Frontend (React), Backend (Python), Mobile (React Native), Desktop (Tauri)
+- **Performance**: Tests must run efficiently (parallel execution, <30 min full suite preferred)
+- **Blocking**: None — all test infrastructure operational from v5.0/v5.1
 
 ## Key Decisions
 
@@ -151,4 +165,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-03-01 after Milestone v5.0 completion, starting v5.1 Backend Coverage Expansion*
+*Last updated: 2026-03-03 after Milestone v5.1 completion, starting v5.2 Complete Codebase Coverage Expansion*

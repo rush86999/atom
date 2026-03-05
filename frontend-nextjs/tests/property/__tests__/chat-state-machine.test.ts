@@ -19,11 +19,23 @@
  */
 
 import fc from 'fast-check';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { renderHook, act } from '@testing-library/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { useWebSocket } from '@/hooks/useWebSocket';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { useChatMemory } from '@/hooks/useChatMemory';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import type { ConversationMemory } from '@/hooks/useChatMemory';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 import { useSession } from 'next-auth/react';
+
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
 // Mock next-auth useSession
 jest.mock('next-auth/react', () => ({
@@ -115,7 +127,6 @@ beforeEach(() => {
 });
 
 // Mock fetch for useChatMemory
-global.fetch = jest.fn();
 
 describe('Chat State Machine Property Tests', () => {
 

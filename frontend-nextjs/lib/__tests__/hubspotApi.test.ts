@@ -6,8 +6,9 @@
 
 import { hubspotApi } from '../hubspotApi';
 
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
+
 // Mock fetch
-global.fetch = jest.fn();
 
 describe('HubSpot API Service', () => {
   beforeEach(() => {

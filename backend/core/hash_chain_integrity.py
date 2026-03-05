@@ -66,9 +66,10 @@ class HashChainIntegrity:
         Returns:
             Canonical JSON string
         """
-        # Filter out None values and hash fields (avoid circular dependency)
+        # Filter out None values and entry_hash (avoid circular dependency)
+        # Note: prev_hash MUST be included for hash chain integrity
         filtered = {k: v for k, v in data.items()
-                    if v is not None and k not in ['entry_hash', 'prev_hash']}
+                    if v is not None and k not in ['entry_hash']}
 
         # Convert datetime to ISO format string
         for key, value in filtered.items():

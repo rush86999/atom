@@ -275,7 +275,7 @@ def test_integration_phase():
         "next_phase": "oauth_authentication_testing" if success_rate >= 60 else "server_connectivity_fix"
     }
     
-    report_file = f"INTEGRATION_TEST_REPORT_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    report_file = f"reports/test-results/INTEGRATION_TEST_REPORT_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     with open(report_file, 'w') as f:
         json.dump(integration_report, f, indent=2)
     

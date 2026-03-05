@@ -1,0 +1,12 @@
+{
+  "phase": "127",
+  "baseline_coverage": 26.15,
+  "final_coverage": 26.15,
+  "improvement": 0.0,
+  "target_coverage": 80.0,
+  "target_met": false,
+  "gap_to_target": 53.85,
+  "total_files_measured": 528,
+  "files_improved": 0,
+  "top_improvements": []
+}

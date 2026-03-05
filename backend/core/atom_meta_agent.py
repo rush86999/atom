@@ -3,37 +3,31 @@ Atom Meta-Agent - Central Orchestrator for ATOM Platform
 The main intelligent agent that can spawn specialty agents and access all platform features.
 """
 
+import logging
+import uuid
 import asyncio
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from enum import Enum
-import logging
-from typing import Any, Dict, List, Literal, Optional
-import uuid
-from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
-from ai.nlp_engine import CommandType, NaturalLanguageEngine
+from fastapi import HTTPException
 
-from core.agent_governance_service import AgentGovernanceService
-from core.agent_world_model import AgentExperience, WorldModelService
-from core.database import get_db_session
 from core.models import (
-    AgentExecution,
-    AgentRegistry,
-    AgentStatus,
-    HITLActionStatus,
-    User,
-    Workspace,
+    AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, 
+    Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode
 )
+from core.database import SessionLocal
+import traceback
+from core.agent_world_model import WorldModelService, AgentExperience
+from core.agent_governance_service import AgentGovernanceService
+from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from integrations.mcp_service import mcp_service
+from ai.nlp_engine import NaturalLanguageEngine, CommandIntentResult, CommandType
+from typing import Literal
+from core.canvas_context_provider import get_canvas_provider, CanvasContext
+from core.agents.queen_agent import QueenAgent
+from core.llm_router import LLMRouter
 
 logger = logging.getLogger(__name__)
-
-
-class AgentTriggerMode(Enum):
-    """How an agent can be triggered"""
-    MANUAL = "manual"           # User-initiated via API/Chat
-    DATA_EVENT = "data_event"   # Triggered by new data (webhook, ingestion, etc.)
-    SCHEDULED = "scheduled"     # Triggered by cron/scheduler
-    WORKFLOW = "workflow"       # Triggered as part of a workflow step
 
 
 class SpecialtyAgentTemplate:
@@ -120,15 +114,23 @@ class SpecialtyAgentTemplate:
                 "discover_connections", "global_search"
             ],
             "default_params": {"channels": ["email", "social"]}
+        },
+        "king_agent": {
+            "name": "King Agent",
+            "category": "Governance",
+            "description": "Sovereign executive that executes blueprints and manages multi-agent swarms",
+            "capabilities": ["execute_blueprint", "sovereign_governance", "delegate_task"],
+            "module_path": "core.agents.king_agent",
+            "class_name": "KingAgent",
+            "default_params": {}
         }
     }
 
 
 
-import json
-
 from core.llm.byok_handler import BYOKHandler
-from core.react_models import ReActObservation, ReActStep, ToolCall
+from core.react_models import ReActStep, ToolCall, ReActObservation
+import json
 
 # Try to import instructor and AsyncOpenAI
 try:
@@ -159,7 +161,6 @@ class AtomMetaAgent:
         "request_human_intervention",
         "get_system_health",
         "list_integrations",
-        "list_integrations",
         "call_integration",  # Fallback
         "canvas_tool"
     ]
@@ -173,12 +174,15 @@ class AtomMetaAgent:
         self.mcp = mcp_service  # MCP access for tools
         self.llm = BYOKHandler(workspace_id=workspace_id)
         self.session_tools: List[Dict[str, Any]] = [] # Usage: Dynamically added tools
+        self.canvas_provider = get_canvas_provider()  # Canvas context provider
+        self.queen = None # Lazy loaded
 
         
     async def execute(self, request: str, context: Dict[str, Any] = None, 
                       trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
                       step_callback: Optional[callable] = None,
-                      execution_id: str = None) -> Dict[str, Any]:
+                      execution_id: str = None,
+                      canvas_context: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
         """
         Main entry point for Atom. Uses Robust ReAct Loop with Pydantic validation.
         Based on 2025 Architecture: PydanticAI wraps each step in a validation layer.
@@ -191,34 +195,101 @@ class AtomMetaAgent:
         
         start_time = datetime.utcnow()
         execution_id = execution_id or str(uuid.uuid4())
-        
+
         # 0. Get Tenant ID and Create Execution Record
-        with get_db_session() as db:
-            try:
-                workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
-                if workspace:
-                    tenant_id = workspace.tenant_id
+        tenant_id = None
+        try:
+            with SessionLocal() as db:
+                # CRITICAL: Validate workspace exists and get tenant_id
+                # Note: We're trusting workspace_id from instance variable
+                # In production, should validate tenant_id from request context
+                workspace = db.query(Workspace).filter(
+                    Workspace.id == self.workspace_id
+                ).first()
+
+                if not workspace:
+                    logger.error(f"Workspace {self.workspace_id} not found")
+                    raise HTTPException(status_code=404, detail="Workspace not found")
+
+                tenant_id = workspace.tenant_id
 
                 # Create persistent execution record
                 execution = AgentExecution(
                     id=execution_id,
                     agent_id="atom_main",
                     tenant_id=tenant_id or "default",
-                    status="running",
+                    status=ExecutionStatus.RUNNING.value,
                     input_summary=request[:200],
                     triggered_by=trigger_mode.value,
                     started_at=start_time
                 )
                 db.add(execution)
                 db.commit()
-            except Exception as e:
-                logger.error(f"Failed to create AgentExecution: {e}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to create AgentExecution: {e}")
         
-        # 1. Access Memory for relevant context
+        # 1. Fetch Canvas Context if provided (OPTIONAL)
+        canvas_state: Optional[CanvasContext] = None
+        canvas_text = ""
+        
+        if canvas_context and canvas_context.get("canvas_id"):
+            db = SessionLocal()
+            try:
+                canvas_state = await self.canvas_provider.get_canvas_context(
+                    db=db,
+                    canvas_id=canvas_context["canvas_id"],
+                    tenant_id=tenant_id or "default"
+                )
+                if canvas_state:
+                    canvas_text = self.canvas_provider.format_for_agent(canvas_state)
+                    logger.info(f"Canvas context loaded: {canvas_state.artifact_count} artifacts, {len(canvas_state.comments)} comments")
+            except Exception as e:
+                logger.warning(f"Failed to fetch canvas context: {e}")
+            finally:
+                db.close()
+        
+        # 2. Access Memory with Canvas Enrichment
+        # Build enriched task description for better memory retrieval
+        enriched_task = request
+        if canvas_state:
+            enrichment_parts = [request]
+            if canvas_state.canvas_id:
+                enrichment_parts.append(f"canvas: {canvas_state.canvas_id}")
+            if canvas_state.comments:
+                comment_texts = [c.content for c in canvas_state.comments[:5]]
+                enrichment_parts.append(f"user context: {' '.join(comment_texts)}")
+            enriched_task = " | ".join(enrichment_parts)
+
         memory_context = await self.world_model.recall_experiences(
             agent=self._get_atom_registry(),
-            current_task_description=request
+            current_task_description=enriched_task  # Use enriched task
         )
+
+        # 2.5. Explicit Canvas-Aware Episodic Recall (NEW)
+        # Canvas context already enriches the semantic search via enriched_task.
+        # This adds explicit episodic recall with canvas-aware boosting.
+        if canvas_state and canvas_state.canvas_id:
+            try:
+                episodic_context = await self.world_model.recall_episodes(
+                    task_description=request,  # Use original request for episodic search
+                    agent_role=self._get_atom_registry().category or "general",
+                    agent_id=self._get_atom_registry().id,
+                    canvas_id=canvas_state.canvas_id,  # NEW: Explicit canvas filtering
+                    limit=5
+                )
+
+                if episodic_context:
+                    # Add episodic context to memory
+                    memory_context["canvas_episodes"] = episodic_context
+                    logger.info(
+                        f"Added {len(episodic_context)} canvas-aware episodes "
+                        f"(canvas_id={canvas_state.canvas_id})"
+                    )
+
+            except Exception as e:
+                logger.warning(f"Failed to recall canvas-aware episodes: {e}")
         
         # 2. Get available tools (Core + Session Lazy Loaded)
         all_tools = await self.mcp.get_all_tools()
@@ -242,10 +313,13 @@ class AtomMetaAgent:
                  "description": "Search for more capabilities/tools if you can't find what you need in the current list. Returns list of tools that you can then use in the NEXT step.",
                  "parameters": {"query": "string"}
              })
-        
+
         tool_descriptions = json.dumps([{"name": t["name"], "description": t["description"]} for t in unique_active_tools], indent=2)
 
-        
+
+        # Initialize execution history before planning phase
+        execution_history = ""
+
         # 3. Planning & Specialty Delegation Phase (NEW)
         # If the task is complex, we use a high-reasoning turn to plan subtasks
         is_complex = len(request) > 100 or any(kw in request.lower() for kw in ["analyze", "create", "sync", "report", "manage"])
@@ -255,31 +329,49 @@ class AtomMetaAgent:
                 "execution_id": execution_id,
                 "step": 0,
                 "step_type": "planning",
-                "thought": "Decomposing complex request into specialized subtasks...",
-                "action": {"tool": "planner", "params": {"query": request}},
+                "thought": "Activating Queen Agent to design architectural blueprint...",
+                "action": {"tool": "queen_architect", "params": {"goal": request}},
                 "timestamp": datetime.utcnow().isoformat()
             }
             if step_callback: await step_callback(plan_record)
             
             try:
-                # Use orchestrator to identify specialized workflow or subtasks
+                # 1. Queen Phase: Generate Blueprint
+                if not self.queen:
+                    with SessionLocal() as db:
+                        self.queen = QueenAgent(db, LLMRouter())
+                
+                blueprint = await self.queen.generate_blueprint(request, tenant_id=tenant_id or "default")
+                
+                if blueprint and blueprint.get("nodes"):
+                    plan_summary = f"Queen designed blueprint '{blueprint.get('architecture_name')}'. Transitioning to King Mode for execution."
+                    plan_record["output"] = plan_summary
+                    execution_history += f"System Blueprint: {plan_summary}\n"
+                    if step_callback: await step_callback(plan_record)
+                    
+                    # 2. King Phase: Execute Blueprint nodes as "Thoughts" or "Delegations"
+                    # For now, we seed the ReAct history with the blueprint nodes to guide the loop
+                    nodes_desc = "\n".join([f"- {n['name']} ({n['type']}): Requires {n.get('capability_required')}" for n in blueprint['nodes']])
+                    execution_history += f"Planned Execution Steps:\n{nodes_desc}\n"
+                    
+                    if blueprint.get("missing_capabilities"):
+                        execution_history += f"Note: Identified missing capabilities: {blueprint['missing_capabilities']}. Will attempt to create or research.\n"
+            except Exception as plan_error:
+                logger.warning(f"Queen planning failed, falling back to legacy orchestrator: {plan_error}")
+                # Fallback to orchestrator
                 plan = await self.orchestrator.generate_dynamic_workflow(request)
                 if plan and plan.get("nodes"):
-                    # Record the plan as an observation
                     plan_summary = f"Identified plan with {len(plan['nodes'])} steps. Delegating to specialized components."
                     plan_record["output"] = plan_summary
                     execution_history += f"System Plan: {plan_summary}\n"
                     if step_callback: await step_callback(plan_record)
-            except Exception as plan_error:
-                logger.warning(f"Planning phase failed: {plan_error}")
 
         # 4. ReAct Loop with Pydantic Validation
         max_steps = 10
         steps = []
         final_answer = None
         status = "success"
-        execution_history = ""
-        
+
         for current_step in range(1, max_steps + 1):
             step_start = datetime.utcnow()
             # Generate next step using instructor for structured output
@@ -288,7 +380,8 @@ class AtomMetaAgent:
                 memory_context=memory_context,
                 tool_descriptions=tool_descriptions,
                 execution_history=execution_history,
-                context=context
+                context=context,
+                canvas_text=canvas_text  # NEW: Canvas context
             )
             
             step_record = {
@@ -369,6 +462,28 @@ class AtomMetaAgent:
                 step_record["duration_ms"] = (datetime.utcnow() - step_start).total_seconds() * 1000
                 if step_callback: await step_callback(step_record)
             
+            # Persist Step to DB (Phase 6: Learning Loop)
+            try:
+                with SessionLocal() as db:
+                    db_step = AgentReasoningStep(
+                        id=str(uuid.uuid4()),
+                        execution_id=execution_id,
+                        step_number=current_step,
+                        step_type=step_record["step_type"],
+                        thought=react_step.thought,
+                        action=react_step.action.model_dump() if react_step.action else None,
+                        observation=step_record.get("output"),
+                        confidence=step_record["confidence"],
+                        duration_ms=step_record["duration_ms"]
+                    )
+                    db.add(db_step)
+                    db.commit()
+                    # Add DB ID to record for UI feedback binding
+                    step_record["id"] = db_step.id 
+            except Exception as e:
+                logger.error(f"Failed to persist reasoning step: {e}")
+                # traceback.print_exc()
+
             steps.append(step_record)
         
         # Handle max steps exceeded
@@ -390,18 +505,20 @@ class AtomMetaAgent:
         end_time = datetime.utcnow()
         duration = (end_time - start_time).total_seconds()
         
-        with get_db_session() as db:
-            try:
-                execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
-                if execution:
-                    execution.status = "completed" if status == "success" else status
-                    execution.result_summary = str(final_answer)[:500]
-                    execution.duration_seconds = duration
-                    execution.completed_at = end_time
-                    db.commit()
-            except Exception as e:
-                logger.error(f"Failed to update AgentExecution: {e}")
-                db.rollback()
+        db = SessionLocal()
+        try:
+            execution = db.query(AgentExecution).filter(AgentExecution.id == execution_id).first()
+            if execution:
+                execution.status = "completed" if status == "success" else status
+                execution.result_summary = str(final_answer)[:500]
+                execution.duration_seconds = duration
+                execution.completed_at = end_time
+                db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update AgentExecution: {e}")
+            db.rollback()
+        finally:
+            db.close()
 
         return result_payload
 
@@ -433,12 +550,14 @@ class AtomMetaAgent:
 
     async def _react_step(self, request: str, memory_context: Dict, 
                           tool_descriptions: str, execution_history: str, 
-                          context: Dict) -> ReActStep:
+                          context: Dict, canvas_text: str = "") -> ReActStep:
         """
         Generate a single ReAct step with Pydantic validation.
         Uses instructor to ensure structured output.
         """
-        system_prompt = f"""You are Atom, an intelligent business assistant.
+        canvas_segment = f"\nCURRENT CANVAS STATE:\n{canvas_text}" if canvas_text else ""
+        
+        system_prompt = """You are Atom, an intelligent business assistant.
 
 AVAILABLE TOOLS:
 {tool_descriptions}
@@ -457,7 +576,6 @@ POWERS:
 - You can DISCOVER connected integrations and SEARCH across all of them simultaneously.
 - You can use 'create_record' and 'update_record' for universal granular manipulation of any connected system.
 - You can QUERY your Knowledge Graph for complex relationships.
-- You can QUERY your Knowledge Graph for complex relationships.
 - **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
 - **IMPORTANT**: You have a large toolkit. If you don't see a tool you need, use `mcp_tool_search` to find it.
 
@@ -472,19 +590,32 @@ You manage a team of experts. DELEGATE tasks using `delegate_task` if they match
 - "planning": Strategy, forecasting, hiring
 - "communications": Drafting emails, triaging messages
 
-{self._get_communication_instruction(context)}
-"""
+{comm_instruction}
+
+{canvas_segment}
+""".format(
+            tool_descriptions=tool_descriptions,
+            comm_instruction=self._get_communication_instruction(context),
+            canvas_segment=canvas_segment
+        )
         
         # Build rich memory context for the prompt
         experiences = memory_context.get('experiences', [])
         knowledge = memory_context.get('knowledge', [])
         formulas = memory_context.get('formulas', [])
         facts = memory_context.get('business_facts', [])
-        
+        canvas_episodes = memory_context.get('canvas_episodes', [])  # NEW: Canvas-aware episodes
+
         memory_sections = []
         if experiences:
             exp_summaries = [f"- {getattr(e, 'input_summary', 'Task')[:80]}... → {getattr(e, 'outcome', 'completed')}" for e in experiences[:3]]
             memory_sections.append(f"PAST EXPERIENCES:\n" + "\n".join(exp_summaries))
+        if canvas_episodes:  # NEW: Canvas-aware episodic memory
+            canvas_ep_summaries = [
+                f"- [{e.get('canvas_id', 'unknown')[:8]}] {e.get('task_description', 'Task')[:60]}... → {e.get('outcome', 'completed')} (boost: +{e.get('canvas_boost', 0):.2f})"
+                for e in canvas_episodes[:3]
+            ]
+            memory_sections.append(f"CANVAS EPISODES (same workspace):\n" + "\n".join(canvas_ep_summaries))
         if knowledge:
             doc_summaries = [f"- {k.get('text', '')[:100]}..." for k in knowledge[:3]]
             memory_sections.append(f"RELEVANT KNOWLEDGE:\n" + "\n".join(doc_summaries))
@@ -548,51 +679,58 @@ What is your next step?"""
         """Execute a tool via MCP with governance checks"""
         try:
             # 1. Governance Check
-            with get_db_session() as db:
-                try:
-                    gov = AgentGovernanceService(db)
-                    auth_check = gov.can_perform_action("atom_main", tool_name)
+            db = SessionLocal()
+            try:
+                gov = AgentGovernanceService(db)
+                # 1. Governance Check
+                auth_check = gov.can_perform_action("atom_main", tool_name)
+                
+                # META AGENT CONSTRAINT: Enforce Propose-Only for all non-read actions (Complexity > 1)
+                # The user must accept or modify any state-changing task.
+                complexity = auth_check.get("action_complexity", 2)
+                if complexity > 1:
+                    auth_check["requires_human_approval"] = True
+                    auth_check["reason"] = f"Meta-Agent is in Propose-Only mode. Action '{tool_name}' requires confirmation."
 
-                    if auth_check.get("requires_human_approval"):
-                        action_id = gov.request_approval(
-                            agent_id="atom_main",
-                            action_type=tool_name,
-                            params=args,
-                            reason=auth_check["reason"],
-                            workspace_id=self.workspace_id
-                        )
-
-                        if step_callback:
-                            await step_callback({
-                                "type": "hitl_paused",
-                                "action_id": action_id,
-                                "tool": tool_name,
-                                "reason": auth_check["reason"]
-                            })
-
-                        approved = await self._wait_for_approval(action_id)
-                        if not approved:
-                            return f"Action {tool_name} was REJECTED or timed out."
-
-                    elif not auth_check["allowed"]:
-                        return f"Governance blocked: {auth_check['reason']}"
-                except Exception as e:
-                    logger.error(f"Governance check failed: {e}")
-                    return f"Governance error: {str(e)}"
-
+                if auth_check.get("requires_human_approval"):
+                    action_id = gov.request_approval(
+                        agent_id="atom_main",
+                        action_type=tool_name,
+                        params=args,
+                        reason=auth_check["reason"],
+                        workspace_id=self.workspace_id
+                    )
+                    
+                    if step_callback:
+                        await step_callback({
+                            "type": "hitl_paused",
+                            "action_id": action_id,
+                            "tool": tool_name,
+                            "reason": auth_check["reason"]
+                        })
+                    
+                    approved = await self._wait_for_approval(action_id)
+                    if not approved:
+                        return f"Action {tool_name} was REJECTED or timed out."
+                        
+                elif not auth_check["allowed"]:
+                    return f"Governance blocked: {auth_check['reason']}"
+            finally:
+                db.close()
+            
             # SPECIAL TOOLS (Internal)
             if tool_name == "trigger_workflow":
                 result = await self._trigger_workflow(args.get("workflow_id"), args.get("params", {}), context)
                 return result
-
+                
             elif tool_name == "delegate_task":
                 result = await self._execute_delegation(args.get("agent_name"), args.get("task"), context)
                 return result
-
+            
             # 2. Execute via MCP with governance check
             result = await self.mcp.call_tool(tool_name, args, context=context)
             return str(result)
-
+            
         except Exception as e:
             return f"Tool error: {str(e)}"
 
@@ -631,7 +769,7 @@ What is your next step?"""
         
         if persist:
             # Register in database
-            with get_db_session() as db:
+            with SessionLocal() as db:
                 governance = AgentGovernanceService(db)
                 agent = governance.register_or_update_agent(
                     name=agent.name,
@@ -667,6 +805,79 @@ What is your next step?"""
             return {"knowledge": result.get("knowledge", [])}
         return result
     
+    async def generate_mentorship_guidance(self, student_agent_id: str, action: str, params: Dict, reason: str) -> str:
+        """
+        Generate guidance for a human reviewer when a Student agent requests approval for an action.
+        This fulfills the requirement of 'Meta Agent guidance for Student agents'.
+        """
+        # specialized_supervision_check
+        is_interim_supervisor = False
+        student_category = "General"
+        
+        def _check_supervisors_sync():
+            try:
+                with SessionLocal() as db:
+                    student = db.query(AgentRegistry).filter(AgentRegistry.id == student_agent_id).first()
+                    if not student:
+                        return "General", 0
+                    
+                    cat = student.category
+                    # Check for any Supervised or Autonomous agents in same category
+                    count = db.query(AgentRegistry).filter(
+                        AgentRegistry.category == cat,
+                        AgentRegistry.status.in_([AgentStatus.SUPERVISED.value, AgentStatus.AUTONOMOUS.value]),
+                        AgentRegistry.id != student_agent_id
+                    ).count()
+                    return cat, count
+            except Exception as e:
+                logger.warning(f"Failed to check for supervisors: {e}")
+                return "General", 1 # Default to assuming supervisor exists to be safe, or 0? 
+                                    # Safe fallback: assume 0 to force Meta Agent help? 
+                                    # Actually, if DB fails, maybe we WANT Meta Agent help.
+                                    # Let's return 0 on error to be safe (Meta Agent steps in).
+                return "General", 0
+
+        student_category, supervisors_count = await asyncio.to_thread(_check_supervisors_sync)
+        
+        if supervisors_count == 0:
+            is_interim_supervisor = True
+
+        supervisor_context = ""
+        if is_interim_supervisor:
+            supervisor_context = (
+                f"NOTE: There are NO higher maturity agents (Supervised/Autonomous) in the '{student_category}' category.\n"
+                f"You are the Acting Interim Supervisor for this Student.\n"
+                f"Since the Student is Read-Only/Learning, you must detailedly PROPOSE the correct action logic or parameters to teach them.\n"
+            )
+
+        system_prompt = f"""You are the Atom Meta-Agent, acting as a mentor to a 'Student' agent.
+A Student agent ({student_agent_id}) is requesting approval for a complex action.
+Your goal is to analyze the action and provide high-quality 'Guidance' for the human reviewer.
+{supervisor_context}
+Analyze:
+1. Is the action safe for a Student level agent (Read-Only)?
+2. What are the potential risks or implications?
+3. What should the human look for when approving/rejecting?
+4. If the parameters look incorrect, PROPOSE the correct parameters.
+
+Keep your guidance concise but professional and safety-conscious.
+"""
+        user_prompt = f"""Student Agent: {student_agent_id}
+Action Requested: {action}
+Parameters: {json.dumps(params, indent=2)}
+Reason for Block: {reason}
+
+Provide your Mentorship Guidance:"""
+
+        guidance = await self.llm.generate_response(
+            prompt=user_prompt,
+            system_instruction=system_prompt,
+            model_type="fast",
+            temperature=0.3
+        )
+        
+        return guidance or "Meta-Agent was unable to provide guidance for this action."
+
     # ==================== INTERNAL METHODS ====================
     
     def _get_atom_registry(self) -> AgentRegistry:
@@ -687,18 +898,18 @@ What is your next step?"""
         elapsed = 0
         
         while elapsed < max_wait:
-            with get_db_session() as db:
-                try:
-                    gov = AgentGovernanceService(db)
-                    status_info = gov.get_approval_status(action_id)
-
-                    if status_info["status"] == HITLActionStatus.APPROVED.value:
-                        return True
-                    if status_info["status"] == HITLActionStatus.REJECTED.value:
-                        return False
-                except Exception as e:
-                    logger.error(f"Error checking approval status: {e}")
-
+            db = SessionLocal()
+            try:
+                gov = AgentGovernanceService(db)
+                status_info = gov.get_approval_status(action_id)
+                
+                if status_info["status"] == HITLActionStatus.APPROVED.value:
+                    return True
+                if status_info["status"] == HITLActionStatus.REJECTED.value:
+                    return False
+            finally:
+                db.close()
+                
             await asyncio.sleep(interval)
             elapsed += interval
             
@@ -722,12 +933,14 @@ What is your next step?"""
 
         # 2. Update Governance Outcome
         success = result.get("status") == "success" or (result.get("final_output") is not None and "error" not in result.get("final_output").lower())
-        with get_db_session() as db:
-            try:
-                gov = AgentGovernanceService(db)
-                await gov.record_outcome("atom_main", success=success)
-            except Exception as ge:
-                logger.error(f"Failed to record Atom governance outcome: {ge}")
+        db = SessionLocal()
+        try:
+            gov = AgentGovernanceService(db)
+            await gov.record_outcome("atom_main", success=success)
+        except Exception as ge:
+            logger.error(f"Failed to record Atom governance outcome: {ge}")
+        finally:
+            db.close()
             
     def _get_communication_instruction(self, context: Dict) -> str:
         """Helper to fetch user communication style"""
@@ -735,17 +948,20 @@ What is your next step?"""
         if not user_id: return ""
         
         try:
-            with get_db_session() as db:
-                user = db.query(User).filter(User.id == user_id).first()
-                if user and user.metadata_json:
-                    c_style = user.metadata_json.get("communication_style", {})
-                    if c_style.get("enable_personalization"):
-                        guide = c_style.get("style_guide", "")
-                        if guide:
-                            return f"\nCOMMUNICATION STYLE:\n{guide}\nPlease carefully mimic this style in your final answer."
-                return ""
-        except Exception:
+            db = SessionLocal()
+            user = db.query(User).filter(User.id == user_id).first()
+            if user and user.metadata_json:
+                c_style = user.metadata_json.get("communication_style", {})
+                if c_style.get("enable_personalization"):
+                    guide = c_style.get("style_guide", "")
+                    if guide:
+                        return f"\nCOMMUNICATION STYLE:\n{guide}\nPlease carefully mimic this style in your final answer."
             return ""
+        except Exception as e:
+            logger.debug(f"Failed to load user communication style: {e}")
+            return ""
+        finally:
+            db.close()
 
 
 # ==================== TRIGGER HANDLERS ====================
@@ -759,24 +975,22 @@ async def handle_data_event_trigger(event_type: str, data: Dict[str, Any],
     # Build request from event
     request = f"Process {event_type} event with data: {str(data)[:100]}"
     
-    # 1. Try SQS Dispatch (Async/Scalable)
-    import os
-    if os.getenv("SQS_QUEUE_URL"):
-        try:
-            from sqs_worker import dispatch_task
-            task_id = dispatch_task(
-                task_name="execute_agent",
-                payload={
-                    "request": request,
-                    "context": {"event_type": event_type, "event_data": data},
-                    "trigger_mode": AgentTriggerMode.DATA_EVENT.value,
-                    "tenant_id": workspace_id
-                }
-            )
-            logger.info(f"Data event trigger queued to SQS: {task_id}")
-            return {"status": "queued", "task_id": task_id, "message": "Agent execution offloaded to background worker"}
-        except Exception as e:
-            logger.error(f"SQS dispatch failed for agent trigger: {e}. Falling back to inline execution.")
+    # 1. Try QStash Dispatch (Async/Scalable)
+    try:
+        from core.qstash_worker import enqueue_task
+        task_id = await enqueue_task(
+            task_name="execute_agent",
+            task_data={
+                "request": request,
+                "context": {"event_type": event_type, "event_data": data},
+                "trigger_mode": AgentTriggerMode.DATA_EVENT.value,
+                "tenant_id": workspace_id
+            }
+        )
+        logger.info(f"Data event trigger queued to QStash: {task_id}")
+        return {"status": "queued", "task_id": task_id, "message": "Agent execution offloaded to background worker"}
+    except Exception as e:
+        logger.error(f"QStash dispatch failed for agent trigger: {e}. Falling back to inline execution.")
     
     # 2. Fallback to Inline Execution (Blocking)
     atom = AtomMetaAgent(workspace_id)
@@ -811,7 +1025,7 @@ async def handle_manual_trigger(request: str, user: User,
             })
             
             # 2. Persist to DB for long-term visibility
-            from core.reasoning_chain import ReasoningStep, get_reasoning_tracker
+            from core.reasoning_chain import get_reasoning_tracker, ReasoningStep
             tracker = get_reasoning_tracker()
             
             execution_id = step_record.get("execution_id")

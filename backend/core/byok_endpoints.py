@@ -262,6 +262,18 @@ class BYOKManager:
                 supports_structured_output=False
             ),
             AIProviderConfig(
+                id="qwen",
+                name="Qwen (Alibaba)",
+                description="Qwen 3.5 — high-quality open-weight model via DashScope",
+                api_key_env_var="QWEN_API_KEY",
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                supported_tasks=["general", "chat", "code", "analysis", "reasoning"],
+                cost_per_token=0.000002,
+                model="qwen-turbo",
+                reasoning_level=3,
+                supports_structured_output=True
+            ),
+            AIProviderConfig(
                 id="deepinfra",
                 name="DeepInfra",
                 description="DeepSeek-OCR and other open models",

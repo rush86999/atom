@@ -179,11 +179,17 @@ class AuditChainBuilder:
         uid = user_id or str(uuid.uuid4())
 
         for i in range(num_entries):
-            entry_hash = AuditChainBuilder._compute_hash(i, account_id, prev_hash)
+            # Create timestamp first so it can be used in hash computation
+            timestamp = datetime.utcnow()
+
+            # Compute hash using the same data that verify_chain uses
+            entry_hash = AuditChainBuilder._compute_hash(
+                i, account_id, prev_hash, timestamp, uid
+            )
 
             audit = FinancialAudit(
                 id=str(uuid.uuid4()),
-                timestamp=datetime.utcnow(),
+                timestamp=timestamp,
                 user_id=uid,
                 agent_id=str(uuid.uuid4()),
                 agent_execution_id=str(uuid.uuid4()),
@@ -211,7 +217,7 @@ class AuditChainBuilder:
         return entries
 
     @staticmethod
-    def _compute_hash(index: int, account_id: str, prev_hash: str) -> str:
+    def _compute_hash(index: int, account_id: str, prev_hash: str, timestamp: datetime, user_id: str) -> str:
         """
         Compute hash for audit entry.
 
@@ -219,12 +225,37 @@ class AuditChainBuilder:
             index: Entry index
             account_id: Account ID
             prev_hash: Previous entry's hash
+            timestamp: Timestamp of the audit entry
+            user_id: User who performed the action
 
         Returns:
             SHA-256 hash as hex string
         """
-        data = f"{account_id}{index}{prev_hash}{datetime.utcnow().isoformat()}"
-        return hashlib.sha256(data.encode()).hexdigest()
+        # Build canonical data structure matching HashChainIntegrity.compute_entry_hash
+        data = {
+            'account_id': account_id,
+            'action_type': 'create',
+            'old_values': None,
+            'new_values': {'balance': 100.0 * (index + 1)},
+            'timestamp': timestamp.isoformat(),
+            'sequence_number': index + 1,
+            'prev_hash': prev_hash,
+            'user_id': user_id
+        }
+
+        # Apply same canonicalization as HashChainIntegrity._to_canonical_json
+        filtered = {k: v for k, v in data.items()
+                    if v is not None and k not in ['entry_hash']}
+
+        for key, value in filtered.items():
+            if isinstance(value, datetime):
+                filtered[key] = value.isoformat()
+            elif isinstance(value, (dict, list)):
+                # Recursively handle nested structures
+                filtered[key] = json.dumps(value, sort_keys=True)
+
+        canonical = json.dumps(filtered, sort_keys=True, separators=(',', ':'))
+        return hashlib.sha256(canonical.encode()).hexdigest()
 
     @staticmethod
     def verify_chain(entries: List[FinancialAudit]) -> bool:
@@ -276,11 +307,17 @@ class AuditChainBuilder:
                 current_seq += 1
                 continue
 
-            entry_hash = AuditChainBuilder._compute_hash(current_seq, account_id, prev_hash)
+            # Create timestamp first so it can be used in hash computation
+            timestamp = datetime.utcnow()
+
+            # Compute hash using the same data that verify_chain uses
+            entry_hash = AuditChainBuilder._compute_hash(
+                current_seq - 1, account_id, prev_hash, timestamp, uid
+            )
 
             audit = FinancialAudit(
                 id=str(uuid.uuid4()),
-                timestamp=datetime.utcnow(),
+                timestamp=timestamp,
                 user_id=uid,
                 account_id=account_id,
                 action_type='create',

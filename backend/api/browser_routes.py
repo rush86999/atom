@@ -14,7 +14,7 @@ Refactored to use standardized decorators and service factory.
 from datetime import datetime
 from typing import Any, Dict, Optional
 import uuid
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

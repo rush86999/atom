@@ -32,70 +32,97 @@ jest.mock('expo/virtual/env', () => ({
 // expo-camera Mock
 // ============================================================================
 
-jest.mock('expo-camera', () => ({
-  Camera: {
-    Constants: {
-      Type: {
-        back: 'back',
-        front: 'front',
+jest.mock('expo-camera', () => {
+  const CameraType = {
+    Front: 'front',
+    Back: 'back',
+  };
+
+  const requestCameraPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  });
+
+  const getCameraPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  });
+
+  const isAvailableAsync = jest.fn().mockResolvedValue(true);
+
+  return {
+    requestCameraPermissionsAsync,
+    getCameraPermissionsAsync,
+    isAvailableAsync,
+    Camera: {
+      Constants: {
+        Type: CameraType,
+        FlashMode: {
+          off: 'off',
+          on: 'on',
+          auto: 'auto',
+          torch: 'torch',
+        },
+        CameraPermissionStatus: {
+          granted: 'granted',
+          denied: 'denied',
+          notAsked: 'notAsked',
+        },
       },
-      FlashMode: {
-        off: 'off',
-        on: 'on',
-        auto: 'auto',
-        torch: 'torch',
-      },
-      CameraPermissionStatus: {
-        granted: 'granted',
-        denied: 'denied',
-        notAsked: 'notAsked',
-      },
+      Type: CameraType,
+      requestCameraPermissionsAsync,
+      getCameraPermissionsAsync,
+      isAvailableAsync,
     },
-  },
-  CameraView: jest.fn(),
-  requestCameraPermissionsAsync: jest.fn().mockResolvedValue({
-    status: 'granted',
-    canAskAgain: true,
-    granted: true,
-    expires: 'never',
-  }),
-  getCameraPermissionsAsync: jest.fn().mockResolvedValue({
-    status: 'granted',
-    canAskAgain: true,
-    granted: true,
-    expires: 'never',
-  }),
-  takePictureAsync: jest.fn().mockResolvedValue({
-    uri: 'file:///mock/photo.jpg',
-    width: 1920,
-    height: 1080,
-  }),
-}));
+    CameraView: {
+      requestCameraPermissionsAsync,
+      getCameraPermissionsAsync,
+      isAvailableAsync,
+      takePictureAsync: jest.fn().mockResolvedValue({
+        uri: 'file:///mock/photo.jpg',
+        width: 1920,
+        height: 1080,
+      }),
+      recordAsync: jest.fn().mockResolvedValue({
+        uri: 'file:///mock/video.mp4',
+      }),
+      savePhotoToLibraryAsync: jest.fn().mockResolvedValue(undefined),
+    },
+    CameraType,
+  };
+});
 
 // ============================================================================
 // expo-location Mock
 // ============================================================================
 
-jest.mock('expo-location', () => ({
-  requestForegroundPermissionsAsync: jest.fn().mockResolvedValue({
+jest.mock('expo-location', () => {
+  const requestForegroundPermissionsAsync = jest.fn().mockResolvedValue({
     status: 'granted',
     canAskAgain: true,
     granted: true,
     expires: 'never',
-  }),
-  getForegroundPermissionsAsync: jest.fn().mockResolvedValue({
+  });
+
+  const getForegroundPermissionsAsync = jest.fn().mockResolvedValue({
     status: 'granted',
     canAskAgain: true,
     granted: true,
     expires: 'never',
-  }),
-  requestBackgroundPermissionsAsync: jest.fn().mockResolvedValue({
+  });
+
+  const requestBackgroundPermissionsAsync = jest.fn().mockResolvedValue({
     status: 'granted',
     canAskAgain: true,
     granted: true,
     expires: 'never',
-  }),
-  getCurrentPositionAsync: jest.fn().mockResolvedValue({
+  });
+
+  const getCurrentPositionAsync = jest.fn().mockResolvedValue({
     coords: {
       latitude: 37.7749,
       longitude: -122.4194,
@@ -106,12 +133,9 @@ jest.mock('expo-location', () => ({
       speed: 0,
     },
     timestamp: Date.now(),
-  }),
-  getLastKnownPositionAsync: jest.fn().mockResolvedValue(null),
-  watchPositionAsync: jest.fn().mockReturnValue({
-    remove: jest.fn(),
-  }),
-  geocodeAsync: jest.fn().mockResolvedValue([
+  });
+
+  const mockGeocodeResult = [
     {
       latitude: 37.7749,
       longitude: -122.4194,
@@ -121,67 +145,101 @@ jest.mock('expo-location', () => ({
       country: 'USA',
       postalCode: '94103',
     },
-  ]),
-  reverseGeocodeAsync: jest.fn().mockResolvedValue([
-    {
-      latitude: 37.7749,
-      longitude: -122.4194,
-      street: '123 Market St',
-      city: 'San Francisco',
-      region: 'CA',
-      country: 'USA',
-      postalCode: '94103',
+  ];
+
+  return {
+    requestForegroundPermissionsAsync,
+    getForegroundPermissionsAsync,
+    requestBackgroundPermissionsAsync,
+    getCurrentPositionAsync,
+    getLastKnownPositionAsync: jest.fn().mockResolvedValue(null),
+    watchPositionAsync: jest.fn().mockReturnValue({
+      remove: jest.fn(),
+    }),
+    geocodeAsync: jest.fn().mockResolvedValue(mockGeocodeResult),
+    reverseGeocodeAsync: jest.fn().mockResolvedValue(mockGeocodeResult),
+    Accuracy: {
+      Low: 1,
+      Balanced: 2,
+      High: 3,
+      Highest: 4,
     },
-  ]),
-}));
+    PermissionStatus: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      UNDETERMINED: 'undetermined',
+    },
+  };
+});
 
 // ============================================================================
 // expo-notifications Mock
 // ============================================================================
 
 jest.mock('expo-notifications', () => {
-  const createMockNotifications = () => ({
-    requestPermissionsAsync: jest.fn().mockResolvedValue({
-      status: 'granted',
-      canAskAgain: true,
-      granted: true,
-      expires: 'never',
-      ios: {
-        allowsAlert: true,
-        allowsBadge: true,
-        allowsSound: true,
-      },
-      android: {},
-    }),
-    getPermissionsAsync: jest.fn().mockResolvedValue({
-      status: 'granted',
-      canAskAgain: true,
-      granted: true,
-      expires: 'never',
-    }),
-    getBadgeCountAsync: jest.fn().mockResolvedValue(0),
-    setBadgeCountAsync: jest.fn().mockResolvedValue(undefined),
-    scheduleNotificationAsync: jest.fn().mockResolvedValue('notification-id-123'),
-    cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
-    cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-    getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
-    getExpoPushTokenAsync: jest.fn().mockResolvedValue({
-      type: 'expo',
-      data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
-    }),
-    presentNotificationAsync: jest.fn().mockResolvedValue(undefined),
-    dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
-    dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
-    getAllNotificationsAsync: jest.fn().mockResolvedValue([]),
-    setNotificationHandler: jest.fn(),
-    setNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
-    addNotificationReceivedListener: jest.fn().mockReturnValue({
-      remove: jest.fn(),
-    }),
-    addNotificationResponseReceivedListener: jest.fn().mockReturnValue({
-      remove: jest.fn(),
-    }),
-    removeNotificationSubscription: jest.fn(),
+  const requestPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+    ios: {
+      allowsAlert: true,
+      allowsBadge: true,
+      allowsSound: true,
+    },
+    android: {},
+  });
+
+  const getPermissionsAsync = jest.fn().mockResolvedValue({
+    status: 'granted',
+    canAskAgain: true,
+    granted: true,
+    expires: 'never',
+  });
+
+  const getBadgeCountAsync = jest.fn().mockResolvedValue(0);
+  const setBadgeCountAsync = jest.fn().mockResolvedValue(undefined);
+  const scheduleNotificationAsync = jest.fn().mockResolvedValue('notification-id-123');
+  const cancelScheduledNotificationAsync = jest.fn().mockResolvedValue(undefined);
+  const cancelAllScheduledNotificationsAsync = jest.fn().mockResolvedValue(undefined);
+  const getAllScheduledNotificationsAsync = jest.fn().mockResolvedValue([]);
+  const getExpoPushTokenAsync = jest.fn().mockResolvedValue({
+    type: 'expo',
+    data: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+  });
+  const presentNotificationAsync = jest.fn().mockResolvedValue(undefined);
+  const dismissNotificationAsync = jest.fn().mockResolvedValue(undefined);
+  const dismissAllNotificationsAsync = jest.fn().mockResolvedValue(undefined);
+  const getAllNotificationsAsync = jest.fn().mockResolvedValue([]);
+  const setNotificationHandler = jest.fn();
+  const setNotificationChannelAsync = jest.fn().mockResolvedValue(undefined);
+  const addNotificationReceivedListener = jest.fn().mockReturnValue({
+    remove: jest.fn(),
+  });
+  const addNotificationResponseReceivedListener = jest.fn().mockReturnValue({
+    remove: jest.fn(),
+  });
+  const removeNotificationSubscription = jest.fn();
+
+  const mockNotifications = {
+    requestPermissionsAsync,
+    getPermissionsAsync,
+    getBadgeCountAsync,
+    setBadgeCountAsync,
+    scheduleNotificationAsync,
+    cancelScheduledNotificationAsync,
+    cancelAllScheduledNotificationsAsync,
+    getAllScheduledNotificationsAsync,
+    getExpoPushTokenAsync,
+    presentNotificationAsync,
+    dismissNotificationAsync,
+    dismissAllNotificationsAsync,
+    getAllNotificationsAsync,
+    setNotificationHandler,
+    setNotificationChannelAsync,
+    addNotificationReceivedListener,
+    addNotificationResponseReceivedListener,
+    removeNotificationSubscription,
     NotificationContentInput: jest.fn(),
     NotificationRequestInput: jest.fn(),
     AndroidImportance: {
@@ -190,9 +248,7 @@ jest.mock('expo-notifications', () => {
       LOW: 'low',
       MIN: 'min',
     },
-  });
-
-  const mockNotifications = createMockNotifications();
+  };
 
   return {
     ...mockNotifications,
@@ -206,22 +262,28 @@ jest.mock('expo-notifications', () => {
 // expo-local-authentication Mock
 // ============================================================================
 
-jest.mock('expo-local-authentication', () => ({
-  hasHardwareAsync: jest.fn().mockResolvedValue(true),
-  isEnrolledAsync: jest.fn().mockResolvedValue(true),
-  authenticateAsync: jest.fn().mockResolvedValue({
+jest.mock('expo-local-authentication', () => {
+  const hasHardwareAsync = jest.fn().mockResolvedValue(true);
+  const isEnrolledAsync = jest.fn().mockResolvedValue(true);
+  const authenticateAsync = jest.fn().mockResolvedValue({
     success: true,
     error: undefined,
     warning: undefined,
-  }),
-  supportedAuthenticationTypesAsync: jest.fn().mockResolvedValue([1, 2]),
-  getEnrolledLevelAsync: jest.fn().mockResolvedValue(2),
-  AuthenticationType: {
-    FACIAL_RECOGNITION: 1,
-    FINGERPRINT: 2,
-    IRIS: 3,
-  },
-}));
+  });
+
+  return {
+    hasHardwareAsync,
+    isEnrolledAsync,
+    authenticateAsync,
+    supportedAuthenticationTypesAsync: jest.fn().mockResolvedValue([1, 2]),
+    getEnrolledLevelAsync: jest.fn().mockResolvedValue(2),
+    AuthenticationType: {
+      FACIAL_RECOGNITION: 1,
+      FINGERPRINT: 2,
+      IRIS: 3,
+    },
+  };
+});
 
 // ============================================================================
 // expo-secure-store Mock
@@ -377,50 +439,87 @@ jest.mock('expo-device', () => {
 // react-native-mmkv Mock (for existing tests)
 // ============================================================================
 
+// Create storage map at module level for persistence
 const mockMmkvStorage = new Map();
 
-const createMMKVMock = () => ({
-  set: jest.fn((key, value) => {
-    mockMmkvStorage.set(key, value);
-  }),
-  get: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : undefined;
-  }),
-  getString: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
-  }),
-  getNumber: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
-  }),
-  getBoolean: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
-  }),
-  delete: jest.fn((key) => {
-    mockMmkvStorage.delete(key);
-  }),
-  contains: jest.fn((key) => {
-    return mockMmkvStorage.has(key);
-  }),
-  getAllKeys: jest.fn(() => {
-    return Array.from(mockMmkvStorage.keys());
-  }),
-  removeAll: jest.fn(() => {
-    mockMmkvStorage.clear();
-  }),
-  getSizeInBytes: jest.fn(() => {
-    return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
-      return acc + key.length + String(value).length;
-    }, 0);
-  }),
-});
+jest.mock('react-native-mmkv', () => {
+  // Create mock instance inside the factory function
+  const createMMKVMock = () => ({
+    set: jest.fn((key, value) => {
+      mockMmkvStorage.set(key, value);
+    }),
+    get: jest.fn((key) => {
+      return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : undefined;
+    }),
+    getString: jest.fn((key) => {
+      // This is the critical fix - return string or null
+      return mockMmkvStorage.has(key) ? String(mockMmkvStorage.get(key)) : null;
+    }),
+    getNumber: jest.fn((key) => {
+      const val = mockMmkvStorage.get(key);
+      return typeof val === 'number' ? val : null;
+    }),
+    getBoolean: jest.fn((key) => {
+      const val = mockMmkvStorage.get(key);
+      return typeof val === 'boolean' ? val : null;
+    }),
+    delete: jest.fn((key) => {
+      mockMmkvStorage.delete(key);
+    }),
+    contains: jest.fn((key) => {
+      return mockMmkvStorage.has(key);
+    }),
+    getAllKeys: jest.fn(() => {
+      return Array.from(mockMmkvStorage.keys());
+    }),
+    removeAll: jest.fn(() => {
+      mockMmkvStorage.clear();
+    }),
+    getSizeInBytes: jest.fn(() => {
+      return Array.from(mockMmkvStorage.entries()).reduce((acc, [key, value]) => {
+        return acc + key.length + String(value).length;
+      }, 0);
+    }),
+  });
 
-jest.mock('react-native-mmkv', () => ({
-  MMKV: jest.fn().mockImplementation(() => createMMKVMock()),
-}));
+  // Create a single global MMKV instance that will be used by all tests
+  const globalMMKVInstance = createMMKVMock();
+
+  // Support both MMKV() constructor and direct module usage
+  const MMKVConstructor = jest.fn(() => globalMMKVInstance);
+
+  const mockModule = {
+    MMKV: MMKVConstructor,
+    createMMKV: jest.fn(() => globalMMKVInstance),
+  };
+
+  // Store instance globally for reset access
+  global.__mmkvGlobalInstance = globalMMKVInstance;
+
+  // Default export
+  Object.defineProperty(mockModule, 'default', {
+    value: mockModule,
+    enumerable: false,
+  });
+  return mockModule;
+}, { virtual: true });
 
 // Export helper to reset mock MMKV storage for tests
 global.__resetMmkvMock = () => {
   mockMmkvStorage.clear();
+  // Clear all mock call history
+  if (global.__mmkvGlobalInstance) {
+    global.__mmkvGlobalInstance.set.mockClear();
+    global.__mmkvGlobalInstance.get.mockClear();
+    global.__mmkvGlobalInstance.getString.mockClear();
+    global.__mmkvGlobalInstance.getNumber.mockClear();
+    global.__mmkvGlobalInstance.getBoolean.mockClear();
+    global.__mmkvGlobalInstance.delete.mockClear();
+    global.__mmkvGlobalInstance.contains.mockClear();
+    global.__mmkvGlobalInstance.getAllKeys.mockClear();
+    global.__mmkvGlobalInstance.removeAll.mockClear();
+    global.__mmkvGlobalInstance.getSizeInBytes.mockClear();
+  }
 };
 
 // ============================================================================
@@ -457,18 +556,138 @@ jest.mock('@react-native-community/netinfo', () => {
 });
 
 // ============================================================================
+// Alert Mock (React Native)
+// ============================================================================
+
+jest.mock('react-native/Libraries/Alert/Alert', () => ({
+  alert: jest.fn(),
+}));
+
+// ============================================================================
+// expo-image-manipulator Mock
+// ============================================================================
+
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn().mockResolvedValue({
+    uri: 'file:///mock/manipulated.jpg',
+    width: 1920,
+    height: 1080,
+  }),
+  ImageManipulator: {
+    SaveFormat: {
+      JPEG: 'jpeg',
+      PNG: 'png',
+    },
+  },
+}), { virtual: true });
+
+// ============================================================================
+// expo-file-system Mock
+// ============================================================================
+
+jest.mock('expo-file-system', () => ({
+  documentDirectory: '/mock/documents/',
+  cacheDirectory: '/mock/cache/',
+  getInfoAsync: jest.fn().mockResolvedValue({
+    exists: true,
+    isDirectory: false,
+    uri: 'file:///mock/file.txt',
+    size: 1024,
+  }),
+  readAsStringAsync: jest.fn().mockResolvedValue('mock file content'),
+  writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+  deleteAsync: jest.fn().mockResolvedValue(undefined),
+  makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  FileSystem: {
+    documentDirectory: '/mock/documents/',
+    cacheDirectory: '/mock/cache/',
+    getInfoAsync: jest.fn().mockResolvedValue({
+      exists: true,
+      isDirectory: false,
+      uri: 'file:///mock/file.txt',
+      size: 1024,
+    }),
+    readAsStringAsync: jest.fn().mockResolvedValue('mock file content'),
+    writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+    deleteAsync: jest.fn().mockResolvedValue(undefined),
+    makeDirectoryAsync: jest.fn().mockResolvedValue(undefined),
+  },
+}), { virtual: true });
+
+// ============================================================================
+// expo-web-browser Mock
+// ============================================================================
+
+jest.mock('expo-web-browser', () => ({
+  openBrowserAsync: jest.fn().mockResolvedValue(undefined),
+  WebBrowser: {
+    dismissBrowser: jest.fn().mockResolvedValue(undefined),
+    openAuthSessionAsync: jest.fn().mockResolvedValue({
+      type: 'success',
+      url: 'http://localhost:8000/auth/callback',
+    }),
+  },
+}), { virtual: true });
+
+// ============================================================================
+// expo-haptics Mock
+// ============================================================================
+
+jest.mock('expo-haptics', () => ({
+  ImpactFeedbackStyle: {
+    Light: 0,
+    Medium: 1,
+    Heavy: 2,
+    Rigid: 3,
+    Soft: 4,
+  },
+  NotificationFeedbackType: {
+    Success: 0,
+    Warning: 1,
+    Error: 2,
+  },
+  SelectionFeedbackType: {
+    Change: 0,
+  },
+  impactAsync: jest.fn().mockResolvedValue(undefined),
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
+  selectionAsync: jest.fn().mockResolvedValue(undefined),
+}), { virtual: true });
+
+// ============================================================================
+// expo-sharing Mock
+// ============================================================================
+
+jest.mock('expo-sharing', () => ({
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  Sharing: {
+    shareAsync: jest.fn().mockResolvedValue(undefined),
+    isAvailableAsync: jest.fn().mockResolvedValue(true),
+  },
+}), { virtual: true });
+
+// ============================================================================
 // Mock Timers for Async Tests
 // ============================================================================
 
 beforeEach(() => {
   // Use fake timers for all tests to prevent flaky async behavior
   jest.useFakeTimers();
+
+  // Reset Alert mock before each test
+  jest.requireMock('react-native/Libraries/Alert/Alert').alert.mockClear();
 });
 
 afterEach(() => {
   // Restore real timers after each test
   jest.useRealTimers();
   jest.clearAllMocks();
+
+  // Reset MMKV mock storage
+  if (global.__resetMmkvMock) {
+    global.__resetMmkvMock();
+  }
 });
 
 // ============================================================================

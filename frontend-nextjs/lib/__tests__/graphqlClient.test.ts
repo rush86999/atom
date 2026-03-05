@@ -11,8 +11,7 @@ import {
   createGraphQLClient,
 } from '../graphqlClient';
 
-// Mock fetch
-global.fetch = jest.fn() as any;
+// Note: fetch is already mocked in tests/setup.ts with proper Jest mock methods
 
 // Mock constants
 jest.mock('../constants', () => ({

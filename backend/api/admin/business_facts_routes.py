@@ -11,12 +11,13 @@ import os
 import tempfile
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, UploadFile
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.agent_world_model import BusinessFact, WorldModelService
 from core.auth import get_current_user
+from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import UserRole
 from core.policy_fact_extractor import get_policy_fact_extractor
@@ -24,7 +25,7 @@ from core.security.rbac import require_role
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin/governance/facts", tags=["Business Facts"])
+router = BaseAPIRouter(prefix="/api/admin/governance/facts", tags=["Business Facts"])
 
 
 class FactResponse(BaseModel):
@@ -121,7 +122,7 @@ async def get_fact(
     )
 
 
-@router.post("", response_model=FactResponse)
+@router.post("", response_model=FactResponse, status_code=201)
 async def create_fact(
     request: FactCreateRequest,
     current_user = Depends(get_current_user),

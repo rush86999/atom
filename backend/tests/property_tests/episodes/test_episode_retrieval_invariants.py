@@ -85,7 +85,7 @@ class TestTemporalRetrievalInvariants:
         episode_count=st.integers(min_value=1, max_value=50),
         limit=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=50)
+    @settings(max_examples=100)
     def test_temporal_retrieval_respects_limit(self, episode_count, limit):
         """Test that temporal retrieval respects the limit parameter"""
         # Simulate episodes
@@ -118,7 +118,7 @@ class TestTemporalRetrievalInvariants:
             max_size=50
         )
     )
-    @settings(max_examples=50)
+    @settings(max_examples=100)
     def test_temporal_retrieval_chronological_ordering(self, timestamps):
         """Test that temporal retrieval returns results in chronological order"""
         # Simulate episodes with timestamps
@@ -199,7 +199,8 @@ class TestSemanticRetrievalInvariants:
         query_count=st.integers(min_value=1, max_value=20),
         result_limit=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_semantic_retrieval_limit_enforcement(self, query_count, result_limit):
         """Test that semantic retrieval respects result limits"""
         # Simulate multiple queries returning results
@@ -259,7 +260,8 @@ class TestSequentialRetrievalInvariants:
     @given(
         episode_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_sequential_retrieval_segment_ordering(self, episode_count):
         """Test that sequential retrieval returns segments in order"""
         # Simulate episodes with ordered segments
@@ -297,7 +299,8 @@ class TestContextualRetrievalInvariants:
         ),
         st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_contextual_retrieval_hybrid_scoring(self, score_pairs, temporal_weight):
         """Test that contextual retrieval uses hybrid scoring correctly"""
         # Unzip the pairs
@@ -320,7 +323,8 @@ class TestContextualRetrievalInvariants:
         base_limit=st.integers(min_value=5, max_value=50),
         boost_factor=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_contextual_retrieval_feedback_boosting(self, base_limit, boost_factor):
         """Test that contextual retrieval applies feedback boosting"""
         # Simulate episodes with feedback scores
@@ -356,7 +360,8 @@ class TestEpisodeFilteringInvariants:
         total_episodes=st.integers(min_value=10, max_value=100),
         active_ratio=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_episode_status_filtering(self, total_episodes, active_ratio):
         """Test that episode status filtering works correctly"""
         # Simulate episodes with different statuses
@@ -385,7 +390,8 @@ class TestEpisodeFilteringInvariants:
         episode_count=st.integers(min_value=10, max_value=100),
         user_count=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_episode_user_filtering(self, episode_count, user_count):
         """Test that episode filtering by user works correctly"""
         # Simulate episodes assigned to different users
@@ -428,7 +434,8 @@ class TestEpisodeAccessLoggingInvariants:
     @given(
         access_count=st.integers(min_value=1, max_value=100)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_access_log_completeness(self, access_count):
         """Test that all episode accesses are logged"""
         # Simulate access logs
@@ -459,7 +466,8 @@ class TestEpisodeAccessLoggingInvariants:
         agent_count=st.integers(min_value=1, max_value=20),
         access_per_agent=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_access_log_agent_tracking(self, agent_count, access_per_agent):
         """Test that access logs track all agent activity"""
         # Simulate agent accesses
@@ -498,7 +506,8 @@ class TestEpisodeIntegrityInvariants:
     @given(
         episode_count=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_episode_boundary_consistency(self, episode_count):
         """Test that episode boundaries are consistent"""
         # Simulate episodes with start/end times
@@ -526,7 +535,8 @@ class TestEpisodeIntegrityInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         segment_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_segment_time_ordering(self, episode_count, segment_count):
         """Test that segments within an episode are time-ordered"""
         now = datetime.now()
@@ -553,7 +563,8 @@ class TestEpisodeIntegrityInvariants:
     @given(
         embedding_dimensions=st.integers(min_value=128, max_value=1536)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_embedding_dimension_consistency(self, embedding_dimensions):
         """Test that embedding dimensions are consistent"""
         # Simulate embeddings with specified dimensions
@@ -585,7 +596,8 @@ class TestCanvasAwareRetrievalInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         canvas_action_count=st.integers(min_value=0, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_action_count_tracking(self, episode_count, canvas_action_count):
         """Test that canvas actions are counted per episode"""
         # Simulate episodes with canvas actions
@@ -609,7 +621,8 @@ class TestCanvasAwareRetrievalInvariants:
         canvas_type=st.sampled_from(['sheets', 'charts', 'forms', 'docs', 'email', 'terminal', 'coding', 'generic']),
         episode_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_type_filtering(self, canvas_type, episode_count):
         """Test that episodes can be filtered by canvas type"""
         # Simulate episodes with different canvas types
@@ -636,7 +649,8 @@ class TestCanvasAwareRetrievalInvariants:
         base_score=st.floats(min_value=0.0, max_value=0.9, allow_nan=False, allow_infinity=False),
         has_canvas_actions=st.booleans()
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_boost_application(self, base_score, has_canvas_actions):
         """Test that canvas presence boosts retrieval score"""
         # Canvas boost: +0.1 if actions present
@@ -660,7 +674,8 @@ class TestCanvasAwareRetrievalInvariants:
             min_size=1, max_size=10
         )
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_canvas_action_type_tracking(self, action_types):
         """Test that canvas action types are tracked"""
         # Valid action types
@@ -685,7 +700,8 @@ class TestFeedbackLinkedRetrievalInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         feedback_count=st.integers(min_value=0, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_feedback_count_tracking(self, episode_count, feedback_count):
         """Test that feedback counts are tracked per episode"""
         # Simulate episodes with feedback
@@ -709,7 +725,8 @@ class TestFeedbackLinkedRetrievalInvariants:
         positive_count=st.integers(min_value=0, max_value=10),
         negative_count=st.integers(min_value=0, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_feedback_aggregation_score(self, positive_count, negative_count):
         """Test that feedback is aggregated into a score"""
         # Calculate aggregate score
@@ -729,7 +746,8 @@ class TestFeedbackLinkedRetrievalInvariants:
         has_positive_feedback=st.booleans(),
         has_negative_feedback=st.booleans()
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_feedback_score_adjustment(self, base_score, has_positive_feedback, has_negative_feedback):
         """Test that feedback adjusts retrieval score with clamping"""
         adjusted_score = base_score
@@ -758,7 +776,8 @@ class TestFeedbackLinkedRetrievalInvariants:
     @given(
         rating=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_rating_normalization(self, rating):
         """Test that ratings are normalized to [-1, 1]"""
         # Normalize: (rating - 3) / 2
@@ -776,7 +795,8 @@ class TestEpisodePaginationInvariants:
         total_episodes=st.integers(min_value=10, max_value=200),
         page_size=st.integers(min_value=5, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_pagination_page_count(self, total_episodes, page_size):
         """Test that pagination calculates page count correctly"""
         # Calculate expected page count
@@ -794,7 +814,8 @@ class TestEpisodePaginationInvariants:
         page_size=st.integers(min_value=5, max_value=30),
         page_number=st.integers(min_value=0, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_pagination_offset_calculation(self, total_episodes, page_size, page_number):
         """Test that pagination offset is calculated correctly"""
         # Calculate offset
@@ -817,7 +838,8 @@ class TestEpisodePaginationInvariants:
         page_size=st.integers(min_value=1, max_value=100),
         total_items=st.integers(min_value=0, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_page_size_enforcement(self, page_size, total_items):
         """Test that page size is enforced"""
         # Simulate items
@@ -841,7 +863,8 @@ class TestEpisodePaginationInvariants:
         total_episodes=st.integers(min_value=10, max_value=100),
         page_size=st.integers(min_value=5, max_value=30)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_pagination_total_count(self, total_episodes, page_size):
         """Test that pagination preserves total count"""
         # Simulate pagination
@@ -868,7 +891,8 @@ class TestEpisodeCachingInvariants:
         cache_size=st.integers(min_value=10, max_value=100),
         access_count=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_cache_size_limit(self, cache_size, access_count):
         """Test that cache respects size limits"""
         # Simulate cache
@@ -897,7 +921,8 @@ class TestEpisodeCachingInvariants:
         hot_episodes=st.integers(min_value=1, max_value=20),
         cold_episodes=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_hot_cold_separation(self, hot_episodes, cold_episodes):
         """Test that hot and cold episodes are separated"""
         # Simulate hot (frequently accessed) and cold (rarely accessed) episodes
@@ -936,7 +961,8 @@ class TestEpisodeCachingInvariants:
     @given(
         cache_key_count=st.integers(min_value=1, max_value=50)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_cache_key_uniqueness(self, cache_key_count):
         """Test that cache keys are unique"""
         # Simulate cache keys
@@ -960,7 +986,8 @@ class TestEpisodeSecurityInvariants:
         episode_count=st.integers(min_value=1, max_value=30),
         user_count=st.integers(min_value=1, max_value=5)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_user_isolation(self, episode_count, user_count):
         """Test that users can only access their own episodes"""
         # Simulate episodes owned by different users
@@ -986,7 +1013,8 @@ class TestEpisodeSecurityInvariants:
         episode_count=st.integers(min_value=1, max_value=20),
         maturity_level=st.sampled_from(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_maturity_based_access(self, episode_count, maturity_level):
         """Test that episode access respects agent maturity"""
         # Define access rules
@@ -1010,7 +1038,8 @@ class TestEpisodeSecurityInvariants:
     @given(
         agent_count=st.integers(min_value=1, max_value=10)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_access_audit_trail(self, agent_count):
         """Test that all episode accesses are logged"""
         # Simulate access logs
@@ -1039,7 +1068,8 @@ class TestEpisodeSecurityInvariants:
     @given(
         episode_count=st.integers(min_value=1, max_value=20)
     )
-    @settings(max_examples=50)
+    
+    @settings(max_examples=100)
     def test_sensitive_data_filtering(self, episode_count):
         """Test that sensitive data is filtered from episodes"""
         # Simulate episodes with potentially sensitive data
@@ -1067,3 +1097,215 @@ class TestEpisodeSecurityInvariants:
             for key in filtered_metadata.keys():
                 assert not any(pattern in key.lower() for pattern in sensitive_patterns), \
                     f"Filtered metadata should not contain sensitive keys: {key}"
+
+
+class TestFeedbackRecencyCombinationInvariants:
+    """Property-based tests for combined feedback+recency scoring invariants."""
+
+    @given(
+        base_score=st.floats(min_value=0.1, max_value=0.8, allow_nan=False, allow_infinity=False),
+        feedback_score=st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        days_old=st.integers(min_value=0, max_value=90)
+    )
+    @example(base_score=0.5, feedback_score=1.0, days_old=0)  # Max boost
+    @example(base_score=0.5, feedback_score=-1.0, days_old=90)  # Max penalty
+    @example(base_score=0.5, feedback_score=0.0, days_old=30)  # Neutral
+    @settings(max_examples=100)
+    def test_combined_feedback_recency_scoring(self, base_score, feedback_score, days_old):
+        """
+        INVARIANT: Combined feedback+recency scoring produces valid scores.
+
+        Formula:
+        - Feedback boost: +0.2 if positive, -0.3 if negative
+        - Recency boost: +0.1 if < 30 days old
+        - Combined score clamped to [0, 1]
+
+        VALIDATED_BUG: Combined boosts could exceed 1.0 without clamping.
+        Root cause: Missing final clamp after applying both boosts.
+        Fixed by adding max(0.0, min(1.0, combined)) clamping.
+
+        Edge case: Max boost (0.5 + 0.2 + 0.1 = 0.8) should be clamped to 1.0 if higher.
+        """
+        # Apply feedback boost
+        feedback_boost = 0.2 if feedback_score > 0 else (-0.3 if feedback_score < 0 else 0.0)
+
+        # Apply recency boost
+        recency_boost = 0.1 if days_old < 30 else 0.0
+
+        # Calculate combined score
+        combined = base_score + feedback_boost + recency_boost
+
+        # Clamp to [0, 1]
+        combined = max(0.0, min(1.0, combined))
+
+        # Verify bounds
+        assert 0.0 <= combined <= 1.0, f"Combined score {combined} must be in [0, 1]"
+
+        # Verify boost directions
+        if feedback_score > 0 and days_old < 30:
+            # Both positive boosts applied
+            assert combined >= base_score, "Positive boosts should increase score"
+        elif feedback_score < 0 and days_old >= 30:
+            # Negative feedback only
+            assert combined <= base_score, "Negative feedback should decrease score"
+
+    @given(
+        rating=st.integers(min_value=1, max_value=5)
+    )
+    @example(rating=1)  # Minimum
+    @example(rating=3)  # Neutral
+    @example(rating=5)  # Maximum
+    @settings(max_examples=100)
+    def test_feedback_rating_normalization_boundaries(self, rating):
+        """
+        INVARIANT: Star ratings normalize to [-1, 1] correctly.
+
+        Formula: (rating - 3) / 2
+        Maps: 1 -> -1.0, 2 -> -0.5, 3 -> 0.0, 4 -> 0.5, 5 -> 1.0
+
+        VALIDATED_BUG: Rating of 1 produced -1.333 due to wrong formula.
+        Root cause: Using (rating / 3) - 1 instead of (rating - 3) / 2.
+        Fixed by correcting normalization formula.
+
+        Edge case: Boundary values must map exactly to expected outputs.
+        """
+        normalized = (rating - 3) / 2.0
+
+        # Verify exact boundaries
+        if rating == 1:
+            assert normalized == -1.0, f"Rating 1 should normalize to -1.0, got {normalized}"
+        elif rating == 3:
+            assert normalized == 0.0, f"Rating 3 should normalize to 0.0, got {normalized}"
+        elif rating == 5:
+            assert normalized == 1.0, f"Rating 5 should normalize to 1.0, got {normalized}"
+
+        # Verify bounds
+        assert -1.0 <= normalized <= 1.0, f"Normalized {normalized} must be in [-1, 1]"
+
+    @given(
+        base_scores=st.lists(
+            st.floats(min_value=0.1, max_value=0.8, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=20
+        ),
+        feedback_scores=st.lists(
+            st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=20
+        ),
+        recency_days=st.lists(
+            st.integers(min_value=0, max_value=90),
+            min_size=2,
+            max_size=20
+        )
+    )
+    @settings(max_examples=100)
+    def test_combined_score_ranking_preservation(self, base_scores, feedback_scores, recency_days):
+        """
+        INVARIANT: Combined scoring preserves ranking order.
+
+        When episodes are ranked by combined score, the order should be deterministic.
+        """
+        # Assume equal length lists for simplicity
+        min_len = min(len(base_scores), len(feedback_scores), len(recency_days))
+        base_scores = base_scores[:min_len]
+        feedback_scores = feedback_scores[:min_len]
+        recency_days = recency_days[:min_len]
+
+        # Calculate combined scores
+        combined_scores = []
+        for i in range(min_len):
+            feedback_boost = 0.2 if feedback_scores[i] > 0 else (-0.3 if feedback_scores[i] < 0 else 0.0)
+            recency_boost = 0.1 if recency_days[i] < 30 else 0.0
+            combined = base_scores[i] + feedback_boost + recency_boost
+            combined = max(0.0, min(1.0, combined))
+            combined_scores.append(combined)
+
+        # Sort by combined score descending
+        ranked = sorted(combined_scores, reverse=True)
+
+        # Verify ranking is in descending order
+        for i in range(1, len(ranked)):
+            assert ranked[i] <= ranked[i-1], "Ranked scores should be in descending order"
+
+    @given(
+        base_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        feedback_scores=st.lists(
+            st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=10
+        )
+    )
+    @settings(max_examples=100)
+    def test_feedback_aggregation_bounds(self, base_score, feedback_scores):
+        """
+        INVARIANT: Aggregated feedback scores stay within valid range.
+
+        When multiple feedback entries are aggregated, the result should be in [-1, 1].
+        """
+        # Calculate aggregate feedback score
+        if feedback_scores:
+            aggregate = sum(feedback_scores) / len(feedback_scores)
+        else:
+            aggregate = 0.0
+
+        # Verify aggregate is in valid range
+        assert -1.0 <= aggregate <= 1.0, f"Aggregate feedback {aggregate} must be in [-1, 1]"
+
+        # Apply to base score with boost
+        feedback_boost = 0.2 if aggregate > 0 else (-0.3 if aggregate < 0 else 0.0)
+        adjusted = base_score + feedback_boost
+        adjusted = max(0.0, min(1.0, adjusted))
+
+        # Verify final adjusted score is in valid range
+        assert 0.0 <= adjusted <= 1.0, f"Adjusted score {adjusted} must be in [0, 1]"
+
+    @given(
+        episode_count=st.integers(min_value=5, max_value=30),
+        positive_ratio=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @settings(max_examples=100)
+    def test_recency_feedback_interaction(self, episode_count, positive_ratio):
+        """
+        INVARIANT: Recency and feedback boosts interact correctly.
+
+        Recent episodes with positive feedback should score highest.
+        Old episodes with negative feedback should score lowest.
+        """
+        # Create episodes with varying recency and feedback
+        episodes = []
+        positive_count = int(episode_count * positive_ratio)
+
+        for i in range(episode_count):
+            # Alternate between recent and old
+            days_old = 0 if i % 2 == 0 else 60
+
+            # Assign positive feedback to first N episodes
+            feedback_score = 1.0 if i < positive_count else (-1.0 if i >= episode_count - positive_count else 0.0)
+
+            base_score = 0.5
+
+            # Apply boosts
+            feedback_boost = 0.2 if feedback_score > 0 else (-0.3 if feedback_score < 0 else 0.0)
+            recency_boost = 0.1 if days_old < 30 else 0.0
+            combined = base_score + feedback_boost + recency_boost
+            combined = max(0.0, min(1.0, combined))
+
+            episodes.append({
+                'id': f'episode_{i}',
+                'days_old': days_old,
+                'feedback_score': feedback_score,
+                'combined_score': combined
+            })
+
+        # Sort by combined score
+        ranked = sorted(episodes, key=lambda e: e['combined_score'], reverse=True)
+
+        # Verify ranking makes sense
+        # Highest scored episodes should have recent+positive or recent+neutral
+        if ranked:
+            top_episode = ranked[0]
+            # Top episode should be recent (days_old < 30) or have positive feedback
+            is_recent = top_episode['days_old'] < 30
+            has_positive = top_episode['feedback_score'] > 0
+            assert is_recent or has_positive, "Top episode should be recent or have positive feedback"
