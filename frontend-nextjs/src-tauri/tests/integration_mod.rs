@@ -3,7 +3,8 @@
 //! Tests for native API integration, system tray, notifications,
 //! and cross-platform consistency.
 
-mod file_dialog_integration;
-mod menu_bar_integration;
-mod notification_integration;
-mod cross_platform_validation;
+// TODO: Create these integration test files
+// mod file_dialog_integration;
+// mod menu_bar_integration;
+// mod notification_integration;
+// mod cross_platform_validation;
