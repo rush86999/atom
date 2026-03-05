@@ -694,4 +694,165 @@ describe('LocationService', () => {
       expect(Location.getBackgroundPermissionsAsync).not.toHaveBeenCalled();
     });
   });
+
+  // ========================================================================
+  // Background Tracking Tests
+  // ========================================================================
+
+  describe('Background Tracking', () => {
+    beforeEach(() => {
+      // Mock Platform.OS = 'android' for background tracking tests
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'android',
+        configurable: true,
+      });
+    });
+
+    test('should request background permission on Android', async () => {
+      // Mock foreground permission granted
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Mock background permission granted
+      (Location.requestBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Mock watchPositionAsync
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(456);
+
+      // Request foreground permission first
+      await locationService.requestPermissions(true, false);
+
+      // Start background tracking
+      const started = await locationService.startBackgroundTracking();
+
+      expect(started).toBe(true);
+      expect(Location.requestBackgroundPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(locationService.isBackgroundTrackingActive()).toBe(true);
+    });
+
+    test('should fail when background permission denied', async () => {
+      // Mock foreground permission granted
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Mock background permission denied
+      (Location.requestBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'denied',
+        canAskAgain: false,
+        granted: false,
+        expires: 'never',
+      });
+
+      // Request foreground permission first
+      await locationService.requestPermissions(true, false);
+
+      // Try to start background tracking
+      const started = await locationService.startBackgroundTracking();
+
+      expect(started).toBe(false);
+      expect(locationService.isBackgroundTrackingActive()).toBe(false);
+    });
+
+    test('should work on iOS with foreground permission', async () => {
+      // Switch to iOS
+      Object.defineProperty(Platform, 'OS', {
+        get: () => 'ios',
+        configurable: true,
+      });
+
+      // Mock foreground permission granted
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Mock watchPositionAsync
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(789);
+
+      // Request foreground permission
+      await locationService.requestPermissions(true, false);
+
+      // Start background tracking (iOS uses 'Always' permission, no separate background request)
+      const started = await locationService.startBackgroundTracking();
+
+      expect(started).toBe(true);
+      expect(Location.requestBackgroundPermissionsAsync).not.toHaveBeenCalled();
+      expect(locationService.isBackgroundTrackingActive()).toBe(true);
+    });
+
+    test('should clear background tracking state on stop', async () => {
+      // Mock permissions granted
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      (Location.requestBackgroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Mock watchPositionAsync
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(999);
+
+      // Request foreground permission
+      await locationService.requestPermissions(true, false);
+
+      // Start background tracking
+      await locationService.startBackgroundTracking();
+      expect(locationService.isBackgroundTrackingActive()).toBe(true);
+
+      // Stop tracking
+      await locationService.stopTracking();
+
+      expect(locationService.isBackgroundTrackingActive()).toBe(false);
+      expect(locationService.isActive()).toBe(false);
+    });
+
+    test('should clear updateTimer on stop', async () => {
+      // Mock permissions granted
+      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
+        status: 'granted',
+        canAskAgain: true,
+        granted: true,
+        expires: 'never',
+      });
+
+      // Mock watchPositionAsync
+      (Location.watchPositionAsync as jest.Mock).mockResolvedValue(123);
+
+      // Request foreground permission
+      await locationService.requestPermissions(true, false);
+
+      // Start tracking
+      await locationService.startTracking();
+      expect(locationService.isActive()).toBe(true);
+
+      // Stop tracking (this clears updateTimer internally)
+      await locationService.stopTracking();
+
+      // Verify tracking stopped and watchId cleared
+      expect(locationService.isActive()).toBe(false);
+      expect(Location.removeSubscriptionAsync).toHaveBeenCalledWith(123);
+    });
+  });
 });
