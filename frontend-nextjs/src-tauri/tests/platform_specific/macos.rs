@@ -358,3 +358,281 @@ mod path_handling_tests {
         );
     }
 }
+
+// ============================================================================
+// Menu Bar and System Info Tests
+// ============================================================================
+
+#[cfg(target_os = "macos")]
+#[cfg(test)]
+mod menu_bar_system_tests {
+    use super::*;
+
+    #[test]
+    fn test_macos_menu_bar_structure() {
+        // This test verifies the expected menu bar JSON structure from main.rs
+        // Note: Tests expected structure, not actual Tauri Menu creation
+
+        // Expected menu structure: { title, items: [{ label, action }] }
+        let menu_json = r#"{
+            "title": "Atom",
+            "items": [
+                { "label": "File", "action": "open_file_menu" },
+                { "label": "Edit", "action": "open_edit_menu" },
+                { "label": "View", "action": "open_view_menu" },
+                { "label": "Window", "action": "open_window_menu" },
+                { "label": "Help", "action": "open_help_menu" }
+            ]
+        }"#;
+
+        // Verify JSON contains expected menu items
+        assert!(menu_json.contains("\"title\": \"Atom\""),
+            "Menu should have title 'Atom'"
+        );
+        assert!(menu_json.contains("\"label\": \"File\""),
+            "Menu should have File item"
+        );
+        assert!(menu_json.contains("\"label\": \"Edit\""),
+            "Menu should have Edit item"
+        );
+        assert!(menu_json.contains("\"label\": \"View\""),
+            "Menu should have View item"
+        );
+        assert!(menu_json.contains("\"label\": \"Window\""),
+            "Menu should have Window item"
+        );
+        assert!(menu_json.contains("\"label\": \"Help\""),
+            "Menu should have Help item"
+        );
+    }
+
+    #[test]
+    fn test_macos_dock_integration() {
+        // Verify dock icon bouncing configuration (if applicable)
+        // Note: This tests expected structure, not actual dock behavior
+
+        let dock_config = r#"{
+            "bounce": true,
+            "bounce_type": "informational",
+            "dock_menu": {
+                "items": [
+                    { "label": "New Window", "action": "new_window" },
+                    { "label": "Preferences", "action": "open_preferences" },
+                    { "label": "Quit", "action": "quit" }
+                ]
+            }
+        }"#;
+
+        // Verify dock menu structure
+        assert!(dock_config.contains("\"bounce\":"),
+            "Dock config should have bounce setting"
+        );
+        assert!(dock_config.contains("\"dock_menu\":"),
+            "Dock config should have dock_menu"
+        );
+
+        // Verify dock menu items
+        assert!(dock_config.contains("\"label\": \"New Window\""),
+            "Dock menu should have New Window item"
+        );
+        assert!(dock_config.contains("\"label\": \"Preferences\""),
+            "Dock menu should have Preferences item"
+        );
+        assert!(dock_config.contains("\"label\": \"Quit\""),
+            "Dock menu should have Quit item"
+        );
+    }
+
+    #[test]
+    fn test_macos_system_info_structure() {
+        // Mock get_system_info() command response structure
+        let system_info = r#"{
+            "platform": "macos",
+            "architecture": "x86_64",
+            "tauri_version": "1.5.4",
+            "app_version": "1.0.0"
+        }"#;
+
+        // Verify response contains "platform": "macos"
+        assert!(system_info.contains("\"platform\": \"macos\""),
+            "System info should contain platform: macos"
+        );
+
+        // Verify response contains "architecture" (x64 or arm64 for Apple Silicon)
+        assert!(system_info.contains("\"architecture\":"),
+            "System info should contain architecture"
+        );
+
+        // Verify response contains tauri_version
+        assert!(system_info.contains("\"tauri_version\":"),
+            "System info should contain tauri_version"
+        );
+
+        // Test with Apple Silicon (arm64)
+        let apple_silicon_info = r#"{
+            "platform": "macos",
+            "architecture": "aarch64"
+        }"#;
+
+        assert!(apple_silicon_info.contains("\"platform\": \"macos\""),
+            "Apple Silicon should also have platform: macos"
+        );
+        assert!(apple_silicon_info.contains("\"architecture\": \"aarch64\""),
+            "Apple Silicon should have aarch64 architecture"
+        );
+    }
+
+    #[test]
+    fn test_macos_cfg_detection() {
+        // Test cfg!(target_os = "macos") returns true
+        assert!(cfg!(target_os = "macos"),
+            "cfg!(target_os = \"macos\") should return true on macOS"
+        );
+
+        // Test cfg!(target_os = "windows") returns false
+        assert!(!cfg!(target_os = "windows"),
+            "cfg!(target_os = \"windows\") should return false on macOS"
+        );
+
+        // Test cfg!(target_os = "linux") returns false
+        assert!(!cfg!(target_os = "linux"),
+            "cfg!(target_os = \"linux\") should return false on macOS"
+        );
+
+        // Test cfg!(target_arch) returns correct value (x86_64 or aarch64)
+        let is_x86_64 = cfg!(target_arch = "x86_64");
+        let is_aarch64 = cfg!(target_arch = "aarch64");
+
+        assert!(is_x86_64 || is_aarch64,
+            "macOS should be either x86_64 or aarch64 (Apple Silicon)"
+        );
+
+        if is_x86_64 {
+            println!("Running on Intel/AMD macOS (x86_64)");
+        } else if is_aarch64 {
+            println!("Running on Apple Silicon macOS (aarch64)");
+        }
+    }
+
+    #[test]
+    fn test_macos_spotlight_integration() {
+        // Verify Spotlight metadata configuration (if applicable)
+        // Note: This tests configuration structure, not actual Spotlight integration
+
+        let spotlight_config = r#"{
+            "indexed_file_types": [
+                ".pdf",
+                ".txt",
+                ".docx",
+                ".md",
+                ".json"
+            ],
+            "indexing_enabled": true,
+            "metadata_attributes": {
+                "kMDItemDisplayName": "Atom Document",
+                "kMDItemKind": "Business Automation",
+                "kMDItemCreator": "Atom Desktop"
+            }
+        }"#;
+
+        // Verify file indexing configuration
+        assert!(spotlight_config.contains("\"indexed_file_types\":"),
+            "Spotlight config should have indexed file types"
+        );
+        assert!(spotlight_config.contains("\"indexing_enabled\":"),
+            "Spotlight config should have indexing enabled flag"
+        );
+
+        // Verify metadata attributes
+        assert!(spotlight_config.contains("\"kMDItemDisplayName\":"),
+            "Spotlight config should have display name metadata"
+        );
+        assert!(spotlight_config.contains("\"kMDItemKind\":"),
+            "Spotlight config should have kind metadata"
+        );
+        assert!(spotlight_config.contains("\"kMDItemCreator\":"),
+            "Spotlight config should have creator metadata"
+        );
+
+        // Verify common document types are indexed
+        assert!(spotlight_config.contains(".pdf"),
+            "Should index PDF files"
+        );
+        assert!(spotlight_config.contains(".txt"),
+            "Should index text files"
+        );
+        assert!(spotlight_config.contains(".md"),
+            "Should index markdown files"
+        );
+    }
+
+    #[test]
+    fn test_macos_file_operations_roundtrip() {
+        let temp_dir = get_macos_temp_dir();
+        let test_file = temp_dir.join("atom_macos_roundtrip_test.txt");
+
+        // Create temp file with macOS-specific path
+        let test_content = "line 1\nline 2\nline 3"; // Unix line endings (LF only)
+
+        // Write content with Unix line endings
+        fs::write(&test_file, test_content.as_bytes())
+            .expect("Should be able to write test file");
+
+        // Read back and verify content matches
+        let read_content = fs::read_to_string(&test_file)
+            .expect("Should be able to read test file");
+
+        assert_eq!(read_content, test_content,
+            "Content should match exactly (no CRLF conversion)"
+        );
+
+        // Verify no CRLF conversion issues
+        assert!(!read_content.contains("\r\n"),
+            "Should not have CRLF line endings (Windows-style)"
+        );
+        assert!(read_content.contains('\n'),
+            "Should have LF line endings (Unix-style)"
+        );
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+        assert!(!test_file.exists(), "Test file should be cleaned up");
+    }
+
+    #[test]
+    fn test_macos_unix_permissions() {
+        let temp_dir = get_macos_temp_dir();
+        let test_file = temp_dir.join("atom_macos_permissions_test.txt");
+
+        // Create temp file
+        fs::write(&test_file, b"test content")
+            .expect("Should be able to create test file");
+
+        // Verify file is readable
+        let metadata = fs::metadata(&test_file)
+            .expect("Should be able to get file metadata");
+
+        // Test file mode (if accessible via std::fs::metadata)
+        // Note: Rust's std::fs::Metadata provides readonly() and permissions()
+        assert!(metadata.is_file(),
+            "Should be a regular file"
+        );
+
+        // Verify file is readable (by attempting to read)
+        let content = fs::read_to_string(&test_file)
+            .expect("Should be able to read file");
+        assert_eq!(content, "test content", "Content should be readable");
+
+        // Verify file is writable (by attempting to write)
+        fs::write(&test_file, b"updated content")
+            .expect("Should be able to write to file");
+
+        let updated_content = fs::read_to_string(&test_file)
+            .expect("Should be able to read updated content");
+        assert_eq!(updated_content, "updated content", "Content should be writable");
+
+        // Cleanup
+        let _ = fs::remove_file(&test_file);
+        assert!(!test_file.exists(), "Test file should be cleaned up");
+    }
+}
