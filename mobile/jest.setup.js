@@ -449,13 +449,16 @@ const createMMKVMock = () => ({
     return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : undefined;
   }),
   getString: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
+    // This is the critical fix - return string or null
+    return mockMmkvStorage.has(key) ? String(mockMmkvStorage.get(key)) : null;
   }),
   getNumber: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
+    const val = mockMmkvStorage.get(key);
+    return typeof val === 'number' ? val : null;
   }),
   getBoolean: jest.fn((key) => {
-    return mockMmkvStorage.has(key) ? mockMmkvStorage.get(key) : null;
+    const val = mockMmkvStorage.get(key);
+    return typeof val === 'boolean' ? val : null;
   }),
   delete: jest.fn((key) => {
     mockMmkvStorage.delete(key);
@@ -476,13 +479,40 @@ const createMMKVMock = () => ({
   }),
 });
 
-jest.mock('react-native-mmkv', () => ({
-  MMKV: jest.fn().mockImplementation(() => createMMKVMock()),
-}));
+// Create a single global MMKV instance that will be used by all tests
+const globalMMKVInstance = createMMKVMock();
+
+// Support both MMKV() constructor and direct module usage
+const MMKVConstructor = jest.fn(() => globalMMKVInstance);
+MMKVConstructor.MKV = MMKVConstructor;
+
+jest.mock('react-native-mmkv', () => {
+  const mockModule = {
+    MMKV: MMKVConstructor,
+    createMMKV: jest.fn(() => globalMMKVInstance),
+  };
+  // Default export
+  Object.defineProperty(mockModule, 'default', {
+    value: mockModule,
+    enumerable: false,
+  });
+  return mockModule;
+}, { virtual: true });
 
 // Export helper to reset mock MMKV storage for tests
 global.__resetMmkvMock = () => {
   mockMmkvStorage.clear();
+  // Clear all mock call history
+  globalMMKVInstance.set.mockClear();
+  globalMMKVInstance.get.mockClear();
+  globalMMKVInstance.getString.mockClear();
+  globalMMKVInstance.getNumber.mockClear();
+  globalMMKVInstance.getBoolean.mockClear();
+  globalMMKVInstance.delete.mockClear();
+  globalMMKVInstance.contains.mockClear();
+  globalMMKVInstance.getAllKeys.mockClear();
+  globalMMKVInstance.removeAll.mockClear();
+  globalMMKVInstance.getSizeInBytes.mockClear();
 };
 
 // ============================================================================
@@ -646,6 +676,11 @@ afterEach(() => {
   // Restore real timers after each test
   jest.useRealTimers();
   jest.clearAllMocks();
+
+  // Reset MMKV mock storage
+  if (global.__resetMmkvMock) {
+    global.__resetMmkvMock();
+  }
 });
 
 // ============================================================================
