@@ -631,6 +631,21 @@ jest.mock('expo-web-browser', () => ({
 }), { virtual: true });
 
 // ============================================================================
+// expo-font Mock
+// ============================================================================
+
+jest.mock('expo-font', () => ({
+  Font: {
+    isLoaded: jest.fn(() => true),
+    loadAsync: jest.fn().mockResolvedValue(undefined),
+    getLoadedFonts: jest.fn(() => []),
+  },
+  ExpoFontLoader: {
+    getLoadedFonts: jest.fn(() => []),
+  },
+}), { virtual: true });
+
+// ============================================================================
 // expo-haptics Mock
 // ============================================================================
 
