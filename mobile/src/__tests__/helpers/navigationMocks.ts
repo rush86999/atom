@@ -1,87 +1,41 @@
 /**
  * Navigation Mock Helpers
  *
- * Helper functions for creating functional screen mock components for navigation testing.
- * Replaces string mocks with React components that have testIDs for proper testing.
+ * Functional screen mock components for testing React Navigation.
+ * Replaces string mocks with actual React components that render
+ * with testIDs for reliable test assertions.
  *
- * @module navigationMocks
- *
- * @example
- * import { mockAllScreens } from './navigationMocks';
- *
- * mockAllScreens();
- *
- * @see Phase 136 deviceMocks.ts pattern for reference
+ * Follows Phase 136 deviceMocks.ts pattern - reusable factories,
+ * consistent naming, JSDoc comments.
  */
 
 import React from 'react';
-import { View, Text } from 'react-native';
-
-// ============================================================================
-// TypeScript Interfaces
-// ============================================================================
+import { View, Text, StyleSheet } from 'react-native';
 
 /**
- * Props for mock screen components
- */
-interface MockScreenProps {
-  route?: any;
-  navigation?: any;
-  children?: React.ReactNode;
-}
-
-/**
- * Options for creating mock screen
- */
-export interface MockScreenOptions {
-  /** Custom testID (default: screen-{name.toLowerCase()}) */
-  testId?: string;
-  /** Include screen name in rendered output */
-  showName?: boolean;
-  /** Custom component to render */
-  customComponent?: React.ComponentType<any>;
-}
-
-// ============================================================================
-// Mock Screen Factory
-// ============================================================================
-
-/**
- * Create a functional mock screen component with testID
+ * Create a mock screen component with testID
  *
- * @param screenName - Name of the screen (for testID and display)
- * @param options - Configuration options
- * @returns React functional component
+ * Returns a functional React component that renders a View with
+ * a testID for testing. The component receives route and navigation
+ * props like a real screen.
+ *
+ * @param screenName - Name of the screen for display
+ * @param testId - testID attribute for testing queries
+ * @returns Mock screen component
  *
  * @example
- * const MockScreen = createMockScreen('WorkflowsList', { testId: 'workflows-list-screen' });
- *
- * jest.mock('../../screens/workflows/WorkflowsListScreen', () => MockScreen);
+ * ```typescript
+ * const MockLoginScreen = createMockScreen('Login', 'login-screen');
+ * // Renders: <View testID="login-screen" screenName="Login" />
+ * ```
  */
-export const createMockScreen = (
-  screenName: string,
-  options: MockScreenOptions = {}
-) => {
-  const {
-    testId,
-    showName = false,
-    customComponent: CustomComponent,
-  } = options;
-
-  // Generate default testID from screen name
-  const defaultTestId = testId || `screen-${screenName.toLowerCase().replace(/\s+/g, '-')}`;
-
-  return function MockScreen(props: MockScreenProps) {
-    const { route, navigation } = props;
-
+export const createMockScreen = (screenName: string, testId: string) => {
+  return function MockScreen({ route, navigation }: any) {
     return (
-      <View testID={defaultTestId} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        {showName && (
-          <Text testID={`${defaultTestId}-name`}>{screenName}</Text>
-        )}
-        {CustomComponent ? <CustomComponent route={route} navigation={navigation} /> : null}
+      <View testID={testId} style={styles.mockScreen}>
+        <Text testID={`${testId}-name`}>{screenName}</Text>
         {route?.params && (
-          <Text testID={`${defaultTestId}-params`} style={{ display: 'none' }}>
+          <Text testID={`${testId}-params`} style={styles.paramsText}>
             {JSON.stringify(route.params)}
           </Text>
         )}
@@ -91,285 +45,225 @@ export const createMockScreen = (
 };
 
 /**
- * Create a mock screen with custom render function
+ * Mock all auth screens with functional components
  *
- * @param screenName - Name of the screen
- * @param renderFn - Custom render function
- * @returns React functional component
+ * Replaces string mocks (jest.mock('../Screen', () => 'Screen'))
+ * with functional components that render with testIDs.
+ *
+ * Call this at the top of test files before rendering navigation:
+ * ```typescript
+ * import { mockAllScreens } from '../helpers/navigationMocks';
+ * mockAllScreens();
+ * ```
+ *
+ * TestIDs follow pattern: {screen-name}-screen
+ * - Login: 'login-screen'
+ * - Register: 'register-screen'
+ * - ForgotPassword: 'forgot-password-screen'
+ * - BiometricAuth: 'biometric-auth-screen'
+ */
+export const mockAllScreens = () => {
+  // Auth screens
+  jest.mock('../../screens/auth/LoginScreen', () =>
+    createMockScreen('Login', 'login-screen')
+  );
+  jest.mock('../../screens/auth/RegisterScreen', () =>
+    createMockScreen('Register', 'register-screen')
+  );
+  jest.mock('../../screens/auth/ForgotPasswordScreen', () =>
+    createMockScreen('ForgotPassword', 'forgot-password-screen')
+  );
+  jest.mock('../../screens/auth/BiometricAuthScreen', () =>
+    createMockScreen('BiometricAuth', 'biometric-auth-screen')
+  );
+
+  // Workflow screens
+  jest.mock('../../screens/workflows/WorkflowsListScreen', () =>
+    createMockScreen('WorkflowsList', 'workflows-list-screen')
+  );
+  jest.mock('../../screens/workflows/WorkflowDetailScreen', () =>
+    createMockScreen('WorkflowDetail', 'workflow-detail-screen')
+  );
+
+  // Analytics screens
+  jest.mock('../../screens/analytics/AnalyticsDashboardScreen', () =>
+    createMockScreen('AnalyticsDashboard', 'analytics-dashboard-screen')
+  );
+
+  // Agent screens
+  jest.mock('../../screens/agents/AgentListScreen', () =>
+    createMockScreen('AgentList', 'agent-list-screen')
+  );
+  jest.mock('../../screens/agents/AgentChatScreen', () =>
+    createMockScreen('AgentChat', 'agent-chat-screen')
+  );
+
+  // Chat screens
+  jest.mock('../../screens/chat/ChatTabScreen', () =>
+    createMockScreen('ChatTab', 'chat-tab-screen')
+  );
+
+  // Settings screens
+  jest.mock('../../screens/settings/SettingsScreen', () =>
+    createMockScreen('Settings', 'settings-screen')
+  );
+};
+
+/**
+ * Create a mock screen with custom content
+ *
+ * Creates a mock screen that renders custom content instead of
+ * just the screen name. Useful for testing screens with specific
+ * content requirements.
+ *
+ * @param testId - testID attribute for testing queries
+ * @param content - React element to render as screen content
+ * @returns Mock screen component
  *
  * @example
- * const CustomScreen = createMockScreenWithRender('CustomScreen', ({ route }) => (
- *   <View><Text>{route.params.id}</Text></View>
- * ));
+ * ```typescript
+ * const MockWorkflowDetail = createMockScreenWithContent(
+ *   'workflow-detail-screen',
+ *   <Text testID="workflow-title">Test Workflow</Text>
+ * );
+ * ```
  */
-export const createMockScreenWithRender = (
-  screenName: string,
-  renderFn: (props: MockScreenProps) => React.ReactNode
-) => {
-  const testId = `screen-${screenName.toLowerCase().replace(/\s+/g, '-')}`;
-
-  return function MockScreen(props: MockScreenProps) {
+export const createMockScreenWithContent = (testId: string, content: React.ReactNode) => {
+  return function MockScreen({ route, navigation }: any) {
     return (
-      <View testID={testId} style={{ flex: 1 }}>
-        {renderFn(props)}
+      <View testID={testId} style={styles.mockScreen}>
+        {content}
+        {route?.params && (
+          <Text testID={`${testId}-params`} style={styles.paramsText}>
+            {JSON.stringify(route.params)}
+          </Text>
+        )}
       </View>
     );
   };
 };
 
-// ============================================================================
-// Mock All Screens Function
-// ============================================================================
-
 /**
- * Mock all screen imports with functional components
+ * Create a mock screen with navigation callback
  *
- * Call this at the top of your test file to replace all screen imports
- * with functional mock components that have testIDs.
+ * Creates a mock screen that calls a navigation function when
+ * rendered. Useful for testing navigation transitions.
+ *
+ * @param testId - testID attribute for testing queries
+ * @param screenName - Name of the screen for display
+ * @param onNavigate - Callback function to call with navigation prop
+ * @returns Mock screen component
  *
  * @example
- * import { mockAllScreens } from '../helpers/navigationMocks';
- *
- * mockAllScreens();
+ * ```typescript
+ * const MockLoginScreen = createMockScreenWithNavigation(
+ *   'login-screen',
+ *   'Login',
+ *   (navigation) => {
+ *     // Test can verify navigation was called
+ *     expect(navigation.navigate).toHaveBeenCalledWith('Register');
+ *   }
+ * );
+ * ```
  */
-export const mockAllScreens = () => {
-  // Workflow screens
-  jest.mock('../../screens/workflows/WorkflowsListScreen', () =>
-    createMockScreen('WorkflowsList', { testId: 'workflows-list-screen', showName: true })
-  );
-  jest.mock('../../screens/workflows/WorkflowDetailScreen', () =>
-    createMockScreen('WorkflowDetail', { testId: 'workflow-detail-screen' })
-  );
-  jest.mock('../../screens/workflows/WorkflowTriggerScreen', () =>
-    createMockScreen('WorkflowTrigger', { testId: 'workflow-trigger-screen' })
-  );
-  jest.mock('../../screens/workflows/ExecutionProgressScreen', () =>
-    createMockScreen('ExecutionProgress', { testId: 'execution-progress-screen' })
-  );
-  jest.mock('../../screens/workflows/WorkflowLogsScreen', () =>
-    createMockScreen('WorkflowLogs', { testId: 'workflow-logs-screen' })
-  );
+export const createMockScreenWithNavigation = (
+  testId: string,
+  screenName: string,
+  onNavigate?: (navigation: any) => void
+) => {
+  return function MockScreen({ route, navigation }: any) {
+    React.useEffect(() => {
+      if (onNavigate) {
+        onNavigate(navigation);
+      }
+    }, [navigation]);
 
-  // Analytics screens
-  jest.mock('../../screens/analytics/AnalyticsDashboardScreen', () =>
-    createMockScreen('AnalyticsDashboard', { testId: 'analytics-dashboard-screen', showName: true })
-  );
-
-  // Agent screens
-  jest.mock('../../screens/agent/AgentListScreen', () =>
-    createMockScreen('AgentList', { testId: 'agent-list-screen', showName: true })
-  );
-  jest.mock('../../screens/agent/AgentChatScreen', () =>
-    createMockScreen('AgentChat', { testId: 'agent-chat-screen' })
-  );
-
-  // Chat screens (barrel export)
-  jest.mock('../../screens/chat', () => ({
-    ChatTabScreen: createMockScreen('ChatTab', { testId: 'chat-tab-screen', showName: true }),
-  }));
-
-  // Settings screens
-  jest.mock('../../screens/settings/SettingsScreen', () =>
-    createMockScreen('Settings', { testId: 'settings-screen', showName: true })
-  );
+    return (
+      <View testID={testId} style={styles.mockScreen}>
+        <Text testID={`${testId}-name`}>{screenName}</Text>
+        {route?.params && (
+          <Text testID={`${testId}-params`} style={styles.paramsText}>
+            {JSON.stringify(route.params)}
+          </Text>
+        )}
+      </View>
+    );
+  };
 };
 
-// ============================================================================
-// Screen TestID Constants
-// ============================================================================
-
 /**
- * TestIDs for all mocked screens
- * Use these in tests to query for specific screens
+ * Mock AppNavigator for auth flow testing
+ *
+ * Returns a mock AppNavigator component that renders a View with
+ * testID for testing. Used when testing AuthNavigator's transition
+ * to main app.
+ *
+ * @returns Mock AppNavigator component
  */
-export const SCREEN_TEST_IDS = {
-  // Tab screens
-  WORKFLOWS_LIST: 'workflows-list-screen',
-  ANALYTICS_DASHBOARD: 'analytics-dashboard-screen',
-  AGENT_LIST: 'agent-list-screen',
-  CHAT_TAB: 'chat-tab-screen',
-  SETTINGS: 'settings-screen',
-
-  // Stack screens (WorkflowStack)
-  WORKFLOW_DETAIL: 'workflow-detail-screen',
-  WORKFLOW_TRIGGER: 'workflow-trigger-screen',
-  EXECUTION_PROGRESS: 'execution-progress-screen',
-  WORKFLOW_LOGS: 'workflow-logs-screen',
-
-  // Stack screens (AgentStack, ChatStack)
-  AGENT_CHAT: 'agent-chat-screen',
-} as const;
-
-// ============================================================================
-// Tab Icon Mock Helpers
-// ============================================================================
+export const createMockAppNavigator = () => {
+  return function MockAppNavigator() {
+    return <View testID="app-navigator" style={styles.mockScreen} />;
+  };
+};
 
 /**
- * Mock Ionicons component for testing
+ * Mock AuthContext for testing authentication state
+ *
+ * Creates a mock AuthContext with controlled authentication state.
+ * Use this to test conditional rendering based on auth state.
+ *
+ * @param isAuthenticated - Whether user is authenticated
+ * @param isLoading - Whether auth state is loading
+ * @returns Mock AuthContext value
  *
  * @example
- * import { mockIonicons } from '../helpers/navigationMocks';
+ * ```typescript
+ * const mockAuthContext = createMockAuthContext(true, false);
+ * jest.mock('../../contexts/AuthContext', () => ({
+ *   useAuth: () => mockAuthContext
+ * }));
+ * ```
+ */
+export const createMockAuthContext = (
+  isAuthenticated: boolean = false,
+  isLoading: boolean = false
+) => {
+  return {
+    isAuthenticated,
+    isLoading,
+    user: isAuthenticated ? { id: 'test-user-123', email: 'test@example.com' } : null,
+    token: isAuthenticated ? 'test-token-abc123' : null,
+    login: jest.fn(),
+    logout: jest.fn(),
+    register: jest.fn(),
+    refreshToken: jest.fn(),
+  };
+};
+
+/**
+ * Mock Ionicons for navigation testing
  *
- * mockIonicons();
+ * Mocks the @expo/vector-icons Ionicons component to avoid
+ * import errors in navigation tests.
  */
 export const mockIonicons = () => {
   jest.mock('@expo/vector-icons', () => ({
-    Ionicons: ({ name, testID }: { name: string; testID?: string }) => {
-      return React.createElement('View', {
-        testID: testID || `icon-${name}`,
-        'data-icon-name': name,
-      });
-    },
+    Ionicons: 'Ionicons',
   }));
 };
 
-// ============================================================================
-// Navigation Mock Helpers
-// ============================================================================
-
-/**
- * Create a mock navigation object
- *
- * @param options - Navigation mock options
- * @returns Mock navigation object
- *
- * @example
- * const mockNav = createMockNavigation();
- * mockNav.navigate('WorkflowDetail', { workflowId: '123' });
- */
-export const createMockNavigation = (options: {
-  canGoBack?: boolean;
-  navigate?: jest.Mock;
-  goBack?: jest.Mock;
-  reset?: jest.Mock;
-  dispatch?: jest.Mock;
-} = {}) => {
-  const {
-    canGoBack = true,
-    navigate = jest.fn(),
-    goBack = jest.fn(),
-    reset = jest.fn(),
-    dispatch = jest.fn(),
-  } = options;
-
-  return {
-    canGoBack: () => canGoBack,
-    navigate,
-    goBack,
-    reset,
-    dispatch,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    isFocused: jest.fn(() => true),
-    setOptions: jest.fn(),
-    setParams: jest.fn(),
-  };
-};
-
-/**
- * Create a mock route object
- *
- * @param params - Route params
- * @returns Mock route object
- *
- * @example
- * const mockRoute = createMockRoute({ workflowId: '123', step: 2 });
- */
-export const createMockRoute = (params: Record<string, unknown> = {}) => {
-  return {
-    key: 'mock-route',
-    name: 'MockRoute',
-    params,
-    path: undefined,
-  };
-};
-
-// ============================================================================
-// Tab Bar Mock Helpers
-// ============================================================================
-
-/**
- * TestIDs for tab bar elements
- */
-export const TAB_BAR_TEST_IDS = {
-  TAB_BAR: 'tab-bar',
-  TAB_BUTTON: (tabName: string) => `tab-button-${tabName.toLowerCase()}`,
-  TAB_LABEL: (tabName: string) => `tab-label-${tabName.toLowerCase()}`,
-  TAB_ICON: (iconName: string) => `icon-${iconName}`,
-} as const;
-
-/**
- * Get testID for a tab button
- *
- * @param tabName - Name of the tab (WorkflowsTab, AnalyticsTab, etc.)
- * @returns testID string
- *
- * @example
- * const workflowsTabTestId = getTabButtonTestId('WorkflowsTab');
- * // Returns: 'tab-button-workflowstab'
- */
-export const getTabButtonTestId = (tabName: string): string => {
-  return `tab-button-${tabName.toLowerCase()}`;
-};
-
-// ============================================================================
-// Navigation State Helpers
-// ============================================================================
-
-/**
- * Create a mock navigation state
- *
- * @param options - State options
- * @returns Mock navigation state object
- *
- * @example
- * const mockState = createMockNavigationState({
- *   index: 1,
- *   routeNames: ['WorkflowsTab', 'AnalyticsTab'],
- *   routes: [{ name: 'WorkflowsTab' }, { name: 'AnalyticsTab' }]
- * });
- */
-export const createMockNavigationState = (options: {
-  index?: number;
-  routeNames?: string[];
-  routes?: Array<{ name: string; params?: unknown }>;
-  history?: unknown[];
-  key?: string;
-  type?: string;
-} = {}) => {
-  const {
-    index = 0,
-    routeNames = ['WorkflowsTab'],
-    routes = [{ name: 'WorkflowsTab' }],
-    history = [],
-    key = 'mock-state',
-    type = 'tab',
-  } = options;
-
-  return {
-    index,
-    routeNames,
-    routes,
-    history,
-    key,
-    type,
-    stale: false,
-  };
-};
-
-// ============================================================================
-// Exports
-// ============================================================================
-
-export default {
-  createMockScreen,
-  createMockScreenWithRender,
-  mockAllScreens,
-  mockIonicons,
-  createMockNavigation,
-  createMockRoute,
-  createMockNavigationState,
-  SCREEN_TEST_IDS,
-  TAB_BAR_TEST_IDS,
-  getTabButtonTestId,
-};
+const styles = StyleSheet.create({
+  mockScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    padding: 16,
+  },
+  paramsText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'monospace',
+  },
+});
