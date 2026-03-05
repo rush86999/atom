@@ -483,6 +483,13 @@ describe('WebSocketContext - Reconnection', () => {
     // Should not show error
     expect(screen.getByTestId('connectionError').props.children).toBe('null');
   });
+
+  it('should cleanup on unmount', () => {
+    const { unmount } = renderWithWebSocketProvider();
+
+    // Should not throw error on unmount
+    expect(() => unmount()).not.toThrow();
+  });
 });
 
 // ============================================================================
