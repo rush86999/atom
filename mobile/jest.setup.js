@@ -814,6 +814,56 @@ jest.mock('expo-sharing', () => ({
 }), { virtual: true });
 
 // ============================================================================
+// react-native-safe-area-context Mock
+// ============================================================================
+
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const SafeAreaContext = React.createContext({
+    insets: { top: 0, right: 0, bottom: 0, left: 0 },
+    frame: { x: 0, y: 0, width: 320, height: 640 },
+  });
+
+  const SafeAreaProvider = ({ children, initialMetrics }) => {
+    const metrics = initialMetrics || {
+      frame: { x: 0, y: 0, width: 320, height: 640 },
+      insets: { top: 0, right: 0, bottom: 0, left: 0 },
+    };
+
+    return (
+      React.createElement(
+        SafeAreaContext.Provider,
+        { value: metrics },
+        children
+      )
+    );
+  };
+
+  const SafeAreaView = ({ children, style, edges }) => {
+    return React.createElement(View, { style }, children);
+  };
+
+  const useSafeAreaInsets = () => {
+    return React.useContext(SafeAreaContext).insets;
+  };
+
+  const useSafeAreaFrame = () => {
+    return React.useContext(SafeAreaContext).frame;
+  };
+
+  return {
+    SafeAreaProvider,
+    SafeAreaView,
+    SafeAreaContext,
+    useSafeAreaInsets,
+    useSafeAreaFrame,
+    default: SafeAreaProvider,
+  };
+}, { virtual: true });
+
+// ============================================================================
 // Mock Timers for Async Tests
 // ============================================================================
 
