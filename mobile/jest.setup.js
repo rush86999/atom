@@ -636,7 +636,7 @@ jest.mock('expo-web-browser', () => ({
 
 jest.mock('expo-font', () => ({
   Font: {
-    isLoaded: jest.fn(() => true),
+    isLoaded: jest.fn((fontFamily: any) => true),
     loadAsync: jest.fn().mockResolvedValue(undefined),
     getLoadedFonts: jest.fn(() => []),
   },
@@ -644,6 +644,42 @@ jest.mock('expo-font', () => ({
     getLoadedFonts: jest.fn(() => []),
   },
 }), { virtual: true });
+
+// ============================================================================
+// @expo/vector-icons Mock
+// ============================================================================
+
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const createIconSet = () => {
+    const Icon = React.forwardRef(({ name, size, color, ...props }: any, ref: any) => {
+      return React.createElement(View, {
+        ...props,
+        ref,
+        testID: `icon-${name}`,
+        style: { width: size, height: size, color },
+      });
+    });
+    Icon.Font = {
+      isLoaded: jest.fn(() => true),
+      loadAsync: jest.fn().mockResolvedValue(undefined),
+    };
+    return Icon;
+  };
+
+  const Ionicons = createIconSet();
+  const MaterialIcons = createIconSet();
+  const FontAwesome = createIconSet();
+
+  return {
+    Ionicons,
+    MaterialIcons,
+    FontAwesome,
+    default: Ionicons,
+  };
+}, { virtual: true });
 
 // ============================================================================
 // expo-haptics Mock
@@ -811,13 +847,23 @@ global.MockWebSocket = class MockWebSocket {
 
 jest.mock('expo-linking', () => ({
   parse: jest.fn((url: string) => {
-    const urlObj = new URL(url.replace('atom://', 'http://'));
-    return {
-      path: urlObj.pathname,
-      hostname: urlObj.hostname,
-      queryParams: Object.fromEntries(urlObj.searchParams.entries()),
-      pathSegments: urlObj.pathname.split('/').filter(Boolean),
-    };
+    try {
+      const urlObj = new URL(url.replace('atom://', 'http://'));
+      return {
+        path: urlObj.pathname,
+        hostname: urlObj.hostname,
+        queryParams: Object.fromEntries(urlObj.searchParams.entries()),
+        pathSegments: urlObj.pathname.split('/').filter(Boolean),
+      };
+    } catch (error) {
+      // Handle malformed URLs gracefully
+      return {
+        path: url,
+        hostname: '',
+        queryParams: {},
+        pathSegments: [],
+      };
+    }
   }),
   createURL: jest.fn((path: string) => `atom://${path}`),
   openURL: jest.fn().mockResolvedValue(undefined),
