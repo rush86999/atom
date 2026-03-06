@@ -6360,3 +6360,20 @@ class HomeAssistantConnection(Base):
     user = relationship("User", backref="ha_connections")
 
 
+class MobileDevice(Base):
+    """Mobile device registration for push notifications and mobile auth."""
+    __tablename__ = "mobile_devices"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_token = Column(String, nullable=False, unique=True, index=True)
+    platform = Column(String, nullable=True)  # 'ios', 'android', 'web'
+    device_name = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="mobile_devices")
+
