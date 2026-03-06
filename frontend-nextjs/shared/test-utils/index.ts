@@ -86,3 +86,14 @@ export {
   onlyOnPlatform,
 } from './platform-guards';
 export * from './platform-guards';
+
+// ============================================================================
+// Test Data Fixtures (Plan 05a)
+// ============================================================================
+export {
+  mockAgents,
+  mockWorkflows,
+  mockUser,
+  testDataFixture,
+} from './test-data';
+export * from './test-data';
