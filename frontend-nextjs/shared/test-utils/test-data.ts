@@ -1,31 +1,35 @@
 /**
- * Shared Test Data Fixtures
+ * Shared Test Data Fixtures for Atom
  *
- * Common test data fixtures (agents, workflows, users) usable across
- * frontend, mobile, and desktop platforms. Reduces duplication and ensures
- * consistent test data.
+ * Common test data fixtures shared across:
+ * - Frontend (Next.js with @testing-library/react)
+ * - Mobile (React Native with @testing-library/react-native)
+ * - Desktop (Tauri with cargo test - JSON fixtures only)
  *
- * TypeScript exports for web/mobile testing, JSON fixtures for Rust desktop.
+ * Import via: @atom/test-utils
+ *
+ * @example
+ * import { mockAgents, mockWorkflows, mockUser } from '@atom/test-utils';
  *
  * @module @atom/test-utils/test-data
  */
 
-import type { MockAgent, MockWorkflow, MockUser, TestDataFixture } from './types';
-
-// ============================================================================
-// Common Test Agents
-// ============================================================================
+import type {
+  MockAgent,
+  MockWorkflow,
+  MockUser,
+  TestDataFixture,
+} from './types';
 
 /**
  * Common test agents for governance and execution tests
  *
- * @example
- * import { mockAgents } from '@atom/test-utils';
+ * Provides mock agents across all maturity levels for testing
+ * agent governance, execution, and maturity-based routing.
  *
- * test('agent maturity levels', () => {
- *   const autonomousAgent = mockAgents.find(a => a.maturity === 'AUTONOMOUS');
- *   expect(autonomousAgent?.confidence).toBeGreaterThan(0.9);
- * });
+ * @example
+ * const autonomousAgent = mockAgents.find(a => a.maturity === 'AUTONOMOUS');
+ * expect(autonomousAgent.confidence).toBeGreaterThan(0.9);
  */
 export const mockAgents: MockAgent[] = [
   {
@@ -54,20 +58,15 @@ export const mockAgents: MockAgent[] = [
   },
 ];
 
-// ============================================================================
-// Common Test Workflows
-// ============================================================================
-
 /**
  * Common test workflows for workflow engine tests
  *
- * @example
- * import { mockWorkflows } from '@atom/test-utils';
+ * Provides mock workflows in various states for testing
+ * workflow execution, step tracking, and state transitions.
  *
- * test('workflow status', () => {
- *   const runningWorkflow = mockWorkflows.find(w => w.status === 'running');
- *   expect(runningWorkflow?.steps).toBeGreaterThan(0);
- * });
+ * @example
+ * const runningWorkflow = mockWorkflows.find(w => w.status === 'running');
+ * expect(runningWorkflow.steps).toBe(10);
  */
 export const mockWorkflows: MockWorkflow[] = [
   {
@@ -90,20 +89,15 @@ export const mockWorkflows: MockWorkflow[] = [
   },
 ];
 
-// ============================================================================
-// Common Test User
-// ============================================================================
-
 /**
  * Common test user for authentication and authorization tests
  *
- * @example
- * import { mockUser } from '@atom/test-utils';
+ * Provides a standard mock user for testing authentication flows,
+ * authorization checks, and user-specific features.
  *
- * test('user authentication', () => {
- *   expect(mockUser.email).toContain('@');
- *   expect(mockUser.id).toBeTruthy();
- * });
+ * @example
+ * expect(mockUser.email).toMatch(/@example\.com$/);
+ * expect(mockUser.id).toBe('user-1');
  */
 export const mockUser: MockUser = {
   id: 'user-1',
@@ -111,25 +105,15 @@ export const mockUser: MockUser = {
   email: 'test@example.com',
 };
 
-// ============================================================================
-// Complete Test Data Fixture Bundle
-// ============================================================================
-
 /**
  * Complete test data fixture bundle
  *
- * Provides all common test data in a single object for convenient imports.
- * Use this when you need multiple fixture types in a test.
+ * Aggregates all test data fixtures into a single object for
+ * convenient import in test files.
  *
  * @example
  * import { testDataFixture } from '@atom/test-utils';
- *
- * test('agent execution with workflow', () => {
- *   const { agents, workflows, user } = testDataFixture;
- *   const agent = agents[0];
- *   const workflow = workflows[0];
- *   // Test agent executing workflow with user context
- * });
+ * const { agents, workflows, user } = testDataFixture;
  */
 export const testDataFixture: TestDataFixture = {
   agents: mockAgents,
