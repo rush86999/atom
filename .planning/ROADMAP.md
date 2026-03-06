@@ -656,7 +656,7 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 141. Desktop Coverage Expansion | v5.2 | 6/6 | Complete | 2026-03-05 |
 | 142. Desktop Rust Backend | v5.2 | 0/7 | Planning complete | 2026-03-05 |
 | 143. Desktop Tauri Commands | v5.2 | 3/3 | Complete | 2026-03-06 |
-| 144. Cross-Platform Shared Utilities | v5.2 | 5/5 | Planning complete | - |
+| 144. Cross-Platform Shared Utilities | v5.2 | 6/6 | Complete | 2026-03-06 |
 | 145. Cross-Platform API Type Generation | v5.2 | 0/TBD | Not started | - |
 | 146. Cross-Platform Weighted Coverage | v5.2 | 0/TBD | Not started | - |
 | 147. Cross-Platform Property Testing | v5.2 | 0/TBD | Not started | - |
