@@ -518,23 +518,33 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - Window management mock with state tracking (show/hide/focus/close, minimize-to-tray, multi-window)
 - Memory leak prevention and cleanup validation
 
-### Phase 144: Cross-Platform Shared Utilities
+### ✅ Phase 144: Cross-Platform Shared Utilities - SHIPPED 2026-03-06
 **Goal**: Shared test utilities operational (SYMLINK strategy frontend → mobile/desktop)
 **Depends on**: Phase 134, Phase 139, Phase 143
 **Requirements**: CROSS-01
+**Status**: Complete (2026-03-06)
 **Success Criteria** (what must be TRUE):
-  1. Shared test helpers created in frontend-nextjs/shared/
-  2. SYMLINK setup configured for mobile/src/shared → frontend/shared (TypeScript utilities)
-  3. SYMLINK setup configured for desktop/src-tauri/tests/shared_fixtures → frontend/shared/test-utils/fixtures (JSON fixtures only for Rust)
-  4. Shared utilities tested across web and mobile platforms (Rust uses JSON fixtures)
-  5. Test data consistency verified with cross-platform validation test
-**Plans**: 6 (Wave 1: 01, Wave 2: 02-03-04 parallel, Wave 3: 05a-05b)
-- [ ] 144-01-PLAN.md — Shared utilities infrastructure (directory, barrel, types, TS config)
-- [ ] 144-02-PLAN.md — Platform-agnostic async utilities (waitFor, flushPromises, waitForCondition)
-- [ ] 144-03-PLAN.md — Mock factories and assertions (createMockWebSocket, createMockFn, assertions)
-- [ ] 144-04-PLAN.md — Platform guards and cleanup (isWeb, resetAllMocks, setupFakeTimers)
-- [ ] 144-05a-PLAN.md — Test data fixtures (test-data.ts, JSON fixtures, index.ts update)
-- [ ] 144-05b-PLAN.md — Platform configuration (mobile TS/Jest configs, symlinks, validation)
+  1. Shared test helpers created in frontend-nextjs/shared/ ✅
+  2. SYMLINK setup configured for mobile/src/shared → frontend/shared (TypeScript utilities) ✅
+  3. SYMLINK setup configured for desktop/src-tauri/tests/shared_fixtures → frontend/shared/test-utils/fixtures (JSON fixtures only for Rust) ✅
+  4. Shared utilities tested across web and mobile platforms (Rust uses JSON fixtures) ✅
+  5. Test data consistency verified with cross-platform validation test ✅
+**Plans**: 6/6 complete (Wave 1: 01 ✅, Wave 2: 02-03-04 parallel ✅, Wave 3: 05a-05b ✅)
+- [x] 144-01-PLAN.md — Shared utilities infrastructure ✅
+- [x] 144-02-PLAN.md — Platform-agnostic async utilities ✅
+- [x] 144-03-PLAN.md — Mock factories and assertions ✅
+- [x] 144-04-PLAN.md — Platform guards and cleanup ✅
+- [x] 144-05a-PLAN.md — Test data fixtures ✅
+- [x] 144-05b-PLAN.md — Platform configuration ✅
+
+**Total Impact:**
+- 1,502 lines of cross-platform test utilities created
+- 47 exported functions/types across 8 modules
+- 48 validation tests covering all utilities
+- 2 symlinks configured (mobile + desktop)
+- TypeScript + Jest path mapping for both platforms
+- 100% pass rate (48/48 tests passing)
+- Verification: 5/5 must-haves verified, 0 gaps found
 
 ### Phase 145: Cross-Platform API Type Generation
 **Goal**: API type generation automated (openapi-typescript from OpenAPI spec)
@@ -546,7 +556,11 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Generated types committed to frontend/src/types/api-generated.ts
   4. CI workflow regenerates types on backend API changes
   5. Type mismatches detected at compile time across platforms
-**Plans**: TBD
+**Plans**: 4 (Wave 1: 01, Wave 2: 02, Wave 3: 03-04 parallel)
+- [ ] 145-01-PLAN.md — Type generation infrastructure (openapi-typescript, OpenAPI export, initial types)
+- [ ] 145-02-PLAN.md — Symlink distribution (mobile, desktop, cross-platform verification)
+- [ ] 145-03-PLAN.md — CI/CD automation (type generation workflow, breaking change detection)
+- [ ] 145-04-PLAN.md — Documentation and examples (usage tests, comprehensive guide)
 
 ### Phase 146: Cross-Platform Weighted Coverage
 **Goal**: Weighted coverage enforcement (backend ≥70%, frontend ≥80%, mobile ≥50%, desktop ≥40%)
@@ -657,7 +671,7 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 142. Desktop Rust Backend | v5.2 | 0/7 | Planning complete | 2026-03-05 |
 | 143. Desktop Tauri Commands | v5.2 | 3/3 | Complete | 2026-03-06 |
 | 144. Cross-Platform Shared Utilities | v5.2 | 6/6 | Complete | 2026-03-06 |
-| 145. Cross-Platform API Type Generation | v5.2 | 0/TBD | Not started | - |
+| 145. Cross-Platform API Type Generation | v5.2 | 4/4 | Planning complete | 2026-03-06 |
 | 146. Cross-Platform Weighted Coverage | v5.2 | 0/TBD | Not started | - |
 | 147. Cross-Platform Property Testing | v5.2 | 0/TBD | Not started | - |
 | 148. Cross-Platform E2E Orchestration | v5.2 | 0/TBD | Not started | - |
@@ -668,4 +682,4 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 
 ---
 
-**Last updated:** 2026-03-05
+**Last updated:** 2026-03-06
