@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 144 - Cross-Platform Shared Utilities
+**Current focus:** Phase 145 - Cross-Platform API Type Generation
 
 ## Current Position
 
-Phase: 144 of 26 (Cross-Platform Shared Utilities)
-Plan: 06 of 6 (Phase 144 COMPLETE)
-Status: Phase 144 Plan 05b COMPLETE ✅ - Platform configuration with 4 tasks. Mobile TypeScript path mapping configured for @atom/test-utils (tsconfig.json). Mobile Jest moduleNameMapper configured with regex pattern. Symlinks created: mobile/src/shared → frontend-nextjs/shared, src-tauri/tests/shared_fixtures → fixtures. Cross-platform validation test created (48 tests, 207 lines) validating all shared utilities. Total: 1 file created (207 lines), 2 files modified (7 lines), 2 symlinks, 4 atomic commits. Duration: ~5 minutes. All success criteria verified. Phase 144 COMPLETE - All 6 plans executed (01-04, 05a, 05b). Handoff to Phase 145.
-Last activity: 2026-03-06 — Phase 144 Plan 05b execution complete: All 4 tasks executed with atomic commits. Mobile and desktop platforms configured to use shared test utilities.
+Phase: 145 of 26 (Cross-Platform API Type Generation)
+Plan: 01 of 4
+Status: Phase 145 Plan 01 COMPLETE ✅ - Type generation infrastructure established with openapi-typescript, OpenAPI spec verification (740 endpoints, 364 schemas), and initial TypeScript type generation (48,298 lines). openapi-typescript v7.13.0 installed in frontend-nextjs devDependencies. npm scripts configured: generate:api-types (from file), generate:api-types:watch (from live server). Types generated at frontend-nextjs/src/types/api-generated.ts with paths, components, operations, webhooks exports. DO NOT EDIT header added with timestamp and regeneration instructions. Single source of truth pattern established for cross-platform type safety. Total: 1 file created (48,298 lines), 1 file modified (2 scripts), 3 atomic commits. Duration: ~3 minutes. All success criteria verified.
+Last activity: 2026-03-06 — Phase 145 Plan 01 execution complete: All 3 tasks executed with atomic commits. Type generation infrastructure ready for cross-platform use.
 
-Progress: [█████] 100% (6/6 plans executed: 01, 02, 03, 04, 05a, 05b)
+Progress: [█] 25% (1/4 plans executed: 01)
 
 ## Performance Metrics
 
@@ -159,6 +159,7 @@ Progress: [█████] 100% (6/6 plans executed: 01, 02, 03, 04, 05a, 05b)
 | Phase 144 P03 | 192 | 3 tasks | 3 files |
 | Phase 144 P02 | 119 | 2 tasks | 2 files |
 | Phase 144 P05a | 3 minutes | 3 tasks | 3 files |
+| Phase 145 P01 | 180 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -358,7 +359,8 @@ Recent decisions affecting current work:
 - **Phase 139 (Plan 01)**: Platform-specific testing infrastructure established with SafeAreaContext Jest mock, platform testing helpers (renderWithSafeArea, getiOSInsets, getAndroidInsets), and 21 infrastructure validation tests. All tests passing (100% pass rate). SafeAreaContext mock provides SafeAreaProvider, SafeAreaView, useSafeAreaInsets, useSafeAreaFrame with default (320x640, 0 insets) and custom metrics. iOS device insets support iPhone 8 (no notch), iPhone 13 Pro (notch), iPhone 14 Pro Max (Dynamic Island). Android insets support gesture (bottom: 0) vs button (bottom: 48) navigation. StatusBar API spying uses jest.spyOn for call tracking. Foundation ready for Plan 02 (iOS-specific tests) and Plan 03 (Android-specific tests).
 - **Phase 139 (Plan 01)**: Use React.createElement instead of JSX in .ts files to avoid Babel transformation issues - JSX syntax in testUtils.ts caused "Unexpected token" error, fixed by converting to React.createElement pattern.
 - **Phase 139 (Plan 01)**: Platform.OS switching uses Object.defineProperty with configurable getter for reliable platform mocking - afterEach cleanup prevents test pollution between tests.
-
+- [Phase 145]: Use openapi-typescript instead of openapi-generator-cli for type generation (no framework coupling)
+- [Phase 145]: OpenAPI spec as single source of truth for cross-platform type safety
 
 ### Pending Todos
 
