@@ -576,7 +576,6 @@ export const assertRendersWithoutThrow = (component: React.ReactElement): void =
 // ============================================================================
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { RenderAPI } from '@testing-library/react-native';
 
 /**
  * Render component with SafeAreaProvider and custom insets
@@ -586,7 +585,7 @@ import { RenderAPI } from '@testing-library/react-native';
  *
  * @example
  * const { getByTestId } = renderWithSafeArea(
- *   <MyComponent />,
+ *   React.createElement(MyComponent),
  *   { top: 44, bottom: 34, left: 0, right: 0 } // iPhone 13 Pro
  * );
  */
@@ -600,9 +599,7 @@ export const renderWithSafeArea = (
   } : undefined;
 
   return render(
-    <SafeAreaProvider initialMetrics={initialMetrics}>
-      {component}
-    </SafeAreaProvider>
+    React.createElement(SafeAreaProvider, { initialMetrics }, component)
   );
 };
 
