@@ -123,6 +123,11 @@ export async function mockListen(
     const index = handlers.indexOf(handler);
     if (index !== -1) {
       handlers.splice(index, 1);
+
+      // Clean up empty array to prevent memory leaks
+      if (handlers.length === 0) {
+        activeListeners.delete(eventName);
+      }
     }
   };
 
