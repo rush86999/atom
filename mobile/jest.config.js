@@ -24,6 +24,11 @@ module.exports = {
     'node_modules/(?!(jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?|@expo-google-fonts|react-navigation|@react-navigation|@unimodules|expo-modules|sentry-expo|native-base|react-native-webview|@react-native-clipboard|@react-native-community|@react-native-cookies|react-native-firebase|@react-native-async-storage|axios|@expo/config)/'
   ],
 
+  // Module name mapper for shared utilities
+  moduleNameMapper: {
+    '^@atom/test-utils(.*)$': '<rootDir>/../frontend-nextjs/shared/test-utils$1',
+  },
+
   // Test file patterns
   testMatch: [
     '**/__tests__/**/*.[jt]s?(x)',
