@@ -1,49 +1,14 @@
 {
   "agents": [
-    {
-      "id": "agent-1",
-      "name": "Test Agent 1",
-      "maturity": "AUTONOMOUS",
-      "confidence": 0.95
-    },
-    {
-      "id": "agent-2",
-      "name": "Test Agent 2",
-      "maturity": "SUPERVISED",
-      "confidence": 0.75
-    },
-    {
-      "id": "agent-3",
-      "name": "Test Agent 3",
-      "maturity": "INTERN",
-      "confidence": 0.55
-    },
-    {
-      "id": "agent-4",
-      "name": "Test Agent 4",
-      "maturity": "STUDENT",
-      "confidence": 0.35
-    }
+    { "id": "agent-1", "name": "Test Agent 1", "maturity": "AUTONOMOUS", "confidence": 0.95 },
+    { "id": "agent-2", "name": "Test Agent 2", "maturity": "SUPERVISED", "confidence": 0.75 },
+    { "id": "agent-3", "name": "Test Agent 3", "maturity": "INTERN", "confidence": 0.55 },
+    { "id": "agent-4", "name": "Test Agent 4", "maturity": "STUDENT", "confidence": 0.35 }
   ],
   "workflows": [
-    {
-      "id": "workflow-1",
-      "name": "Test Workflow 1",
-      "steps": 5,
-      "status": "pending"
-    },
-    {
-      "id": "workflow-2",
-      "name": "Test Workflow 2",
-      "steps": 10,
-      "status": "running"
-    },
-    {
-      "id": "workflow-3",
-      "name": "Test Workflow 3",
-      "steps": 3,
-      "status": "completed"
-    }
+    { "id": "workflow-1", "name": "Test Workflow 1", "steps": 5, "status": "pending" },
+    { "id": "workflow-2", "name": "Test Workflow 2", "steps": 10, "status": "running" },
+    { "id": "workflow-3", "name": "Test Workflow 3", "steps": 3, "status": "completed" }
   ],
   "user": {
     "id": "user-1",
