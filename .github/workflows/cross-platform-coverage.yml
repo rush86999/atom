@@ -232,6 +232,23 @@ jobs:
           path: backend/tests/coverage_reports/metrics/cross_platform_summary.json
           retention-days: 30
 
+      - name: Update cross-platform coverage trends
+        run: |
+          python3.11 backend/tests/scripts/update_cross_platform_trending.py \
+            --summary backend/tests/coverage_reports/metrics/cross_platform_summary.json \
+            --trending-file backend/tests/coverage_reports/metrics/cross_platform_trend.json \
+            --commit-sha ${{ github.sha }} \
+            --branch ${{ github.ref_name }} \
+            --prune
+
+      - name: Upload trending data artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-platform-trending
+          path: backend/tests/coverage_reports/metrics/cross_platform_trend.json
+          retention-days: 30
+
       - name: Add coverage summary
         if: always()
         run: |
@@ -336,11 +353,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-coverage'
+          path: coverage-artifacts
+          merge-multiple: true
+
       - name: Download cross-platform summary
         uses: actions/download-artifact@v4
         with:
           name: cross-platform-summary
           path: summary-data
+
+      - name: Download trending data
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-platform-trending
+          path: trending-data
 
       - name: Generate PR comment
         id: comment
@@ -352,6 +382,16 @@ jobs:
             --desktop-coverage coverage-artifacts/desktop-coverage/coverage.json \
             --format pr-comment \
             --output-json /tmp/pr-comment-body.md
+
+          # Append trend section if available
+          if [ -f trending-data/cross_platform_trend.json ]; then
+            echo "" >> /tmp/pr-comment-body.md
+            python3.11 backend/tests/scripts/update_cross_platform_trending.py \
+              --summary summary-data/cross_platform_summary.json \
+              --trending-file trending-data/cross_platform_trend.json \
+              --format markdown \
+              --periods 1 >> /tmp/pr-comment-body.md || echo "Trend data unavailable" >> /tmp/pr-comment-body.md
+          fi
 
           # Set output for use in github-script
           echo "comment_body<<EOF" >> $GITHUB_OUTPUT
