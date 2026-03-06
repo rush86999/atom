@@ -101,6 +101,7 @@ module.exports = {
     "^@components/(.*)$": "<rootDir>/components/$1",
     "^@lib/(.*)$": "<rootDir>/lib/$1",
     "^@hooks/(.*)$": "<rootDir>/hooks/$1",
+    "^@atom/test-utils(.*)$": "<rootDir>/shared/test-utils$1",
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
   },
 };
