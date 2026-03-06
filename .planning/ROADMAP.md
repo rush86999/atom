@@ -119,7 +119,7 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - [x] **Phase 140: Desktop Coverage Baseline** - Establish Tauri/Rust coverage baseline ✅
 - [x] **Phase 141: Desktop Coverage Expansion** - Desktop baseline → 35% (83 tests) ✅
 - [x] **Phase 142: Desktop Rust Backend** - Core logic, IPC handlers, native modules ✅
-- [ ] **Phase 143: Desktop Tauri Commands** - Invoke handlers, event system, window management
+- [x] **Phase 143: Desktop Tauri Commands** - Invoke handlers, event system, window management ✅
 - [ ] **Phase 144: Cross-Platform Shared Utilities** - SYMLINK strategy frontend → mobile/desktop
 - [ ] **Phase 145: Cross-Platform API Type Generation** - openapi-typescript from OpenAPI spec
 - [ ] **Phase 146: Cross-Platform Weighted Coverage** - Platform minimums (backend ≥70%, frontend ≥80%, mobile ≥50%, desktop ≥40%)
@@ -494,17 +494,29 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - Device hardware integration with mocks
 - Target: 80% overall coverage (requires +10-15 pp)
 
-### Phase 143: Desktop Tauri Commands Testing
+### ✅ Phase 143: Desktop Tauri Commands Testing - SHIPPED 2026-03-05
 **Goal**: Tauri commands tested (invoke handlers, event system, window management)
 **Depends on**: Phase 142
 **Requirements**: DESKTOP-04
+**Status**: Complete (2026-03-05)
 **Success Criteria** (what must be TRUE):
-  1. All Tauri commands tested with frontend invoke simulation
-  2. Event system tested with emit/listen validation
-  3. Window management tested with create/close/focus operations
-  4. Command errors tested with proper error propagation
-  5. Tauri state tested with persistent storage
-**Plans**: TBD
+  1. All Tauri commands tested with frontend invoke simulation ✅
+  2. Event system tested with emit/listen validation ✅
+  3. Window management tested with create/close/focus operations ✅
+  4. Command errors tested with proper error propagation ✅
+  5. Tauri state tested with persistent storage ✅
+**Plans**: 3/3 complete (Wave 1: 01, Wave 2: 02-03 parallel) ✅
+- ✅ 143-01-PLAN.md — Tauri command structure tests (21 tests, mock AppHandle)
+- ✅ 143-02-PLAN.md — Tauri event system tests (51 tests, emit/listen/channels)
+- ✅ 143-03-PLAN.md — Tauri window management tests (45 tests, show/hide/focus/state)
+
+**Total Impact:** 117 tests across 7 files (3,743 lines), 100% pass rate, 37 minutes execution time
+**Coverage Increase:** ~11-18 percentage points (from 65-70% to 76-88% estimated)
+**Key Deliverables:**
+- Tauri command tests with mock AppHandle (file operations, system info, command execution)
+- Event system mock with emit/listen simulation (satellite CLI, folder watching, device events)
+- Window management mock with state tracking (show/hide/focus/close, minimize-to-tray, multi-window)
+- Memory leak prevention and cleanup validation
 
 ### Phase 144: Cross-Platform Shared Utilities
 **Goal**: Shared test utilities operational (SYMLINK strategy frontend → mobile/desktop)
