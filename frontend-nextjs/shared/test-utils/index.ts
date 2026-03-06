@@ -22,6 +22,14 @@ export * from './types';
 // ============================================================================
 // Async Utilities (Plan 02)
 // ============================================================================
+export {
+  waitForAsync,
+  flushPromises,
+  waitForCondition,
+  wait,
+  advanceTimersByTime,
+  advanceTimersByTimeSync,
+} from './async-utils';
 export * from './async-utils';
 
 // ============================================================================
