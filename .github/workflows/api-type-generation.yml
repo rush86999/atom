@@ -1,0 +1,78 @@
+name: API Type Generation
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**/*.py'
+      - 'backend/core/openapi.py'
+      - 'backend/api/**/*.py'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**/*.py'
+      - 'backend/core/openapi.py'
+      - 'backend/api/**/*.py'
+  workflow_dispatch:
+
+jobs:
+  generate-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install fastapi uvicorn
+
+      - name: Generate OpenAPI spec
+        working-directory: ./backend
+        run: |
+          python tests/scripts/generate_openapi_spec.py -o openapi.json
+
+      - name: Install openapi-typescript
+        run: npm install -g openapi-typescript
+
+      - name: Generate TypeScript types
+        run: |
+          npx openapi-typescript backend/openapi.json -o frontend-nextjs/src/types/api-generated.ts
+
+      - name: Verify TypeScript compilation
+        working-directory: ./frontend-nextjs
+        run: |
+          npx tsc --noEmit src/types/api-generated.ts
+
+      - name: Detect breaking changes
+        run: |
+          if [ -f backend/openapi-baseline.json ]; then
+            npx openapi-diff backend/openapi-baseline.json backend/openapi.json || true
+          fi
+
+      - name: Commit generated types
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add frontend-nextjs/src/types/api-generated.ts
+          git add backend/openapi.json
+          git diff --staged --quiet || git commit -m "chore: regenerate API types from OpenAPI spec"
+
+      - name: Upload generated types as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-generated-types
+          path: |
+            frontend-nextjs/src/types/api-generated.ts
+            backend/openapi.json
+          retention-days: 30
