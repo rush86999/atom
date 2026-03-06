@@ -528,7 +528,12 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. SYMLINK setup configured for desktop/src/shared → frontend/shared
   4. Shared utilities tested across all three platforms
   5. Test data consistency verified with cross-platform validation
-**Plans**: TBD
+**Plans**: 5 (Wave 1: 01, Wave 2: 02-03-04, Wave 3: 05)
+- [ ] 144-01-PLAN.md — Shared utilities infrastructure (directory, barrel, types, TS config)
+- [ ] 144-02-PLAN.md — Platform-agnostic async utilities (waitFor, flushPromises, waitForCondition)
+- [ ] 144-03-PLAN.md — Mock factories and assertions (createMockWebSocket, createMockFn, assertions)
+- [ ] 144-04-PLAN.md — Platform guards and cleanup (isWeb, resetAllMocks, setupFakeTimers)
+- [ ] 144-05-PLAN.md — Symlinks, path mapping, Jest config, test data fixtures
 
 ### Phase 145: Cross-Platform API Type Generation
 **Goal**: API type generation automated (openapi-typescript from OpenAPI spec)
@@ -650,7 +655,7 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 141. Desktop Coverage Expansion | v5.2 | 6/6 | Complete | 2026-03-05 |
 | 142. Desktop Rust Backend | v5.2 | 0/7 | Planning complete | 2026-03-05 |
 | 143. Desktop Tauri Commands | v5.2 | 3/3 | Complete | 2026-03-06 |
-| 144. Cross-Platform Shared Utilities | v5.2 | 0/TBD | Not started | - |
+| 144. Cross-Platform Shared Utilities | v5.2 | 5/5 | Planning complete | - |
 | 145. Cross-Platform API Type Generation | v5.2 | 0/TBD | Not started | - |
 | 146. Cross-Platform Weighted Coverage | v5.2 | 0/TBD | Not started | - |
 | 147. Cross-Platform Property Testing | v5.2 | 0/TBD | Not started | - |
