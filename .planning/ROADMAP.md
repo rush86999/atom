@@ -524,16 +524,17 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 **Requirements**: CROSS-01
 **Success Criteria** (what must be TRUE):
   1. Shared test helpers created in frontend-nextjs/shared/
-  2. SYMLINK setup configured for mobile/src/shared → frontend/shared
-  3. SYMLINK setup configured for desktop/src/shared → frontend/shared
-  4. Shared utilities tested across all three platforms
-  5. Test data consistency verified with cross-platform validation
-**Plans**: 5 (Wave 1: 01, Wave 2: 02-03-04, Wave 3: 05)
+  2. SYMLINK setup configured for mobile/src/shared → frontend/shared (TypeScript utilities)
+  3. SYMLINK setup configured for desktop/src-tauri/tests/shared_fixtures → frontend/shared/test-utils/fixtures (JSON fixtures only for Rust)
+  4. Shared utilities tested across web and mobile platforms (Rust uses JSON fixtures)
+  5. Test data consistency verified with cross-platform validation test
+**Plans**: 6 (Wave 1: 01, Wave 2: 02-03-04 parallel, Wave 3: 05a-05b)
 - [ ] 144-01-PLAN.md — Shared utilities infrastructure (directory, barrel, types, TS config)
 - [ ] 144-02-PLAN.md — Platform-agnostic async utilities (waitFor, flushPromises, waitForCondition)
 - [ ] 144-03-PLAN.md — Mock factories and assertions (createMockWebSocket, createMockFn, assertions)
 - [ ] 144-04-PLAN.md — Platform guards and cleanup (isWeb, resetAllMocks, setupFakeTimers)
-- [ ] 144-05-PLAN.md — Symlinks, path mapping, Jest config, test data fixtures
+- [ ] 144-05a-PLAN.md — Test data fixtures (test-data.ts, JSON fixtures, index.ts update)
+- [ ] 144-05b-PLAN.md — Platform configuration (mobile TS/Jest configs, symlinks, validation)
 
 ### Phase 145: Cross-Platform API Type Generation
 **Goal**: API type generation automated (openapi-typescript from OpenAPI spec)
