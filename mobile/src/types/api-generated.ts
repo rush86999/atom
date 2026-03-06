@@ -1,0 +1,1 @@
+../../../frontend-nextjs/src/types/api-generated.ts
