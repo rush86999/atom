@@ -28,6 +28,7 @@ Example:
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -486,6 +487,139 @@ def generate_markdown_report(data):
     return "\n".join(lines)
 
 
+def generate_pr_comment(
+    aggregate_data,
+    thresholds,
+    event_type
+):
+    """
+    Generate PR comment in markdown format.
+
+    Args:
+        aggregate_data: Aggregated coverage data from compute_weighted_coverage
+        thresholds: Platform-specific thresholds
+        event_type: 'pull_request' or 'push'
+
+    Returns:
+        Markdown string for PR comment
+    """
+    lines = []
+
+    # Header
+    lines.append("## Cross-Platform Coverage Report")
+    lines.append("")
+    lines.append(f"**Generated:** {aggregate_data['timestamp']}")
+    lines.append(f"**Event:** {event_type}")
+    lines.append("")
+
+    # Overall summary
+    overall = aggregate_data.get("weighted", {})
+    overall_pct = overall.get("overall_pct", 0.0)
+    lines.append("### Overall Coverage")
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|--------|-------|")
+    lines.append(f"| **Weighted Overall** | **{overall_pct:.2f}%** |")
+
+    # Determine target based on event type
+    target = 75.0 if event_type == "pull_request" else 80.0
+    gap = target - overall_pct
+    gap_text = f"+{abs(gap):.2f}%" if gap < 0 else f"{gap:.2f}%"
+    lines.append(f"| **Target** | {target:.0f}% |")
+    lines.append(f"| **Gap** | {gap_text} |")
+    lines.append("")
+
+    # Overall status
+    if overall_pct >= target:
+        lines.append("### ✅ Overall Target Met")
+    elif overall_pct >= 60:
+        lines.append("### ⚠️ Overall Below Target")
+    else:
+        lines.append("### ❌ Critical Coverage Gap")
+    lines.append("")
+
+    # Platform breakdown
+    lines.append("### Platform Breakdown")
+    lines.append("")
+    lines.append("| Platform | Coverage | Threshold | Status |")
+    lines.append("|----------|----------|-----------|--------|")
+
+    for platform_info in overall.get("platform_breakdown", []):
+        platform_name = platform_info["platform"].capitalize()
+        coverage_pct = platform_info.get("coverage_pct", 0.0)
+        threshold = thresholds.get(platform_info["platform"], 70.0)
+        status = "✅" if coverage_pct >= threshold else "❌"
+        gap = threshold - coverage_pct
+        gap_indicator = f" ({gap:+.2f}%)" if gap > 0 else ""
+
+        lines.append(
+            f"| **{platform_name}** | "
+            f"{coverage_pct:.2f}%{gap_indicator} | "
+            f"{threshold:.0f}% | "
+            f"{status} |"
+        )
+
+    lines.append("")
+
+    # Failing platforms section
+    failures = []
+    for platform_name, coverage_data in aggregate_data.get("platforms", {}).items():
+        coverage_pct = coverage_data.get("coverage_pct", 0.0)
+        threshold = thresholds.get(platform_name, 70.0)
+        if coverage_pct < threshold:
+            gap = threshold - coverage_pct
+            failures.append(f"- **{platform_name.capitalize()}**: {coverage_pct:.2f}% < {threshold:.0f}% (gap: {gap:.2f}%)")
+
+    if failures:
+        lines.append("### Platforms Below Threshold")
+        lines.append("")
+        for failure in failures:
+            lines.append(failure)
+        lines.append("")
+        lines.append("**Enforcement:**")
+        if event_type == "pull_request":
+            lines.append("- PR: Warning only (allows development flexibility)")
+        else:
+            lines.append("- Main: Build will fail (strict enforcement)")
+        lines.append("")
+
+    # Remediation steps
+    if failures:
+        lines.append("### Remediation Steps")
+        lines.append("")
+        for failure in failures:
+            platform = failure.split(":")[0].strip("**").lower()
+            if platform == "backend":
+                lines.append("#### Backend")
+                lines.append("- Run: `pytest tests/ --cov=core --cov=api --cov=tools --cov-report=term-missing`")
+                lines.append("- Add tests for uncovered lines in high-impact services")
+                lines.append("- Focus on governance, episodic memory, LLM services")
+            elif platform == "frontend":
+                lines.append("#### Frontend")
+                lines.append("- Run: `npm test -- --coverage --coverageReporters=json`")
+                lines.append("- Add component tests for uncovered UI elements")
+                lines.append("- Focus on canvas, chat, agent execution screens")
+            elif platform == "mobile":
+                lines.append("#### Mobile")
+                lines.append("- Run: `npm test -- --coverage`")
+                lines.append("- Add tests for device features (camera, location, notifications)")
+                lines.append("- Focus on platform-specific components (iOS vs Android)")
+            elif platform == "desktop":
+                lines.append("#### Desktop")
+                lines.append("- Run: `cargo tarpaulin --out Json`")
+                lines.append("- Add tests for IPC handlers, system tray, file operations")
+                lines.append("- Focus on platform-specific code (Windows/macOS/Linux)")
+        lines.append("")
+
+    # Artifacts section
+    lines.append("### Artifacts")
+    lines.append("")
+    lines.append(f"- [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})")
+    lines.append("- Coverage reports available for 30 days in workflow artifacts")
+
+    return "\n".join(lines)
+
+
 def parse_weights_arg(weights_str):
     """Parse weights argument string (e.g., 'backend=0.35,frontend=0.40')."""
     weights = {}
@@ -560,9 +694,17 @@ def main():
     parser.add_argument(
         "--format",
         type=str,
-        choices=["text", "json", "markdown"],
+        choices=["text", "json", "markdown", "pr-comment"],
         default="text",
         help="Output format"
+    )
+
+    parser.add_argument(
+        "--event-type",
+        type=str,
+        choices=["pull_request", "push"],
+        default=None,
+        help="GitHub event type (default: auto-detect from GITHUB_EVENT_NAME env var)"
     )
 
     parser.add_argument(
@@ -573,12 +715,19 @@ def main():
 
     args = parser.parse_args()
 
+    # Detect event type from environment if not specified
+    if args.event_type is None:
+        event_type = os.getenv("GITHUB_EVENT_NAME", "push")
+    else:
+        event_type = args.event_type
+
     # Use custom weights/thresholds if provided
     weights = parse_weights_arg(args.weights) if args.weights else PLATFORM_WEIGHTS.copy()
     thresholds = parse_thresholds_arg(args.thresholds) if args.thresholds else PLATFORM_THRESHOLDS.copy()
 
     logger.info(f"Using platform weights: {weights}")
     logger.info(f"Using platform thresholds: {thresholds}")
+    logger.info(f"Event type: {event_type}")
 
     # Load all platform coverages
     coverage_data = {
@@ -613,6 +762,9 @@ def main():
         print(report)
     elif args.format == "markdown":
         report = generate_markdown_report(result)
+        print(report)
+    elif args.format == "pr-comment":
+        report = generate_pr_comment(result, thresholds, event_type)
         print(report)
 
     # Save JSON output
