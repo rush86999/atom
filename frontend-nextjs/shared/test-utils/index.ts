@@ -54,11 +54,35 @@ export {
 export * from './assertions';
 
 // ============================================================================
-// Cleanup Utilities
+// Cleanup Utilities (Plan 04)
 // ============================================================================
+export {
+  resetAllMocks,
+  setupFakeTimers,
+  cleanupTest,
+  cleanupTestWithReset,
+  clearAllTimers,
+  restoreRealTimers,
+  resetAllModules,
+  cleanupAsyncTest,
+  cleanupWithFakeTimers,
+} from './cleanup';
 export * from './cleanup';
 
 // ============================================================================
-// Platform Guards
+// Platform Guards (Plan 04)
 // ============================================================================
+export {
+  isWeb,
+  isReactNative,
+  isTauri,
+  isIOS,
+  isAndroid,
+  skipIfNotWeb,
+  skipIfNotReactNative,
+  skipIfNotTauri,
+  testEachPlatform,
+  skipOnPlatform,
+  onlyOnPlatform,
+} from './platform-guards';
 export * from './platform-guards';
