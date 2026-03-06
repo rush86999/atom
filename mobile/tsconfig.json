@@ -24,7 +24,9 @@
       "@/hooks/*": ["src/hooks/*"],
       "@/utils/*": ["src/utils/*"],
       "@/types/*": ["src/types/*"],
-      "@/assets/*": ["src/assets/*"]
+      "@/assets/*": ["src/assets/*"],
+      "@atom/test-utils": ["../frontend-nextjs/shared/test-utils"],
+      "@atom/test-utils/*": ["../frontend-nextjs/shared/test-utils/*"]
     }
   },
   "include": [
