@@ -250,6 +250,82 @@ jobs:
             )
           ' >> $GITHUB_STEP_SUMMARY
 
+      - name: Check platform thresholds (PR warning)
+        if: github.event_name == 'pull_request'
+        run: |
+          SUMMARY=$(cat backend/tests/coverage_reports/metrics/cross_platform_summary.json)
+
+          echo "Checking platform thresholds (PR mode - warnings only)..."
+          echo "$SUMMARY" | jq '.platforms'
+
+          # Check each platform threshold
+          BACKEND=$(echo "$SUMMARY" | jq -r '.platforms.python.coverage_pct // 0')
+          FRONTEND=$(echo "$SUMMARY" | jq -r '.platforms.javascript.coverage_pct // 0')
+          MOBILE=$(echo "$SUMMARY" | jq -r '.platforms.mobile.coverage_pct // 0')
+          DESKTOP=$(echo "$SUMMARY" | jq -r '.platforms.rust.coverage_pct // 0')
+
+          if (( $(echo "$BACKEND < 70" | bc -l) )); then
+            echo "::warning::Backend coverage ${BACKEND}% is below 70% threshold"
+          fi
+
+          if (( $(echo "$FRONTEND < 80" | bc -l) )); then
+            echo "::warning::Frontend coverage ${FRONTEND}% is below 80% threshold"
+          fi
+
+          if (( $(echo "$MOBILE < 50" | bc -l) )); then
+            echo "::warning::Mobile coverage ${MOBILE}% is below 50% threshold"
+          fi
+
+          if (( $(echo "$DESKTOP < 40" | bc -l) )); then
+            echo "::warning::Desktop coverage ${DESKTOP}% is below 40% threshold"
+          fi
+
+          echo "ℹ️  PR mode: Warnings only, build will not fail"
+
+      - name: Enforce platform thresholds on main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          SUMMARY=$(cat backend/tests/coverage_reports/metrics/cross_platform_summary.json)
+
+          echo "Checking platform thresholds..."
+          echo "$SUMMARY" | jq '.platforms'
+
+          # Check each platform threshold
+          BACKEND=$(echo "$SUMMARY" | jq -r '.platforms.python.coverage_pct // 0')
+          FRONTEND=$(echo "$SUMMARY" | jq -r '.platforms.javascript.coverage_pct // 0')
+          MOBILE=$(echo "$SUMMARY" | jq -r '.platforms.mobile.coverage_pct // 0')
+          DESKTOP=$(echo "$SUMMARY" | jq -r '.platforms.rust.coverage_pct // 0')
+
+          FAILED=""
+
+          if (( $(echo "$BACKEND < 70" | bc -l) )); then
+            echo "❌ Backend coverage ${BACKEND}% < 70%"
+            FAILED="${FAILED}backend "
+          fi
+
+          if (( $(echo "$FRONTEND < 80" | bc -l) )); then
+            echo "❌ Frontend coverage ${FRONTEND}% < 80%"
+            FAILED="${FAILED}frontend "
+          fi
+
+          if (( $(echo "$MOBILE < 50" | bc -l) )); then
+            echo "❌ Mobile coverage ${MOBILE}% < 50%"
+            FAILED="${FAILED}mobile "
+          fi
+
+          if (( $(echo "$DESKTOP < 40" | bc -l) )); then
+            echo "❌ Desktop coverage ${DESKTOP}% < 40%"
+            FAILED="${FAILED}desktop "
+          fi
+
+          if [ -n "$FAILED" ]; then
+            echo "::error::Coverage enforcement failed for: $FAILED"
+            echo "::error::Main branch requires: backend>=70%, frontend>=80%, mobile>=50%, desktop>=40%"
+            exit 1
+          fi
+
+          echo "✅ All platforms meet minimum thresholds"
+
   pr-comment:
     name: Post PR Comment
     needs: aggregate-coverage
