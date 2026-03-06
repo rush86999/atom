@@ -609,13 +609,18 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 **Goal**: Property tests unified (FastCheck shared across frontend/mobile/desktop)
 **Depends on**: Phase 146
 **Requirements**: CROSS-04
+**Status**: Planning complete (2026-03-06)
 **Success Criteria** (what must be TRUE):
   1. FastCheck property tests created for shared state invariants
   2. Property tests shared via SYMLINK across platforms
   3. Canvas state invariants tested with property-based generation
   4. Agent maturity invariants tested with state machine validation
   5. Property test results aggregated across all platforms
-**Plans**: TBD
+**Plans**: 4 (Wave 1: 01, Wave 2: 02, Wave 3: 03, Wave 4: 04)
+- [ ] 147-01-PLAN.md — Shared property test infrastructure (directory, types, config, 12 properties)
+- [ ] 147-02-PLAN.md — SYMLINK distribution and platform integration (frontend, mobile, desktop)
+- [ ] 147-03-PLAN.md — Cross-platform result aggregation (script, tests, CI/CD)
+- [ ] 147-04-PLAN.md — Documentation and verification (docs, ROADMAP update)
 
 ### Phase 148: Cross-Platform E2E Orchestration
 **Goal**: E2E orchestration unified (Playwright web + Detox mobile + Tauri desktop)
