@@ -52,11 +52,20 @@ except ImportError:
     ANTHROPIC_AVAILABLE = False
     logger.warning("Anthropic not available for NLU LLM parsing")
 
+# Google Gemini as secondary fallback
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    genai = None
+    GEMINI_AVAILABLE = False
+    logger.warning("google-generativeai not available for NLU LLM parsing")
+
 # ==================== CONFIGURATION ====================
 
 NLU_LLM_ENABLED = os.getenv("NLU_LLM_ENABLED", "true").lower() == "true"
-NLU_LLM_PROVIDER = os.getenv("NLU_LLM_PROVIDER", "openai")
-NLU_LLM_MODEL = os.getenv("NLU_LLM_MODEL", "gpt-4o-mini")
+NLU_LLM_PROVIDER = os.getenv("NLU_LLM_PROVIDER", os.getenv("DEFAULT_LLM_PROVIDER", "openai"))
+NLU_LLM_MODEL = os.getenv("NLU_LLM_MODEL", os.getenv("DEFAULT_LLM_MODEL", "gpt-4o-mini"))
 
 # ==================== ENUMS AND DATA CLASSES ====================
 
@@ -182,7 +191,21 @@ class NaturalLanguageEngine:
                         logger.info(f"NLU LLM initialized with Anthropic (BYOK/Env)")
                         return
             
-            logger.warning("No suitable LLM provider found for NLU parsing (OpenAI or Anthropic).")
+                # Check Gemini fallback
+            if GEMINI_AVAILABLE and genai:
+                gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+                if not gemini_key and self._byok_manager:
+                    gemini_key = self._byok_manager.get_api_key("gemini") or self._byok_manager.get_api_key("google")
+
+                if gemini_key:
+                    genai.configure(api_key=gemini_key)
+                    self.active_provider = "gemini"
+                    self.api_key = gemini_key
+                    self._llm_client = genai.GenerativeModel("gemini-1.5-flash")
+                    logger.info("NLU LLM initialized with Google Gemini (Env key)")
+                    return
+            
+            logger.warning("No suitable LLM provider found for NLU parsing (OpenAI, Anthropic, or Gemini).")
             
             # Phase 42: Mock Fallback for Testing/Verification
             # If we are in a test environment or explicitly enable mocks
@@ -218,6 +241,9 @@ class NaturalLanguageEngine:
                  
             elif self.active_provider == "anthropic" and self._llm_client:
                 return await self._anthropic_parse_command(command)
+
+            elif self.active_provider == "gemini" and self._llm_client:
+                return await self._gemini_parse_command(command)
                 
             elif self.active_provider == "mock":
                 return await self._mock_parse_command(command)
@@ -357,6 +383,65 @@ Return ONLY JSON. No markdown.
             
         except Exception as e:
             logger.warning(f"Anthropic parsing failed: {e}")
+            raise e
+
+    async def _gemini_parse_command(self, command: str) -> Optional[CommandIntent]:
+        """Parse using Google Gemini (JSON output)"""
+        try:
+            prompt = f"""You are an NLU parser for ATOM productivity platform.
+Analyze the user command and return ONLY a valid JSON object with the intent.
+
+Command: "{command}"
+
+Valid command_type values: search, create, update, delete, schedule, analyze, report, notify, trigger, business_health, workflow_creation, unknown
+Valid platform values: communication, storage, productivity, crm, financial, marketing, analytics
+
+Output ONLY this JSON, no markdown:
+{{"command_type": "unknown", "platforms": [], "entities": [], "parameters": {{}}, "confidence": 0.8, "reasoning": "brief explanation"}}"""
+            
+            import asyncio
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None, 
+                lambda: self._llm_client.generate_content(prompt)
+            )
+            
+            response_text = response.text.strip()
+            # Strip markdown code fences if present
+            if "```" in response_text:
+                response_text = response_text.split("```")[1].strip()
+                if response_text.startswith("json"):
+                    response_text = response_text[4:].strip()
+
+            data = json.loads(response_text)
+
+            try:
+                cmd_type = CommandType(data.get("command_type", "unknown"))
+            except ValueError:
+                cmd_type = CommandType.UNKNOWN
+
+            platforms = []
+            for p in data.get("platforms", []):
+                try:
+                    platforms.append(PlatformType(p))
+                except ValueError:
+                    pass
+
+            intent = CommandIntent(
+                command_type=cmd_type,
+                platforms=platforms,
+                entities=data.get("entities", []),
+                parameters=data.get("parameters", {}),
+                confidence=float(data.get("confidence", 0.7)),
+                raw_command=command,
+                llm_parsed=True,
+                reasoning=data.get("reasoning")
+            )
+            logger.info(f"LLM parsed (Gemini): {intent.command_type}")
+            return intent
+
+        except Exception as e:
+            logger.warning(f"Gemini parsing failed: {e}")
             raise e
 
     # ==================== MAIN PARSE METHOD ====================

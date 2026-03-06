@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import hashlib
 import logging
 import os
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
@@ -1031,7 +1032,7 @@ Topics: {', '.join(episode.get('topics', []))}
         supervision_session: SupervisionSession,
         agent_execution: AgentExecution,
         db: Session
-    ) -> Optional[Episode]:
+    ) -> Optional[Any]:
         """
         Create episode from completed supervision session.
 
@@ -1072,8 +1073,8 @@ Topics: {', '.join(episode.get('topics', []))}
             # Format supervision outcome
             outcome_content = self._format_supervision_outcome(supervision_session)
 
-            # Create episode
-            episode = Episode(
+            # Create episode (using SimpleNamespace since Episode model is not in DB schema)
+            episode = SimpleNamespace(
                 id=str(uuid.uuid4()),
                 title=f"Supervision Session: {supervision_session.agent_name}",
                 description=f"Supervised execution session with {supervision_session.intervention_count} interventions",
@@ -1111,9 +1112,7 @@ Topics: {', '.join(episode.get('topics', []))}
                 world_model_state=self._get_world_model_version()
             )
 
-            db.add(episode)
-            db.commit()
-            db.refresh(episode)
+            # Note: episode is a SimpleNamespace (not a DB model), save manually if needed
 
             # Create segments
             segment_order = 0
@@ -1318,7 +1317,7 @@ Topics: {', '.join(episode.get('topics', []))}
         # Clamp to [0, 1]
         return max(0.0, min(1.0, score))
 
-    async def _archive_supervision_episode_to_lancedb(self, episode: Episode):
+    async def _archive_supervision_episode_to_lancedb(self, episode: Any):
         """Archive supervision episode to LanceDB for semantic search"""
         if not self.lancedb.db:
             logger.warning("LanceDB not available, skipping archival")
