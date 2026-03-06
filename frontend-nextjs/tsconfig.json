@@ -82,6 +82,12 @@
       ],
       "@/utils/*": [
         "../../src/utils/*"
+      ],
+      "@atom/test-utils": [
+        "./shared/test-utils"
+      ],
+      "@atom/test-utils/*": [
+        "./shared/test-utils/*"
       ]
     },
     "jsx": "preserve",
