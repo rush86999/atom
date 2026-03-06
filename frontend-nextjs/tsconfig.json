@@ -88,6 +88,12 @@
       ],
       "@atom/test-utils/*": [
         "./shared/test-utils/*"
+      ],
+      "@atom/property-tests": [
+        "./shared/property-tests"
+      ],
+      "@atom/property-tests/*": [
+        "./shared/property-tests/*"
       ]
     },
     "jsx": "preserve",
