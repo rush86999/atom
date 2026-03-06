@@ -81,6 +81,9 @@ temp_*.py
 debug_*.py
 
 # OpenAPI specs (baseline committed, temp files ignored)
+# NOTE: openapi.json and frontend api-generated.ts are committed intentionally
+# They are source code for API type consumers (frontend, mobile, desktop)
+# Single source of truth for cross-platform type synchronization
 openapi_*.json
 !openapi.json
 /openapi*.json
