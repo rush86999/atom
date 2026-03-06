@@ -8,6 +8,9 @@ module.exports = {
   },
   preset: "ts-jest",
   testMatch: [
+    // Shared property tests (Phase 147: Cross-Platform Property Testing)
+    "<rootDir>/shared/property-tests/**/*.ts",
+    // Standard test files
     "<rootDir>/tests/**/*.test.(ts|tsx|js)",
     "<rootDir>/components/**/__tests__/**/*.test.(ts|tsx|js)",
     "<rootDir>/components/**/__tests__/**/*.a11y.test.(ts|tsx)",
