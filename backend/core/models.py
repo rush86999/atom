@@ -276,6 +276,25 @@ class Tenant(Base):
     push_tokens = relationship("PushToken", back_populates="tenant", cascade="all, delete-orphan")
     settings_list = relationship("TenantSetting", back_populates="tenant", cascade="all, delete-orphan")
 
+class CandidateBookingState(Base):
+    __tablename__ = "candidate_booking_state"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_execution_id = Column(String, ForeignKey('workflow_executions.execution_id', ondelete='CASCADE'), nullable=False, index=True)
+    candidate_email = Column(String, nullable=False, index=True)
+    job_role = Column(String, nullable=False)
+    
+    proposed_times = Column(JSON, default=[]) # e.g. ["2026-03-07T10:00Z", "2026-03-08T14:00Z"]
+    agreed_time = Column(String, nullable=True) # ISO string when chosen
+    status = Column(String, default="pending_candidate") # pending_candidate -> confirmed
+    
+    # Internal routing information
+    thread_id = Column(String, nullable=True) # Gmail thread to resume on reply
+    zoom_link = Column(String, nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
 class TenantSetting(Base):
     """Model for tenant-specific settings and API keys"""
     __tablename__ = "tenant_settings"
@@ -2161,6 +2180,7 @@ class SkillExecution(Base):
     skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
+    package_id = Column(String, ForeignKey("package_registry.id", ondelete="SET NULL"), nullable=True, index=True)
 
     status = Column(String, default="pending")  # pending, running, completed, failed
     input_params = Column(JSON, nullable=True)
@@ -2196,6 +2216,7 @@ class SkillExecution(Base):
     agent = relationship("AgentRegistry", backref="skill_executions")
     tenant = relationship("Tenant", backref="skill_executions")
     skill = relationship("Skill", backref="execution_records")
+    package = relationship("PackageRegistry", back_populates="executions")
 
 
 class SkillComposition(Base):

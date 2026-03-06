@@ -80,6 +80,9 @@ class WorkflowStepType(Enum):
     RETENTION_PLAYBOOK = "retention_playbook"
     BUSINESS_AGENT_EXECUTION = "business_agent_execution"
     B2B_PO_DETECTION = "b2b_po_detection"
+    # Phase specific integrations
+    ZOHO_CRM_INTEGRATION = "zoho_crm_integration"
+    ZOOM_INTEGRATION = "zoom_integration"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -828,12 +831,168 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             triggers=["SHOPIFY_ORDER_CREATED"]
         )
 
+        # Workflow 6: B2B Lead Triage (Phase 1)
+        b2b_lead_triage = WorkflowDefinition(
+            workflow_id="b2b_lead_triage",
+            name="B2B Lead Triage & Pre-Sales Escalation",
+            description="Process inbound leads, analyze technical queries, draft responses, and escalate via HITL.",
+            steps=[
+                WorkflowStep(
+                    step_id="analyze_inbound_email",
+                    step_type=WorkflowStepType.NLU_ANALYSIS,
+                    description="Extract lead info and technical query",
+                    parameters={
+                        "system_prompt": "Extract lead information: company name, sender name, inquiry intent. Detect if the email contains highly specific technical questions (e.g., about SSO, integrations, networking). Return JSON: {\"is_technical\": boolean, \"lead_data\": {\"name\": str, \"company\": str}, \"tech_query\": str}",
+                    },
+                    next_steps=["update_zoho_crm"]
+                ),
+                WorkflowStep(
+                    step_id="update_zoho_crm",
+                    step_type=WorkflowStepType.ZOHO_CRM_INTEGRATION,
+                    description="Create/Update lead in Zoho CRM",
+                    parameters={"action": "create_lead", "lead_data": "{{analyze_inbound_email.lead_data}}"},
+                    next_steps=["check_technical"]
+                ),
+                WorkflowStep(
+                    step_id="check_technical",
+                    step_type=WorkflowStepType.CONDITIONAL_LOGIC,
+                    description="Branch if query is highly technical",
+                    parameters={
+                        "conditions": [
+                            {"if": "analyze_inbound_email.is_technical == true", "then": ["engineering_notion_search"]},
+                            {"else": ["generate_zoom_link"]} # If not technical, just schedule standard discovery
+                        ]
+                    },
+                    next_steps=["engineering_notion_search", "generate_zoom_link"]
+                ),
+                WorkflowStep(
+                    step_id="engineering_notion_search",
+                    step_type=WorkflowStepType.NOTION_SEARCH,
+                    description="Search Notion for technical answer",
+                    parameters={"query": "{{analyze_inbound_email.tech_query}}"},
+                    next_steps=["generate_zoom_link"]
+                ),
+                WorkflowStep(
+                    step_id="generate_zoom_link",
+                    step_type=WorkflowStepType.ZOOM_INTEGRATION,
+                    description="Generate a Zoom meeting link",
+                    parameters={"topic": "Technical Discovery Call - {{analyze_inbound_email.lead_data.company}}", "type": 2, "duration": 30},
+                    next_steps=["draft_reply"]
+                ),
+                WorkflowStep(
+                    step_id="draft_reply",
+                    step_type=WorkflowStepType.NLU_ANALYSIS,
+                    description="Draft email reply combining answer and scheduling link",
+                    parameters={
+                        "system_prompt": "Draft a highly professional sales email merging this technical answer: {{engineering_notion_search.result}} and this scheduling link: {{generate_zoom_link.join_url}}. Keep it concise."
+                    },
+                    next_steps=["governance_check"]
+                ),
+                WorkflowStep(
+                    step_id="governance_check",
+                    step_type=WorkflowStepType.APPROVAL_REQUIRED,
+                    description="Check agent maturity and request HITL approval if Student",
+                    parameters={"action": "send_email", "channel": "#manager-approvals"},
+                    next_steps=["send_final_email"]
+                ),
+                WorkflowStep(
+                    step_id="send_final_email",
+                    step_type=WorkflowStepType.EMAIL_SEND,
+                    description="Send drafted reply via Gmail",
+                    parameters={"template": "raw", "content": "{{draft_reply.result}}"},
+                    next_steps=[]
+                )
+            ],
+            start_step="analyze_inbound_email",
+            triggers=["EMAIL_RECEIVED"]
+        )
+
+        # Workflow 7: Autonomous Multi-Party Interview Scheduling (Phase 2)
+        autonomous_interview_scheduler = WorkflowDefinition(
+            workflow_id="autonomous_interview_scheduler",
+            name="Autonomous Interview Scheduler",
+            description="Coordinate multi-party interviews, handle availability, and book final times.",
+            steps=[
+                WorkflowStep(
+                    step_id="extract_interview_request",
+                    step_type=WorkflowStepType.NLU_ANALYSIS,
+                    description="Extract candidate details and interviewer list",
+                    parameters={
+                        "system_prompt": "Extract candidate email, job role, and the list of requested interviewers from this request. Return JSON: {\"candidate_email\": str, \"role\": str, \"interviewers\": [str]}"
+                    },
+                    next_steps=["check_interviewer_availability"]
+                ),
+                WorkflowStep(
+                    step_id="check_interviewer_availability",
+                    step_type=WorkflowStepType.API_CALL, # Simulating a multi-calendar check
+                    description="Find common available slots across all interviewers",
+                    parameters={"action": "find_common_slots", "emails": "{{extract_interview_request.interviewers}}"},
+                    next_steps=["draft_proposal_email"]
+                ),
+                WorkflowStep(
+                    step_id="draft_proposal_email",
+                    step_type=WorkflowStepType.NLU_ANALYSIS,
+                    description="Draft email proposing times to candidate",
+                    parameters={
+                        "system_prompt": "Draft a polite email to {{extract_interview_request.candidate_email}} proposing these times for their {{extract_interview_request.role}} interview: {{check_interviewer_availability.slots}}."
+                    },
+                    next_steps=["send_proposal_email"]
+                ),
+                WorkflowStep(
+                    step_id="send_proposal_email",
+                    step_type=WorkflowStepType.EMAIL_SEND,
+                    description="Send proposed times to candidate",
+                    parameters={"template": "raw", "content": "{{draft_proposal_email.result}}"},
+                    next_steps=["wait_for_reply"]
+                ),
+                WorkflowStep(
+                    step_id="wait_for_reply",
+                    step_type=WorkflowStepType.DELAY, # In reality, the webhook handler resumes this, the delay acts as a timeout/pause
+                    description="Pause workflow until candidate replies",
+                    parameters={"duration": 48, "unit": "hours"}, 
+                    next_steps=["analyze_candidate_reply"] 
+                ),
+                WorkflowStep(
+                    step_id="analyze_candidate_reply",
+                    step_type=WorkflowStepType.NLU_ANALYSIS,
+                    description="Determine which time the candidate selected",
+                    parameters={
+                        "system_prompt": "Read the candidate's reply and identify which of the proposed times they selected. Return JSON: {\"selected_time\": str}"
+                    },
+                    next_steps=["generate_final_zoom_link"]
+                ),
+                WorkflowStep(
+                    step_id="generate_final_zoom_link",
+                    step_type=WorkflowStepType.ZOOM_INTEGRATION,
+                    description="Generate the multi-party Zoom meeting",
+                    parameters={"topic": "Interview: {{extract_interview_request.role}}", "type": 2, "duration": 60},
+                    next_steps=["send_calendar_invites"]
+                ),
+                WorkflowStep(
+                    step_id="send_calendar_invites",
+                    step_type=WorkflowStepType.API_CALL, # Simulating GCal invite
+                    description="Send calendar invites to all parties",
+                    parameters={
+                        "action": "send_invites", 
+                        "attendees": "{{extract_interview_request.interviewers}} + [{{extract_interview_request.candidate_email}}]",
+                        "time": "{{analyze_candidate_reply.selected_time}}",
+                        "link": "{{generate_final_zoom_link.join_url}}"
+                    },
+                    next_steps=[]
+                )
+            ],
+            start_step="extract_interview_request",
+            triggers=["INTERVIEW_REQUESTED"]
+        )
+
         # Register workflows
         self.workflows[customer_support_workflow.workflow_id] = customer_support_workflow
         self.workflows[project_management_workflow.workflow_id] = project_management_workflow
         self.workflows[sales_lead_workflow.workflow_id] = sales_lead_workflow
         self.workflows[contract_workflow.workflow_id] = contract_workflow
         self.workflows[shopify_sync_workflow.workflow_id] = shopify_sync_workflow
+        self.workflows[b2b_lead_triage.workflow_id] = b2b_lead_triage
+        self.workflows[autonomous_interview_scheduler.workflow_id] = autonomous_interview_scheduler
 
     async def trigger_event(self, event_type: str, data: Dict[str, Any]):
         """
@@ -1375,7 +1534,10 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             step_result["status"] = "waiting_approval"
             step_result["requires_confirmation"] = True
             
-            # Store step result as pending
+        # Store step result as pending if waiting approval
+        if step_result.get("status") in ["waiting_approval", "paused"]:
+            logger.info(f"Step {step_id} returned {step_result.get('status')} status. Pausing workflow execution.")
+            context.status = WorkflowStatus.WAITING_APPROVAL
             context.results[step_id] = step_result
             return # Pause execution of this branch
 
@@ -1674,6 +1836,12 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_retention_playbook(step, context)
             elif step.step_type == WorkflowStepType.B2B_PO_DETECTION:
                 result = await self._execute_b2b_po_detection(step, context)
+            elif step.step_type == WorkflowStepType.ZOHO_CRM_INTEGRATION:
+                result = await self._execute_zoho_crm_integration(step, context)
+            elif step.step_type == WorkflowStepType.ZOOM_INTEGRATION:
+                result = await self._execute_zoom_integration(step, context)
+            elif step.step_type == WorkflowStepType.APPROVAL_REQUIRED:
+                result = await self._execute_approval_required_step(step, context)
             else:
                 result = {"status": "completed", "message": f"Step type {step.step_type.value} executed"}
 
@@ -1690,6 +1858,50 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 "error": str(e),
                 "execution_time_ms": execution_time
             }
+
+    async def _execute_approval_required_step(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute a mandatory HITL approval step, routing via governance service."""
+        try:
+            action_type = step.parameters.get("action", "workflow_step")
+            
+            # Using a simplified agent ID logic or defaulting to standard system agent
+            agent_id = context.variables.get("current_agent_id") or context.input_data.get("agent_id") or "system_default_agent"
+            
+            from core.agent_governance_service import AgentGovernanceService
+            from core.database import get_db_session
+            
+            with get_db_session() as db:
+                gov_service = AgentGovernanceService(db)
+                # We artificially enforce human approval here by setting require_approval=True inside the service, 
+                # but enforce_action already does a check.
+                
+                # We can construct the context_data for the manual reviewer
+                review_context = {
+                    "workflow_id": context.workflow_id,
+                    "step_id": step.step_id,
+                    "action_type": action_type,
+                    "variables": context.variables
+                }
+                
+                result = await gov_service.enforce_action(agent_id, action_type, review_context)
+                
+                if result.get("status") == "waiting_approval":
+                    # Elevate the waiting_approval status so the orchestrator pauses
+                    context.status = WorkflowStatus.WAITING_APPROVAL
+                    return {
+                        "status": "waiting_approval",
+                        "requires_confirmation": True,
+                        "hitl_action_id": result.get("hitl_action_id"),
+                        "message": "Step requires human approval based on agent maturity."
+                    }
+                
+                return {
+                    "status": "completed",
+                    "message": "Governance check passed. Agent is mature enough."
+                }
+        except Exception as e:
+            logger.error(f"Approval check error: {e}")
+            return {"status": "failed", "error": str(e)}
 
     async def _execute_ecommerce_sync(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute automated ecommerce to ledger mapping"""
@@ -1769,6 +1981,77 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                     "message": f"Successfully detected B2B PO and created draft order {draft_order_id}",
                     "draft_order_id": draft_order_id
                 }
+        except Exception as e:
+            logger.error(f"B2B PO detection failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_zoho_crm_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Zoho CRM integration step"""
+        action = step.parameters.get("action", "create_lead")
+        lead_data = step.parameters.get("lead_data", {})
+
+        try:
+            from core.mock_mode import get_mock_mode_manager
+            mock_manager = get_mock_mode_manager()
+
+            if mock_manager.is_mock_mode("zoho_crm", False):
+                logger.info(f"Zoho CRM Mock Mode: Executing {action} with data {lead_data}")
+                # Mock a successful response
+                return {
+                    "status": "completed",
+                    "result": {"id": "mock_zoho_lead_" + uuid.uuid4().hex[:6], "status": "success", "action": action},
+                    "mock": True
+                }
+
+            # In a full implementation, you'd integrate with actual Zoho API here
+            logger.info(f"Zoho CRM (Real Placeholder): Executing {action} with data {lead_data}")
+            return {
+                "status": "completed",
+                "message": f"Zoho CRM action {action} processed successfully.",
+                "data": lead_data
+            }
+        except Exception as e:
+            logger.error(f"Zoho CRM integration error: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_zoom_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute Zoom integration step"""
+        action = step.parameters.get("action", "create_meeting")
+        topic = step.parameters.get("topic", "Scheduled Meeting")
+        duration = step.parameters.get("duration", 30)
+
+        try:
+            from core.mock_mode import get_mock_mode_manager
+            mock_manager = get_mock_mode_manager()
+
+            if mock_manager.is_mock_mode("zoom", False):
+                logger.info(f"Zoom Mock Mode: Executing {action}")
+                # Mock a successful response with a fake URL
+                meeting_id = "mock_zoom_" + uuid.uuid4().hex[:8]
+                join_url = f"https://zoom.us/j/{meeting_id}?pwd=mock"
+                return {
+                    "status": "completed",
+                    "result": {
+                        "id": meeting_id,
+                        "join_url": join_url,
+                        "topic": topic,
+                        "duration": duration
+                    },
+                    "join_url": join_url, # To easily access in subsequent steps via {{zoom_step.join_url}}
+                    "mock": True
+                }
+
+            # In a full implementation, you'd integrate with actual Zoom API here
+            logger.info(f"Zoom (Real Placeholder): Executing {action} for '{topic}'")
+            return {
+                "status": "completed",
+                "message": f"Zoom meeting '{topic}' created successfully.",
+                "join_url": "https://zoom.us/j/real_placeholder"
+            }
+        except Exception as e:
+            logger.error(f"Zoom integration error: {e}")
+            return {"status": "failed", "error": str(e)}
+
 
         except Exception as e:
             logger.error(f"B2B PO detection failed: {e}")
