@@ -1,0 +1,319 @@
+name: Cross-Platform Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: 'Override overall coverage threshold'
+        required: false
+        default: '80'
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better coverage data
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest-cov
+
+      - name: Run tests with coverage
+        working-directory: ./backend
+        run: |
+          pytest tests/ \
+            --cov=core \
+            --cov=api \
+            --cov=tools \
+            --cov-report=json \
+            --cov-report=term-missing \
+            --cov-report=html
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/coverage.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Clear Jest cache
+        working-directory: ./frontend-nextjs
+        run: npx jest --clearCache
+
+      - name: Run tests with coverage
+        working-directory: ./frontend-nextjs
+        run: npm test -- --coverage --coverageReporters=json --coverageReporters=text
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: frontend-nextjs/coverage/coverage-final.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  mobile-tests:
+    name: Mobile Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci --legacy-peer-deps
+
+      - name: Clear Jest cache
+        working-directory: ./mobile
+        run: npx jest --clearCache
+
+      - name: Run tests with coverage
+        working-directory: ./mobile
+        run: npm test -- --coverage --coverageReporters=json --coverageReporters=text
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-coverage
+          path: mobile/coverage/coverage-final.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  desktop-tests:
+    name: Desktop Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better blame data
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-
+
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin --version 0.27.0
+
+      - name: Generate coverage report
+        working-directory: frontend-nextjs/src-tauri
+        run: |
+          cargo tarpaulin \
+            --config tarpaulin.toml \
+            --out Json \
+            --output-dir coverage-report \
+            --timeout 300
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-coverage
+          path: frontend-nextjs/src-tauri/coverage-report/coverage.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  aggregate-coverage:
+    name: Aggregate Cross-Platform Coverage
+    needs: [backend-tests, frontend-tests, mobile-tests, desktop-tests]
+    if: always()  # Run even if platform tests fail
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-coverage'
+          path: coverage-artifacts
+          merge-multiple: true
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run cross-platform coverage aggregation
+        run: |
+          python backend/tests/scripts/cross_platform_coverage_gate.py \
+            --backend-coverage coverage-artifacts/backend-coverage/coverage.json \
+            --frontend-coverage coverage-artifacts/frontend-coverage/coverage-final.json \
+            --mobile-coverage coverage-artifacts/mobile-coverage/coverage-final.json \
+            --desktop-coverage coverage-artifacts/desktop-coverage/coverage.json \
+            --format json \
+            --output-json backend/tests/coverage_reports/metrics/cross_platform_summary.json
+
+      - name: Upload cross-platform summary artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-platform-summary
+          path: backend/tests/coverage_reports/metrics/cross_platform_summary.json
+          retention-days: 30
+
+      - name: Add coverage summary
+        if: always()
+        run: |
+          SUMMARY=$(cat backend/tests/coverage_reports/metrics/cross_platform_summary.json)
+
+          echo "## Cross-Platform Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "$SUMMARY" | jq -r '
+            "### Overall Coverage\n\n**Weighted Overall:** \(.weighted.overall_pct | tostring)%\n\n",
+            "### Platform Breakdown\n\n",
+            "| Platform | Coverage | Weight | Threshold | Status |",
+            "|----------|----------|--------|-----------|--------|",
+            (
+              .weighted.platform_breakdown[] |
+              "| \(.platform | ascii_upcase) | \(.coverage_pct | tostring)% | \((.weight * 100) | floor | tostring)% | \(.threshold | tostring)% | \(if .coverage_pct >= .threshold then "✅" else "❌" end) |"
+            )
+          ' >> $GITHUB_STEP_SUMMARY
+
+  pr-comment:
+    name: Post PR Comment
+    needs: aggregate-coverage
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download cross-platform summary
+        uses: actions/download-artifact@v4
+        with:
+          name: cross-platform-summary
+          path: summary-data
+
+      - name: Generate PR comment
+        id: comment
+        run: |
+          python backend/tests/scripts/cross_platform_coverage_gate.py \
+            --backend-coverage coverage-artifacts/backend-coverage/coverage.json \
+            --frontend-coverage coverage-artifacts/frontend-coverage/coverage-final.json \
+            --mobile-coverage coverage-artifacts/mobile-coverage/coverage-final.json \
+            --desktop-coverage coverage-artifacts/desktop-coverage/coverage.json \
+            --format pr-comment \
+            --output-json /tmp/pr-comment-body.md
+
+          # Set output for use in github-script
+          echo "comment_body<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/pr-comment-body.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post/update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `${{ steps.comment.outputs.comment_body }}`;
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('## Cross-Platform Coverage Report')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
