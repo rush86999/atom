@@ -83,4 +83,18 @@ module.exports = {
   // Property test results output (Phase 147-03)
   // Use --json flag for property tests: npm test -- --ci --json --outputFile=coverage/jest-mobile-property-results.json
   reporters: ['default'],
+
+  // Retry Configuration for Flaky Test Detection (Phase 151-02)
+  // Used by scripts/jest-retry-wrapper.js for multi-run verification
+  // See: .planning/phases/151-quality-infrastructure-reliability/151-RESEARCH.md
+  testRunner: 'jest-circus', // Supports retry hooks (future enhancement)
+  retryTimeoutMs: 30000, // 30s per retry attempt
+  maxRetries: 3, // For jest-circus retry mechanism (if enabled later)
+};
+
+// Export retry config for wrapper script
+module.exports.retryConfig = {
+  timeoutMs: 30000,
+  maxAttempts: 3,
+  delayMs: 1000, // Delay between retries (for future use)
 };
