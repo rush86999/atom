@@ -649,7 +649,10 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Tauri E2E tests cover desktop workflows (IPC, window management)
   4. Unified CI workflow orchestrates all platform E2E tests
   5. E2E test results aggregated with cross-platform reporting
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1: 01-02 parallel, Wave 2: 03)
+- [ ] 148-01-PLAN.md — E2E orchestration CI/CD and aggregation script (enhanced e2e_aggregator.py with Tauri support, historical trending)
+- [ ] 148-02-PLAN.md — Critical workflow E2E tests (6 Playwright tests for agent/canvas, 6 Tauri integration tests for IPC)
+- [ ] 148-03-PLAN.md — E2E testing documentation (comprehensive guide, quick reference, workflow comments)
 
 ### Phase 149: Quality Infrastructure Parallel Execution
 **Goal**: Parallel test execution optimized (platform-specific jobs, <15 min feedback)
