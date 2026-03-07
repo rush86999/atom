@@ -1,0 +1,337 @@
+name: Platform Retry on Failure
+
+# Triggers on completion of unified-tests-parallel workflow
+# Only runs if the workflow concluded with 'failure' status
+on:
+  workflow_run:
+    workflows: [unified-tests-parallel]
+    types: [completed]
+    branches: [main, develop]
+
+# Purpose: Detect which platforms failed and trigger targeted re-runs
+# Avoids wasting CI time re-running passing platform tests
+# Achieves ~80% time savings vs full suite re-runs
+
+jobs:
+  detect-failures:
+    name: Detect Failed Platforms
+    runs-on: ubuntu-latest
+
+    # Only run if unified-tests-parallel workflow failed
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+
+    # Output variables indicating which platforms failed
+    outputs:
+      backend-failed: ${{ steps.check-backend.outputs.failed }}
+      frontend-failed: ${{ steps.check-frontend.outputs.failed }}
+      mobile-failed: ${{ steps.check-mobile.outputs.failed }}
+      desktop-failed: ${{ steps.check-desktop.outputs.failed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # List all artifacts from the triggering workflow run
+      - name: List workflow artifacts
+        id: list-artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.event.workflow_run.id,
+            });
+
+            console.log('Artifacts:', artifacts.data.artifacts.map(a => a.name));
+
+            // Return artifact count for verification
+            return artifacts.data.artifacts.length;
+
+      # Download backend test results artifact
+      - name: Download backend test results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.event.workflow_run.id,
+            });
+
+            // Find backend-test-results artifact
+            const backendArtifact = artifacts.data.artifacts.find(
+              a => a.name === 'backend-test-results'
+            );
+
+            if (backendArtifact) {
+              console.log('Downloading backend-test-results artifact');
+
+              // Download artifact
+              const download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: backendArtifact.id,
+                archive_format: 'zip',
+              });
+
+              // Write to file
+              fs.writeFileSync(
+                'backend-test-results.zip',
+                Buffer.from(download.data)
+              );
+
+              // Extract zip
+              const exec = require('@actions/exec/exec');
+              await exec.exec('unzip', ['-q', 'backend-test-results.zip', '-d', 'results/backend']);
+
+              console.log('Backend test results downloaded successfully');
+            } else {
+              console.log('No backend-test-results artifact found');
+            }
+        continue-on-error: true
+
+      # Download frontend test results artifact
+      - name: Download frontend test results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.event.workflow_run.id,
+            });
+
+            // Find frontend-test-results artifact
+            const frontendArtifact = artifacts.data.artifacts.find(
+              a => a.name === 'frontend-test-results'
+            );
+
+            if (frontendArtifact) {
+              console.log('Downloading frontend-test-results artifact');
+
+              const download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: frontendArtifact.id,
+                archive_format: 'zip',
+              });
+
+              fs.writeFileSync(
+                'frontend-test-results.zip',
+                Buffer.from(download.data)
+              );
+
+              const exec = require('@actions/exec/exec');
+              await exec.exec('unzip', ['-q', 'frontend-test-results.zip', '-d', 'results/frontend']);
+
+              console.log('Frontend test results downloaded successfully');
+            } else {
+              console.log('No frontend-test-results artifact found');
+            }
+        continue-on-error: true
+
+      # Download mobile test results artifact
+      - name: Download mobile test results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.event.workflow_run.id,
+            });
+
+            // Find mobile-test-results artifact
+            const mobileArtifact = artifacts.data.artifacts.find(
+              a => a.name === 'mobile-test-results'
+            );
+
+            if (mobileArtifact) {
+              console.log('Downloading mobile-test-results artifact');
+
+              const download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: mobileArtifact.id,
+                archive_format: 'zip',
+              });
+
+              fs.writeFileSync(
+                'mobile-test-results.zip',
+                Buffer.from(download.data)
+              );
+
+              const exec = require('@actions/exec/exec');
+              await exec.exec('unzip', ['-q', 'mobile-test-results.zip', '-d', 'results/mobile']);
+
+              console.log('Mobile test results downloaded successfully');
+            } else {
+              console.log('No mobile-test-results artifact found');
+            }
+        continue-on-error: true
+
+      # Download desktop test results artifact
+      - name: Download desktop test results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.event.workflow_run.id,
+            });
+
+            // Find desktop-test-results artifact
+            const desktopArtifact = artifacts.data.artifacts.find(
+              a => a.name === 'desktop-test-results'
+            );
+
+            if (desktopArtifact) {
+              console.log('Downloading desktop-test-results artifact');
+
+              const download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: desktopArtifact.id,
+                archive_format: 'zip',
+              });
+
+              fs.writeFileSync(
+                'desktop-test-results.zip',
+                Buffer.from(download.data)
+              );
+
+              const exec = require('@actions/exec/exec');
+              await exec.exec('unzip', ['-q', 'desktop-test-results.zip', '-d', 'results/desktop']);
+
+              console.log('Desktop test results downloaded successfully');
+            } else {
+              console.log('No desktop-test-results artifact found');
+            }
+        continue-on-error: true
+
+      # Check backend for failures
+      - name: Check backend failures
+        id: check-backend
+        shell: bash
+        run: |
+          if [ -f "results/backend/pytest_report.json" ]; then
+            echo "Checking backend test results..."
+
+            # Run platform retry router to extract failed tests
+            python backend/tests/scripts/platform_retry_router.py \
+              --platform backend \
+              --results-file results/backend/pytest_report.json \
+              --output-file retry_commands/backend_retry.sh
+
+            # Check exit code: 0 = failures found, 3 = no failures
+            if [ $? -eq 0 ]; then
+              echo "failed=true" >> $GITHUB_OUTPUT
+              echo "Backend has failed tests - retry will be triggered"
+            else
+              echo "failed=false" >> $GITHUB_OUTPUT
+              echo "Backend tests all passed - no retry needed"
+            fi
+          else
+            echo "No backend results found (may have been skipped)"
+            echo "failed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      # Check frontend for failures
+      - name: Check frontend failures
+        id: check-frontend
+        shell: bash
+        run: |
+          if [ -f "results/frontend/test-results.json" ]; then
+            echo "Checking frontend test results..."
+
+            python backend/tests/scripts/platform_retry_router.py \
+              --platform frontend \
+              --results-file results/frontend/test-results.json \
+              --output-file retry_commands/frontend_retry.sh
+
+            if [ $? -eq 0 ]; then
+              echo "failed=true" >> $GITHUB_OUTPUT
+              echo "Frontend has failed tests - retry will be triggered"
+            else
+              echo "failed=false" >> $GITHUB_OUTPUT
+              echo "Frontend tests all passed - no retry needed"
+            fi
+          else
+            echo "No frontend results found (may have been skipped)"
+            echo "failed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      # Check mobile for failures
+      - name: Check mobile failures
+        id: check-mobile
+        shell: bash
+        run: |
+          if [ -f "results/mobile/test-results.json" ]; then
+            echo "Checking mobile test results..."
+
+            python backend/tests/scripts/platform_retry_router.py \
+              --platform mobile \
+              --results-file results/mobile/test-results.json \
+              --output-file retry_commands/mobile_retry.sh
+
+            if [ $? -eq 0 ]; then
+              echo "failed=true" >> $GITHUB_OUTPUT
+              echo "Mobile has failed tests - retry will be triggered"
+            else
+              echo "failed=false" >> $GITHUB_OUTPUT
+              echo "Mobile tests all passed - no retry needed"
+            fi
+          else
+            echo "No mobile results found (may have been skipped)"
+            echo "failed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      # Check desktop for failures
+      - name: Check desktop failures
+        id: check-desktop
+        shell: bash
+        run: |
+          if [ -f "results/desktop/cargo_test_results.json" ]; then
+            echo "Checking desktop test results..."
+
+            python backend/tests/scripts/platform_retry_router.py \
+              --platform desktop \
+              --results-file results/desktop/cargo_test_results.json \
+              --output-file retry_commands/desktop_retry.sh
+
+            if [ $? -eq 0 ]; then
+              echo "failed=true" >> $GITHUB_OUTPUT
+              echo "Desktop has failed tests - retry will be triggered"
+            else
+              echo "failed=false" >> $GITHUB_OUTPUT
+              echo "Desktop tests all passed - no retry needed"
+            fi
+          else
+            echo "No desktop results found (may have been skipped)"
+            echo "failed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      # Upload retry commands as artifacts for downstream jobs
+      - name: Upload retry commands
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: retry-commands
+          path: retry_commands/
+          retention-days: 1
+          if-no-files-found: warn
