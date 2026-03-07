@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-03)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 146 - Cross-Platform Weighted Coverage
+**Current focus:** Phase 147 - Cross-Platform Property Testing
 
 ## Current Position
 
 Phase: 147 of 26 (Cross-Platform Property Testing)
-Plan: 01 of 4
-Status: Phase 147 Plan 01 COMPLETE ✅ - Shared property test infrastructure created with FastCheck. Property test modules (canvas, agent maturity, serialization) in frontend-nextjs/shared/property-tests/ with 29 FastCheck properties. TypeScript types and configuration with environment variable support. Jest and TypeScript configured for cross-platform property test discovery. Total: 6 tasks, 6 files created, 2 files modified (1,693 lines), ~3 minutes execution time.
-Last activity: 2026-03-06 — Phase 147 Plan 01 execution complete: Shared property test infrastructure with 29 properties across 3 invariant modules (canvas state machine, agent maturity, serialization). Configuration supports reproducible runs via FASTCHECK_SEED, FASTCHECK_NUM_RUNS, FASTCHECK_TIMEOUT environment variables. Jest testMatch and TypeScript path mapping configured for @atom/property-tests imports.
+Plan: 02 of 4
+Status: Phase 147 Plan 02 COMPLETE ✅ - Cross-platform property test distribution with SYMLINK strategy and Rust correspondence documentation. Frontend test file (32 properties), mobile test file (32 properties via SYMLINK), Rust proptests (27 proptests with correspondence), README documentation (323 lines), Jest configuration updated. Fixed broken mobile/src/shared SYMLINK. Total: 7 tasks, 5 files created, 2 files modified (1,690 lines), ~5 minutes execution time.
+Last activity: 2026-03-06 — Phase 147 Plan 02 execution complete: Distributed shared property tests via SYMLINK strategy. Frontend test imports from @atom/property-tests, mobile test imports via SYMLINK (../../shared/property-tests), Rust proptests with correspondence comments. Fixed broken mobile/src/shared SYMLINK. All platforms can run property tests independently.
 
-Progress: [█] 25% (1/4 plans executed: 01)
+Progress: [██] 50% (2/4 plans executed: 01, 02)
 
 ## Performance Metrics
 
@@ -169,6 +169,7 @@ Progress: [█] 25% (1/4 plans executed: 01)
 | Phase 146 P02 | 180 | 3 tasks | 2 files |
 | Phase 146 P04 | 140 | 2 tasks | 2 files |
 | Phase 147 P01 | 180 | 6 tasks | 8 files |
+| Phase 147 P02 | 345 | 7 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -371,6 +372,7 @@ Recent decisions affecting current work:
 - [Phase 145]: Use openapi-typescript instead of openapi-generator-cli for type generation (no framework coupling)
 - [Phase 145]: OpenAPI spec as single source of truth for cross-platform type safety
 - [Phase 147]: Shared property test infrastructure with FastCheck
+- **Phase 147 (Plan 02)**: Cross-platform property test distribution via SYMLINK strategy - Frontend test imports from @atom/property-tests, mobile test imports via SYMLINK (../../shared/property-tests), Rust proptests with correspondence comments. Fixed broken mobile/src/shared SYMLINK (was pointing to wrong relative path). All platforms can run property tests independently with 32 TypeScript properties and 27 Rust proptests.
 
 ### Pending Todos
 
