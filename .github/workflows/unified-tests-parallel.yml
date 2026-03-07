@@ -299,24 +299,17 @@ jobs:
           fi
 
       # Run CI status aggregator (conditional on results existing)
-      # Note: ci_status_aggregator.py will be created in Plan 149-02
-      # This step is prepared as a placeholder for the next plan
       - name: Run CI status aggregator
         if: steps.check-results.outputs.has_results == 'true'
         working-directory: ./backend
         run: |
-          # Placeholder for ci_status_aggregator.py (will be created in 149-02)
-          echo "CI status aggregator will be implemented in Plan 149-02"
-          echo "Results directory:"
-          ls -la ../results/
-          # When 149-02 is complete, this will run:
-          # python tests/scripts/ci_status_aggregator.py \
-          #   --backend ../results/backend/pytest_report.json \
-          #   --frontend ../results/frontend/test-results.json \
-          #   --mobile ../results/mobile/test-results.json \
-          #   --desktop ../results/desktop/cargo_test_results.json \
-          #   --output ../results/ci_status.json \
-          #   --summary ../results/ci_summary.md
+          python tests/scripts/ci_status_aggregator.py \
+            --backend ../results/backend/pytest_report.json \
+            --frontend ../results/frontend/test-results.json \
+            --mobile ../results/mobile/test-results.json \
+            --desktop ../results/desktop/cargo_test_results.json \
+            --output ../results/ci_status.json \
+            --summary ../results/ci_summary.md
         continue-on-error: true
 
       # Upload unified CI status artifact
