@@ -2,8 +2,8 @@
 """
 E2E Test Results Aggregator
 
-Combines E2E test results from web (Playwright), mobile (Detox),
-and desktop (WebDriverIO) platforms into a unified report.
+Combines E2E test results from web (Playwright pytest), mobile (API-level pytest),
+and desktop (Tauri cargo test) platforms into a unified report.
 
 Usage:
     python e2e_aggregator.py --web results/web.json \
@@ -13,10 +13,11 @@ Usage:
 """
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 
 def load_json(file_path: str) -> Dict[str, Any]:
@@ -30,11 +31,39 @@ def load_json(file_path: str) -> Dict[str, Any]:
         return {"error": f"Invalid JSON: {e}"}
 
 
-def extract_metrics(results: Dict[str, Any], platform: str) -> Dict[str, Any]:
-    """Extract key metrics from platform-specific results."""
-    # Handle different result formats (Playwright pytest, Detox, WebDriverIO)
+def parse_cargo_json_line(line: str) -> Optional[Dict[str, Any]]:
+    """Parse a single line of cargo test JSON output.
+
+    Args:
+        line: Single line from cargo test --format json output
+
+    Returns:
+        Parsed test dict if line is a test result, None otherwise
+    """
+    try:
+        data = json.loads(line.strip())
+        if data.get("type") == "test":
+            return {
+                "name": data.get("name", "unknown"),
+                "passed": data.get("passed", False),
+            }
+    except (json.JSONDecodeError, KeyError):
+        pass
+    return None
+
+
+def extract_tauri_metrics(results: Dict[str, Any], platform: str) -> Dict[str, Any]:
+    """Extract metrics from Tauri cargo test JSON format.
+
+    Args:
+        results: Test results dict (may have stats from pre-processing or raw cargo data)
+        platform: Platform name (desktop)
+
+    Returns:
+        Metrics dict matching Playwright pytest format
+    """
+    # If results already have stats key (pre-processed by CI), use that
     if "stats" in results:
-        # Playwright pytest format
         return {
             "platform": platform,
             "total": results["stats"].get("total", 0),
@@ -43,10 +72,12 @@ def extract_metrics(results: Dict[str, Any], platform: str) -> Dict[str, Any]:
             "skipped": results["stats"].get("skipped", 0),
             "duration": results["stats"].get("duration", 0),
         }
-    elif "testResults" in results:
-        # Detox format
-        total = len(results.get("testResults", []))
-        passed = sum(1 for r in results.get("testResults", []) if r.get("status") == "passed")
+
+    # Parse raw cargo test results
+    if "testResults" in results:
+        test_results = results.get("testResults", [])
+        total = len(test_results)
+        passed = sum(1 for r in test_results if r.get("passed", False))
         return {
             "platform": platform,
             "total": total,
@@ -55,8 +86,31 @@ def extract_metrics(results: Dict[str, Any], platform: str) -> Dict[str, Any]:
             "skipped": 0,
             "duration": results.get("duration", 0),
         }
-    else:
-        # WebDriverIO or unknown format
+
+    # Unknown Tauri format
+    return {
+        "platform": platform,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0,
+        "error": "Unknown Tauri format",
+    }
+
+
+def extract_metrics(results: Dict[str, Any], platform: str) -> Dict[str, Any]:
+    """Extract key metrics from platform-specific results.
+
+    Args:
+        results: Platform-specific test results dict
+        platform: Platform name (web, mobile, desktop)
+
+    Returns:
+        Metrics dict with total/passed/failed/skipped/duration fields
+    """
+    # Check for errors first
+    if "error" in results:
         return {
             "platform": platform,
             "total": 0,
@@ -64,8 +118,35 @@ def extract_metrics(results: Dict[str, Any], platform: str) -> Dict[str, Any]:
             "failed": 0,
             "skipped": 0,
             "duration": 0,
-            "error": "Unknown format",
+            "error": results["error"],
         }
+
+    # Playwright pytest format (used by both web E2E and mobile API tests)
+    if "stats" in results:
+        return {
+            "platform": platform,
+            "total": results["stats"].get("total", 0),
+            "passed": results["stats"].get("passed", 0),
+            "failed": results["stats"].get("failed", 0),
+            "skipped": results["stats"].get("skipped", 0),
+            "duration": results["stats"].get("duration", 0),
+        }
+
+    # Tauri cargo test format (desktop)
+    # Note: Mobile API tests use pytest (same as Playwright), no separate Detox parser needed
+    if "testResults" in results or "test_suites" in results:
+        return extract_tauri_metrics(results, platform)
+
+    # Unknown format
+    return {
+        "platform": platform,
+        "total": 0,
+        "passed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration": 0,
+        "error": f"Unknown format for {platform}: missing stats or testResults keys",
+    }
 
 
 def calculate_aggregate_metrics(platform_metrics: List[Dict[str, Any]]) -> Dict[str, Any]:
