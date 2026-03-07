@@ -73,25 +73,95 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup ${{ matrix.platform }}
-        shell: bash
-        run: |
-          # Platform-specific setup (Python, Node.js, Rust)
-          case "${{ matrix.platform }}" in
-            backend)
-              echo "Setting up Python 3.11 for backend tests"
-              ;;
-            frontend)
-              echo "Setting up Node.js 20 for frontend tests"
-              ;;
-            mobile)
-              echo "Setting up Node.js 20 for mobile tests"
-              ;;
-            desktop)
-              echo "Setting up Rust toolchain for desktop tests"
-              ;;
-          esac
+      # Platform-specific setup (Python, Node.js, Rust)
+      - name: Setup Python (backend)
+        if: matrix.platform == 'backend'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
+      - name: Setup Node.js (frontend/mobile)
+        if: matrix.platform == 'frontend' || matrix.platform == 'mobile'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust (desktop)
+        if: matrix.platform == 'desktop'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      # Platform-specific dependency caching
+      - name: Cache pip packages (backend)
+        if: matrix.platform == 'backend'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache npm packages (frontend)
+        if: matrix.platform == 'frontend'
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/node_modules
+          key: ${{ runner.os }}-npm-frontend-${{ hashFiles('frontend-nextjs/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-frontend-
+
+      - name: Cache npm packages (mobile)
+        if: matrix.platform == 'mobile'
+        uses: actions/cache@v4
+        with:
+          path: mobile/node_modules
+          key: ${{ runner.os }}-npm-mobile-${{ hashFiles('mobile/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-mobile-
+
+      - name: Cache cargo registry (desktop)
+        if: matrix.platform == 'desktop'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index (desktop)
+        if: matrix.platform == 'desktop'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build (desktop)
+        if: matrix.platform == 'desktop'
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      # Platform-specific dependency installation
+      - name: Install backend dependencies
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          pip install pytest-asyncio httpx pytest-json-report
+
+      - name: Install frontend dependencies
+        if: matrix.platform == 'frontend'
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Install mobile dependencies
+        if: matrix.platform == 'mobile'
+        working-directory: ./mobile
+        run: npm ci --legacy-peer-deps
+
+      # Run platform-specific tests
       - name: Run ${{ matrix.platform }} tests
         run: ${{ matrix.test-command }}
         env:
@@ -102,6 +172,7 @@ jobs:
           ATOM_MOCK_DATABASE: true
           CI: true
 
+      # Upload test results artifact
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -111,6 +182,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+      # Upload coverage artifact
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         if: always()
