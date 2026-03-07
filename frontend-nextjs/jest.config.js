@@ -107,4 +107,8 @@ module.exports = {
     "^@atom/test-utils(.*)$": "<rootDir>/shared/test-utils$1",
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
   },
+
+  // Property test results output (Phase 147-03)
+  // Use --json flag for property tests: npm test -- shared-invariants --ci --json --outputFile=coverage/jest-frontend-property-results.json
+  reporters: ['default'],
 };
