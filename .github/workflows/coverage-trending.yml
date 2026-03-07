@@ -1,0 +1,208 @@
+name: Coverage Trending Analysis
+
+# Purpose: Automate coverage trending on every push/PR to main/develop branches
+# Integrates trend analysis, dashboard generation, and job summary posting for visibility
+# See: .planning/phases/150-quality-infrastructure-trending/150-03-PLAN.md
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Permissions for job summaries and PR comments
+permissions:
+  contents: read
+  actions: write
+  pull-requests: write
+
+jobs:
+  trending-analysis:
+    name: Coverage Trending Analysis
+    runs-on: ubuntu-latest
+    needs: [test-platform]  # Wait for unified-tests-parallel.yml to complete
+    if: always()  # Run even if tests fail to track coverage drops
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Download all coverage artifacts from unified-tests-parallel.yml
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage/backend/
+        continue-on-error: true
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/frontend/
+        continue-on-error: true
+
+      - name: Download mobile coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-coverage
+          path: coverage/mobile/
+        continue-on-error: true
+
+      - name: Download desktop coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-coverage
+          path: coverage/desktop/
+        continue-on-error: true
+
+      # Run cross-platform coverage gate
+      - name: Run cross-platform coverage gate
+        working-directory: ./backend
+        run: |
+          python tests/scripts/cross_platform_coverage_gate.py \
+            --backend-coverage ../coverage/backend/coverage.json \
+            --frontend-coverage ../coverage/frontend/coverage-final.json \
+            --mobile-coverage ../coverage/mobile/coverage-final.json \
+            --desktop-coverage ../coverage/desktop/coverage.json \
+            --format json \
+            --output-json tests/coverage_reports/metrics/cross_platform_summary.json
+        continue-on-error: true
+
+      # Update trending data with commit tracking
+      - name: Update trending data
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+        working-directory: ./backend
+        run: |
+          python tests/scripts/update_cross_platform_trending.py \
+            --summary tests/coverage_reports/metrics/cross_platform_summary.json \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --commit-sha $COMMIT_SHA \
+            --branch $BRANCH \
+            --prune
+        continue-on-error: true
+
+      # Detect regressions
+      - name: Detect regressions
+        working-directory: ./backend
+        run: |
+          python tests/scripts/coverage_trend_analyzer.py \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --regression-threshold 1.0 \
+            --output tests/coverage_reports/metrics/coverage_regressions.json \
+            --format json > regression_output.json
+        continue-on-error: true
+
+      # Generate trend dashboard
+      - name: Generate trend dashboard
+        working-directory: ./backend
+        run: |
+          python tests/scripts/generate_coverage_dashboard.py \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --output tests/coverage_reports/dashboards/coverage_trend_30d.html \
+            --days 30
+        continue-on-error: true
+
+      # Upload dashboard artifact
+      - name: Upload dashboard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-trend-dashboard
+          path: backend/tests/coverage_reports/dashboards/coverage_trend_30d.html
+          retention-days: 30
+        if-no-files-found: warn
+
+      # Upload trending data artifact
+      - name: Upload trending data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-trending-data
+          path: |
+            backend/tests/coverage_reports/metrics/cross_platform_trend.json
+            backend/tests/coverage_reports/metrics/coverage_regressions.json
+            backend/tests/coverage_reports/metrics/cross_platform_summary.json
+          retention-days: 30
+        if-no-files-found: warn
+
+      # Post trend report to job summary
+      - name: Post trend report to job summary
+        working-directory: ./backend
+        run: |
+          echo "### Coverage Trends (Last 7 Periods)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python tests/scripts/update_cross_platform_trending.py \
+            --summary tests/coverage_reports/metrics/cross_platform_summary.json \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --periods 7 \
+            --format markdown >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+      # Post regression alerts to job summary
+      - name: Post regression alerts to job summary
+        working-directory: ./backend
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Coverage Regressions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -s regression_output.json ]; then
+            cat regression_output.json | jq -r '.regressions[] | "- **\(.platform)**: \(.previous_coverage)% → \(.current_coverage)% (\(.delta)%)"' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No regressions detected ✓" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      # Generate PR trend report markdown (only for PRs)
+      - name: Generate PR trend report
+        if: github.event_name == 'pull_request'
+        working-directory: ./backend
+        run: |
+          python tests/scripts/update_cross_platform_trending.py \
+            --summary tests/coverage_reports/metrics/cross_platform_summary.json \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --periods 7 \
+            --format markdown > tests/coverage_reports/metrics/pr_trend_report.md
+          echo "" >> tests/coverage_reports/metrics/pr_trend_report.md
+          echo "---" >> tests/coverage_reports/metrics/pr_trend_report.md
+          echo "*Posted by automated coverage trending system*" >> tests/coverage_reports/metrics/pr_trend_report.md
+        continue-on-error: true
+
+      # Dashboard link in job summary
+      - name: Add dashboard link to job summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- [Coverage Trend Dashboard](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Trending Data (JSON)](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+      # Post PR comment with trend report (PR only)
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body-path: backend/tests/coverage_reports/metrics/pr_trend_report.md
+
+      # Conditional failure on critical regressions (main branch only)
+      - name: Check for critical regressions
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ./backend
+        run: |
+          if [ -s regression_output.json ]; then
+            CRITICAL_COUNT=$(cat regression_output.json | jq '[.reggressions[] | select(.severity == "critical")] | length')
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "❌ Critical regressions detected: $CRITICAL_COUNT"
+              echo "Failing build on main branch"
+              exit 1
+            fi
+          fi
+          echo "✅ No critical regressions"
