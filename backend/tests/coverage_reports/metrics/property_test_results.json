@@ -1,0 +1,25 @@
+{
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "pass_rate": 0.0,
+  "platforms": {
+    "frontend": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "mobile": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    },
+    "desktop": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0
+    }
+  },
+  "timestamp": null,
+  "history": []
+}
