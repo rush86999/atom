@@ -11,11 +11,16 @@ on:
 # By running E2E on merge to main, we get comprehensive validation without slowing down PR feedback.
 
 jobs:
-  # Web E2E Tests (Playwright)
+  # Web E2E Tests (Playwright) - Tests agent/canvas workflows via browser automation
+  # Purpose: Validate critical user workflows (agent spawn, chat, canvas presentation) in real browser
+  # Framework: Playwright Python with pytest (auto-waiting, parallel execution, JSON reporting)
   e2e-web:
     runs-on: ubuntu-latest
+    # Timeout: Increase health-check retries if services are slow to start
+    timeout-minutes: 30
 
     services:
+      # PostgreSQL service for E2E test database (isolated from dev/staging/prod)
       postgres:
         image: postgres:15-alpine
         env:
@@ -38,7 +43,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+          # Cache pip packages to speed up dependency installation (5-10x faster)
       - name: Cache pip packages
         uses: actions/cache@v4
         with:
@@ -67,6 +72,7 @@ jobs:
       - name: Install frontend dependencies
         working-directory: ./frontend-nextjs
         run: npm ci --legacy-peer-deps
+        # legacy-peer-deps: Handle React Native peer dependency conflicts
 
       - name: Start backend server
         working-directory: ./backend
@@ -74,8 +80,10 @@ jobs:
           DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
           PORT: 8001
         run: |
+          # Start backend with test database (atom_e2e)
           python -m uvicorn main:app --host 0.0.0.0 --port 8001 &
           sleep 10
+          # Health check: Retry with backoff if server is slow to start
           curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:8001/health/live
 
       - name: Start frontend server
@@ -84,8 +92,10 @@ jobs:
           PORT: 3001
           NEXT_PUBLIC_API_URL: http://localhost:8001
         run: |
+          # Start frontend dev server (Next.js)
           npm run dev &
           sleep 10
+          # Health check: Verify frontend is serving content
           curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:3001
 
       - name: Run E2E tests
@@ -96,6 +106,8 @@ jobs:
           BASE_URL: http://localhost:3001
           PYTEST_RERUNS: 2
         run: |
+          # Run E2E with parallel workers (4x faster than sequential)
+          # -n 4: Use 4 parallel workers (adjust based on CI resources)
           pytest tests/ -v -n 4 \
             --html=reports/test-report.html \
             --self-contained-html \
@@ -106,6 +118,7 @@ jobs:
 
       - name: Upload pytest JSON report
         if: always()
+        # Upload results even on failure for aggregation
         uses: actions/upload-artifact@v4
         with:
           name: e2e-web-report
@@ -113,10 +126,14 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  # Mobile Cross-Platform API Tests
-  # Note: Full Detox E2E BLOCKED (requires expo-dev-client), using API-level tests instead
+  # Mobile API Tests - Tests mobile API contracts (Detox BLOCKED by expo-dev-client)
+  # Purpose: Validate mobile API endpoints (agent spawn, navigation, device features) without full E2E
+  # Framework: pytest with httpx.AsyncClient (async API calls)
+  # Note: Full Detox E2E BLOCKED (requires expo-dev-client, +15min CI), using API-level tests instead
   e2e-mobile:
     runs-on: ubuntu-latest
+    # Timeout: API tests are fast, but keep buffer for database setup
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -139,6 +156,7 @@ jobs:
         env:
           DATABASE_URL: sqlite:///./test_mobile_cross_platform.db
         run: |
+          # Run mobile API tests (agent spawn, navigation, device features)
           pytest test_mobile_cross_platform.py -v \
             --json-report --json-report-file=../results/mobile-results.json
 
@@ -147,6 +165,7 @@ jobs:
 
       - name: Upload mobile test results
         if: always()
+        # Upload results even on failure for aggregation
         uses: actions/upload-artifact@v4
         with:
           name: e2e-mobile-report
@@ -154,10 +173,14 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  # Desktop Tauri Integration Tests
+  # Desktop Tauri Tests - Tests IPC commands and integration logic
+  # Purpose: Validate Tauri IPC commands, agent/canvas state management, window operations
+  # Framework: Rust cargo test with #[tauri::test] integration
   # Note: WebDriverIO E2E BLOCKED (tauri-driver unavailable), using Tauri built-in tests
   e2e-desktop:
     runs-on: ubuntu-latest
+    # Timeout: Cargo tests can be slow on first run (cold cache)
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -187,15 +210,21 @@ jobs:
         with:
           path: frontend-nextjs/src-tauri/target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          # Cargo cache provides 5-10x speedup on subsequent runs
 
       - name: Run Tauri integration tests
         working-directory: ./frontend-nextjs/src-tauri
         run: |
+          # Run all Tauri integration tests with JSON output
+          # --no-fail-fast: Continue running all tests even if some fail
+          # -Z unstable-options --format json: Enable JSON output for parsing
           cargo test --all-features --no-fail-fast -- -Z unstable-options --format json > results.json 2>&1 || true
 
       - name: Parse Tauri test results
         working-directory: ./frontend-nextjs/src-tauri
         run: |
+          # Parse cargo test JSON output into pytest-compatible format
+          # This allows the aggregation script to handle all platforms uniformly
           python3 -c "
           import json
           import sys
@@ -239,6 +268,7 @@ jobs:
 
       - name: Upload desktop test results
         if: always()
+        # Upload results even on failure for aggregation
         uses: actions/upload-artifact@v4
         with:
           name: e2e-desktop-report
@@ -246,11 +276,14 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  # Aggregate results from all platforms
+  # Aggregation Job - Combines results from all platforms into unified report
+  # Purpose: Aggregate pytest (web), mobile API, and cargo test (desktop) results into single report
+  # Runs: Always (even if platform jobs fail) to provide partial results
   aggregate:
     needs: [e2e-web, e2e-mobile, e2e-desktop]
     runs-on: ubuntu-latest
     if: always()
+    # if: always() ensures aggregation runs even if platform jobs fail
 
     steps:
       - name: Checkout code
@@ -267,6 +300,7 @@ jobs:
           name: e2e-web-report
           path: results/web/
         continue-on-error: true
+        # continue-on-error: Allow aggregation to proceed if web job failed
 
       - name: Download mobile artifacts
         uses: actions/download-artifact@v4
@@ -297,6 +331,7 @@ jobs:
         if: steps.check-results.outputs.has_results == 'true'
         working-directory: ./backend
         run: |
+          # Aggregate platform results into unified JSON + markdown summary
           python3 tests/scripts/e2e_aggregator.py \
             --web ../results/web/pytest_report.json \
             --mobile ../results/mobile/mobile-results.json \
@@ -304,6 +339,7 @@ jobs:
             --output ../results/e2e_unified.json \
             --summary ../results/e2e_summary.md
         continue-on-error: true
+        # continue-on-error: Don't fail workflow if aggregation script fails
 
       - name: Upload unified results
         if: steps.check-results.outputs.has_results == 'true'
