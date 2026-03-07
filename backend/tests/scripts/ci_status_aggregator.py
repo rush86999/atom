@@ -256,3 +256,73 @@ def generate_markdown_summary(
         lines.append(f"❌ {aggregate['total_failed']} test(s) failed across platforms")
 
     return "\n".join(lines)
+
+
+def main():
+    """Main entry point for CI status aggregation."""
+    parser = argparse.ArgumentParser(
+        description="Aggregate CI status from all platform test results"
+    )
+    parser.add_argument("--backend", help="Backend pytest JSON report path")
+    parser.add_argument("--frontend", help="Frontend Jest JSON report path")
+    parser.add_argument("--mobile", help="Mobile Jest JSON report path")
+    parser.add_argument("--desktop", help="Desktop cargo JSON report path")
+    parser.add_argument("--output", required=True, help="Output JSON file path")
+    parser.add_argument("--summary", help="Output markdown summary file path")
+    args = parser.parse_args()
+
+    platforms = []
+
+    # Load and parse each platform result if provided
+    if args.backend:
+        backend_results = load_json(args.backend)
+        platforms.append(parse_pytest_results(backend_results))
+
+    if args.frontend:
+        frontend_results = load_json(args.frontend)
+        frontend_metrics = parse_jest_results(frontend_results)
+        frontend_metrics["platform"] = "frontend"
+        platforms.append(frontend_metrics)
+
+    if args.mobile:
+        mobile_results = load_json(args.mobile)
+        mobile_metrics = parse_jest_results(mobile_results)
+        mobile_metrics["platform"] = "mobile"
+        platforms.append(mobile_metrics)
+
+    if args.desktop:
+        desktop_results = load_json(args.desktop)
+        platforms.append(parse_cargo_results(desktop_results))
+
+    # Calculate aggregate metrics
+    aggregate = aggregate_platform_status(platforms)
+
+    # Prepare output dict
+    output = {
+        "timestamp": datetime.now().isoformat(),
+        "aggregate": aggregate,
+        "platforms": platforms,
+    }
+
+    # Write JSON output (create parent dirs if needed)
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(output, indent=2))
+
+    # Write markdown summary if --summary provided
+    if args.summary:
+        summary = generate_markdown_summary(aggregate, platforms)
+        summary_path = Path(args.summary)
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(summary)
+
+    # Print summary to console
+    print(f"CI Status: {aggregate['total_passed']}/{aggregate['total_tests']} passed ({aggregate['pass_rate']}%)")
+
+    # Exit code 1 if any tests failed, 0 if all passed
+    if aggregate["total_failed"] > 0:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
