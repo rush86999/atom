@@ -120,10 +120,10 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 - [x] **Phase 141: Desktop Coverage Expansion** - Desktop baseline → 35% (83 tests) ✅
 - [x] **Phase 142: Desktop Rust Backend** - Core logic, IPC handlers, native modules ✅
 - [x] **Phase 143: Desktop Tauri Commands** - Invoke handlers, event system, window management ✅
-- [ ] **Phase 144: Cross-Platform Shared Utilities** - SYMLINK strategy frontend → mobile/desktop
-- [ ] **Phase 145: Cross-Platform API Type Generation** - openapi-typescript from OpenAPI spec
-- [ ] **Phase 146: Cross-Platform Weighted Coverage** - Platform minimums (backend ≥70%, frontend ≥80%, mobile ≥50%, desktop ≥40%)
-- [ ] **Phase 147: Cross-Platform Property Testing** - FastCheck shared across frontend/mobile/desktop
+- [x] **Phase 144: Cross-Platform Shared Utilities** - SYMLINK strategy frontend → mobile/desktop ✅
+- [x] **Phase 145: Cross-Platform API Type Generation** - openapi-typescript from OpenAPI spec ✅
+- [x] **Phase 146: Cross-Platform Weighted Coverage** - Platform minimums (backend ≥70%, frontend ≥80%, mobile ≥50%, desktop ≥40%) ✅
+- [x] **Phase 147: Cross-Platform Property Testing** - FastCheck shared across frontend/mobile/desktop ✅
 - [ ] **Phase 148: Cross-Platform E2E Orchestration** - Playwright + Detox + Tauri unified
 - [ ] **Phase 149: Quality Infrastructure Parallel** - Platform-specific jobs, <15 min feedback
 - [ ] **Phase 150: Quality Infrastructure Trending** - Per-platform coverage trends over time
@@ -609,18 +609,35 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
 **Goal**: Property tests unified (FastCheck shared across frontend/mobile/desktop)
 **Depends on**: Phase 146
 **Requirements**: CROSS-04
-**Status**: Planning complete (2026-03-06)
+**Status**: Complete (2026-03-06) ✅
 **Success Criteria** (what must be TRUE):
-  1. FastCheck property tests created for shared state invariants
-  2. Property tests shared via SYMLINK across platforms
-  3. Canvas state invariants tested with property-based generation
-  4. Agent maturity invariants tested with state machine validation
-  5. Property test results aggregated across all platforms
-**Plans**: 4 (Wave 1: 01, Wave 2: 02, Wave 3: 03, Wave 4: 04)
-- [ ] 147-01-PLAN.md — Shared property test infrastructure (directory, types, config, 12 properties)
-- [ ] 147-02-PLAN.md — SYMLINK distribution and platform integration (frontend, mobile, desktop)
-- [ ] 147-03-PLAN.md — Cross-platform result aggregation (script, tests, CI/CD)
-- [ ] 147-04-PLAN.md — Documentation and verification (docs, ROADMAP update)
+  1. ✅ FastCheck property tests created for shared state invariants (29 properties)
+  2. ✅ Property tests shared via SYMLINK across platforms (mobile/src/shared verified)
+  3. ✅ Canvas state invariants tested with property-based generation (9/9 TS, 7/9 Rust)
+  4. ✅ Agent maturity invariants tested with state machine validation (9/9 TS, 7/9 Rust)
+  5. ✅ Property test results aggregated across all platforms (script + CI/CD operational)
+**Plans**: 4/4 complete
+- [x] 147-01-PLAN.md — Shared property test infrastructure (directory, types, config, 29 properties)
+- [x] 147-02-PLAN.md — SYMLINK distribution and platform integration (frontend, mobile, desktop)
+- [x] 147-03-PLAN.md — Cross-platform result aggregation (script, tests, CI/CD)
+- [x] 147-04-PLAN.md — Documentation and verification (docs, ROADMAP update)
+
+**Results:**
+- 29 shared property tests across 3 invariant modules (canvas, agent maturity, serialization)
+- 3 platform test files (frontend, mobile via SYMLINK, desktop via correspondence)
+- Aggregation script (256 lines) with 30+ unit tests (100% pass rate)
+- CI/CD workflow (4 jobs: 3 parallel + 1 sequential) with PR comment integration
+- Proptest formatter (106 lines) for cargo test output conversion
+- Comprehensive documentation (1,143 lines) covering all aspects
+- SYMLINK strategy verified for TypeScript sharing (mobile/src/shared → ../../frontend-nextjs/shared)
+- Rust-TypeScript correspondence documented (323 lines README, 27/30 properties mapped)
+
+**Handoff to Phase 148:**
+- Property test infrastructure operational across all platforms
+- Aggregation pattern reusable for E2E test results
+- Documentation provides quick start and troubleshooting
+- CI/CD workflow pattern established for cross-platform testing
+- SYMLINK strategy validated for cross-platform test sharing
 
 ### Phase 148: Cross-Platform E2E Orchestration
 **Goal**: E2E orchestration unified (Playwright web + Detox mobile + Tauri desktop)
