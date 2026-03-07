@@ -1,5 +1,8 @@
 name: Unified Tests (Parallel Matrix)
 
+# See backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md for complete parallel execution documentation
+# Target: <15 minute total test suite execution time across 4 platforms
+
 on:
   push:
     branches: [main, develop]
@@ -18,11 +21,21 @@ jobs:
     timeout-minutes: ${{ matrix.timeout }}
 
     strategy:
-      fail-fast: false  # Collect all platform results even if one fails
-      max-parallel: 4   # Limit concurrent jobs to avoid resource exhaustion
+      # fail-fast: false - Collect all platform results even if one fails
+      # This ensures we get complete visibility into which platforms failed
+      # If set to true, one failing platform would cancel all other jobs
+      fail-fast: false
+
+      # max-parallel: 4 - Limit concurrent jobs to avoid resource exhaustion
+      # GitHub Actions has limits on concurrent jobs per account
+      # Setting to 4 ensures we don't exceed runner availability or API rate limits
+      max-parallel: 4
+
       matrix:
         include:
           # Backend: Python pytest with parallel workers
+          # Timeout: 30 minutes (includes dependency installation + test execution)
+          # Current timing: ~8-10 minutes (within target)
           - platform: backend
             runner: ubuntu-latest
             timeout: 30
@@ -212,6 +225,8 @@ jobs:
           python-version: '3.11'
 
       # Download all test result artifacts
+      # Pattern: Download artifact by name, extract to platform-specific directory
+      # continue-on-error: true - Allow aggregation to proceed if platform job failed
       - name: Download backend test results
         uses: actions/download-artifact@v4
         with:
@@ -242,6 +257,7 @@ jobs:
         continue-on-error: true
 
       # Download all coverage artifacts
+      # Pattern: Download coverage JSON files for later aggregation
       - name: Download backend coverage
         uses: actions/download-artifact@v4
         with:
