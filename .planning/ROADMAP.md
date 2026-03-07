@@ -718,7 +718,11 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Flaky tests tracked with failure history and patterns
   4. Retry policy configured (max retries, timeout thresholds)
   5. Test reliability score tracked and reported in CI
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1: 01-02 parallel, Wave 2: 03, Wave 3: 04)
+- [ ] 151-01-PLAN.md — Flaky test detection infrastructure (multi-run verification, SQLite quarantine, JSON export)
+- [ ] 151-02-PLAN.md — Jest retry wrappers (frontend/mobile multi-run detection, retry configuration)
+- [ ] 151-03-PLAN.md — Cross-platform reliability scoring (weighted aggregation, database integration, historical trends)
+- [ ] 151-04-PLAN.md — CI/CD integration and documentation (unified-tests-parallel.yml, retry policy, quarantine guide)
 
 ### Phase 152: Quality Infrastructure Documentation
 **Goal**: Test documentation complete (test patterns documented, onboarding guides)
@@ -763,7 +767,7 @@ Phases execute in numeric order: 127 → 128 → 129 → ... → 152
 | 148. Cross-Platform E2E Orchestration | v5.2 | 3/3 | Complete | 2026-03-07 |
 | 149. Quality Infrastructure Parallel | v5.2 | 4/4 | Complete | 2026-03-07 |
 | 150. Quality Infrastructure Trending | v5.2 | 4/4 | Complete | 2026-03-07 |
-| 151. Quality Infrastructure Reliability | v5.2 | 0/TBD | Not started | - |
+| 151. Quality Infrastructure Reliability | v5.2 | 0/4 | Planning complete | 2026-03-07 |
 | 152. Quality Infrastructure Documentation | v5.2 | 0/TBD | Not started | - |
 
 ---
