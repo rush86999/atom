@@ -181,3 +181,78 @@ def parse_cargo_results(results: Dict) -> Dict[str, Any]:
         "duration": 0,
         "error": "Unknown cargo format: missing stats key",
     }
+
+
+def aggregate_platform_status(platforms: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Calculate aggregate metrics across all platforms.
+
+    Args:
+        platforms: List of platform metrics dicts
+
+    Returns:
+        Aggregate metrics dict with total_tests/total_passed/total_failed/pass_rate/total_duration_seconds/platform_count
+    """
+    total_tests = sum(p.get("total", 0) for p in platforms)
+    total_passed = sum(p.get("passed", 0) for p in platforms)
+    total_failed = sum(p.get("failed", 0) for p in platforms)
+    total_duration = sum(p.get("duration", 0) for p in platforms)
+
+    # Calculate overall pass rate
+    pass_rate = (total_passed / total_tests * 100) if total_tests > 0 else 0
+
+    return {
+        "total_tests": total_tests,
+        "total_passed": total_passed,
+        "total_failed": total_failed,
+        "pass_rate": round(pass_rate, 2),
+        "total_duration_seconds": total_duration,
+        "platform_count": len(platforms),
+    }
+
+
+def generate_markdown_summary(
+    aggregate: Dict[str, Any],
+    platforms: List[Dict[str, Any]],
+) -> str:
+    """Generate markdown summary for PR comments and CI dashboards.
+
+    Args:
+        aggregate: Aggregate metrics across all platforms
+        platforms: List of per-platform metrics dicts
+
+    Returns:
+        Formatted markdown string with header, overall results, platform breakdown table, and status
+    """
+    lines = [
+        "# CI Test Results Summary",
+        f"Generated: {datetime.now().isoformat()}",
+        "",
+        "## Overall Results",
+        f"- **Total Tests**: {aggregate['total_tests']}",
+        f"- **Passed**: {aggregate['total_passed']}",
+        f"- **Failed**: {aggregate['total_failed']}",
+        f"- **Pass Rate**: {aggregate['pass_rate']}%",
+        f"- **Duration**: {aggregate['total_duration_seconds']}s",
+        "",
+        "## Platform Breakdown",
+        "| Platform | Tests | Passed | Failed | Pass Rate | Duration |",
+        "|----------|-------|--------|--------|-----------|----------|",
+    ]
+
+    # Add platform breakdown table rows
+    for p in platforms:
+        platform = p["platform"].upper()
+        lines.append(
+            f"| {platform} | {p['total']} | {p['passed']} | {p['failed']} | {p['pass_rate']:.1f}% | {p['duration']}s |"
+        )
+
+    lines.append("")
+    lines.append("## Status")
+
+    # Add status message
+    if aggregate["total_failed"] == 0:
+        lines.append("✅ All tests passed across all platforms")
+    else:
+        lines.append(f"❌ {aggregate['total_failed']} test(s) failed across platforms")
+
+    return "\n".join(lines)
