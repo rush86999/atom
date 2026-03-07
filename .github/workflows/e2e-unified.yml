@@ -282,7 +282,19 @@ jobs:
           path: results/desktop/
         continue-on-error: true
 
+      - name: Check if results directory exists
+        id: check-results
+        run: |
+          if [ -d "results" ] && [ -n "$(ls -A results)" ]; then
+            echo "has_results=true" >> $GITHUB_OUTPUT
+            echo "Found $(find results -name '*.json' | wc -l) result files"
+          else
+            echo "has_results=false" >> $GITHUB_OUTPUT
+            echo "No result files found"
+          fi
+
       - name: Aggregate E2E results
+        if: steps.check-results.outputs.has_results == 'true'
         working-directory: ./backend
         run: |
           python3 tests/scripts/e2e_aggregator.py \
@@ -294,22 +306,46 @@ jobs:
         continue-on-error: true
 
       - name: Upload unified results
+        if: steps.check-results.outputs.has_results == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: e2e-unified-results
           path: results/
           retention-days: 30
+        if-no-files-found: warn
 
       - name: Comment on commit
-        if: github.event_name == 'push'
+        if: |
+          github.event_name == 'push' &&
+          steps.check-results.outputs.has_results == 'true'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             try {
-              const summary = fs.readFileSync('results/e2e_summary.md', 'utf8');
+              const summary = fs.readFileSync('backend/results/e2e_summary.md', 'utf8');
+              const unified = JSON.parse(fs.readFileSync('backend/results/e2e_unified.json', 'utf8'));
+
+              // Build platform breakdown with emoji indicators
+              let platformBreakdown = '';
+              if (unified.platforms) {
+                unified.platforms.forEach(p => {
+                  const emoji = p.failed === 0 ? '✅' : '❌';
+                  const platformName = p.platform.toUpperCase();
+                  platformBreakdown += `\n${emoji} ${platformName}: ${p.passed}/${p.total} passed (${p.failed} failed, ${p.duration}s)`;
+                });
+              }
+
+              // Construct commit comment
+              const comment = `## E2E Test Results\n\n` +
+                `**Aggregate:** ${unified.aggregate.total_passed}/${unified.aggregate.total_tests} passed ` +
+                `(${unified.aggregate.pass_rate}%)\n` +
+                `**Duration:** ${unified.aggregate.total_duration_seconds}s across ${unified.aggregate.platforms} platforms\n` +
+                `${platformBreakdown}\n\n` +
+                `---\n\n${summary}`;
+
               console.log('E2E Test Results:');
-              console.log(summary);
+              console.log(comment);
             } catch (error) {
               console.log('Unable to read E2E summary:', error.message);
             }
