@@ -386,12 +386,12 @@ jobs:
             exit 1
           fi
         env:
-          DATABASE_URL: sqlite:///:memory:
-          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
-          ENVIRONMENT: test
-          ATOM_DISABLE_LANCEDB: true
-          ATOM_MOCK_DATABASE: true
-          CI: true
+          DATABASE_URL: "sqlite:///:memory:"
+          BYOK_ENCRYPTION_KEY: "test_key_for_ci_only"
+          ENVIRONMENT: "test"
+          ATOM_DISABLE_LANCEDB: "true"
+          ATOM_MOCK_DATABASE: "true"
+          CI: "true"
 
       - name: Upload retry results
         uses: actions/upload-artifact@v4
