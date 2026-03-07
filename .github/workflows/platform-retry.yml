@@ -335,3 +335,244 @@ jobs:
           path: retry_commands/
           retention-days: 1
           if-no-files-found: warn
+
+  # Retry backend tests (only if backend failed)
+  retry-backend:
+    name: Retry Backend Tests
+    needs: [detect-failures]
+    if: ${{ needs.detect-failures.outputs.backend-failed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20  # Shorter than initial run (fewer tests)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          pip install pytest-asyncio httpx pytest-json-report
+
+      - name: Download retry command
+        uses: actions/download-artifact@v4
+        with:
+          name: retry-commands
+          path: retry_commands/
+
+      - name: Run backend retry tests
+        working-directory: ./backend
+        run: |
+          if [ -f "../retry_commands/backend_retry.sh" ]; then
+            echo "Running backend retry tests..."
+            bash ../retry_commands/backend_retry.sh
+          else
+            echo "ERROR: Backend retry command not found"
+            exit 1
+          fi
+        env:
+          DATABASE_URL: sqlite:///:memory:
+          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
+          CI: true
+
+      - name: Upload retry results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-retry-results
+          path: backend/pytest_report.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  # Retry frontend tests (only if frontend failed)
+  retry-frontend:
+    name: Retry Frontend Tests
+    needs: [detect-failures]
+    if: ${{ needs.detect-failures.outputs.frontend-failed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/node_modules
+          key: ${{ runner.os }}-npm-frontend-${{ hashFiles('frontend-nextjs/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-frontend-
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Download retry command
+        uses: actions/download-artifact@v4
+        with:
+          name: retry-commands
+          path: retry_commands/
+
+      - name: Run frontend retry tests
+        working-directory: ./frontend-nextjs
+        run: |
+          if [ -f "../retry_commands/frontend_retry.sh" ]; then
+            echo "Running frontend retry tests..."
+            bash ../retry_commands/frontend_retry.sh --json --outputFile=test-results-retry.json
+          else
+            echo "ERROR: Frontend retry command not found"
+            exit 1
+          fi
+        env:
+          CI: true
+
+      - name: Upload retry results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-retry-results
+          path: frontend-nextjs/test-results-retry.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  # Retry mobile tests (only if mobile failed)
+  retry-mobile:
+    name: Retry Mobile Tests
+    needs: [detect-failures]
+    if: ${{ needs.detect-failures.outputs.mobile-failed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache npm packages
+        uses: actions/cache@v4
+        with:
+          path: mobile/node_modules
+          key: ${{ runner.os }}-npm-mobile-${{ hashFiles('mobile/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-mobile-
+
+      - name: Install mobile dependencies
+        working-directory: ./mobile
+        run: npm ci --legacy-peer-deps
+
+      - name: Download retry command
+        uses: actions/download-artifact@v4
+        with:
+          name: retry-commands
+          path: retry_commands/
+
+      - name: Run mobile retry tests
+        working-directory: ./mobile
+        run: |
+          if [ -f "../retry_commands/mobile_retry.sh" ]; then
+            echo "Running mobile retry tests..."
+            bash ../retry_commands/mobile_retry.sh --json --outputFile=test-results-retry.json
+          else
+            echo "ERROR: Mobile retry command not found"
+            exit 1
+          fi
+        env:
+          CI: true
+
+      - name: Upload retry results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-retry-results
+          path: mobile/test-results-retry.json
+          retention-days: 7
+          if-no-files-found: warn
+
+  # Retry desktop tests (only if desktop failed)
+  retry-desktop:
+    name: Retry Desktop Tests
+    needs: [detect-failures]
+    if: ${{ needs.detect-failures.outputs.desktop-failed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Download retry command
+        uses: actions/download-artifact@v4
+        with:
+          name: retry-commands
+          path: retry_commands/
+
+      - name: Run desktop retry tests
+        working-directory: ./frontend-nextjs/src-tauri
+        run: |
+          if [ -f "../../retry_commands/desktop_retry.sh" ]; then
+            echo "Running desktop retry tests..."
+            bash ../../retry_commands/desktop_retry.sh
+          else
+            echo "ERROR: Desktop retry command not found"
+            exit 1
+          fi
+
+      - name: Upload retry results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-retry-results
+          path: frontend-nextjs/src-tauri/cargo_test_results.json
+          retention-days: 7
+          if-no-files-found: warn
