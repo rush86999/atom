@@ -28,6 +28,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional
 
+# Import FlakyTestTracker for database integration
+try:
+    from tests.scripts.flaky_test_tracker import FlakyTestTracker
+except ImportError:
+    FlakyTestTracker = None
+
 
 def run_tests_with_seed(seed: int, test_path: str = "tests/", verbose: bool = False) -> Set[str]:
     """
@@ -364,6 +370,98 @@ def print_summary(
         print()
 
 
+def export_flaky_tests_json(
+    flaky_tests_data: List[Dict],
+    total_tests_scanned: int,
+    output_path: Path
+) -> None:
+    """Export flaky test results to JSON file.
+
+    Args:
+        flaky_tests_data: List of flaky test records with details
+        total_tests_scanned: Total number of tests scanned
+        output_path: Path to output JSON file
+    """
+    # Calculate summary statistics
+    flaky_count = sum(1 for t in flaky_tests_data if t['classification'] == 'flaky')
+    broken_count = sum(1 for t in flaky_tests_data if t['classification'] == 'broken')
+    stable_count = total_tests_scanned - flaky_count - broken_count
+
+    output_data = {
+        "scan_date": datetime.now().isoformat(),
+        "detection_runs": len(set(t['total_runs'] for t in flaky_tests_data)) if flaky_tests_data else 0,
+        "flaky_tests": flaky_tests_data,
+        "summary": {
+            "total_tests_scanned": total_tests_scanned,
+            "flaky_count": flaky_count,
+            "broken_count": broken_count,
+            "stable_count": stable_count
+        }
+    }
+
+    # Ensure output directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write JSON output
+    with open(output_path, 'w') as f:
+        json.dump(output_data, f, indent=2)
+
+    print(f"\nJSON export written to: {output_path}")
+
+
+def record_to_quarantine_db(
+    flaky_tests: Dict[str, float],
+    total_runs: int,
+    db_path: Path,
+    platform: str
+) -> None:
+    """Record flaky tests to SQLite quarantine database.
+
+    Args:
+        flaky_tests: Dictionary of test -> flaky_rate
+        total_runs: Total number of runs
+        db_path: Path to SQLite database
+        platform: Platform name
+    """
+    if FlakyTestTracker is None:
+        print("WARNING: FlakyTestTracker not available, skipping database recording")
+        return
+
+    tracker = FlakyTestTracker(db_path)
+
+    try:
+        for test_path, flaky_rate in flaky_tests.items():
+            failure_count = int(flaky_rate * total_runs)
+
+            # Generate failure history
+            failure_history = []
+            for i in range(total_runs):
+                # Distribute failures based on flaky_rate
+                if i < failure_count:
+                    failure_history.append({"run": i, "failed": True})
+                else:
+                    failure_history.append({"run": i, "failed": False})
+
+            # Classify flakiness
+            classification, _ = classify_flakiness(failure_count, total_runs)
+
+            # Record in database
+            tracker.record_flaky_test(
+                test_path,
+                platform,
+                total_runs,
+                failure_count,
+                classification,
+                failure_history,
+                quarantine_reason=f"Detected via flaky_test_detector.py"
+            )
+
+        print(f"\nRecorded {len(flaky_tests)} flaky tests to quarantine database: {db_path}")
+
+    finally:
+        tracker.close()
+
+
 def main():
     """Main entry point for flaky test detection."""
     parser = argparse.ArgumentParser(
@@ -444,6 +542,28 @@ Multi-run mode:
         help="Enable multi-run verification mode (run single test N times)"
     )
 
+    parser.add_argument(
+        "--quarantine-db",
+        type=str,
+        default=None,
+        help="Path to SQLite quarantine database (default: None, no database tracking)"
+    )
+
+    parser.add_argument(
+        "--platform",
+        type=str,
+        default="backend",
+        choices=["backend", "frontend", "mobile", "desktop"],
+        help="Platform name for quarantine tracking (default: backend)"
+    )
+
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to JSON export file (default: None, no export)"
+    )
+
     args = parser.parse_args()
 
     if args.runs < 2:
@@ -518,6 +638,38 @@ Multi-run mode:
         update_health_json(flaky_tests, phase=args.phase, plan=args.plan)
         if args.verbose:
             print(f"Updated test_health.json with {len(flaky_tests)} flaky tests\n")
+
+    # Record to quarantine database if requested
+    if args.quarantine_db and flaky_tests:
+        db_path = Path(args.quarantine_db)
+        record_to_quarantine_db(flaky_tests, args.runs, db_path, args.platform)
+
+    # Export to JSON if requested
+    if args.output:
+        # Build flaky tests data for export
+        flaky_tests_data = []
+        for test_path, flaky_rate in flaky_tests.items():
+            failure_count = int(flaky_rate * args.runs)
+            classification, _ = classify_flakiness(failure_count, args.runs)
+
+            flaky_tests_data.append({
+                "test_path": test_path,
+                "platform": args.platform,
+                "total_runs": args.runs,
+                "failure_count": failure_count,
+                "flaky_rate": round(flaky_rate, 3),
+                "classification": classification,
+                "failure_details": [
+                    {"run": i, "failed": i < failure_count}
+                    for i in range(args.runs)
+                ]
+            })
+
+        # Count total unique tests across all runs
+        total_tests_scanned = len(failure_counts)
+
+        export_path = Path(args.output)
+        export_flaky_tests_json(flaky_tests_data, total_tests_scanned, export_path)
 
     # Return exit code
     if flaky_tests:
