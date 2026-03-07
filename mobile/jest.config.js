@@ -78,5 +78,9 @@ module.exports = {
       lines: 80,
       statements: 80,
     },
-  }
+  },
+
+  // Property test results output (Phase 147-03)
+  // Use --json flag for property tests: npm test -- --ci --json --outputFile=coverage/jest-mobile-property-results.json
+  reporters: ['default'],
 };
