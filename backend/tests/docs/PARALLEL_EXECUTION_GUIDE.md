@@ -108,6 +108,95 @@ gh workflow run unified-tests-parallel.yml
 - Platform retry workflow triggers automatically
 - Re-run only failed platforms (80% time savings vs full suite)
 
+### Validating <15 Minute Target
+
+**How to Measure Actual CI Execution Time:**
+
+1. **GitHub Actions UI Method:**
+   - Navigate to Actions tab in repository
+   - Click on latest "Unified Tests (Parallel Matrix)" workflow run
+   - Check the "Duration" column at the top of the workflow run page
+   - This shows wall-clock time from workflow start to completion
+
+2. **GitHub CLI Method:**
+   ```bash
+   # View latest workflow run duration
+   gh run list --workflow=unified-tests-parallel.yml --limit 1 --json duration,conclusion
+
+   # View detailed timing for each job
+   gh run view <run-id> --log | grep "after"
+   ```
+
+3. **API Method:**
+   ```bash
+   # Get workflow run timing via GitHub API
+   gh api /repos/owner/repo/actions/runs/<run-id> --jq '.updated_at, .created_at'
+   ```
+
+**<15 Minute Target Calculation:**
+
+The target is calculated as: `max(platform_durations) + aggregation_overhead`
+
+- **Backend:** ~8-10 minutes (pytest with -n auto)
+- **Frontend:** ~3-5 minutes (Jest with --maxWorkers=2)
+- **Mobile:** ~2-3 minutes (jest-expo with --maxWorkers=2)
+- **Desktop:** ~3-4 minutes (cargo test with --test-threads=4)
+- **Max Platform Duration:** ~10 minutes (backend)
+- **Aggregation Overhead:** ~1-2 minutes (artifact downloads + ci_status_aggregator.py)
+- **Total Target:** ~10-12 minutes (well under 15 minute limit)
+
+**Current Baseline:** ~13-15 minutes with all platforms running in parallel
+
+**If >15 Minutes: Optimization Recommendations**
+
+1. **Identify Slowest Platform:**
+   ```bash
+   # Check job timings in GitHub Actions UI
+   # Look for the longest-running platform job
+   gh run view <run-id> --log | grep -A 5 "Test backend\|Test frontend\|Test mobile\|Test desktop"
+   ```
+
+2. **Optimize Slowest Platform:**
+   - **Backend (>10 min):** Increase pytest-xdist workers (`-n 4` or `-n 8`) or split unit/integration tests
+   - **Frontend (>5 min):** Increase Jest workers (`--maxWorkers=4`) or implement sharding
+   - **Mobile (>3 min):** Increase jest-expo workers (`--maxWorkers=4`) or split test suite
+   - **Desktop (>4 min):** Increase cargo test threads (`--test-threads=8`) or split lib/test targets
+
+3. **Verify Cache Hit Rate:**
+   ```bash
+   # Check job logs for cache hit/miss messages
+   gh run view <run-id> --log | grep -i "cache restored\|cache not found"
+
+   # Target: >80% cache hit rate for dependencies
+   # If <80%, optimize cache keys or increase retention
+   ```
+
+4. **Monitor Trend Over Time:**
+   - Track CI duration in ci_status.json (add `total_duration_seconds` field)
+   - Alert if duration increases by >20% week-over-week
+   - Investigate slow test additions (use `pytest --durations` or Jest `--verbose`)
+
+**Example Optimization Process:**
+
+```bash
+# Step 1: Identify slowest platform
+gh run list --workflow=unified-tests-parallel.yml --limit 5 | grep duration
+# Output: 14m 32s (backend: 10m 15s, frontend: 3m 20s, mobile: 2m 10s, desktop: 3m 5s)
+
+# Step 2: Backend is bottleneck (10m 15s)
+cd backend
+pytest tests/ --durations=20  # Identify slowest tests
+# Output: 10.23s test_slow_integration, 8.45s test_e2e_workflow, ...
+
+# Step 3: Optimize backend (increase workers or split tests)
+pytest tests/ -n 8  # Increase from -n auto to -n 8
+# Result: 7m 30s (2m 45s improvement)
+
+# Step 4: Verify new CI duration
+gh run list --workflow=unified-tests-parallel.yml --limit 1
+# Output: 11m 45s (under 15 minute target ✅)
+```
+
 ---
 
 ## Platform-Specific Guides
