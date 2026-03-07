@@ -664,7 +664,11 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Total test suite completes in <15 minutes with parallel execution
   4. Failed tests trigger platform-specific job re-runs
   5. CI dashboard shows per-platform status with aggregation
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 149-01-PLAN.md — Matrix strategy workflow (unified-tests-parallel.yml with 4-platform parallel execution)
+- [ ] 149-02-PLAN.md — CI status aggregator (ci_status_aggregator.py for unified platform results)
+- [ ] 149-03-PLAN.md — Platform retry mechanism (platform-retry.yml with targeted re-runs)
+- [ ] 149-04-PLAN.md — Documentation and benchmarks (PARALLEL_EXECUTION_GUIDE.md, timing validation)
 
 ### Phase 150: Quality Infrastructure Coverage Trending
 **Goal**: Coverage trending operational (per-platform coverage trends over time)
