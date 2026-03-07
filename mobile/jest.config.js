@@ -27,6 +27,7 @@ module.exports = {
   // Module name mapper for shared utilities
   moduleNameMapper: {
     '^@atom/test-utils(.*)$': '<rootDir>/../frontend-nextjs/shared/test-utils$1',
+    '^@atom/property-tests(.*)$': '<rootDir>/src/shared/property-tests$1',
   },
 
   // Test file patterns
