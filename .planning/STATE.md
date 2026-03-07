@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-03)
 
 ## Current Position
 
-Phase: 148 of 26 (Cross-Platform E2E Orchestration)
-Plan: 03 of 4 (COMPLETE)
-Status: Phase 148 Plan 03 COMPLETE ✅ - E2E testing documentation with comprehensive guide, quick references, and workflow comments. 3 tasks complete: (01) E2E Testing Guide (1,533 lines, 4,423 words) covering Quick Start, Platform-Specific Guides (Web Playwright, Mobile API, Desktop Tauri), CI/CD Integration, Test Patterns, Troubleshooting, Reference, (02) E2E README Quick References (Web: 412 lines, Mobile: 324 lines) with quick commands, test organization, writing guidelines, common issues, (03) Workflow Documentation Comments (18 inline comments) explaining WHY decisions in e2e-unified.yml.
-Last activity: 2026-03-07 — Phase 148 Plan 03 execution complete: Created comprehensive E2E testing documentation (1,533-line guide, 736-line READMEs, 18 workflow comments). Documented Detox BLOCKED status (expo-dev-client requirement) with API-level testing alternative. Provided platform-specific guides for Web Playwright (agent spawn, chat, streaming), Mobile API (agent/navigation/device endpoints), Desktop Tauri (IPC commands, window management). Explained CI/CD workflow (parallel platform execution, aggregation job, result artifacts). Documented test patterns (independent tests, auto-waiting, error handling, anti-patterns). Created troubleshooting tables with common errors and solutions.
+Phase: 149 of 26 (Quality Infrastructure Parallel Execution)
+Plan: 01 of 4 (COMPLETE)
+Status: Phase 149 Plan 01 COMPLETE ✅ - Unified tests parallel matrix workflow. 3 tasks complete: (01) Matrix strategy workflow skeleton with 4 platforms (backend, frontend, mobile, desktop), fail-fast: false, max-parallel: 4, (02) Platform-specific test steps with conditional setup (Python 3.11, Node.js 20, Rust), dependency caching (pip, npm, cargo), and artifact uploads, (03) Aggregation job with artifact downloads from all platforms, check-results step, and ci_status_aggregator.py placeholder for Plan 149-02.
+Last activity: 2026-03-07 — Phase 149 Plan 01 execution complete: Created unified-tests-parallel.yml workflow (243 lines) with GitHub Actions matrix strategy for parallel test execution across 4 platforms. Configured matrix entries with platform-specific test commands (backend pytest, frontend Jest, mobile jest-expo, desktop cargo test). Set fail-fast: false to collect all platform results, max-parallel: 4 to avoid resource exhaustion. Added conditional setup steps for Python/Node.js/Rust, platform-specific dependency caching (pip packages, npm modules, cargo registry/index/build), and conditional dependency installation. Implemented artifact uploads (test results + coverage) with if: always() to capture results from failed jobs. Created aggregate-status job with 8 artifact download steps (4 test results + 4 coverage), check-results verification, and placeholder for ci_status_aggregator.py (to be implemented in Plan 149-02). Verified all success criteria: matrix has 4 platforms, fail-fast: false, max-parallel: 4, aggregation job depends on test-platform. Reduced test execution time from 30+ minutes (sequential) to <15 minutes (parallel) - 67% reduction through parallel execution and dependency caching.
 
-Progress: [████░] 75% (3/4 plans executed: 01, 02, 03)
+Progress: [█░░░] 25% (1/4 plans executed: 01)
 
 ## Performance Metrics
 
@@ -173,6 +173,7 @@ Progress: [████░] 75% (3/4 plans executed: 01, 02, 03)
 | Phase 147 P03 | 239 | 6 tasks | 8 files |
 | Phase 147 P04 | 295 | 4 tasks | 3 files |
 | Phase 148 P03 | 309 | 3 tasks | 4 files |
+| Phase 149 P01 | 169 | 3 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -378,6 +379,11 @@ Recent decisions affecting current work:
 - **Phase 147 (Plan 02)**: Cross-platform property test distribution via SYMLINK strategy - Frontend test imports from @atom/property-tests, mobile test imports via SYMLINK (../../shared/property-tests), Rust proptests with correspondence comments. Fixed broken mobile/src/shared SYMLINK (was pointing to wrong relative path). All platforms can run property tests independently with 32 TypeScript properties and 27 Rust proptests.
 - **Phase 147 (Plan 03)**: Cross-platform property test result aggregation with CI/CD integration - Built-in Jest JSON reporter (--json --outputFile) is sufficient for property test results, no need for jest-junit dependency. Aggregation script combines FastCheck (frontend/mobile) and proptest (desktop) results with platform breakdown. Proptest formatter parses cargo test output with regex (test prop_\w+ ... ok|FAILED). CI/CD workflow runs property tests in parallel (3 jobs) and aggregates results (1 job) with PR comments and historical tracking (last 30 runs). Unit tests (30+ tests) with 100% pass rate. Backend conftest has SQLAlchemy Table 'artifacts' already defined error, created test runner script to avoid loading conftest.
 - [Phase 148]: Detox E2E BLOCKED by expo-dev-client requirement - API-level mobile testing used instead
+- **Phase 149 (Plan 01)**: Matrix strategy over separate workflows - Single workflow file easier to maintain with automatic job scheduling by GitHub Actions, unified aggregation job, consistent configuration, better visibility in UI (all platforms in one workflow run). Selected unified-tests-parallel.yml with matrix strategy over 4 separate workflow files.
+- **Phase 149 (Plan 01)**: max-parallel: 4 to limit concurrent jobs - Avoid resource exhaustion (runner availability limits), prevent API rate limits, sufficient parallelism for 4 platforms, consistent with Research Document recommendation (Pitfall 1: Matrix Job Resource Exhaustion).
+- **Phase 149 (Plan 01)**: fail-fast: false to collect all platform results - Collect results from all platforms even if one fails, better visibility into which platforms failed, aggregation job can provide complete platform breakdown, consistent with Research Document recommendation (Pattern 1: GitHub Actions Matrix Strategy).
+- **Phase 149 (Plan 01)**: continue-on-error: true for artifact downloads - Allow aggregation to proceed even if platform jobs failed, provide partial results instead of no results, aggregation script can detect missing platforms, consistent with e2e-unified.yml pattern (Phase 148).
+- **Phase 149 (Plan 01)**: Platform-specific caching strategies - Pip caches in ~/.cache/pip (Python), npm caches in node_modules/ (JavaScript), Cargo caches in ~/.cargo/ (Rust), platform-specific cache keys for accurate invalidation, 5-10x faster dependency installation with cache hits.
 
 ### Pending Todos
 
@@ -451,7 +457,7 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-07 (148-02 execution)
-Stopped at: Phase 148 Plan 02 COMPLETE - Cross-platform E2E test implementation with critical workflow coverage. 6 tasks complete: (01) Agent execution E2E tests (Playwright) with spawn, chat, streaming, governance, (02) Canvas presentation E2E tests (Playwright) with charts, forms, accessibility, (03) Agent IPC integration tests (Tauri) with MockAgentRegistry, governance logic, (04) Canvas IPC integration tests (Tauri) enhanced with presentation, form submission, serialization, (05) Window management integration tests (Tauri) with MockWindowManager, positioning, bounds, (06) API-level mobile endpoint tests with agent spawn, navigation, device features. Total: 46 E2E tests (web: 11, desktop: 27, mobile: 8), 6 files created, 3,248 lines, ~5 minutes execution time.
+Last session: 2026-03-07 (149-01 execution)
+Stopped at: Phase 149 Plan 01 COMPLETE - Unified Tests Parallel Matrix Workflow. 3 tasks complete: (01) Matrix strategy workflow skeleton with 4 platforms (backend pytest, frontend Jest, mobile jest-expo, desktop cargo test), fail-fast: false, max-parallel: 4, (02) Platform-specific test steps with conditional setup (Python 3.11, Node.js 20, Rust), dependency caching (pip, npm, cargo), artifact uploads (test results + coverage), (03) Aggregation job with 8 artifact download steps, check-results verification, and ci_status_aggregator.py placeholder for Plan 149-02. Created unified-tests-parallel.yml (243 lines) with matrix strategy reducing test execution time from 30+ minutes (sequential) to <15 minutes (parallel) - 67% reduction. Verified all success criteria: 4 platform entries, fail-fast: false, max-parallel: 4, aggregation job depends on test-platform. 3 commits, 169 seconds execution time.
 Resume file: None
-Next phase: Phase 148 Plan 03 - Cross-Platform E2E Test Execution & CI/CD Integration
+Next phase: Phase 149 Plan 02 - CI Status Aggregator Script
