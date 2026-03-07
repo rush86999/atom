@@ -205,6 +205,51 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+      # Run flaky detection after test execution (continues even if tests fail)
+      - name: Run flaky detection (backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/flaky_test_detector.py \
+            --platform backend \
+            --runs 3 \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --output tests/coverage_reports/metrics/backend_flaky_tests.json
+        continue-on-error: true
+
+      - name: Run flaky detection (frontend)
+        if: matrix.platform == 'frontend'
+        working-directory: ./frontend-nextjs
+        run: |
+          node scripts/jest-retry-wrapper.js \
+            --platform frontend \
+            --runs 3 \
+            --output coverage/frontend_flaky_tests.json
+        continue-on-error: true
+
+      - name: Run flaky detection (mobile)
+        if: matrix.platform == 'mobile'
+        working-directory: ./mobile
+        run: |
+          node scripts/jest-retry-wrapper.js \
+            --platform mobile \
+            --runs 3 \
+            --output test-results/mobile_flaky_tests.json
+        continue-on-error: true
+
+      # Upload flaky test reports
+      - name: Upload flaky test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.artifact-name }}-flaky
+          path: |
+            backend/tests/coverage_reports/metrics/*_flaky_tests.json
+            frontend-nextjs/coverage/*_flaky_tests.json
+            mobile/test-results/*_flaky_tests.json
+          retention-days: 30
+          if-no-files-found: warn
+
   # Aggregation job - combines results from all platforms into unified report
   # Purpose: Aggregate test results and coverage from all 4 platform jobs
   # Runs: Always (even if platform jobs fail) to provide partial results
@@ -286,6 +331,28 @@ jobs:
           path: coverage/desktop/
         continue-on-error: true
 
+      # Download flaky test reports from all platforms
+      - name: Download backend flaky tests
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-results-flaky
+          path: flaky-reports/backend/
+        continue-on-error: true
+
+      - name: Download frontend flaky tests
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-test-results-flaky
+          path: flaky-reports/frontend/
+        continue-on-error: true
+
+      - name: Download mobile flaky tests
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-test-results-flaky
+          path: flaky-reports/mobile/
+        continue-on-error: true
+
       # Check if any results were downloaded
       - name: Check if results directory exists
         id: check-results
@@ -321,3 +388,85 @@ jobs:
           path: results/
           retention-days: 30
           if-no-files-found: warn
+
+      # Calculate reliability scores from flaky test reports
+      - name: Calculate reliability scores
+        if: always()
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/reliability_scorer.py \
+            --backend-flaky ../flaky-reports/backend/backend_flaky_tests.json \
+            --frontend-flaky ../flaky-reports/frontend/frontend_flaky_tests.json \
+            --mobile-flaky ../flaky-reports/mobile/mobile_flaky_tests.json \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --output ../results/reliability_score.json
+        continue-on-error: true
+
+      # Upload flaky test reports and reliability scores
+      - name: Upload flaky test reports and reliability scores
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flaky-test-reports
+          path: |
+            backend/tests/coverage_reports/metrics/*_flaky_tests.json
+            backend/tests/coverage_reports/metrics/flaky_tests.db
+            results/reliability_score.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Comment reliability score on PR
+      - name: Comment reliability score on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reliabilityPath = 'backend/tests/coverage_reports/metrics/reliability_score.json';
+            if (!fs.existsSync(reliabilityPath)) {
+              console.log('No reliability score found, skipping comment');
+              return;
+            }
+            const reliability = JSON.parse(fs.readFileSync(reliabilityPath, 'utf8'));
+            const score = (reliability.overall_score * 100).toFixed(1);
+            const delta = reliability.score_change || '';
+            const icon = score >= 90 ? '🟢' : score >= 80 ? '🟡' : '🔴';
+            const comment = `## Test Reliability Report
+
+            ${icon} **Overall Score:** ${score}% ${delta}
+
+            ### Platform Breakdown
+            - **Backend:** ${(reliability.platform_scores.backend * 100).toFixed(1)}%
+            - **Frontend:** ${(reliability.platform_scores.frontend * 100).toFixed(1)}%
+            - **Mobile:** ${(reliability.platform_scores.mobile * 100).toFixed(1)}%
+            - **Desktop:** ${(reliability.platform_scores.desktop * 100).toFixed(1)}%
+
+            ${reliability.least_reliable_tests && reliability.least_reliable_tests.length > 0 ? `
+            ### Least Reliable Tests
+            ${reliability.least_reliable_tests.slice(0, 5).map(t => `- \`${t.test_path}\`: ${(t.flaky_rate * 100).toFixed(1)}% flaky`).join('\n')}
+            ` : ''}
+
+            [Full Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.issue,
+              per_page: 100
+            });
+            const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('Test Reliability Report'));
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                ...context.issue,
+                body: comment
+              });
+            }
+
