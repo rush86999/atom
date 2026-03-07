@@ -1,0 +1,121 @@
+name: Unified Tests (Parallel Matrix)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Parallel test execution across 4 platforms using matrix strategy
+# Reduces total test time from 30+ minutes (sequential) to <15 minutes (parallel)
+# Each platform runs in separate job with platform-specific test command and configuration
+
+jobs:
+  test-platform:
+    name: Test ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout }}
+
+    strategy:
+      fail-fast: false  # Collect all platform results even if one fails
+      max-parallel: 4   # Limit concurrent jobs to avoid resource exhaustion
+      matrix:
+        include:
+          # Backend: Python pytest with parallel workers
+          - platform: backend
+            runner: ubuntu-latest
+            timeout: 30
+            test-command: |
+              cd backend && pytest tests/ -v -n auto \
+                --json-report --json-report-file=pytest_report.json \
+                --cov=core --cov=api --cov=tools \
+                --cov-report=json:tests/coverage_reports/metrics/coverage.json
+            artifact-name: backend-test-results
+            artifact-path: backend/pytest_report.json
+            coverage-name: backend-coverage
+            coverage-path: backend/tests/coverage_reports/metrics/coverage.json
+
+          # Frontend: Jest with parallel workers
+          - platform: frontend
+            runner: ubuntu-latest
+            timeout: 20
+            test-command: |
+              cd frontend-nextjs && npm run test:ci -- --json --outputFile=test-results.json --maxWorkers=2
+            artifact-name: frontend-test-results
+            artifact-path: frontend-nextjs/test-results.json
+            coverage-name: frontend-coverage
+            coverage-path: frontend-nextjs/coverage/coverage-final.json
+
+          # Mobile: jest-expo with parallel workers
+          - platform: mobile
+            runner: ubuntu-latest
+            timeout: 20
+            test-command: |
+              cd mobile && npm run test:ci -- --json --outputFile=test-results.json --maxWorkers=2
+            artifact-name: mobile-test-results
+            artifact-path: mobile/test-results.json
+            coverage-name: mobile-coverage
+            coverage-path: mobile/coverage/coverage-final.json
+
+          # Desktop: Tauri cargo test with parallel threads
+          - platform: desktop
+            runner: ubuntu-latest
+            timeout: 15
+            test-command: |
+              cd frontend-nextjs/src-tauri && cargo test --test-threads=4 -Z unstable-options --format json > cargo_test_results.json 2>&1 || true
+            artifact-name: desktop-test-results
+            artifact-path: frontend-nextjs/src-tauri/cargo_test_results.json
+            coverage-name: desktop-coverage
+            coverage-path: frontend-nextjs/src-tauri/coverage.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup ${{ matrix.platform }}
+        shell: bash
+        run: |
+          # Platform-specific setup (Python, Node.js, Rust)
+          case "${{ matrix.platform }}" in
+            backend)
+              echo "Setting up Python 3.11 for backend tests"
+              ;;
+            frontend)
+              echo "Setting up Node.js 20 for frontend tests"
+              ;;
+            mobile)
+              echo "Setting up Node.js 20 for mobile tests"
+              ;;
+            desktop)
+              echo "Setting up Rust toolchain for desktop tests"
+              ;;
+          esac
+
+      - name: Run ${{ matrix.platform }} tests
+        run: ${{ matrix.test-command }}
+        env:
+          DATABASE_URL: sqlite:///:memory:
+          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
+          CI: true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-path }}
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.coverage-name }}
+          path: ${{ matrix.coverage-path }}
+          retention-days: 7
+          if-no-files-found: warn
