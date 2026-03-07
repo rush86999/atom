@@ -734,7 +734,12 @@ Achieve 80% test coverage across the entire Atom codebase (backend, frontend, mo
   3. Property testing guide explains FastCheck/Hypothesis/proptest usage
   4. Coverage guide explains quality gates and trend analysis
   5. E2E testing guide explains cross-platform orchestration
-**Plans**: TBD
+**Plans**: 5 plans (Wave 1: 01-04 parallel, Wave 2: 05)
+- [ ] 152-01-PLAN.md — Onboarding guide and central index (TESTING_ONBOARDING.md, TESTING_INDEX.md)
+- [ ] 152-02-PLAN.md — Frontend testing guide (Jest, RTL, MSW, jest-axe)
+- [ ] 152-03-PLAN.md — Mobile testing guide (jest-expo, RNTL, device mocks)
+- [ ] 152-04-PLAN.md — Desktop testing guide (cargo test, proptest, tarpaulin)
+- [ ] 152-05-PLAN.md — Cross-linking and verification
 
 ## Progress
 
