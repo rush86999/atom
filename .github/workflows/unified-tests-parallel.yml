@@ -191,3 +191,124 @@ jobs:
           path: ${{ matrix.coverage-path }}
           retention-days: 7
           if-no-files-found: warn
+
+  # Aggregation job - combines results from all platforms into unified report
+  # Purpose: Aggregate test results and coverage from all 4 platform jobs
+  # Runs: Always (even if platform jobs fail) to provide partial results
+  aggregate-status:
+    name: Aggregate CI Status
+    needs: [test-platform]
+    runs-on: ubuntu-latest
+    if: always()
+    # if: always() ensures aggregation runs even if platform jobs fail
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Download all test result artifacts
+      - name: Download backend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-results
+          path: results/backend/
+        continue-on-error: true
+        # continue-on-error: Allow aggregation to proceed if backend job failed
+
+      - name: Download frontend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-test-results
+          path: results/frontend/
+        continue-on-error: true
+
+      - name: Download mobile test results
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-test-results
+          path: results/mobile/
+        continue-on-error: true
+
+      - name: Download desktop test results
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-test-results
+          path: results/desktop/
+        continue-on-error: true
+
+      # Download all coverage artifacts
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage/backend/
+        continue-on-error: true
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/frontend/
+        continue-on-error: true
+
+      - name: Download mobile coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-coverage
+          path: coverage/mobile/
+        continue-on-error: true
+
+      - name: Download desktop coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-coverage
+          path: coverage/desktop/
+        continue-on-error: true
+
+      # Check if any results were downloaded
+      - name: Check if results directory exists
+        id: check-results
+        run: |
+          if [ -d "results" ] && [ -n "$(ls -A results 2>/dev/null)" ]; then
+            echo "has_results=true" >> $GITHUB_OUTPUT
+            echo "Found $(find results -name '*.json' 2>/dev/null | wc -l) result files"
+          else
+            echo "has_results=false" >> $GITHUB_OUTPUT
+            echo "No result files found"
+          fi
+
+      # Run CI status aggregator (conditional on results existing)
+      # Note: ci_status_aggregator.py will be created in Plan 149-02
+      # This step is prepared as a placeholder for the next plan
+      - name: Run CI status aggregator
+        if: steps.check-results.outputs.has_results == 'true'
+        working-directory: ./backend
+        run: |
+          # Placeholder for ci_status_aggregator.py (will be created in 149-02)
+          echo "CI status aggregator will be implemented in Plan 149-02"
+          echo "Results directory:"
+          ls -la ../results/
+          # When 149-02 is complete, this will run:
+          # python tests/scripts/ci_status_aggregator.py \
+          #   --backend ../results/backend/pytest_report.json \
+          #   --frontend ../results/frontend/test-results.json \
+          #   --mobile ../results/mobile/test-results.json \
+          #   --desktop ../results/desktop/cargo_test_results.json \
+          #   --output ../results/ci_status.json \
+          #   --summary ../results/ci_summary.md
+        continue-on-error: true
+
+      # Upload unified CI status artifact
+      - name: Upload unified CI status
+        if: steps.check-results.outputs.has_results == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-status-unified
+          path: results/
+          retention-days: 30
+          if-no-files-found: warn
