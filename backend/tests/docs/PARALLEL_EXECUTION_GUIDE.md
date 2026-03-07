@@ -878,6 +878,81 @@ cargo test --test-threads=4  # or --test-threads=8 for faster local testing
 }
 ```
 
+**platform_retry_router.py Retry Command Format:**
+```json
+{
+  "platform": "backend",
+  "failed_tests": [
+    "tests/test_agent_governance.py::test_agent_permission_check",
+    "tests/test_llm_byok.py::test_streaming_response",
+    "tests/test_episode_segmentation.py::test_segment_by_time_gap"
+  ],
+  "retry_command": "pytest tests/ -v -n auto tests/test_agent_governance.py::test_agent_permission_check tests/test_llm_byok.py::test_streaming_response tests/test_episode_segmentation.py::test_segment_by_time_gap"
+}
+```
+
+**Actual ci_status_aggregator.py JSON Structure:**
+```json
+{
+  "timestamp": "2026-03-07T15:30:00.000000Z",
+  "aggregate": {
+    "total_tests": 2181,
+    "total_passed": 2150,
+    "total_failed": 31,
+    "pass_rate": 98.58,
+    "total_duration_seconds": 845,
+    "platform_count": 4
+  },
+  "platforms": [
+    {
+      "platform": "backend",
+      "total": 500,
+      "passed": 480,
+      "failed": 20,
+      "skipped": 0,
+      "duration": 580,
+      "pass_rate": 96.0,
+      "error": null
+    },
+    {
+      "platform": "frontend",
+      "total": 1200,
+      "passed": 1180,
+      "failed": 10,
+      "skipped": 10,
+      "duration": 240,
+      "pass_rate": 98.33,
+      "error": null
+    },
+    {
+      "platform": "mobile",
+      "total": 398,
+      "passed": 395,
+      "failed": 3,
+      "skipped": 0,
+      "duration": 150,
+      "pass_rate": 99.25,
+      "error": null
+    },
+    {
+      "platform": "desktop",
+      "total": 83,
+      "passed": 80,
+      "failed": 3,
+      "skipped": 0,
+      "duration": 200,
+      "pass_rate": 96.39,
+      "error": null
+    }
+  ],
+  "trend": {
+    "pass_rate_delta": 0.0,
+    "test_count_delta": 0,
+    "declining_platforms": []
+  }
+}
+```
+
 ---
 
 ## Extending CI Dashboard
@@ -1186,6 +1261,49 @@ retry-backend:
 ```
 
 ### Retry Result Aggregation
+
+**Actual platform_retry_router.py Output:**
+```json
+{
+  "platform": "backend",
+  "failed_tests": [
+    "tests/test_agent_governance.py::test_agent_permission_check",
+    "tests/test_llm_byok.py::test_streaming_response"
+  ],
+  "retry_command": "pytest tests/ -v -n auto tests/test_agent_governance.py::test_agent_permission_check tests/test_llm_byok.py::test_streaming_response --json-report --json-report-file=pytest_report.json",
+  "exit_code": 0
+}
+```
+
+**platform-retry.yml detect-failures Job Output:**
+```yaml
+outputs:
+  backend-failed: 'true'  # or 'false'
+  frontend-failed: 'false'
+  mobile-failed: 'false'
+  desktop-failed: 'true'
+```
+
+**Conditional Retry Job Execution:**
+```yaml
+retry-backend:
+  name: Retry Backend Tests
+  needs: [detect-failures]
+  if: ${{ needs.detect-failures.outputs.backend-failed == 'true' }}
+  # Only runs if backend-failed == 'true'
+```
+
+**Retry Results Upload:**
+```yaml
+- name: Upload retry results
+  uses: actions/upload-artifact@v4
+  if: always()
+  with:
+    name: backend-retry-results
+    path: backend/pytest_report.json
+    retention-days: 7
+    if-no-files-found: warn
+```
 
 **Current State:** Retry results uploaded as artifacts, but not aggregated into unified status
 
