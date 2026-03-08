@@ -1,698 +1,411 @@
-# Technology Stack: Frontend Testing Expansion
+# Technology Stack
 
-**Project:** Atom AI-Powered Business Automation Platform
-**Domain:** Frontend testing coverage expansion (React/Next.js)
-**Researched:** 2026-03-03
-**Overall confidence:** HIGH
+**Project:** Atom - Coverage Expansion to 80% Targets
+**Researched:** March 7, 2026
+**Overall Confidence:** HIGH
 
 ## Executive Summary
 
-Atom's frontend currently has **89.84% coverage** (exceeds 80% target but has gaps) with 1,004+ tests passing. The existing Jest + React Testing Library + FastCheck infrastructure is solid and production-ready. **No major framework additions needed** — focus on filling coverage gaps in: **state management testing, hook testing, integration testing with MSW, accessibility testing, and visual regression**.
+Atom's existing test infrastructure is **comprehensive and production-ready** for achieving 80% coverage targets across all platforms. **No new testing frameworks are required** - the focus should be on **enforcement mechanisms**, **coverage analysis tools**, and **test generation assistance** rather than adding new testing capabilities.
 
-**Key Strategic Decisions:**
-1. **Keep Jest 30** — Already configured, 80% thresholds, React 19 compatible
-2. **Keep React Testing Library 16.3** — Current, works with Jest 30
-3. **Keep FastCheck 4.5.3** — 84 property tests already passing
-4. **Keep MSW 1.3.5** — Already installed, API mocking operational
-5. **ADD @testing-library/react-hooks** — Isolated hook testing (gaps in custom hooks)
-6. **ADD @axe-core/react** — Accessibility testing (missing a11y coverage)
-7. **ADD Playwright** — Already in backend, use for E2E gap closure
-8. **NO Cypress** — WebdriverIO 9.24 already installed, use existing infrastructure
-9. **NO visual regression yet** — Percy installed but not configured, defer to post-80%
+**Key Finding:** The platform already has all necessary tools configured:
+- **Backend:** pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.151.5, coverage enforcement configured (80% threshold in pytest.ini)
+- **Frontend:** Jest 30.0+, jest-axe, MSW, coverage thresholds configured (80% global in jest.config.js)
+- **Mobile:** jest-expo, React Native Testing Library, thresholds set to 60% (needs adjustment to 80%)
+- **Desktop:** cargo-tarpaulin 0.27, proptest 1.0 (threshold enforcement needs CI/CD configuration)
 
-**What's Actually Missing:**
-- State machine/reducer testing patterns (useReducer, Context reducers)
-- Hook isolation tests (custom hooks not covered by component tests)
-- Accessibility assertions (axe-core integration)
-- Integration test patterns for API routes with MSW
-- E2E coverage for critical user flows (already have WebdriverIO)
-
-**Why NOT Add More:**
-- Test framework proliferation creates maintenance burden
-- Jest 30 is 37% faster, 77% less memory than Jest 29 — no need for Vitest
-- React Testing Library is 2025 "must-know" standard — avoid Enzyme/Chai
-- Visual regression nice-to-have, but NOT blocker for 80% coverage goal
+**Recommended Additions:** Test generation assistance and coverage gap analysis tools to **accelerate** reaching 80% targets, not foundational testing capabilities.
 
 ---
 
-## Current Stack (Verified Installed)
+## Recommended Stack
 
-### Core Testing Framework
+### Core Testing Framework (EXISTING - Use As-Is)
 
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| **Jest** | 30.0.5 | Unit/integration test runner | ✅ Configured, 80% thresholds |
-| **@testing-library/react** | 16.3.0 | Component testing | ✅ Current, React 19 compatible |
-| **@testing-library/jest-dom** | 6.6.3 | DOM matchers | ✅ Current |
-| **@testing-library/user-event** | 14.6.1 | User interaction simulation | ✅ Current |
-| **fast-check** | 4.5.3 | Property-based testing | ✅ 84 tests passing |
-| **ts-jest** | 29.4.0 | TypeScript Jest preset | ✅ Configured |
-| **jest-environment-jsdom** | 30.0.5 | JSDOM environment | ✅ Configured |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **pytest** | 7.4+ | Backend test runner | Industry standard, async support, mature ecosystem |
+| **pytest-cov** | 4.1+ | Coverage reporting | Native pytest integration, supports branch coverage |
+| **Hypothesis** | 6.151.5 | Property-based testing | Mature, pytest integration, stateful testing |
+| **Jest** | 30.0+ | Frontend/Mobile test runner | Built into Next.js/Expo, excellent TypeScript support |
+| **React Testing Library** | 16.3+ | Component testing | Best practice for React, accessibility-first |
+| **jest-expo** | latest | Mobile test runner | Expo SDK 50 compatibility |
+| **cargo-tarpaulin** | 0.27 | Desktop coverage | Rust standard, CI/CD integration |
 
-### API Mocking & Integration
-
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| **MSW** | 1.3.5 | Mock Service Worker for API mocking | ✅ Installed, server configured |
-| **node-fetch** | 2.7.0 | Fetch polyfill for tests | ✅ In setup.ts |
-
-### E2E Testing (Existing)
-
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| **WebdriverIO** | 9.24.0 | E2E automation | ✅ Installed (wdio/ configured) |
-| **@wdio/cli** | 9.24.0 | WDIO CLI | ✅ Installed |
-| **@wdio/mocha-framework** | 9.24.0 | Mocha framework | ✅ Installed |
-| **@wdio/jasmine-framework** | 9.24.0 | Jasmine framework | ✅ Installed |
-| **@percy/cli** | 1.31.8 | Visual regression (Percy) | ⚠️ Installed but not configured |
-
-### Mutation Testing (Existing)
-
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| **@stryker-mutator/core** | 9.5.1 | Mutation testing framework | ✅ Installed |
-| **@stryker-mutator/jest-runner** | 9.5.1 | Jest runner for Stryker | ✅ Installed |
+**Confidence:** HIGH - All tools currently installed and operational.
 
 ---
 
-## Recommended Additions for Coverage Gaps
+### Coverage Enforcement & Analysis (ADDITIONS FOR 80%)
 
-### 1. Hook Testing (HIGH Priority)
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **pytest-cov (existing)** | 4.1+ | Coverage enforcement | Already has `--cov-fail-under=80` in pytest.ini |
+| **coverage.py (existing)** | 7.0+ | Advanced coverage analysis | Branch coverage, HTML reports, diff coverage |
+| **Jest coverage thresholds (existing)** | 30.0+ | Frontend enforcement | Already configured to 80% in jest.config.js |
+| **cargo-tarpaulin --fail-under** | 0.27+ | Desktop enforcement | Add `--fail-under 80` to CI/CD pipeline |
 
-| Technology | Version | Purpose | Why Needed |
-|------------|---------|---------|------------|
-| **@testing-library/react-hooks** | ^8.0.1 | Isolated hook testing | Custom hooks not fully covered by component tests |
+**Confidence:** HIGH - Thresholds already configured, just needs CI/CD integration.
 
-**Why:** Component tests render hooks indirectly, but edge cases in custom hooks need isolation. Examples:
-- `useAudioControl` — reducer state transitions, error handling
-- `useAgentExecution` — WebSocket lifecycle, cleanup
-- `useCanvasState` — state subscription, unsubscription
-- Custom hooks in `/Users/rushiparikh/projects/atom/frontend-nextjs/src/contexts/`
+---
 
-**Installation:**
+### Test Generation Assistance (NEW - Accelerate 80%)
+
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **GitHub Copilot** | N/A | Generate test scaffolding | When creating new modules/components |
+| **Cursor AI** | N/A | Generate test cases from code | For boilerplate test code (CRUD operations) |
+| **LLM-assisted test generation** | N/A | Generate edge case tests | For complex business logic with many edge cases |
+
+**Rationale:** Manual test writing is the **primary bottleneck** to reaching 80% coverage. AI-assisted generation can accelerate by 3-5x for:
+- CRUD operations (API endpoints, database models)
+- Component state tests (React hooks, canvas components)
+- Edge case identification (error paths, boundary conditions)
+
+**Confidence:** MEDIUM - LLM-generated tests require human review and quality validation.
+
+---
+
+### Coverage Gap Analysis (NEW - Identify What's Missing)
+
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **diff-cover** | 8.0+ | PR-level coverage enforcement | CI/CD PR checks (diff coverage) |
+| **pytest-annotate-output** | 1.0+ | Visualize uncovered lines | Development (see what's missing in IDE) |
+| **jest-coverage-report-action** | latest | GitHub Actions coverage reporting | CI/CD summary reports |
+
+**Rationale:** Existing infrastructure collects coverage but lacks:
+1. **PR-level coverage enforcement** (diff coverage)
+2. **Visual coverage reports** in pull requests
+3. **Trend analysis** for coverage degradation
+
+**Confidence:** HIGH - These are mature tools with excellent CI/CD integration.
+
+---
+
+### Mutation Testing (OPTIONAL - Validate Test Quality)
+
+| Technology | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| **mutmut** | 2.4+ | Python mutation testing | Validate critical path tests (ALREADY IN REQUIREMENTS-TESTING.TXT) |
+| **@stryker-mutator/core** | 9.5+ | JavaScript/TypeScript mutation testing | For critical frontend components (canvas, hooks) |
+| **cargo-mutants** | 0.5+ | Rust mutation testing | For critical desktop functionality |
+
+**Rationale:** Mutation testing validates **test quality**, not just coverage. High coverage + low mutation score = **poor tests**.
+
+**Recommendation:** Use **sparingly** on critical paths only:
+- Agent governance logic
+- Canvas state management
+- LLM routing logic
+- Device capabilities (security-sensitive)
+
+**Confidence:** HIGH - Tools are mature, but mutation testing is **expensive** (10-20x slower than regular tests).
+
+---
+
+## Per-Platform Stack
+
+### Backend (Python)
+
+**Existing Stack:**
 ```bash
-cd /Users/rushiparikh/projects/atom/frontend-nextjs
-npm install --save-dev @testing-library/react-hooks@^8.0.1
+# Core testing (already installed)
+pytest==7.4+
+pytest-asyncio==0.21.0+
+pytest-cov==4.1.0+
+
+# Property-based testing (already installed)
+hypothesis==6.151.5
+
+# Coverage enforcement (already configured in pytest.ini)
+coverage[toml]==7.0+  # Branch coverage, HTML reports
 ```
 
-**Usage Pattern:**
-```typescript
-import { renderHook, act, waitFor } from '@testing-library/react-hooks';
-import { useAudioControl } from '@/contexts/AudioControlContext';
-
-test('useAudioControl handles play/pause transitions', async () => {
-  const { result } = renderHook(() => useAudioControl());
-
-  expect(result.current.isPlaying).toBe(false);
-
-  await act(async () => {
-    result.current.play();
-  });
-
-  expect(result.current.isPlaying).toBe(true);
-  expect(result.current.error).toBeNull();
-});
-```
-
-**Confidence:** HIGH — Official Testing Library package, React 19 compatible, standard 2025 practice.
-
----
-
-### 2. Accessibility Testing (HIGH Priority)
-
-| Technology | Version | Purpose | Why Needed |
-|------------|---------|---------|------------|
-| **jest-axe** | ^8.0.0 | Accessibility assertions | WCAG compliance testing, missing a11y coverage |
-| **axe-core/react** | ^4.10.0 | React integration for axe-core | Component-level a11y testing |
-
-**Why:** Accessibility violations are legal liabilities and user experience issues. Current tests have ZERO a11y assertions. Adding axe-core detects:
-- Missing alt text on images
-- Color contrast failures (<4.5:1)
-- Missing form labels
-- Keyboard navigation issues
-- ARIA attribute violations
-
-**Installation:**
+**Additions for 80%:**
 ```bash
-cd /Users/rushiparikh/projects/atom/frontend-nextjs
-npm install --save-dev jest-axe@^8.0.0
-npm install --save-dev @axe-core/react@^4.10.0
+# PR-level coverage enforcement (NEW)
+pip install diff-cover==8.0+  # Enforce coverage on changed code
+
+# Test generation acceleration (OPTIONAL)
+# Use AI tools (Copilot, Cursor) for scaffolding
 ```
 
-**Usage Pattern:**
-```typescript
-import { axe, toHaveNoViolations } from 'jest-axe';
-import { render } from '@testing-library/react';
-
-expect.extend(toHaveNoViolations);
-
-test('Canvas component has no accessibility violations', async () => {
-  const { container } = render(<CanvasComponent />);
-  const results = await axe(container);
-
-  expect(results).toHaveNoViolations();
-});
+**Coverage Threshold Enforcement:**
+```ini
+# Already in pytest.ini:
+[coverage:report]
+fail_under = 80  # Line coverage
+fail_under_branch = 70  # Branch coverage
 ```
 
-**Integration with Existing Tests:** Add `toHaveNoViolations()` assertion to critical component tests (forms, navigation, modals, canvas).
-
-**Confidence:** HIGH — Industry standard (Deque Systems), WCAG 2.1 AA compliant, active maintenance in 2025.
+**Confidence:** HIGH - No new tools required for 80% coverage.
 
 ---
 
-### 3. State Machine Testing (MEDIUM Priority)
+### Frontend (TypeScript/React)
 
-| Technology | Version | Purpose | Why Needed |
-|------------|---------|---------|------------|
-| **xstate** | ^5.18.0 | State machine library | If formalizing useReducer patterns as state machines |
-| **@xstate/react** | ^5.18.0 | XState React integration | For replacing useReducer with visualizable state machines |
-
-**Why NOT Immediate Priority:** XState is a **framework addition**, not just a testing tool. Only add if:
-1. Current useReducer patterns are becoming unmanageable
-2. Need state visualization/debugging
-3. Want model-based testing for complex state flows
-
-**Current State Management Found:**
-- `AudioControlContext.tsx` — uses useReducer with audioReducer
-- Multiple useState patterns in components
-- No global Redux/Zustand store
-
-**Alternative:** Test existing useReducer WITHOUT XState using React Testing Library:
-
-```typescript
-import { renderHook, act } from '@testing-library/react-hooks';
-import { useAudioReducer } from '@/contexts/AudioControlContext';
-
-test('audioReducer handles PLAY action', () => {
-  const { result } = renderHook(() => useAudioReducer());
-
-  act(() => {
-    result.current.dispatch({ type: 'PLAY' });
-  });
-
-  expect(result.current.state.isPlaying).toBe(true);
-});
+**Existing Stack:**
+```json
+{
+  "devDependencies": {
+    "jest": "^30.0.5",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "jest-axe": "^10.0.0",
+    "msw": "^1.3.5",
+    "fast-check": "^4.5.3"
+  }
+}
 ```
 
-**Verdict:** DEFER XState adoption until state complexity warrants it. Test existing reducers with @testing-library/react-hooks.
-
-**Confidence:** MEDIUM — XState is mature and recommended (2025 React roadmap), but introduces new architecture pattern.
-
----
-
-### 4. Integration Testing with MSW (HIGH Priority — Pattern Documentation)
-
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| **MSW** | 1.3.5 | API mocking for integration tests | ✅ Already installed, need more usage |
-
-**Why:** MSW is **already installed** but underutilized. Current test setup has MSW server configured in `tests/setup.ts`, but coverage gaps show missing integration tests for:
-- API route error handling
-- Loading states during fetch
-- Retry logic
-- WebSocket connections (mocked in setup.ts, but not tested)
-
-**Current MSW Setup:**
-- `tests/mocks/server.ts` — MSW server setup
-- `tests/mocks/handlers.ts` — 17KB of API handlers
-- `tests/mocks/errors.ts` — 9KB of error handlers
-
-**Gap:** Need **integration test suite** that uses MSW handlers to test full component + API flows.
-
-**Usage Pattern (Add to test suite):**
-```typescript
-import { render, screen, waitFor } from '@testing-library/react';
-import { rest } from 'msw';
-import { server } from '@/tests/mocks/server';
-
-test('shows error state when API fails', async () => {
-  // Override default handler for this test
-  server.use(
-    rest.get('/api/agents/:id', (req, res, ctx) => {
-      return res(ctx.status(500), ctx.json({ error: 'Internal Server Error' }));
-    })
-  );
-
-  render(<AgentDetailsPage agentId="123" />);
-
-  await waitFor(() => {
-    expect(screen.getByText(/failed to load agent/i)).toBeInTheDocument();
-  });
-});
-```
-
-**Confidence:** HIGH — MSW is industry standard for 2025, already installed, just need pattern documentation.
-
----
-
-### 5. Visual Regression Testing (DEFER — Post-80% Coverage)
-
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| **@percy/cli** | 1.31.8 | Visual regression CLI | ⚠️ Installed but NOT configured |
-| **@percy/playwright** | 1.0.10 | Playwright integration for Percy | ⚠️ Installed but NOT configured |
-
-**Why DEFER:**
-- Visual regression is **nice-to-have**, not coverage blocker
-- Percy requires cloud service setup (API keys, organization)
-- High maintenance overhead (baseline updates, flaky pixel diffs)
-- **Goal is 80% CODE coverage**, not visual coverage
-
-**When to Add:**
-- After 80% code coverage achieved
-- If design consistency issues found in production
-- If designer/QA team requests visual regression
-
-**Alternative (Free):** Playwright native screenshots:
-```typescript
-import { test, expect } from '@playwright/test';
-
-test('canvas visual snapshot', async ({ page }) => {
-  await page.goto('/canvas/123');
-  await expect(page).toHaveScreenshot('canvas.png');
-});
-```
-
-**Verdict:** Defer Percy configuration until post-80% phase. Use existing WebdriverIO for E2E visual checks if needed.
-
-**Confidence:** HIGH — Percy is standard tool, but deferral is strategic (focus on code coverage first).
-
----
-
-## What NOT to Add (Avoid Framework Proliferation)
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| **Vitest** | Jest 30 is 37% faster, already configured with 80% thresholds | Keep Jest 30 |
-| **Cypress** | WebdriverIO 9.24 already installed, Cypress has tab limitations | Use WebdriverIO |
-| **Enzyme** | Deprecated 2022, React 19 incompatible | React Testing Library |
-| **Chai** | Redundant with Jest assertions | Jest expect() |
-| **Mocha** | WebdriverIO has Mocha integration, no standalone needed | Jest + WDIO Mocha |
-| **Sinon** | Redundant with Jest mocks | jest.fn() |
-| **Appium** | Desktop/mobile E2E handled by Tauri tests + Detox (future) | WebdriverIO for web |
-| **Puppeteer** | Playwright is faster, more cross-browser | Playwright (backend) |
-| **Istanbul/nyc** | Jest has built-in coverage, no need for separate tool | Jest --coverage |
-| **Wallaby.js** | Paid tool, proprietary | Jest watch mode |
-| **React Test Renderer** (for assertions) | Only for snapshots, not component logic | React Testing Library |
-
-**Rationale:** Each additional testing framework increases:
-- CI/CD pipeline complexity
-- Developer onboarding time
-- Maintenance burden (version conflicts, breaking changes)
-- Test execution time (multiple runners)
-
-**Confidence:** HIGH — All alternatives verified as either (1) redundant with existing stack, (2) deprecated, or (3) adding unnecessary complexity.
-
----
-
-## Installation Commands
-
-### Add Hook Testing
+**Additions for 80%:**
 ```bash
-cd /Users/rushiparikh/projects/atom/frontend-nextjs
-npm install --save-dev @testing-library/react-hooks@^8.0.1
+# PR-level coverage enforcement (NEW)
+npm install --save-dev jest-coverage-report-action
+
+# Coverage reporting in PRs (NEW)
+# Already have @stryker-mutator/core for mutation testing
 ```
 
-### Add Accessibility Testing
-```bash
-cd /Users/rushiparikh/projects/atom/frontend-nextjs
-npm install --save-dev jest-axe@^8.0.0 @axe-core/react@^4.10.0
-```
-
-### Add State Machine Testing (OPTIONAL — DEFER)
-```bash
-cd /Users/rushiparikh/projects/atom/frontend-nextjs
-npm install xstate@^5.18.0 @xstate/react@^5.18.0
-```
-
-### Update Jest Config (for jest-axe)
+**Coverage Threshold Enforcement:**
 ```javascript
-// jest.config.js — add to existing config
-module.exports = {
-  // ... existing config
-  setupFilesAfterEnv: [
-    "<rootDir>/tests/setup.ts",
-    "<rootDir>/tests/setup-axe.ts"  // NEW: jest-axe setup
-  ],
-};
-```
-
-Create `tests/setup-axe.ts`:
-```typescript
-import { toHaveNoViolations } from 'jest-axe';
-
-expect.extend(toHaveNoViolations);
-```
-
----
-
-## Integration with Existing Stack
-
-### MSW + Jest + React Testing Library (Already Configured)
-
-**Current Setup:**
-```typescript
-// tests/setup.ts — ALREADY HAS MSW
-let server: any;
-try {
-  server = require('./mocks/server').server;
-} catch (e) {
-  console.warn('MSW server not available:', (e as Error).message);
-}
-
-if (server) {
-  beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-  afterEach(() => server.resetHandlers());
-  afterAll(() => server.close());
+// Already in jest.config.js:
+coverageThreshold: {
+  global: {
+    branches: 75,
+    functions: 80,
+    lines: 80,
+    statements: 75,
+  },
+  './lib/**/*.{ts,tsx}': { lines: 90 },  // Utilities
+  './hooks/**/*.{ts,tsx}': { lines: 85 },  // Custom hooks
+  './components/canvas/**/*.{ts,tsx}': { lines: 85 },  // Canvas
+  './components/ui/**/*.{ts,tsx}': { lines: 80 },  // UI components
+  './components/integrations/**/*.{ts,tsx}': { lines: 80 },  // Integrations
+  './pages/**/*.{ts,tsx}': { lines: 80 },  // Next.js pages
 }
 ```
 
-**What to Add:** Integration test suite using existing MSW handlers:
-
-```typescript
-// tests/integration/agent-workflow.test.ts
-import { render, screen, waitFor } from '@testing-library/react';
-import { rest } from 'msw';
-import { server } from '../mocks/server';
-import AgentWorkflow from '@/components/AgentWorkflow';
-
-describe('Agent workflow integration', () => {
-  test('handles agent execution with loading states', async () => {
-    render(<AgentWorkflow agentId="test-agent" />);
-
-    // Initial loading state
-    expect(screen.getByText(/loading agent/i)).toBeInTheDocument();
-
-    // Wait for API response (uses existing MSW handlers)
-    await waitFor(() => {
-      expect(screen.getByText(/agent ready/i)).toBeInTheDocument();
-    });
-  });
-
-  test('handles agent execution failure', async () => {
-    server.use(
-      rest.post('/api/agents/:id/execute', (req, res, ctx) => {
-        return res(ctx.status(500), ctx.json({ error: 'Execution failed' }));
-      })
-    );
-
-    render(<AgentWorkflow agentId="test-agent" />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/execution failed/i)).toBeInTheDocument();
-    });
-  });
-});
-```
-
-### Hook Testing + Context Providers
-
-**Pattern for Testing Context Providers:**
-```typescript
-// tests/contexts/AudioControlContext.test.ts
-import { renderHook, act } from '@testing-library/react-hooks';
-import { AudioControlProvider, useAudioControl } from '@/contexts/AudioControlContext';
-
-test('useAudioControl provides audio controls', () => {
-  const wrapper = ({ children }) => (
-    <AudioControlProvider>{children}</AudioControlProvider>
-  );
-
-  const { result } = renderHook(() => useAudioControl(), { wrapper });
-
-  expect(result.current.isPlaying).toBe(false);
-
-  act(() => {
-    result.current.play();
-  });
-
-  expect(result.current.isPlaying).toBe(true);
-});
-```
-
-### Accessibility Testing Integration
-
-**Add to Existing Component Tests:**
-```typescript
-// tests/components/Canvas.test.ts — ADD axe check
-import { axe, toHaveNoViolations } from 'jest-axe';
-import { render } from '@testing-library/react';
-import Canvas from '@/components/Canvas';
-
-expect.extend(toHaveNoViolations);
-
-describe('Canvas component', () => {
-  test('renders canvas UI', () => {
-    // ... existing tests
-  });
-
-  // NEW: Accessibility check
-  test('has no accessibility violations', async () => {
-    const { container } = render(<Canvas />);
-    const results = await axe(container);
-    expect(results).toHaveNoViolations();
-  });
-});
-```
+**Confidence:** HIGH - Thresholds already configured at 80%.
 
 ---
 
-## Coverage Gap Analysis Strategy
+### Mobile (React Native)
 
-### Step 1: Identify Uncovered Code
+**Existing Stack:**
+```json
+{
+  "devDependencies": {
+    "jest-expo": "^51.0.0",
+    "@testing-library/react-native": "^12.0.0",
+    "react-native-testing-library": "^6.0.0"
+  }
+}
+```
+
+**Additions for 80%:**
 ```bash
-cd /Users/rushiparikh/projects/atom/frontend-nextjs
-npm run test:coverage
-
-# Open HTML report
-open coverage/lcov-report/index.html
+# No new tools needed - jest-expo has full coverage support
+# Just adjust threshold in jest.config.js
 ```
 
-**Look for:**
-- Red-highlighted lines in `src/contexts/` → Hook tests needed
-- Red-highlighted lines in `src/components/` → Component tests + a11y checks
-- Uncovered error branches → Integration tests with MSW error handlers
-- Uncovered reducer actions → Hook tests for useReducer
+**Coverage Threshold Adjustment:**
+```javascript
+// Current: 60% (TOO LOW)
+coverageThreshold: {
+  global: {
+    branches: 60,
+    functions: 60,
+    lines: 60,
+    statements: 60
+  }
+}
 
-### Step 2: Prioritize Gaps
-
-**HIGH Priority:**
-1. Custom hooks (src/contexts/, src/hooks/) — Use @testing-library/react-hooks
-2. Error handling paths — Integration tests with MSW
-3. Critical user flows (authentication, agent execution) — E2E with WebdriverIO
-
-**MEDIUM Priority:**
-4. Edge cases in business logic — Property tests with fast-check
-5. Accessibility violations — jest-axe in critical components
-6. State machine transitions — Hook tests for useReducer
-
-**LOW Priority (Post-80%):**
-7. Visual regression — Percy/Playwright screenshots
-8. Performance testing — React Profiler (devtools only)
-
-### Step 3: Test Pattern Template
-
-**For Custom Hooks:**
-```typescript
-import { renderHook, act, waitFor } from '@testing-library/react-hooks';
-
-describe('useCustomHook', () => {
-  test('initial state', () => {
-    const { result } = renderHook(() => useCustomHook());
-    expect(result.current.state).toEqual(initialState);
-  });
-
-  test('handles action', async () => {
-    const { result } = renderHook(() => useCustomHook());
-
-    await act(async () => {
-      await result.current.action();
-    });
-
-    expect(result.current.state).toEqual(updatedState);
-  });
-
-  test('handles errors', async () => {
-    const { result } = renderHook(() => useCustomHook());
-
-    await act(async () => {
-      await result.current.actionThatThrows();
-    });
-
-    expect(result.current.error).toBeTruthy();
-  });
-});
+// Target: 80%
+coverageThreshold: {
+  global: {
+    branches: 75,
+    functions: 80,
+    lines: 80,
+    statements: 75,
+  }
+}
 ```
 
-**For Component Integration (MSW):**
-```typescript
-import { render, screen, waitFor } from '@testing-library/react';
-import { server } from '@/tests/mocks/server';
-import { rest } from 'msw';
+**Confidence:** HIGH - Just needs threshold adjustment.
 
-describe('Component integration', () => {
-  test('success flow', async () => {
-    render(<Component />);
-    await waitFor(() => expect(screen.getByText('Success')).toBeInTheDocument());
-  });
+---
 
-  test('error flow', async () => {
-    server.use(
-      rest.get('/api/endpoint', (req, res, ctx) => res(ctx.status(500)))
-    );
+### Desktop (Rust/Tauri)
 
-    render(<Component />);
-    await waitFor(() => expect(screen.getByText('Error')).toBeInTheDocument());
-  });
-});
+**Existing Stack:**
+```toml
+[dev-dependencies]
+cargo-tarpaulin = "0.27"
+proptest = "1.0"
 ```
 
-**For Accessibility:**
-```typescript
-import { axe } from 'jest-axe';
+**Additions for 80%:**
+```bash
+# Add CI/CD enforcement (NEW)
+cargo tarpaulin --fail-under 80 --out Xml
+```
 
-test('has no a11y violations', async () => {
-  const { container } = render(<Component />);
-  const results = await axe(container);
-  expect(results).toHaveNoViolations();
-});
+**Coverage Threshold Enforcement:**
+```yaml
+# Add to .github/workflows/test-coverage.yml:
+- name: Test coverage (Desktop)
+  run: |
+    cargo tarpaulin --verbose --workspace --timeout 120 --fail-under 80 --out Xml
+```
+
+**Confidence:** HIGH - cargo-tarpaulin supports `--fail-under` flag.
+
+---
+
+## Alternatives Considered
+
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| **Backend Coverage** | pytest-cov | nose2, unittest2 | Deprecated, less feature-rich |
+| **Frontend Coverage** | Jest内置 | Istanbul/nyc | Jest uses Istanbul internally, redundant |
+| **Mobile Coverage** | jest-expo | Detox | Detox is E2E, not unit coverage |
+| **Desktop Coverage** | cargo-tarpaulin | kcov, grcov | kcov unmaintained, grcov requires LLVM setup |
+| **Test Generation** | AI-assisted | Pynguin, EvoSuite | Python/Java-only, immature for TS/Rust |
+| **Mutation Testing** | mutmut, stryker | cosmic-ray, PIT | cosmic-ray unmaintained, PIT is Java-only |
+
+---
+
+## Installation
+
+### Backend (Python)
+```bash
+# Core testing (ALREADY INSTALLED)
+pip install pytest==7.4+ pytest-asyncio==0.21+ pytest-cov==4.1+
+
+# Property-based testing (ALREADY INSTALLED)
+pip install hypothesis==6.151.5
+
+# PR-level coverage enforcement (NEW)
+pip install diff-cover==8.0+
+
+# Mutation testing (OPTIONAL - Phase 2-03)
+pip install mutmut==2.4+
+```
+
+### Frontend (TypeScript/React)
+```bash
+# Core testing (ALREADY INSTALLED)
+npm install --save-dev jest@30.0+ @testing-library/react@16.3+
+
+# PR-level coverage (NEW)
+npm install --save-dev jest-coverage-report-action
+
+# Mutation testing (OPTIONAL - already installed)
+npm install --save-dev @stryker-mutator/core@9.5+ @stryker-mutator/jest-runner@9.5+
+```
+
+### Mobile (React Native)
+```bash
+# Core testing (ALREADY INSTALLED via Expo)
+# No new tools needed - adjust threshold in jest.config.js
+```
+
+### Desktop (Rust)
+```bash
+# Core testing (ALREADY INSTALLED)
+cargo install cargo-tarpaulin --version 0.27
+
+# Mutation testing (OPTIONAL)
+cargo install cargo-mutants
 ```
 
 ---
 
-## Cross-Platform Testing Patterns
+## Anti-Patterns to Avoid
 
-### Unify Frontend/Mobile/Desktop Testing
+### 1. Don't Add New Testing Frameworks
+**Why:** Atom already has comprehensive tooling. Adding more frameworks = maintenance burden.
+**Instead:** Use existing pytest/Jest infrastructure.
 
-**Current Setup:**
-- Frontend (Next.js): Jest 30 + React Testing Library
-- Mobile (React Native): Jest 29 + React Native Testing Library
-- Desktop (Tauri): cargo test (Rust) + WebdriverIO (WebView)
+### 2. Don't Chase 100% Coverage
+**Why:** Diminishing returns. 80% is the sweet spot (caught 80% of bugs, manageable effort).
+**Instead:** Focus on **critical path coverage** (governance, LLM, canvas) > 90%.
 
-**Unified Patterns:**
+### 3. Don't Use Mutation Testing Everywhere
+**Why:** 10-20x slower than regular tests. Expensive to run in CI/CD.
+**Instead:** Run mutation tests **weekly** on critical paths only.
 
-| Test Type | Frontend (Jest) | Mobile (Jest) | Desktop (cargo) |
-|-----------|-----------------|---------------|-----------------|
-| Unit tests | `test()` + `render()` | `test()` + `render()` | `#[test]` |
-| Hooks | `renderHook()` | `renderHook()` | N/A (Rust functions) |
-| Integration | MSW handlers | MSW handlers | Mock IPC |
-| E2E | WebdriverIO | Detox (future) | WebdriverIO |
-| A11y | jest-axe | jest-axe (React Native) | Manual audit |
+### 4. Don't Ignore Test Quality
+**Why:** High coverage ≠ good tests. Tests can pass without asserting behavior.
+**Instead:** Use mutation testing **periodically** to validate test quality.
 
-**Shared Test Utilities:**
-```typescript
-// tests/utils/test-utils.ts — SHARED across frontend
-export const mockAgent = (overrides = {}) => ({
-  id: 'test-agent',
-  name: 'Test Agent',
-  maturity: 'AUTONOMOUS',
-  ...overrides,
-});
-
-export const mockApiResponse = (data) => ({
-  success: true,
-  data,
-  timestamp: new Date().toISOString(),
-});
-```
-
-**Avoid:** Duplicating test utilities across frontend/mobile/desktop. Create shared utils in `/Users/rushiparikh/projects/atom/tests/shared/` if needed.
+### 5. Don't Rely Solely on AI-Generated Tests
+**Why:** LLMs generate boilerplate well, but miss edge cases and domain-specific invariants.
+**Instead:** Use AI for **scaffolding**, human review for **logic validation**.
 
 ---
 
-## Version Compatibility
+## Integration with Existing Infrastructure
 
-| Package | Version | Compatible With | Notes |
-|---------|---------|-----------------|-------|
-| Jest | 30.0.5 | React 19, Next.js 15.5.9 | 37% faster than Jest 29 |
-| @testing-library/react | 16.3.0 | React 18.3+, React DOM 18.3+ | Requires jest-environment-jsdom |
-| @testing-library/react-hooks | 8.0.1 | React 16.9+ | Isolated hook testing |
-| jest-axe | 8.0.0 | Jest 27+ | WCAG 2.1 compliance |
-| MSW | 1.3.5 | Node 14+, all browsers | Already configured |
-| fast-check | 4.5.3 | Jest 29+, Vitest 0.34+ | 84 tests passing |
-| WebdriverIO | 9.24.0 | Node 18+, all browsers | Already installed |
+### Quality Infrastructure (Phases 149-151)
+**Existing:**
+- Parallel execution (pytest-xdist, Jest maxWorkers)
+- Trending (coverage_trend.json, coverage-trend-tracker.js)
+- Flaky detection (pytest-rerunfailures, jest-retry-wrapper)
+- Reliability scoring (backend/tests/scripts/)
 
-**Known Issues:**
-- **Jest 30.x** migration from Jest 29.x: Verify config (already done, working)
-- **React Testing Library 16.x**: Requires `jest-environment-jsdom` 30+ (✅ installed)
-- **MSW 2.x polyfills**: Already handled in `tests/setup.ts` with web-streams-polyfill
+**Integration Points:**
+1. **PR-level coverage gates** integrate with flaky detection (block unreliable coverage gains)
+2. **Diff coverage** integrates with trending (track coverage per commit, not just aggregate)
+3. **Mutation testing** integrates with reliability scoring (mutation score = test quality metric)
 
----
+### Cross-Platform Coverage Aggregation
+**Existing:**
+- `backend/tests/scripts/cross_platform_coverage_gate.py` - Unified coverage aggregation
+- `backend/tests/coverage_reports/metrics/cross_platform_summary.json` - Cross-platform metrics
 
-## Migration Path
-
-### Phase 1: Hook Testing (Week 1)
-1. Install `@testing-library/react-hooks@^8.0.1`
-2. Identify all custom hooks in `src/contexts/`, `src/hooks/`
-3. Create test files: `*.hooks.test.ts`
-4. Test hook state transitions, error handling, cleanup
-5. Target: +5% coverage increase
-
-### Phase 2: Accessibility Testing (Week 1-2)
-1. Install `jest-axe@^8.0.0` and `@axe-core/react@^4.10.0`
-2. Create `tests/setup-axe.ts` with `expect.extend(toHaveNoViolations)`
-3. Add a11y assertions to critical component tests (navigation, forms, canvas)
-4. Fix WCAG violations found
-5. Target: +3% coverage increase, zero a11y violations
-
-### Phase 3: Integration Testing with MSW (Week 2-3)
-1. Audit existing MSW handlers in `tests/mocks/handlers.ts`
-2. Identify missing error scenarios, loading states
-3. Create integration test suite: `tests/integration/*.test.ts`
-4. Test full component + API flows using existing MSW infrastructure
-5. Target: +4% coverage increase
-
-### Phase 4: E2E Gap Closure (Week 3-4)
-1. Audit existing WebdriverIO tests in `wdio/specs/`
-2. Identify missing critical user flows
-3. Add E2E tests for: authentication, agent execution, canvas operations
-4. Target: +2% coverage increase (E2E tests don't count in Jest coverage but validate integration)
-
-### Phase 5: Property Testing Expansion (Week 4)
-1. Audit existing FastCheck tests (84 passing)
-2. Identify state reducers, data transformers, validation logic
-3. Add property tests for invariants
-4. Target: +2% coverage increase, higher confidence in edge cases
-
-**Total Expected Coverage Increase:** 89.84% → 95%+ (consistent across all modules)
+**Integration:**
+- Add **diff-cover** for each platform to cross-platform gate
+- Add **mutation score** to quality metrics dashboard
 
 ---
 
 ## Sources
 
-### Official Documentation
-- **Jest 30** — Official documentation (https://jestjs.io/)
-- **React Testing Library** — Official docs (https://testing-library.com/react)
-- **@testing-library/react-hooks** — GitHub repository (https://github.com/testing-library/react-hooks-testing-library)
-- **jest-axe** — NPM package (https://www.npmjs.com/package/jest-axe)
-- **MSW** — Official documentation (https://mswjs.io/)
-- **FastCheck** — Official documentation (https://fast-check.dev/)
+- **pytest Documentation:** https://docs.pytest.org/ (Coverage configuration, pytest-cov)
+- **Jest Documentation:** https://jestjs.io/docs/configuration (coverageThresholds)
+- **cargo-tarpaulin:** https://github.com/xd009642/tarpaulin (Rust coverage, fail-under flag)
+- **diff-cover:** https://github.com/Bachmann1234/diff-cover (PR-level coverage enforcement)
+- **@stryker-mutator:** https://stryker-mutator.io/ (JavaScript/TypeScript mutation testing)
+- **mutmut:** https://github.com/boxed/mutmut (Python mutation testing)
 
-### Web Research (2025-2026)
-- **React Testing Library State Machine Testing** — XState integration guide, August 2025 (https://m.blog.csdn.net/gitblog_01075/article/details/151418388)
-- **Jest + React Testing Library Integration Testing with MSW** — Complete guide, November 2025 (Bilibili video course)
-- **React Accessibility Testing with axe-core** — BrowserStack guide (https://www.browserstack.com/guide/react-accessibility-testing)
-- **React Hooks Testing Guide** — Testing Library hooks patterns, August 2025 (https://m.blog.csdn.net/gitblog_00134/article/details/153759411)
-- **Jest 30 Performance Improvements** — 37% faster, 77% less memory, August 2025 (https://baijiahao.baidu.com/s?id=1840213785100670019)
-- **Playwright vs Cypress 2025** — E2E framework comparison (https://blog.csdn.net/2501_94261392/article/details/156195567)
-- **Vitest 4.0 Visual Regression** — Native visual testing announcement, December 2025 (https://www.infoq.cn/article/O9bTEFlNdmoIBR7QPXa9)
-- **React Developer Roadmap 2025** — State management and testing recommendations (https://blog.csdn.net/weixin_46769087/article/details/150574442)
-
-### Verified Package Versions
-- All versions verified via `/Users/rushiparikh/projects/atom/frontend-nextjs/package.json`
-- Current test infrastructure: 1,004+ tests passing, 89.84% coverage
-- FastCheck 4.5.3 with 84 property tests
-- WebdriverIO 9.24.0 installed for E2E (wdio/ configured)
-
-**Confidence Level: HIGH**
-- All package versions verified from package.json
-- Integration strategy based on existing Jest 30 + RTL setup
-- No framework migration required (keep Jest, defer Vitest)
-- Additions focused on coverage gaps, not framework proliferation
-- WebSearch sources from 2025-2026 with verified publication dates
+**Confidence Assessment:**
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Core Testing Stack | HIGH | All tools currently installed and operational |
+| Coverage Enforcement | HIGH | Thresholds configured in pytest.ini and jest.config.js |
+| Test Generation | MEDIUM | AI-assisted generation requires human review |
+| Coverage Gap Analysis | HIGH | Mature tools (diff-cover) with CI/CD integration |
+| Mutation Testing | HIGH | Tools mature, but expensive (use sparingly) |
+| Platform-Specific | HIGH | Each platform has appropriate tooling |
 
 ---
 
-*Stack research for: Frontend Testing Coverage Expansion (Phase 5.2)*
-*Researched: 2026-03-03*
-*Focus: Closing coverage gaps to achieve consistent 80%+ across all React/Next.js code*
+## Summary
+
+**Recommended Approach:**
+1. **Use existing tools** - pytest, Jest, cargo-tarpaulin already configured
+2. **Add PR-level enforcement** - diff-cover (backend), jest-coverage-report-action (frontend)
+3. **Adjust mobile threshold** - 60% → 80% in jest.config.js
+4. **Add desktop enforcement** - `--fail-under 80` flag to cargo-tarpaulin
+5. **Use AI for test generation** - Accelerate scaffolding, not replace human review
+6. **Mutation testing sparingly** - Critical paths only, weekly runs
+
+**Expected Outcome:**
+- **Backend:** 26.15% → 80% (53.85 pp gap) with PR-level enforcement + AI-assisted generation
+- **Frontend:** 65.85% → 80% (14.15 pp gap) with existing thresholds + gap analysis
+- **Mobile:** 60% → 80% (20 pp gap) with threshold adjustment
+- **Desktop:** 65-70% → 80% (10-15 pp gap) with CI/CD enforcement
+
+**Timeline:** 2-3 months (depending on codebase size and test writer velocity).
