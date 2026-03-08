@@ -588,3 +588,11 @@ python3 backend/tests/scripts/retry_policy.py --platform backend
 3. Set up weekly cron job for auto-removal
 4. Monitor reliability score trends in CI/CD
 5. Aim for <5% flaky test rate across all platforms
+
+## See Also
+
+- [Testing Documentation Index](../../docs/TESTING_INDEX.md) - Central hub for all testing documentation
+- [Testing Onboarding Guide](../../docs/TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- [Flaky Test Guide](FLAKY_TEST_GUIDE.md) - Comprehensive flaky test patterns
+- [Parallel Execution Guide](PARALLEL_EXECUTION_GUIDE.md) - CI/CD integration for flaky detection
+- [Coverage Trending Guide](COVERAGE_TRENDING_GUIDE.md) - Track reliability trends over time
