@@ -175,6 +175,16 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   7. Simple state management (read-only services, useState hooks, AsyncStorage/MMKV) tested
 **Plans**: 4 plans
 
+**Wave Structure:**
+- Wave 1: Plans 01-03 (Backend DTOs, Backend utilities, Frontend UI components - parallel quick wins)
+- Wave 2: Plan 04 (Configuration and wiring - depends on Wave 1)
+
+**Plan Breakdown:**
+- [ ] 155-01-PLAN.md — Backend DTO testing (response models, validators, API schemas)
+- [ ] 155-02-PLAN.md — Backend utility testing (formatters, validators)
+- [ ] 155-03-PLAN.md — Frontend UI component testing (Button, Input, Badge)
+- [ ] 155-04-PLAN.md — Configuration and wiring testing (route registration, provider setup)
+
 #### Phase 156: Core Services Coverage (High Impact)
 **Goal**: Expand coverage to 80% for critical services (governance, LLM, episodic memory, canvas)
 **Depends on**: Phase 155
