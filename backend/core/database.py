@@ -4,6 +4,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
+import sqlalchemy
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -120,6 +121,9 @@ SessionLocal = sessionmaker(
 )
 
 class Base(DeclarativeBase):
+    """
+    Base class for SQLAlchemy models.
+    """
     pass
 
 def get_db():
