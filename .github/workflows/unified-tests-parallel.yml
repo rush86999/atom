@@ -373,6 +373,19 @@ jobs:
             --output test-results/mobile_flaky_tests.json
         continue-on-error: true
 
+      # Track assert-to-test ratio (Backend)
+      # Detect coverage gaming: high coverage % + low assert count = tests execute code but don't validate behavior
+      - name: Track assert-to-test ratio (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/assert_test_ratio_tracker.py \
+            tests/ \
+            --min-ratio 2.0 \
+            --format json \
+            --output tests/coverage_reports/metrics/assert_ratio_report.json
+        continue-on-error: false
+
       # Upload flaky test reports
       - name: Upload flaky test reports
         uses: actions/upload-artifact@v4
@@ -383,6 +396,16 @@ jobs:
             backend/tests/coverage_reports/metrics/*_flaky_tests.json
             frontend-nextjs/coverage/*_flaky_tests.json
             mobile/test-results/*_flaky_tests.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Upload assert ratio report (Backend)
+      - name: Upload assert ratio report
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: assert-ratio-report-backend
+          path: backend/tests/coverage_reports/metrics/assert_ratio_report.json
           retention-days: 30
           if-no-files-found: warn
 
