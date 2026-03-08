@@ -7346,61 +7346,8 @@ class HomeAssistantConnection(Base):
 # GEA & Skills Models (Ported from SaaS)
 # ============================================================================
 
-class Skill(Base):
-    """
-    Skill definition for agent capabilities.
-    Types:
-    - api: HTTP REST API calls
-    - function: Native Python function calls
-    - script: Local script execution (sandboxed)
-
-    Note: extend_existing=True is set to handle the duplicate Skill class definition
-    at line 1930. This is a pre-existing issue in the codebase.
-    """
-    __tablename__ = "skills"
-    __table_args__ = {'extend_existing': True}
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)  # NULL for public marketplace skills
-    author_tenant_id = Column(String, ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True, index=True)  # Original creator
-
-    name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    long_description = Column(Text, nullable=True)  # Detailed markdown description
-    version = Column(String, default="1.0.0")
-    type = Column(String, nullable=False)  # api, function, script, docker, container
-
-    # API / Function Schema
-    input_schema = Column(JSON, nullable=False, default=dict)
-    output_schema = Column(JSON, nullable=True)
-
-    # config: { url, method, headers } or { script } or { image, command }
-    config = Column(JSON, nullable=False, default=dict)
-
-    # Marketplace metadata
-    is_public = Column(Boolean, default=False)
-    is_approved = Column(Boolean, default=False)  # For public marketplace skills
-
-    # Categories & tags
-    category = Column(String(50), nullable=True)  # productivity, finance, communication, etc.
-    tags = Column(JSON, nullable=True)  # List of tags for better discoverability
-
-    # Code/storage
-    code = Column(Text, nullable=True)
-    
-    # OpenClaw-specific fields
-    openclaw_source_url = Column(String(500), nullable=True)  # GitHub URL to SKILL.md
-    openclaw_skill_md = Column(Text, nullable=True)  # Original SKILL.md content
-    openclaw_author = Column(String(255), nullable=True)  # Original author from SKILL.md
-    openclaw_metadata = Column(JSON, nullable=True)  # Full parsed YAML frontmatter
-    openclaw_dependencies = Column(JSON, nullable=True)  # Parsed dependencies from parser
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    # Relationships
-    tenant = relationship("Tenant", backref="skills", foreign_keys=[tenant_id])
-    author_tenant = relationship("Tenant", backref="published_skills", foreign_keys=[author_tenant_id])
+# Note: Duplicate Skill class removed (was at line 7349)
+# The canonical Skill definition is at line 1930
 
 
 class SkillVersion(Base):

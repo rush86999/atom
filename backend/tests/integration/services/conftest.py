@@ -235,21 +235,19 @@ def test_episode(episode_db_session):
     episode = Episode(
         id=episode_id,
         agent_id=f"test_agent_{uuid4().hex[:8]}",
-        user_id=f"test_user_{uuid4().hex[:8]}",
-        workspace_id="default",
-        title="Test Episode",
-        description="Test episode for integration testing",
-        summary="Test episode summary",
-        status="completed",
+        tenant_id="default",
+        task_description="Test episode for integration testing",
+        maturity_at_time="AUTONOMOUS",
         started_at=datetime.now(timezone.utc) - timedelta(hours=2),
-        ended_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        completed_at=datetime.now(timezone.utc) - timedelta(hours=1),
         topics=["test", "integration"],
         entities=["test_entity"],
-        maturity_at_time="AUTONOMOUS",
         human_intervention_count=0,
         importance_score=0.8,
         decay_score=0.0,
-        access_count=5
+        access_count=5,
+        outcome="success",
+        success=True
     )
     episode_db_session.add(episode)
     episode_db_session.flush()
