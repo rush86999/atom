@@ -1,17 +1,21 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: Planning Next Milestone
+## Current Milestone: v5.3 Coverage Expansion to 80% Targets
 
-**Previous Milestone:** v5.2 Complete Codebase Coverage (SHIPPED 2026-03-08)
+**Goal:** Achieve actual 80% test coverage across all platforms (backend, frontend, mobile, desktop)
 
-**Achieved:**
-- ✅ 80% test coverage target established with quality infrastructure
-- ✅ Backend coverage: 26.15% → documented with measurement methodology
-- ✅ Frontend coverage: 1.41% → 65.85% with infrastructure and thresholds
-- ✅ Mobile coverage: 16.16% → infrastructure foundation, 250+ tests
-- ✅ Desktop coverage: 0% → 65-70% estimated (Tauri/Rust testing)
-- ✅ Cross-platform property testing: FastCheck + Hypothesis + proptest unified
-- ✅ Quality infrastructure: Parallel execution, trending, reliability, documentation
+**Target features:**
+- Backend coverage: 26.15% → 80% target (53.85 percentage point gap)
+- Frontend coverage: 65.85% → 80% target (14.15 percentage point gap)
+- Mobile coverage: Infrastructure → 80% target (focusing on test fixes and new tests)
+- Desktop coverage: 65-70% → 80% target (10-15 percentage point gap)
+- CI/CD enforcement: All platforms enforce 80% minimum in quality gates
+
+**Strategy:**
+- Fill coverage gaps identified in v5.2 with targeted test development
+- Fix failing tests to improve actual coverage measurements
+- Focus on high-impact files first (critical paths, user-facing features)
+- Maintain quality infrastructure (trending, flaky detection, parallel execution)
 
 ---
 
@@ -110,7 +114,12 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-*Planning next milestone...*
+**v5.3 Coverage Expansion to 80% Targets (2026-03-08):**
+- [ ] Backend coverage to 80% — 26.15% → 80% (53.85 percentage point gap) — v5.3
+- [ ] Frontend coverage to 80% — 65.85% → 80% (14.15 percentage point gap) — v5.3
+- [ ] Mobile coverage to 80% — Infrastructure → 80% with test fixes and new tests — v5.3
+- [ ] Desktop coverage to 80% — 65-70% → 80% (10-15 percentage point gap) — v5.3
+- [ ] CI/CD enforcement — All platforms enforce 80% minimum in quality gates — v5.3
 
 ### Out of Scope
 
@@ -188,4 +197,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-03-08 after v5.2 Complete Codebase Coverage milestone*
+*Last updated: 2026-03-08 after v5.2 milestone, starting v5.3 Coverage Expansion to 80% Targets*
