@@ -162,20 +162,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUICK-04 | Phase 155 | Pending |
 | CORE-01 | Phase 156 | Pending |
 | CORE-02 | Phase 156 | Pending |
-| CORE-03 | Phase 157 | Pending |
-| CORE-04 | Phase 157 | Pending |
-| CORE-05 | Phase 158 | Pending |
-| EDGE-01 | Phase 159 | Pending |
-| EDGE-02 | Phase 159 | Pending |
-| EDGE-03 | Phase 160 | Pending |
-| EDGE-04 | Phase 160 | Pending |
-| EDGE-05 | Phase 161 | Pending |
+| CORE-03 | Phase 156 | Pending |
+| CORE-04 | Phase 156 | Pending |
+| CORE-05 | Phase 156 | Pending |
+| EDGE-01 | Phase 157 | Pending |
+| EDGE-02 | Phase 157 | Pending |
+| EDGE-03 | Phase 157 | Pending |
+| EDGE-04 | Phase 157 | Pending |
+| EDGE-05 | Phase 157 | Pending |
 
 **Coverage:**
 - v5.3 requirements: 20 total
-- Mapped to phases: TBD (after roadmap creation)
-- Unmapped: TBD ⚠️
+- Mapped to phases: 20/20 (100%) ✓
+- Unmapped: 0
+
+**Phase Distribution:**
+- Phase 153: 2 requirements (ENFORCE-01, ENFORCE-02)
+- Phase 154: 2 requirements (ENFORCE-03, ENFORCE-04)
+- Phase 155: 4 requirements (QUICK-01, QUICK-02, QUICK-03, QUICK-04)
+- Phase 156: 5 requirements (CORE-01, CORE-02, CORE-03, CORE-04, CORE-05)
+- Phase 157: 5 requirements (EDGE-01, EDGE-02, EDGE-03, EDGE-04, EDGE-05)
 
 ---
 *Requirements defined: 2026-03-08*
-*Last updated: 2026-03-08 after initial definition*
+*Last updated: 2026-03-08 after roadmap creation*
