@@ -16,9 +16,7 @@
 ## I Want to Test [Specific Platform]
 
 ### Frontend (Next.js/React)
-→ [FRONTEND_TESTING_GUIDE.md](FRONTEND_TESTING_GUIDE.md) *(to be created in 152-02)*
-- Jest, React Testing Library, MSW, jest-axe
-- Target: 80%+ coverage
+→ [FRONTEND_TESTING_GUIDE.md](FRONTEND_TESTING_GUIDE.md) - Jest, React Testing Library, MSW, jest-axe patterns, component testing, hook testing, API mocking, accessibility testing (WCAG 2.1 AA), 80%+ coverage target
 
 ### Mobile (React Native)
 → [MOBILE_TESTING_GUIDE.md](MOBILE_TESTING_GUIDE.md) - jest-expo, React Native Testing Library, device mocks, platform-specific testing (iOS vs Android), 50%+ coverage target
