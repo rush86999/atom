@@ -63,17 +63,22 @@ def load_flaky_tests(db_path: Path, platform: str) -> List[Dict]:
         SystemExit: If database not found or error loading
     """
     try:
-        # Import FlakyTestTracker
-        from tests.scripts.flaky_test_tracker import FlakyTestTracker
+        # Import FlakyTestTracker directly from file
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "flaky_test_tracker",
+            Path(__file__).parent / "flaky_test_tracker.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        FlakyTestTracker = module.FlakyTestTracker
 
         tracker = FlakyTestTracker(db_path)
         flaky_tests = tracker.get_quarantined_tests(platform=platform)
         tracker.close()
 
         return flaky_tests
-    except ImportError as e:
-        logger.error(f"Failed to import FlakyTestTracker: {e}")
-        sys.exit(2)
     except Exception as e:
         logger.error(f"Error loading flaky tests: {e}")
         sys.exit(2)
@@ -139,7 +144,16 @@ def load_slow_tests(durations_file: Path, db_path: Path, platform: str, min_time
 
     # Fallback: query from flaky test database
     try:
-        from tests.scripts.flaky_test_tracker import FlakyTestTracker
+        # Import FlakyTestTracker directly from file
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "flaky_test_tracker",
+            Path(__file__).parent / "flaky_test_tracker.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        FlakyTestTracker = module.FlakyTestTracker
 
         tracker = FlakyTestTracker(db_path)
         slow_tests = tracker.get_slow_tests(min_time=min_time, platform=platform, limit=50)
