@@ -41,6 +41,7 @@ Progress: [██░░] 40% (2 of 5 plans complete)
 | Phase 153 P03 | 145 | 3 tasks | 2 files |
 | Phase 153 P02 | 229 | 3 tasks | 2 files |
 | Phase 154-coverage-trends-quality-metrics P04 | 4 | 3 tasks | 3 files |
+| Phase 155 P01 | 734 | 5 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - [Phase 154 P01]: CI/CD integration with continue-on-error: true (API failures don't block CI)
 - [Phase 154 P01]: Trend indicators: ↑ (>1% increase), ↓ (>1% decrease), → (stable within ±1%)
 - [Phase 154 P01]: Severity levels: 🔴 CRITICAL (>5% decrease), 🟡 WARNING (>1% decrease), ✅ OK (stable/improved)
+- [Phase 155]: Use standalone test runners for backend DTOs to avoid SQLAlchemy conftest conflicts
+- [Phase 155]: Fix Pydantic v2 syntax: Field(True) → Field(default=True) in response_models.py
+- [Phase 155]: Desktop Rust tests created but blocked by 19 pre-existing compilation errors
 
 ### Pending Todos
 
