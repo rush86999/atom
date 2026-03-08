@@ -10,6 +10,9 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+env:
+  COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
+
 # Parallel test execution across 4 platforms using matrix strategy
 # Reduces total test time from 30+ minutes (sequential) to <15 minutes (parallel)
 # Each platform runs in separate job with platform-specific test command and configuration
@@ -54,7 +57,7 @@ jobs:
             runner: ubuntu-latest
             timeout: 20
             test-command: |
-              cd frontend-nextjs && npm run test:ci -- --json --outputFile=test-results.json --maxWorkers=2
+              cd frontend-nextjs && npm run test:ci -- --coverage --watchAll=false --maxWorkers=2
             artifact-name: frontend-test-results
             artifact-path: frontend-nextjs/test-results.json
             coverage-name: frontend-coverage
@@ -65,22 +68,22 @@ jobs:
             runner: ubuntu-latest
             timeout: 20
             test-command: |
-              cd mobile && npm run test:ci -- --json --outputFile=test-results.json --maxWorkers=2
+              cd mobile && npm run test:ci -- --coverage --watchAll=false --maxWorkers=2
             artifact-name: mobile-test-results
             artifact-path: mobile/test-results.json
             coverage-name: mobile-coverage
             coverage-path: mobile/coverage/coverage-final.json
 
-          # Desktop: Tauri cargo test with parallel threads
+          # Desktop: Tauri cargo test with coverage enforcement
+          # Use ubuntu-latest runner for tarpaulin (macOS has linking issues)
           - platform: desktop
             runner: ubuntu-latest
-            timeout: 15
+            timeout: 20
             test-command: |
-              cd frontend-nextjs/src-tauri && cargo test --test-threads=4 -Z unstable-options --format json > cargo_test_results.json 2>&1 || true
-            artifact-name: desktop-test-results
-            artifact-path: frontend-nextjs/src-tauri/cargo_test_results.json
-            coverage-name: desktop-coverage
-            coverage-path: frontend-nextjs/src-tauri/coverage.json
+              cd frontend-nextjs/src-tauri
+              bash scripts/run-coverage.sh
+            artifact-name: desktop-coverage
+            artifact-path: frontend-nextjs/src-tauri/coverage/coverage.json
 
     steps:
       - name: Checkout code
@@ -104,6 +107,11 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+
+      - name: Install cargo-tarpaulin (desktop)
+        if: matrix.platform == 'desktop'
+        run: |
+          cargo install cargo-tarpaulin
 
       # Platform-specific dependency caching
       - name: Cache pip packages (backend)
@@ -184,21 +192,48 @@ jobs:
           ATOM_DISABLE_LANCEDB: true
           ATOM_MOCK_DATABASE: true
           CI: true
+          COVERAGE_PHASE: ${{ env.COVERAGE_PHASE }}
+
+      # Check desktop coverage report generation
+      - name: Check desktop coverage
+        if: matrix.platform == 'desktop'
+        run: |
+          cd frontend-nextjs/src-tauri
+          if [ -f coverage/coverage.json ]; then
+            echo "✅ Desktop coverage report generated"
+            # Display coverage summary if jq is available
+            if command -v jq &> /dev/null; then
+              echo "Coverage report available at coverage/coverage.json"
+            fi
+          else
+            echo "❌ Desktop coverage report not found"
+            exit 1
+          fi
 
       # Upload test results artifact
       - name: Upload test results
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && matrix.platform != 'desktop'
         with:
           name: ${{ matrix.artifact-name }}
           path: ${{ matrix.artifact-path }}
           retention-days: 7
           if-no-files-found: warn
 
-      # Upload coverage artifact
+      # Upload coverage artifact (desktop only)
+      - name: Upload desktop coverage
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'desktop'
+        with:
+          name: desktop-coverage
+          path: frontend-nextjs/src-tauri/coverage/coverage.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Upload coverage artifact (non-desktop)
       - name: Upload coverage
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && matrix.platform != 'desktop'
         with:
           name: ${{ matrix.coverage-name }}
           path: ${{ matrix.coverage-path }}
