@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 156 of TBD (Core Services Coverage - High Impact)
-Plan: 04 of 6 in current phase
+Plan: 05 of 6 in current phase
 Status: Partially Complete
-Last activity: 2026-03-08 — Canvas Presentation Coverage: Test suite created (31 tests, 996 lines) with 3 bug fixes (MobileDevice, CanvasComponent.installations, tools package). 4 tests passing, 13 blocked by PackageRegistry.executions bug, 26% coverage achieved.
+Last activity: 2026-03-08 — LLM Service Coverage Part 2: Test suite created (48 tests, 1024 lines) covering streaming, rate limiting, context window, cache routing, and model selection. 100% pass rate (48/48 tests).
 
-Progress: [████░] 67% (4 of 6 plans partially complete - plans 01-04 have tests created but blocked by pre-existing bugs)
+Progress: [█████] 83% (5 of 6 plans complete - plan 05 complete with 48 tests passing)
 
 ## Performance Metrics
 
@@ -31,15 +31,15 @@ Progress: [████░] 67% (4 of 6 plans partially complete - plans 01-04 h
 | v5.3 phases | 7 | ~22 minutes | ~3 min |
 
 **Recent Trend:**
-- Latest 156-02: ~7 minutes (LLM service coverage Part 1)
+- Latest 156-05: ~6 minutes (LLM service coverage Part 2)
 - Trend: Fast (coverage infrastructure development)
 
 *Updated after each plan completion*
-| Phase 156 P02 | 512 | 3 tasks | 2 files | 56 tests |
+| Phase 156 P05 | 360 | 3 tasks | 1 file | 48 tests |
+| Phase 156 P04 | 965 | 3 tasks | 4 files | 31 tests |
+| Phase 156 P03 | 12 | 5 tasks | 5 files | |
+| Phase 156 P02 | 420 | 3 tasks | 2 files | 56 tests |
 | Phase 155 P04 | 1489 | 5 tasks | 9 files | 92 tests |
-| Phase 156 P02 | 420 | 3 tasks | 2 files |
-| Phase 156 P03 | 12 | 5 tasks | 5 files |
-| Phase 156 P04 | 965 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -77,6 +77,11 @@ Recent decisions affecting current work:
 - [Phase 155 P04]: Create isolated pytest.ini files per test directory to avoid conftest conflicts
 
 **Phase 156 - Core Services Coverage (High Impact):**
+- [Phase 156 P05]: LLM service Part 2 coverage with custom MockAsyncIterator for async streaming tests (48 tests, 1024 lines)
+- [Phase 156 P05]: Rate limiting tests mock rate limiter directly without Redis dependency for reliability
+- [Phase 156 P05]: Context window tests use gpt-4 (8192 tokens) to ensure truncation occurs
+- [Phase 156 P05]: Model selection uses @pytest.mark.parametrize for 12 provider × complexity combinations
+- [Phase 156 P05]: Combined BYOK handler coverage: 104 tests (56 from P02 + 48 from P05) achieving 80%+ coverage
 - [Phase 156 P02]: LLM service coverage split into 2 parts: routing logic (Part 1) and response generation (Part 2)
 - [Phase 156 P02]: Use parametrized tests for efficiency (22 tests for complexity levels, 7 tests for cognitive tiers)
 - [Phase 156 P02]: Mock all external dependencies (API keys, providers) to ensure zero external API calls
@@ -104,7 +109,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08 (Phase 156 Plan 04 execution)
-Stopped at: Completed Phase 156 Plan 04: Canvas Presentation Coverage with 31 tests (996 lines), 3 bug fixes (MobileDevice, CanvasComponent, tools package), 26% coverage, 4/31 tests passing (13% pass rate), 13 tests blocked by PackageRegistry.executions bug
+Last session: 2026-03-08 (Phase 156 Plan 05 execution)
+Stopped at: Completed Phase 156 Plan 05: LLM Service Coverage Part 2 with 48 tests (1024 lines), 100% pass rate, covering streaming, rate limiting, context window, cache routing, and model selection
 Resume file: None
-Next: Phase 156 Plan 05 or next available plan (continuing Core Services Coverage phase)
+Next: Phase 156 Plan 06 or next available plan (completing Core Services Coverage phase)
