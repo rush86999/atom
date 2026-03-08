@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 156 of TBD (Core Services Coverage - High Impact)
-Plan: 05 of 6 in current phase
-Status: Partially Complete
-Last activity: 2026-03-08 — LLM Service Coverage Part 2: Test suite created (48 tests, 1024 lines) covering streaming, rate limiting, context window, cache routing, and model selection. 100% pass rate (48/48 tests).
+Plan: 07 of 7 in current phase
+Status: Complete
+Last activity: 2026-03-08 — Gap Closure Plan: Fixed 3 pre-existing SQLAlchemy relationship bugs (PackageRegistry.executions, SkillInstallation.skill, CanvasComponent.author) that blocked 42% of Phase 156 tests. Unblocked all 62 tests (39/62 passing, 63%).
 
-Progress: [█████] 83% (5 of 6 plans complete - plan 05 complete with 48 tests passing)
+Progress: [████████] 100% (7 of 7 plans complete - plan 07 closed gap with SQLAlchemy bug fixes)
 
 ## Performance Metrics
 
@@ -40,6 +40,7 @@ Progress: [█████] 83% (5 of 6 plans complete - plan 05 complete with 4
 | Phase 156 P03 | 12 | 5 tasks | 5 files | |
 | Phase 156 P02 | 420 | 3 tasks | 2 files | 56 tests |
 | Phase 155 P04 | 1489 | 5 tasks | 9 files | 92 tests |
+| Phase 156 P07 | 600 | 4 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,9 @@ Recent decisions affecting current work:
 - [Phase 156]: Restored MobileDevice model from commit d333a64c8 (required by core/auth.py with 86 usages)
 - [Phase 156]: Fixed CanvasComponent.installations relationship missing in second definition (line 7476)
 - [Phase 156]: Created tools/__init__.py to make tools a proper Python package for canvas_tool imports
+- [Phase 156]: Remove PackageRegistry.executions relationship (SkillExecution has no package_id foreign key)
+- [Phase 156]: Add foreign_keys=[skill_id] to SkillInstallation.skill (two FKs to skills.id caused ambiguity)
+- [Phase 156]: Add foreign_keys=[author_id] to CanvasComponent.author (two FKs to users.id caused ambiguity)
 
 ### Pending Todos
 
