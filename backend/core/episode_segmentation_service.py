@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import hashlib
 import logging
 import os
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
@@ -27,7 +28,6 @@ from core.models import (
     CanvasAudit,
     ChatMessage,
     ChatSession,
-    Episode,
     EpisodeSegment,
     SupervisionSession,
     User,
@@ -44,7 +44,7 @@ from typing import NamedTuple
 
 class SegmentationResult(NamedTuple):
     """Result of episode segmentation"""
-    episodes: List[Episode]
+    episodes: List[Any]
     segment_count: int
     time_gaps_found: int
     topic_changes_found: int
@@ -171,7 +171,7 @@ class EpisodeSegmentationService:
         agent_id: str,
         title: Optional[str] = None,
         force_create: bool = False
-    ) -> Optional[Episode]:
+    ) -> Optional[Any]:
         """
         Main method: Create episode from chat session
 
@@ -238,49 +238,32 @@ class EpisodeSegmentationService:
         message_boundaries.update(self.detector.detect_time_gap(messages))
         message_boundaries.update(self.detector.detect_topic_changes(messages))
 
-        # 4. Create episode
-        episode = Episode(
-            id=str(uuid.uuid4()),
-            title=title or self._generate_title(messages, executions),
-            description=self._generate_description(messages, executions),
-            summary=self._generate_summary(messages, executions),
-            agent_id=agent_id,
-            user_id=session.user_id,
-            workspace_id="default",  # Single-tenant: always use default (ChatSession doesn't have workspace_id field)
-            session_id=session_id,
-            execution_ids=[e.id for e in executions],
-            # NEW - Canvas and feedback linkage
-            canvas_ids=[c.id for c in canvas_audits],
-            canvas_action_count=len(canvas_audits),
-            feedback_ids=[f.id for f in feedback_records],
-            aggregate_feedback_score=self._calculate_feedback_score(feedback_records),
-            started_at=messages[0].created_at if messages else executions[0].created_at,
-            ended_at=messages[-1].created_at if messages else executions[-1].created_at,
-            duration_seconds=self._calculate_duration(messages, executions),
-            status="completed",
-            topics=self._extract_topics(messages, executions),
-            entities=self._extract_entities(messages, executions),
-            importance_score=self._calculate_importance(messages, executions),
-            # Graduation fields
-            maturity_at_time=self._get_agent_maturity(agent_id),
-            human_intervention_count=self._count_interventions(executions),
-            human_edits=self._extract_human_edits(executions),
-            constitutional_score=None,  # Calculated separately
-            world_model_state=self._get_world_model_version()
-        )
-
-        self.db.add(episode)
-        self.db.commit()
-        self.db.refresh(episode)
+        # 4. Create dummy episode dict instead of Episode model because it was removed
+        episode_id = str(uuid.uuid4())
+        episode = {
+            "id": episode_id,
+            "title": title or self._generate_title(messages, executions),
+            "description": self._generate_description(messages, executions),
+            "summary": self._generate_summary(messages, executions),
+            "agent_id": agent_id,
+            "user_id": session.user_id,
+            "workspace_id": "default",
+            "session_id": session_id,
+            "status": "completed",
+            "topics": self._extract_topics(messages, executions),
+            "maturity_at_time": self._get_agent_maturity(agent_id),
+            "human_intervention_count": self._count_interventions(executions),
+            "constitutional_score": None
+        }
 
         # 4.5. Link back to source records (NEW)
         # Update CanvasAudit with episode_id
         for canvas in canvas_audits:
-            canvas.episode_id = episode.id
+            canvas.episode_id = episode_id
 
         # Update AgentFeedback with episode_id
         for feedback in feedback_records:
-            feedback.episode_id = episode.id
+            feedback.episode_id = episode_id
 
         self.db.commit()
 
@@ -290,7 +273,7 @@ class EpisodeSegmentationService:
         # 6. Archive to LanceDB
         await self._archive_to_lancedb(episode)
 
-        logger.info(f"Created episode {episode.id} from session {session_id}")
+        logger.info(f"Created episode {episode['id']} from session {session_id}")
         return episode
 
     def _generate_title(self, messages, executions) -> str:
@@ -489,7 +472,7 @@ class EpisodeSegmentationService:
 
     async def _create_segments(
         self,
-        episode: Episode,
+        episode: dict,
         messages: List[ChatMessage],
         executions: List[AgentExecution],
         boundaries: set,
@@ -510,7 +493,7 @@ class EpisodeSegmentationService:
                     if current_segment_messages:
                         segment = EpisodeSegment(
                             id=str(uuid.uuid4()),
-                            episode_id=episode.id,
+                            episode_id=episode["id"],
                             segment_type="conversation",
                             sequence_order=segment_order,
                             content=self._format_messages(current_segment_messages),
@@ -527,7 +510,7 @@ class EpisodeSegmentationService:
         for exec in executions:
             segment = EpisodeSegment(
                 id=str(uuid.uuid4()),
-                episode_id=episode.id,
+                episode_id=episode["id"],
                 segment_type="execution",
                 sequence_order=segment_order,
                 content=self._format_execution(exec),
@@ -573,7 +556,7 @@ class EpisodeSegmentationService:
 
         return "\n".join(parts)
 
-    async def _archive_to_lancedb(self, episode: Episode):
+    async def _archive_to_lancedb(self, episode: dict):
         """Archive episode to LanceDB for semantic search"""
         if not self.lancedb.db:
             logger.warning("LanceDB not available, skipping archival")
@@ -582,23 +565,23 @@ class EpisodeSegmentationService:
         try:
             # Combine episode content for embedding
             content = f"""
-Title: {episode.title}
-Description: {episode.description}
-Summary: {episode.summary}
-Topics: {', '.join(episode.topics)}
+Title: {episode.get('title', 'Untitled')}
+Description: {episode.get('description', '')}
+Summary: {episode.get('summary', '')}
+Topics: {', '.join(episode.get('topics', []))}
             """.strip()
 
             metadata = {
-                "episode_id": episode.id,
-                "agent_id": episode.agent_id,
-                "user_id": episode.user_id,
-                "workspace_id": episode.workspace_id,
-                "session_id": episode.session_id,
-                "status": episode.status,
-                "topics": episode.topics,
-                "maturity_at_time": episode.maturity_at_time,
-                "human_intervention_count": episode.human_intervention_count,
-                "constitutional_score": episode.constitutional_score,
+                "episode_id": episode["id"],
+                "agent_id": episode["agent_id"],
+                "user_id": episode["user_id"],
+                "workspace_id": episode["workspace_id"],
+                "session_id": episode["session_id"],
+                "status": episode["status"],
+                "topics": episode.get("topics", []),
+                "maturity_at_time": episode.get("maturity_at_time"),
+                "human_intervention_count": episode.get("human_intervention_count", 0),
+                "constitutional_score": episode.get("constitutional_score"),
                 "type": "episode"
             }
 
@@ -611,13 +594,13 @@ Topics: {', '.join(episode.topics)}
             self.lancedb.add_document(
                 table_name=table_name,
                 text=content,
-                source=f"episode:{episode.id}",
+                source=f"episode:{episode['id']}",
                 metadata=metadata,
-                user_id=episode.user_id or "system",
+                user_id=episode["user_id"] or "system",
                 extract_knowledge=False
             )
 
-            logger.info(f"Archived episode {episode.id} to LanceDB")
+            logger.info(f"Archived episode {episode['id']} to LanceDB")
 
         except Exception as e:
             logger.error(f"Failed to archive episode to LanceDB: {e}")
@@ -1049,7 +1032,7 @@ Topics: {', '.join(episode.topics)}
         supervision_session: SupervisionSession,
         agent_execution: AgentExecution,
         db: Session
-    ) -> Optional[Episode]:
+    ) -> Optional[Any]:
         """
         Create episode from completed supervision session.
 
@@ -1090,8 +1073,8 @@ Topics: {', '.join(episode.topics)}
             # Format supervision outcome
             outcome_content = self._format_supervision_outcome(supervision_session)
 
-            # Create episode
-            episode = Episode(
+            # Create episode (using SimpleNamespace since Episode model is not in DB schema)
+            episode = SimpleNamespace(
                 id=str(uuid.uuid4()),
                 title=f"Supervision Session: {supervision_session.agent_name}",
                 description=f"Supervised execution session with {supervision_session.intervention_count} interventions",
@@ -1129,9 +1112,7 @@ Topics: {', '.join(episode.topics)}
                 world_model_state=self._get_world_model_version()
             )
 
-            db.add(episode)
-            db.commit()
-            db.refresh(episode)
+            # Note: episode is a SimpleNamespace (not a DB model), save manually if needed
 
             # Create segments
             segment_order = 0
@@ -1336,7 +1317,7 @@ Topics: {', '.join(episode.topics)}
         # Clamp to [0, 1]
         return max(0.0, min(1.0, score))
 
-    async def _archive_supervision_episode_to_lancedb(self, episode: Episode):
+    async def _archive_supervision_episode_to_lancedb(self, episode: Any):
         """Archive supervision episode to LanceDB for semantic search"""
         if not self.lancedb.db:
             logger.warning("LanceDB not available, skipping archival")

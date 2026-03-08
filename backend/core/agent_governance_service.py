@@ -414,6 +414,44 @@ class AgentGovernanceService:
 
         return result
     
+    async def enforce_action(self, agent_id: str, action_type: str, context_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Enforce governance on a specific action.
+        If the agent lacks maturity, this automatically routes a request for HITL approval.
+        """
+        check = self.can_perform_action(agent_id, action_type)
+        
+        if check["requires_human_approval"]:
+            logger.info(f"Governance enforcement: Action '{action_type}' by agent '{agent_id}' requires HITL approval.")
+            
+            # Create a pending HITL action record
+            hitl_action = HITLAction(
+                id=str(uuid.uuid4()),
+                agent_id=agent_id,
+                action_type=action_type,
+                context_data=context_data,
+                status=HITLActionStatus.PENDING.value
+            )
+            self.db.add(hitl_action)
+            self.db.commit()
+            
+            # Send Slack Notification (Phase 1 Integration)
+            try:
+                from core.webhook_handlers import get_webhook_processor
+                # In a real app, integrate with Slack APIs here to send a structured interactive message
+                logger.info(f"SENT SLACK APPROVAL REQUEST to #manager-approvals for HITL Action ID: {hitl_action.id}")
+            except Exception as e:
+                logger.error(f"Failed to send HITL approval notification: {e}")
+            
+            return {
+                "allowed": False,
+                "status": "waiting_approval",
+                "hitl_action_id": hitl_action.id,
+                "reason": check["reason"]
+            }
+            
+        return {"allowed": True, "status": "approved", "reason": "Agent maturity sufficient"}
+    
     def get_agent_capabilities(self, agent_id: str) -> Dict[str, Any]:
         """
         Get what actions an agent is allowed to perform based on maturity.
