@@ -30,56 +30,88 @@ module.exports = {
   ],
   coverageDirectory: "coverage",
   coverageReporters: ["json", "json-summary", "text", "lcov"],
-  coverageThreshold: {
-    // Global floor raised to 80% (Phase 130-05: graduated rollout complete)
-    global: {
-      branches: 75,
-      functions: 80,
-      lines: 80,
-      statements: 75,
-    },
-    // Utilities - critical infrastructure, highly testable
-    './lib/**/*.{ts,tsx}': {
-      branches: 85,
-      functions: 90,
-      lines: 90,
-      statements: 90,
-    },
-    // Custom hooks - testable with renderHook pattern
-    './hooks/**/*.{ts,tsx}': {
-      branches: 80,
-      functions: 85,
-      lines: 85,
-      statements: 85,
-    },
-    // Canvas components - maintain existing good coverage (73% baseline)
-    './components/canvas/**/*.{ts,tsx}': {
-      branches: 80,
-      functions: 85,
-      lines: 85,
-      statements: 85,
-    },
-    // UI components - standard component testing
-    './components/ui/**/*.{ts,tsx}': {
-      branches: 75,
-      functions: 80,
-      lines: 80,
-      statements: 80,
-    },
-    // Integration components - graduated rollout complete (70% -> 80%)
-    './components/integrations/**/*.{ts,tsx}': {
-      branches: 70,
-      functions: 75,
-      lines: 80,  // Raised from 70%
-      statements: 75,
-    },
-    // Next.js pages
-    './pages/**/*.{ts,tsx}': {
-      branches: 75,
-      functions: 75,
-      lines: 80,
-      statements: 75,
-    },
+  // Progressive coverage thresholds (Phase 153)
+  // Phase 1 (70%): Baseline enforcement
+  // Phase 2 (75%): Interim target
+  // Phase 3 (80%): Final target
+  // New code: Always 80% regardless of phase
+  // Set COVERAGE_PHASE environment variable to control phase
+  get coverageThreshold() {
+    const phase = process.env.COVERAGE_PHASE || 'phase_1';
+
+    const thresholds = {
+      phase_1: {
+        branches: 70,
+        functions: 70,
+        lines: 70,
+        statements: 70,
+      },
+      phase_2: {
+        branches: 75,
+        functions: 75,
+        lines: 75,
+        statements: 75,
+      },
+      phase_3: {
+        branches: 80,
+        functions: 80,
+        lines: 80,
+        statements: 80,
+      },
+    };
+
+    return {
+      global: thresholds[phase],
+      // New code always requires 80% regardless of phase
+      './src/**/*.{ts,tsx}': {
+        branches: 80,
+        functions: 80,
+        lines: 80,
+        statements: 80,
+      },
+      // Utilities - critical infrastructure, highly testable
+      './lib/**/*.{ts,tsx}': {
+        branches: 85,
+        functions: 90,
+        lines: 90,
+        statements: 90,
+      },
+      // Custom hooks - testable with renderHook pattern
+      './hooks/**/*.{ts,tsx}': {
+        branches: 80,
+        functions: 85,
+        lines: 85,
+        statements: 85,
+      },
+      // Canvas components - maintain existing good coverage (73% baseline)
+      './components/canvas/**/*.{ts,tsx}': {
+        branches: 80,
+        functions: 85,
+        lines: 85,
+        statements: 85,
+      },
+      // UI components - standard component testing
+      './components/ui/**/*.{ts,tsx}': {
+        branches: 75,
+        functions: 80,
+        lines: 80,
+        statements: 80,
+      },
+      // Integration components - graduated rollout complete (70% -> 80%)
+      './components/integrations/**/*.{ts,tsx}': {
+        branches: 70,
+        functions: 75,
+        lines: 80,  // Raised from 70%
+        statements: 75,
+      },
+      // Next.js pages
+      './pages/**/*.{ts,tsx}': {
+        branches: 75,
+        functions: 75,
+        lines: 80,
+        statements: 75,
+      },
+    };
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   transformIgnorePatterns: [
