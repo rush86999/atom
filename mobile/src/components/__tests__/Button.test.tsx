@@ -82,7 +82,7 @@ describe('Mobile Button Component', () => {
         <Button title="Disabled" onPress={jest.fn()} disabled />
       );
       const button = getByRole('button');
-      expect(button.props.disabled).toBe(true);
+      expect(button.props.accessibilityState.disabled).toBe(true);
     });
 
     it('renders with loading indicator', () => {
