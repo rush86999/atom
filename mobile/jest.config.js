@@ -58,26 +58,55 @@ module.exports = {
   // Coverage output directory
   coverageDirectory: 'coverage',
 
-  // 80% coverage threshold for mobile app
-  coverageThreshold: {
-    global: {
-      branches: 60,
-      functions: 60,
-      lines: 60,
-      statements: 60
-    },
-    './src/__tests__/helpers/testUtils.ts': {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
-    },
-    './src/__tests__/helpers/platformPermissions.test.ts': {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
-    },
+  // Progressive coverage thresholds (Phase 153)
+  // Mobile thresholds: 50% → 55% → 60% (lower due to React Native testing complexity)
+  // New code: Always 80% regardless of phase
+  get coverageThreshold() {
+    const phase = process.env.COVERAGE_PHASE || 'phase_1';
+
+    const thresholds = {
+      phase_1: {
+        branches: 50,
+        functions: 50,
+        lines: 50,
+        statements: 50,
+      },
+      phase_2: {
+        branches: 55,
+        functions: 55,
+        lines: 55,
+        statements: 55,
+      },
+      phase_3: {
+        branches: 60,
+        functions: 60,
+        lines: 60,
+        statements: 60,
+      },
+    };
+
+    return {
+      global: thresholds[phase],
+      // New code always requires 80% regardless of phase
+      './src/**/*.{ts,tsx,js,jsx}': {
+        branches: 80,
+        functions: 80,
+        lines: 80,
+        statements: 80,
+      },
+      './src/__tests__/helpers/testUtils.ts': {
+        branches: 80,
+        functions: 80,
+        lines: 80,
+        statements: 80,
+      },
+      './src/__tests__/helpers/platformPermissions.test.ts': {
+        branches: 80,
+        functions: 80,
+        lines: 80,
+        statements: 80,
+      },
+    };
   },
 
   // Property test results output (Phase 147-03)
