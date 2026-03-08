@@ -20,6 +20,7 @@ pytest-xdist>=3.6.0,<4.0.0  # Parallel pytest execution (constrain to avoid pyte
 # Coverage & Quality
 pytest-cov>=4.1.0  # Coverage reporting (already in requirements.txt)
 coverage[toml]>=7.0.0  # Enhanced coverage with TOML support
+diff-cover>=7.0  # Diff coverage enforcement for PRs
 
 # Performance Testing
 pytest-benchmark>=4.0.0  # Benchmarking tests
