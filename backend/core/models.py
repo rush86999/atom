@@ -1936,8 +1936,11 @@ class Skill(Base):
     - script: Local script execution (sandboxed)
     - docker: Local Docker execution (desktop only)
     - container: Cloud container execution (Fly.io Machines)
+
+    Note: extend_existing=True handles duplicate class at line 7305.
     """
     __tablename__ = "skills"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)  # NULL for public marketplace skills
@@ -2027,6 +2030,7 @@ class Skill(Base):
 
 
 class SkillVersion(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """
     Version history for skills.
     Enables rollback and version comparison.
@@ -2060,6 +2064,7 @@ class SkillVersion(Base):
 
 
 class SkillInstallation(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """
     Track skill installations from marketplace.
     Links installed skill to original creator for revenue sharing.
@@ -2129,6 +2134,7 @@ class SkillRating(Base):
 
 
 class AgentSkill(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """Many-to-Many relationship between agents and skills"""
     __tablename__ = "agent_skills"
 
@@ -2577,8 +2583,11 @@ class BrowserSession(Base):
 class Artifact(Base):
     """
     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
+
+    Note: extend_existing=True handles duplicate class at line 3334.
     """
     __tablename__ = "artifacts"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
@@ -2723,6 +2732,7 @@ class MenuBarAudit(Base):
 
 
 class CanvasComponent(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """
     Reusable components for canvas marketplace.
 
@@ -3335,8 +3345,12 @@ class Artifact(Base):
     """
     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
     Multi-tenant version with tenant_id for SaaS isolation.
+
+    Note: extend_existing=True is set to handle the duplicate Artifact class definition
+    at line 2577. This is a pre-existing issue in the codebase.
     """
     __tablename__ = "artifacts"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -7302,8 +7316,12 @@ class Skill(Base):
     - api: HTTP REST API calls
     - function: Native Python function calls
     - script: Local script execution (sandboxed)
+
+    Note: extend_existing=True is set to handle the duplicate Skill class definition
+    at line 1930. This is a pre-existing issue in the codebase.
     """
     __tablename__ = "skills"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)  # NULL for public marketplace skills
@@ -7349,6 +7367,7 @@ class Skill(Base):
 
 
 class SkillVersion(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """
     Version history for skills.
     Enables rollback and version comparison.
@@ -7380,6 +7399,7 @@ class SkillVersion(Base):
 
 
 class SkillInstallation(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """
     Track skill installations for tenants.
     Mandatory for tenant-skill association.
@@ -7402,6 +7422,7 @@ class SkillInstallation(Base):
 
 
 class AgentSkill(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """Many-to-Many relationship between agents and skills"""
     __tablename__ = "agent_skills"
 
@@ -7415,6 +7436,7 @@ class AgentSkill(Base):
 
 
 class CanvasComponent(Base):
+    __table_args__ = {'extend_existing': True}  # Duplicate class
     """
     Minimal CanvasComponent for skill UI support.
     """
