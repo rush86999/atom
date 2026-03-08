@@ -290,8 +290,7 @@ def test_episode(episode_db_session):
             content=segment_data["content"],
             content_summary=segment_data["content_summary"],
             source_type="test",
-            source_id=f"source_{i}",
-            canvas_context=None
+            source_id=f"source_{i}"
         )
         episode_db_session.add(segment)
 
