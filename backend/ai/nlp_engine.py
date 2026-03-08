@@ -191,6 +191,25 @@ class NaturalLanguageEngine:
                         logger.info(f"NLU LLM initialized with Anthropic (BYOK/Env)")
                         return
             
+                # Check Qwen / DashScope fallback (OpenAI-compatible)
+            try:
+                from openai import AsyncOpenAI as _AsyncOpenAI
+                qwen_key = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+                if not qwen_key and self._byok_manager:
+                    qwen_key = self._byok_manager.get_api_key("qwen") or self._byok_manager.get_api_key("dashscope")
+
+                if qwen_key:
+                    self.active_provider = "qwen"
+                    self.api_key = qwen_key
+                    self._llm_client = _AsyncOpenAI(
+                        api_key=qwen_key,
+                        base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+                    )
+                    logger.info("NLU LLM initialized with Qwen via DashScope")
+                    return
+            except Exception as _qe:
+                logger.warning(f"Qwen init failed: {_qe}")
+
                 # Check Gemini fallback
             if GEMINI_AVAILABLE and genai:
                 gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -241,6 +260,9 @@ class NaturalLanguageEngine:
                  
             elif self.active_provider == "anthropic" and self._llm_client:
                 return await self._anthropic_parse_command(command)
+
+            elif self.active_provider == "qwen" and self._llm_client:
+                return await self._qwen_parse_command(command)
 
             elif self.active_provider == "gemini" and self._llm_client:
                 return await self._gemini_parse_command(command)
@@ -442,6 +464,64 @@ Output ONLY this JSON, no markdown:
 
         except Exception as e:
             logger.warning(f"Gemini parsing failed: {e}")
+            raise e
+
+    async def _qwen_parse_command(self, command: str) -> Optional[CommandIntent]:
+        """Parse using Qwen via DashScope (OpenAI-compatible)."""
+        try:
+            prompt = f"""You are an NLU parser for ATOM productivity platform.
+Analyze the user command and return ONLY a valid JSON object.
+
+Command: "{command}"
+
+Valid command_type values: search, create, update, delete, schedule, analyze, report, notify, trigger, business_health, workflow_creation, unknown
+Valid platform values: communication, storage, productivity, crm, financial, marketing, analytics
+
+Respond with ONLY this JSON, no markdown:
+{{"command_type": "unknown", "platforms": [], "entities": [], "parameters": {{}}, "confidence": 0.8, "reasoning": "brief explanation"}}"""
+
+            response = await self._llm_client.chat.completions.create(
+                model="qwen-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=300,
+                temperature=0.0
+            )
+
+            response_text = response.choices[0].message.content.strip()
+            if "```" in response_text:
+                response_text = response_text.split("```")[1].strip()
+                if response_text.startswith("json"):
+                    response_text = response_text[4:].strip()
+
+            data = json.loads(response_text)
+
+            try:
+                cmd_type = CommandType(data.get("command_type", "unknown"))
+            except ValueError:
+                cmd_type = CommandType.UNKNOWN
+
+            platforms = []
+            for p in data.get("platforms", []):
+                try:
+                    platforms.append(PlatformType(p))
+                except ValueError:
+                    pass
+
+            intent = CommandIntent(
+                command_type=cmd_type,
+                platforms=platforms,
+                entities=data.get("entities", []),
+                parameters=data.get("parameters", {}),
+                confidence=float(data.get("confidence", 0.75)),
+                raw_command=command,
+                llm_parsed=True,
+                reasoning=data.get("reasoning")
+            )
+            logger.info(f"LLM parsed (Qwen): {intent.command_type}")
+            return intent
+
+        except Exception as e:
+            logger.warning(f"Qwen parsing failed: {e}")
             raise e
 
     # ==================== MAIN PARSE METHOD ====================

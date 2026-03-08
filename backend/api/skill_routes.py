@@ -154,7 +154,7 @@ async def import_skill(
 
 @router.get("/list")
 async def list_skills(
-    status: Optional[str] = None,
+    skill_status: Optional[str] = None,
     skill_type: Optional[str] = None,
     limit: int = 100,
     service: SkillRegistryService = Depends(get_skill_service)
@@ -178,7 +178,7 @@ async def list_skills(
     """
     try:
         skills = service.list_skills(
-            status=status,
+            status=skill_status,
             skill_type=skill_type,
             limit=limit
         )
@@ -188,7 +188,7 @@ async def list_skills(
                 "skills": skills,
                 "total": len(skills),
                 "filters": {
-                    "status": status,
+                    "status": skill_status,
                     "skill_type": skill_type,
                     "limit": limit
                 }

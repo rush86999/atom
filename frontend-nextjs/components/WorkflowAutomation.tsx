@@ -119,7 +119,7 @@ interface ServiceInfo {
 import WorkflowBuilder from "./Automations/WorkflowBuilder";
 
 
-const WorkflowAutomation: React.FC = () => {
+const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) => {
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [executions, setExecutions] = useState<WorkflowExecution[]>([]);
@@ -158,6 +158,15 @@ const WorkflowAutomation: React.FC = () => {
   useEffect(() => {
     fetchWorkflowData();
   }, []);
+
+  // Open visual builder when parent's "New Automation" button is clicked
+  useEffect(() => {
+    if (triggerNew && triggerNew > 0) {
+      setBuilderInitialData(null);
+      setSelectedWorkflow(null);
+      setViewMode('builder');
+    }
+  }, [triggerNew]);
 
   // Check for draft in URL
   const router = useRouter();
