@@ -1531,3 +1531,10 @@ backend/tests/e2e_ui/
 **Last Updated:** March 7, 2026
 **Maintained by:** Atom E2E Testing Team
 **Questions?** Open an issue in the Atom repository or contact the testing team.
+
+## See Also
+
+- [Testing Documentation Index](TESTING_INDEX.md) - Central hub for all testing documentation
+- [Testing Onboarding Guide](TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- [Property Testing Patterns](PROPERTY_TESTING_PATTERNS.md) - Cross-platform property tests
+- [Cross-Platform Coverage](CROSS_PLATFORM_COVERAGE.md) - Coverage across all platforms

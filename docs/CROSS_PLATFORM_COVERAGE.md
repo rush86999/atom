@@ -1135,3 +1135,10 @@ This provides context for future reviewers.
 **Phase:** 146 - Cross-Platform Weighted Coverage
 **Status:** Complete (2026-03-06)
 **Next:** Phase 147 - Cross-Platform Property Testing
+
+## See Also
+
+- [Testing Documentation Index](TESTING_INDEX.md) - Central hub for all testing documentation
+- [Testing Onboarding Guide](TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- [Property Testing Patterns](PROPERTY_TESTING_PATTERNS.md) - Shared property test infrastructure
+- [E2E Testing Guide](E2E_TESTING_GUIDE.md) - Cross-platform E2E orchestration

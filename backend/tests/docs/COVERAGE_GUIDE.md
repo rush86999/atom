@@ -725,3 +725,10 @@ open tests/coverage_reports/html/index.html
 3. Write tests for critical paths first
 4. Track coverage in CI/CD
 5. Review coverage trends weekly
+
+## See Also
+
+- [Testing Documentation Index](../../docs/TESTING_INDEX.md) - Central hub for all testing documentation
+- [Testing Onboarding Guide](../../docs/TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- [Coverage Trending Guide](COVERAGE_TRENDING_GUIDE.md) - 30-day trending and regression detection
+- [Flaky Test Quarantine](FLAKY_TEST_QUARANTINE.md) - Multi-run flaky detection and tracking
