@@ -1,0 +1,63 @@
+{
+  "history": [
+    {
+      "timestamp": "2026-03-07T18:35:53.763037Z",
+      "overall_coverage": 76.50,
+      "platforms": {
+        "backend": 74.50,
+        "frontend": 65.85,
+        "mobile": 68.00,
+        "desktop": 48.0
+      },
+      "thresholds": {
+        "backend": 70.0,
+        "frontend": 75.0,
+        "mobile": 50.0,
+        "desktop": 40.0
+      },
+      "commit_sha": "abc123",
+      "branch": "main"
+    },
+    {
+      "timestamp": "2026-03-06T18:35:53.763037Z",
+      "overall_coverage": 77.75,
+      "platforms": {
+        "backend": 65.0,
+        "frontend": 100.0,
+        "mobile": 66.67,
+        "desktop": 50.0
+      },
+      "thresholds": {
+        "backend": 70.0,
+        "frontend": 80.0,
+        "mobile": 50.0,
+        "desktop": 40.0
+      },
+      "commit_sha": "",
+      "branch": ""
+    }
+  ],
+  "latest": {
+    "timestamp": "2026-03-07T18:35:53.763037Z",
+    "overall_coverage": 76.50,
+    "platforms": {
+      "backend": 74.50,
+      "frontend": 65.85,
+      "mobile": 68.00,
+      "desktop": 48.0
+    },
+    "thresholds": {
+      "backend": 70.0,
+      "frontend": 75.0,
+      "mobile": 50.0,
+      "desktop": 40.0
+    }
+  },
+  "platform_trends": {},
+  "computed_weights": {
+    "backend": 0.35,
+    "frontend": 0.4,
+    "mobile": 0.15,
+    "desktop": 0.1
+  }
+}
