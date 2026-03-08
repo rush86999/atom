@@ -12,6 +12,15 @@ on:
 
 env:
   COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
+  EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+
+# Emergency Bypass Process:
+# 1. Set EMERGENCY_COVERAGE_BYPASS=true in repository variables
+# 2. Open PR with [EMERGENCY BYPASS] in title
+# 3. Obtain 2 maintainer approvals
+# 4. Document bypass reason in PR description
+# 5. Add follow-up issue for test coverage improvement
+# See: backend/docs/COVERAGE_ENFORCEMENT.md
 
 # Parallel test execution across 4 platforms using matrix strategy
 # Reduces total test time from 30+ minutes (sequential) to <15 minutes (parallel)
@@ -80,6 +89,11 @@ jobs:
             runner: ubuntu-latest
             timeout: 20
             test-command: |
+              if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+                echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+                exit 0
+              fi
+
               cd frontend-nextjs/src-tauri
               bash scripts/run-coverage.sh
             artifact-name: desktop-coverage
@@ -200,6 +214,11 @@ jobs:
       - name: Check Jest coverage (Frontend/Mobile)
         if: matrix.platform == 'frontend' || matrix.platform == 'mobile'
         run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
           if [ "${{ matrix.platform }}" == "frontend" ]; then
             cd frontend-nextjs
           else
@@ -221,12 +240,18 @@ jobs:
             exit 1
           fi
         env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
           COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
 
       # Check desktop coverage report generation
       - name: Check desktop coverage
         if: matrix.platform == 'desktop'
         run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
           cd frontend-nextjs/src-tauri
           if [ -f coverage/coverage.json ]; then
             echo "✅ Desktop coverage report generated"
@@ -238,6 +263,8 @@ jobs:
             echo "❌ Desktop coverage report not found"
             exit 1
           fi
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
 
       # Upload test results artifact
       - name: Upload test results
@@ -269,13 +296,32 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
+      # Check emergency bypass status (all platforms)
+      - name: Check emergency bypass status
+        if: matrix.platform == 'backend'
+        run: |
+          cd backend
+          python3 tests/scripts/emergency_coverage_bypass.py
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+          GITHUB_PR_URL: ${{ github.event.pull_request.html_url }}
+          BYPASS_REASON: ${{ github.event.pull_request.title }}
+          GITHUB_APPROVERS: ${{ toJson(github.event.pull_request.requested_reviewers.*login) }}
+          ENVIRONMENT: ${{ github.ref_name }}
+
       # Enforce diff coverage (Backend)
       - name: Enforce diff coverage (Backend)
         if: matrix.platform == 'backend'
         working-directory: ./backend
         run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
           python3 tests/scripts/progressive_coverage_gate.py --strict --format text
         env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
           COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
         continue-on-error: false
 
@@ -284,8 +330,15 @@ jobs:
         if: matrix.platform == 'backend'
         working-directory: ./backend
         run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
           python3 tests/scripts/new_code_coverage_gate.py \
             --coverage-file tests/coverage_reports/metrics/coverage.json
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
         continue-on-error: false
 
       # Run flaky detection after test execution (continues even if tests fail)
@@ -332,6 +385,16 @@ jobs:
             mobile/test-results/*_flaky_tests.json
           retention-days: 30
           if-no-files-found: warn
+
+      # Upload bypass log (if emergency bypass was activated)
+      - name: Upload bypass log
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: bypass-log
+          path: backend/tests/coverage_reports/metrics/bypass_log.json
+          retention-days: 90
+          if-no-files-found: ignore
 
   # Aggregation job - combines results from all platforms into unified report
   # Purpose: Aggregate test results and coverage from all 4 platform jobs
