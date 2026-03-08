@@ -173,16 +173,17 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   5. Route registration, middleware configuration, provider setup, and context wiring tested across platforms
   6. Data transfer objects and serializers (Pydantic models, TypeScript interfaces, Rust structs) validated
   7. Simple state management (read-only services, useState hooks, AsyncStorage/MMKV) tested
-**Plans**: 4 plans
+**Plans**: 5 plans
 
 **Wave Structure:**
-- Wave 1: Plans 01-03 (Backend DTOs, Backend utilities, Frontend UI components - parallel quick wins)
+- Wave 1: Plans 01-03B (Backend DTOs, Backend utilities, Frontend UI components, Mobile components - parallel quick wins)
 - Wave 2: Plan 04 (Configuration and wiring - depends on Wave 1)
 
 **Plan Breakdown:**
 - [ ] 155-01-PLAN.md — Backend DTO testing (response models, validators, API schemas)
 - [ ] 155-02-PLAN.md — Backend utility testing (formatters, validators)
-- [ ] 155-03-PLAN.md — Frontend UI component testing (Button, Input, Badge)
+- [ ] 155-03A-PLAN.md — Frontend UI component testing (Button, Input, Badge)
+- [ ] 155-03B-PLAN.md — Mobile component testing and test infrastructure (Button, Card, mocks)
 - [ ] 155-04-PLAN.md — Configuration and wiring testing (route registration, provider setup)
 
 #### Phase 156: Core Services Coverage (High Impact)
