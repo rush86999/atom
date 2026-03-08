@@ -5151,6 +5151,44 @@ class DeviceAttestation(Base):
     tenant = relationship("Tenant", backref="device_attestations")
 
 
+class MobileDevice(Base):
+    """Mobile device registration for push notifications and mobile access"""
+    __tablename__ = "mobile_devices"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    device_token = Column(String, nullable=False, unique=True)
+    platform = Column(String, nullable=False)  # ios, android, web
+    status = Column(String, default="active")  # active, inactive, disabled
+
+    # Device information
+    device_info = Column(JSON, default=dict)  # {model, os_version, app_version, etc.}
+
+    # Notification preferences
+    notification_enabled = Column(Boolean, default=True)
+    notification_preferences = Column(JSON, default=dict)  # {agent_alerts, system_alerts, etc.}
+
+    # Biometric authentication support
+    biometric_public_key = Column(Text, nullable=True)  # Public key for signature verification
+    biometric_enabled = Column(Boolean, default=False)  # Whether biometric auth is enabled
+    last_biometric_auth = Column(DateTime(timezone=True), nullable=True)  # Last successful biometric auth
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_active = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="mobile_devices")
+
+    # Indexes
+    __table_args__ = (
+        Index('ix_mobile_devices_user_id', 'user_id'),
+        Index('ix_mobile_devices_device_token', 'device_token'),
+        Index('ix_mobile_devices_platform', 'platform'),
+        Index('ix_mobile_devices_status', 'status'),
+    )
+
+
 class UserTask(Base):
     """Standard user task for the web application"""
     __tablename__ = "tasks"
@@ -7473,5 +7511,6 @@ class CanvasComponent(Base):
     # Relationships
     tenant = relationship("Tenant", backref="canvas_components")
     author = relationship("User", backref="authored_components")
+    installations = relationship("ComponentInstallation", back_populates="component", cascade="all, delete-orphan")
     required_skill = relationship("Skill", foreign_keys=[required_skill_id])
 Episode = AgentEpisode  # Alias for backward compatibility
