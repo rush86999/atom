@@ -31,7 +31,7 @@ class SuccessResponse(BaseModel, Generic[T]):
             message="Operation completed"
         )
     """
-    success: bool = Field(True, description="Always true for success responses")
+    success: bool = Field(default=True, description="Always true for success responses")
     data: T = Field(..., description="Response data")
     message: Optional[str] = Field(None, description="Optional success message")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -63,7 +63,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
             page_size=page_size
         )
     """
-    success: bool = Field(True, description="Always true for success responses")
+    success: bool = Field(default=True, description="Always true for success responses")
     data: List[T] = Field(..., description="List of items for current page")
     pagination: Dict[str, Any] = Field(..., description="Pagination metadata")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -103,7 +103,7 @@ class ErrorResponse(BaseModel):
             ).dict()
         )
     """
-    success: bool = Field(False, description="Always false for error responses")
+    success: bool = Field(default=False, description="Always false for error responses")
     error_code: str = Field(..., description="Standardized error code")
     message: str = Field(..., description="Human-readable error message")
     details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
@@ -139,7 +139,7 @@ class ValidationErrorResponse(BaseModel):
             ]
         )
     """
-    success: bool = Field(False, description="Always false for validation errors")
+    success: bool = Field(default=False, description="Always false for validation errors")
     error_code: str = Field("VALIDATION_ERROR", description="Error code for validation failures")
     message: str = Field(..., description="Overall validation error message")
     errors: List[Dict[str, Any]] = Field(..., description="List of field-specific validation errors")
@@ -174,7 +174,7 @@ class BatchOperationResponse(BaseModel):
             errors=[{"id": "item1", "error": "Invalid data"}]
         )
     """
-    success: bool = Field(True, description="True if any operations succeeded")
+    success: bool = Field(default=True, description="True if any operations succeeded")
     total_count: int = Field(..., description="Total number of operations")
     success_count: int = Field(..., description="Number of successful operations")
     failure_count: int = Field(..., description="Number of failed operations")
