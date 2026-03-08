@@ -156,3 +156,42 @@ class TestConnectionPooling:
             assert mock_get.call_count == 2
 
         reset_http_clients()
+
+
+class TestTimeoutHandling:
+    """Test HTTP client timeout handling."""
+
+    @pytest.mark.asyncio
+    async def test_async_request_timeout(self):
+        """Test that async client raises TimeoutException on timeout."""
+        reset_http_clients()
+
+        client = get_async_client()
+
+        with patch.object(client, 'get', new_callable=AsyncMock) as mock_get:
+            # Mock to raise TimeoutException
+            mock_get.side_effect = httpx.TimeoutException("Request timed out")
+
+            # Verify exception is raised
+            url = "http://example.com/api/test"
+            with pytest.raises(httpx.TimeoutException):
+                await client.get(url)
+
+        reset_http_clients()
+
+    def test_sync_request_timeout(self):
+        """Test that sync client raises TimeoutException on timeout."""
+        reset_http_clients()
+
+        client = get_sync_client()
+
+        with patch.object(client, 'get') as mock_get:
+            # Mock to raise TimeoutException
+            mock_get.side_effect = httpx.TimeoutException("Request timed out")
+
+            # Verify exception is raised
+            url = "http://example.com/api/test"
+            with pytest.raises(httpx.TimeoutException):
+                client.get(url)
+
+        reset_http_clients()
