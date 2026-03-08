@@ -94,6 +94,41 @@ const edgeTypes = {
     addStepEdge: AddStepEdge,
 };
 
+// HITL Approval Buttons — interactive, shows approved/rejected state
+const HITLButtons: React.FC<{ onApprove: () => void; onReject: () => void; approvedState: 'none' | 'approved' | 'rejected' }> = ({ onApprove, onReject, approvedState }) => {
+    if (approvedState === 'approved') return (
+        <div className="space-y-2">
+            <div className="bg-green-50 border border-green-300 rounded p-3 text-center">
+                <div className="text-green-700 font-bold text-sm">✅ Outreach Approved!</div>
+                <div className="text-green-600 text-[11px] mt-1">Personalized email sent to james.chen@velocitytech.io</div>
+                <div className="text-green-500 text-[10px] mt-0.5">Follow-up scheduled for Mar 10, 2026</div>
+            </div>
+            <div className="bg-slate-900 text-green-400 p-2 rounded text-[10px] font-mono">
+                {`> Email sent ✓\n> CRM stage: "Contacted"\n> Next: Awaiting response`}
+            </div>
+        </div>
+    );
+    if (approvedState === 'rejected') return (
+        <div className="bg-red-50 border border-red-200 rounded p-3 text-center">
+            <div className="text-red-700 font-bold text-sm">✗ Lead Rejected</div>
+            <div className="text-red-500 text-[11px] mt-1">Workflow stopped · Lead archived in CRM</div>
+        </div>
+    );
+    return (
+        <>
+            <div className="flex gap-2">
+                <button onClick={onApprove} className="flex-1 bg-green-500 hover:bg-green-600 text-white text-[11px] py-2 rounded font-bold transition-colors shadow">
+                    ✓ Approve Outreach
+                </button>
+                <button onClick={onReject} className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 text-[11px] py-2 rounded font-semibold transition-colors">
+                    ✗ Reject
+                </button>
+            </div>
+            <div className="text-amber-600 font-semibold text-[11px] animate-pulse">⏸ Workflow paused · Waiting for sales rep...</div>
+        </>
+    );
+};
+
 interface WorkflowBuilderProps {
     onSave?: (data: { nodes: Node[]; edges: Edge[] }) => void;
     initialData?: { nodes: Node[]; edges: Edge[] };
@@ -722,6 +757,38 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
     const [isDemoRunning, setIsDemoRunning] = useState(false);
     const [demoLog, setDemoLog] = useState<Array<{ nodeId: string; title: string; output: React.ReactNode; status: 'running' | 'success' | 'paused' }>>([]);
     const [showDemoPanel, setShowDemoPanel] = useState(false);
+    const demoApproved = React.useRef<'none' | 'approved' | 'rejected'>('none');
+    const [demoApprovedState, setDemoApprovedState] = useState<'none' | 'approved' | 'rejected'>('none');
+    const [panelPos, setPanelPos] = useState({ x: typeof window !== 'undefined' ? window.innerWidth - 360 : 800, y: 80 });
+    const dragRef = React.useRef<{ dragging: boolean; startX: number; startY: number; origX: number; origY: number }>({ dragging: false, startX: 0, startY: 0, origX: 0, origY: 0 });
+
+    const handleApprove = () => {
+        setDemoApprovedState('approved');
+        demoApproved.current = 'approved';
+        // Update the last log entry to show approved state
+        setDemoLog(prev => prev.map((entry, idx) =>
+            idx === prev.length - 1 ? { ...entry, status: 'success' as const } : entry
+        ));
+        setNodes(nds => nds.map(n =>
+            n.data._demoStatus === 'paused' ? { ...n, data: { ...n.data, _demoStatus: 'success' } } : n
+        ));
+    };
+
+    const handleReject = () => {
+        setDemoApprovedState('rejected');
+        demoApproved.current = 'rejected';
+    };
+
+    const onPanelMouseDown = (e: React.MouseEvent) => {
+        dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, origX: panelPos.x, origY: panelPos.y };
+        const onMove = (me: MouseEvent) => {
+            if (!dragRef.current.dragging) return;
+            setPanelPos({ x: dragRef.current.origX + me.clientX - dragRef.current.startX, y: dragRef.current.origY + me.clientY - dragRef.current.startY });
+        };
+        const onUp = () => { dragRef.current.dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     const DEMO_STEPS = [
         {
@@ -809,15 +876,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                             <div className="text-blue-300 mt-1">🔗 zoom.us/j/92847301928</div>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button className="flex-1 bg-green-500 hover:bg-green-600 text-white text-[11px] py-1.5 rounded font-semibold transition-colors">
-                            ✓ Approve Outreach
-                        </button>
-                        <button className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 text-[11px] py-1.5 rounded font-semibold transition-colors">
-                            ✗ Reject
-                        </button>
-                    </div>
-                    <div className="text-amber-600 font-semibold text-[11px] animate-pulse">⏸ Workflow paused · Waiting for sales rep...</div>
+                    <HITLButtons onApprove={handleApprove} onReject={handleReject} approvedState={demoApprovedState} />
                 </div>
             )
         }
@@ -1089,37 +1148,67 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
 
                 {/* Demo Live Output Panel */}
                 {showDemoPanel && demoLog.length > 0 && (
-                    <div className="w-80 flex-shrink-0 border-l bg-white dark:bg-gray-900 flex flex-col overflow-hidden">
-                        <div className="p-3 border-b bg-gradient-to-r from-purple-50 to-blue-50 flex items-center justify-between">
+                    <div
+                        style={{ position: 'fixed', left: panelPos.x, top: panelPos.y, zIndex: 9999, width: 340 }}
+                        className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden select-none"
+                    >
+                        {/* Drag handle header */}
+                        <div
+                            onMouseDown={onPanelMouseDown}
+                            className="p-3 border-b bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-between cursor-grab active:cursor-grabbing rounded-t-xl"
+                        >
                             <div className="flex items-center gap-2">
                                 {isDemoRunning
-                                    ? <span className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin inline-block" />
-                                    : <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                    ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                                    : <CheckCircle2 className="w-4 h-4 text-white" />
                                 }
-                                <span className="text-sm font-bold text-gray-800">
-                                    {isDemoRunning ? 'Workflow running...' : 'Run complete ✓'}
+                                <span className="text-sm font-bold text-white">
+                                    {isDemoRunning ? 'Running workflow...' : 'Run complete ✓'}
                                 </span>
                             </div>
-                            <button onClick={() => { setShowDemoPanel(false); setDemoLog([]); setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, _demoStatus: undefined } }))); }} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+                            <button
+                                onMouseDown={e => e.stopPropagation()}
+                                onClick={() => { setShowDemoPanel(false); setDemoLog([]); setDemoApprovedState('none'); setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, _demoStatus: undefined } }))); }}
+                                className="text-white/70 hover:text-white text-xl leading-none font-light"
+                            >×</button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                            {demoLog.map((entry, idx) => (
-                                <div key={idx} className={`rounded-lg border p-3 transition-all duration-300 ${entry.status === 'running' ? 'border-yellow-300 bg-yellow-50' :
-                                    entry.status === 'paused' ? 'border-amber-300 bg-amber-50' :
-                                        'border-green-200 bg-green-50'
-                                    }`}>
+                        <div className="overflow-y-auto p-3 space-y-3" style={{ maxHeight: '70vh' }}>
+                            {demoLog.map((entry, idx) => {
+                                const isHITLStep = idx === demoLog.length - 1 && entry.title.includes('Slack HITL');
+                                const cardStatus = isHITLStep && demoApprovedState !== 'none' ? 'success' : entry.status;
+                                return (
+                                <div key={idx} className={`rounded-lg border p-3 transition-all duration-300 ${
+                                    cardStatus === 'running' ? 'border-yellow-300 bg-yellow-50' :
+                                    cardStatus === 'paused' ? 'border-amber-300 bg-amber-50' :
+                                    'border-green-200 bg-green-50'
+                                }`}>
                                     <div className="flex items-center gap-2 mb-2">
-                                        {entry.status === 'running'
+                                        {cardStatus === 'running'
                                             ? <span className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin inline-block flex-shrink-0" />
-                                            : entry.status === 'paused'
+                                            : cardStatus === 'paused'
                                                 ? <PauseCircle className="w-3 h-3 text-amber-500 flex-shrink-0" />
                                                 : <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
                                         }
                                         <span className="text-[11px] font-bold text-gray-700 leading-tight">{entry.title}</span>
                                     </div>
-                                    <div>{entry.output}</div>
+                                    {isHITLStep ? (
+                                        <div className="space-y-2 text-xs">
+                                            <div className="bg-[#4A154B] text-white rounded p-2 text-[11px] space-y-1">
+                                                <div className="font-bold text-[12px]">#sales-leads · ATOM Bot</div>
+                                                <div>🚨 <span className="font-semibold">New high-value lead</span> needs approval</div>
+                                                <div className="bg-white/10 rounded p-1.5 text-[10px] space-y-0.5 mt-1">
+                                                    <div>👤 James Chen · VelocityTech · 💰 $80k/year · ⚡ HIGH</div>
+                                                    <div className="text-blue-300">🔗 zoom.us/j/92847301928</div>
+                                                </div>
+                                            </div>
+                                            <HITLButtons onApprove={handleApprove} onReject={handleReject} approvedState={demoApprovedState} />
+                                        </div>
+                                    ) : (
+                                        <div>{entry.output}</div>
+                                    )}
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}
