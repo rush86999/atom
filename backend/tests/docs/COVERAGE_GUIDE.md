@@ -728,6 +728,14 @@ open tests/coverage_reports/html/index.html
 
 ## See Also
 
+### Platform-Specific Testing Guides
+
+- [Frontend Testing Guide](../../docs/FRONTEND_TESTING_GUIDE.md) - Jest, React Testing Library, MSW patterns
+- [Mobile Testing Guide](../../docs/MOBILE_TESTING_GUIDE.md) - jest-expo, React Native Testing Library
+- [Desktop Testing Guide](../../docs/DESKTOP_TESTING_GUIDE.md) - cargo test, proptest, tarpaulin
+
+### Related Documentation
+
 - [Testing Documentation Index](../../docs/TESTING_INDEX.md) - Central hub for all testing documentation
 - [Testing Onboarding Guide](../../docs/TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
 - [Coverage Trending Guide](COVERAGE_TRENDING_GUIDE.md) - 30-day trending and regression detection
