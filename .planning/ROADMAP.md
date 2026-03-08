@@ -197,16 +197,19 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. Episodic memory coverage expanded to 80% (segmentation, retrieval algorithms, lifecycle management, canvas/feedback integration)
   4. Canvas presentation coverage expanded to 80% (state management, chart rendering, form validation, interactive components)
   5. API client coverage expanded to 80% (HTTP methods, error handling, retry logic, WebSocket)
-**Plans**: 4 plans
+**Plans**: 6 plans
 
 **Wave Structure:**
-- Wave 1: Plans 01-04 (Governance, LLM, Episodes, Canvas/HTTP - parallel service testing)
+- Wave 1: Plans 01, 03, 04, 06 (Governance, Episodes, Canvas, HTTP - parallel service testing)
+- Wave 2: Plans 02, 05 (LLM Part 1 → LLM Part 2 - sequential)
 
 **Plan Breakdown:**
 - [x] 156-01-PLAN.md — Agent governance coverage (maturity routing, permissions, lifecycle, cache)
-- [x] 156-02-PLAN.md — LLM service coverage (BYOK handler, token counting, rate limiting, streaming)
+- [x] 156-02-PLAN.md — LLM service coverage Part 1 (routing, cognitive tiers, token counting)
 - [x] 156-03-PLAN.md — Episodic memory coverage (segmentation, retrieval, lifecycle, canvas/feedback integration)
-- [x] 156-04-PLAN.md — Canvas presentation and HTTP client coverage (state management, charts, forms, connection pooling, retry logic)
+- [x] 156-04-PLAN.md — Canvas presentation coverage (charts, forms, state, governance, WebSocket)
+- [x] 156-05-PLAN.md — LLM service coverage Part 2 (rate limiting, streaming, context window, cache, models)
+- [x] 156-06-PLAN.md — HTTP client coverage (initialization, pooling, timeouts, errors, cleanup)
 
 #### Phase 157: Edge Cases & Integration Testing
 **Goal**: Complex error paths, routing, accessibility, concurrent operations, and cross-service workflows
