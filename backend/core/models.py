@@ -7474,3 +7474,4 @@ class CanvasComponent(Base):
     tenant = relationship("Tenant", backref="canvas_components")
     author = relationship("User", backref="authored_components")
     required_skill = relationship("Skill", foreign_keys=[required_skill_id])
+Episode = AgentEpisode  # Alias for backward compatibility
