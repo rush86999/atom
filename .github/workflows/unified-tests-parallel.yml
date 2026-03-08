@@ -170,7 +170,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-testing.txt
-          pip install pytest-asyncio httpx pytest-json-report
+          pip install pytest-asyncio httpx pytest-json-report diff-cover
 
       - name: Install frontend dependencies
         if: matrix.platform == 'frontend'
@@ -193,6 +193,35 @@ jobs:
           ATOM_MOCK_DATABASE: true
           CI: true
           COVERAGE_PHASE: ${{ env.COVERAGE_PHASE }}
+
+      # Check Jest coverage (Frontend/Mobile)
+      # Jest automatically exits with code 1 if coverage below threshold
+      # No additional enforcement script needed
+      - name: Check Jest coverage (Frontend/Mobile)
+        if: matrix.platform == 'frontend' || matrix.platform == 'mobile'
+        run: |
+          if [ "${{ matrix.platform }}" == "frontend" ]; then
+            cd frontend-nextjs
+          else
+            cd mobile
+          fi
+
+          # Verify coverage report exists
+          if [ -f "coverage/coverage-final.json" ]; then
+            echo "✅ ${{ matrix.platform }} coverage report generated"
+            echo "📊 Coverage phase: $COVERAGE_PHASE"
+
+            # Display coverage summary if jq is available
+            if command -v jq &> /dev/null; then
+              echo "Coverage summary:"
+              jq '.total' coverage/coverage-summary.json 2>/dev/null || echo "Summary not available"
+            fi
+          else
+            echo "❌ ${{ matrix.platform }} coverage report not found"
+            exit 1
+          fi
+        env:
+          COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
 
       # Check desktop coverage report generation
       - name: Check desktop coverage
@@ -239,6 +268,25 @@ jobs:
           path: ${{ matrix.coverage-path }}
           retention-days: 7
           if-no-files-found: warn
+
+      # Enforce diff coverage (Backend)
+      - name: Enforce diff coverage (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/progressive_coverage_gate.py --strict --format text
+        env:
+          COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
+        continue-on-error: false
+
+      # Enforce new code coverage (Backend)
+      - name: Enforce new code coverage (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/new_code_coverage_gate.py \
+            --coverage-file tests/coverage_reports/metrics/coverage.json
+        continue-on-error: false
 
       # Run flaky detection after test execution (continues even if tests fail)
       - name: Run flaky detection (backend)
