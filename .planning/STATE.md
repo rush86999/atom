@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 156 of TBD (Core Services Coverage - High Impact)
-Plan: 07 of 7 in current phase
-Status: Complete
-Last activity: 2026-03-08 — Gap Closure Plan: Fixed 3 pre-existing SQLAlchemy relationship bugs (PackageRegistry.executions, SkillInstallation.skill, CanvasComponent.author) that blocked 42% of Phase 156 tests. Unblocked all 62 tests (39/62 passing, 63%).
+Plan: 10 of 12 in current phase
+Status: In Progress
+Last activity: 2026-03-08 — Canvas/WebSocket Test Fixing: Fixed WebSocket broadcast mocking issues (AsyncMock + direct module patching) to achieve 100% test pass rate (31/31 tests passing). Canvas coverage increased from 29% to 38%.
 
-Progress: [████████] 100% (7 of 7 plans complete - plan 07 closed gap with SQLAlchemy bug fixes)
+Progress: [████████░░] 83% (10 of 12 plans complete - plan 10 fixed canvas/WebSocket test failures)
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ Progress: [████████] 100% (7 of 7 plans complete - plan 07 close
 - Trend: Fast (coverage infrastructure development)
 
 *Updated after each plan completion*
+| Phase 156 P10 | 151 | 1 task | 2 files | 31 tests |
 | Phase 156 P05 | 360 | 3 tasks | 1 file | 48 tests |
 | Phase 156 P04 | 965 | 3 tasks | 4 files | 31 tests |
 | Phase 156 P03 | 12 | 5 tasks | 5 files | |
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 155 P04]: Create isolated pytest.ini files per test directory to avoid conftest conflicts
 
 **Phase 156 - Core Services Coverage (High Impact):**
+- [Phase 156 P10]: WebSocket mocking uses patch('tools.canvas_tool.ws_manager') for direct module patching instead of sys.modules manipulation
+- [Phase 156 P10]: AsyncMock for async broadcast methods, Mock for sync methods
 - [Phase 156 P05]: LLM service Part 2 coverage with custom MockAsyncIterator for async streaming tests (48 tests, 1024 lines)
 - [Phase 156 P05]: Rate limiting tests mock rate limiter directly without Redis dependency for reliability
 - [Phase 156 P05]: Context window tests use gpt-4 (8192 tokens) to ensure truncation occurs
@@ -113,7 +116,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-08 (Phase 156 Plan 05 execution)
-Stopped at: Completed Phase 156 Plan 05: LLM Service Coverage Part 2 with 48 tests (1024 lines), 100% pass rate, covering streaming, rate limiting, context window, cache routing, and model selection
+Last session: 2026-03-08 (Phase 156 Plan 10 execution)
+Stopped at: Completed Phase 156 Plan 10: Canvas/WebSocket Test Fixing with 100% test pass rate (31/31 tests), 38% coverage (up from 29%)
 Resume file: None
-Next: Phase 156 Plan 06 or next available plan (completing Core Services Coverage phase)
+Next: Phase 156 Plan 11 or next available plan (completing Core Services Coverage phase)
