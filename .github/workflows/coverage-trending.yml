@@ -90,6 +90,61 @@ jobs:
             --prune
         continue-on-error: true
 
+      # Generate PR trend comment with indicators (PR only)
+      - name: Generate PR trend comment
+        if: github.event_name == 'pull_request'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/generate_pr_trend_comment.py \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --output pr_trend_comment.md
+        continue-on-error: true
+
+      # Post PR trend comment with indicators (PR only)
+      - name: Post PR trend comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const commentPath = 'backend/pr_trend_comment.md';
+
+            // Check if comment file exists
+            if (!fs.existsSync(commentPath)) {
+              console.log('PR trend comment not found, skipping');
+              return;
+            }
+
+            const comment = fs.readFileSync(commentPath, 'utf8');
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.issue,
+              per_page: 100
+            });
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' &&
+              c.body.includes('Coverage Trend Analysis')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+              console.log('Updated existing PR trend comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                ...context.issue,
+                body: comment
+              });
+              console.log('Created new PR trend comment');
+            }
+        continue-on-error: true
+
       # Detect regressions
       - name: Detect regressions
         working-directory: ./backend
