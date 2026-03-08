@@ -311,33 +311,53 @@ class ChatOrchestrator:
     ) -> Dict[str, Any]:
         """
         Process a chat message and coordinate across all ATOM features
-
-        Args:
-            user_id: User identifier
-            message: Chat message from user
-            session_id: Conversation session ID
-            context: Additional context data
-
-        Returns:
-            Response with coordinated actions across features
         """
         try:
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
             session = self._get_or_create_session(user_id, session_id)
 
-            # Analyze intent using AI NLP
+            # Build conversation history for context
+            history = session.get("history", [])[-6:]  # Last 3 turns
+
+            # 1. Try Qwen AI conversational response first (real AI reply)
+            ai_message = await self._get_qwen_response(message, history)
+
+            # 2. Analyze intent using AI NLP (for routing)
             intent_analysis = await self._analyze_intent(message, session)
 
-            # Route to appropriate feature handlers
+            # 3. Route to appropriate feature handlers (for data lookups)
             feature_responses = await self._route_to_features(
                 message, intent_analysis, session, context
             )
 
-            # Generate coordinated response
-            response = self._generate_coordinated_response(
-                message, intent_analysis, feature_responses, session
-            )
+            # 4. If AI gave a real response, use it; otherwise use template
+            if ai_message:
+                main_message = ai_message
+            else:
+                main_message = self._generate_main_message(message, intent_analysis, feature_responses)
+
+            # Build combined data from feature responses
+            combined_data = {}
+            suggested_actions = []
+            for feature_type, response in feature_responses.items():
+                if response and "data" in response:
+                    combined_data[feature_type.value] = response["data"]
+                if response and "suggested_actions" in response:
+                    suggested_actions.extend(response.get("suggested_actions", []))
+
+            response = {
+                "success": True,
+                "message": main_message,
+                "session_id": session["id"],
+                "intent": intent_analysis["primary_intent"].value,
+                "confidence": intent_analysis["confidence"],
+                "data": combined_data,
+                "suggested_actions": suggested_actions[:5],
+                "requires_confirmation": False,
+                "next_steps": self._generate_next_steps(intent_analysis, feature_responses),
+                "timestamp": datetime.now().isoformat()
+            }
 
             # Update session with new context
             self._update_session(session, message, response, intent_analysis)
@@ -347,6 +367,58 @@ class ChatOrchestrator:
         except Exception as e:
             logger.error(f"Error processing chat message: {e}")
             return self._generate_error_response(str(e), session_id)
+
+    async def _get_qwen_response(self, message: str, history: list) -> Optional[str]:
+        """Get a real conversational AI response from Qwen via DashScope."""
+        try:
+            import os
+            from openai import AsyncOpenAI
+            qwen_key = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+            if not qwen_key:
+                logger.warning("No Qwen API key configured")
+                return None
+
+            client = AsyncOpenAI(
+                api_key=qwen_key,
+                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+            )
+
+            # Build messages from history
+            messages = [
+                {
+                    "role": "system",
+                    "content": """You are ATOM, an AI-powered business automation assistant. You help users:
+- Manage leads and CRM (Zoho, Salesforce, HubSpot)
+- Automate workflows and processes
+- Schedule meetings and interviews
+- Send and draft emails
+- Analyze business data and priorities
+- Coordinate tasks across Slack, Notion, Google Drive, Gmail
+
+When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
+                }
+            ]
+
+            # Add conversation history
+            for h in history:
+                if h.get("message"):
+                    messages.append({"role": "user", "content": h["message"]})
+                resp_msg = h.get("response", {}).get("message", "")
+                if resp_msg:
+                    messages.append({"role": "assistant", "content": resp_msg})
+
+            messages.append({"role": "user", "content": message})
+
+            response = await client.chat.completions.create(
+                model="qwen-plus",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.warning(f"Qwen conversational response failed: {e}")
+            return None
 
 
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:

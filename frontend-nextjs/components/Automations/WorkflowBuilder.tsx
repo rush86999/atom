@@ -19,7 +19,7 @@ import PiecesSidebar, { Piece, PieceAction, PieceTrigger } from './PiecesSidebar
 import { LogsSidebar } from './LogsSidebar';
 import SmartSuggestions, { StepSuggestion } from './SmartSuggestions';
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Zap, Monitor, Globe, Mail, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Settings2, Undo, Redo, RotateCcw, Activity, List } from "lucide-react";
+import { Plus, Save, Zap, Monitor, Globe, Mail, Clock, Sparkles, PanelLeftClose, PanelLeft, Loader2, Settings2, Undo, Redo, RotateCcw, Activity, List, Play, CheckCircle2, PauseCircle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import NodeConfigSidebar from './NodeConfigSidebar';
 import { VoiceInput } from '@/components/Voice/VoiceInput';
@@ -29,36 +29,65 @@ const initialNodes: Node[] = [
     {
         id: '1',
         type: 'trigger',
-        position: { x: 250, y: 0 },
+        position: { x: 300, y: 0 },
         data: {
-            label: 'Webhook Start',
-            integration: 'API Gateway',
-            schema: { type: 'object', properties: { userId: { type: 'string' } } }
+            label: '📧 Inbound Lead Email',
+            integration: 'Gmail / Webhook',
+            description: 'Triggers when a new B2B lead email is received',
+            schema: { type: 'object', properties: { from: { type: 'string' }, subject: { type: 'string' }, body: { type: 'string' } } }
         },
     },
     {
         id: '2',
-        type: 'condition',
-        position: { x: 250, y: 200 },
-        data: { condition: 'userId exists?' },
+        type: 'ai_node',
+        position: { x: 300, y: 160 },
+        data: {
+            label: '🧠 NLU Parse Lead Intent',
+            model: 'Qwen-Plus',
+            prompt: 'Extract: company name, budget, urgency, product interest from email body. Return JSON.',
+            description: 'AI extracts structured lead data from raw email'
+        },
     },
     {
         id: '3',
-        type: 'ai_node',
-        position: { x: 50, y: 350 },
-        data: { label: 'Analyze Intent', model: 'GPT-4', prompt: 'Analyze user intent...' },
+        type: 'action',
+        position: { x: 300, y: 320 },
+        data: {
+            label: '📋 Update Zoho CRM',
+            service: 'Zoho',
+            action: 'Create / Update Lead',
+            description: 'Pushes extracted lead data into Zoho CRM as a new contact',
+        },
     },
     {
         id: '4',
-        type: 'desktop_node',
-        position: { x: 50, y: 500 },
-        data: { action: 'Open Application', target: 'Excel', waitForInput: true },
+        type: 'action',
+        position: { x: 300, y: 480 },
+        data: {
+            label: '🎥 Generate Zoom Meeting Link',
+            service: 'Zoom',
+            action: 'Create Meeting',
+            description: 'Auto-schedules a discovery call and generates a unique Zoom link',
+        },
+    },
+    {
+        id: '5',
+        type: 'action',
+        position: { x: 300, y: 640 },
+        data: {
+            label: '✋ Slack HITL Approval',
+            service: 'Slack',
+            action: 'Send Approval Request',
+            description: 'Pauses workflow — sends lead summary + Zoom link to #sales-leads for human approval before outreach',
+        },
     },
 ];
 
 const initialEdges: Edge[] = [
     { id: 'e1-2', source: '1', target: '2', type: 'addStepEdge' },
-    { id: 'e2-3', source: '2', sourceHandle: 'true', target: '3', type: 'addStepEdge' },
+    { id: 'e2-3', source: '2', target: '3', type: 'addStepEdge' },
+    { id: 'e3-4', source: '3', target: '4', type: 'addStepEdge' },
+    { id: 'e4-5', source: '4', target: '5', type: 'addStepEdge' },
 ];
 
 const edgeTypes = {
@@ -690,6 +719,177 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
 
     const [chatInput, setChatInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isDemoRunning, setIsDemoRunning] = useState(false);
+    const [demoLog, setDemoLog] = useState<Array<{ nodeId: string; title: string; output: React.ReactNode; status: 'running' | 'success' | 'paused' }>>([]);
+    const [showDemoPanel, setShowDemoPanel] = useState(false);
+
+    const DEMO_STEPS = [
+        {
+            title: '📧 Inbound Lead Email received',
+            duration: 1800,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <div className="bg-gray-50 border rounded p-2 font-mono text-[11px] space-y-1">
+                        <div><span className="text-gray-400">From:</span> <span className="text-blue-700 font-semibold">james.chen@velocitytech.io</span></div>
+                        <div><span className="text-gray-400">Subject:</span> <span className="font-medium">Interested in ATOM for our sales team (~200 reps)</span></div>
+                        <div className="mt-1 text-gray-600">"Hi, we're scaling rapidly and need a workflow automation platform. Budget approved: $80k/year. Can we connect this week?"</div>
+                    </div>
+                    <div className="text-green-600 font-semibold text-[11px]">✓ Webhook triggered · Lead captured</div>
+                </div>
+            )
+        },
+        {
+            title: '🧠 AI parsing lead intent (Qwen-Plus)',
+            duration: 2200,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <div className="text-gray-400 text-[10px] mb-1">Extracting structured data...</div>
+                    <pre className="bg-slate-900 text-green-400 p-2 rounded text-[10px] font-mono overflow-auto">{`{
+  "company": "VelocityTech",
+  "contact": "James Chen",
+  "email": "james.chen@velocitytech.io",
+  "budget": "$80,000/year",
+  "team_size": "~200 reps",
+  "urgency": "HIGH",
+  "intent": "purchase",
+  "confidence": 0.97
+}`}</pre>
+                    <div className="text-purple-600 font-semibold text-[11px]">✓ Intent parsed · Confidence 97%</div>
+                </div>
+            )
+        },
+        {
+            title: '📋 Creating lead in Zoho CRM',
+            duration: 1600,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <div className="bg-blue-50 border border-blue-200 rounded p-2 text-[11px] space-y-1">
+                        <div className="font-semibold text-blue-800">✓ Lead Created — ID #ZCR-29841</div>
+                        <div className="text-gray-600 space-y-0.5">
+                            <div><span className="font-medium">Name:</span> James Chen</div>
+                            <div><span className="font-medium">Company:</span> VelocityTech</div>
+                            <div><span className="font-medium">Pipeline:</span> Enterprise Sales</div>
+                            <div><span className="font-medium">Deal Value:</span> $80,000</div>
+                            <div><span className="font-medium">Stage:</span> New Inbound → Qualified</div>
+                        </div>
+                    </div>
+                    <div className="text-blue-600 font-semibold text-[11px]">✓ CRM updated · Pipeline advanced</div>
+                </div>
+            )
+        },
+        {
+            title: '🎥 Generating Zoom discovery call',
+            duration: 1400,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <div className="bg-blue-50 border border-blue-100 rounded p-2 text-[11px] space-y-1">
+                        <div className="font-semibold text-blue-700">Discovery Call Scheduled</div>
+                        <div className="text-gray-600"><span className="font-medium">Date:</span> Mon Mar 10, 2026 · 3:00 PM IST</div>
+                        <div className="text-gray-600"><span className="font-medium">Duration:</span> 30 min</div>
+                        <div className="mt-1 p-1.5 bg-white border rounded font-mono text-[10px] text-blue-600 break-all">
+                            https://zoom.us/j/92847301928?pwd=xK9mP
+                        </div>
+                    </div>
+                    <div className="text-blue-600 font-semibold text-[11px]">✓ Zoom link generated · Calendar invite sent</div>
+                </div>
+            )
+        },
+        {
+            title: '✋ Slack HITL — Awaiting approval',
+            duration: 0,
+            output: (
+                <div className="space-y-2 text-xs">
+                    <div className="bg-[#4A154B] text-white rounded p-2 text-[11px] space-y-1">
+                        <div className="font-bold text-[12px]">#sales-leads · ATOM Bot</div>
+                        <div>🚨 <span className="font-semibold">New high-value lead</span> needs approval before outreach</div>
+                        <div className="bg-white/10 rounded p-1.5 text-[10px] space-y-0.5 mt-1">
+                            <div>👤 James Chen · VelocityTech</div>
+                            <div>💰 Budget: $80k/year · 200 reps</div>
+                            <div>⚡ Urgency: HIGH</div>
+                            <div className="text-blue-300 mt-1">🔗 zoom.us/j/92847301928</div>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button className="flex-1 bg-green-500 hover:bg-green-600 text-white text-[11px] py-1.5 rounded font-semibold transition-colors">
+                            ✓ Approve Outreach
+                        </button>
+                        <button className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 text-[11px] py-1.5 rounded font-semibold transition-colors">
+                            ✗ Reject
+                        </button>
+                    </div>
+                    <div className="text-amber-600 font-semibold text-[11px] animate-pulse">⏸ Workflow paused · Waiting for sales rep...</div>
+                </div>
+            )
+        }
+    ];
+
+    const runDemoAnimation = async () => {
+        if (isDemoRunning) return;
+        setIsDemoRunning(true);
+        setDemoLog([]);
+        setShowDemoPanel(true);
+
+        // Reset all nodes first
+        setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, _demoStatus: undefined } })));
+        await new Promise(r => setTimeout(r, 300));
+
+        const nodeIds = nodes.map(n => n.id);
+        const lastIdx = nodeIds.length - 1;
+
+        for (let i = 0; i < nodeIds.length; i++) {
+            const id = nodeIds[i];
+            const isLast = i === lastIdx;
+            const step = DEMO_STEPS[i] || DEMO_STEPS[DEMO_STEPS.length - 1];
+
+            // Add "running" log entry
+            setDemoLog(prev => [...prev, {
+                nodeId: id,
+                title: step.title,
+                output: <div className="text-yellow-600 text-[11px] flex items-center gap-1"><span className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin inline-block" /> Processing...</div>,
+                status: 'running'
+            }]);
+
+            // Set node running
+            setNodes(nds => nds.map(n => ({
+                ...n,
+                data: {
+                    ...n.data,
+                    _demoStatus: n.id === id ? 'running'
+                        : n.data._demoStatus === 'success' || n.data._demoStatus === 'paused' ? n.data._demoStatus
+                            : undefined
+                }
+            })));
+
+            // Animate edge
+            setEdges(eds => eds.map(e => ({
+                ...e,
+                animated: e.source === id || e.target === id,
+                style: e.source === id ? { stroke: '#8b5cf6', strokeWidth: 2.5 } : {}
+            })));
+
+            await new Promise(r => setTimeout(r, step.duration || 1500));
+
+            // Update log with real output
+            const finalStatus = isLast ? 'paused' : 'success';
+            setDemoLog(prev => prev.map(entry =>
+                entry.nodeId === id ? { ...entry, output: step.output, status: finalStatus } : entry
+            ));
+
+            // Update node status
+            setNodes(nds => nds.map(n => ({
+                ...n,
+                data: {
+                    ...n.data,
+                    _demoStatus: n.id === id ? finalStatus : n.data._demoStatus
+                }
+            })));
+
+            await new Promise(r => setTimeout(r, 300));
+        }
+
+        setEdges(eds => eds.map(e => ({ ...e, animated: false, style: {} })));
+        setIsDemoRunning(false);
+    };
 
     return (
         <div className="h-[700px] w-full border rounded-lg bg-white dark:bg-gray-900 shadow-sm flex flex-col overflow-hidden">
@@ -783,6 +983,22 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         {isPerformanceMode ? "Performance ON" : "Performance"}
                     </Button>
 
+                    {/* Run Demo Button */}
+                    <Button
+                        size="sm"
+                        onClick={runDemoAnimation}
+                        disabled={isDemoRunning}
+                        className={`${isDemoRunning
+                            ? 'bg-green-500 text-white animate-pulse cursor-not-allowed'
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                            } font-semibold shadow-sm`}
+                    >
+                        {isDemoRunning
+                            ? <><span className="w-3 h-3 mr-1 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />Running...</>
+                            : <><Play className="w-3 h-3 mr-1" />▶ Run Demo</>
+                        }
+                    </Button>
+
                     <Button
                         size="sm"
                         variant="outline"
@@ -870,6 +1086,43 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         <LogsSidebar workflowId={workflowId} onClose={() => setShowLogs(false)} />
                     )}
                 </div>
+
+                {/* Demo Live Output Panel */}
+                {showDemoPanel && demoLog.length > 0 && (
+                    <div className="w-80 flex-shrink-0 border-l bg-white dark:bg-gray-900 flex flex-col overflow-hidden">
+                        <div className="p-3 border-b bg-gradient-to-r from-purple-50 to-blue-50 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {isDemoRunning
+                                    ? <span className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin inline-block" />
+                                    : <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                }
+                                <span className="text-sm font-bold text-gray-800">
+                                    {isDemoRunning ? 'Workflow running...' : 'Run complete ✓'}
+                                </span>
+                            </div>
+                            <button onClick={() => { setShowDemoPanel(false); setDemoLog([]); setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, _demoStatus: undefined } }))); }} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                            {demoLog.map((entry, idx) => (
+                                <div key={idx} className={`rounded-lg border p-3 transition-all duration-300 ${entry.status === 'running' ? 'border-yellow-300 bg-yellow-50' :
+                                    entry.status === 'paused' ? 'border-amber-300 bg-amber-50' :
+                                        'border-green-200 bg-green-50'
+                                    }`}>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        {entry.status === 'running'
+                                            ? <span className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin inline-block flex-shrink-0" />
+                                            : entry.status === 'paused'
+                                                ? <PauseCircle className="w-3 h-3 text-amber-500 flex-shrink-0" />
+                                                : <CheckCircle2 className="w-3 h-3 text-green-500 flex-shrink-0" />
+                                        }
+                                        <span className="text-[11px] font-bold text-gray-700 leading-tight">{entry.title}</span>
+                                    </div>
+                                    <div>{entry.output}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Node Configuration Sidebar */}
                 {selectedNodeId && (

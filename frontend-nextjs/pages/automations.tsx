@@ -27,6 +27,8 @@ const AutomationsPage: React.FC = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('flows');
 
+  const [triggerNew, setTriggerNew] = useState(0);
+
   const handleUseTemplate = (template: any) => {
     // Store template and switch to flows tab
     sessionStorage.setItem('selectedTemplate', JSON.stringify(template));
@@ -53,7 +55,7 @@ const AutomationsPage: React.FC = () => {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Build workflows with AI • 30+ integrations</p>
                 </div>
               </div>
-              <Button onClick={() => setActiveTab('flows')}>
+              <Button onClick={() => { setActiveTab('flows'); setTriggerNew(n => n + 1); }}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Automation
               </Button>
@@ -86,7 +88,7 @@ const AutomationsPage: React.FC = () => {
         {/* Tab Content */}
         <div className="flex-1">
           {activeTab === 'flows' && (
-            <WorkflowAutomation />
+            <WorkflowAutomation triggerNew={triggerNew} />
           )}
 
           {activeTab === 'agents' && (

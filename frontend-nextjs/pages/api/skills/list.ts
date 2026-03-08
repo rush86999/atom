@@ -60,15 +60,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         if (!response.ok) {
-            console.error(`[API Proxy Error] Backend returned status ${response.status}:`, data);
-            return res.status(response.status).json(data);
+            console.warn(`[API Proxy] Skills backend returned ${response.status} — using empty list`);
+            return res.status(200).json({ success: true, data: { skills: [], total: 0 }, message: 'No skills available' });
         }
 
-        // Set caching headers for a short duration since skills change
         res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
         return res.status(200).json(data);
     } catch (error) {
-        console.error('[API Proxy Exception] Error fetching skills:', error);
-        return res.status(500).json({ error: 'Internal Server Error fetching skills' });
+        console.warn('[API Proxy] Skills backend unreachable — using empty list:', error);
+        return res.status(200).json({ success: true, data: { skills: [], total: 0 }, message: 'Skills unavailable' });
     }
 }
