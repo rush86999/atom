@@ -431,7 +431,7 @@ Recent decisions affecting current work:
 
 **Completed:** 2026-03-05
 **Plans:** 7/7 complete
-**Status:** COMPLETE ✅
+**Status:** v5.2 milestone complete
 
 ### Deliverables
 
