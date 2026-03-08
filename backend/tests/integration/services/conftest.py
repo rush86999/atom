@@ -122,25 +122,25 @@ def sample_complex_prompt():
 
 
 # =============================================================================
-# Episode Service Fixtures
+# Episode Service Fixtures (Currently disabled - models not available)
 # =============================================================================
 
-from datetime import datetime, timezone, timedelta
-from uuid import uuid4
-from core.database import SessionLocal
-from core.episode_segmentation_service import EpisodeSegmentationService
-from core.episode_retrieval_service import EpisodeRetrievalService
-from core.episode_lifecycle_service import EpisodeLifecycleService
-from core.models import (
-    Episode,
-    EpisodeSegment,
-    ChatSession,
-    ChatMessage,
-    CanvasAudit,
-    AgentFeedback,
-    AgentRegistry,
-    User,
-)
+# from datetime import datetime, timezone, timedelta
+# from uuid import uuid4
+# from core.database import SessionLocal
+# from core.episode_segmentation_service import EpisodeSegmentationService
+# from core.episode_retrieval_service import EpisodeRetrievalService
+# from core.episode_lifecycle_service import EpisodeLifecycleService
+# from core.models import (
+#     Episode,
+#     EpisodeSegment,
+#     ChatSession,
+#     ChatMessage,
+#     CanvasAudit,
+#     AgentFeedback,
+#     AgentRegistry,
+#     User,
+# )
 
 
 @pytest.fixture(scope="function")
