@@ -3,7 +3,13 @@ module.exports = {
   setupFiles: ["<rootDir>/tests/polyfills.ts"],
   setupFilesAfterEnv: ["<rootDir>/tests/setup.ts"],
   transform: {
-    "^.+\\.(ts|tsx)$": "ts-jest",
+    "^.+\\.(ts|tsx)$": ["ts-jest", {
+      tsconfig: {
+        jsx: "react",
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
+      },
+    }],
     "^.+\\.(js|jsx)$": "babel-jest",
   },
   preset: "ts-jest",
