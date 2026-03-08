@@ -136,7 +136,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - Wave 2: Plan 04 (Emergency bypass documentation - depends on Wave 1)
 
 **Plan Breakdown:**
-- [ ] 153-01-PLAN.md — Backend progressive coverage gate with diff-cover and new code enforcement
+- [x] 153-01-PLAN.md — Backend progressive coverage gate with diff-cover and new code enforcement
 - [ ] 153-02-PLAN.md — Frontend/Mobile Jest progressive thresholds with COVERAGE_PHASE support
 - [ ] 153-03-PLAN.md — Desktop tarpaulin progressive thresholds with ubuntu-latest runner
 - [ ] 153-04-PLAN.md — Emergency bypass documentation and tracking implementation
@@ -158,10 +158,11 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - Wave 2: Plan 04 (Comprehensive quality report consolidation - depends on Wave 1)
 
 **Plan Breakdown:**
-- [ ] 154-01-PLAN.md — PR trend comment generation with coverage indicators (↑↓→)
+- [x] 154-01-PLAN.md — PR trend comment generation with coverage indicators (↑↓→)
 - [ ] 154-02-PLAN.md — Assert-to-test ratio tracking via AST parsing
 - [ ] 154-03-PLAN.md — Code complexity and execution time tracking
 - [ ] 154-04-PLAN.md — Comprehensive quality metrics report consolidation
+
 #### Phase 155: Quick Wins (Leaf Components & Infrastructure)
 **Depends on**: Phase 154
 **Requirements**: QUICK-01, QUICK-02, QUICK-03, QUICK-04
@@ -180,14 +181,14 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - Wave 2: Plan 04 (Configuration and wiring - depends on Wave 1)
 
 **Plan Breakdown:**
-- [ ] 155-01-PLAN.md — Backend DTO testing (response models, validators, API schemas)
-- [ ] 155-02-PLAN.md — Backend utility testing (formatters, validators)
-- [ ] 155-03A-PLAN.md — Frontend UI component testing (Button, Input, Badge)
-- [ ] 155-03B-PLAN.md — Mobile component testing and test infrastructure (Button, Card, mocks)
-- [ ] 155-04-PLAN.md — Configuration and wiring testing (route registration, provider setup)
+- [x] 155-01-PLAN.md — Backend DTO testing (response models, validators, API schemas)
+- [x] 155-02-PLAN.md — Backend utility testing (formatters, validators)
+- [x] 155-03A-PLAN.md — Frontend UI component testing (Button, Input, Badge)
+- [x] 155-03B-PLAN.md — Mobile component testing and test infrastructure (Button, Card, mocks)
+- [x] 155-04-PLAN.md — Configuration and wiring testing (route registration, provider setup)
 
 #### Phase 156: Core Services Coverage (High Impact)
-**Goal**: Expand coverage to 80% for critical services (governance, LLM, episodic memory, canvas)
+**Goal**: Expand coverage to 80% for critical services (governance, LLM, episodic memory, canvas, HTTP client)
 **Depends on**: Phase 155
 **Requirements**: CORE-01, CORE-02, CORE-03, CORE-04, CORE-05
 **Success Criteria** (what must be TRUE):
@@ -197,6 +198,15 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   4. Canvas presentation coverage expanded to 80% (state management, chart rendering, form validation, interactive components)
   5. API client coverage expanded to 80% (HTTP methods, error handling, retry logic, WebSocket)
 **Plans**: 4 plans
+
+**Wave Structure:**
+- Wave 1: Plans 01-04 (Governance, LLM, Episodes, Canvas/HTTP - parallel service testing)
+
+**Plan Breakdown:**
+- [x] 156-01-PLAN.md — Agent governance coverage (maturity routing, permissions, lifecycle, cache)
+- [x] 156-02-PLAN.md — LLM service coverage (BYOK handler, token counting, rate limiting, streaming)
+- [x] 156-03-PLAN.md — Episodic memory coverage (segmentation, retrieval, lifecycle, canvas/feedback integration)
+- [x] 156-04-PLAN.md — Canvas presentation and HTTP client coverage (state management, charts, forms, connection pooling, retry logic)
 
 #### Phase 157: Edge Cases & Integration Testing
 **Goal**: Complex error paths, routing, accessibility, concurrent operations, and cross-service workflows
