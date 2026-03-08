@@ -52,6 +52,8 @@ class FlakyTestTracker:
                 total_runs INTEGER NOT NULL DEFAULT 0,
                 failure_count INTEGER NOT NULL DEFAULT 0,
                 flaky_rate REAL NOT NULL DEFAULT 0.0,
+                avg_execution_time REAL DEFAULT 0.0,
+                max_execution_time REAL DEFAULT 0.0,
                 classification TEXT NOT NULL,
                 failure_history TEXT NOT NULL,
                 quarantine_reason TEXT,
@@ -60,6 +62,16 @@ class FlakyTestTracker:
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             )
         """)
+
+        # Check if columns exist for migration pattern
+        cursor = self.conn.execute("PRAGMA table_info(flaky_tests)")
+        columns = [row[1] for row in cursor.fetchall()]
+
+        # Add execution time columns if they don't exist (migration)
+        if 'avg_execution_time' not in columns:
+            self.conn.execute("ALTER TABLE flaky_tests ADD COLUMN avg_execution_time REAL DEFAULT 0.0")
+        if 'max_execution_time' not in columns:
+            self.conn.execute("ALTER TABLE flaky_tests ADD COLUMN max_execution_time REAL DEFAULT 0.0")
 
         # Create indexes for fast lookup
         self.conn.execute("""
@@ -77,6 +89,11 @@ class FlakyTestTracker:
             ON flaky_tests(classification)
         """)
 
+        self.conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_max_execution_time
+            ON flaky_tests(max_execution_time DESC)
+        """)
+
         self.conn.commit()
 
     def record_flaky_test(
@@ -87,6 +104,7 @@ class FlakyTestTracker:
         failure_count: int,
         classification: str,
         failure_history: List[Dict],
+        execution_times: Optional[List[float]] = None,
         quarantine_reason: Optional[str] = None
     ) -> int:
         """Record or update a flaky test in the database.
@@ -98,17 +116,27 @@ class FlakyTestTracker:
             failure_count: Number of failures observed
             classification: Test classification (stable/flaky/broken)
             failure_history: List of failure details (JSON-serializable)
+            execution_times: Optional list of execution times per run (seconds)
             quarantine_reason: Optional reason for quarantine
 
         Returns:
             test_id: Database ID of the inserted/updated record
         """
         flaky_rate = failure_count / total_runs if total_runs > 0 else 0.0
+
+        # Calculate execution time statistics
+        if execution_times and len(execution_times) > 0:
+            avg_time = sum(execution_times) / len(execution_times)
+            max_time = max(execution_times)
+        else:
+            avg_time = 0.0
+            max_time = 0.0
+
         now = datetime.utcnow().isoformat()
 
         # Check if test already exists
         cursor = self.conn.execute(
-            "SELECT id, failure_history, total_runs, failure_count FROM flaky_tests "
+            "SELECT id, failure_history, total_runs, failure_count, avg_execution_time, max_execution_time FROM flaky_tests "
             "WHERE test_path = ? AND platform = ?",
             (test_path, platform)
         )
@@ -116,7 +144,7 @@ class FlakyTestTracker:
 
         if row:
             # Update existing record
-            test_id, existing_history_json, existing_runs, existing_failures = row
+            test_id, existing_history_json, existing_runs, existing_failures, existing_avg_time, existing_max_time = row
             existing_history = json.loads(existing_history_json)
             merged_history = existing_history + failure_history
 
@@ -125,12 +153,22 @@ class FlakyTestTracker:
             new_failure_count = existing_failures + failure_count
             new_flaky_rate = new_failure_count / new_total_runs if new_total_runs > 0 else 0.0
 
+            # Update execution times with weighted average
+            if avg_time > 0:
+                new_avg_time = ((existing_avg_time * existing_runs) + (avg_time * total_runs)) / new_total_runs
+                new_max_time = max(existing_max_time, max_time)
+            else:
+                new_avg_time = existing_avg_time
+                new_max_time = existing_max_time
+
             self.conn.execute("""
                 UPDATE flaky_tests
                 SET last_detected = ?,
                     total_runs = ?,
                     failure_count = ?,
                     flaky_rate = ?,
+                    avg_execution_time = ?,
+                    max_execution_time = ?,
                     classification = ?,
                     failure_history = ?,
                     quarantine_reason = COALESCE(?, quarantine_reason),
@@ -138,8 +176,8 @@ class FlakyTestTracker:
                 WHERE id = ?
             """, (
                 now, new_total_runs, new_failure_count,
-                round(new_flaky_rate, 3), classification,
-                json.dumps(merged_history), quarantine_reason, now, test_id
+                round(new_flaky_rate, 3), round(new_avg_time, 3), round(new_max_time, 3),
+                classification, json.dumps(merged_history), quarantine_reason, now, test_id
             ))
             self.conn.commit()
             return test_id
@@ -148,12 +186,13 @@ class FlakyTestTracker:
             cursor = self.conn.execute("""
                 INSERT INTO flaky_tests (
                     test_path, platform, first_detected, last_detected,
-                    total_runs, failure_count, flaky_rate, classification,
-                    failure_history, quarantine_reason
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    total_runs, failure_count, flaky_rate, avg_execution_time, max_execution_time,
+                    classification, failure_history, quarantine_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 test_path, platform, now, now,
                 total_runs, failure_count, round(flaky_rate, 3),
+                round(avg_time, 3), round(max_time, 3),
                 classification, json.dumps(failure_history), quarantine_reason
             ))
             self.conn.commit()
@@ -298,6 +337,93 @@ class FlakyTestTracker:
         self.conn.commit()
         return cursor.rowcount > 0
 
+    def update_execution_time(
+        self,
+        test_path: str,
+        platform: str,
+        execution_times: List[float]
+    ) -> bool:
+        """Update execution time metrics for a test.
+
+        Args:
+            test_path: Full test identifier
+            platform: Platform name
+            execution_times: List of execution times from recent runs
+
+        Returns:
+            True if test was updated, False if not found
+        """
+        if not execution_times:
+            return False
+
+        # Calculate execution time statistics
+        avg_time = sum(execution_times) / len(execution_times)
+        max_time = max(execution_times)
+
+        # Get existing data to calculate weighted average
+        cursor = self.conn.execute(
+            "SELECT id, total_runs, avg_execution_time, max_execution_time FROM flaky_tests "
+            "WHERE test_path = ? AND platform = ?",
+            (test_path, platform)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            return False
+
+        test_id, existing_runs, existing_avg_time, existing_max_time = row
+
+        # Calculate weighted average
+        new_runs = existing_runs + len(execution_times)
+        new_avg_time = ((existing_avg_time * existing_runs) + sum(execution_times)) / new_runs
+        new_max_time = max(existing_max_time, max_time)
+
+        now = datetime.utcnow().isoformat()
+
+        cursor = self.conn.execute(
+            "UPDATE flaky_tests "
+            "SET avg_execution_time = ?, max_execution_time = ?, total_runs = ?, updated_at = ? "
+            "WHERE id = ?",
+            (round(new_avg_time, 3), round(new_max_time, 3), new_runs, now, test_id)
+        )
+
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def get_slow_tests(
+        self,
+        min_time: float = 10.0,
+        platform: Optional[str] = None,
+        limit: int = 50
+    ) -> List[Dict]:
+        """Get slow tests exceeding execution time threshold.
+
+        Args:
+            min_time: Minimum execution time in seconds (default: 10s)
+            platform: Optional platform filter
+            limit: Maximum records to return
+
+        Returns:
+            List of slow test records sorted by max_execution_time (descending)
+        """
+        query = """
+            SELECT * FROM flaky_tests
+            WHERE max_execution_time >= ?
+        """
+        params = [min_time]
+
+        if platform:
+            query += " AND platform = ?"
+            params.append(platform)
+
+        query += " ORDER BY max_execution_time DESC LIMIT ?"
+        params.append(limit)
+
+        cursor = self.conn.execute(query, params)
+        rows = cursor.fetchall()
+
+        return [self._row_to_dict(row) for row in rows]
+
     def get_statistics(self, platform: Optional[str] = None) -> Dict:
         """Get aggregate statistics about flaky tests.
 
@@ -344,8 +470,8 @@ class FlakyTestTracker:
         """
         columns = [
             'id', 'test_path', 'platform', 'first_detected', 'last_detected',
-            'total_runs', 'failure_count', 'flaky_rate', 'classification',
-            'failure_history', 'quarantine_reason', 'issue_url',
+            'total_runs', 'failure_count', 'flaky_rate', 'avg_execution_time', 'max_execution_time',
+            'classification', 'failure_history', 'quarantine_reason', 'issue_url',
             'created_at', 'updated_at'
         ]
         result = dict(zip(columns, row))
