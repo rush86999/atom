@@ -7455,7 +7455,7 @@ class SkillInstallation(Base):
 
     # Relationships
     tenant = relationship("Tenant", backref="installed_skills")
-    skill = relationship("Skill", backref="installations")
+    skill = relationship("Skill", backref="installations", foreign_keys=[skill_id])
 
 
 class AgentSkill(Base):
@@ -7509,7 +7509,7 @@ class CanvasComponent(Base):
 
     # Relationships
     tenant = relationship("Tenant", backref="canvas_components")
-    author = relationship("User", backref="authored_components")
+    author = relationship("User", backref="authored_components", foreign_keys=[author_id])
     installations = relationship("ComponentInstallation", back_populates="component", cascade="all, delete-orphan")
     required_skill = relationship("Skill", foreign_keys=[required_skill_id])
 Episode = AgentEpisode  # Alias for backward compatibility

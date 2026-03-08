@@ -77,8 +77,8 @@ class TestAgentMaturityRouting:
             status=agent_status.value,
             confidence_score=0.5
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # Map complexity to action type
         action_types = {
@@ -113,7 +113,7 @@ class TestAgentMaturityRouting:
         self,
         governance_service: AgentGovernanceService,
         governance_cache: GovernanceCache,
-        governance_db
+        db_session
     ):
         """Test that cache is used for repeated permission checks."""
         # Create INTERN agent
@@ -125,8 +125,8 @@ class TestAgentMaturityRouting:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # First call - cache miss
         result1 = governance_service.can_perform_action(
@@ -174,8 +174,8 @@ class TestAgentMaturityRouting:
             status=AgentStatus.STUDENT.value,  # Will be auto-adjusted
             confidence_score=confidence_score
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # Check that the agent can perform actions appropriate for its maturity
         if expected_status == AgentStatus.STUDENT:
@@ -212,7 +212,7 @@ class TestAgentLifecycleManagement:
     def test_register_new_agent(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test registering a new agent."""
         # Register new agent
@@ -233,7 +233,7 @@ class TestAgentLifecycleManagement:
         assert agent.created_at is not None
 
         # Verify agent exists in database
-        retrieved = governance_db.query(AgentRegistry).filter(
+        retrieved = db_session.query(AgentRegistry).filter(
             AgentRegistry.id == agent.id
         ).first()
         assert retrieved is not None
@@ -242,7 +242,7 @@ class TestAgentLifecycleManagement:
     def test_update_existing_agent(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test updating an existing agent."""
         # Register initial agent
@@ -271,7 +271,7 @@ class TestAgentLifecycleManagement:
         assert updated_agent.description == "Updated description"
 
         # Verify only one agent exists in database
-        count = governance_db.query(AgentRegistry).filter(
+        count = db_session.query(AgentRegistry).filter(
             AgentRegistry.module_path == "test.module",
             AgentRegistry.class_name == "TestAgent"
         ).count()
@@ -280,7 +280,7 @@ class TestAgentLifecycleManagement:
     def test_suspend_agent(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test suspending an agent."""
         # Create AUTONOMOUS agent
@@ -292,8 +292,8 @@ class TestAgentLifecycleManagement:
             status=AgentStatus.AUTONOMOUS.value,
             confidence_score=0.95
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # Suspend the agent
         governance_service.suspend_agent(
@@ -302,13 +302,13 @@ class TestAgentLifecycleManagement:
         )
 
         # Verify agent status
-        governance_db.refresh(agent)
+        db_session.refresh(agent)
         assert agent.status == "SUSPENDED"
 
     def test_terminate_agent(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test terminating an agent."""
         # Create SUPERVISED agent
@@ -320,8 +320,8 @@ class TestAgentLifecycleManagement:
             status=AgentStatus.SUPERVISED.value,
             confidence_score=0.8
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # Terminate the agent
         governance_service.terminate_agent(
@@ -330,14 +330,14 @@ class TestAgentLifecycleManagement:
         )
 
         # Verify agent status and timestamp
-        governance_db.refresh(agent)
+        db_session.refresh(agent)
         assert agent.status == "TERMINATED"
         assert agent.terminated_at is not None
 
     def test_reactivate_suspended_agent(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test reactivating a suspended agent."""
         # Create agent, suspend it
@@ -349,8 +349,8 @@ class TestAgentLifecycleManagement:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         original_status = agent.status
 
@@ -359,14 +359,14 @@ class TestAgentLifecycleManagement:
             agent_id=agent.id,
             reason="Test suspension"
         )
-        governance_db.refresh(agent)
+        db_session.refresh(agent)
         assert agent.status == "SUSPENDED"
 
         # Reactivate
         governance_service.reactivate_agent(agent_id=agent.id)
 
         # Verify status restored
-        governance_db.refresh(agent)
+        db_session.refresh(agent)
         assert agent.status == original_status
 
 
@@ -381,7 +381,7 @@ class TestFeedbackAdjudication:
     async def test_submit_feedback_triggers_adjudication(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test that feedback submission triggers adjudication."""
         # Create agent and user
@@ -393,7 +393,7 @@ class TestFeedbackAdjudication:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
+        db_session.add(agent)
 
         user = User(
             email="test@example.com",
@@ -401,8 +401,8 @@ class TestFeedbackAdjudication:
             role=UserRole.MEMBER.value,
             reputation_score=0.8
         )
-        governance_db.add(user)
-        governance_db.commit()
+        db_session.add(user)
+        db_session.commit()
 
         # Submit feedback with mocked adjudication
         with patch.object(
@@ -432,7 +432,7 @@ class TestFeedbackAdjudication:
     async def test_adjudicate_feedback_with_valid_correction(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test adjudication with valid user correction."""
         # Create agent, user, and feedback
@@ -444,7 +444,7 @@ class TestFeedbackAdjudication:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
+        db_session.add(agent)
 
         user = User(
             email="admin@example.com",
@@ -453,7 +453,7 @@ class TestFeedbackAdjudication:
             specialty="Finance",
             reputation_score=0.9
         )
-        governance_db.add(user)
+        db_session.add(user)
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -463,8 +463,8 @@ class TestFeedbackAdjudication:
             input_context="Test",
             status=FeedbackStatus.PENDING.value
         )
-        governance_db.add(feedback)
-        governance_db.commit()
+        db_session.add(feedback)
+        db_session.commit()
 
         # Mock WorldModelService to avoid dependency
         with patch('core.agent_governance_service.WorldModelService') as mock_wm:
@@ -476,7 +476,7 @@ class TestFeedbackAdjudication:
             await governance_service._adjudicate_feedback(feedback)
 
             # Verify feedback was approved
-            governance_db.refresh(feedback)
+            db_session.refresh(feedback)
             assert feedback.status == FeedbackStatus.ACCEPTED.value
             assert feedback.adjudicated_at is not None
             assert "Trusted reviewer" in feedback.ai_reasoning
@@ -485,7 +485,7 @@ class TestFeedbackAdjudication:
     async def test_adjudicate_feedback_with_invalid_correction(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test adjudication with untrusted user correction."""
         # Create agent, user, and feedback
@@ -497,7 +497,7 @@ class TestFeedbackAdjudication:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
+        db_session.add(agent)
 
         user = User(
             email="member@example.com",
@@ -506,7 +506,7 @@ class TestFeedbackAdjudication:
             specialty="Engineering",  # Doesn't match agent category
             reputation_score=0.5
         )
-        governance_db.add(user)
+        db_session.add(user)
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -516,8 +516,8 @@ class TestFeedbackAdjudication:
             input_context="Test",
             status=FeedbackStatus.PENDING.value
         )
-        governance_db.add(feedback)
-        governance_db.commit()
+        db_session.add(feedback)
+        db_session.commit()
 
         # Mock WorldModelService
         with patch('core.agent_governance_service.WorldModelService') as mock_wm:
@@ -529,7 +529,7 @@ class TestFeedbackAdjudication:
             await governance_service._adjudicate_feedback(feedback)
 
             # Verify feedback remains pending (not trusted)
-            governance_db.refresh(feedback)
+            db_session.refresh(feedback)
             assert feedback.status == FeedbackStatus.PENDING.value
             assert feedback.adjudicated_at is not None
             assert "queued" in feedback.ai_reasoning.lower()
@@ -538,7 +538,7 @@ class TestFeedbackAdjudication:
     async def test_adjudication_with_high_reputation_user(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test adjudication favors high-reputation users."""
         # Create agent and high-reputation user
@@ -550,7 +550,7 @@ class TestFeedbackAdjudication:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
+        db_session.add(agent)
 
         user = User(
             email="expert@example.com",
@@ -559,7 +559,7 @@ class TestFeedbackAdjudication:
             specialty="Finance",  # Perfect match
             reputation_score=0.95  # Very high reputation
         )
-        governance_db.add(user)
+        db_session.add(user)
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -569,8 +569,8 @@ class TestFeedbackAdjudication:
             input_context="Test",
             status=FeedbackStatus.PENDING.value
         )
-        governance_db.add(feedback)
-        governance_db.commit()
+        db_session.add(feedback)
+        db_session.commit()
 
         # Mock WorldModelService
         with patch('core.agent_governance_service.WorldModelService') as mock_wm:
@@ -582,7 +582,7 @@ class TestFeedbackAdjudication:
             await governance_service._adjudicate_feedback(feedback)
 
             # Verify auto-approved due to high reputation
-            governance_db.refresh(feedback)
+            db_session.refresh(feedback)
             assert feedback.status == FeedbackStatus.ACCEPTED.value
 
 
@@ -596,7 +596,7 @@ class TestHITLActionManagement:
     def test_create_hitl_action(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test creating a HITL action for approval."""
         # Create INTERN agent (cannot do complexity 3 without approval)
@@ -608,8 +608,8 @@ class TestHITLActionManagement:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # Request approval for complexity 3 action
         action_id = governance_service.request_approval(
@@ -622,7 +622,7 @@ class TestHITLActionManagement:
         # Verify HITL action was created
         assert action_id is not None
 
-        hitl_action = governance_db.query(HITLAction).filter(
+        hitl_action = db_session.query(HITLAction).filter(
             HITLAction.id == action_id
         ).first()
         assert hitl_action is not None
@@ -633,7 +633,7 @@ class TestHITLActionManagement:
     def test_approve_hitl_action(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test approving a HITL action."""
         # Create HITL action
@@ -645,15 +645,15 @@ class TestHITLActionManagement:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
+        db_session.add(agent)
 
         user = User(
             email="reviewer@example.com",
             name="Reviewer",
             role=UserRole.MEMBER.value
         )
-        governance_db.add(user)
-        governance_db.commit()
+        db_session.add(user)
+        db_session.commit()
 
         action_id = governance_service.request_approval(
             agent_id=agent.id,
@@ -663,17 +663,17 @@ class TestHITLActionManagement:
         )
 
         # Approve the action by updating HITL record
-        hitl_action = governance_db.query(HITLAction).filter(
+        hitl_action = db_session.query(HITLAction).filter(
             HITLAction.id == action_id
         ).first()
         hitl_action.status = HITLActionStatus.APPROVED.value
         hitl_action.reviewed_at = datetime.now(timezone.utc)
         hitl_action.reviewed_by = user.id
         hitl_action.user_feedback = "Approved"
-        governance_db.commit()
+        db_session.commit()
 
         # Verify approval
-        governance_db.refresh(hitl_action)
+        db_session.refresh(hitl_action)
         assert hitl_action.status == HITLActionStatus.APPROVED.value
         assert hitl_action.reviewed_by == user.id
         assert hitl_action.reviewed_at is not None
@@ -681,7 +681,7 @@ class TestHITLActionManagement:
     def test_reject_hitl_action(
         self,
         governance_service: AgentGovernanceService,
-        governance_db
+        db_session
     ):
         """Test rejecting a HITL action."""
         # Create HITL action
@@ -693,15 +693,15 @@ class TestHITLActionManagement:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
+        db_session.add(agent)
 
         user = User(
             email="reviewer@example.com",
             name="Reviewer",
             role=UserRole.MEMBER.value
         )
-        governance_db.add(user)
-        governance_db.commit()
+        db_session.add(user)
+        db_session.commit()
 
         action_id = governance_service.request_approval(
             agent_id=agent.id,
@@ -711,17 +711,17 @@ class TestHITLActionManagement:
         )
 
         # Reject the action
-        hitl_action = governance_db.query(HITLAction).filter(
+        hitl_action = db_session.query(HITLAction).filter(
             HITLAction.id == action_id
         ).first()
         hitl_action.status = HITLActionStatus.REJECTED.value
         hitl_action.reviewed_at = datetime.now(timezone.utc)
         hitl_action.reviewed_by = user.id
         hitl_action.user_feedback = "Rejected: Not appropriate"
-        governance_db.commit()
+        db_session.commit()
 
         # Verify rejection
-        governance_db.refresh(hitl_action)
+        db_session.refresh(hitl_action)
         assert hitl_action.status == HITLActionStatus.REJECTED.value
         assert hitl_action.reviewed_by == user.id
         assert "Not appropriate" in hitl_action.user_feedback
@@ -738,7 +738,7 @@ class TestGovernanceCacheValidation:
         self,
         governance_service: AgentGovernanceService,
         governance_cache: GovernanceCache,
-        governance_db
+        db_session
     ):
         """Test that cache hits reduce database lookups."""
         # Create agent and warm cache
@@ -750,8 +750,8 @@ class TestGovernanceCacheValidation:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # First call - cache miss
         result1 = governance_service.can_perform_action(
@@ -776,7 +776,7 @@ class TestGovernanceCacheValidation:
         self,
         governance_service: AgentGovernanceService,
         governance_cache: GovernanceCache,
-        governance_db
+        db_session
     ):
         """Test that cache is invalidated when agent status changes."""
         # Create agent and warm cache
@@ -788,8 +788,8 @@ class TestGovernanceCacheValidation:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # Warm cache
         governance_service.can_perform_action(agent.id, "analyze")
@@ -798,7 +798,7 @@ class TestGovernanceCacheValidation:
 
         # Change agent status
         agent.status = AgentStatus.AUTONOMOUS.value
-        governance_db.commit()
+        db_session.commit()
 
         # Invalidate cache
         governance_cache.invalidate_agent(agent.id)
@@ -811,7 +811,7 @@ class TestGovernanceCacheValidation:
         self,
         governance_service: AgentGovernanceService,
         governance_cache: GovernanceCache,
-        governance_db
+        db_session
     ):
         """Test that cache entries expire after TTL."""
         # Create agent and warm cache
@@ -823,8 +823,8 @@ class TestGovernanceCacheValidation:
             status=AgentStatus.INTERN.value,
             confidence_score=0.6
         )
-        governance_db.add(agent)
-        governance_db.commit()
+        db_session.add(agent)
+        db_session.commit()
 
         # Warm cache
         governance_service.can_perform_action(agent.id, "analyze")
