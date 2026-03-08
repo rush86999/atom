@@ -68,6 +68,14 @@ class TestAgentMaturityRouting:
         allowed
     ):
         """Test all maturity levels against all action complexities."""
+        # Map maturity levels to appropriate confidence scores
+        confidence_scores = {
+            AgentStatus.STUDENT: 0.3,
+            AgentStatus.INTERN: 0.6,
+            AgentStatus.SUPERVISED: 0.8,
+            AgentStatus.AUTONOMOUS: 0.95
+        }
+
         # Create agent directly with SQL to avoid relationship issues
         agent = AgentRegistry(
             name=f"Agent_{agent_status.value}",
@@ -75,7 +83,7 @@ class TestAgentMaturityRouting:
             module_path="test.module",
             class_name="TestAgent",
             status=agent_status.value,
-            confidence_score=0.5
+            confidence_score=confidence_scores[agent_status]
         )
         db_session.add(agent)
         db_session.commit()
