@@ -1,0 +1,59 @@
+{
+  "bypasses": [
+    {
+      "timestamp": "2026-03-08T03:23:00.327335+00:00",
+      "reason": "Security fix",
+      "pr_url": "https://github.com/test/pr/1",
+      "approvers": [
+        "alice",
+        "bob"
+      ],
+      "phase": "phase_1",
+      "environment": "unknown"
+    },
+    {
+      "timestamp": "2026-03-08T03:23:10.658746+00:00",
+      "reason": "Test bypass 1",
+      "pr_url": "https://github.com/test/pr/1",
+      "approvers": [
+        "alice",
+        "bob"
+      ],
+      "phase": "phase_1",
+      "environment": "unknown"
+    },
+    {
+      "timestamp": "2026-03-08T03:23:10.726113+00:00",
+      "reason": "Test bypass 2",
+      "pr_url": "https://github.com/test/pr/2",
+      "approvers": [
+        "alice",
+        "bob"
+      ],
+      "phase": "phase_1",
+      "environment": "unknown"
+    },
+    {
+      "timestamp": "2026-03-08T03:23:10.792185+00:00",
+      "reason": "Test bypass 3",
+      "pr_url": "https://github.com/test/pr/3",
+      "approvers": [
+        "alice",
+        "bob"
+      ],
+      "phase": "phase_1",
+      "environment": "unknown"
+    },
+    {
+      "timestamp": "2026-03-08T03:23:10.858523+00:00",
+      "reason": "Test bypass 4",
+      "pr_url": "https://github.com/test/pr/4",
+      "approvers": [
+        "alice",
+        "bob"
+      ],
+      "phase": "phase_1",
+      "environment": "unknown"
+    }
+  ]
+}
