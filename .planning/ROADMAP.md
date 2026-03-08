@@ -151,10 +151,18 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. Assert-to-test ratio monitored to prevent coverage gaming with low-quality tests
   4. Flaky test detection identifies unreliable tests requiring quarantine with tracked execution times
   5. Code complexity metrics (cyclomatic complexity) tracked alongside coverage
-**Plans**: TBD
+**Plans**: 4 plans
 
+**Wave Structure:**
+- Wave 1: Plans 01-03 (PR trend comments, assert ratio, complexity/execution time - parallel quality metrics)
+- Wave 2: Plan 04 (Comprehensive quality report consolidation - depends on Wave 1)
+
+**Plan Breakdown:**
+- [ ] 154-01-PLAN.md — PR trend comment generation with coverage indicators (↑↓→)
+- [ ] 154-02-PLAN.md — Assert-to-test ratio tracking via AST parsing
+- [ ] 154-03-PLAN.md — Code complexity and execution time tracking
+- [ ] 154-04-PLAN.md — Comprehensive quality metrics report consolidation
 #### Phase 155: Quick Wins (Leaf Components & Infrastructure)
-**Goal**: Rapid coverage gains on low-complexity, high-volume code (components, utilities, DTOs, config)
 **Depends on**: Phase 154
 **Requirements**: QUICK-01, QUICK-02, QUICK-03, QUICK-04
 **Success Criteria** (what must be TRUE):
@@ -165,7 +173,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   5. Route registration, middleware configuration, provider setup, and context wiring tested across platforms
   6. Data transfer objects and serializers (Pydantic models, TypeScript interfaces, Rust structs) validated
   7. Simple state management (read-only services, useState hooks, AsyncStorage/MMKV) tested
-**Plans**: TBD
+**Plans**: 4 plans
 
 #### Phase 156: Core Services Coverage (High Impact)
 **Goal**: Expand coverage to 80% for critical services (governance, LLM, episodic memory, canvas)
@@ -177,7 +185,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. Episodic memory coverage expanded to 80% (segmentation, retrieval algorithms, lifecycle management, canvas/feedback integration)
   4. Canvas presentation coverage expanded to 80% (state management, chart rendering, form validation, interactive components)
   5. API client coverage expanded to 80% (HTTP methods, error handling, retry logic, WebSocket)
-**Plans**: TBD
+**Plans**: 4 plans
 
 #### Phase 157: Edge Cases & Integration Testing
 **Goal**: Complex error paths, routing, accessibility, concurrent operations, and cross-service workflows
@@ -189,7 +197,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. Accessibility compliance tested to WCAG 2.1 AA (keyboard navigation, screen reader compatibility, ARIA attributes)
   4. Concurrent operations and race conditions tested (database transactions, concurrent agent operations, state updates, IPC parallelization)
   5. Integration tests cover cross-service workflows (agent execution E2E, canvas presentation workflows, offline sync scenarios, multi-platform E2E)
-**Plans**: TBD
+**Plans**: 4 plans
 
 ## Progress
 
