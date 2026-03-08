@@ -89,7 +89,14 @@ None yet.
 
 ### Blockers/Concerns
 
-None yet.
+**CRITICAL: SQLAlchemy Model Bug (Phase 156-01)**
+- **Issue:** `CanvasComponent` model has broken `installations` relationship
+- **Error:** `Mapper 'Mapper[CanvasComponent(canvas_components)]' has no property 'installations'`
+- **Impact:** Blocks ALL integration tests using AgentRegistry model
+- **Files Affected:** 31 governance tests, potentially other test suites
+- **Fix Required:** Fix or remove `installations` relationship in `backend/core/models.py`
+- **Status:** Test code complete (840 lines), execution blocked
+- **Priority:** CRITICAL - Unblocks multiple test suites
 
 ## Session Continuity
 
