@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
 import uuid
@@ -616,3 +616,154 @@ class AgentGovernanceService:
 
         logger.info("GEA guardrail: config APPROVED for tenant %s", tenant_id)
         return True
+
+    # ==================== AGENT LIFECYCLE MANAGEMENT ====================
+
+    def suspend_agent(self, agent_id: str, reason: str = None) -> bool:
+        """
+        Suspend an agent, preventing it from performing actions.
+
+        Args:
+            agent_id: The agent to suspend
+            reason: Optional reason for suspension (for audit trail)
+
+        Returns:
+            True if agent was suspended, False if not found
+        """
+        try:
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if not agent:
+                logger.warning(f"Suspend failed: Agent {agent_id} not found")
+                return False
+
+            # Store previous status for potential reactivation
+            previous_status = agent.status
+
+            # Update agent status
+            agent.status = "SUSPENDED"
+            agent.suspended_at = datetime.now(timezone.utc)
+
+            self.db.commit()
+            self.db.refresh(agent)
+
+            # Invalidate cache for this agent
+            cache = get_governance_cache()
+            cache.invalidate(agent_id)
+
+            logger.info(
+                f"Agent {agent.name} ({agent_id}) suspended. "
+                f"Previous status: {previous_status}. Reason: {reason or 'Not provided'}"
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error suspending agent {agent_id}: {e}")
+            self.db.rollback()
+            return False
+
+    def terminate_agent(self, agent_id: str, reason: str = None) -> bool:
+        """
+        Terminate an agent, permanently disabling it.
+
+        Args:
+            agent_id: The agent to terminate
+            reason: Optional reason for termination (for audit trail)
+
+        Returns:
+            True if agent was terminated, False if not found
+        """
+        try:
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if not agent:
+                logger.warning(f"Terminate failed: Agent {agent_id} not found")
+                return False
+
+            # Update agent status
+            agent.status = "TERMINATED"
+            agent.terminated_at = datetime.now(timezone.utc)
+
+            self.db.commit()
+            self.db.refresh(agent)
+
+            # Invalidate cache for this agent
+            cache = get_governance_cache()
+            cache.invalidate(agent_id)
+
+            logger.info(
+                f"Agent {agent.name} ({agent_id}) terminated. "
+                f"Reason: {reason or 'Not provided'}"
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error terminating agent {agent_id}: {e}")
+            self.db.rollback()
+            return False
+
+    def reactivate_agent(self, agent_id: str) -> bool:
+        """
+        Reactivate a suspended agent, restoring its previous status.
+
+        Args:
+            agent_id: The agent to reactivate
+
+        Returns:
+            True if agent was reactivated, False if not found or not suspended
+        """
+        try:
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id
+            ).first()
+
+            if not agent:
+                logger.warning(f"Reactivate failed: Agent {agent_id} not found")
+                return False
+
+            # Only suspended agents can be reactivated
+            if agent.status != "SUSPENDED":
+                logger.warning(
+                    f"Cannot reactivate agent {agent_id}: "
+                    f"Current status is {agent.status}, not SUSPENDED"
+                )
+                return False
+
+            # Restore to previous status based on confidence score
+            confidence = agent.confidence_score or 0.5
+            if confidence >= 0.9:
+                new_status = AgentStatus.AUTONOMOUS.value
+            elif confidence >= 0.7:
+                new_status = AgentStatus.SUPERVISED.value
+            elif confidence >= 0.5:
+                new_status = AgentStatus.INTERN.value
+            else:
+                new_status = AgentStatus.STUDENT.value
+
+            agent.status = new_status
+            agent.suspended_at = None
+
+            self.db.commit()
+            self.db.refresh(agent)
+
+            # Invalidate cache for this agent
+            cache = get_governance_cache()
+            cache.invalidate(agent_id)
+
+            logger.info(
+                f"Agent {agent.name} ({agent_id}) reactivated. "
+                f"Status restored to: {new_status}"
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error reactivating agent {agent_id}: {e}")
+            self.db.rollback()
+            return False
