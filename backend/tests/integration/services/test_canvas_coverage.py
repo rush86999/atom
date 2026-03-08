@@ -96,24 +96,14 @@ def mock_db_context():
 
 @pytest.fixture
 def mock_ws_manager():
-    """Mock WebSocket manager.
-
-    Creates mock before canvas_tool is imported.
-    """
-    # Create mock manager
+    """Mock WebSocket manager with AsyncMock for async broadcast methods."""
+    # Create mock manager with AsyncMock for async methods
     mock_mgr = Mock()
     mock_mgr.broadcast = AsyncMock()
 
-    # Patch sys.modules to ensure mock is available before import
-    import sys
-    import core.websockets
-    original_manager = core.websockets.manager
-    core.websockets.manager = mock_mgr
-
-    yield mock_mgr
-
-    # Restore original
-    core.websockets.manager = original_manager
+    # Patch ws_manager in canvas_tool module
+    with patch('tools.canvas_tool.ws_manager', mock_mgr):
+        yield mock_mgr
 
 
 @pytest.fixture
