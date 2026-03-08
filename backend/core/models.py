@@ -7154,7 +7154,6 @@ class PackageRegistry(Base):
 
     # Relationships
     approver = relationship("User", foreign_keys=[approved_by])
-    executions = relationship("SkillExecution", back_populates="package")
 
 class CognitiveTierPreference(Base):
     """Per-workspace cognitive tier routing preferences"""
