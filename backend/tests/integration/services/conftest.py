@@ -44,20 +44,23 @@ def db_session():
     # Store path for cleanup
     engine._test_db_path = db_path
 
-    # Create tables using create_all with checkfirst
-    # This handles missing foreign key references gracefully
-    try:
-        from core.database import Base
-        Base.metadata.create_all(engine, checkfirst=True)
-    except Exception:
-        # If create_all fails, create tables individually
-        from core.database import Base
-        for table in Base.metadata.tables.values():
+    # Create ONLY the tables we need for governance testing
+    # This avoids SQLAlchemy mapper configuration issues with unrelated models
+    from core.database import Base
+
+    tables_to_create = [
+        'users',
+        'agent_registry',
+        'agent_feedback',
+        'hitl_actions',
+    ]
+
+    for table_name in tables_to_create:
+        if table_name in Base.metadata.tables:
             try:
-                table.create(engine, checkfirst=True)
-            except Exception:
-                # Skip tables that can't be created (missing FK refs, etc.)
-                continue
+                Base.metadata.tables[table_name].create(engine, checkfirst=True)
+            except Exception as e:
+                print(f"Warning: Could not create table {table_name}: {e}")
 
     # Create session
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -122,25 +125,28 @@ def sample_complex_prompt():
 
 
 # =============================================================================
-# Episode Service Fixtures (Currently disabled - models not available)
+# Episode Service Fixtures
 # =============================================================================
 
-# from datetime import datetime, timezone, timedelta
-# from uuid import uuid4
-# from core.database import SessionLocal
-# from core.episode_segmentation_service import EpisodeSegmentationService
-# from core.episode_retrieval_service import EpisodeRetrievalService
-# from core.episode_lifecycle_service import EpisodeLifecycleService
-# from core.models import (
-#     Episode,
-#     EpisodeSegment,
-#     ChatSession,
-#     ChatMessage,
-#     CanvasAudit,
-#     AgentFeedback,
-#     AgentRegistry,
-#     User,
-# )
+from datetime import datetime, timezone, timedelta
+from uuid import uuid4
+from core.database import SessionLocal
+from core.episode_segmentation_service import EpisodeSegmentationService
+from core.episode_retrieval_service import EpisodeRetrievalService
+from core.episode_lifecycle_service import EpisodeLifecycleService
+from core.models import (
+    AgentEpisode,  # Use AgentEpisode instead of Episode
+    EpisodeSegment,
+    ChatSession,
+    ChatMessage,
+    CanvasAudit,
+    AgentFeedback,
+    AgentRegistry,
+    User,
+)
+
+# Alias for compatibility with service code that imports Episode
+Episode = AgentEpisode
 
 
 @pytest.fixture(scope="function")
