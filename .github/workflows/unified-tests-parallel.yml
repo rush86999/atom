@@ -54,8 +54,10 @@ jobs:
             test-command: |
               cd backend && pytest tests/ -v -n auto \
                 --json-report --json-report-file=pytest_report.json \
+                --durations=10 \
                 --cov=core --cov=api --cov=tools \
-                --cov-report=json:tests/coverage_reports/metrics/coverage.json
+                --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+                | tee tests/coverage_reports/metrics/test_durations.txt
             artifact-name: backend-test-results
             artifact-path: backend/pytest_report.json
             coverage-name: backend-coverage
@@ -386,6 +388,52 @@ jobs:
             --output tests/coverage_reports/metrics/assert_ratio_report.json
         continue-on-error: false
 
+      # Analyze code complexity (Backend)
+      # Track cyclomatic complexity to identify complex, untested code (technical debt hotspots)
+      - name: Analyze code complexity (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          # Analyze only changed files (git diff) for performance
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD | grep '\.py$' || echo "")
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "Analyzing changed files for complexity..."
+            radon cc $CHANGED_FILES -a --json > tests/coverage_reports/metrics/complexity.json
+          else
+            # Fallback: analyze core modules
+            echo "No changed files found, analyzing core modules..."
+            radon cc core -a --json > tests/coverage_reports/metrics/complexity.json
+          fi
+        continue-on-error: true
+
+      # Identify complexity hotspots (Backend)
+      # Merge complexity data with coverage to flag high-complexity, low-coverage functions
+      - name: Identify complexity hotspots (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/merge_complexity_coverage.py \
+            --complexity tests/coverage_reports/metrics/complexity.json \
+            --coverage tests/coverage_reports/metrics/coverage.json \
+            --output tests/coverage_reports/metrics/complexity_hotspots.json \
+            --min-complexity 10 \
+            --max-coverage 80
+        continue-on-error: true
+
+      # Track execution times (Backend)
+      # Parse pytest --durations output and update flaky test tracker with execution time metrics
+      - name: Track execution times (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/track_execution_times.py \
+            --durations-file tests/coverage_reports/metrics/test_durations.txt \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --platform backend \
+            --slow-threshold 10.0 \
+            --output tests/coverage_reports/metrics/slow_tests.json
+        continue-on-error: true
+
       # Upload flaky test reports
       - name: Upload flaky test reports
         uses: actions/upload-artifact@v4
@@ -406,6 +454,30 @@ jobs:
         with:
           name: assert-ratio-report-backend
           path: backend/tests/coverage_reports/metrics/assert_ratio_report.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Upload complexity analysis reports (Backend)
+      - name: Upload complexity reports
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: complexity-analysis-backend
+          path: |
+            backend/tests/coverage_reports/metrics/complexity.json
+            backend/tests/coverage_reports/metrics/complexity_hotspots.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Upload execution time reports (Backend)
+      - name: Upload execution time reports
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: execution-times-backend
+          path: |
+            backend/tests/coverage_reports/metrics/test_durations.txt
+            backend/tests/coverage_reports/metrics/slow_tests.json
           retention-days: 30
           if-no-files-found: warn
 
