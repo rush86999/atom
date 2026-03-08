@@ -7,6 +7,8 @@ mod websocket;
 mod hotkeys;
 mod autolaunch;
 mod notifications;
+mod helpers;
+mod platform_specific;
 
 use autolaunch::*;
 use commands::*;
