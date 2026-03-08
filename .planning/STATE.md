@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 156 of TBD (Core Services Coverage - High Impact)
-Plan: 10 of 12 in current phase
-Status: In Progress
-Last activity: 2026-03-08 — Canvas/WebSocket Test Fixing: Fixed WebSocket broadcast mocking issues (AsyncMock + direct module patching) to achieve 100% test pass rate (31/31 tests passing). Canvas coverage increased from 29% to 38%.
+Plan: 08 of 12 in current phase
+Status: Complete
+Last activity: 2026-03-08 — Agent Governance Gap Closure: Implemented 3 missing lifecycle methods (suspend_agent, terminate_agent, reactivate_agent) and fixed 4 test design issues (User.name setter, AgentFeedback.agent_id constraint, cache instance, mock patches). Achieved 100% test pass rate (36/36 tests) and 64% coverage (up from 44%).
 
-Progress: [████████░░] 83% (10 of 12 plans complete - plan 10 fixed canvas/WebSocket test failures)
+Progress: [████████░░] 67% (8 of 12 plans complete - plan 08 implemented agent lifecycle management)
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Progress: [████████░░] 83% (10 of 12 plans complete - plan 1
 | Phase 156 P02 | 420 | 3 tasks | 2 files | 56 tests |
 | Phase 155 P04 | 1489 | 5 tasks | 9 files | 92 tests |
 | Phase 156 P07 | 600 | 4 tasks | 2 files |
+| Phase 156 P08 | 34 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
