@@ -120,10 +120,18 @@ class TestAgentMaturityRouting:
     def test_maturity_routing_with_cache(
         self,
         governance_service: AgentGovernanceService,
-        governance_cache: GovernanceCache,
         db_session
     ):
         """Test that cache is used for repeated permission checks."""
+        # Import and use the global cache (same one used by the service)
+        from core.governance_cache import get_governance_cache
+        global_cache = get_governance_cache()
+
+        # Clear cache completely to ensure clean state
+        global_cache._cache.clear()
+        global_cache._misses = 0
+        global_cache._hits = 0
+
         # Create INTERN agent
         agent = AgentRegistry(
             name="Cache_Test_Agent",
@@ -143,7 +151,7 @@ class TestAgentMaturityRouting:
         )
 
         # Verify cache miss occurred
-        initial_misses = governance_cache._misses
+        initial_misses = global_cache._misses
         assert initial_misses >= 1, "First call should be a cache miss"
 
         # Second call - cache hit
@@ -153,7 +161,7 @@ class TestAgentMaturityRouting:
         )
 
         # Verify cache hit occurred
-        hits = governance_cache._hits
+        hits = global_cache._hits
         assert hits >= 1, "Second call should be a cache hit"
 
         # Results should be identical
@@ -460,6 +468,7 @@ class TestFeedbackAdjudication:
             specialty="Finance"
         )
         db_session.add(user)
+        db_session.commit()  # Commit to get agent.id and user.id
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -473,7 +482,8 @@ class TestFeedbackAdjudication:
         db_session.commit()
 
         # Mock WorldModelService to avoid dependency
-        with patch('core.agent_governance_service.WorldModelService') as mock_wm:
+        with patch('core.agent_world_model.AgentExperience') as mock_ae, \
+             patch('core.agent_world_model.WorldModelService') as mock_wm:
             mock_wm_instance = Mock()
             mock_wm_instance.record_experience = AsyncMock()
             mock_wm.return_value = mock_wm_instance
@@ -512,6 +522,7 @@ class TestFeedbackAdjudication:
             specialty="Engineering"  # Doesn't match agent category
         )
         db_session.add(user)
+        db_session.commit()  # Commit to get agent.id and user.id
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -524,8 +535,9 @@ class TestFeedbackAdjudication:
         db_session.add(feedback)
         db_session.commit()
 
-        # Mock WorldModelService
-        with patch('core.agent_governance_service.WorldModelService') as mock_wm:
+        # Mock WorldModelService to avoid dependency
+        with patch('core.agent_world_model.AgentExperience') as mock_ae, \
+             patch('core.agent_world_model.WorldModelService') as mock_wm:
             mock_wm_instance = Mock()
             mock_wm_instance.record_experience = AsyncMock()
             mock_wm.return_value = mock_wm_instance
@@ -564,6 +576,7 @@ class TestFeedbackAdjudication:
             specialty="Finance"  # Perfect match
         )
         db_session.add(user)
+        db_session.commit()  # Commit to get agent.id and user.id
 
         feedback = AgentFeedback(
             agent_id=agent.id,
@@ -576,8 +589,9 @@ class TestFeedbackAdjudication:
         db_session.add(feedback)
         db_session.commit()
 
-        # Mock WorldModelService
-        with patch('core.agent_governance_service.WorldModelService') as mock_wm:
+        # Mock WorldModelService to avoid dependency
+        with patch('core.agent_world_model.AgentExperience') as mock_ae, \
+             patch('core.agent_world_model.WorldModelService') as mock_wm:
             mock_wm_instance = Mock()
             mock_wm_instance.record_experience = AsyncMock()
             mock_wm.return_value = mock_wm_instance
@@ -653,7 +667,7 @@ class TestHITLActionManagement:
 
         user = User(
             email="reviewer@example.com",
-            name="Reviewer",
+            first_name="Reviewer",
             role=UserRole.MEMBER.value
         )
         db_session.add(user)
@@ -701,7 +715,7 @@ class TestHITLActionManagement:
 
         user = User(
             email="reviewer@example.com",
-            name="Reviewer",
+            first_name="Reviewer",
             role=UserRole.MEMBER.value
         )
         db_session.add(user)
