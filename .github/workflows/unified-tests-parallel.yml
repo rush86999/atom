@@ -711,3 +711,74 @@ jobs:
               });
             }
 
+      # Download complexity analysis reports (Backend)
+      - name: Download complexity reports
+        uses: actions/download-artifact@v4
+        with:
+          name: complexity-analysis-backend
+          path: backend/tests/coverage_reports/metrics/
+        continue-on-error: true
+
+      # Download execution time reports (Backend)
+      - name: Download execution time reports
+        uses: actions/download-artifact@v4
+        with:
+          name: execution-times-backend
+          path: backend/tests/coverage_reports/metrics/
+        continue-on-error: true
+
+      # Generate comprehensive quality metrics report
+      - name: Generate quality metrics report
+        if: always()
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/generate_quality_report.py \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --complexity-file tests/coverage_reports/metrics/complexity_hotspots.json \
+            --durations-file tests/coverage_reports/metrics/slow_tests.json \
+            --platform backend \
+            --output tests/coverage_reports/metrics/quality_metrics_report.md
+        continue-on-error: true
+
+      # Post quality metrics report to PR
+      - name: Post quality metrics PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'backend/tests/coverage_reports/metrics/quality_metrics_report.md';
+
+            if (!fs.existsSync(reportPath)) {
+              console.log('Quality metrics report not found, skipping comment');
+              return;
+            }
+
+            const report = fs.readFileSync(reportPath, 'utf8');
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.issue,
+              per_page: 100
+            });
+            const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('Test Quality Metrics Report'));
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+              console.log('Updated existing quality metrics comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                ...context.issue,
+                body: report
+              });
+              console.log('Created new quality metrics comment');
+            }
+        continue-on-error: true
+
