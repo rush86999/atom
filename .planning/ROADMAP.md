@@ -197,11 +197,12 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. Episodic memory coverage expanded to 80% (segmentation, retrieval algorithms, lifecycle management, canvas/feedback integration)
   4. Canvas presentation coverage expanded to 80% (state management, chart rendering, form validation, interactive components)
   5. API client coverage expanded to 80% (HTTP methods, error handling, retry logic, WebSocket)
-**Plans**: 7 plans (6 original + 1 gap closure)
+**Plans**: 12 plans (7 original + 5 gap closure)
 
 **Wave Structure:**
-- Wave 1: Plans 01, 03, 04, 06, 07 (Governance, Episodes, Canvas, HTTP, Gap Closure - parallel service testing)
-- Wave 2: Plans 02, 05 (LLM Part 1 → LLM Part 2 - sequential)
+- Wave 1: Plans 01, 03, 04, 06, 07, 08, 10 (parallel service testing + initial gap closures)
+- Wave 2: Plans 02, 05, 09, 11 (LLM sequential + episodic schema fix)
+- Wave 3: Plan 12 (final verification)
 
 **Plan Breakdown:**
 - [x] 156-01-PLAN.md — Agent governance coverage (maturity routing, permissions, lifecycle, cache)
@@ -210,7 +211,12 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - [x] 156-04-PLAN.md — Canvas presentation coverage (charts, forms, state, governance, WebSocket)
 - [x] 156-05-PLAN.md — LLM service coverage Part 2 (rate limiting, streaming, context window, cache, models)
 - [x] 156-06-PLAN.md — HTTP client coverage (initialization, pooling, timeouts, errors, cleanup)
-- [ ] 156-07-PLAN.md — **Gap Closure: Fix PackageRegistry.executions bug + re-run blocked tests**
+- [x] 156-07-PLAN.md — Gap Closure: Fix PackageRegistry.executions bug + re-run blocked tests
+- [x] 156-08-PLAN.md — Gap Closure: Agent governance (suspend_agent, terminate_agent, User.name setter)
+- [x] 156-09-PLAN.md — Gap Closure: LLM service (provider paths, edge cases, cache, streaming)
+- [x] 156-10-PLAN.md — Gap Closure: Canvas/WebSocket (AsyncMock fixes, agent maturity detection)
+- [x] 156-11-PLAN.md — Gap Closure: Episodic memory (User.custom_role_id schema fix)
+- [x] 156-12-PLAN.md — Gap Closure: Final verification and summary
 
 #### Phase 157: Edge Cases & Integration Testing
 **Goal**: Complex error paths, routing, accessibility, concurrent operations, and cross-service workflows
@@ -233,6 +239,6 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
 |-------|-----------|----------------|--------|-----------|
 | 153. Coverage Gates & Progressive Rollout | v5.3 | 0/4 | Not started | - |
 | 154. Coverage Trends & Quality Metrics | v5.3 | 0/TBD | Not started | - |
-| 155. Quick Wins | v5.3 | 0/TBD | Not started | - |
-| 156. Core Services Coverage | v5.3 | 0/TBD | Not started | - |
+| 155. Quick Wins | v5.3 | 5/5 | Complete | 2026-03-08 |
+| 156. Core Services Coverage | v5.3 | 12/12 | Complete | 2026-03-08 |
 | 157. Edge Cases & Integration Testing | v5.3 | 0/TBD | Not started | - |
