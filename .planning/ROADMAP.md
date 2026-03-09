@@ -11,7 +11,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - ✅ **v4.0 Platform Integration & Property Testing** - Phases 111-122 (shipped 2026-02-27)
 - ✅ **v5.0 Coverage Expansion** - Phases 123-152 (shipped 2026-03-01)
 - ✅ **v5.2 Complete Codebase Coverage** - Phases 153-152 (shipped 2026-03-08)
-- ✅ **v5.3 Coverage Expansion to 80% Targets** - Phases 153-157 (shipped 2026-03-09)
+- 🚧 **v5.3 Coverage Expansion to 80% Targets** - Phases 153-158 (in progress)
 
 ## Phases
 
@@ -126,8 +126,33 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - [x] Phase 155: Quick Wins (5/5 plans) — completed 2026-03-08
 - [x] Phase 156: Core Services Coverage (12/12 plans) — completed 2026-03-08
 - [x] Phase 157: Edge Cases & Integration Testing (4/4 plans) — completed 2026-03-09
+- [ ] Phase 158: Coverage Gap Closure (5/5 plans) — in progress
 
 </details>
+
+### 🚧 Phase 158: Coverage Gap Closure (In Progress)
+
+**Goal:** Close coverage gaps identified in Phase 157 verification to reach platform targets (Backend: 80%, Frontend: 70%, Mobile: 50%, Desktop: 40%)
+**Depends on**: Phase 157
+**Success Criteria** (what must be TRUE):
+  1. Desktop compilation errors fixed, enabling Tarpaulin to measure baseline coverage
+  2. Mobile test suite executes with measurable coverage (0% → 50% target)
+  3. Frontend component testing blitz increases coverage toward 70% target
+  4. Backend LLM service HTTP-level mocking achieves 80% coverage
+  5. All platform coverages documented in cross-platform summary
+**Plans**: 5 plans
+
+**Wave Structure:**
+- Wave 1: Plan 01 (Desktop compilation fixes - blocks all desktop work)
+- Wave 2: Plans 02-04 (Mobile, Frontend, Backend - parallel platform coverage expansion)
+- Wave 3: Plan 05 (Final verification and summary - depends on Waves 1-2)
+
+**Plan Breakdown:**
+- [ ] 158-01-PLAN.md — Desktop compilation fixes (unblocks Tarpaulin + 23 accessibility tests)
+- [ ] 158-02-PLAN.md — Mobile test suite execution (navigation, screens, state management)
+- [ ] 158-03-PLAN.md — Frontend component testing blitz (Dashboard, Calendar, CommunicationHub, integrations)
+- [ ] 158-04-PLAN.md — Backend LLM service HTTP-level mocking (36.5% → 80% coverage)
+- [ ] 158-05-PLAN.md — Final verification and cross-platform summary
 ## Progress
 
 **Execution Order:**
@@ -140,3 +165,4 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
 | 155. Quick Wins | v5.3 | 5/5 | Complete | 2026-03-08 |
 | 156. Core Services Coverage | v5.3 | 12/12 | Complete | 2026-03-08 |
 | 157. Edge Cases & Integration Testing | v5.3 | 4/4 | Complete | 2026-03-09 |
+| 158. Coverage Gap Closure | v5.3 | 0/5 | Not started | - |
