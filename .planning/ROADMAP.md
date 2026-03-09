@@ -11,7 +11,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - ✅ **v4.0 Platform Integration & Property Testing** - Phases 111-122 (shipped 2026-02-27)
 - ✅ **v5.0 Coverage Expansion** - Phases 123-152 (shipped 2026-03-01)
 - ✅ **v5.2 Complete Codebase Coverage** - Phases 153-152 (shipped 2026-03-08)
-- 🚧 **v5.3 Coverage Expansion to 80% Targets** - Phases 153-157 (in progress)
+- ✅ **v5.3 Coverage Expansion to 80% Targets** - Phases 153-157 (shipped 2026-03-09)
 
 ## Phases
 
@@ -116,129 +116,18 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 
 </details>
 
-### 🚧 v5.3 Coverage Expansion to 80% Targets (In Progress)
+<details>
+<summary>✅ v5.3 Coverage Expansion to 80% Targets (Phases 153-157) — SHIPPED 2026-03-09</summary>
 
-**Milestone Goal:** Achieve actual 80% test coverage across all platforms with enforcement gates and quality metrics
+**See:** [.planning/milestones/v5.3-ROADMAP.md](.planning/milestones/v5.3-ROADMAP.md) for full details
 
-#### Phase 153: Coverage Gates & Progressive Rollout
-**Goal**: PR-level coverage enforcement with progressive thresholds (70% → 75% → 80%)
-**Depends on**: Phase 152 (Quality Infrastructure Documentation)
-**Requirements**: ENFORCE-01, ENFORCE-02
-**Success Criteria** (what must be TRUE):
-  1. Pull requests that decrease coverage are blocked from merging by diff-cover (backend) and jest-coverage-report-action (frontend)
-  2. Coverage threshold enforcement operates at 70% minimum (Phase 1), 75% (Phase 2), 80% (Phase 3) without blocking development
-  3. New code files enforce strict 80% coverage threshold regardless of phase
-  4. Desktop cargo-tarpaulin enforces fail-under threshold, Mobile jest-expo threshold raised to 80%
-**Plans**: 4 plans
+- [x] Phase 153: Coverage Gates & Progressive Rollout (4/4 plans) — completed 2026-03-08
+- [x] Phase 154: Coverage Trends & Quality Metrics (4/4 plans) — completed 2026-03-08
+- [x] Phase 155: Quick Wins (5/5 plans) — completed 2026-03-08
+- [x] Phase 156: Core Services Coverage (12/12 plans) — completed 2026-03-08
+- [x] Phase 157: Edge Cases & Integration Testing (4/4 plans) — completed 2026-03-09
 
-**Wave Structure:**
-- Wave 1: Plans 01-03 (Backend, Frontend/Mobile, Desktop - parallel platform enforcement)
-- Wave 2: Plan 04 (Emergency bypass documentation - depends on Wave 1)
-
-**Plan Breakdown:**
-- [x] 153-01-PLAN.md — Backend progressive coverage gate with diff-cover and new code enforcement
-- [ ] 153-02-PLAN.md — Frontend/Mobile Jest progressive thresholds with COVERAGE_PHASE support
-- [ ] 153-03-PLAN.md — Desktop tarpaulin progressive thresholds with ubuntu-latest runner
-- [ ] 153-04-PLAN.md — Emergency bypass documentation and tracking implementation
-
-#### Phase 154: Coverage Trends & Quality Metrics
-**Goal**: Coverage trend monitoring and test quality metrics alongside coverage
-**Depends on**: Phase 153
-**Requirements**: ENFORCE-03, ENFORCE-04
-**Success Criteria** (what must be TRUE):
-  1. Coverage trend analysis identifies decreases >1% (warning) and >5% (critical) with PR comments showing trend indicators (↑↓→)
-  2. Historical coverage data maintained for 30-day rolling window with trend visualization
-  3. Assert-to-test ratio monitored to prevent coverage gaming with low-quality tests
-  4. Flaky test detection identifies unreliable tests requiring quarantine with tracked execution times
-  5. Code complexity metrics (cyclomatic complexity) tracked alongside coverage
-**Plans**: 4 plans
-
-**Wave Structure:**
-- Wave 1: Plans 01-03 (PR trend comments, assert ratio, complexity/execution time - parallel quality metrics)
-- Wave 2: Plan 04 (Comprehensive quality report consolidation - depends on Wave 1)
-
-**Plan Breakdown:**
-- [x] 154-01-PLAN.md — PR trend comment generation with coverage indicators (↑↓→)
-- [ ] 154-02-PLAN.md — Assert-to-test ratio tracking via AST parsing
-- [ ] 154-03-PLAN.md — Code complexity and execution time tracking
-- [ ] 154-04-PLAN.md — Comprehensive quality metrics report consolidation
-
-#### Phase 155: Quick Wins (Leaf Components & Infrastructure)
-**Depends on**: Phase 154
-**Requirements**: QUICK-01, QUICK-02, QUICK-03, QUICK-04
-**Success Criteria** (what must be TRUE):
-  1. Backend DTOs, utilities, and helpers achieve 80%+ coverage with low-complexity tests
-  2. Frontend UI components (Button, Input, Display components) achieve 80%+ coverage
-  3. Desktop helper functions and platform-specific utilities achieve 80%+ coverage
-  4. Mobile device mock factories and test utilities achieve 80%+ coverage
-  5. Route registration, middleware configuration, provider setup, and context wiring tested across platforms
-  6. Data transfer objects and serializers (Pydantic models, TypeScript interfaces, Rust structs) validated
-  7. Simple state management (read-only services, useState hooks, AsyncStorage/MMKV) tested
-**Plans**: 5 plans
-
-**Wave Structure:**
-- Wave 1: Plans 01-03B (Backend DTOs, Backend utilities, Frontend UI components, Mobile components - parallel quick wins)
-- Wave 2: Plan 04 (Configuration and wiring - depends on Wave 1)
-
-**Plan Breakdown:**
-- [x] 155-01-PLAN.md — Backend DTO testing (response models, validators, API schemas)
-- [x] 155-02-PLAN.md — Backend utility testing (formatters, validators)
-- [x] 155-03A-PLAN.md — Frontend UI component testing (Button, Input, Badge)
-- [x] 155-03B-PLAN.md — Mobile component testing and test infrastructure (Button, Card, mocks)
-- [x] 155-04-PLAN.md — Configuration and wiring testing (route registration, provider setup)
-
-#### Phase 156: Core Services Coverage (High Impact)
-**Goal**: Expand coverage to 80% for critical services (governance, LLM, episodic memory, canvas, HTTP client)
-**Depends on**: Phase 155
-**Requirements**: CORE-01, CORE-02, CORE-03, CORE-04, CORE-05
-**Success Criteria** (what must be TRUE):
-  1. Agent governance coverage expanded to 80% (maturity routing, permission checking, lifecycle management, cache validation)
-  2. LLM service coverage expanded to 80% (BYOK handler, token counting, rate limiting, streaming)
-  3. Episodic memory coverage expanded to 80% (segmentation, retrieval algorithms, lifecycle management, canvas/feedback integration)
-  4. Canvas presentation coverage expanded to 80% (state management, chart rendering, form validation, interactive components)
-  5. API client coverage expanded to 80% (HTTP methods, error handling, retry logic, WebSocket)
-**Plans**: 12 plans (7 original + 5 gap closure)
-
-**Wave Structure:**
-- Wave 1: Plans 01, 03, 04, 06, 07, 08, 10 (parallel service testing + initial gap closures)
-- Wave 2: Plans 02, 05, 09, 11 (LLM sequential + episodic schema fix)
-- Wave 3: Plan 12 (final verification)
-
-**Plan Breakdown:**
-- [x] 156-01-PLAN.md — Agent governance coverage (maturity routing, permissions, lifecycle, cache)
-- [x] 156-02-PLAN.md — LLM service coverage Part 1 (routing, cognitive tiers, token counting)
-- [x] 156-03-PLAN.md — Episodic memory coverage (segmentation, retrieval, lifecycle, canvas/feedback integration)
-- [x] 156-04-PLAN.md — Canvas presentation coverage (charts, forms, state, governance, WebSocket)
-- [x] 156-05-PLAN.md — LLM service coverage Part 2 (rate limiting, streaming, context window, cache, models)
-- [x] 156-06-PLAN.md — HTTP client coverage (initialization, pooling, timeouts, errors, cleanup)
-- [x] 156-07-PLAN.md — Gap Closure: Fix PackageRegistry.executions bug + re-run blocked tests
-- [x] 156-08-PLAN.md — Gap Closure: Agent governance (suspend_agent, terminate_agent, User.name setter)
-- [x] 156-09-PLAN.md — Gap Closure: LLM service (provider paths, edge cases, cache, streaming)
-- [x] 156-10-PLAN.md — Gap Closure: Canvas/WebSocket (AsyncMock fixes, agent maturity detection)
-- [x] 156-11-PLAN.md — Gap Closure: Episodic memory (User.custom_role_id schema fix)
-- [x] 156-12-PLAN.md — Gap Closure: Final verification and summary
-
-#### Phase 157: Edge Cases & Integration Testing
-**Goal**: Complex error paths, routing, accessibility, concurrent operations, and cross-service workflows
-**Depends on**: Phase 156
-**Requirements**: EDGE-01, EDGE-02, EDGE-03, EDGE-04, EDGE-05
-**Success Criteria** (what must be TRUE):
-  1. Error boundaries tested across platforms (React error boundaries, exception middleware, Tauri error propagation, network error handling)
-  2. Routing and navigation validated (React Router, React Navigation screens, Tauri window management, API route registration)
-  3. Accessibility compliance tested to WCAG 2.1 AA (keyboard navigation, screen reader compatibility, ARIA attributes)
-  4. Concurrent operations and race conditions tested (database transactions, concurrent agent operations, state updates, IPC parallelization)
-  5. Integration tests cover cross-service workflows (agent execution E2E, canvas presentation workflows, offline sync scenarios, multi-platform E2E)
-**Plans**: 4 plans
-
-**Wave Structure:**
-- Wave 1: Plans 01-04 (parallel - error boundaries, routing, accessibility, concurrent operations)
-
-**Plan Breakdown:**
-- [x] 157-01-PLAN.md — Error boundaries across platforms (React, backend exception middleware, Tauri error propagation, network errors)
-- [x] 157-02-PLAN.md — Routing and navigation validation (React Router, React Navigation, Tauri window management, API route registration)
-- [x] 157-03-PLAN.md — Accessibility compliance (WCAG 2.1 AA, keyboard navigation, screen reader, ARIA attributes)
-- [x] 157-04-PLAN.md — Concurrent operations and cross-service workflows (race conditions, concurrent agent operations, E2E workflows, offline sync)
-
+</details>
 ## Progress
 
 **Execution Order:**
@@ -246,8 +135,8 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 153. Coverage Gates & Progressive Rollout | v5.3 | 0/4 | Not started | - |
-| 154. Coverage Trends & Quality Metrics | v5.3 | 0/TBD | Not started | - |
+| 153. Coverage Gates & Progressive Rollout | v5.3 | 4/4 | Complete | 2026-03-08 |
+| 154. Coverage Trends & Quality Metrics | v5.3 | 4/4 | Complete | 2026-03-08 |
 | 155. Quick Wins | v5.3 | 5/5 | Complete | 2026-03-08 |
 | 156. Core Services Coverage | v5.3 | 12/12 | Complete | 2026-03-08 |
 | 157. Edge Cases & Integration Testing | v5.3 | 4/4 | Complete | 2026-03-09 |
