@@ -230,6 +230,15 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   5. Integration tests cover cross-service workflows (agent execution E2E, canvas presentation workflows, offline sync scenarios, multi-platform E2E)
 **Plans**: 4 plans
 
+**Wave Structure:**
+- Wave 1: Plans 01-04 (parallel - error boundaries, routing, accessibility, concurrent operations)
+
+**Plan Breakdown:**
+- [ ] 157-01-PLAN.md — Error boundaries across platforms (React, backend exception middleware, Tauri error propagation, network errors)
+- [ ] 157-02-PLAN.md — Routing and navigation validation (React Router, React Navigation, Tauri window management, API route registration)
+- [ ] 157-03-PLAN.md — Accessibility compliance (WCAG 2.1 AA, keyboard navigation, screen reader, ARIA attributes)
+- [ ] 157-04-PLAN.md — Concurrent operations and cross-service workflows (race conditions, concurrent agent operations, E2E workflows, offline sync)
+
 ## Progress
 
 **Execution Order:**
