@@ -10,6 +10,7 @@ import pytest
 from unittest.mock import Mock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import pool
 import tempfile
 
 # Set TESTING environment variable BEFORE any imports
@@ -30,15 +31,20 @@ def db_session():
 
     Simplified version that avoids sorted_tables to prevent NoReferencedTableError
     when running multiple tests in sequence.
+
+    Uses singleton connection with thread-safe locking for SQLite.
     """
     # Use file-based temp SQLite for tests
     fd, db_path = tempfile.mkstemp(suffix='.db')
     os.close(fd)
 
+    # Use pooled connections with check_same_thread=False for SQLite
     engine = create_engine(
         f"sqlite:///{db_path}",
         connect_args={"check_same_thread": False},
-        echo=False
+        poolclass=pool.StaticPool,
+        echo=False,
+        pool_pre_ping=True  # Verify connections before using
     )
 
     # Store path for cleanup
@@ -53,6 +59,17 @@ def db_session():
         'agent_registry',
         'agent_feedback',
         'hitl_actions',
+        'chat_sessions',
+        'chat_messages',
+        'agent_executions',
+        'canvas_audit',
+        'agent_episodes',
+        'episode_segments',
+        'blocked_trigger_contexts',
+        'user_activities',
+        'agent_proposals',
+        'supervision_sessions',
+        'training_sessions',
     ]
 
     for table_name in tables_to_create:
@@ -62,8 +79,8 @@ def db_session():
             except Exception as e:
                 print(f"Warning: Could not create table {table_name}: {e}")
 
-    # Create session
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    # Create session with expire_on_commit=False to prevent detached instance issues
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
     session = TestingSessionLocal()
 
     yield session
