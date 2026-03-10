@@ -631,7 +631,7 @@ class TestSegmentCreationAndArchival:
                 id=str(uuid.uuid4()),
                 agent_id=agent_id,
                 status="completed",
-                task_description=f"Task {i}",
+                input_summary=f"Task {i}",
                 started_at=now - timedelta(minutes=30 - i*10)
             )
             for i in range(2)
@@ -937,7 +937,7 @@ class TestEpisodeHelperMethods:
                 id="exec1",
                 agent_id="agent1",
                 status="completed",
-                task_description="Create SalesReport for Marketing Team",
+                input_summary="Create SalesReport for Marketing Team",
                 started_at=now
             ),
         ]
@@ -1066,7 +1066,7 @@ class TestEpisodeHelperMethods:
                 id="exec1",
                 agent_id="agent1",
                 status="completed",
-                task_description="Task 1",
+                input_summary="Task 1",
                 started_at=now,
                 metadata_json={"human_intervention": True}
             ),
@@ -1074,7 +1074,7 @@ class TestEpisodeHelperMethods:
                 id="exec2",
                 agent_id="agent1",
                 status="completed",
-                task_description="Task 2",
+                input_summary="Task 2",
                 started_at=now,
                 metadata_json={"human_intervention": False}
             ),
@@ -1082,7 +1082,7 @@ class TestEpisodeHelperMethods:
                 id="exec3",
                 agent_id="agent1",
                 status="completed",
-                task_description="Task 3",
+                input_summary="Task 3",
                 started_at=now,
                 metadata_json={}
             ),

@@ -188,7 +188,7 @@ def episode_test_executions(episode_test_session):
             id=str(uuid.uuid4()),
             agent_id=agent_id,
             status="completed",
-            task_description="Analyze sales data",
+            input_summary="Analyze sales data",
             result_summary="Analysis completed successfully",
             started_at=now - timedelta(minutes=48),
             completed_at=now - timedelta(minutes=45)
@@ -197,7 +197,7 @@ def episode_test_executions(episode_test_session):
             id=str(uuid.uuid4()),
             agent_id=agent_id,
             status="completed",
-            task_description="Create revenue chart",
+            input_summary="Create revenue chart",
             result_summary="Chart generated",
             started_at=now - timedelta(minutes=38),
             completed_at=now - timedelta(minutes=35)
