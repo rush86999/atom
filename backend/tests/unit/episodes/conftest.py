@@ -4,10 +4,12 @@ Episode service test fixtures.
 Provides fixtures for comprehensive episode creation flow testing.
 """
 
-import pytest
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
+from sqlalchemy.orm import Session
 
 from core.models import (
     AgentExecution,
@@ -256,15 +258,13 @@ def episode_test_agent_execution():
     execution = AgentExecution(
         id=str(uuid.uuid4()),
         agent_id="test_agent",
-        task_description="Analyze sales data for Q4 2024",
         status="completed",
         input_summary="Dataset: sales_2024.csv, Format: json",
-        output_summary="Total: $1,000,000, Records: 500",
+        result_summary="Total: $1,000,000, Records: 500",
         started_at=datetime.now(timezone.utc) - timedelta(hours=1),
         completed_at=datetime.now(timezone.utc),
         duration_seconds=3600,
-        trigger_source="manual",
-        trigger_type="user_initiated"
+        triggered_by="manual"
     )
     return execution
 
@@ -354,9 +354,11 @@ def episode_test_agent():
         id=str(uuid.uuid4()),
         name="TestAgent",
         description="Test agent for episode service tests",
-        status=AgentStatus.AUTONOMOUS,
+        category="Testing",
+        status=AgentStatus.AUTONOMOUS.value,
         tenant_id="default",
-        maturity_level="AUTONOMOUS",
+        module_path="tests.test_agent",
+        class_name="TestAgent",
         created_at=datetime.now(timezone.utc)
     )
     return agent
