@@ -21,6 +21,7 @@ from core.models import (
     AgentFeedback,
     AgentRegistry,
     CanvasAudit,
+    ChatSession,
     Episode,
     EpisodeAccessLog,
     EpisodeSegment,
@@ -109,10 +110,27 @@ class EpisodeRetrievalService:
             Episode.status != "archived"
         )
 
-        # Note: user_id filtering not implemented as AgentEpisode doesn't have user_id field
-        # TODO: Implement user filtering through ChatSession join if needed
+        # Implement user_id filtering through ChatSession join
+        if user_id is not None:
+            # Join with ChatSession to filter by user_id
+            query = query.join(
+                ChatSession, Episode.session_id == ChatSession.id
+            ).filter(
+                ChatSession.user_id == user_id
+            )
 
         episodes = query.order_by(Episode.started_at.desc()).limit(limit).all()
+
+        # Load user_id from ChatSession for filtering
+        session_user_ids = {}
+        if user_id is not None and episodes:
+            # Batch load user_ids for all episodes
+            session_ids = [e.session_id for e in episodes if e.session_id]
+            if session_ids:
+                sessions = self.db.query(ChatSession.id, ChatSession.user_id).filter(
+                    ChatSession.id.in_(session_ids)
+                ).all()
+                session_user_ids = {sid: uid for sid, uid in sessions}
 
         # Log access
         for episode in episodes:
@@ -121,7 +139,7 @@ class EpisodeRetrievalService:
             )
 
         return {
-            "episodes": [self._serialize_episode(e) for e in episodes],
+            "episodes": [self._serialize_episode(e, session_user_ids.get(e.session_id)) for e in episodes],
             "count": len(episodes),
             "time_range": time_range,
             "governance_check": governance_check
@@ -354,27 +372,51 @@ class EpisodeRetrievalService:
         except Exception as e:
             logger.error(f"Failed to log episode access: {e}")
 
-    def _serialize_episode(self, episode: Episode) -> Dict[str, Any]:
-        """Convert episode to dict"""
-        return {
+    def _serialize_episode(self, episode: Episode, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Convert episode to dict with all relevant fields
+
+        Args:
+            episode: Episode object to serialize
+            user_id: Optional user_id from ChatSession join
+        """
+        result = {
             "id": episode.id,
             "title": episode.task_description or "Episode",  # Map task_description to title
             "description": episode.task_description,  # Map task_description to description
             "summary": episode.task_description or "",  # Use task_description as summary
             "agent_id": episode.agent_id,
+            "tenant_id": episode.tenant_id,
             "status": episode.status,  # Now uses the status field we added
             "started_at": episode.started_at.isoformat() if episode.started_at else None,
             "ended_at": episode.completed_at.isoformat() if episode.completed_at else None,  # Map completed_at to ended_at
-            "topics": episode.topics or [],
-            "entities": episode.entities or [],
+            "topics": episode.topics if hasattr(episode, 'topics') and episode.topics else [],
+            "entities": episode.entities if hasattr(episode, 'entities') and episode.entities else [],
             "importance_score": episode.importance_score if hasattr(episode, 'importance_score') else 0.5,
+            # Canvas and feedback linkage
+            "canvas_ids": episode.canvas_ids if hasattr(episode, 'canvas_ids') and episode.canvas_ids else [],
+            "canvas_action_count": episode.canvas_action_count if hasattr(episode, 'canvas_action_count') else 0,
+            "feedback_ids": episode.feedback_ids if hasattr(episode, 'feedback_ids') and episode.feedback_ids else [],
+            "aggregate_feedback_score": episode.aggregate_feedback_score if hasattr(episode, 'aggregate_feedback_score') else None,
             # Graduation fields
             "maturity_at_time": episode.maturity_at_time,
             "human_intervention_count": episode.human_intervention_count,
             "constitutional_score": episode.constitutional_score,
             "decay_score": episode.decay_score if hasattr(episode, 'decay_score') else 1.0,
-            "access_count": episode.access_count
+            "access_count": episode.access_count,
+            # Outcome fields
+            "outcome": episode.outcome if hasattr(episode, 'outcome') else None,
+            "success": episode.success if hasattr(episode, 'success') else None,
+            # Supervision fields
+            "supervisor_id": episode.supervisor_id if hasattr(episode, 'supervisor_id') else None,
+            # Metadata
+            "metadata_json": episode.metadata_json if hasattr(episode, 'metadata_json') else None,
         }
+
+        # Add user_id if provided from ChatSession join
+        if user_id is not None:
+            result["user_id"] = user_id
+
+        return result
 
     def _serialize_segment(self, segment: EpisodeSegment) -> Dict[str, Any]:
         """Convert segment to dict"""
