@@ -1235,3 +1235,270 @@ class TestAsyncConsolidation:
         # Should return result dict (with zeros due to error)
         assert "consolidated" in result
         assert "parent_episodes" in result
+
+
+# ========================================================================
+# J. Async Importance and Access Count Tests
+# ========================================================================
+
+
+class TestAsyncImportanceAndAccess:
+    """
+    Test async importance score and access count methods.
+
+    Tests update_importance_scores() and batch_update_access_counts()
+    async methods that were missed in Phase 161.
+    """
+
+    @pytest.mark.asyncio
+    async def test_update_importance_scores_positive_feedback(
+        self, lifecycle_service
+    ):
+        """
+        Should update episode importance based on positive feedback.
+
+        Formula: new_importance = old * 0.8 + (feedback + 1) / 2 * 0.2
+        With old=0.5, feedback=0.8: new = 0.5 * 0.8 + 1.8 / 2 * 0.2 = 0.4 + 0.18 = 0.58
+        """
+        agent_id = str(uuid.uuid4())
+
+        episode = Episode(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            tenant_id="default",
+            task_description="Test episode",
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            started_at=datetime.now() - timedelta(hours=1),
+            importance_score=0.5,
+            decay_score=1.0
+        )
+
+        # Mock query to return episode
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = episode
+        lifecycle_service.db.query.return_value = mock_query
+
+        # Update importance with positive feedback
+        result = await lifecycle_service.update_importance_scores(
+            episode_id=episode.id,
+            user_feedback=0.8
+        )
+
+        assert result is True
+        # Importance should increase from 0.5 to ~0.58
+        assert episode.importance_score > 0.5
+        assert episode.importance_score <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_update_importance_scores_negative_feedback(
+        self, lifecycle_service
+    ):
+        """
+        Should decrease importance based on negative feedback.
+        """
+        agent_id = str(uuid.uuid4())
+
+        episode = Episode(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            tenant_id="default",
+            task_description="Test episode",
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            started_at=datetime.now() - timedelta(hours=1),
+            importance_score=0.5,
+            decay_score=1.0
+        )
+
+        # Mock query to return episode
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = episode
+        lifecycle_service.db.query.return_value = mock_query
+
+        # Update importance with negative feedback
+        result = await lifecycle_service.update_importance_scores(
+            episode_id=episode.id,
+            user_feedback=-0.5
+        )
+
+        assert result is True
+        # Importance should decrease from 0.5
+        assert episode.importance_score < 0.5
+        assert episode.importance_score >= 0.0
+
+    @pytest.mark.asyncio
+    async def test_update_importance_scores_episode_not_found(
+        self, lifecycle_service
+    ):
+        """
+        Should return False for non-existent episode.
+        """
+        # Mock query to return None
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = None
+        lifecycle_service.db.query.return_value = mock_query
+
+        result = await lifecycle_service.update_importance_scores(
+            episode_id=str(uuid.uuid4()),
+            user_feedback=0.8
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts_multiple(
+        self, lifecycle_service
+    ):
+        """
+        Should increment access counts for multiple episodes.
+        """
+        agent_id = str(uuid.uuid4())
+
+        # Create 3 episodes
+        episodes = []
+        episode_ids = []
+        for i in range(3):
+            episode = Episode(
+                id=str(uuid.uuid4()),
+                agent_id=agent_id,
+                tenant_id="default",
+                task_description=f"Episode {i}",
+                maturity_at_time="AUTONOMOUS",
+                human_intervention_count=0,
+                outcome="success",
+                status="completed",
+                started_at=datetime.now() - timedelta(hours=i),
+                decay_score=1.0,
+                access_count=i * 5  # 0, 5, 10
+            )
+            episodes.append(episode)
+            episode_ids.append(episode.id)
+
+        # Mock query to return episodes in sequence
+        call_count = [0]
+        def query_side_effect(*args, **kwargs):
+            mock_q = MagicMock()
+            mock_q.filter.return_value.first.return_value = episodes[call_count[0]] if call_count[0] < 3 else None
+            call_count[0] += 1
+            return mock_q
+
+        lifecycle_service.db.query.side_effect = query_side_effect
+
+        # Update access counts
+        result = await lifecycle_service.batch_update_access_counts(episode_ids)
+
+        assert result["updated"] == 3
+        # Verify all episodes had access_count incremented
+        assert episodes[0].access_count == 1  # 0 + 1
+        assert episodes[1].access_count == 6  # 5 + 1
+        assert episodes[2].access_count == 11  # 10 + 1
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts_partial(
+        self, lifecycle_service
+    ):
+        """
+        Should handle partial updates when some episodes don't exist.
+        """
+        agent_id = str(uuid.uuid4())
+
+        episode = Episode(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            tenant_id="default",
+            task_description="Valid episode",
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            started_at=datetime.now() - timedelta(hours=1),
+            decay_score=1.0,
+            access_count=5
+        )
+
+        # Mix valid and invalid IDs
+        valid_id = episode.id
+        invalid_id = str(uuid.uuid4())
+
+        # Mock query to return episode only for valid_id
+        call_count = [0]
+        def query_side_effect(*args, **kwargs):
+            mock_q = MagicMock()
+            mock_q.filter.return_value.first.return_value = episode if call_count[0] == 0 else None
+            call_count[0] += 1
+            return mock_q
+
+        lifecycle_service.db.query.side_effect = query_side_effect
+
+        result = await lifecycle_service.batch_update_access_counts([valid_id, invalid_id])
+
+        # Should update only the valid episode
+        assert result["updated"] == 1
+        assert episode.access_count == 6  # 5 + 1
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts_empty(
+        self, lifecycle_service
+    ):
+        """
+        Should return updated: 0 for empty episode_ids list.
+        """
+        result = await lifecycle_service.batch_update_access_counts([])
+
+        assert result["updated"] == 0
+
+    @pytest.mark.asyncio
+    async def test_archive_to_cold_storage_success(
+        self, lifecycle_service
+    ):
+        """
+        Should archive episode to cold storage successfully.
+        """
+        agent_id = str(uuid.uuid4())
+
+        episode = Episode(
+            id=str(uuid.uuid4()),
+            agent_id=agent_id,
+            tenant_id="default",
+            task_description="Episode to archive",
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            started_at=datetime.now() - timedelta(hours=1),
+            decay_score=1.0
+        )
+
+        # Mock query to return episode
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = episode
+        lifecycle_service.db.query.return_value = mock_query
+
+        result = await lifecycle_service.archive_to_cold_storage(episode_id=episode.id)
+
+        assert result is True
+        assert episode.status == "archived"
+        assert episode.archived_at is not None
+
+    @pytest.mark.asyncio
+    async def test_archive_to_cold_storage_not_found(
+        self, lifecycle_service
+    ):
+        """
+        Should return False for non-existent episode_id.
+        """
+        # Mock query to return None
+        mock_query = MagicMock()
+        mock_query.filter.return_value.first.return_value = None
+        lifecycle_service.db.query.return_value = mock_query
+
+        result = await lifecycle_service.archive_to_cold_storage(
+            episode_id=str(uuid.uuid4())
+        )
+
+        assert result is False
