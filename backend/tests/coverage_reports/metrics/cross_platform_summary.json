@@ -1,77 +1,123 @@
 {
-  "timestamp": "2026-03-08T03:27:15.784431Z",
+  "timestamp": "2026-03-10T00:53:36Z",
+  "phase_158_reference": "backend/tests/coverage_reports/metrics/phase_158_final_coverage.json",
   "platforms": {
     "backend": {
       "coverage_pct": 74.55197132616487,
       "covered": 156,
       "total": 205,
       "file_path": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/coverage.json",
-      "error": null
+      "error": null,
+      "phase_158_tests_added": 58,
+      "phase_158_notes": "LLM service improved from 36.5% to 43% (+6.5 pp, +17% relative)"
     },
     "frontend": {
       "coverage_pct": 21.95798652397939,
       "covered": 1662,
       "total": 7569,
       "file_path": "/Users/rushiparikh/projects/atom/frontend-nextjs/coverage/coverage-final.json",
-      "error": null
+      "error": null,
+      "phase_158_tests_added": 218,
+      "phase_158_notes": "218 tests created (41 components + 43 integrations + 66 state + 68 forms/utils), coverage not re-measured yet"
     },
     "mobile": {
       "coverage_pct": 61.34,
       "covered": 476,
       "total": 776,
       "file_path": "/Users/rushiparikh/projects/atom/mobile/coverage/coverage-final.json",
-      "error": null
+      "error": null,
+      "phase_158_tests_added": 86,
+      "phase_158_notes": "0% -> 61.34% (exceeds 50% target by 11.34 pp), 2,041 test lines"
     },
     "desktop": {
       "coverage_pct": 0.0,
       "covered": 0,
       "total": 0,
-      "file_path": "/Users/rushiparikh/projects/atom/frontend-nextjs/src-tauri/coverage/coverage.json",
-      "error": "file not found"
+      "file_path": "/Users/rushiparikh/projects/atom/menubar/src-tauri/coverage/coverage.json",
+      "error": "Tarpaulin cannot run on macOS",
+      "phase_158_tests_added": 23,
+      "phase_158_notes": "All 20 compilation errors fixed, 23 accessibility tests unblocked, requires Linux for Tarpaulin"
     }
   },
   "thresholds": {
-    "backend": 70.0,
+    "backend": 80.0,
     "frontend": 70.0,
     "mobile": 50.0,
-    "desktop": 40.0
+    "desktop": 40.0,
+    "notes": {
+      "backend": "Target increased from 70% to 80% for Phase 158",
+      "frontend": "Target maintained at 70%",
+      "mobile": "Target maintained at 50%",
+      "desktop": "Target maintained at 40% (conservative due to Rust unsafe blocks and FFI)"
+    }
   },
   "threshold_failures": [
     "Frontend: 21.96% < 70.00% (gap: 48.04%)",
+    "Backend: 74.55% < 80.00% (gap: 5.45%)",
     "Desktop: 0.00% < 40.00% (gap: 40.00%)"
+  ],
+  "threshold_passes": [
+    "Mobile: 61.34% >= 50.00% (exceeds by 11.34%)"
   ],
   "all_thresholds_passed": false,
   "weighted": {
     "overall_pct": 43.95,
+    "baseline_pct": 34.88,
+    "improvement_pct": 9.07,
     "platform_breakdown": [
       {
         "platform": "backend",
         "coverage_pct": 74.55197132616487,
         "weight": 0.35,
-        "contribution": 26.093189964157705
+        "contribution": 26.093189964157705,
+        "target": 80.0,
+        "gap": 5.44802867383513
       },
       {
         "platform": "frontend",
         "coverage_pct": 21.95798652397939,
         "weight": 0.4,
-        "contribution": 8.783194609591757
+        "contribution": 8.783194609591757,
+        "target": 70.0,
+        "gap": 48.04201347602061
       },
       {
         "platform": "mobile",
         "coverage_pct": 61.34,
         "weight": 0.15,
-        "contribution": 9.201
+        "contribution": 9.201,
+        "target": 50.0,
+        "gap": 0.0,
+        "exceeds_by": 11.34
       },
       {
         "platform": "desktop",
         "coverage_pct": 0.0,
         "weight": 0.1,
-        "contribution": 0.0
+        "contribution": 0.0,
+        "target": 40.0,
+        "gap": 40.0
       }
     ],
     "validation": {
       "total_weight": 1.0,
       "valid": true
     }
+  },
+  "phase_158_summary": {
+    "baseline_weighted_coverage": 34.88,
+    "final_weighted_coverage": 43.95,
+    "improvement": "+9.07 percentage points",
+    "improvement_relative": "+26.0%",
+    "total_tests_created": 385,
+    "platforms_meeting_targets": 1,
+    "platforms_below_targets": 3,
+    "key_achievements": [
+      "Mobile: 0% -> 61.34% (exceeds target by 11.34%)",
+      "Desktop: All 20 compilation errors fixed",
+      "Frontend: 218 comprehensive tests created",
+      "Backend: LLM service 36.5% -> 43%",
+      "Overall: +9.07 pp weighted improvement"
+    ]
   }
 }
