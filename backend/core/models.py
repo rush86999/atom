@@ -2533,6 +2533,9 @@ class CanvasAudit(Base):
     user_id = Column(String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True)
 
+    # Episode linkage for episodic memory context retrieval
+    episode_id = Column(String(255), ForeignKey("agent_episodes.id", ondelete="SET NULL"), nullable=True, index=True)
+
     # Action details (JSON for flexibility)
     details_json = Column(JSON, nullable=True)  # Action-specific data
 
@@ -3500,6 +3503,11 @@ class AgentEpisode(Base):
     supervision_reasoning = Column(Text, nullable=True, comment='Supervisor rationale for decision')
     execution_followed_proposal = Column(Boolean, nullable=True, comment='Did execution match the approved proposal?')
 
+    # Additional supervision metadata for retrieval service
+    supervisor_rating = Column(Integer, nullable=True, comment='Supervisor rating 1-5 for this episode')
+    intervention_types = Column(JSON, nullable=True, comment='List of intervention types (human_correction, guidance, termination)')
+    supervision_feedback = Column(Text, nullable=True, comment='Detailed feedback from supervisor')
+
     # Feedback linkage (NEW - Feb 2026)
     feedback_ids = Column(JSON, default=list) # List of AgentFeedback IDs
     aggregate_feedback_score = Column(Float, nullable=True) # -1.0 to 1.0 aggregate score
@@ -3513,6 +3521,10 @@ class AgentEpisode(Base):
     decay_score = Column(Float, default=1.0) # 0.0 to 1.0, decays over time
     access_count = Column(Integer, default=0, nullable=False)
     archived_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Episode consolidation
+    consolidated_into = Column(String(255), ForeignKey("agent_episodes.id", ondelete="SET NULL"), nullable=True, index=True)
+    consolidated_episodes = relationship("AgentEpisode", remote_side=[id], foreign_keys=[consolidated_into])
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -3583,10 +3595,13 @@ class EpisodeSegment(Base):
     
     content = Column(Text, nullable=False)
     content_summary = Column(String(255), nullable=True)
-    
+
     source_type = Column(String(50), nullable=True) # e.g., "slack", "canvas", "terminal"
     source_id = Column(String(255), nullable=True)
-    
+
+    # Canvas presentation context for semantic understanding
+    canvas_context = Column(JSON, nullable=True, comment='Canvas presentation context (canvas_type, presentation_summary, critical_data_points, visual_elements)')
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self):
