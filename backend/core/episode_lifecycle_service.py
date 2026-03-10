@@ -294,12 +294,22 @@ class EpisodeLifecycleService:
                 logger.warning(f"Episode {episode.id} has no started_at, skipping lifecycle update")
                 return False
 
-            # Calculate episode age in days
-            days_old = (datetime.now() - episode.started_at).days
+            # Calculate episode age in days (float for precision)
+            # Handle both offset-aware and offset-naive datetimes
+            now = datetime.now()
+            if episode.started_at.tzinfo is not None:
+                now = datetime.now(episode.started_at.tzinfo)
 
-            # Apply decay formula: decay_score = max(0, 1 - (days_old / 180))
-            # Episodes reach 0 decay score after 180 days
-            new_decay = max(0.0, 1.0 - (days_old / 180.0))
+            # Use total_seconds() for floating-point precision
+            age_timedelta = now - episode.started_at
+            days_old = age_timedelta.total_seconds() / 86400.0  # Convert to days
+
+            # Apply decay formula: decay_score = min(1, days_old / 90)
+            # This represents "how much decay has been applied" (0 = none, 1 = fully decayed)
+            # 1-day-old episodes: ~0.01 decay
+            # 90-day-old episodes: 1.0 decay (fully decayed at 90 days)
+            # Clamp to [0, 1] range
+            new_decay = min(1.0, max(0.0, days_old / 90.0))
 
             # Update episode
             episode.decay_score = new_decay
@@ -318,3 +328,94 @@ class EpisodeLifecycleService:
             logger.error(f"Failed to update lifecycle for episode {episode.id}: {e}")
             self.db.rollback()
             return False
+
+    def apply_decay(self, episode_or_episodes) -> bool:
+        """
+        Apply decay calculation to episode(s) (synchronous).
+
+        Supports both single episode and list of episodes.
+
+        Args:
+            episode_or_episodes: Episode object or list of Episode objects
+
+        Returns:
+            True if successful
+        """
+        # Handle list of episodes
+        if isinstance(episode_or_episodes, list):
+            all_success = True
+            for episode in episode_or_episodes:
+                if not self.update_lifecycle(episode):
+                    all_success = False
+            return all_success
+        else:
+            # Single episode
+            return self.update_lifecycle(episode_or_episodes)
+
+    def consolidate_episodes(self, agent_or_agent_id, similarity_threshold: float = 0.85) -> Dict[str, int]:
+        """
+        Consolidate related episodes (synchronous wrapper).
+
+        Wrapper around consolidate_similar_episodes for sync calling.
+
+        Args:
+            agent_or_agent_id: Agent object or agent ID string
+            similarity_threshold: Semantic similarity threshold (0.0-1.0)
+
+        Returns:
+            {"consolidated": int, "parent_episodes": int}
+        """
+        # Extract agent_id if Agent object passed
+        if hasattr(agent_or_agent_id, 'id'):
+            agent_id = agent_or_agent_id.id
+        else:
+            agent_id = agent_or_agent_id
+
+        # Import asyncio at runtime to avoid issues
+        import asyncio
+        try:
+            # Try to get existing event loop
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Create new loop in thread to run async function
+                    import concurrent.futures
+                    import threading
+
+                    result = [None]
+                    exception = [None]
+
+                    def run_consolidate():
+                        try:
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                result[0] = new_loop.run_until_complete(
+                                    self.consolidate_similar_episodes(agent_id, similarity_threshold)
+                                )
+                            finally:
+                                new_loop.close()
+                        except Exception as e:
+                            exception[0] = e
+
+                    thread = threading.Thread(target=run_consolidate)
+                    thread.start()
+                    thread.join(timeout=5)  # 5 second timeout
+
+                    if exception[0]:
+                        raise exception[0]
+                    if result[0] is None:
+                        raise TimeoutError("Consolidation timed out")
+
+                    return result[0]
+                else:
+                    return loop.run_until_complete(
+                        self.consolidate_similar_episodes(agent_id, similarity_threshold)
+                    )
+            except RuntimeError:
+                # No event loop exists, create new one
+                return asyncio.run(self.consolidate_similar_episodes(agent_id, similarity_threshold))
+
+        except Exception as e:
+            logger.error(f"Failed to consolidate episodes for agent {agent_id}: {e}")
+            return {"consolidated": 0, "parent_episodes": 0}
