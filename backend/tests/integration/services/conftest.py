@@ -184,7 +184,7 @@ def episode_db_session():
 
 
 @pytest.fixture(scope="function")
-def segmentation_service_mocked(episode_db_session):
+def segmentation_service_mocked(db_session):
     """
     Create EpisodeSegmentationService instance with mocked LanceDB.
 
@@ -201,13 +201,13 @@ def segmentation_service_mocked(episode_db_session):
     with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
         with patch('core.episode_segmentation_service.get_lancedb_handler', return_value=mock_lancedb):
             with patch('core.episode_segmentation_service.CanvasSummaryService') as mock_canvas:
-                service = EpisodeSegmentationService(episode_db_session)
+                service = EpisodeSegmentationService(db_session)
                 service.lancedb = mock_lancedb
                 yield service
 
 
 @pytest.fixture(scope="function")
-def retrieval_service_mocked(episode_db_session):
+def retrieval_service_mocked(db_session):
     """
     Create EpisodeRetrievalService instance with mocked LanceDB.
 
@@ -218,13 +218,13 @@ def retrieval_service_mocked(episode_db_session):
     mock_lancedb.search.return_value = []  # Default empty search results
 
     with patch('core.episode_retrieval_service.get_lancedb_handler', return_value=mock_lancedb):
-        service = EpisodeRetrievalService(episode_db_session)
+        service = EpisodeRetrievalService(db_session)
         service.lancedb = mock_lancedb
         yield service
 
 
 @pytest.fixture(scope="function")
-def lifecycle_service_mocked(episode_db_session):
+def lifecycle_service_mocked(db_session):
     """
     Create EpisodeLifecycleService instance with mocked LanceDB.
 
@@ -235,7 +235,7 @@ def lifecycle_service_mocked(episode_db_session):
     mock_lancedb.search.return_value = []
 
     with patch('core.episode_lifecycle_service.get_lancedb_handler', return_value=mock_lancedb):
-        service = EpisodeLifecycleService(episode_db_session)
+        service = EpisodeLifecycleService(db_session)
         service.lancedb = mock_lancedb
         yield service
 
@@ -624,12 +624,14 @@ def mock_lancedb_embeddings():
 
 
 @pytest.fixture(scope="function")
-def retrieval_service(episode_db_session):
+def retrieval_service(db_session):
     """
     Create EpisodeRetrievalService instance with mocked LanceDB.
 
     Mocks vector search operations for testing temporal, semantic,
     and contextual retrieval modes.
+
+    Uses db_session (same session as test data) to ensure proper isolation.
     """
     from core.episode_retrieval_service import EpisodeRetrievalService
 
@@ -639,13 +641,13 @@ def retrieval_service(episode_db_session):
     mock_lancedb.table_names = Mock(return_value=[])
 
     with patch('core.episode_retrieval_service.get_lancedb_handler', return_value=mock_lancedb):
-        service = EpisodeRetrievalService(episode_db_session)
+        service = EpisodeRetrievalService(db_session)
         service.lancedb = mock_lancedb
         yield service
 
 
 @pytest.fixture(scope="function")
-def lifecycle_service(episode_db_session):
+def lifecycle_service(db_session):
     """
     Create EpisodeLifecycleService instance with mocked LanceDB.
 
@@ -659,18 +661,20 @@ def lifecycle_service(episode_db_session):
     mock_lancedb.db = Mock()
 
     with patch('core.episode_lifecycle_service.get_lancedb_handler', return_value=mock_lancedb):
-        service = EpisodeLifecycleService(episode_db_session)
+        service = EpisodeLifecycleService(db_session)
         service.lancedb = mock_lancedb
         yield service
 
 
 @pytest.fixture(scope="function")
-def context_resolver(episode_db_session):
+def context_resolver(db_session):
     """
     Create AgentContextResolver instance for testing.
 
     Tests cache consistency, concurrent resolution, and
     race condition handling during agent context updates.
+
+    Uses db_session (same session as test data) to ensure proper isolation.
     """
     from core.agent_context_resolver import AgentContextResolver
-    return AgentContextResolver(episode_db_session)
+    return AgentContextResolver(db_session)
