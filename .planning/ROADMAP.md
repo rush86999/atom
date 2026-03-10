@@ -117,7 +117,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 </details>
 
 <details>
-<summary>✅ v5.3 Coverage Expansion to 80% Targets (Phases 153-157) — SHIPPED 2026-03-09</summary>
+<summary>✅ v5.3 Coverage Expansion to 80% Targets (Phases 153-158) — SHIPPED 2026-03-09</summary>
 
 **See:** [.planning/milestones/v5.3-ROADMAP.md](.planning/milestones/v5.3-ROADMAP.md) for full details
 
@@ -126,21 +126,31 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - [x] Phase 155: Quick Wins (5/5 plans) — completed 2026-03-08
 - [x] Phase 156: Core Services Coverage (12/12 plans) — completed 2026-03-08
 - [x] Phase 157: Edge Cases & Integration Testing (4/4 plans) — completed 2026-03-09
-- [ ] Phase 158: Coverage Gap Closure (5/5 plans) — in progress
+- [x] Phase 158: Coverage Gap Closure (5/5 plans) — completed 2026-03-09
 
 </details>
 
-### 🚧 Phase 158: Coverage Gap Closure (In Progress)
+### 🚧 Phase 159: Backend 80% Coverage (In Progress)
 
-**Goal:** Close coverage gaps identified in Phase 157 verification to reach platform targets (Backend: 80%, Frontend: 70%, Mobile: 50%, Desktop: 40%)
-**Depends on**: Phase 157
+**Goal:** Achieve 80% backend test coverage by completing LLM service, episodic memory, and governance/canvas coverage
+**Depends on**: Phase 158
 **Success Criteria** (what must be TRUE):
-  1. Desktop compilation errors fixed, enabling Tarpaulin to measure baseline coverage
-  2. Mobile test suite executes with measurable coverage (0% → 50% target)
-  3. Frontend component testing blitz increases coverage toward 70% target
-  4. Backend LLM service HTTP-level mocking achieves 80% coverage
-  5. All platform coverages documented in cross-platform summary
-**Plans**: 5 plans
+  1. Backend overall coverage reaches 80%+ target (up from 74.55%)
+  2. LLM service coverage increases from 43% to 80%+
+  3. Episodic memory coverage increases from 21.3% to 80%+
+  4. Governance and canvas coverage increases to 80%+
+  5. Backend quality gates pass at 80% threshold
+**Plans**: 4 plans
+
+**Wave Structure:**
+- Wave 1: Plan 01 (LLM service gap closure - highest impact)
+- Wave 2: Plan 02 (Backend services gap closure - governance, episodic, canvas)
+- Wave 3: Plan 03 (Final verification and 80% target status)
+
+**Plan Breakdown:**
+- [ ] 159-01-PLAN.md — LLM service gap closure (43% → target 80%, 75 tests)
+- [ ] 159-02-PLAN.md — Backend services gap closure (governance, episodic, canvas, 85 tests)
+- [ ] 159-03-PLAN.md — Backend 80% verification and quality gate compliance
 
 **Wave Structure:**
 - Wave 1: Plan 01 (Desktop compilation fixes - blocks all desktop work)
@@ -165,4 +175,6 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
 | 155. Quick Wins | v5.3 | 5/5 | Complete | 2026-03-08 |
 | 156. Core Services Coverage | v5.3 | 12/12 | Complete | 2026-03-08 |
 | 157. Edge Cases & Integration Testing | v5.3 | 4/4 | Complete | 2026-03-09 |
-| 158. Coverage Gap Closure | v5.3 | 0/5 | Not started | - |
+| 158. Coverage Gap Closure | v5.3 | 5/5 | Complete | 2026-03-09 |
+| 159. Backend 80% Coverage | v5.3 | 3/3 | Complete | 2026-03-09 |
+| 160. Backend 80% Target (Blockers) | v5.3 | 2/2 | Complete (Not Achieved) | 2026-03-10 |
