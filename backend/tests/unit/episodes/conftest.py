@@ -340,3 +340,54 @@ def episode_test_supervision_session_multiple_interventions():
         tenant_id="test_tenant"
     )
     return session
+
+
+@pytest.fixture
+def episode_test_agent():
+    """
+    Create a test agent for episode service tests.
+
+    Returns an AgentRegistry instance with AUTONOMOUS status
+    for use in episode creation and retrieval tests.
+    """
+    agent = AgentRegistry(
+        id=str(uuid.uuid4()),
+        name="TestAgent",
+        description="Test agent for episode service tests",
+        status=AgentStatus.AUTONOMOUS,
+        tenant_id="default",
+        maturity_level="AUTONOMOUS",
+        created_at=datetime.now(timezone.utc)
+    )
+    return agent
+
+
+@pytest.fixture
+def lifecycle_service(db_session, mock_lancedb):
+    """
+    EpisodeLifecycleService fixture with mocked LanceDB.
+
+    Patches get_lancedb_handler to return mock_lancedb fixture.
+    Use for tests that need lifecycle service with mocked dependencies.
+    """
+    from core.episode_lifecycle_service import EpisodeLifecycleService
+
+    with patch('core.episode_lifecycle_service.get_lancedb_handler', return_value=mock_lancedb):
+        service = EpisodeLifecycleService(db_session)
+        # Note: lancedb is assigned in __init__, but we patch the getter
+        return service
+
+
+@pytest.fixture
+def lifecycle_service_mocked(db_session, mock_lancedb):
+    """
+    EpisodeLifecycleService fixture with directly assigned mock LanceDB.
+
+    Use for tests that need to override mock_lancedb return values
+    (e.g., custom search results, embedding vectors).
+    """
+    from core.episode_lifecycle_service import EpisodeLifecycleService
+
+    service = EpisodeLifecycleService(db_session)
+    service.lancedb = mock_lancedb
+    return service
