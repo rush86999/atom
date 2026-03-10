@@ -106,8 +106,8 @@ class EpisodeLifecycleService:
                 if potential_parent.id in processed_ids:
                     continue
 
-                # Use episode title/description as search query
-                search_query = f"{potential_parent.title} {potential_parent.description or ''}"
+                # Use episode task_description as search query
+                search_query = potential_parent.task_description or ""
 
                 # Search for semantically similar episodes in LanceDB
                 search_results = self.lancedb.search(
