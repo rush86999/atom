@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 162 Plan 04 Complete - Advanced retrieval mode testing with partial success. Coverage: 47.5% on EpisodeRetrievalService (152/320 lines), up from 32.5% baseline (+15 pp). Tests: 34 created, 15 passing (44% pass rate), 19 blocked by schema gaps. Schema issues: EpisodeSegment.canvas_context, CanvasAudit.episode_id, Episode supervision fields missing from database. Bug fix: EpisodeSegment canvas_context AttributeError. SUMMARY.md: 162-04-SUMMARY.md. Coverage report: backend_phase_162_plan4.json.
+**Current focus:** Phase 162 Plan 05 Complete - Episode schema gap closure. Added 5 missing database columns (consolidated_into, canvas_context, episode_id, supervisor_rating, intervention_types, supervision_feedback) to unblock 19 tests in Plan 04 (56% of test suite). Migration 20260310_add_episode_schema_columns.py created and tested (upgrade/downgrade/re-upgrade successful). Models updated: AgentEpisode (+5 columns), EpisodeSegment (+1 column), CanvasAudit (+1 column). SUMMARY.md: 162-05-SUMMARY.md. Next: Phase 162 Plan 06 - Re-run Plan 04 tests to verify 100% pass rate.
 
 ## Current Position
 
 Phase: 162 of TBD (Episode Service Comprehensive Testing)
-Plan: 04 of 04 in current phase
-Status: Complete (Partial Success - 15/34 tests passing, schema gaps block advanced features)
-Last activity: 2026-03-10 — Phase 162 Plan 04 Complete: Advanced retrieval mode testing (34 tests, 15 passing). Coverage: 47.5% on episode_retrieval_service.py (152/320 lines), up from 32.5% baseline (+15 pp, 46% relative improvement). 1 bug fixed (canvas_context AttributeError). Schema gaps discovered: EpisodeSegment.canvas_context, CanvasAudit.episode_id, Episode supervision fields missing from database. Blocks 19 tests (56%). Working features: temporal, semantic, sequential basics, contextual with feedback weighting. SUMMARY.md: 162-04-SUMMARY.md. Coverage report: backend_phase_162_plan4.json. Next: Phase 163 or additional episode testing.
+Plan: 05 of 08 in current phase
+Status: Complete (Schema gaps closed - 5 columns added, 19 tests unblocked)
+Last activity: 2026-03-10 — Phase 162 Plan 05 Complete: Episode schema gap closure (5 columns added to models and database). Schema: AgentEpisode.consolidated_into (self-referential FK), AgentEpisode.supervisor_rating/intervention_types/supervision_feedback, EpisodeSegment.canvas_context, CanvasAudit.episode_id. Migration: 20260310_add_episode_schema_columns.py tested successfully (upgrade/downgrade/re-upgrade). Unblocks 19 tests in Plan 04 (56% of test suite). Duration: 4 minutes. SUMMARY.md: 162-05-SUMMARY.md. Next: Phase 162 Plan 06 - Re-run Plan 04 tests to verify 100% pass rate.
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Last activity: 2026-03-10 — Phase 162 Plan 04 Complete: Advanced retrieval mod
 | Phase 162 P02 | 10 | 27 tasks | 3 files |
 | Phase 162 P03 | 13 | 5 tasks | 2 files | 18 tests |
 | Phase 162 P04 | 8 | 2 tasks | 3 files | 34 tests | coverage
+| Phase 162 P05 | 241 | 6 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,8 @@ Recent decisions affecting current work:
 - [Phase 162 P04]: Coverage achieved: 47.5% on episode_retrieval_service.py (152/320 lines), +15 percentage points from baseline
 - [Phase 162 P04]: Test pass rate: 44% (15/34 passing), 19 blocked by missing schema columns (56%)
 - [Phase 162 P04]: Schema incompatibility: Service code written for different schema than exists (canvas-aware, business data, supervision features untestable)
+- [Phase 162]: Use self-referential FK for episode consolidation (AgentEpisode.consolidated_into → AgentEpisode.id)
+- [Phase 162]: Schema gaps closed: 5 columns added (consolidated_into, canvas_context, episode_id, supervisor_rating, intervention_types, supervision_feedback) unblocks 19 tests in Plan 04
 
 ### Pending Todos
 
@@ -196,7 +199,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10 (Phase 162 Plan 02 execution)
-Stopped at: Completed Phase 162 Plan 02: Comprehensive episode creation flow tests (27 tests created, 14 passing). Coverage: 27.4% on EpisodeSegmentationService (162/591 lines), up from 17.1% baseline (+10.3 pp, 60% relative improvement). Target: 45%, achieved 61% of target. Canvas and feedback linkage tested with back-linkage verification. Issues: Database constraints prevent full integration testing (12 tests failing due to NOT NULL constraints). SUMMARY.md: 162-02-SUMMARY.md. Coverage report: backend_phase_162_plan2.json. Commits: 558b3cd6e, 12453b102, 8c37d5424, a028fa962, b2e4e3dfe. Next: Phase 162 Plan 03 - Additional comprehensive testing (mock-based approach recommended).
+Last session: 2026-03-10 (Phase 162 Plan 05 execution)
+Stopped at: Completed Phase 162 Plan 05: Episode schema gap closure. Added 5 missing database columns to unblock 19 tests in Plan 04 (56% of test suite). Models: AgentEpisode.consolidated_into (self-referential FK), AgentEpisode.supervisor_rating/intervention_types/supervision_feedback, EpisodeSegment.canvas_context, CanvasAudit.episode_id. Migration: 20260310_add_episode_schema_columns.py created and tested (upgrade/downgrade/re-upgrade successful). Duration: 4 minutes. Commit: 0aa81350c. SUMMARY.md: 162-05-SUMMARY.md. Next: Phase 162 Plan 06 - Re-run Plan 04 tests to verify 100% pass rate.
 Resume file: None
-Next: Phase 162 Plan 03 - Additional comprehensive testing for episode service
+Next: Phase 162 Plan 06 - Verify Plan 04 tests now pass with schema gaps closed
