@@ -1,0 +1,187 @@
+{
+  "phase": "159-backend-80-percent-coverage",
+  "plan": "03",
+  "title": "Backend 80% Coverage Final Report",
+  "generated_at": "2026-03-10T03:45:00Z",
+  "baseline_coverage_pct": 74.55,
+  "overall_backend_coverage": {
+    "full_codebase": {
+      "coverage_pct": 8.21,
+      "covered_lines": 5965,
+      "total_lines": 72623,
+      "missing_lines": 66658,
+      "note": "Includes entire backend codebase (core/, api/, tools/) - 532 files"
+    },
+    "targeted_services": {
+      "coverage_pct": 74.6,
+      "baseline_pct": 74.55,
+      "improvement_pp": 0.05,
+      "improvement_relative": 0.07,
+      "note": "Measured on same services as Phase 158 baseline"
+    }
+  },
+  "target_status": {
+    "threshold": 80.0,
+    "current_coverage": 74.6,
+    "gap_to_target": 5.4,
+    "status": "GAP_REMAINING"
+  },
+  "llm_service_coverage": {
+    "file": "core/llm/byok_handler.py",
+    "coverage_pct": 40.98,
+    "baseline_pct": 43.0,
+    "improvement": "Tests combined with Phase 158, coverage stable at ~41%",
+    "covered_lines": 268,
+    "total_lines": 654,
+    "tests_created_phase159": 74
+  },
+  "tests_created": {
+    "plan_159_01": {
+      "file": "test_llm_service_gap_closure.py",
+      "tests": 74,
+      "passing": 74,
+      "failing": 0,
+      "lines": 2251
+    },
+    "plan_159_02": {
+      "file": "test_backend_gap_closure.py",
+      "tests": 45,
+      "passing": 12,
+      "failing": 33,
+      "lines": 1598
+    },
+    "total_tests": 119,
+    "total_passing": 86,
+    "total_failing": 33,
+    "pass_rate": 72.3,
+    "total_lines": 3849
+  },
+  "combined_with_phase158": {
+    "llm_service_tests": 132,
+    "llm_service_passing": 132,
+    "llm_service_pass_rate": 100.0
+  },
+  "services_breakdown": {
+    "agent_governance_service": {
+      "baseline": "65%",
+      "current": "68%",
+      "improvement": "+3%",
+      "tests": 11,
+      "passing": 6,
+      "status": "IMPROVED"
+    },
+    "episode_segmentation_service": {
+      "baseline": "45%",
+      "current": "45%",
+      "improvement": "0%",
+      "tests": 9,
+      "passing": 0,
+      "status": "BLOCKED",
+      "blocker": "Model compatibility (Episode vs AgentEpisode)"
+    },
+    "episode_retrieval_service": {
+      "baseline": "50%",
+      "current": "50%",
+      "improvement": "0%",
+      "tests": 8,
+      "passing": 1,
+      "status": "BLOCKED",
+      "blocker": "Model compatibility"
+    },
+    "episode_lifecycle_service": {
+      "baseline": "40%",
+      "current": "40%",
+      "improvement": "0%",
+      "tests": 4,
+      "passing": 0,
+      "status": "BLOCKED",
+      "blocker": "Model compatibility"
+    },
+    "canvas_tool": {
+      "baseline": "55%",
+      "current": "55%",
+      "improvement": "0%",
+      "tests": 4,
+      "passing": 3,
+      "status": "TESTS_FUNCTIONAL"
+    },
+    "agent_context_resolver": {
+      "baseline": "48%",
+      "current": "48%",
+      "improvement": "0%",
+      "tests": 3,
+      "passing": 0,
+      "status": "BLOCKED",
+      "blocker": "Async/await issues"
+    },
+    "trigger_interceptor": {
+      "baseline": "42%",
+      "current": "42%",
+      "improvement": "0%",
+      "tests": 3,
+      "passing": 0,
+      "status": "BLOCKED",
+      "blocker": "Service import errors"
+    }
+  },
+  "quality_gate_status": {
+    "threshold": 80.0,
+    "current_coverage": 74.6,
+    "gap": 5.4,
+    "status": "BELOW_THRESHOLD",
+    "ci_cd_ready": false,
+    "note": "Quality gate would fail in CI/CD pipeline"
+  },
+  "key_achievements": [
+    "119 new tests created across 2 plans (74 LLM + 45 backend services)",
+    "LLM service: 74 comprehensive gap closure tests (100% pass rate)",
+    "Governance service: +3% coverage improvement (65% -> 68%)",
+    "Backend services: 45 tests covering 7 core services",
+    "Combined with Phase 158: 132 LLM service tests passing",
+    "Total test code: 3,849 lines"
+  ],
+  "blockers_preventing_80_percent": {
+    "model_compatibility": {
+      "issue": "Episode model uses AgentEpisode with different fields",
+      "impact": "Blocks 21 episode service tests (segmentation, retrieval, lifecycle)",
+      "resolution": "Update tests to use correct model fields"
+    },
+    "async_testing": {
+      "issue": "Async/await inconsistencies in test execution",
+      "impact": "Blocks 3 context resolver tests",
+      "resolution": "Ensure proper async test patterns"
+    },
+    "service_imports": {
+      "issue": "TriggerInterceptor service import errors",
+      "impact": "Blocks 3 trigger interceptor tests",
+      "resolution": "Fix import path or verify service implementation"
+    }
+  },
+  "remaining_work_to_reach_80_percent": {
+    "gap": 5.4,
+    "estimated_additional_tests_needed": 150,
+    "recommended_focus": [
+      "Fix model compatibility issues to unblock 21 episode tests",
+      "Add HTTP-level mocking for generate_response() (+20-30% coverage)",
+      "Add structured output tests (+10-15% coverage)",
+      "Fix async test patterns for context resolver",
+      "Increase trigger interceptor coverage"
+    ]
+  },
+  "phase_comparison": {
+    "phase_158_baseline": 74.55,
+    "phase_159_final": 74.6,
+    "improvement_pp": 0.05,
+    "improvement_relative": 0.07,
+    "tests_created_phase158": 58,
+    "tests_created_phase159": 119,
+    "total_tests": 177
+  },
+  "success_criteria": {
+    "final_coverage_measured": true,
+    "improvement_quantified": true,
+    "target_status_verified": true,
+    "gap_remaing": 5.4,
+    "comprehensive_report_created": true
+  }
+}
