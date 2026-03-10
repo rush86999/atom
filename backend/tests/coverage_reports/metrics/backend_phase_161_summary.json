@@ -1,0 +1,75 @@
+{
+  "phase": "161-01",
+  "plan": "Model Fixes and Database",
+  "baseline_coverage_pct": 24.0,
+  "current_coverage_pct": 25.3,
+  "improvement_pct": 1.3,
+  "target_improvement_pct": 15.0,
+  "target_achieved": false,
+  "tests_passing": 33,
+  "tests_failing": 12,
+  "total_tests": 45,
+  "pass_rate_pct": 73.3,
+  "baseline_tests_passing": 22,
+  "tests_unblocked": 11,
+  "targeted_services": {
+    "agent_governance_service.py": {
+      "coverage_pct": 37,
+      "lines_covered": 101,
+      "total_lines": 272
+    },
+    "episode_segmentation_service.py": {
+      "coverage_pct": 17,
+      "lines_covered": 99,
+      "total_lines": 573
+    },
+    "episode_retrieval_service.py": {
+      "coverage_pct": 31,
+      "lines_covered": 98,
+      "total_lines": 309
+    },
+    "episode_lifecycle_service.py": {
+      "coverage_pct": 16,
+      "lines_covered": 16,
+      "total_lines": 97
+    },
+    "canvas_tool.py": {
+      "coverage_pct": 17,
+      "lines_covered": 75,
+      "total_lines": 422
+    },
+    "agent_context_resolver.py": {
+      "coverage_pct": 42,
+      "lines_covered": 40,
+      "total_lines": 95
+    },
+    "trigger_interceptor.py": {
+      "coverage_pct": 60,
+      "lines_covered": 84,
+      "total_lines": 140
+    }
+  },
+  "fixes_applied": [
+    "Added status field to AgentEpisode model",
+    "Fixed EpisodeAccessLog.timestamp -> created_at",
+    "Added missing database tables to test fixtures",
+    "Aligned episode service fixtures with db_session",
+    "Fixed episode serialization field mappings",
+    "Removed user_id filter from retrieve_temporal",
+    "Removed summary field from test episode creation"
+  ],
+  "remaining_issues": [
+    "Missing methods in EpisodeLifecycleService (apply_decay, archive_episode, update_lifecycle)",
+    "Semantic similarity logic issues in episode segmentation",
+    "Canvas audit async function not properly awaited",
+    "Context resolver missing methods",
+    "Trigger interceptor database relationship issues"
+  ],
+  "next_steps": [
+    "Implement missing EpisodeLifecycleService methods",
+    "Fix semantic similarity threshold logic",
+    "Fix canvas audit async await patterns",
+    "Implement context resolver update methods",
+    "Fix trigger interceptor database relationships"
+  ]
+}
