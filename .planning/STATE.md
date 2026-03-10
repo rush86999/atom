@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 160 Complete - Backend 80% Target NOT Achieved (24% actual vs 80% target)
+**Current focus:** Phase 161 Model Fixes and Database - Fixed model compatibility, unblocked 11 tests, +1.3% coverage (24%→25.3%)
 
 ## Current Position
 
-Phase: 160 of TBD (Backend 80% Target)
-Plan: 02 of 02 in current phase
-Status: Complete (Target NOT Achieved)
-Last activity: 2026-03-10 — Phase 160 Plan 02 Complete: Final verification of backend 80% target. Coverage measured: 24% on targeted services (464/1910 lines), 7.85% on full codebase. Test results: 100/119 passing (84% pass rate). Quality gate: FAIL (56% gap to 80% threshold). Root cause: Phase 158-159 used service-level estimates (74.6%) which masked true coverage gap (24% actual). Blockers remaining: 19 failing tests (model compatibility issues, missing database tables, service implementation gaps). Recommendation: 3-5 additional phases needed to reach 80% target.
+Phase: 161 of TBD (Model Fixes and Database)
+Plan: 01 of 03 in current phase
+Status: Partial Success (Model/database fixes complete, service implementation gaps remain)
+Last activity: 2026-03-10 — Phase 161 Plan 01 Complete: Fixed AgentEpisode model (added status field), fixed EpisodeAccessLog (timestamp→created_at), aligned test fixtures with db_session, fixed episode serialization. Coverage: 25.3% on targeted services (513/2028 lines). Tests: 33/45 passing (73.3% pass rate, +11 tests unblocked from baseline). Target: +15-20% improvement, Actual: +1.3% (gap due to service implementation gaps, not model issues). Remaining: 12 failing tests due to missing service methods (EpisodeLifecycleService), semantic similarity logic, and async await patterns.
 
-Progress: [████████] 100% (Phase 160 COMPLETE - Target NOT Achieved)
+Progress: [███░░░░] 33% (Phase 161 Plan 01 COMPLETE - Partial Success)
 
 ## Performance Metrics
 
@@ -35,6 +35,8 @@ Progress: [████████] 100% (Phase 160 COMPLETE - Target NOT Achie
 - Trend: Fast (coverage infrastructure development)
 
 *Updated after each plan completion*
+| Phase 161 P01 | 6 | 4 tasks | 5 files | 33 tests |
+| Phase 160 P02 | 8 | 2 tasks | 3 files | 100 tests | verification
 | Phase 159 P03 | 15 | 4 tasks | 3 files | 0 tests | verification
 | Phase 159 P01 | 25 | 2 tasks | 2 files | 74 tests |
 | Phase 158 P05 | 480 | 4 tasks | 3 files | 385 total |
@@ -103,6 +105,15 @@ Recent decisions affecting current work:
 - [Phase 160 P02]: Switch from service-level estimates to actual line coverage measurement for all future phases
 - [Phase 160 P02]: v5.3 milestone NOT complete - backend 80% target not achieved
 
+**Phase 161 - Model Fixes and Database (Partial Success):**
+- [Phase 161 P01]: Added status field to AgentEpisode model (active, completed, failed, cancelled) for test compatibility
+- [Phase 161 P01]: Fixed EpisodeAccessLog.timestamp → created_at to match existing database schema
+- [Phase 161 P01]: Aligned all episode service fixtures to use db_session instead of episode_db_session (fixed test isolation)
+- [Phase 161 P01]: Fixed episode serialization field mappings (title→task_description, ended_at→completed_at)
+- [Phase 161 P01]: Coverage improved to 25.3% (+1.3% from baseline), unblocked 11 tests (22→33 passing, 73.3% pass rate)
+- [Phase 161 P01]: Target NOT achieved (+15-20% expected, only +1.3% actual) - gap due to service implementation issues, not model/database
+- [Phase 161 P01]: Remaining blockers: Missing EpisodeLifecycleService methods (apply_decay, archive_episode, update_lifecycle), semantic similarity logic, async await patterns
+
 **Phase 158 - Coverage Gap Closure:**
 - [Phase 158 P05]: Overall weighted coverage improved from 34.88% to 43.95% (+9.07 pp, +26% relative)
 - [Phase 158 P05]: Total tests created in Phase 158: 385 (90% pass rate) across all 4 platforms
@@ -155,7 +166,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10 (Phase 160 Plan 02 execution)
-Stopped at: Completed Phase 160 Plan 02: Final verification and success report. Backend coverage measured: 24% on targeted services (464/1910 lines), 7.85% on full codebase. Target status: NOT_ACHIEVED (56% gap to 80% threshold). Quality gate verified: FAIL (exit code 1). 100/119 tests passing (84% pass rate). Root cause: Service-level estimates (74.6%) masked true coverage gap (24% actual). Verification report created: 160-VERIFICATION.md (329 lines). Cross-platform summary updated: 44.09% -> 26.38% weighted. Recommendation: 3-5 additional phases needed to reach 80% target (15-23 hours estimated work). v5.3 milestone NOT complete.
+Last session: 2026-03-10 (Phase 161 Plan 01 execution)
+Stopped at: Completed Phase 161 Plan 01: Model fixes and database. Added status field to AgentEpisode, fixed EpisodeAccessLog timestamp→created_at, aligned test fixtures with db_session, fixed episode serialization. Coverage: 25.3% (513/2028 lines), +1.3% from baseline. Tests: 33/45 passing (73.3%), +11 unblocked. Model/database fixes complete, but service implementation gaps remain (missing EpisodeLifecycleService methods, semantic similarity logic, async patterns). SUMMARY.md created: 161-01-SUMMARY.md. Coverage report: backend_phase_161.json. Next: Phase 161 Plan 02 - Implement missing service methods to unblock remaining 12 tests.
 Resume file: None
-Next: Phase 161 - Continue backend coverage work to reach 80% target (fix model compatibility, add missing database tables, implement service methods, add comprehensive tests)
+Next: Phase 161 Plan 02 - Service Implementation (implement EpisodeLifecycleService methods, fix semantic similarity, fix async await patterns)
