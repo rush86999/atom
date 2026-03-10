@@ -1046,7 +1046,13 @@ class TestEpisodeHelperMethods:
         agent = AgentRegistry(
             id=agent_id,
             name="Test Agent",
-            status=AgentStatus.SUPERVISED
+            description="Test agent for segmentation",
+            category="Testing",
+            module_path="tests.test_agent",
+            class_name="TestAgent",
+            status=AgentStatus.SUPERVISED,
+            tenant_id="default",
+            created_at=datetime.now(timezone.utc)
         )
         db_session.add(agent)
         db_session.commit()

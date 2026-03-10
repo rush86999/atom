@@ -136,11 +136,13 @@ def episode_test_messages(episode_test_session):
     """Test messages fixture with varying timestamps (no gaps > 30 min)."""
     now = datetime.now(timezone.utc)
     session_id = episode_test_session.id
+    tenant_id = episode_test_session.tenant_id if hasattr(episode_test_session, 'tenant_id') else "default"
 
     messages = [
         ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session_id,
+            tenant_id=tenant_id,
             role="user",
             content="Hello, I need help with data analysis",
             created_at=now - timedelta(minutes=55)
@@ -148,6 +150,7 @@ def episode_test_messages(episode_test_session):
         ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session_id,
+            tenant_id=tenant_id,
             role="assistant",
             content="I can help you with that. What data do you have?",
             created_at=now - timedelta(minutes=50)
@@ -155,6 +158,7 @@ def episode_test_messages(episode_test_session):
         ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session_id,
+            tenant_id=tenant_id,
             role="user",
             content="I have sales data for Q4 2025",
             created_at=now - timedelta(minutes=45)
@@ -162,6 +166,7 @@ def episode_test_messages(episode_test_session):
         ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session_id,
+            tenant_id=tenant_id,
             role="assistant",
             content="Great! Let's analyze your sales data",
             created_at=now - timedelta(minutes=40)
@@ -169,6 +174,7 @@ def episode_test_messages(episode_test_session):
         ChatMessage(
             id=str(uuid.uuid4()),
             conversation_id=session_id,
+            tenant_id=tenant_id,
             role="user",
             content="Please create a chart showing revenue trends",
             created_at=now - timedelta(minutes=35)
