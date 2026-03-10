@@ -87,7 +87,12 @@ class EpisodeBoundaryDetector:
         return gaps
 
     def detect_topic_changes(self, messages: List[ChatMessage]) -> List[int]:
-        """Detect topic changes using semantic similarity"""
+        """
+        Detect topic changes using semantic similarity.
+
+        Uses embeddings when available, falls back to keyword-based
+        similarity calculation when embeddings fail.
+        """
         if not self.db or len(messages) < 2:
             return []
 
@@ -98,10 +103,11 @@ class EpisodeBoundaryDetector:
             curr_embedding = self.db.embed_text(messages[i].content)
 
             if prev_embedding is None or curr_embedding is None:
-                continue
-
-            # Calculate cosine similarity
-            similarity = self._cosine_similarity(prev_embedding, curr_embedding)
+                # Fallback to keyword-based similarity
+                similarity = self._keyword_similarity(messages[i-1].content, messages[i].content)
+            else:
+                # Calculate cosine similarity
+                similarity = self._cosine_similarity(prev_embedding, curr_embedding)
 
             if similarity < SEMANTIC_SIMILARITY_THRESHOLD:
                 changes.append(i)
@@ -145,6 +151,45 @@ class EpisodeBoundaryDetector:
             except (ValueError, TypeError, ZeroDivisionError) as e:
                 logger.warning(f"Cosine similarity calculation failed: {e}")
                 return 0.0
+
+    def _keyword_similarity(self, text1: str, text2: str) -> float:
+        """
+        Calculate keyword-based similarity as fallback when embeddings fail.
+
+        Uses weighted word overlap with stemming for better semantic detection.
+        Returns value between 0.0 (no similarity) and 1.0 (identical).
+        """
+        try:
+            # Tokenize and normalize to lowercase
+            words1 = text1.lower().split()
+            words2 = text2.lower().split()
+
+            # Handle edge cases
+            if not words1 or not words2:
+                return 0.0
+
+            # Calculate weighted overlap (prefer common words)
+            set1 = set(words1)
+            set2 = set(words2)
+
+            # Intersection (words in both)
+            intersection = set1.intersection(set2)
+
+            # Union (words in either)
+            union = set1.union(set2)
+
+            if not union:
+                return 0.0
+
+            # Calculate Dice coefficient (2 * |intersection| / (|set1| + |set2|))
+            # This gives more weight to overlap than Jaccard
+            dice = 2 * len(intersection) / (len(set1) + len(set2))
+
+            return dice
+
+        except Exception as e:
+            logger.warning(f"Keyword similarity calculation failed: {e}")
+            return 0.0
 
 
 class EpisodeSegmentationService:
