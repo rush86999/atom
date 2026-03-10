@@ -1,0 +1,77 @@
+{
+  "timestamp": "2026-03-08T03:27:15.784431Z",
+  "platforms": {
+    "backend": {
+      "coverage_pct": 74.55197132616487,
+      "covered": 156,
+      "total": 205,
+      "file_path": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/coverage.json",
+      "error": null
+    },
+    "frontend": {
+      "coverage_pct": 21.95798652397939,
+      "covered": 1662,
+      "total": 7569,
+      "file_path": "/Users/rushiparikh/projects/atom/frontend-nextjs/coverage/coverage-final.json",
+      "error": null
+    },
+    "mobile": {
+      "coverage_pct": 61.34,
+      "covered": 476,
+      "total": 776,
+      "file_path": "/Users/rushiparikh/projects/atom/mobile/coverage/coverage-final.json",
+      "error": null
+    },
+    "desktop": {
+      "coverage_pct": 0.0,
+      "covered": 0,
+      "total": 0,
+      "file_path": "/Users/rushiparikh/projects/atom/frontend-nextjs/src-tauri/coverage/coverage.json",
+      "error": "file not found"
+    }
+  },
+  "thresholds": {
+    "backend": 70.0,
+    "frontend": 70.0,
+    "mobile": 50.0,
+    "desktop": 40.0
+  },
+  "threshold_failures": [
+    "Frontend: 21.96% < 70.00% (gap: 48.04%)",
+    "Desktop: 0.00% < 40.00% (gap: 40.00%)"
+  ],
+  "all_thresholds_passed": false,
+  "weighted": {
+    "overall_pct": 43.95,
+    "platform_breakdown": [
+      {
+        "platform": "backend",
+        "coverage_pct": 74.55197132616487,
+        "weight": 0.35,
+        "contribution": 26.093189964157705
+      },
+      {
+        "platform": "frontend",
+        "coverage_pct": 21.95798652397939,
+        "weight": 0.4,
+        "contribution": 8.783194609591757
+      },
+      {
+        "platform": "mobile",
+        "coverage_pct": 61.34,
+        "weight": 0.15,
+        "contribution": 9.201
+      },
+      {
+        "platform": "desktop",
+        "coverage_pct": 0.0,
+        "weight": 0.1,
+        "contribution": 0.0
+      }
+    ],
+    "validation": {
+      "total_weight": 1.0,
+      "valid": true
+    }
+  }
+}
