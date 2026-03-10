@@ -986,7 +986,6 @@ class TestAsyncConsolidation:
     """
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Episode.consolidated_into field missing from schema - service has AttributeError at line 93", strict=True)
     async def test_consolidate_similar_episodes_semantic_match(
         self, lifecycle_service
     ):
@@ -1059,7 +1058,6 @@ class TestAsyncConsolidation:
         assert "parent_episodes" in result
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Episode.consolidated_into field missing from schema - service has AttributeError at line 93", strict=True)
     async def test_consolidate_similar_episodes_below_threshold(
         self, lifecycle_service
     ):
@@ -1113,14 +1111,11 @@ class TestAsyncConsolidation:
         assert result["parent_episodes"] == 0
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Episode.consolidated_into field missing from schema - service has AttributeError at line 93", strict=True)
     async def test_consolidate_similar_episodes_skip_already_consolidated(
         self, lifecycle_service
     ):
         """
         Should skip episodes that are already consolidated.
-
-        Note: Marked as xfail since consolidated_into field is missing.
         """
         agent_id = str(uuid.uuid4())
 
@@ -1135,7 +1130,6 @@ class TestAsyncConsolidation:
         assert "consolidated" in result
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Episode.consolidated_into field missing from schema - service has AttributeError at line 93", strict=True)
     async def test_consolidate_similar_episodes_empty_results(
         self, lifecycle_service
     ):
@@ -1160,7 +1154,6 @@ class TestAsyncConsolidation:
         assert result["parent_episodes"] == 0
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Episode.consolidated_into field missing from schema - service has AttributeError at line 93", strict=True)
     async def test_consolidate_similar_episodes_lancedb_error_handling(
         self, lifecycle_service
     ):
