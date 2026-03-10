@@ -3601,15 +3601,15 @@ class EpisodeAccessLog(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     episode_id = Column(String(255), ForeignKey("agent_episodes.id", ondelete="CASCADE"), nullable=True, index=True)
-    
+
     accessed_by_agent = Column(String(255), nullable=False, index=True)
     access_type = Column(String(50), nullable=False) # temporal, semantic, contextual
-    
+
     governance_check_passed = Column(Boolean, default=True)
     agent_maturity_at_access = Column(String(50), nullable=True)
     results_count = Column(Integer, default=1)
-    
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self):
         return f"<EpisodeAccessLog(id={self.id}, episode_id={self.episode_id}, agent={self.accessed_by_agent})>"
