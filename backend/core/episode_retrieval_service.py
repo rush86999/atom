@@ -428,7 +428,7 @@ class EpisodeRetrievalService:
             "content_summary": segment.content_summary,
             "source_type": segment.source_type,
             "source_id": segment.source_id,
-            "canvas_context": segment.canvas_context,  # Include canvas_context
+            "canvas_context": getattr(segment, 'canvas_context', None),  # Include canvas_context if exists
             "created_at": segment.created_at.isoformat() if segment.created_at else None
         }
 
