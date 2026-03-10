@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 162 Plan 06 Complete - Lifecycle service tests unblocked. Removed xfail markers from 5 consolidation tests, fixed service code (.title/.description -> .task_description), verified fixtures use correct schema. Coverage: 70.1% (122/174 lines) - exceeds 65% target by 5.1pp. All 20 async tests passing (TestAsyncDecay, TestAsyncConsolidation, TestAsyncImportanceAndAccess). SUMMARY.md: 162-06-SUMMARY.md. Next: Phase 162 Plan 07 - Episode integration testing.
+**Current focus:** Phase 162 Plan 07 Complete - Retrieval and segmentation tests unblocked after schema migration. Fixed CanvasAudit, AgentFeedback, AgentRegistry, ChatMessage fixtures to satisfy NOT NULL constraints. EpisodeRetrievalService coverage: 74.69% (exceeds 65% target). 24/34 retrieval tests passing (70.6%), 15/27 segmentation tests passing (55.6%). Service code incompatible with CanvasAudit schema (Rule 4 deviation - architectural decision needed). SUMMARY.md: 162-07-SUMMARY.md. Next: Phase 162 Plan 08 - Fix service code for CanvasAudit schema compatibility.
 
 ## Current Position
 
 Phase: 162 of TBD (Episode Service Comprehensive Testing)
-Plan: 06 of 08 in current phase
-Status: Complete (Lifecycle tests unblocked - 70.1% coverage)
-Last activity: 2026-03-10 — Phase 162 Plan 06 Complete: Lifecycle service tests unblocked with 70.1% coverage (exceeds 65% target). Removed xfail markers from 5 consolidation tests, fixed service code (.title/.description -> .task_description), skipped 21 obsolete test classes. All 20 async tests passing. Duration: 6 minutes. SUMMARY.md: 162-06-SUMMARY.md. Next: Phase 162 Plan 07 - Episode integration testing.
+Plan: 07 of 08 in current phase
+Status: Partial Success (74.69% retrieval coverage, service code incompatibility discovered)
+Last activity: 2026-03-10 — Phase 162 Plan 07: Retrieval/segmentation tests unblocked after schema migration. Fixed CanvasAudit, AgentFeedback, AgentRegistry, ChatMessage fixtures. EpisodeRetrievalService: 74.69% coverage (exceeds 65% target). 24/34 tests passing. Service code expects non-existent CanvasAudit fields (Rule 4 - architectural decision needed). Duration: 8 minutes. SUMMARY.md: 162-07-SUMMARY.md. Next: Phase 162 Plan 08 - Service code fixes.
 
 ## Performance Metrics
 
