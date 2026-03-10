@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 ## Current Position
 
 Phase: 158 of TBD (Coverage Gap Closure)
-Plan: 03 of 05 in current phase
+Plan: 04 of 05 in current phase
 Status: In progress
-Last activity: 2026-03-09 — Phase 158 Plan 03 Complete: Frontend component testing blitz with 218 tests created across components (41), integrations (43), state management (66), and forms/utils (68). All tests use appropriate mocking and cover major components, integration components, custom hooks, canvas state, agent context, form validation, and utility functions.
+Last activity: 2026-03-10 — Phase 158 Plan 04 Complete: HTTP-level LLM service testing with 58 tests created covering provider paths (20), streaming responses (6), rate limiting (3), and error handling (20). Coverage improved from 36.5% to 43% (+17% relative). All tests passing with client-level async mocking.
 
-Progress: [████████░] 93% (Phase 158 P03 complete)
+Progress: [█████████] 94% (Phase 158 P04 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 681 (v5.2 complete, v5.3 in progress)
+- Total plans completed: 682 (v5.2 complete, v5.3 in progress)
 - Average duration: 7 minutes
 - Total execution time: ~79 hours
 
@@ -35,6 +35,7 @@ Progress: [████████░] 93% (Phase 158 P03 complete)
 - Trend: Fast (coverage infrastructure development)
 
 *Updated after each plan completion*
+| Phase 158 P04 | 338 | 5 tasks | 2 files | 58 tests |
 | Phase 158 P03 | 332 | 4 tasks | 11 files | 218 tests |
 | Phase 157 P04 | 990 | 3 tasks | 4 files | 45 tests |
 | Phase 157 P03 | 15 | 3 tasks | 4 files | 110 tests |
@@ -49,6 +50,7 @@ Progress: [████████░] 93% (Phase 158 P03 complete)
 | Phase 156 P08 | 34 | 3 tasks | 2 files |
 | Phase 156 P09 | 350 | 3 tasks | 2 files |
 | Phase 157 P01 | 11 | 3 tasks | 5 files |
+| Phase 158 P04 | 338 | 5 tasks | 2 files |
 
 ## Accumulated Context
 
