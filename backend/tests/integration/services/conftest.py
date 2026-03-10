@@ -184,25 +184,19 @@ def episode_db_session():
 
 
 @pytest.fixture(scope="function")
-def segmentation_service_mocked(db_session):
+def segmentation_service_mocked(db_session, mock_lancedb_embeddings):
     """
     Create EpisodeSegmentationService instance with mocked LanceDB.
 
     Mocks embed_text to return test vectors for semantic similarity testing.
+    Uses mock_lancedb_embeddings fixture to provide semantic-aware embeddings.
     """
-    # Mock LanceDB handler
-    mock_lancedb = Mock()
-    mock_lancedb.embed_text.return_value = [0.9, 0.1, 0.0]  # Default test vector
-    mock_lancedb.search.return_value = []  # Default empty search results
-    mock_lancedb.db = Mock()  # Mock database connection
-    mock_lancedb.table_names = Mock(return_value=[])
-
-    # Mock BYOK handler
+    # Mock BYOK handler and CanvasSummaryService
     with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-        with patch('core.episode_segmentation_service.get_lancedb_handler', return_value=mock_lancedb):
-            with patch('core.episode_segmentation_service.CanvasSummaryService') as mock_canvas:
+        with patch('core.episode_segmentation_service.CanvasSummaryService') as mock_canvas:
+            with patch('core.episode_segmentation_service.get_lancedb_handler', return_value=mock_lancedb_embeddings):
                 service = EpisodeSegmentationService(db_session)
-                service.lancedb = mock_lancedb
+                service.lancedb = mock_lancedb_embeddings
                 yield service
 
 
@@ -430,29 +424,6 @@ def episode_test_session(episode_db_session, episode_test_user):
     episode_db_session.commit()
     return session
 
-
-@pytest.fixture(scope="function")
-def mock_lancedb_embeddings():
-    """
-    Provide mock LanceDB embedding responses for topic change testing.
-
-    Returns mock configured with:
-    - High similarity for same-topic messages
-    - Low similarity for different-topic messages
-    """
-    mock_db = Mock()
-
-    def mock_embed_fn(text):
-        """Mock embedding function that returns similarity-based vectors"""
-        if "Python" in text or "programming" in text:
-            return [0.9, 0.1, 0.0]  # Python topic vector
-        elif "cooking" in text or "recipes" in text or "pasta" in text:
-            return [0.1, 0.9, 0.0]  # Cooking topic vector
-        else:
-            return [0.5, 0.5, 0.0]  # Neutral vector
-
-    mock_db.embed_text.side_effect = mock_embed_fn
-    return mock_db
 
 
 # =============================================================================
