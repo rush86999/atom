@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 161 Model Fixes and Database - Implemented episode service methods, 21 tests passing, 23% coverage on episode services
+**Current focus:** Phase 161 Complete - Model fixes and episode service implementation. Backend coverage: 8.50% (6179/72727 lines). Episode services: 27.3% coverage (261/1084 lines). Test pass rate: 95.5% (169/177 passing). Gap to 80% target: 71.5 percentage points.
 
 ## Current Position
 
 Phase: 161 of TBD (Model Fixes and Database)
-Plan: 02 of 03 in current phase
-Status: Complete (Service implementation improvements complete, coverage target not achieved)
-Last activity: 2026-03-10 — Phase 161 Plan 02 Complete: Implemented episode segmentation (keyword similarity fallback), retrieval (user_id filtering, complete serialization), lifecycle (sync wrapper methods). Coverage: 23% on episode services (249/1084 lines). Tests: 21/21 episode service tests passing (100% pass rate). Target: 47% coverage (+8-12%), Actual: 23% (gap due to incomplete async method testing). SUMMARY.md created: 161-02-SUMMARY.md. Coverage report: backend_phase_161_plan2.json. Next: Phase 161 Plan 03 - Additional testing for comprehensive coverage.
+Plan: 03 of 03 in current phase
+Status: Complete (Partial Success - Model fixes done, coverage target not achieved)
+Last activity: 2026-03-10 — Phase 161 Complete: Model compatibility fixes (AgentEpisode.status, EpisodeAccessLog.created_at), episode services implemented (segmentation with keyword similarity, retrieval with user_id filtering, lifecycle with sync wrappers). Coverage: 8.50% overall backend (6179/72727 lines), 27.3% on episode services (261/1084 lines). Tests: 169/177 passing (95.5% pass rate). Target: 39-51% coverage, Actual: 8.50% (gap due to methodology change from service-level estimates to full line coverage). VERIFICATION.md created: 161-VERIFICATION.md. Cross-platform summary updated. Next: Phase 162 - Episode service comprehensive testing.
 
 ## Performance Metrics
 
@@ -33,6 +33,8 @@ Last activity: 2026-03-10 — Phase 161 Plan 02 Complete: Implemented episode se
 - Trend: Fast (coverage infrastructure development)
 
 *Updated after each plan completion*
+| Phase 161 P03 | 7 | 4 tasks | 3 files | 177 tests | verification
+| Phase 161 P02 | 12 | 4 tasks | 5 files | 21 tests |
 | Phase 161 P01 | 6 | 4 tasks | 5 files | 33 tests |
 | Phase 160 P02 | 8 | 2 tasks | 3 files | 100 tests | verification
 | Phase 159 P03 | 15 | 4 tasks | 3 files | 0 tests | verification
@@ -110,8 +112,17 @@ Recent decisions affecting current work:
 - [Phase 161 P01]: Aligned all episode service fixtures to use db_session instead of episode_db_session (fixed test isolation)
 - [Phase 161 P01]: Fixed episode serialization field mappings (title→task_description, ended_at→completed_at)
 - [Phase 161 P01]: Coverage improved to 25.3% (+1.3% from baseline), unblocked 11 tests (22→33 passing, 73.3% pass rate)
-- [Phase 161 P01]: Target NOT achieved (+15-20% expected, only +1.3% actual) - gap due to service implementation issues, not model/database
-- [Phase 161 P01]: Remaining blockers: Missing EpisodeLifecycleService methods (apply_decay, archive_episode, update_lifecycle), semantic similarity logic, async await patterns
+- [Phase 161 P02]: Implemented episode segmentation with keyword similarity fallback (Dice coefficient)
+- [Phase 161 P02]: Implemented episode retrieval with user_id filtering via ChatSession join
+- [Phase 161 P02]: Implemented episode lifecycle sync wrapper methods (apply_decay, archive_episode, consolidate_episodes)
+- [Phase 161 P02]: Episode services coverage: 23% (249/1084 lines), 21/21 tests passing (100% pass rate)
+- [Phase 161 P03]: Final backend coverage measured: 8.50% (6179/72727 lines) - full backend line coverage
+- [Phase 161 P03]: Methodology change confirmed: service-level estimates (74.6%) → actual line coverage (8.50%)
+- [Phase 161 P03]: Gap to 80% target: 71.5 percentage points (requires ~125 hours of additional work)
+- [Phase 161 P03]: Estimated effort: 25 additional phases needed (162-186) to reach 80% target
+- [Phase 161]: Target NOT achieved (+15-27% expected, actually -15.5% due to methodology change)
+- [Phase 161]: Episode.consolidated_into field missing from schema (blocks consolidation tests)
+- [Phase 161]: API endpoints (episode_routes.py) completely untested (0% coverage, 161 lines)
 
 **Phase 158 - Coverage Gap Closure:**
 - [Phase 158 P05]: Overall weighted coverage improved from 34.88% to 43.95% (+9.07 pp, +26% relative)
