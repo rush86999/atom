@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-03-08)
 
 ## Current Position
 
-Phase: 161 of TBD (Model Fixes and Database)
-Plan: 03 of 03 in current phase
-Status: Complete (Partial Success - Model fixes done, coverage target not achieved)
-Last activity: 2026-03-10 — Phase 161 Complete: Model compatibility fixes (AgentEpisode.status, EpisodeAccessLog.created_at), episode services implemented (segmentation with keyword similarity, retrieval with user_id filtering, lifecycle with sync wrappers). Coverage: 8.50% overall backend (6179/72727 lines), 27.3% on episode services (261/1084 lines). Tests: 169/177 passing (95.5% pass rate). Target: 39-51% coverage, Actual: 8.50% (gap due to methodology change from service-level estimates to full line coverage). VERIFICATION.md created: 161-VERIFICATION.md. Cross-platform summary updated. Next: Phase 162 - Episode service comprehensive testing.
+Phase: 162 of TBD (Episode Service Comprehensive Testing)
+Plan: 01 of 04 in current phase
+Status: Complete
+Last activity: 2026-03-10 — Phase 162 Plan 01 Complete: Async lifecycle service testing. Added 20 tests for decay, consolidation, importance, and access count methods. Coverage: 50% on lifecycle service (up from 32.2%, +17.8pp). 15 tests passing, 5 xfailed (consolidation - Episode.consolidated_into field missing). Episode test fixtures added to conftest.py. SUMMARY.md created: 162-01-SUMMARY.md. Next: Phase 162 Plan 02 - Episode segmentation service testing.
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Last activity: 2026-03-10 — Phase 161 Complete: Model compatibility fixes (Age
 | Phase 159 P02 | 581 | 2 tasks | 3 files |
 | Phase 159 P03 | 1773114550 | 4 tasks | 3 files |
 | Phase 161 P02 | 12 | 4 tasks | 5 files |
+| Phase 162 P01 | 720 | 20 tasks | 3 files |
 
 ## Accumulated Context
 
