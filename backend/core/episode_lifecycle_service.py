@@ -190,6 +190,32 @@ class EpisodeLifecycleService:
 
         return True
 
+    def archive_episode(self, episode: Episode) -> bool:
+        """
+        Archive a single episode to cold storage (synchronous).
+
+        Marks episode as archived with timestamp. Full content already
+        in LanceDB from creation, this only updates PostgreSQL metadata.
+
+        Args:
+            episode: Episode object to archive
+
+        Returns:
+            True if successful
+        """
+        try:
+            episode.status = "archived"
+            episode.archived_at = datetime.now()
+
+            self.db.commit()
+            logger.info(f"Episode {episode.id} archived to cold storage")
+
+            return True
+        except Exception as e:
+            logger.error(f"Failed to archive episode {episode.id}: {e}")
+            self.db.rollback()
+            return False
+
     async def update_importance_scores(
         self,
         episode_id: str,
@@ -249,3 +275,46 @@ class EpisodeLifecycleService:
         logger.info(f"Updated access counts for {updated} episodes")
 
         return {"updated": updated}
+
+    def update_lifecycle(self, episode: Episode) -> bool:
+        """
+        Update lifecycle state for a single episode.
+
+        Calculates and applies decay based on episode age.
+        Synchronous method for single-episode updates.
+
+        Args:
+            episode: Episode object to update
+
+        Returns:
+            True if successful
+        """
+        try:
+            if not episode.started_at:
+                logger.warning(f"Episode {episode.id} has no started_at, skipping lifecycle update")
+                return False
+
+            # Calculate episode age in days
+            days_old = (datetime.now() - episode.started_at).days
+
+            # Apply decay formula: decay_score = max(0, 1 - (days_old / 180))
+            # Episodes reach 0 decay score after 180 days
+            new_decay = max(0.0, 1.0 - (days_old / 180.0))
+
+            # Update episode
+            episode.decay_score = new_decay
+
+            # Archive if very old (>180 days)
+            if days_old > 180 and episode.status != "archived":
+                episode.status = "archived"
+                episode.archived_at = datetime.now()
+
+            self.db.commit()
+            logger.info(f"Updated lifecycle for episode {episode.id}: decay_score={new_decay:.2f}, days_old={days_old}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to update lifecycle for episode {episode.id}: {e}")
+            self.db.rollback()
+            return False
