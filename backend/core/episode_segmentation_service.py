@@ -443,7 +443,7 @@ class EpisodeSegmentationService:
             # Try multiple field names for task description
             task_desc = getattr(exec, 'task_description', None) or \
                        getattr(exec, 'input_summary', None) or \
-                       getattr(exec, 'output_summary', None)
+                       getattr(exec, 'result_summary', None)
 
             if task_desc:
                 # Extract task-related entities
@@ -1258,8 +1258,8 @@ Topics: {', '.join(episode.topics)}
             if execution.input_summary:
                 parts.append(f"Input: {execution.input_summary}")
 
-            if execution.output_summary:
-                parts.append(f"Output: {execution.output_summary}")
+            if execution.result_summary:
+                parts.append(f"Output: {execution.result_summary}")
 
         if interventions:
             parts.append(f"\nActions during supervision:")
@@ -1295,8 +1295,9 @@ Topics: {', '.join(episode.topics)}
         if session.supervisor_feedback:
             parts.append(f"Feedback: {session.supervisor_feedback}")
 
-        if session.confidence_boost:
-            parts.append(f"Confidence Boost: +{session.confidence_boost:.3f}")
+        confidence_boost = getattr(session, 'confidence_boost', None)
+        if confidence_boost:
+            parts.append(f"Confidence Boost: +{confidence_boost:.3f}")
 
         return "\n".join(parts)
 
