@@ -179,9 +179,9 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
 | 159. Backend 80% Coverage | v5.3 | 3/3 | Complete | 2026-03-09 |
 | 160. Backend 80% Target (Blockers) | v5.3 | 2/2 | Complete (Not Achieved) | 2026-03-10 |
 | 161. Model Fixes and Database | v5.3 | 3/3 | Complete (Partial Success) | 2026-03-10 |
-| 162. Episode Service Comprehensive Testing | v5.3 | 0/4 | Planning | - |
+| 162. Episode Service Comprehensive Testing | v5.3 | 4/8 | Gap Closure | - |
 
-### 🚧 Phase 162: Episode Service Comprehensive Testing (Planning)
+### 🚧 Phase 162: Episode Service Comprehensive Testing (Gap Closure)
 
 **Goal:** Achieve 65%+ coverage on episode services through comprehensive async method testing, full episode creation flows, supervision/skill episodes, and advanced retrieval modes
 **Depends on**: Phase 161
@@ -191,14 +191,19 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
   3. EpisodeRetrievalService coverage increases from 32.5% to 65%+
   4. Async service methods (decay_old_episodes, consolidate_similar_episodes, create_episode_from_session) are tested
   5. Overall backend coverage increases by ~5-8 percentage points (target: 13-16%)
-**Plans**: 4 plans
+**Plans**: 8 plans (4 baseline + 4 gap closure)
 
 **Wave Structure:**
-- Wave 1: Plans 01-03 (parallel - lifecycle, segmentation, supervision/skill)
-- Wave 2: Plan 04 (advanced retrieval - depends on Plan 02 for fixtures)
+- Wave 1: Plans 05 (schema migration - unblocks all)
+- Wave 2: Plans 06-07 (test unblocking - parallel after schema)
+- Wave 3: Plan 08 (overall verification)
 
 **Plan Breakdown:**
-- [ ] 162-01-PLAN.md — Async lifecycle service testing (decay, consolidation, importance, access counts, archival)
-- [ ] 162-02-PLAN.md — Full episode creation flow testing (segmentation, canvas/feedback linkage, LanceDB archival)
-- [ ] 162-03-PLAN.md — Supervision and skill episode testing (supervision sessions, skill execution tracking)
-- [ ] 162-04-PLAN.md — Advanced retrieval mode testing (sequential, canvas-aware, business data, supervision context)
+- [x] 162-01-PLAN.md — Async lifecycle service testing (50% coverage, 5 tests xfailed)
+- [x] 162-02-PLAN.md — Full episode creation flow testing (27.4% coverage, 12 tests failing)
+- [x] 162-03-PLAN.md — Supervision and skill episode testing (18 tests, 14 passing)
+- [x] 162-04-PLAN.md — Advanced retrieval mode testing (47.5% coverage, 19 tests blocked)
+- [ ] 162-05-PLAN.md — Schema migration (consolidated_into, canvas_context, episode_id, supervision fields)
+- [ ] 162-06-PLAN.md — Lifecycle test unblocking (65% target)
+- [ ] 162-07-PLAN.md — Retrieval/segmentation test unblocking (65%/45% targets)
+- [ ] 162-08-PLAN.md — Overall backend coverage measurement
