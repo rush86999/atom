@@ -65,11 +65,13 @@ def db_session():
         'canvas_audit',
         'agent_episodes',
         'episode_segments',
-        'blocked_trigger_contexts',
+        'episode_access_logs',  # Added for episode retrieval tests
+        'blocked_triggers',  # Fixed: was blocked_trigger_contexts
         'user_activities',
         'agent_proposals',
         'supervision_sessions',
         'training_sessions',
+        'supervised_execution_queue',  # Added for trigger interceptor tests
     ]
 
     for table_name in tables_to_create:
