@@ -1,0 +1,154 @@
+{
+  "phase": "159-backend-80-percent-coverage",
+  "plan": "02",
+  "title": "Backend Services Gap Closure Coverage Report",
+  "generated_at": "2026-03-10T03:40:00Z",
+  "baseline_coverage": {
+    "agent_governance_service": "65%",
+    "episode_segmentation_service": "45%",
+    "episode_retrieval_service": "50%",
+    "episode_lifecycle_service": "40%",
+    "canvas_tool": "55%",
+    "agent_context_resolver": "48%",
+    "trigger_interceptor": "42%"
+  },
+  "tests_created": {
+    "total": 45,
+    "governance": 11,
+    "episode_segmentation": 9,
+    "episode_retrieval": 8,
+    "episode_lifecycle": 4,
+    "canvas": 4,
+    "context_resolver": 3,
+    "trigger_interceptor": 3,
+    "passing": 12,
+    "failing": 33
+  },
+  "coverage_improvement": {
+    "agent_governance_service": {
+      "baseline": "65%",
+      "current": "68%",
+      "improvement": "+3%",
+      "new_tests": 11,
+      "passing_tests": 6
+    },
+    "episode_segmentation_service": {
+      "baseline": "45%",
+      "current": "45%",
+      "improvement": "0%",
+      "new_tests": 9,
+      "passing_tests": 0,
+      "note": "Tests created but model compatibility issues prevent execution"
+    },
+    "episode_retrieval_service": {
+      "baseline": "50%",
+      "current": "50%",
+      "improvement": "0%",
+      "new_tests": 8,
+      "passing_tests": 1,
+      "note": "Tests created but model compatibility issues prevent execution"
+    },
+    "episode_lifecycle_service": {
+      "baseline": "40%",
+      "current": "40%",
+      "improvement": "0%",
+      "new_tests": 4,
+      "passing_tests": 0,
+      "note": "Tests created but model compatibility issues prevent execution"
+    },
+    "canvas_tool": {
+      "baseline": "55%",
+      "current": "55%",
+      "improvement": "0%",
+      "new_tests": 4,
+      "passing_tests": 3,
+      "note": "Tests created, some passing"
+    },
+    "agent_context_resolver": {
+      "baseline": "48%",
+      "current": "48%",
+      "improvement": "0%",
+      "new_tests": 3,
+      "passing_tests": 0,
+      "note": "Tests created but async/await issues prevent execution"
+    },
+    "trigger_interceptor": {
+      "baseline": "42%",
+      "current": "42%",
+      "improvement": "0%",
+      "new_tests": 3,
+      "passing_tests": 0,
+      "note": "Tests created but service import issues prevent execution"
+    }
+  },
+  "overall_backend_coverage": {
+    "baseline": "74.55%",
+    "current": "74.60%",
+    "improvement": "+0.05%",
+    "target": "80%",
+    "remaining_gap": "5.4%"
+  },
+  "test_file_details": {
+    "file": "backend/tests/integration/services/test_backend_gap_closure.py",
+    "lines": 1598,
+    "required_lines": 800,
+    "exceeds_minimum_by": 798
+  },
+  "passing_tests": {
+    "count": 12,
+    "list": [
+      "test_governance_concurrent_checks_same_agent",
+      "test_governance_concurrent_cache_updates",
+      "test_governance_zero_confidence_score_handling",
+      "test_governance_none_confidence_score_defaults_to_half",
+      "test_governance_invalid_status_treated_as_student",
+      "test_governance_nonexistent_agent_returns_blocked",
+      "test_governance_enforce_action_returns_correct_status",
+      "test_retrieve_semantic_empty_query",
+      "test_canvas_governance_blocks_unauthorized_form",
+      "test_canvas_concurrent_updates_same_canvas",
+      "test_canvas_error_recovery_websocket_failure",
+      "test_segment_empty_message_list"
+    ]
+  },
+  "issues_identified": {
+    "model_compatibility": {
+      "issue": "Episode model (AgentEpisode) has different fields than expected",
+      "impact": "Blocks episode services tests",
+      "resolution_needed": "Update tests to use correct model fields"
+    },
+    "database_threading": {
+      "issue": "SQLite threading issues with concurrent test execution",
+      "impact": "Some governance tests fail with InterfaceError",
+      "resolution_needed": "Use thread-safe database session or run tests sequentially"
+    },
+    "async_testing": {
+      "issue": "Async/await inconsistencies in test execution",
+      "impact": "Context resolver tests fail",
+      "resolution_needed": "Ensure proper async test patterns"
+    },
+    "missing_imports": {
+      "issue": "TriggerInterceptor import errors",
+      "impact": "Trigger interceptor tests cannot run",
+      "resolution_needed": "Fix import path or check if service exists"
+    }
+  },
+  "next_steps": {
+    "immediate": [
+      "Fix model compatibility issues for episode services",
+      "Resolve database threading issues for concurrent tests",
+      "Fix async test patterns for context resolver"
+    ],
+    "future_plans": [
+      "Create separate test runs for services with different model requirements",
+      "Increase coverage for trigger interceptor service",
+      "Add more edge case tests for episode lifecycle"
+    ]
+  },
+  "success_criteria_met": {
+    "tests_created": true,
+    "file_lines_exceeds_minimum": true,
+    "backend_coverage_increased": true,
+    "note": "Partial success - tests created and some passing, but model compatibility issues prevent full coverage measurement"
+  }
+}
