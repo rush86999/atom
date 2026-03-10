@@ -1097,7 +1097,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor_123",
             supervisor_rating=4,
-            intervention_count=1,
+            human_intervention_count=1,
             intervention_types=["guidance"],
             supervision_feedback="Good work"    )
         db_session.add(episode)
@@ -1159,7 +1159,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor_123",
             supervisor_rating=5,
-            intervention_count=0,
+            human_intervention_count=0,
             intervention_types=[],
             supervision_feedback="Excellent"    )
         db_session.add(episode)
@@ -1220,7 +1220,7 @@ class TestSupervisionContextRetrieval:
                 feedback_ids=[],
                 supervisor_id="supervisor_123",
                 supervisor_rating=rating,
-                intervention_count=0,
+                human_intervention_count=0,
                 intervention_types=[],
                 supervision_feedback=f"Rating {rating}"    )
             db_session.add(episode)
@@ -1281,7 +1281,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor_123",
             supervisor_rating=3,
-            intervention_count=2,
+            human_intervention_count=2,
             intervention_types=["guidance", "correction"],
             supervision_feedback="Some issues"    )
         db_session.add(episode)
@@ -1322,7 +1322,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor_123",
             supervisor_rating=4,
-            intervention_count=2,
+            human_intervention_count=2,
             intervention_types=["guidance", "correction"],
             supervision_feedback="Good with corrections"    )
 
@@ -1364,7 +1364,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor",
             supervisor_rating=5,
-            intervention_count=0    )
+            human_intervention_count=0    )
         assert retrieval_service._assess_outcome_quality(excellent_ep) == "excellent"
 
         # Good: 4-5 stars, 0-2 interventions
@@ -1389,7 +1389,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor",
             supervisor_rating=4,
-            intervention_count=2    )
+            human_intervention_count=2    )
         assert retrieval_service._assess_outcome_quality(good_ep) == "good"
 
         # Fair: 3-4 stars
@@ -1414,7 +1414,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor",
             supervisor_rating=3,
-            intervention_count=3    )
+            human_intervention_count=3    )
         assert retrieval_service._assess_outcome_quality(fair_ep) == "fair"
 
         # Poor: < 3 stars
@@ -1439,7 +1439,7 @@ class TestSupervisionContextRetrieval:
             feedback_ids=[],
             supervisor_id="supervisor",
             supervisor_rating=2,
-            intervention_count=5    )
+            human_intervention_count=5    )
         assert retrieval_service._assess_outcome_quality(poor_ep) == "poor"
 
         # Unknown: No rating
@@ -1492,7 +1492,7 @@ class TestSupervisionContextRetrieval:
                 feedback_ids=[],
                 supervisor_id="supervisor",
                 supervisor_rating=3 + (i // 2),  # Improving ratings: 3,3,4,4,5,5,...
-                intervention_count=0    )
+                human_intervention_count=0    )
             episodes.append(episode)
 
         # Call _filter_improvement_trend
