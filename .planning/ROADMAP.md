@@ -179,3 +179,26 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
 | 159. Backend 80% Coverage | v5.3 | 3/3 | Complete | 2026-03-09 |
 | 160. Backend 80% Target (Blockers) | v5.3 | 2/2 | Complete (Not Achieved) | 2026-03-10 |
 | 161. Model Fixes and Database | v5.3 | 3/3 | Complete (Partial Success) | 2026-03-10 |
+| 162. Episode Service Comprehensive Testing | v5.3 | 0/4 | Planning | - |
+
+### 🚧 Phase 162: Episode Service Comprehensive Testing (Planning)
+
+**Goal:** Achieve 65%+ coverage on episode services through comprehensive async method testing, full episode creation flows, supervision/skill episodes, and advanced retrieval modes
+**Depends on**: Phase 161
+**Success Criteria** (what must be TRUE):
+  1. EpisodeLifecycleService coverage increases from 32.2% to 65%+
+  2. EpisodeSegmentationService coverage increases from 17.1% to 45%+
+  3. EpisodeRetrievalService coverage increases from 32.5% to 65%+
+  4. Async service methods (decay_old_episodes, consolidate_similar_episodes, create_episode_from_session) are tested
+  5. Overall backend coverage increases by ~5-8 percentage points (target: 13-16%)
+**Plans**: 4 plans
+
+**Wave Structure:**
+- Wave 1: Plans 01-03 (parallel - lifecycle, segmentation, supervision/skill)
+- Wave 2: Plan 04 (advanced retrieval - depends on Plan 02 for fixtures)
+
+**Plan Breakdown:**
+- [ ] 162-01-PLAN.md — Async lifecycle service testing (decay, consolidation, importance, access counts, archival)
+- [ ] 162-02-PLAN.md — Full episode creation flow testing (segmentation, canvas/feedback linkage, LanceDB archival)
+- [ ] 162-03-PLAN.md — Supervision and skill episode testing (supervision sessions, skill execution tracking)
+- [ ] 162-04-PLAN.md — Advanced retrieval mode testing (sequential, canvas-aware, business data, supervision context)
