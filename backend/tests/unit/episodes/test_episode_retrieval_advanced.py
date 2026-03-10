@@ -159,13 +159,17 @@ class TestSequentialRetrieval:
         # Create CanvasAudit record
         canvas = CanvasAudit(
             id=canvas_id,
+            canvas_id=str(uuid.uuid4()),  # FK to canvases.id
+            tenant_id="default",
             episode_id=episode_id,
-            session_id=str(uuid.uuid4()),
-            canvas_type="sheets",
-            component_type="table",
-            component_name="sales_table",
-            action="present",
-            audit_metadata={"revenue": 1000000},
+            action_type="present",
+            agent_id=agent_id,
+            details_json={
+                "canvas_type": "sheets",
+                "component_type": "table",
+                "component_name": "sales_table",
+                "revenue": 1000000
+            },
             created_at=now - timedelta(minutes=30)
         )
         db_session.add(canvas)
@@ -330,8 +334,7 @@ class TestSequentialRetrieval:
         """Should serialize segment with all fields"""
         now = datetime.now(timezone.utc)
 
-        # Note: EpisodeSegment doesn't have canvas_context column in schema
-        # The service code handles this with getattr(segment, 'canvas_context', None)
+        # EpisodeSegment now has canvas_context column in schema (added in Plan 05)
         segment = EpisodeSegment(
             id="seg1",
             episode_id="ep1",
@@ -341,6 +344,12 @@ class TestSequentialRetrieval:
             content_summary="Data presentation",
             source_type="canvas",
             source_id="canvas1",
+            canvas_context={
+                "canvas_type": "sheets",
+                "presentation_summary": "Test data",
+                "critical_data_points": {"value": 100},
+                "visual_elements": {"rows": 10}
+            },
             created_at=now
         )
 
@@ -355,8 +364,9 @@ class TestSequentialRetrieval:
         assert result["content_summary"] == "Data presentation"
         assert result["source_type"] == "canvas"
         assert result["source_id"] == "canvas1"
-        # Note: canvas_context is None because EpisodeSegment doesn't have this column
-        assert result["canvas_context"] is None
+        # Verify canvas_context is serialized (column now exists in schema)
+        assert result["canvas_context"]["canvas_type"] == "sheets"
+        assert result["canvas_context"]["presentation_summary"] == "Test data"
 
 
 # ========================================================================
@@ -920,13 +930,16 @@ class TestBusinessDataRetrieval:
         # Create CanvasAudit with canvas_type="sheets"
         canvas = CanvasAudit(
             id=str(uuid.uuid4()),
+            canvas_id=str(uuid.uuid4()),  # FK to canvases.id
+            tenant_id="default",
             episode_id=episode_id,
-            session_id=str(uuid.uuid4()),
-            canvas_type="sheets",
-            component_type="table",
-            component_name="data_table",
-            action="submit",
-            audit_metadata={},
+            action_type="submit",
+            agent_id=agent_id,
+            details_json={
+                "canvas_type": "sheets",
+                "component_type": "table",
+                "component_name": "data_table"
+            },
             created_at=now - timedelta(days=7)
         )
         db_session.add(canvas)
@@ -1007,13 +1020,16 @@ class TestBusinessDataRetrieval:
         # Create CanvasAudit
         canvas = CanvasAudit(
             id=str(uuid.uuid4()),
+            canvas_id=str(uuid.uuid4()),  # FK to canvases.id
+            tenant_id="default",
             episode_id=episode_id,
-            session_id=str(uuid.uuid4()),
-            canvas_type="sheets",
-            component_type="table",
-            component_name="table",
-            action="present",
-            audit_metadata={},
+            action_type="present",
+            agent_id=agent_id,
+            details_json={
+                "canvas_type": "sheets",
+                "component_type": "table",
+                "component_name": "table"
+            },
             created_at=now - timedelta(days=7)
         )
         db_session.add(canvas)
@@ -1893,13 +1909,16 @@ aggregate_feedback_score=-0.5,
         for i in range(3):
             canvas = CanvasAudit(
                 id=str(uuid.uuid4()),
+                canvas_id=str(uuid.uuid4()),  # FK to canvases.id
+                tenant_id="default",
                 episode_id=str(uuid.uuid4()),
-                session_id=str(uuid.uuid4()),
-                canvas_type="sheets" if i == 0 else "charts",
-                component_type="table" if i == 0 else "chart",
-                component_name=f"component_{i}",
-                action="present",
-                audit_metadata={"index": i},
+                action_type="present",
+                details_json={
+                    "canvas_type": "sheets" if i == 0 else "charts",
+                    "component_type": "table" if i == 0 else "chart",
+                    "component_name": f"component_{i}",
+                    "index": i
+                },
                 created_at=now
             )
             db_session.add(canvas)

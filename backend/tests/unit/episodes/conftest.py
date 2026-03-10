@@ -259,11 +259,13 @@ def episode_test_canvas_audit(episode_test_session):
     now = datetime.now(timezone.utc)
     canvas = CanvasAudit(
         id=str(uuid.uuid4()),
-        session_id=episode_test_session.id,
-        canvas_type="sheets",
-        action="present",
-        component_name="sales_table",
-        audit_metadata={
+        canvas_id=str(uuid.uuid4()),  # FK to canvases.id
+        tenant_id="default",
+        action_type="present",
+        user_id=episode_test_session.user_id,
+        details_json={
+            "canvas_type": "sheets",
+            "component_name": "sales_table",
             "revenue": 1000000,
             "approval_status": "approved"
         },
