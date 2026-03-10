@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 159 - Backend 80% Coverage
+**Current focus:** Phase 160 - Backend 80% Target (Fix Blockers)
 
 ## Current Position
 
-Phase: 159 of TBD (Backend 80% Coverage)
-Plan: 03 of 04 in current phase
+Phase: 160 of TBD (Backend 80% Target)
+Plan: 01 of 02 in current phase
 Status: Complete
-Last activity: 2026-03-10 — Phase 159 Plan 03 Complete: Final verification and documentation. Backend coverage: 74.55% → 74.60% (+0.05 pp). Target status: GAP_REMAINING (5.40% below 80%). Quality gate: BELOW_THRESHOLD (exit code 1). 119 tests created (74 LLM + 45 backend), 86/119 passing (72.3%). Verification report created (340 lines). Cross-platform summary updated: 43.95% → 44.09% weighted. Blockers documented: model compatibility, async testing, service imports. Phase 160 recommendations: fix 3 blockers for +6-8% coverage → ~80.6%.
+Last activity: 2026-03-10 — Phase 160 Plan 01 Complete: Fixed Phase 159 blockers. Test pass rate improved from 26.7% (12/45) to 57.8% (26/45). Fixed: AgentEpisode model compatibility, SQLite threading issues, async testing patterns, TriggerInterceptor API usage, cache invalidation tests. 14 additional tests now passing. Coverage improvement: ~+3-5% estimated. Remaining: 19 failing tests (episode service logic, canvas audit async, trigger interceptor implementation).
 
-Progress: [████░░░░] 75% (Phase 159 P03 COMPLETE)
+Progress: [████░░░░] 50% (Phase 160 P01 COMPLETE)
 
 ## Performance Metrics
 
