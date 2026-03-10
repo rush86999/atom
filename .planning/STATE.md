@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 162 Plan 02 Complete - Episode service comprehensive testing with partial success. Coverage: 27.4% on EpisodeSegmentationService (162/591 lines), up from 17.1% baseline (+10.3 pp). Target: 45%, achieved 61% of target. Tests: 27 created, 14 passing (52% pass rate). Gap to 45% target: 17.6 percentage points.
+**Current focus:** Phase 162 Plan 04 Complete - Advanced retrieval mode testing with partial success. Coverage: 47.5% on EpisodeRetrievalService (152/320 lines), up from 32.5% baseline (+15 pp). Tests: 34 created, 15 passing (44% pass rate), 19 blocked by schema gaps. Schema issues: EpisodeSegment.canvas_context, CanvasAudit.episode_id, Episode supervision fields missing from database. Bug fix: EpisodeSegment canvas_context AttributeError. SUMMARY.md: 162-04-SUMMARY.md. Coverage report: backend_phase_162_plan4.json.
 
 ## Current Position
 
 Phase: 162 of TBD (Episode Service Comprehensive Testing)
-Plan: 03 of 04 in current phase
-Status: Complete (Partial Success - 14/18 tests passing, schema mismatch blocks supervision episodes)
-Last activity: 2026-03-10 — Phase 162 Plan 03 Complete: Supervision and skill episode testing (18 tests, 14 passing). Coverage: 27.4% on episode_segmentation_service.py (162/591 lines), up from 8% baseline (+19.4 pp). 3 bugs fixed (output_summary→result_summary, confidence_boost access). Schema mismatch discovered: Code expects Episode with title/description/summary, but AgentEpisode has task_description. Blocks 4 supervision episode creation tests. Helper methods (6/6) and skill episodes (6/6) fully tested. SUMMARY.md created: 162-03-SUMMARY.md. Coverage report: backend_phase_162_plan3.json. Next: Phase 162 Plan 04 - Additional testing.
+Plan: 04 of 04 in current phase
+Status: Complete (Partial Success - 15/34 tests passing, schema gaps block advanced features)
+Last activity: 2026-03-10 — Phase 162 Plan 04 Complete: Advanced retrieval mode testing (34 tests, 15 passing). Coverage: 47.5% on episode_retrieval_service.py (152/320 lines), up from 32.5% baseline (+15 pp, 46% relative improvement). 1 bug fixed (canvas_context AttributeError). Schema gaps discovered: EpisodeSegment.canvas_context, CanvasAudit.episode_id, Episode supervision fields missing from database. Blocks 19 tests (56%). Working features: temporal, semantic, sequential basics, contextual with feedback weighting. SUMMARY.md: 162-04-SUMMARY.md. Coverage report: backend_phase_162_plan4.json. Next: Phase 163 or additional episode testing.
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Last activity: 2026-03-10 — Phase 162 Plan 03 Complete: Supervision and skill 
 | Phase 162 P01 | 720 | 20 tasks | 3 files |
 | Phase 162 P02 | 10 | 27 tasks | 3 files |
 | Phase 162 P03 | 13 | 5 tasks | 2 files | 18 tests |
+| Phase 162 P04 | 8 | 2 tasks | 3 files | 34 tests | coverage
 
 ## Accumulated Context
 
@@ -172,6 +173,11 @@ Recent decisions affecting current work:
 - [Phase 162 P03]: Skill episode creation fully tested (6/6 passing), helper methods tested (6/6 passing)
 - [Phase 162 P03]: Coverage achieved: 27.4% on episode_segmentation_service.py (162/591 lines), +19.4 percentage points from baseline
 - [Phase 162 P03]: Test pass rate: 78% (14/18 passing), 4 blocked by schema mismatch requiring architectural decision
+- [Phase 162 P04]: Schema gaps discovered in episode_retrieval_service.py: EpisodeSegment.canvas_context, CanvasAudit.episode_id, Episode supervision fields missing from database
+- [Phase 162 P04]: Fixed EpisodeSegment.canvas_context AttributeError using getattr for optional column (Service code assumes column exists)
+- [Phase 162 P04]: Coverage achieved: 47.5% on episode_retrieval_service.py (152/320 lines), +15 percentage points from baseline
+- [Phase 162 P04]: Test pass rate: 44% (15/34 passing), 19 blocked by missing schema columns (56%)
+- [Phase 162 P04]: Schema incompatibility: Service code written for different schema than exists (canvas-aware, business data, supervision features untestable)
 
 ### Pending Todos
 
