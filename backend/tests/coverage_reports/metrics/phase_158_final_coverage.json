@@ -10,28 +10,28 @@
         "covered": 156,
         "total": 205,
         "gap_to_target": 5.45,
-        "target": 80.0
+        "target": 80
       },
       "frontend": {
         "coverage_pct": 21.96,
         "covered": 1662,
         "total": 7569,
         "gap_to_target": 48.04,
-        "target": 70.0
+        "target": 70
       },
       "mobile": {
-        "coverage_pct": 0.00,
+        "coverage_pct": 0,
         "covered": 0,
         "total": 6338,
-        "gap_to_target": 50.00,
-        "target": 50.0
+        "gap_to_target": 50,
+        "target": 50
       },
       "desktop": {
-        "coverage_pct": 0.00,
+        "coverage_pct": 0,
         "covered": 0,
         "total": 0,
-        "gap_to_target": 40.00,
-        "target": 40.0,
+        "gap_to_target": 40,
+        "target": 40,
         "note": "Compilation errors blocked Tarpaulin"
       }
     }
@@ -44,7 +44,7 @@
         "covered": 156,
         "total": 205,
         "gap_to_target": 5.45,
-        "target": 80.0,
+        "target": 80,
         "status": "MEASURABLE",
         "tests_added": 58,
         "notes": "LLM service coverage improved from 36.5% to 43% (Plan 158-04)"
@@ -54,7 +54,7 @@
         "covered": 1662,
         "total": 7569,
         "gap_to_target": 48.04,
-        "target": 70.0,
+        "target": 70,
         "status": "TESTS_ADDED",
         "tests_added": 218,
         "tests_breakdown": {
@@ -70,8 +70,8 @@
         "coverage_pct": 61.34,
         "covered": 476,
         "total": 776,
-        "gap_to_target": 0.00,
-        "target": 50.0,
+        "gap_to_target": 0,
+        "target": 50,
         "status": "PASSED",
         "tests_added": 86,
         "tests_breakdown": {
@@ -84,11 +84,11 @@
         "pass_rate": 84.3
       },
       "desktop": {
-        "coverage_pct": 0.00,
+        "coverage_pct": 0,
         "covered": 0,
         "total": 0,
-        "gap_to_target": 40.00,
-        "target": 40.0,
+        "gap_to_target": 40,
+        "target": 40,
         "status": "COMPILATION_FIXED",
         "compilation_errors_fixed": 20,
         "tests_unblocked": 23,
@@ -102,25 +102,25 @@
     "backend": {
       "baseline": 74.55,
       "final": 74.55,
-      "improvement_pct": 0.00,
+      "improvement_pct": 0,
       "improvement_notes": "LLM service improved from 36.5% to 43% (+6.5 pp), overall backend unchanged"
     },
     "frontend": {
       "baseline": 21.96,
       "final": 21.96,
-      "improvement_pct": 0.00,
+      "improvement_pct": 0,
       "improvement_notes": "218 tests added, coverage not re-measured yet. Expected significant increase."
     },
     "mobile": {
-      "baseline": 0.00,
+      "baseline": 0,
       "final": 61.34,
       "improvement_pct": 61.34,
       "improvement_notes": "0% -> 61.34%, exceeding 50% target by 11.34 percentage points"
     },
     "desktop": {
-      "baseline": 0.00,
-      "final": 0.00,
-      "improvement_pct": 0.00,
+      "baseline": 0,
+      "final": 0,
+      "improvement_pct": 0,
       "improvement_notes": "Compilation fixed (20 errors), Tarpaulin blocked by macOS limitation"
     },
     "weighted_overall": {
@@ -157,7 +157,7 @@
         "tests": 58,
         "type": "http_level_mocking",
         "status": "PASSING",
-        "pass_rate": 100.0
+        "pass_rate": 100
       }
     },
     "tests_by_platform": {
@@ -170,7 +170,7 @@
   "remaining_gaps": {
     "backend": {
       "current_coverage": 74.55,
-      "target": 80.0,
+      "target": 80,
       "remaining_gap": 5.45,
       "priority": "LOW",
       "recommendations": [
@@ -181,7 +181,7 @@
     },
     "frontend": {
       "current_coverage": 21.96,
-      "target": 70.0,
+      "target": 70,
       "remaining_gap": 48.04,
       "priority": "HIGH",
       "recommendations": [
@@ -193,8 +193,8 @@
     },
     "mobile": {
       "current_coverage": 61.34,
-      "target": 50.0,
-      "remaining_gap": 0.00,
+      "target": 50,
+      "remaining_gap": 0,
       "priority": "DONE",
       "recommendations": [
         "Fix 16 failing tests in NavigationState.test.tsx",
@@ -203,9 +203,9 @@
       ]
     },
     "desktop": {
-      "current_coverage": 0.00,
-      "target": 40.0,
-      "remaining_gap": 40.00,
+      "current_coverage": 0,
+      "target": 40,
+      "remaining_gap": 40,
       "priority": "MEDIUM",
       "recommendations": [
         "Run Tarpaulin in Linux CI/CD environment (ubuntu-latest)",
@@ -241,7 +241,7 @@
     "tests_passing": 144,
     "tests_failing": 16,
     "tests_created_not_measured": 218,
-    "overall_pass_rate": 90.0,
+    "overall_pass_rate": 90,
     "coverage_improvement": "+9.07 percentage points (weighted)",
     "platforms_meeting_targets": 1,
     "platforms_below_targets": 3,
@@ -257,5 +257,47 @@
       "Frontend: Coverage not re-measured after adding 218 tests",
       "Mobile: 16 failing tests due to React Navigation context issues"
     ]
-  }
+  },
+  "quality_gate_status": {
+    "backend": {
+      "current": 74.55,
+      "threshold": 80,
+      "status": "FAIL",
+      "gap": -5.45,
+      "compliance": "BELOW_THRESHOLD"
+    },
+    "frontend": {
+      "current": 21.96,
+      "threshold": 70,
+      "status": "FAIL",
+      "gap": -48.04,
+      "compliance": "BELOW_THRESHOLD"
+    },
+    "mobile": {
+      "current": 61.34,
+      "threshold": 50,
+      "status": "PASS",
+      "gap": 11.34,
+      "compliance": "EXCEEDS_THRESHOLD"
+    },
+    "desktop": {
+      "current": 0,
+      "threshold": 40,
+      "status": "FAIL",
+      "gap": -40,
+      "compliance": "MEASUREMENT_BLOCKED"
+    }
+  },
+  "threshold_compliance": {
+    "backend": "74.55% < 80.00% (gap: 5.45%)",
+    "frontend": "21.96% < 70.00% (gap: 48.04%)",
+    "mobile": "61.34% >= 50.00% (exceeds by 11.34%)",
+    "desktop": "0.00% < 40.00% (gap: 40.00%)"
+  },
+  "recommendations": [
+    "Backend: Continue LLM service testing to reach 80% target",
+    "Frontend: Re-measure coverage with 218 new tests, expect 35-40% range",
+    "Mobile: Fix 16 failing React Navigation context tests",
+    "Desktop: Run Tarpaulin in Linux CI/CD environment (ubuntu-latest)"
+  ]
 }
