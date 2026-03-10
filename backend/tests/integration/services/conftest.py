@@ -564,3 +564,94 @@ def governance_test_user(db_session: Session):
     yield _create_user
 
     # Cleanup is handled by db_session rollback
+
+
+# =============================================================================
+# Fixtures for Backend Gap Closure Tests (Phase 159 Plan 02)
+# =============================================================================
+
+@pytest.fixture(scope="function")
+def governance_service(db_session: Session):
+    """
+    Create AgentGovernanceService instance for testing.
+
+    Provides fresh service instance with database session for
+    governance, permission checking, and lifecycle tests.
+    """
+    from core.agent_governance_service import AgentGovernanceService
+    return AgentGovernanceService(db_session)
+
+
+@pytest.fixture(scope="function")
+def mock_lancedb_embeddings():
+    """
+    Mock LanceDB embedding generation with semantic similarity vectors.
+
+    Returns vectors that produce predictable similarity scores:
+    - Same topic: [0.9, 0.1, 0.0] (high similarity)
+    - Different topic: [0.1, 0.9, 0.0] (low similarity <0.75)
+
+    Used for testing topic change detection in episode segmentation.
+    """
+    mock_db = Mock()
+    mock_db.embed_text = Mock(side_effect=lambda text: (
+        [0.9, 0.1, 0.0] if "python" in text.lower() or "web" in text.lower()
+        else [0.1, 0.9, 0.0]  # Cooking/topic change
+    ))
+    mock_db.search = Mock(return_value=[])
+    mock_db.db = Mock()
+    mock_db.table_names = Mock(return_value=[])
+    return mock_db
+
+
+@pytest.fixture(scope="function")
+def retrieval_service(episode_db_session):
+    """
+    Create EpisodeRetrievalService instance with mocked LanceDB.
+
+    Mocks vector search operations for testing temporal, semantic,
+    and contextual retrieval modes.
+    """
+    from core.episode_retrieval_service import EpisodeRetrievalService
+
+    mock_lancedb = Mock()
+    mock_lancedb.search = Mock(return_value=[])
+    mock_lancedb.db = Mock()
+    mock_lancedb.table_names = Mock(return_value=[])
+
+    with patch('core.episode_retrieval_service.get_lancedb_handler', return_value=mock_lancedb):
+        service = EpisodeRetrievalService(episode_db_session)
+        service.lancedb = mock_lancedb
+        yield service
+
+
+@pytest.fixture(scope="function")
+def lifecycle_service(episode_db_session):
+    """
+    Create EpisodeLifecycleService instance with mocked LanceDB.
+
+    Mocks archival and consolidation operations for testing
+    episode decay, consolidation, and cold storage transitions.
+    """
+    from core.episode_lifecycle_service import EpisodeLifecycleService
+
+    mock_lancedb = Mock()
+    mock_lancedb.search = Mock(return_value=[])
+    mock_lancedb.db = Mock()
+
+    with patch('core.episode_lifecycle_service.get_lancedb_handler', return_value=mock_lancedb):
+        service = EpisodeLifecycleService(episode_db_session)
+        service.lancedb = mock_lancedb
+        yield service
+
+
+@pytest.fixture(scope="function")
+def context_resolver(episode_db_session):
+    """
+    Create AgentContextResolver instance for testing.
+
+    Tests cache consistency, concurrent resolution, and
+    race condition handling during agent context updates.
+    """
+    from core.agent_context_resolver import AgentContextResolver
+    return AgentContextResolver(episode_db_session)
