@@ -59,7 +59,9 @@ class TestGovernanceCacheInvalidation:
         db_session.add(agent)
         db_session.commit()
 
-        cache = GovernanceCache()
+        # Use global cache instance (same as governance service)
+        from core.governance_cache import get_governance_cache
+        cache = get_governance_cache()
         # Warm cache
         cache.set(agent.id, "search", {"allowed": True, "cached": True})
 
@@ -86,7 +88,9 @@ class TestGovernanceCacheInvalidation:
         db_session.add(agent)
         db_session.commit()
 
-        cache = GovernanceCache()
+        # Use global cache instance
+        from core.governance_cache import get_governance_cache
+        cache = get_governance_cache()
         cache.set(agent.id, "analyze", {"allowed": True, "cached": True})
 
         # Suspend agent
@@ -112,7 +116,9 @@ class TestGovernanceCacheInvalidation:
         db_session.add(agent)
         db_session.commit()
 
-        cache = GovernanceCache()
+        # Use global cache instance
+        from core.governance_cache import get_governance_cache
+        cache = get_governance_cache()
         cache.set(agent.id, "create", {"allowed": True, "cached": True})
 
         # Terminate agent
