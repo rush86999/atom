@@ -1056,7 +1056,6 @@ class TestEpisodeConsolidation:
                 id=f"ep_{i}",
                 task_description=f"Python Tutorial {i}",
                 outcome="success",
-                summary="Learn Python basics",
                 agent_id=agent.id,
                 tenant_id="default",
                 maturity_at_time="INTERN",
