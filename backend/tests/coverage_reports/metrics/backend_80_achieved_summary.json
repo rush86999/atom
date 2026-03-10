@@ -1,0 +1,52 @@
+{
+  "phase": "160-backend-80-percent-target",
+  "plan": "02",
+  "title": "Backend Coverage Achievement Measurement",
+  "generated_at": "2026-03-10T10:47:00Z",
+  "measurement_type": "final_verification",
+  "baseline_coverage_pct": 74.55,
+  "phase_159_coverage_pct": 74.6,
+  "overall_backend_coverage": {
+    "full_codebase": {
+      "coverage_pct": 7.85,
+      "covered_lines": 5701,
+      "total_lines": 72623,
+      "missing_lines": 66922,
+      "note": "Includes entire backend codebase (core/, api/, tools/) - 532 files"
+    },
+    "targeted_services": {
+      "coverage_pct": 24.0,
+      "covered_lines": 464,
+      "total_lines": 1910,
+      "missing_lines": 1446,
+      "note": "Measured on 7 core services"
+    }
+  },
+  "target_status": {
+    "threshold": 80.0,
+    "current_coverage": 24.0,
+    "gap_to_target": 56.0,
+    "status": "NOT_ACHIEVED",
+    "note": "Targeted services coverage is 24%, far below 80% target"
+  },
+  "test_results": {
+    "total_tests": 119,
+    "passing": 100,
+    "failing": 19,
+    "pass_rate": 84.0
+  },
+  "quality_gate_status": {
+    "threshold": 80.0,
+    "current_coverage": 24.0,
+    "gap": 56.0,
+    "status": "FAIL",
+    "ci_cd_ready": false,
+    "exit_code": 1
+  },
+  "coverage_journey": {
+    "phase_158_baseline": 74.55,
+    "phase_159_final": 74.6,
+    "phase_160_final": 24.0,
+    "note": "Phase 160 shows actual coverage on targeted services is 24%"
+  }
+}
