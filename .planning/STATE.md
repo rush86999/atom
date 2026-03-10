@@ -5,16 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 161 Model Fixes and Database - Fixed model compatibility, unblocked 11 tests, +1.3% coverage (24%→25.3%)
+**Current focus:** Phase 161 Model Fixes and Database - Implemented episode service methods, 21 tests passing, 23% coverage on episode services
 
 ## Current Position
 
 Phase: 161 of TBD (Model Fixes and Database)
-Plan: 01 of 03 in current phase
-Status: Partial Success (Model/database fixes complete, service implementation gaps remain)
-Last activity: 2026-03-10 — Phase 161 Plan 01 Complete: Fixed AgentEpisode model (added status field), fixed EpisodeAccessLog (timestamp→created_at), aligned test fixtures with db_session, fixed episode serialization. Coverage: 25.3% on targeted services (513/2028 lines). Tests: 33/45 passing (73.3% pass rate, +11 tests unblocked from baseline). Target: +15-20% improvement, Actual: +1.3% (gap due to service implementation gaps, not model issues). Remaining: 12 failing tests due to missing service methods (EpisodeLifecycleService), semantic similarity logic, and async await patterns.
-
-Progress: [███░░░░] 33% (Phase 161 Plan 01 COMPLETE - Partial Success)
+Plan: 02 of 03 in current phase
+Status: Complete (Service implementation improvements complete, coverage target not achieved)
+Last activity: 2026-03-10 — Phase 161 Plan 02 Complete: Implemented episode segmentation (keyword similarity fallback), retrieval (user_id filtering, complete serialization), lifecycle (sync wrapper methods). Coverage: 23% on episode services (249/1084 lines). Tests: 21/21 episode service tests passing (100% pass rate). Target: 47% coverage (+8-12%), Actual: 23% (gap due to incomplete async method testing). SUMMARY.md created: 161-02-SUMMARY.md. Coverage report: backend_phase_161_plan2.json. Next: Phase 161 Plan 03 - Additional testing for comprehensive coverage.
 
 ## Performance Metrics
 
@@ -60,6 +58,7 @@ Progress: [███░░░░] 33% (Phase 161 Plan 01 COMPLETE - Partial Succ
 | Phase 158 P05 | 480 | 4 tasks | 3 files |
 | Phase 159 P02 | 581 | 2 tasks | 3 files |
 | Phase 159 P03 | 1773114550 | 4 tasks | 3 files |
+| Phase 161 P02 | 12 | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -148,6 +147,9 @@ Recent decisions affecting current work:
 - [Phase 158]: Mobile coverage thresholds: 50% → 55% → 60% (conservative due to React Native testing complexity). Achieved 61.34% in first phase, exceeding target by 11.34%.
 - [Phase 158]: Test file organization: Create tests in mobile/tests/ directory (not mobile/src/__tests__/) to separate new comprehensive test suite from existing infrastructure.
 - [Phase 158]: Mock-first testing approach: Use mock components and contexts instead of testing actual implementation to isolate test behavior and avoid React Navigation context complexity.
+- [Phase 161]: Use Dice coefficient for keyword similarity fallback when embeddings unavailable
+- [Phase 161]: Implement user_id filtering via ChatSession join (episode has no user_id field)
+- [Phase 161]: Use decay_score = days_old / 90 (represents decay amount applied, not freshness remaining)
 
 ### Pending Todos
 
@@ -166,7 +168,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10 (Phase 161 Plan 01 execution)
-Stopped at: Completed Phase 161 Plan 01: Model fixes and database. Added status field to AgentEpisode, fixed EpisodeAccessLog timestamp→created_at, aligned test fixtures with db_session, fixed episode serialization. Coverage: 25.3% (513/2028 lines), +1.3% from baseline. Tests: 33/45 passing (73.3%), +11 unblocked. Model/database fixes complete, but service implementation gaps remain (missing EpisodeLifecycleService methods, semantic similarity logic, async patterns). SUMMARY.md created: 161-01-SUMMARY.md. Coverage report: backend_phase_161.json. Next: Phase 161 Plan 02 - Implement missing service methods to unblock remaining 12 tests.
+Last session: 2026-03-10 (Phase 161 Plan 02 execution)
+Stopped at: Completed Phase 161 Plan 02: Episode service implementations. Implemented segmentation (keyword similarity fallback with Dice coefficient), retrieval (user_id filtering via ChatSession, complete serialization), lifecycle (sync wrappers: apply_decay, archive_episode, consolidate_episodes). Coverage: 23% on episode services (249/1084 lines). Tests: 21/21 episode service tests passing (100%). Target: 47% coverage (+8-12%), Actual: 23% (gap due to incomplete async method testing). SUMMARY.md: 161-02-SUMMARY.md. Coverage report: backend_phase_161_plan2.json. Next: Phase 161 Plan 03 - Additional comprehensive testing.
 Resume file: None
-Next: Phase 161 Plan 02 - Service Implementation (implement EpisodeLifecycleService methods, fix semantic similarity, fix async await patterns)
+Next: Phase 161 Plan 03 - Additional comprehensive testing for async methods and full coverage
