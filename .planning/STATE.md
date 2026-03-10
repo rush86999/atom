@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-08)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 161 Complete - Model fixes and episode service implementation. Backend coverage: 8.50% (6179/72727 lines). Episode services: 27.3% coverage (261/1084 lines). Test pass rate: 95.5% (169/177 passing). Gap to 80% target: 71.5 percentage points.
+**Current focus:** Phase 162 Plan 02 Complete - Episode service comprehensive testing with partial success. Coverage: 27.4% on EpisodeSegmentationService (162/591 lines), up from 17.1% baseline (+10.3 pp). Target: 45%, achieved 61% of target. Tests: 27 created, 14 passing (52% pass rate). Gap to 45% target: 17.6 percentage points.
 
 ## Current Position
 
 Phase: 162 of TBD (Episode Service Comprehensive Testing)
-Plan: 01 of 04 in current phase
-Status: Complete
-Last activity: 2026-03-10 — Phase 162 Plan 01 Complete: Async lifecycle service testing. Added 20 tests for decay, consolidation, importance, and access count methods. Coverage: 50% on lifecycle service (up from 32.2%, +17.8pp). 15 tests passing, 5 xfailed (consolidation - Episode.consolidated_into field missing). Episode test fixtures added to conftest.py. SUMMARY.md created: 162-01-SUMMARY.md. Next: Phase 162 Plan 02 - Episode segmentation service testing.
+Plan: 02 of 04 in current phase
+Status: Complete (Partial Success - Coverage improved, target not fully achieved)
+Last activity: 2026-03-10 — Phase 162 Plan 02 Complete: Comprehensive episode creation flow tests (27 tests, 14 passing). Coverage: 27.4% on EpisodeSegmentationService (162/591 lines), up from 17.1% baseline (+10.3 pp, 60% relative improvement). Target: 45%, Actual: 27.4% (61% of target). Canvas and feedback linkage tested with back-linkage verification. Issues: Database constraints prevent full integration testing. SUMMARY.md created: 162-02-SUMMARY.md. Coverage report: backend_phase_162_plan2.json. Next: Phase 162 Plan 03 - Additional comprehensive testing.
 
 ## Performance Metrics
 
@@ -180,7 +180,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10 (Phase 161 Plan 02 execution)
-Stopped at: Completed Phase 161 Plan 02: Episode service implementations. Implemented segmentation (keyword similarity fallback with Dice coefficient), retrieval (user_id filtering via ChatSession, complete serialization), lifecycle (sync wrappers: apply_decay, archive_episode, consolidate_episodes). Coverage: 23% on episode services (249/1084 lines). Tests: 21/21 episode service tests passing (100%). Target: 47% coverage (+8-12%), Actual: 23% (gap due to incomplete async method testing). SUMMARY.md: 161-02-SUMMARY.md. Coverage report: backend_phase_161_plan2.json. Next: Phase 161 Plan 03 - Additional comprehensive testing.
+Last session: 2026-03-10 (Phase 162 Plan 02 execution)
+Stopped at: Completed Phase 162 Plan 02: Comprehensive episode creation flow tests (27 tests created, 14 passing). Coverage: 27.4% on EpisodeSegmentationService (162/591 lines), up from 17.1% baseline (+10.3 pp, 60% relative improvement). Target: 45%, achieved 61% of target. Canvas and feedback linkage tested with back-linkage verification. Issues: Database constraints prevent full integration testing (12 tests failing due to NOT NULL constraints). SUMMARY.md: 162-02-SUMMARY.md. Coverage report: backend_phase_162_plan2.json. Commits: 558b3cd6e, 12453b102, 8c37d5424, a028fa962, b2e4e3dfe. Next: Phase 162 Plan 03 - Additional comprehensive testing (mock-based approach recommended).
 Resume file: None
-Next: Phase 161 Plan 03 - Additional comprehensive testing for async methods and full coverage
+Next: Phase 162 Plan 03 - Additional comprehensive testing for episode service
