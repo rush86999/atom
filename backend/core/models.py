@@ -3467,6 +3467,9 @@ class AgentEpisode(Base):
     success = Column(Boolean, default=False)
     step_efficiency = Column(Float, default=1.0)  # TRACE framework efficiency metric
 
+    # Execution status
+    status = Column(String(20), nullable=False, default="active", index=True)  # active, completed, failed, cancelled
+
     # Metadata
     metadata_json = Column(JSON, nullable=True)
 
