@@ -1,19 +1,26 @@
 {
-  "timestamp": "2026-03-10T03:44:03.062117Z",
+  "timestamp": "2026-03-10T10:48:23.298850Z",
   "phase_158_reference": "backend/tests/coverage_reports/metrics/phase_158_final_coverage.json",
   "platforms": {
     "backend": {
-      "coverage_pct": 74.6,
+      "coverage_pct": 24.0,
       "covered": 5965,
       "total": 72623,
       "file_path": "/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/coverage.json",
-      "error": null,
+      "error": "80% target not achieved - only 24% coverage on targeted services",
       "phase_158_tests_added": 58,
       "phase_158_notes": "LLM service improved from 36.5% to 43% (+6.5 pp, +17% relative)",
       "phase_159_tests_created": 119,
       "phase_159_coverage_improvement": "+0.05%",
       "phase_159_timestamp": "2026-03-10T03:45:00Z",
-      "phase_159_notes": "119 tests created (74 LLM + 45 backend services), governance +3% (65% -> 68%), 86/119 passing (72.3%), target status: GAP_REMAINING (5.40% below 80%)"
+      "phase_159_notes": "119 tests created (74 LLM + 45 backend services), governance +3% (65% -> 68%), 86/119 passing (72.3%), target status: GAP_REMAINING (5.40% below 80%)",
+      "phase_160_tests_fixed": 14,
+      "phase_160_coverage_improvement": "-50.6% (actual measurement)",
+      "phase_160_timestamp": "2026-03-10T10:48:23.298505Z",
+      "phase_160_status": "NOT_ACHIEVED",
+      "phase_160_note": "Actual coverage on targeted services is 24%, not the 74.6% estimated in Phase 159. Phase 160-01 fixed 14 tests but target not achieved.",
+      "target_80_status": "NOT_ACHIEVED",
+      "status": "FAILED"
     },
     "frontend": {
       "coverage_pct": 21.95798652397939,
@@ -65,17 +72,17 @@
   ],
   "all_thresholds_passed": false,
   "weighted": {
-    "overall_pct": 44.09419460959175,
+    "overall_pct": 26.384194609591756,
     "baseline_pct": 34.88,
     "improvement_pct": 9.07,
     "platform_breakdown": [
       {
         "platform": "backend",
-        "coverage_pct": 74.6,
+        "coverage_pct": 24.0,
         "weight": 0.35,
-        "contribution": 26.109999999999996,
+        "contribution": 8.399999999999999,
         "target": 80.0,
-        "gap": 5.400000000000006
+        "gap": 56.0
       },
       {
         "platform": "frontend",
@@ -146,5 +153,26 @@
       "Async/await testing issues",
       "Service import errors (TriggerInterceptor)"
     ]
+  },
+  "phase_160_summary": {
+    "objective": "Achieve 80% backend coverage",
+    "baseline_coverage": 74.55,
+    "phase_159_coverage": 74.6,
+    "phase_160_actual_coverage": 24.0,
+    "target_threshold": 80.0,
+    "gap_to_target": 56.0,
+    "target_status": "NOT_ACHIEVED",
+    "tests_fixed": 14,
+    "tests_passing": 100,
+    "tests_failing": 19,
+    "pass_rate": 84.0,
+    "key_observations": [
+      "Phase 160-01 fixed 14 tests (26.7% \u2192 57.8% pass rate)",
+      "100/119 tests now passing (84% pass rate)",
+      "However, coverage on targeted services is only 24% (not 80%)",
+      "The 74.6% coverage reported in Phase 159 was service-level estimates, not actual line coverage",
+      "Significant work remains to reach 80% target on targeted services"
+    ],
+    "recommendation": "Phase 160 did not achieve 80% target. Need additional phase to fix remaining blockers and add comprehensive tests."
   }
 }
