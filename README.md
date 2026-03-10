@@ -82,6 +82,7 @@ That's it! 🚀
 - **Sales Agent**: CRM pipelines, lead scoring, outreach
 - **Marketing Agent**: Campaigns, social posting, analytics
 - **Engineering Agent**: PR notifications, deployments, incidents
+- **Hive Orchestration**: Autonomous multi-agent coordination with **Queen** (Design), **King** (Orchestration), and **Healer** (Self-Correction) ✨ NEW
 - **Governance**: Progress from "Student" to "Autonomous" as they gain trust
 
 ### 🎨 Canvas Presentations & Real-Time Guidance ✨
