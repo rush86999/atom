@@ -126,11 +126,28 @@
   },
   "quality_gate_status": {
     "threshold": 80.0,
-    "current_coverage": 74.6,
-    "gap": 5.4,
+    "current_coverage": 8.21,
+    "full_codebase_coverage": 8.21,
+    "targeted_services_coverage": 74.6,
+    "gap": 71.79,
     "status": "BELOW_THRESHOLD",
     "ci_cd_ready": false,
-    "note": "Quality gate would fail in CI/CD pipeline"
+    "exit_code": 1,
+    "note": "Quality gate FAILS in CI/CD pipeline - 8.21% << 80.0% threshold",
+    "test_results": {
+      "total": 177,
+      "passed": 143,
+      "failed": 34,
+      "pass_rate": 80.8
+    },
+    "coverage_measurement": {
+      "measured_on": "full_codebase (core/, api/, tools/)",
+      "files_measured": 532,
+      "total_lines": 72623,
+      "covered_lines": 5965,
+      "missing_lines": 66658,
+      "explanation": "When measuring entire backend codebase, coverage is 8.21%. Targeted services measurement shows 74.6% on same subset as Phase 158 baseline."
+    }
   },
   "key_achievements": [
     "119 new tests created across 2 plans (74 LLM + 45 backend services)",
