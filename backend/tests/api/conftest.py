@@ -15,13 +15,8 @@ from fastapi.testclient import TestClient
 from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy.orm import Session
 
-# Import FastAPI app for TestClient
-try:
-    from main_api_app import app
-except ImportError:
-    # Fallback if main_api_app.py is not available
-    from fastapi import FastAPI
-    app = FastAPI()
+# Note: We don't import main_api_app here to avoid SQLAlchemy metadata conflicts
+# Individual test files will create their own TestClient instances with specific routers
 
 
 # ============================================================================
@@ -33,19 +28,23 @@ def api_test_client() -> Generator[TestClient, None, None]:
     """
     Create TestClient with proper isolation for API testing.
 
-    Usage:
-        def test_health_endpoint(api_test_client):
-            response = api_test_client.get("/health/live")
-            assert response.status_code == 200
+    Note: This is a placeholder fixture. Individual test files should
+    create their own TestClient with specific routers to avoid
+    SQLAlchemy metadata conflicts.
+
+    Usage in test files:
+        from fastapi import FastAPI
+        from api.health_routes import router
+
+        app = FastAPI()
+        app.include_router(router)
+
+        def test_something():
+            client = TestClient(app)
+            response = client.get("/health/live")
     """
-    # Create TestClient with raise_server_exceptions=False for graceful error handling
-    client = TestClient(
-        app,
-        raise_server_exceptions=False,
-        follow_redirects=False
-    )
-    yield client
-    # Cleanup is automatic
+    # Return None - tests should create their own TestClient
+    yield None
 
 
 @pytest.fixture(scope="function")
