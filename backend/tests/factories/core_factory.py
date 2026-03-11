@@ -51,7 +51,7 @@ class UserAccountFactory(BaseFactory):
     platform_user_id = factory.Faker('user_name')
     chat_id = factory.Faker('uuid4')
     username = factory.Faker('user_name')
-    created_at = factory.Faker('date_time_this_year')
+    linked_at = factory.Faker('date_time_this_year')
 
 
 class OAuthTokenFactory(BaseFactory):
