@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-08)
+See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 162 Plan 07 Complete - Retrieval and segmentation tests unblocked after schema migration. Fixed CanvasAudit, AgentFeedback, AgentRegistry, ChatMessage fixtures to satisfy NOT NULL constraints. EpisodeRetrievalService coverage: 74.69% (exceeds 65% target). 24/34 retrieval tests passing (70.6%), 15/27 segmentation tests passing (55.6%). Service code incompatible with CanvasAudit schema (Rule 4 deviation - architectural decision needed). SUMMARY.md: 162-07-SUMMARY.md. Next: Phase 162 Plan 08 - Fix service code for CanvasAudit schema compatibility.
+**Current focus:** Milestone v5.4 starting - Backend 80% Coverage with comprehensive baseline measurement. Phase 162 complete with 79.2% episode services coverage. Critical gap identified: service-level estimates (74.6%) vs actual line coverage (8.50%). Strategy: Baseline first, then targeted testing phases with progressive quality gates (70% → 75% → 80%).
 
 ## Current Position
 
-Phase: 162 of TBD (Episode Service Comprehensive Testing)
-Plan: 07 of 08 in current phase
-Status: Partial Success (74.69% retrieval coverage, service code incompatibility discovered)
-Last activity: 2026-03-10 — Phase 162 Plan 07: Retrieval/segmentation tests unblocked after schema migration. Fixed CanvasAudit, AgentFeedback, AgentRegistry, ChatMessage fixtures. EpisodeRetrievalService: 74.69% coverage (exceeds 65% target). 24/34 tests passing. Service code expects non-existent CanvasAudit fields (Rule 4 - architectural decision needed). Duration: 8 minutes. SUMMARY.md: 162-07-SUMMARY.md. Next: Phase 162 Plan 08 - Service code fixes.
+Phase: Not started (defining milestone v5.4)
+Plan: —
+Status: Defining requirements for Backend 80% Coverage
+Last activity: 2026-03-11 — Milestone v5.4 started: Backend 80% Coverage - Baseline & Plan. Strategy: Comprehensive baseline measurement first, then targeted testing phases. Timeline: 2-3 weeks aggressive execution. Quality approach: Progressive rollout (70% → 75% → 80%) with emergency bypass.
 
 ## Performance Metrics
 
