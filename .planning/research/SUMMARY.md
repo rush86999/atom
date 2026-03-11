@@ -1,288 +1,301 @@
-# Project Research Summary
+# Backend Testing Research Summary
 
-**Project:** Atom - Coverage Expansion to 80% Targets
-**Domain:** Cross-platform test coverage expansion (backend, frontend, mobile, desktop)
-**Researched:** March 7, 2026
+**Project:** Atom Backend 80% Coverage Initiative
+**Domain:** Backend Testing Coverage Expansion (Existing Python System)
+**Researched:** March 11, 2026
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Atom is a sophisticated AI-powered business automation platform with existing comprehensive test infrastructure across four platforms (Python backend, React/Next.js frontend, React Native mobile, Rust/Tauri desktop). The platform currently achieves 34.88% weighted overall coverage (backend: 74.55%, frontend: 21.96%, mobile: 0%, desktop: 0%) and needs to expand to 80% across all platforms. **Key insight:** No new testing frameworks are required—the existing infrastructure (pytest, Jest, cargo-tarpaulin, MSW, Hypothesis, FastCheck) is production-ready and comprehensive. The expansion strategy focuses on enforcement mechanisms, coverage gap analysis, test generation acceleration, and quality gate enhancements rather than adding new testing capabilities.
+Atom has a comprehensive and production-ready backend test infrastructure for achieving 80% coverage. The current stack includes pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92, pytest-xdist 3.6, and extensive fixture infrastructure (50+ fixtures in conftest.py, 1,492 lines). However, a critical methodology gap exists: reported service-level coverage (74.6%) masks actual line coverage (8.50%), revealing a 71.5 percentage point gap between estimates and reality.
 
-**Recommended approach:** Implement progressive rollout with three-phase threshold increase (70% → 75% → 80%) to avoid blocking development, enforce strict 80% coverage on new code only, use AI-assisted test generation to accelerate coverage gains (3-5x velocity), and prioritize test expansion by business impact (critical services first). **Key risks:** (1) blocking development with strict coverage gates—mitigated by progressive rollout and new-code-only enforcement; (2) high coverage but low test quality—mitigated by property-based testing (Hypothesis, FastCheck) and periodic mutation testing; (3) testing low-value code first—mitigated by business impact scoring and dependency centrality analysis. **Timeline:** 2-3 months depending on codebase size and test writer velocity.
+The recommended approach is **no new tools**—use the existing pytest + pytest-cov + Hypothesis + pytest-xdist stack with focused test execution and gap closure. Key risks include coverage estimation false positives (service-level vs line coverage), fixture scope leaks in parallel execution, over-mocking external dependencies, and coverage gaming through exclusions. Mitigation strategies include requiring actual coverage.py JSON measurements, using function-scoped fixtures with cleanup, testing behavior not implementation, and auditing `# pragma: no cover` exclusions.
+
+**Critical insight:** The obstacle isn't tooling—it's methodology. Atom needs to shift from service-level coverage estimates to actual line coverage execution data, then systematically close the 71.5 percentage point gap through gap-driven test writing.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Core technologies (existing—no changes required):**
-- **pytest 7.4+** (backend) — Industry-standard test runner with async support, mature ecosystem, already configured with 80% fail_under threshold
-- **pytest-cov 4.1+** (backend) — Native pytest integration for coverage reporting, supports branch coverage, diff-cover for PR-level enforcement
-- **Hypothesis 6.151.5** (backend) — Property-based testing for financial invariants and critical path validation, prevents "happy path only" tests
-- **Jest 30.0+** (frontend/mobile) — Built into Next.js/Expo, excellent TypeScript support, 80% global threshold already configured
-- **React Testing Library 16.3+** (frontend) — Best practice for React component testing, accessibility-first approach
-- **cargo-tarpaulin 0.27** (desktop) — Rust standard for coverage reporting, CI/CD integration with --fail-under flag
+**Summary from STACK.md:** Atom's test infrastructure is optimal for 80% coverage. No new tools needed. The stack supports parallel test execution, property-based testing, coverage measurement with line+branch tracking, and comprehensive mocking infrastructure.
 
-**Additions for 80% coverage acceleration:**
-- **diff-cover 8.0+** — PR-level coverage enforcement (diff coverage), blocks commits that decrease coverage on changed files
-- **GitHub Copilot / Cursor AI** — AI-assisted test scaffolding for boilerplate generation (CRUD operations, component state tests), requires human review
-- **mutmut / @stryker-mutator** — Mutation testing for critical paths only (governance, LLM, canvas), validates test quality not just coverage
+**Core technologies:**
+- **pytest 7.4+** — Test runner with extensive plugin ecosystem and fixture-based design — industry standard for Python testing
+- **pytest-cov 4.1+** — Coverage measurement with JSON/HTML reporting — integrates seamlessly with pytest, uses coverage.py engine
+- **pytest-xdist 3.6+** — Parallel test execution with worker isolation — enables fast feedback, prevents test interference
+- **Hypothesis 6.92+** — Property-based testing for invariants — finds edge cases unit tests miss through strategy-based data generation
+- **pytest-asyncio 0.21+** — Async test support with auto mode — native asyncio support for FastAPI endpoints
+- **factory-boy 3.3+** — Test data generation with SQLAlchemy integration — reduces fixture boilerplate
+- **freezegun 1.4+** — Time mocking for deterministic testing — critical for episodes/time-based logic
+
+**Not recommended:** mutmut (mutation testing overkill), locust (load testing separate concern), testmon (xdist sufficient), vcrpy (responses library covers HTTP mocking).
 
 ### Expected Features
 
-**Must have (table stakes for 80% coverage):**
-- **Component rendering tests** — Individual UI components must render correctly with props (leaf components: Button, Input, Card)
-- **State management tests** — Redux/Context/hook state correctness, reducer purity, selector validation
-- **API mocking with MSW** — Tests run without real backend, validate request/response shapes, error handling
-- **Form validation tests** — Required fields, format validation, error messages
-- **Async state tests** — Loading/error/success states for data fetching and mutations
-- **Error boundary tests** — React error boundaries catch errors gracefully, fallback UI
-- **Routing tests** — Navigation works correctly (Next.js/React Router), route params, deep links
-- **Coverage threshold enforcement** — pytest.ini (80% line, 70% branch), jest.config.js (80% global), cargo-tarpaulin (--fail-under 80)
+**Summary from FEATURES_BACKEND_TESTING.md:** Comprehensive backend testing for 80% coverage requires systematic approach across unit tests (70%), integration tests (20%), property-based tests (5%), and E2E tests (5%, deferred to Phase 148). Current state: 51.3% overall coverage, 285 tests created, quality infrastructure operational.
 
-**Should have (competitive differentiators for excellent test suites):**
-- **Property-based testing** — FastCheck/Hypothesis generates hundreds of test cases, finds edge cases unit tests miss
-- **State machine tests** — Explicit state transition validation (XState, custom state machines)
-- **Contract testing** — OpenAPI schema validation between frontend and backend
-- **Mutation testing** — Verify test quality by measuring what mutations tests catch (StrykerJS, mutmut)
-- **PR-level coverage enforcement** — diff-cover for backend, jest-coverage-report-action for frontend
+**Must have (table stakes):**
+- **Unit Test Coverage** — 80% target requires unit tests for all business logic paths with function-scoped fixtures
+- **Integration Test Coverage** — Database (SQLite temp), API (TestClient), service integration testing required
+- **Line Coverage Measurement** — Standard coverage.py measurement with JSON output (EXISTING: trending infrastructure)
+- **Branch Coverage** — Decision path coverage (if/else, try/except) with `--cov-branch` flag (NEW: not yet enabled)
+- **Mock Infrastructure** — LLM, LanceDB, embeddings, HTTP clients for isolated testing (EXISTING: comprehensive mocks)
+- **Test Fixtures** — Isolated test data for agents, users, episodes (EXISTING: 1,492 lines in conftest.py)
+- **Error Path Testing** — Happy path insufficient; exceptions and edge cases required
+- **Coverage Reporting** — JSON/HTML reports with CI gates and trend tracking (EXISTING: operational)
+- **Database Testing** — CRUD operations, transactions, rollback patterns (EXISTING: SQLite temp DBs)
 
-**Defer to v2+ (not essential for 80% coverage):**
-- **Visual regression testing** — Requires screenshot infrastructure, baseline management (Percy, Chromatic)
-- **Performance regression testing** — Requires performance budgets, Lighthouse CI setup
-- **Cross-browser testing** — Requires BrowserStack/Playwright, higher maintenance overhead
-- **E2E testing expansion** — Current 5-10 critical flows sufficient, additional E2E tests slow and brittle
+**Should have (competitive):**
+- **Property-Based Testing** — Hypothesis for invariant testing (cache consistency, governance rules) — tests invariants like "STUDENT agents never perform delete actions"
+- **Maturity-Based Test Matrix** — Test all 4 maturity levels × 4 action complexities (EXISTING: 36 tests, parametrize matrix)
+- **Async Mock Testing** — AsyncMock for WebSocket, LLM streaming, LanceDB operations
+- **Semantic Similarity Testing** — Mock embeddings with known cosine similarities for episode segmentation
+- **Gap Closure Scripts** — Automated identification and targeting of missing lines (NEED: parse coverage.json)
+- **Flaky Test Detection** — Quality infrastructure operational from Phase 149
+- **Coverage-First Test Writing** — Write tests to cover specific missing lines (EXISTING: Phase 156 gap closure)
+
+**Defer (v2+):**
+- **E2E Testing** — Backend-focused milestone; E2E handled in Phase 148 (cross-platform orchestration)
+- **Performance Testing** — Load testing, stress testing out of scope (use existing monitoring.py metrics)
+- **Mutation Testing** — Too slow for CI; coverage + good test design sufficient
+- **Fuzz Testing** — Security testing separate; property-based testing for invariants instead
 
 ### Architecture Approach
 
-Atom has a sophisticated cross-platform test infrastructure with unified coverage aggregation, quality gate enforcement, coverage trending, and flaky test detection. The architecture for expanding coverage to 80% builds on existing infrastructure: cross-platform aggregation (`cross_platform_coverage_gate.py`), unified test workflows (`unified-tests-parallel.yml`), coverage trending (`coverage_trend_analyzer.py`), and property testing (Hypothesis, FastCheck, proptest). The expansion strategy focuses on incremental coverage tracking (new code enforcement), coverage-driven development workflows (pre-commit/pre-push gates), test prioritization by business impact (critical services first), and integration with existing quality gates.
+**Summary from ARCHITECTURE.md:** Atom has sophisticated cross-platform test infrastructure with unified coverage aggregation, quality gate enforcement, coverage trending, and flaky test detection. The architecture for 80% coverage builds on existing infrastructure: cross-platform aggregation (`cross_platform_coverage_gate.py`), unified test workflows (`unified-tests.yml`), coverage trending (`coverage_trend_analyzer.py`), and property testing (Hypothesis). The expansion strategy focuses on incremental coverage tracking, coverage-driven development workflows, test prioritization by business impact, and integration with existing quality gates.
+
+**Key architectural insight:** Coverage expansion is not a separate initiative but an enhancement to existing test infrastructure. New components (coverage gap analysis, test generators, coverage prioritization) integrate with existing workflows through artifact passing, JSON report aggregation, and quality gate enforcement.
 
 **Major components:**
-1. **Coverage Gap Analysis Tool** (`coverage_gap_analysis.py`) — Identifies untested code, prioritizes by business impact, generates test recommendations using AST-based dependency analysis and complexity estimation
-2. **Test Generator CLI** (`generate_test_stubs.py`) — Generates test file stubs for uncovered code, provides testing patterns library (pytest fixtures, React Testing Library patterns), accelerates scaffolding 3-5x
-3. **Incremental Coverage Gate** (`incremental_coverage_gate.py`) — Pre-commit hook enforcing 80% threshold on new code only, prevents overall coverage regression
-4. **Test Prioritization Service** (`test_prioritization_service.py`) — Generates phased expansion roadmap by business impact, dependency centrality, effort-to-value ratio
-5. **Coverage Quality Gate Enhancement** — Progressive rollout (70% → 75% → 80%), new code strict enforcement, regression prevention, graceful degradation for refactoring
+1. **Coverage Gap Analysis Tool** (`coverage_gap_analysis.py` — NEW) — Identify untested code, prioritize by business impact, generate test recommendations using business impact scoring and complexity estimation
+2. **Test Generator CLI** (`generate_test_stubs.py` — NEW) — Generate test stubs for uncovered code with testing patterns library, scaffold test files with placeholders
+3. **Coverage-Driven Development Workflow** (`coverage_driven_dev.sh` — NEW) — Pre-commit incremental coverage checks, pre-push regression prevention, CI/CD quality gate enforcement
+4. **Test Prioritization Service** (`test_prioritization_service.py` — NEW) — Generate phased expansion roadmap by business impact, dependencies, and risk using weighted scoring
+5. **Enhanced Quality Gate** (`cross_platform_coverage_gate.py` — ENHANCED) — Progressive thresholds (70% → 75% → 80%), new code enforcement (strict 80%), regression prevention
+
+**Existing infrastructure (already operational):**
+- `aggregate_coverage.py` — Unified coverage aggregation across platforms
+- `coverage_trend_analyzer.py` — Coverage regression detection
+- `update_cross_platform_trending.py` — Historical trend tracking
+- `generate_coverage_dashboard.py` — HTML trend visualization
+- `.github/workflows/unified-tests-parallel.yml` — Matrix-based parallel tests
+- `.github/workflows/coverage-trending.yml` — Automated trending on every push
 
 ### Critical Pitfalls
 
-1. **Blocking development with strict coverage gates** — Set 80% threshold immediately, developers can't merge code, coverage gate becomes bottleneck. **Prevention:** Use progressive thresholds (70% → 75% → 80%), enforce 80% on new code only, provide temporary bypass for refactoring with approval.
+**Top 5 from PITFALLS.md:**
 
-2. **High coverage but low test quality** — Tests have meaningless assertions, test flakiness, auto-generated without review. **Prevention:** Require test review for critical paths (security, governance, financial), use property-based testing for invariants, track test failure rates (flaky test detection), enforce mutation testing for core services.
+1. **Service-Level Coverage Estimation Masking True Gaps** — Calculate coverage by aggregating service-level estimates instead of measuring actual line execution creates false confidence. Atom's episode services appeared at 74.6% estimated but actual line coverage was 8.50% — a 71.5 percentage point gap. **Prevention:** ALWAYS use actual coverage.py execution data (`pytest --cov=backend --cov-report=json`), require coverage JSON as source of truth, calculate coverage at function/line level not service level.
 
-3. **Testing low-value code first** — Spend effort testing utility functions while critical services remain untested. **Prevention:** Prioritize by business impact (core/ > api/ > tools/), use dependency centrality to identify high-fan-in files, focus on user-facing features (agent execution, governance, episodic memory).
+2. **Fixture Scope Leaks and Database Session Pollution** — Tests share database sessions, fixtures, or state due to incorrect pytest fixture scoping, causing tests to pass in isolation but fail in parallel runs. **Prevention:** Use `scope="function"` for all database fixtures, use `yield` fixtures with cleanup code after yield, implement transaction rollback in teardown, run tests with `pytest -x` to stop at first failure.
 
-4. **Coverage measurement overhead** — Coverage measurement takes longer than test execution, developers skip it. **Prevention:** Use incremental coverage (measure changed files only), cache coverage data between runs, run full coverage only in CI/CD (not every dev iteration).
+3. **Over-Mocking External Dependencies** — Tests mock everything (database, HTTP clients, LLM providers) and verify implementation details (method calls) rather than behavior, creating brittle tests that break on refactoring and don't catch real integration bugs. **Prevention:** Only mock external services (LLM providers, S3, external APIs), use real database (SQLite in-memory) for tests, test observable behavior (return values, database state), prefer state-based testing over interaction-based testing.
 
-5. **Test suite bloat** — Thousands of auto-generated tests, no ownership, unmaintainable. **Prevention:** Require manual review for auto-generated tests, archive old tests for deprecated features, use test helpers and fixtures to reduce duplication, regular test cleanup sprints.
+4. **Coverage Gaming - Excluding Untestable Code** — Adding `# pragma: no cover` or coverage exclusion patterns to avoid testing difficult code (error handlers, edge cases, async paths), inflating coverage percentages while leaving critical paths untested. **Prevention:** Audit coverage exclusions quarterly and remove outdated pragmas, only exclude genuinely untestable code (generated protocols, abstract methods), require PR review for any new `# pragma: no cover`, use `@pytest.mark.skipif` for platform-specific code instead.
+
+5. **Flaky Tests Masking Real Issues** — Tests that fail intermittently due to timing issues, race conditions, or async coordination problems are marked as `@pytest.mark.flaky` and auto-retried, masking real bugs. **Prevention:** Use `pytest-asyncio` with explicit event loop management, mock time-dependent code with `freezegun`, use unique resource names for parallel tests, avoid shared state, fix root cause of flakiness don't just add retries.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Infrastructure Enhancement & Progressive Rollout
-**Rationale:** Coverage gates must be in place before expansion to prevent regression and enforce discipline. Progressive rollout (70% → 75% → 80%) avoids blocking development while establishing baseline discipline. This phase addresses the most critical pitfall (blocking development) by implementing gradual threshold increase.
+### Phase 1: Baseline & Infrastructure Enhancement
+**Rationale:** Must establish accurate baseline with actual coverage.py measurement before any test writing. Current 74.6% estimate is false confidence; actual line coverage is 8.50%. Enable branch coverage and enhance quality gates to prevent regression during expansion.
 
-**Delivers:** Enhanced cross-platform coverage gate with progressive thresholds, incremental coverage enforcement for new code, pre-commit/pre-push hooks, CI/CD quality gate integration
+**Delivers:**
+- Actual coverage baseline (line + branch) from coverage.py JSON
+- Branch coverage enabled with `--cov-branch` flag
+- Enhanced quality gate with progressive thresholds (70% → 75% → 80%)
+- Incremental coverage gate for new code (strict 80%)
 
-**Addresses:** Coverage threshold enforcement (from STACK.md), quality gate enhancement (from ARCHITECTURE.md)
+**Addresses:**
+- Line Coverage Measurement, Branch Coverage, Coverage Reporting (FEATURES.md)
+- Coverage Infrastructure (STACK.md)
 
-**Avoids:** Blocking development pitfall (from PITFALLS.md) by using progressive rollout and new-code-only enforcement
+**Avoids:**
+- Service-Level Coverage Estimation Masking True Gaps (PITFALLS.md #1)
 
-**Features from FEATURES.md:** Coverage threshold enforcement (table stakes), PR-level coverage enforcement (should have)
+### Phase 2: Gap Analysis & Prioritization
+**Rationale:** Cannot write tests effectively without knowing which lines are missing and which matter most. Gap analysis tool identifies untested code, prioritizes by business impact (governance > LLM > episodic memory), and estimates effort for roadmap planning.
 
-**Timeline:** 1-2 weeks
+**Delivers:**
+- `coverage_gap_analysis.py` — Identify untested code with business impact scoring
+- `test_prioritization_service.py` — Generate phased expansion roadmap
+- `coverage_priorities.json` — Ranked files by impact (critical → moderate → low)
+- `test_expansion_roadmap.json` — Phased plan with milestones to 80%
 
-### Phase 2: Coverage Gap Analysis & Test Prioritization
-**Rationale:** Before writing tests, identify what needs testing and prioritize by business impact. This prevents the "testing low-value code first" pitfall by focusing effort on critical services (governance, episodic memory, LLM) that have high business impact. Gap analysis provides data-driven roadmap for phased expansion.
+**Addresses:**
+- Gap Closure Scripts, Weighted Coverage (FEATURES.md)
+- Coverage Gap Analysis Tool, Test Prioritization Service (ARCHITECTURE.md)
 
-**Delivers:** Coverage gap analysis tool with business impact scoring, dependency centrality analysis, test expansion roadmap (phased plan with milestones), coverage priorities JSON with ranked files
+**Avoids:**
+- Ignoring Business Impact / Testing Low-Value Code First (PITFALLS.md #3)
 
-**Addresses:** Coverage gap analysis (from STACK.md), test prioritization service (from ARCHITECTURE.md)
+### Phase 3: Core Services Coverage (High Impact)
+**Rationale:** Focus on highest-impact services first (governance, LLM, episodic memory) to maximize business value. These services are critical to Atom's AI platform and have the most risk if untested.
 
-**Uses:** AST-based dependency analysis, complexity estimation, historical test write times
+**Delivers:**
+- Agent Governance Service at 80%+ (maturity routing, permission checks, cache validation)
+- LLM Service at 80%+ (provider routing, cognitive tier classification, streaming, cache)
+- Episodic Memory Services at 80%+ (segmentation, retrieval modes, lifecycle, canvas/feedback integration)
 
-**Implements:** Coverage gap analysis tool, test prioritization service
+**Addresses:**
+- Unit Test Coverage, Integration Test Coverage (FEATURES.md)
+- Property-Based Testing (Hypothesis for governance invariants, cache consistency)
 
-**Timeline:** 1-2 weeks
+**Uses:**
+- pytest, pytest-cov, pytest-xdist, Hypothesis, factory-boy (STACK.md)
+- Existing fixtures (1,492 lines in conftest.py), mock infrastructure (MockLLMProvider, mock_lancedb_client)
 
-**Research flag:** HIGH risk — Business impact scoring algorithms need validation against actual Atom codebase patterns
+**Avoids:**
+- Over-Mocking External Dependencies (PITFALLS.md #3) — use real SQLite, mock only external services
+- Testing Implementation Details — test behavior (permissions, routing) not method calls
 
-### Phase 3: Quick Wins (High Impact, Low Effort)
-**Rationale:** Build momentum and demonstrate value by tackling high-impact, low-effort coverage gaps first. This includes leaf components (Button, Input, Card), utility functions (validators, formatters), and simple services with minimal complexity. Achieving quick wins builds confidence and establishes testing patterns for complex components.
+### Phase 4: API & Database Layer Coverage
+**Rationale:** API routes and database models are foundational infrastructure. Covering these ensures request/response validation, ORM operations, relationships, and constraint handling are tested.
 
-**Delivers:** 90%+ coverage for utilities and leaf components, test stubs for high-priority files, testing patterns library (pytest fixtures, React Testing Library patterns), coverage increase from 34.88% to ~50%
+**Delivers:**
+- API Routes at 75%+ (agent endpoints, canvas routes, browser routes, device capabilities, auth)
+- Database Models at 80%+ (ORM CRUD, relationships, FKs, cascades, transactions, constraints)
 
-**Addresses:** Leaf component tests (from FEATURES.md), utility function coverage (from FEATURES.md)
+**Addresses:**
+- API Contract Testing, Database Testing (FEATURES.md)
+- API Client Testing with TestClient (ARCHITECTURE.md)
 
-**Uses:** AI-assisted test generation (Copilot, Cursor) for scaffolding acceleration
+**Uses:**
+- FastAPI TestClient for endpoint testing (STACK.md)
+- SQLite temp DBs with session-per-test isolation (EXISTING)
 
-**Implements:** Test generator CLI with testing patterns library
+**Avoids:**
+- Fixture Scope Leaks — use function-scoped db_session with rollback
+- Missing Error Path Tests — test 401, 500, constraint violations
 
-**Features from FEATURES.md:** Leaf component tests (table stakes), utility function coverage (table stakes)
+### Phase 5: Tools, Integrations & Edge Cases
+**Rationale:** Tools (browser automation, device capabilities) and integrations (LanceDB, WebSocket, HTTP clients) have unique testing challenges. Edge cases and error paths are often missed but critical for robustness.
 
-**Timeline:** 2-3 weeks
+**Delivers:**
+- Tools at 75%+ (browser_tool.py, device_tool.py, canvas_tool.py, skill_adapter.py)
+- Integrations at 70%+ (LanceDB vector search, WebSocket connections, HTTP clients, package governance)
+- Error path systematization (network failures, timeouts, malformed responses)
+- Edge case coverage (boundary conditions, invalid inputs, state transitions)
 
-**Research flag:** MEDIUM risk — AI-generated tests require human review and quality validation
+**Addresses:**
+- Error Path Testing, Async Mock Testing (FEATURES.md)
+- MSW for HTTP mocking, pytest-asyncio for async patterns (STACK.md)
 
-### Phase 4: Core Services (High Impact, Medium Effort)
-**Rationale:** After establishing testing patterns and quick wins, tackle core services that have high business impact but medium complexity. This includes composite components (forms, modals, tables), container components (AgentList, Dashboard, CanvasViewer), state management (Redux reducers, Context providers), and API clients (MSW setup). These services are critical to user-facing features.
+**Uses:**
+- responses library for HTTP mocking, AsyncMock for WebSocket/streaming (STACK.md)
+- freezegun for time mocking in time-based logic
 
-**Delivers:** 85%+ coverage for components and hooks, 90%+ coverage for state management, MSW tests for all API endpoints, coverage increase from ~50% to ~70%
+**Avoids:**
+- Flaky Tests — mock time, use unique resource names, explicit event loop management
+- Missing Negative Test Cases — systematically test error handling
 
-**Addresses:** Composite component tests, container component tests, state management tests, API client tests (from FEATURES.md)
+### Phase 6: Gap Closure & Final Push
+**Rationale:** Target specific missing lines to reach 80%. Use gap analysis output to write focused tests for uncovered code paths. Focus on error paths, edge cases, and branch conditions.
 
-**Uses:** MSW for API mocking, React Testing Library for component integration tests
+**Delivers:**
+- 80% overall line coverage achieved
+- 70%+ branch coverage achieved
+- All critical paths (governance, LLM, episodic) at >80%
+- Coverage exclusions audited and minimized
 
-**Implements:** Comprehensive state management tests, API contract tests, form validation tests
+**Addresses:**
+- Coverage-First Test Writing (FEATURES.md)
+- `generate_test_stubs.py` — Test file stub generator (ARCHITECTURE.md)
 
-**Features from FEATURES.md:** State management tests (table stakes), API mocking with MSW (table stakes), form validation tests (table stakes)
+**Uses:**
+- Coverage reports (JSON with missing lines) to guide test writing
+- `generate_test_stubs.py` to scaffold test files for uncovered code
 
-**Timeline:** 3-4 weeks
-
-**Research flag:** MEDIUM risk — State machine invariants need identification before property testing
-
-### Phase 5: Complex Services & Edge Cases (High Impact, High Effort)
-**Rationale:** Final phase tackles complex services with high business impact but high complexity. This includes error boundaries, routing tests, accessibility tests, integration tests (component + state + API), and edge case coverage (error paths, boundary conditions). This phase achieves the 80% overall target.
-
-**Delivers:** 80%+ overall coverage, consistent across all modules, error boundary tests, routing tests, accessibility tests (jest-axe), integration tests, coverage increase from ~70% to 80%
-
-**Addresses:** Error boundary tests, routing tests, accessibility tests, async state tests (from FEATURES.md)
-
-**Uses:** jest-axe for accessibility, React Testing Library for error boundaries, router mocking
-
-**Implements:** Edge case coverage, error path testing, integration test suite
-
-**Features from FEATURES.md:** Error boundary tests (table stakes), routing tests (table stakes), accessibility tests (table stakes)
-
-**Timeline:** 4-5 weeks
-
-**Research flag:** MEDIUM risk — Edge case identification requires domain knowledge, may miss business-specific invariants
-
-### Phase 6: Advanced Testing (Optional - Differentiators)
-**Rationale:** After achieving 80% coverage, enhance test quality with advanced techniques. This phase is optional but recommended for distinguishing excellent test suites from adequate ones. Focus on property-based testing, mutation testing, and contract testing to validate test quality beyond coverage metrics.
-
-**Delivers:** 20-30 property tests (Hypothesis, FastCheck), 90%+ mutation score for critical paths, API contract validation (OpenAPI schema), test quality metrics beyond coverage
-
-**Addresses:** Property-based testing, contract testing, mutation testing (from FEATURES.md)
-
-**Uses:** Hypothesis (backend), FastCheck (frontend), mutmut/StrykerJS (mutation testing)
-
-**Implements:** Property-based tests for state machines, reducers, data transformations, mutation testing for critical paths
-
-**Features from FEATURES.md:** Property-based testing (should have), contract testing (should have), mutation testing (should have)
-
-**Timeline:** 2-3 weeks (can run in parallel with Phase 5)
-
-**Research flag:** HIGH risk — Property test invariant identification is difficult, weak properties generate no bug-finding value
+**Avoids:**
+- Coverage Gaming — audit `# pragma: no cover`, remove outdated exclusions
+- Coverage Measurement False Positives — verify tests actually execute code, not just import modules
 
 ### Phase Ordering Rationale
 
-- **Infrastructure first (Phase 1)** — Coverage gates and progressive rollout establish discipline before expansion, preventing regression and avoiding "blocking development" pitfall
-- **Analysis before execution (Phase 2)** — Gap analysis and prioritization prevent "testing low-value code first" pitfall by focusing effort on business impact
-- **Quick wins to build momentum (Phase 3)** — Low-effort, high-impact coverage gains establish testing patterns and build confidence before tackling complex services
-- **Core services next (Phase 4)** — After patterns established, tackle critical user-facing features (composite components, state management, API clients)
-- **Complex services last (Phase 5)** — Edge cases, error paths, and integration tests require foundation from earlier phases
-- **Advanced testing optional (Phase 6)** — Quality enhancements after achieving 80% target, not required for coverage expansion
+- **Why this order:** Establish accurate baseline (Phase 1) → Identify what to test (Phase 2) → Test most critical services (Phase 3) → Test foundational infrastructure (Phase 4) → Test complex integrations (Phase 5) → Close remaining gaps (Phase 6). This order maximizes business value early, prevents regression, and ensures systematic coverage.
 
-**How this avoids pitfalls:**
-- Progressive rollout (Phase 1) prevents blocking development
-- Business impact prioritization (Phase 2) prevents testing low-value code first
-- Property-based testing (Phase 6) prevents high coverage but low test quality
-- Incremental coverage enforcement (Phase 1) prevents coverage measurement overhead
-- Manual review requirements (Phase 3-6) prevent test suite bloat
+- **Why this grouping:** Core services (governance, LLM, episodic) grouped together because they're highest impact and have similar testing patterns (business logic, state management, external mocks). API & database grouped together as foundational infrastructure. Tools & integrations grouped together as more complex, external dependency-heavy testing.
+
+- **How this avoids pitfalls:**
+  - Phase 1 prevents Pitfall #1 (coverage estimation false positives) by requiring actual coverage.py measurement
+  - Phase 2 prevents Pitfall #3 (ignoring business impact) by prioritizing high-impact services first
+  - Phases 3-6 prevent Pitfall #3 (over-mocking) by using real databases and testing behavior not implementation
+  - All phases prevent Pitfall #5 (flaky tests) by using proper fixture scoping, async patterns, and unique test data
+  - Phase 6 prevents Pitfall #4 (coverage gaming) by auditing exclusions and focusing on actual line execution
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 2 (Gap Analysis & Prioritization):** Business impact scoring algorithms need validation against actual Atom codebase patterns. Dependency centrality analysis requires AST parsing accuracy verification.
-- **Phase 4 (Core Services):** State machine invariants need identification before property testing. API contract schema validation requires OpenAPI specification completeness.
-- **Phase 6 (Advanced Testing):** Property test invariant identification is difficult—weak properties generate no bug-finding value. Mutation testing configuration needs baseline test quality assessment.
+**Phases likely needing deeper research during planning:**
+- **Phase 3 (Core Services):** LLM service coverage limited by mocking strategy (37% with 174 tests passing). Need research on how to test LLM provider routing, cognitive tier classification, and streaming without over-mocking. Property-based testing for cache consistency and governance invariants needs specific invariant identification.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1 (Infrastructure Enhancement):** Well-documented pytest-cov, Jest coverage, cargo-tarpaulin configuration. Progressive rollout patterns are standard CI/CD practice.
-- **Phase 3 (Quick Wins):** Leaf component testing, utility function testing are well-documented patterns with extensive examples in React Testing Library and pytest documentation.
-- **Phase 5 (Complex Services):** Error boundary testing, routing tests, accessibility tests have established patterns with jest-axe, React Testing Library, and router mocking.
+- **Phase 4 (API & Database):** API contract testing patterns for FastAPI endpoints need research on TestClient vs httpx for async endpoints. Database relationship testing (FKs, cascades) needs specific test pattern identification for complex models in `core/models.py`.
+
+- **Phase 5 (Tools & Integrations):** LanceDB integration testing needs research on vector search mocking, semantic similarity testing with deterministic embeddings. WebSocket testing needs async pattern research (pytest-asyncio event loop management). Browser automation testing needs Playwright vs mocking strategy.
+
+**Phases with standard patterns (skip research-phase):**
+- **Phase 1 (Baseline):** Well-documented pytest and coverage.py patterns. Existing infrastructure operational (Phase 149 quality infrastructure).
+
+- **Phase 2 (Gap Analysis):** Standard AST parsing for complexity estimation, business impact scoring based on file location and dependency depth. Existing coverage aggregation scripts provide patterns.
+
+- **Phase 6 (Gap Closure):** Standard gap-driven test writing. Coverage reports provide missing lines. Test stub generation is straightforward template filling.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All tools currently installed and operational, verified from actual Atom codebase (pytest.ini, jest.config.js, cargo-tarpaulin configuration) |
-| Features | HIGH | Frontend testing features from official React Testing Library documentation, backend testing from pytest best practices, verified against existing Atom test infrastructure |
-| Architecture | HIGH | Based on existing Atom infrastructure (verified files: cross_platform_coverage_gate.py, aggregate_coverage.py, unified-tests-parallel.yml, coverage-trending.yml) |
-| Pitfalls | HIGH | Based on common CI/CD anti-patterns, existing Atom workflow patterns, and industry best practices for coverage expansion |
+| Stack | HIGH | All tools installed and verified in requirements.txt, pyproject.toml. pytest, pytest-cov, pytest-xdist, Hypothesis documented in official docs. Existing fixture infrastructure (1,492 lines) operational. |
+| Features | MEDIUM | Table stakes (unit tests, integration tests, coverage measurement) HIGH confidence based on existing Atom infrastructure (Phase 156: 51.3% coverage, 285 tests). Differentiators (property-based testing, gap closure scripts) MEDIUM confidence based on industry patterns. |
+| Architecture | HIGH | Based on verified existing Atom infrastructure files (cross_platform_coverage_gate.py, aggregate_coverage.py, unified-tests-parallel.yml, coverage-trending.yml). Integration points validated from actual GitHub Actions workflows and Python scripts. Build order logical (infrastructure → analysis → generation → execution). |
+| Pitfalls | HIGH | Based on pytest/coverage.py official docs (HIGH confidence) and existing Atom coverage analysis (74.6% estimated vs 8.50% actual). Fixture leaks, over-mocking, coverage gaming documented in pytest best practices and existing pytest.ini configuration. |
 
 **Overall confidence:** HIGH
 
+Strong foundation from existing Atom infrastructure (Phase 156: 51.3% coverage, 285 tests; Phase 149: quality infrastructure operational; pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92 installed and verified). Some areas (property-based testing patterns, LLM service mocking strategies, LanceDB integration testing) based on industry patterns rather than existing Atom code, but core testing methodology and infrastructure is HIGH confidence.
+
 ### Gaps to Address
 
-- **Business impact scoring validation:** Gap analysis algorithms (Phase 2) need validation against actual Atom codebase patterns. Dependency centrality metrics (fan-in, complexity) may not correlate perfectly with business impact. **Handle during planning:** Run gap analysis on current codebase, manually validate top 20 prioritized files, adjust scoring weights based on feedback.
+1. **LLM Service Mocking Strategy:** Current LLM service coverage at 37% with 174 tests passing — mocking strategy limits actual coverage. Need to research how to test provider routing, cognitive tier classification, streaming, and cache behavior without over-mocking. **Handle during planning:** Phase 3 research-phase to identify specific testing patterns for LLM services, potentially using property-based testing for cache invariants and contract testing for provider interfaces.
 
-- **Property test invariant identification:** Phase 6 requires identifying meaningful invariants for property-based testing. Weak properties (commutativity, associativity) may not find bugs. **Handle during planning:** Document 3-5 invariants per module before writing property tests, require bug-finding evidence in docstrings, reference existing Atom property tests (governance maturity invariants, financial invariants).
+2. **Property-Based Test Invariants:** Hypothesis is installed (6.92.0) but property-based testing patterns not well-defined. Need to identify which invariants matter most for governance rules, cache consistency, and embedding similarity. **Handle during planning:** Phase 3 research-phase to identify specific invariants (e.g., "STUDENT agents never perform delete actions", "cache get/set roundtrip invariant", "governance checks are transitive").
 
-- **AI-generated test quality:** AI-assisted test generation (Phase 3-4) accelerates scaffolding but may miss edge cases and domain-specific invariants. **Handle during planning:** Require manual review for all AI-generated tests, convert to real tests with proper assertions, use AI for boilerplate only not logic validation.
+3. **LanceDB Integration Testing:** Episodic memory coverage at 21.3% with model mismatches blocking progress. Need research on LanceDB vector search mocking, semantic similarity testing with deterministic embeddings. **Handle during planning:** Phase 5 research-phase to identify LanceDB testing patterns, potentially using `mock_lancedb_client` with deterministic vector search results.
 
-- **Mobile and desktop coverage targets:** Current research focuses on backend/frontend. Mobile (0% → 50%) and desktop (0% → 40%) have different testing patterns (React Native Testing Library, Tauri IPC testing). **Handle during planning:** Research mobile-specific testing patterns (device mocking, platform-specific tests) and desktop-specific patterns (Rust unit tests, Tauri integration tests) during Phase 4-5.
+4. **Gap Closure Automation:** Need automated identification of missing lines and test stub generation. `generate_test_stubs.py` needs to be built. **Handle during planning:** Phase 2 involves building this tool, standard AST parsing and coverage.json reading patterns.
+
+5. **Branch Coverage Patterns:** Branch coverage not yet enabled (`--cov-branch` flag needed). Need to understand branch coverage implications for complex conditional logic in governance and episodic memory services. **Handle during planning:** Phase 1 enables branch coverage and establishes baseline, standard coverage.py patterns apply.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- **Existing Atom Infrastructure (verified files):**
-  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/cross_platform_coverage_gate.py` — Cross-platform coverage enforcement with platform-specific thresholds (786 lines)
-  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/aggregate_coverage.py` — Unified coverage aggregation across 4 platforms (755 lines)
-  - `/Users/rushiparikh/projects/atom/.github/workflows/unified-tests.yml` — Sequential test execution with coverage artifacts (336 lines)
-  - `/Users/rushiparikh/projects/atom/.planning/phases/149-quality-infrastructure-parallel/149-RESEARCH.md` — Parallel execution architecture (matrix strategies, test splitting)
-  - `/Users/rushiparikh/projects/atom/.planning/phases/150-quality-infrastructure-trending/150-03-PLAN.md` — Coverage trending automation (338 lines)
-  - `/Users/rushiparikh/projects/atom/backend/pytest.ini` — Backend test configuration (80% fail_under, branch coverage)
-  - `/Users/rushiparikh/projects/atom/frontend-nextjs/jest.config.js` — Frontend test configuration (80% global, per-module thresholds)
-  - `/Users/rushiparikh/projects/atom/mobile/jest.config.js` — Mobile test configuration (60% threshold)
-  - `/Users/rushiparikh/projects/atom/backend/tests/coverage_reports/metrics/cross_platform_summary.json` — Current coverage state (34.88% overall)
-  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/coverage_trend_analyzer.py` — Coverage regression detection
-  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/update_cross_platform_trending.py` — Historical trend tracking
-  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/generate_coverage_dashboard.py` — HTML trend visualization
-
-- **Official Documentation:**
-  - [pytest Documentation](https://docs.pytest.org/) — Coverage configuration, pytest-cov integration, pytest-xdist parallel execution
-  - [Jest Documentation](https://jestjs.io/docs/configuration) — Coverage thresholds, coverage collection, React Testing Library integration
-  - [React Testing Library Documentation](https://testing-library.com/docs/react-testing-library/intro/) — Authoritative component testing patterns
-  - [MSW (Mock Service Worker)](https://mswjs.io/) — API mocking for integration tests
-  - [fast-check Documentation](https://fast-check.dev/) — Property-based testing for TypeScript/JavaScript
-  - [Hypothesis Documentation](https://hypothesis.readthedocs.io/) — Property-based testing for Python
-  - [cargo-tarpaulin](https://github.com/xd009642/tarpaulin) — Rust coverage with fail-under flag
-  - [diff-cover](https://github.com/Bachmann1234/diff-cover) — PR-level coverage enforcement
+- **pytest documentation** — https://docs.pytest.org/ — Fixture scopes, teardown, finalizers, yield patterns, async testing
+- **pytest-cov documentation** — https://pytest-cov.readthedocs.io/ — Coverage measurement, JSON reporting, branch coverage
+- **coverage.py documentation** — https://coverage.readthedocs.io/ — Line vs branch coverage, exclude patterns, reporting
+- **Hypothesis documentation** — https://hypothesis.readthedocs.io/ — Property-based testing, strategies, stateful testing
+- **pytest-xdist documentation** — https://pytest-xdist.readthedocs.io/ — Parallel test execution, worker isolation, loadscope distribution
+- **factory-boy documentation** — https://factoryboy.readthedocs.io/ — Test data generation, SQLAlchemy integration
 
 ### Secondary (MEDIUM confidence)
+- **Atom Existing Infrastructure** — Verified files:
+  - `/Users/rushiparikh/projects/atom/backend/pytest.ini` — Backend test configuration (80% fail_under, branch coverage enabled, flaky test reruns)
+  - `/Users/rushiparikh/projects/atom/backend/pyproject.toml` — Test quality dependencies (pytest-json-report, pytest-random-order, pytest-rerunfailures)
+  - `/Users/rushiparikh/projects/atom/backend/requirements.txt` — All testing dependencies installed (pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92, pytest-xdist 3.6)
+  - `/Users/rushiparikh/projects/atom/backend/tests/conftest.py` — Root fixtures (1,492 lines, environment isolation, numpy restoration, fixture patterns)
+  - `/Users/rushiparikh/projects/atom/backend/coverage.json` — Actual line coverage data (8.50% overall, episode_segmentation_service.py at 27.41%)
+  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/cross_platform_coverage_gate.py` — Cross-platform coverage enforcement (786 lines, platform-specific thresholds)
+  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/aggregate_coverage.py` — Unified coverage aggregation (755 lines, 4 platforms)
+  - `/Users/rushiparikh/projects/atom/.github/workflows/unified-tests-parallel.yml` — Matrix-based parallel tests (Phase 149 quality infrastructure)
+  - `/Users/rushiparikh/projects/atom/.planning/phases/156-core-services-coverage-high-impact/156-VERIFICATION.md` — 51.3% overall coverage, 285 tests created
+  - `/Users/rushiparikh/projects/atom/.planning/phases/149-quality-infrastructure-parallel/149-RESEARCH.md` — Quality infrastructure operational
 
-- **Industry Best Practices (WebSearch results):**
-  - [React-Boilerplate测试体系](https://m.blog.csdn.net/gitblog_00249/article/details/151083249) — 98% coverage standards (Feb 2026)
-  - [NextUI组件测试覆盖率提升](https://m.blog.csdn.net/gitblog_00056/article/details/152686313) — From 70% to 95% coverage improvements
-  - [Vitest Component Testing Guide](https://cn.vitest.dev/guide/browser/component-testing) — Modern error boundary testing patterns (Jan 2026)
-  - [React Error Boundary Testing Guide](https://m.blog.csdn.net/gitblog_00277/article/details/154894355) — Error boundary testing with React Testing Library (Feb 2026)
-  - [Frontend Testing Anti-Patterns](https://www.selenium.dev/documentation/test_design/avoid_couple_to_impl/) — Brittle selectors, implementation details testing
-  - [CI/CD Performance Testing Pitfalls](https://dev.to/ci_cd/improving-ci-performance-6x-faster) — 6-10x CI performance improvements, test parallelization
-
-- **Existing Atom Test Infrastructure:**
-  - Atom Frontend Test Infrastructure — Jest + React Testing Library configured, 1,004+ tests passing, 89.84% coverage (but inconsistent across modules)
-  - Atom Property Tests — FastCheck property tests (84 tests) for state machines, reducers, validation
-  - Atom MSW Setup — Mock Service Worker configured for API mocking
+- **Industry best practices** — Python testing with pytest and coverage.py, testing pyramid (70% unit, 20% integration, 10% E2E), property-based testing with Hypothesis, branch coverage for error path detection
 
 ### Tertiary (LOW confidence)
-
-- **Community Discussions & Forums:**
-  - Cross-platform testing patterns — Limited patterns for shared test suites across web/mobile/desktop
-  - Visual regression testing — Tool fragmentation (Percy vs Chromatic), unclear industry standards
-  - Performance regression testing — Lighthouse CI patterns still evolving
-  - Mutation testing adoption — StrykerJS usage patterns not widely documented
-
-- **Gaps Identified:**
-  - Specific FastCheck patterns for React — Limited adoption, few production examples
-  - Component contract testing — TypeScript-based contract validation patterns not well-documented
-  - Testing Next.js Server Components — Emerging patterns for Next.js 13+ App Router
-  - Accessibility testing coverage targets — Unclear industry standards for a11y coverage percentages
+- **Specific industry statistics** — Quantitative impact of coverage gaps (service-level vs line coverage estimates)
+- **Mutation testing tools validation** — `mutmut` or `pymut` for Python to verify branch coverage quality
+- **pytest-benchmark integration** — Performance regression testing patterns for test suite optimization
 
 ---
-
-*Research completed: March 7, 2026*
+*Research completed: March 11, 2026*
 *Ready for roadmap: yes*

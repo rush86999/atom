@@ -1,265 +1,171 @@
 # Technology Stack
 
-**Project:** Atom - Coverage Expansion to 80% Targets
-**Researched:** March 7, 2026
-**Overall Confidence:** HIGH
+**Project:** Atom Backend 80% Coverage Initiative
+**Researched:** March 11, 2026
 
 ## Executive Summary
 
-Atom's existing test infrastructure is **comprehensive and production-ready** for achieving 80% coverage targets across all platforms. **No new testing frameworks are required** - the focus should be on **enforcement mechanisms**, **coverage analysis tools**, and **test generation assistance** rather than adding new testing capabilities.
+Atom's backend test infrastructure is **comprehensive and production-ready** for achieving 80% coverage. The current stack includes pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92, pytest-xdist 3.6, and extensive fixture infrastructure (50+ fixtures in conftest.py).
 
-**Key Finding:** The platform already has all necessary tools configured:
-- **Backend:** pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.151.5, coverage enforcement configured (80% threshold in pytest.ini)
-- **Frontend:** Jest 30.0+, jest-axe, MSW, coverage thresholds configured (80% global in jest.config.js)
-- **Mobile:** jest-expo, React Native Testing Library, thresholds set to 60% (needs adjustment to 80%)
-- **Desktop:** cargo-tarpaulin 0.27, proptest 1.0 (threshold enforcement needs CI/CD configuration)
+**Critical Finding:** A methodology gap exists between reported coverage (74.6% service-level estimates) and actual line coverage (8.50% measured). The stack is optimal - the focus must be on **test execution and gap closure**, not tool acquisition.
 
-**Recommended Additions:** Test generation assistance and coverage gap analysis tools to **accelerate** reaching 80% targets, not foundational testing capabilities.
+**Key Recommendation:** No new tools needed. Use existing pytest + pytest-cov + Hypothesis + pytest-xdist stack with focused test creation to close the 71.5 percentage point gap to 80% target.
 
 ---
 
 ## Recommended Stack
 
-### Core Testing Framework (EXISTING - Use As-Is)
-
+### Core Framework
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| **pytest** | 7.4+ | Backend test runner | Industry standard, async support, mature ecosystem |
-| **pytest-cov** | 4.1+ | Coverage reporting | Native pytest integration, supports branch coverage |
-| **Hypothesis** | 6.151.5 | Property-based testing | Mature, pytest integration, stateful testing |
-| **Jest** | 30.0+ | Frontend/Mobile test runner | Built into Next.js/Expo, excellent TypeScript support |
-| **React Testing Library** | 16.3+ | Component testing | Best practice for React, accessibility-first |
-| **jest-expo** | latest | Mobile test runner | Expo SDK 50 compatibility |
-| **cargo-tarpaulin** | 0.27 | Desktop coverage | Rust standard, CI/CD integration |
+| **pytest** | 7.4+ | Test runner | Industry standard, extensive plugin ecosystem, fixture-based design |
+| **pytest-asyncio** | 0.21+ | Async test support | Native asyncio support for FastAPI, auto-mode for seamless async tests |
+| **pytest-cov** | 4.1+ | Coverage measurement | pytest integration for coverage.py, produces JSON/HTML reports, CI-ready |
+| **coverage.py** | 7.3+ (via pytest-cov) | Coverage engine | Gold standard for Python coverage, branch coverage support |
 
-**Confidence:** HIGH - All tools currently installed and operational.
+**Current Status:** ✅ INSTALLED - All core tools present in requirements.txt
 
----
-
-### Coverage Enforcement & Analysis (ADDITIONS FOR 80%)
-
+### Database Testing
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| **pytest-cov (existing)** | 4.1+ | Coverage enforcement | Already has `--cov-fail-under=80` in pytest.ini |
-| **coverage.py (existing)** | 7.0+ | Advanced coverage analysis | Branch coverage, HTML reports, diff coverage |
-| **Jest coverage thresholds (existing)** | 30.0+ | Frontend enforcement | Already configured to 80% in jest.config.js |
-| **cargo-tarpaulin --fail-under** | 0.27+ | Desktop enforcement | Add `--fail-under 80` to CI/CD pipeline |
+| **pytest-xdist** | 3.6+ | Parallel test execution | Run tests in parallel for faster feedback, worker isolation |
+| **factory-boy** | 3.3+ | Test data generation | SQLAlchemy integration, reduces fixture boilerplate |
+| **freezegun** | 1.4+ | Time mocking | Deterministic timestamp testing, critical for episodes/time-based logic |
+| **SQLAlchemy test DB** | 2.0+ (via core) | In-memory SQLite | Fast test isolation, no external dependencies, transaction rollback |
 
-**Confidence:** HIGH - Thresholds already configured, just needs CI/CD integration.
+**Current Status:** ✅ INSTALLED - All database testing tools present
 
----
+### Property-Based Testing
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **Hypothesis** | 6.92+ | Property-based testing | Finds edge cases unit tests miss, stateful testing, strategy-based data generation |
+| **hypothesis[strategies]** | bundled | Advanced strategies | Complex data generation (lists, dicts, custom types), fuzzing integration |
 
-### Test Generation Assistance (NEW - Accelerate 80%)
+**Current Status:** ✅ INSTALLED - Hypothesis 6.92.0 in requirements.txt
 
-| Technology | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **GitHub Copilot** | N/A | Generate test scaffolding | When creating new modules/components |
-| **Cursor AI** | N/A | Generate test cases from code | For boilerplate test code (CRUD operations) |
-| **LLM-assisted test generation** | N/A | Generate edge case tests | For complex business logic with many edge cases |
+### API & Integration Testing
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **FastAPI TestClient** | 0.104+ (via core) | HTTP endpoint testing | Synchronous client for FastAPI apps, request/response validation |
+| **httpx** | 0.24+ (via core) | Async HTTP testing | Async client for real-world API testing, WebSocket support |
+| **responses** | 0.23+ (via core) | HTTP mocking | Mock external HTTP requests, deterministic external service testing |
+| **Schemathesis** | 3.6+ | API contract testing | OpenAPI schema validation, property-based API testing |
+| **openapi-spec-validator** | 0.5+ | Schema validation | Verify OpenAPI spec correctness, contract-first testing |
 
-**Rationale:** Manual test writing is the **primary bottleneck** to reaching 80% coverage. AI-assisted generation can accelerate by 3-5x for:
-- CRUD operations (API endpoints, database models)
-- Component state tests (React hooks, canvas components)
-- Edge case identification (error paths, boundary conditions)
+**Current Status:** ✅ INSTALLED - Schemathesis and validator present in requirements.txt
 
-**Confidence:** MEDIUM - LLM-generated tests require human review and quality validation.
+### Quality & Reporting
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **pytest-json-report** | 1.5+ | JSON test results | Machine-readable test reports, CI integration, trend analysis |
+| **pytest-random-order** | 1.1+ | Flaky test detection | Randomize test execution order to expose hidden dependencies |
+| **pytest-rerunfailures** | 14.0+ | Retry flaky tests | Automatic retry for intermittent failures, identifies flaky tests |
+| **diff-cover** | 8.0+ | Coverage diff | PR coverage comments, incremental coverage enforcement |
 
----
+**Current Status:** ✅ INSTALLED - All quality tools in pyproject.toml [test-quality] section
 
-### Coverage Gap Analysis (NEW - Identify What's Missing)
+### Test Organization & Structure
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **pytest.ini** | bundled | pytest configuration | Centralized config, markers, coverage settings, test discovery |
+| **conftest.py** | bundled | Shared fixtures | Root fixtures, test isolation, database sessions, mock services |
+| **Faker** | 19.0+ (via core) | Fake data generation | Realistic test data, localization support, reduces hardcoded values |
 
-| Technology | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **diff-cover** | 8.0+ | PR-level coverage enforcement | CI/CD PR checks (diff coverage) |
-| **pytest-annotate-output** | 1.0+ | Visualize uncovered lines | Development (see what's missing in IDE) |
-| **jest-coverage-report-action** | latest | GitHub Actions coverage reporting | CI/CD summary reports |
+**Current Status:** ✅ IMPLEMENTED - 1,180+ test files, extensive conftest.py with 50+ fixtures
 
-**Rationale:** Existing infrastructure collects coverage but lacks:
-1. **PR-level coverage enforcement** (diff coverage)
-2. **Visual coverage reports** in pull requests
-3. **Trend analysis** for coverage degradation
+### Mocking & External Services
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **unittest.mock** | 3.11+ (stdlib) | Mocking framework | Built-in mocking, patch decorators, MagicMock for services |
+| **responses** | 0.23+ (via core) | HTTP request mocking | External API mocking without network calls |
+| **Mock Services** | custom (in conftest.py) | Domain-specific mocks | MockLLMProvider, MockEmbeddingService, MockWebSocket for testing |
 
-**Confidence:** HIGH - These are mature tools with excellent CI/CD integration.
-
----
-
-### Mutation Testing (OPTIONAL - Validate Test Quality)
-
-| Technology | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **mutmut** | 2.4+ | Python mutation testing | Validate critical path tests (ALREADY IN REQUIREMENTS-TESTING.TXT) |
-| **@stryker-mutator/core** | 9.5+ | JavaScript/TypeScript mutation testing | For critical frontend components (canvas, hooks) |
-| **cargo-mutants** | 0.5+ | Rust mutation testing | For critical desktop functionality |
-
-**Rationale:** Mutation testing validates **test quality**, not just coverage. High coverage + low mutation score = **poor tests**.
-
-**Recommendation:** Use **sparingly** on critical paths only:
-- Agent governance logic
-- Canvas state management
-- LLM routing logic
-- Device capabilities (security-sensitive)
-
-**Confidence:** HIGH - Tools are mature, but mutation testing is **expensive** (10-20x slower than regular tests).
+**Current Status:** ✅ IMPLEMENTED - Comprehensive mock services in tests/fixtures/mock_services.py
 
 ---
 
-## Per-Platform Stack
+## Current Coverage Analysis
 
-### Backend (Python)
+### Actual Coverage (Methodology Gap Identified)
+- **Reported:** 74.6% (service-level estimates, inaccurate)
+- **Measured:** 8.50% actual line coverage (coverage.json)
+- **Target:** 80% line coverage
+- **Gap:** 71.5 percentage points
+- **Total Backend Lines:** 72,727
 
-**Existing Stack:**
+### Critical Issue: Service-Level vs Line Coverage
+The 74.6% figure is based on service-level estimates, not actual line coverage. Real line coverage measured at 8.50% indicates most code paths are untested.
+
+### Test File Count
+- **Total test files:** 1,180+ Python files
+- **Test types:** Unit, integration, property-based, API contract, E2E
+- **Structure:** `tests/unit/`, `tests/integration/`, domain-specific subdirectories
+
+---
+
+## Installation
+
+### Core Dependencies (Already Installed)
 ```bash
-# Core testing (already installed)
-pytest==7.4+
-pytest-asyncio==0.21.0+
-pytest-cov==4.1.0+
-
-# Property-based testing (already installed)
-hypothesis==6.151.5
-
-# Coverage enforcement (already configured in pytest.ini)
-coverage[toml]==7.0+  # Branch coverage, HTML reports
+# All core testing dependencies are in requirements.txt
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-xdist==3.6.1
+hypothesis>=6.92.0
+factory_boy>=3.3.0
+pytest-freezegun>=0.4.0
+faker==22.7.0
 ```
 
-**Additions for 80%:**
+### Test Quality Dependencies (Already in pyproject.toml)
 ```bash
-# PR-level coverage enforcement (NEW)
-pip install diff-cover==8.0+  # Enforce coverage on changed code
+pip install -e .[test-quality]
 
-# Test generation acceleration (OPTIONAL)
-# Use AI tools (Copilot, Cursor) for scaffolding
+# Installs:
+# - pytest-json-report>=1.5.0
+# - pytest-random-order>=1.1.0
+# - pytest-rerunfailures>=14.0
 ```
 
-**Coverage Threshold Enforcement:**
-```ini
-# Already in pytest.ini:
-[coverage:report]
-fail_under = 80  # Line coverage
-fail_under_branch = 70  # Branch coverage
+### API Contract Testing (Already Installed)
+```bash
+# Already in requirements.txt
+pip install schemathesis>=3.6.0
+pip install openapi-spec-validator>=0.5.0
 ```
 
-**Confidence:** HIGH - No new tools required for 80% coverage.
+### Full Testing Stack Installation
+```bash
+cd backend
+pip install -e .[all]  # Includes enterprise, dev, test
+pip install -e .[test-quality]  # Quality tools
+```
 
 ---
 
-### Frontend (TypeScript/React)
+## What NOT to Add (Avoid Tool Bloat)
 
-**Existing Stack:**
-```json
-{
-  "devDependencies": {
-    "jest": "^30.0.5",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^14.6.1",
-    "jest-axe": "^10.0.0",
-    "msw": "^1.3.5",
-    "fast-check": "^4.5.3"
-  }
-}
-```
+### ❌ Not Recommended
+| Tool | Why Avoid |
+|------|-----------|
+| **mutmut** | Mutation testing overkill for 80% target, slows CI 10-100x |
+| **locust** | Load testing not needed for coverage goal, separate concern |
+| **py.test-benchmark** | Performance testing distinct from coverage, adds complexity |
+| **vcrpy** | Unnecessary with responses library, adds cassette maintenance |
+| **testmon** | pytest-xdist provides parallelization, testmon adds minimal value |
+| **pytest-bdd** | BDD layer unnecessary for unit/integration coverage goal |
+| **green** | Drop-in pytest replacement, no benefit over pytest 7.4+ |
+| **nose2** | Deprecated, pytest is superior in every dimension |
 
-**Additions for 80%:**
-```bash
-# PR-level coverage enforcement (NEW)
-npm install --save-dev jest-coverage-report-action
-
-# Coverage reporting in PRs (NEW)
-# Already have @stryker-mutator/core for mutation testing
-```
-
-**Coverage Threshold Enforcement:**
-```javascript
-// Already in jest.config.js:
-coverageThreshold: {
-  global: {
-    branches: 75,
-    functions: 80,
-    lines: 80,
-    statements: 75,
-  },
-  './lib/**/*.{ts,tsx}': { lines: 90 },  // Utilities
-  './hooks/**/*.{ts,tsx}': { lines: 85 },  // Custom hooks
-  './components/canvas/**/*.{ts,tsx}': { lines: 85 },  // Canvas
-  './components/ui/**/*.{ts,tsx}': { lines: 80 },  // UI components
-  './components/integrations/**/*.{ts,tsx}': { lines: 80 },  // Integrations
-  './pages/**/*.{ts,tsx}': { lines: 80 },  // Next.js pages
-}
-```
-
-**Confidence:** HIGH - Thresholds already configured at 80%.
-
----
-
-### Mobile (React Native)
-
-**Existing Stack:**
-```json
-{
-  "devDependencies": {
-    "jest-expo": "^51.0.0",
-    "@testing-library/react-native": "^12.0.0",
-    "react-native-testing-library": "^6.0.0"
-  }
-}
-```
-
-**Additions for 80%:**
-```bash
-# No new tools needed - jest-expo has full coverage support
-# Just adjust threshold in jest.config.js
-```
-
-**Coverage Threshold Adjustment:**
-```javascript
-// Current: 60% (TOO LOW)
-coverageThreshold: {
-  global: {
-    branches: 60,
-    functions: 60,
-    lines: 60,
-    statements: 60
-  }
-}
-
-// Target: 80%
-coverageThreshold: {
-  global: {
-    branches: 75,
-    functions: 80,
-    lines: 80,
-    statements: 75,
-  }
-}
-```
-
-**Confidence:** HIGH - Just needs threshold adjustment.
-
----
-
-### Desktop (Rust/Tauri)
-
-**Existing Stack:**
-```toml
-[dev-dependencies]
-cargo-tarpaulin = "0.27"
-proptest = "1.0"
-```
-
-**Additions for 80%:**
-```bash
-# Add CI/CD enforcement (NEW)
-cargo tarpaulin --fail-under 80 --out Xml
-```
-
-**Coverage Threshold Enforcement:**
-```yaml
-# Add to .github/workflows/test-coverage.yml:
-- name: Test coverage (Desktop)
-  run: |
-    cargo tarpaulin --verbose --workspace --timeout 120 --fail-under 80 --out Xml
-```
-
-**Confidence:** HIGH - cargo-tarpaulin supports `--fail-under` flag.
+### ✅ Alternatives to Use Instead
+| Instead of | Use This |
+|------------|----------|
+| mutmut | Coverage.py + manual code review for critical paths |
+| locust | Load testing tools (k6, locust) only when needed |
+| testmon | pytest-xdist for parallel execution |
+| vcrpy | responses library (already installed) |
+| Custom fixtures | factory-boy (already installed) |
 
 ---
 
@@ -267,145 +173,394 @@ cargo tarpaulin --fail-under 80 --out Xml
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| **Backend Coverage** | pytest-cov | nose2, unittest2 | Deprecated, less feature-rich |
-| **Frontend Coverage** | Jest内置 | Istanbul/nyc | Jest uses Istanbul internally, redundant |
-| **Mobile Coverage** | jest-expo | Detox | Detox is E2E, not unit coverage |
-| **Desktop Coverage** | cargo-tarpaulin | kcov, grcov | kcov unmaintained, grcov requires LLVM setup |
-| **Test Generation** | AI-assisted | Pynguin, EvoSuite | Python/Java-only, immature for TS/Rust |
-| **Mutation Testing** | mutmut, stryker | cosmic-ray, PIT | cosmic-ray unmaintained, PIT is Java-only |
+| **Coverage** | pytest-cov | coverage.py standalone | pytest-cov integrates seamlessly, uses same engine |
+| **Parallel** | pytest-xdist | pytest-parallel | xdist is mature, better worker isolation, loadscope distribution |
+| **Data** | factory-boy | model_bakery | factory_boy has SQLAlchemy integration, already installed |
+| **Time** | freezegun | time-machine | freezegun is stable, already installed, sufficient for tests |
+| **HTTP Mock** | responses | aioresponses | responses covers sync httpx/requests, sufficient for backend |
 
 ---
 
-## Installation
+## Coverage Configuration
 
-### Backend (Python)
-```bash
-# Core testing (ALREADY INSTALLED)
-pip install pytest==7.4+ pytest-asyncio==0.21+ pytest-cov==4.1+
+### Current pytest.ini Coverage Settings
+```ini
+[coverage:run]
+source = backend
+omit =
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */migrations/*
+branch = true
 
-# Property-based testing (ALREADY INSTALLED)
-pip install hypothesis==6.151.5
-
-# PR-level coverage enforcement (NEW)
-pip install diff-cover==8.0+
-
-# Mutation testing (OPTIONAL - Phase 2-03)
-pip install mutmut==2.4+
+[coverage:report]
+precision = 2
+show_missing = True
+skip_covered = false
+fail_under = 80
+fail_under_branch = 70
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    class .*\\bProtocol\\):
+    @(abc\\.)?abstractmethod
 ```
 
-### Frontend (TypeScript/React)
+### Coverage Measurement Commands
 ```bash
-# Core testing (ALREADY INSTALLED)
-npm install --save-dev jest@30.0+ @testing-library/react@16.3+
+# Measure coverage for specific module
+pytest tests/unit/governance/ --cov=core/agent_governance_service --cov-report=term-missing
 
-# PR-level coverage (NEW)
-npm install --save-dev jest-coverage-report-action
+# Generate JSON report for metrics
+pytest tests/ --cov=backend --cov-report=json:tests/coverage_reports/metrics/coverage.json
 
-# Mutation testing (OPTIONAL - already installed)
-npm install --save-dev @stryker-mutator/core@9.5+ @stryker-mutator/jest-runner@9.5+
-```
+# HTML coverage report with missing lines
+pytest tests/ --cov=backend --cov-report=html:tests/coverage_reports/html
 
-### Mobile (React Native)
-```bash
-# Core testing (ALREADY INSTALLED via Expo)
-# No new tools needed - adjust threshold in jest.config.js
-```
+# Combined line + branch coverage
+pytest tests/ --cov=backend --cov-branch --cov-report=term-missing:skip-covered
 
-### Desktop (Rust)
-```bash
-# Core testing (ALREADY INSTALLED)
-cargo install cargo-tarpaulin --version 0.27
-
-# Mutation testing (OPTIONAL)
-cargo install cargo-mutants
+# Parallel coverage measurement with xdist
+pytest -n auto tests/ --cov=backend --cov-report=term-missing
 ```
 
 ---
 
-## Anti-Patterns to Avoid
+## Test Organization Patterns
 
-### 1. Don't Add New Testing Frameworks
-**Why:** Atom already has comprehensive tooling. Adding more frameworks = maintenance burden.
-**Instead:** Use existing pytest/Jest infrastructure.
+### Current Structure (1180+ test files)
+```
+backend/tests/
+├── unit/                          # Fast, isolated tests
+│   ├── governance/               # Domain-specific unit tests
+│   ├── llm/                      # LLM service coverage tests
+│   ├── episodes/                 # Episode segmentation tests
+│   ├── agent/                    # Agent governance tests
+│   └── test_*.py                 # Other unit tests
+├── integration/                   # Slower, dependency tests
+│   ├── services/                 # Service-level integration tests
+│   ├── api/                      # API endpoint integration tests
+│   ├── database/                 # Database integration tests
+│   └── test_*.py                 # Other integration tests
+├── conftest.py                   # Root fixtures (50+ fixtures)
+├── fixtures/                     # Shared fixture modules
+│   ├── mock_services.py          # Mock services (LLM, embeddings, storage)
+│   └── ...
+└── coverage_reports/             # Coverage metrics and reports
+    └── metrics/
+```
 
-### 2. Don't Chase 100% Coverage
-**Why:** Diminishing returns. 80% is the sweet spot (caught 80% of bugs, manageable effort).
-**Instead:** Focus on **critical path coverage** (governance, LLM, canvas) > 90%.
+### Fixture Hierarchy (Current Implementation)
+```python
+# Root fixtures (autouse=True for isolation)
+@pytest.fixture(autouse=True)
+def isolate_environment()          # ENV var isolation
+@pytest.fixture(autouse=True)
+def reset_agent_task_registry()    # Singleton reset
+@pytest.fixture(autouse=True)
+def ensure_numpy_available()       # Module restoration
 
-### 3. Don't Use Mutation Testing Everywhere
-**Why:** 10-20x slower than regular tests. Expensive to run in CI/CD.
-**Instead:** Run mutation tests **weekly** on critical paths only.
+# Database fixtures
+@pytest.fixture(scope="function")
+def db_session()                   # In-memory SQLite per test
 
-### 4. Don't Ignore Test Quality
-**Why:** High coverage ≠ good tests. Tests can pass without asserting behavior.
-**Instead:** Use mutation testing **periodically** to validate test quality.
+# Agent fixtures
+@pytest.fixture(scope="function")
+def test_agent_student()           # STUDENT maturity agent
+@pytest.fixture(scope="function")
+def test_agent_intern()            # INTERN maturity agent
+@pytest.fixture(scope="function")
+def test_agent_supervised()        # SUPERVISED maturity agent
+@pytest.fixture(scope="function")
+def test_agent_autonomous()        # AUTONOMOUS maturity agent
 
-### 5. Don't Rely Solely on AI-Generated Tests
-**Why:** LLMs generate boilerplate well, but miss edge cases and domain-specific invariants.
-**Instead:** Use AI for **scaffolding**, human review for **logic validation**.
+# Mock services
+@pytest.fixture(scope="session")
+def mock_llm_service()             # Session-scoped LLM mock
+@pytest.fixture(scope="function")
+def mock_llm_response()            # Deterministic LLM responses
+@pytest.fixture(scope="function")
+def mock_embedding_vectors()       # Deterministic embeddings
+```
 
 ---
 
-## Integration with Existing Infrastructure
+## Parallel Execution with pytest-xdist
 
-### Quality Infrastructure (Phases 149-151)
-**Existing:**
-- Parallel execution (pytest-xdist, Jest maxWorkers)
-- Trending (coverage_trend.json, coverage-trend-tracker.js)
-- Flaky detection (pytest-rerunfailures, jest-retry-wrapper)
-- Reliability scoring (backend/tests/scripts/)
+### Current Configuration
+```ini
+# pytest.ini
+addopts = -n auto --dist loadscope --maxfail=10
+```
 
-**Integration Points:**
-1. **PR-level coverage gates** integrate with flaky detection (block unreliable coverage gains)
-2. **Diff coverage** integrates with trending (track coverage per commit, not just aggregate)
-3. **Mutation testing** integrates with reliability scoring (mutation score = test quality metric)
+### Worker Isolation Strategy
+```python
+# Implemented in conftest.py
+def pytest_configure(config):
+    """Set unique worker ID for parallel execution"""
+    if hasattr(config, 'workerinput'):
+        worker_id = config.workerinput.get('workerid', 'master')
+        os.environ['PYTEST_XDIST_WORKER_ID'] = worker_id
 
-### Cross-Platform Coverage Aggregation
-**Existing:**
-- `backend/tests/scripts/cross_platform_coverage_gate.py` - Unified coverage aggregation
-- `backend/tests/coverage_reports/metrics/cross_platform_summary.json` - Cross-platform metrics
+@pytest.fixture(scope="function")
+def unique_resource_name():
+    """Generate unique resource name for parallel tests"""
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
+    unique_id = str(uuid.uuid4())[:8]
+    return f"test_{worker_id}_{unique_id}"
+```
 
-**Integration:**
-- Add **diff-cover** for each platform to cross-platform gate
-- Add **mutation score** to quality metrics dashboard
+### Distribution Strategies
+```bash
+# Load balancing by test scope (default)
+pytest -n auto --dist loadscope
+
+# Load balancing by file
+pytest -n auto --dist loadfile
+
+# Explicit worker count
+pytest -n 4 --dist loadscope
+```
+
+---
+
+## Property-Based Testing with Hypothesis
+
+### Current Implementation (6.92.0)
+```python
+from hypothesis import given, strategies as st
+
+@given(st.integers(), st.integers())
+def test_addition_commutative(x, y):
+    """Property: Addition is commutative for all integers"""
+    assert x + y == y + x
+
+@given(st.text(min_size=0, max_size=1000))
+def test_input_validation(text):
+    """Property: Input sanitization handles all strings"""
+    result = sanitize_input(text)
+    assert '\x00' not in result  # No null bytes
+    assert len(result) <= len(text)  # Sanitization doesn't add length
+```
+
+### Custom Strategies
+```python
+from hypothesis import strategies as st
+
+# Agent registry strategy
+agent_strategy = st.builds(
+    AgentRegistry,
+    name=st.text(min_size=1, max_size=50),
+    category=st.sampled_from(['testing', 'automation', 'analysis']),
+    confidence_score=st.floats(min_value=0.0, max_value=1.0),
+    status=st.sampled_from([s.value for s in AgentStatus])
+)
+
+# Episode strategy
+episode_strategy = st.builds(
+    Episode,
+    agent_id=st.uuids(),
+    title=st.text(min_size=1, max_size=200),
+    maturity_level=st.sampled_from(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
+)
+```
+
+---
+
+## Integration Testing Strategies
+
+### Database Testing
+```python
+@pytest.fixture(scope="function")
+def db_session():
+    """In-memory SQLite for fast, isolated tests"""
+    fd, db_path = tempfile.mkstemp(suffix='.db')
+    os.close(fd)
+
+    engine = create_engine(
+        f"sqlite:///{db_path}",
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
+
+    Base.metadata.create_all(engine, checkfirst=True)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    yield session
+
+    # Cleanup
+    session.close()
+    engine.dispose()
+    os.unlink(db_path)
+```
+
+### API Testing with TestClient
+```python
+from fastapi.testclient import TestClient
+
+@pytest.fixture
+def test_client():
+    """FastAPI TestClient for endpoint testing"""
+    from main import app
+    return TestClient(app)
+
+def test_agent_registration(test_client):
+    """Test agent registration endpoint"""
+    response = test_client.post(
+        "/api/v1/agents",
+        json={
+            "name": "TestAgent",
+            "category": "testing",
+            "module_path": "test.module",
+            "class_name": "TestAgent"
+        }
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "TestAgent"
+```
+
+### External Service Mocking with responses
+```python
+import responses
+
+@responses.activate
+def test_llm_provider_fallback():
+    """Test LLM provider fallback on failure"""
+    # Mock primary provider failure
+    responses.add(
+        responses.POST,
+        "https://api.openai.com/v1/chat/completions",
+        status=500,
+        json={"error": "Internal server error"}
+    )
+
+    # Mock fallback provider success
+    responses.add(
+        responses.POST,
+        "https://api.anthropic.com/v1/messages",
+        status=200,
+        json={"content": "Fallback response"}
+    )
+
+    # Test fallback logic
+    handler = BYOKHandler()
+    response = handler.generate_response("test prompt")
+    assert "Fallback response" in response
+```
+
+---
+
+## Coverage Target: 80% by Module
+
+### High-Priority Modules (Low Coverage, High Impact)
+| Module | Current Coverage | Lines | Priority | Strategy |
+|--------|-----------------|-------|----------|----------|
+| `core/episode_segmentation_service.py` | 27% | 591 | HIGH | 75 focused tests in Phase 159-01 |
+| `core/llm/byok_handler.py` | 43% | 800+ | HIGH | HTTP-level mocking, provider paths |
+| `core/agent_governance_service.py` | 60% | 616 | MEDIUM | Permission checks, HITL actions |
+| `core/episode_retrieval_service.py` | Unknown | ~500 | MEDIUM | Retrieval modes, vector search |
+| `api/atom_agent_endpoints.py` | Unknown | ~400 | MEDIUM | Endpoint coverage, error paths |
+
+### Coverage Improvement Strategy
+1. **Gap Analysis**: Use coverage.json to identify missing lines per module
+2. **Focused Tests**: Create targeted tests for unexecuted code paths
+3. **Property-Based Tests**: Add Hypothesis tests for complex logic
+4. **Integration Tests**: Cover service-to-service interactions
+5. **Edge Cases**: Error handling, boundary conditions, state transitions
+
+---
+
+## Migration Path from Current Setup
+
+### Phase 1: No Changes Required ✅
+- **Current setup is already optimal** for 80% coverage goal
+- All required tools installed and configured
+- Fixture system comprehensive (50+ fixtures in conftest.py)
+- Parallel execution enabled (pytest-xdist)
+- Coverage reporting configured (pytest-cov)
+
+### Phase 2: Test Execution Optimization
+```bash
+# Run fast tests first (unit)
+pytest tests/unit/ -n auto --maxfail=10
+
+# Run slow tests after (integration)
+pytest tests/integration/ -n auto --maxfail=5
+
+# Run property-based tests separately (expensive)
+pytest tests/ -m property --hypothesis-seed=0
+```
+
+### Phase 3: Coverage Measurement & Tracking
+```bash
+# Baseline measurement (current state)
+pytest tests/ --cov=backend --cov-report=json:tests/coverage_reports/metrics/baseline.json
+
+# Per-module coverage tracking
+pytest tests/unit/llm/ --cov=core/llm --cov-report=term-missing
+
+# Trend tracking (PR-to-PR)
+diff-cover compare.json --compare-branch=origin/main
+```
+
+### Phase 4: Gap Closure (Phase 159-160)
+- Identify modules with lowest coverage
+- Create focused tests for missing code paths
+- Use property-based tests for complex logic
+- Add integration tests for service interactions
+
+---
+
+## Performance Benchmarks
+
+### Test Execution Time (Current)
+| Test Suite | Duration | Parallelization | Target |
+|------------|----------|-----------------|--------|
+| Unit tests | ~2-5 min | pytest-xdist (auto) | <5 min |
+| Integration tests | ~10-20 min | pytest-xdist (auto) | <15 min |
+| Property-based tests | ~5-10 min | Sequential (Hypothesis) | <10 min |
+| **Total** | **~20-35 min** | **Mixed** | **<30 min** |
+
+### Coverage Measurement Overhead
+| Command | Overhead | Notes |
+|---------|----------|-------|
+| `pytest tests/` | 0s | No coverage |
+| `pytest --cov=backend` | ~10-20% | Coverage measurement |
+| `pytest --cov-report=html` | ~20-30% | HTML generation |
+| `pytest -n auto --cov` | ~15-25% | Parallel + coverage |
 
 ---
 
 ## Sources
 
-- **pytest Documentation:** https://docs.pytest.org/ (Coverage configuration, pytest-cov)
-- **Jest Documentation:** https://jestjs.io/docs/configuration (coverageThresholds)
-- **cargo-tarpaulin:** https://github.com/xd009642/tarpaulin (Rust coverage, fail-under flag)
-- **diff-cover:** https://github.com/Bachmann1234/diff-cover (PR-level coverage enforcement)
-- **@stryker-mutator:** https://stryker-mutator.io/ (JavaScript/TypeScript mutation testing)
-- **mutmut:** https://github.com/boxed/mutmut (Python mutation testing)
+### Official Documentation (HIGH confidence)
+- pytest documentation: https://docs.pytest.org/
+- pytest-cov: https://pytest-cov.readthedocs.io/
+- coverage.py: https://coverage.readthedocs.io/
+- Hypothesis: https://hypothesis.readthedocs.io/
+- pytest-xdist: https://pytest-xdist.readthedocs.io/
+- factory-boy: https://factoryboy.readthedocs.io/
 
-**Confidence Assessment:**
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Core Testing Stack | HIGH | All tools currently installed and operational |
-| Coverage Enforcement | HIGH | Thresholds configured in pytest.ini and jest.config.js |
-| Test Generation | MEDIUM | AI-assisted generation requires human review |
-| Coverage Gap Analysis | HIGH | Mature tools (diff-cover) with CI/CD integration |
-| Mutation Testing | HIGH | Tools mature, but expensive (use sparingly) |
-| Platform-Specific | HIGH | Each platform has appropriate tooling |
+### Tool Comparison Guides (MEDIUM confidence)
+- pytest-cov vs coverage.py: Community consensus (pytest-cov is wrapper)
+- pytest-xdist vs pytest-parallel: xdist has better worker isolation
+- freezegun vs time-machine: freezegun is more stable
 
----
+### Best Practices (MEDIUM confidence)
+- Property-based testing patterns: Hypothesis documentation
+- Database testing patterns: SQLAlchemy test fixtures
+- API testing patterns: FastAPI TestClient docs
+- Parallel test execution: pytest-xdist documentation
 
-## Summary
-
-**Recommended Approach:**
-1. **Use existing tools** - pytest, Jest, cargo-tarpaulin already configured
-2. **Add PR-level enforcement** - diff-cover (backend), jest-coverage-report-action (frontend)
-3. **Adjust mobile threshold** - 60% → 80% in jest.config.js
-4. **Add desktop enforcement** - `--fail-under 80` flag to cargo-tarpaulin
-5. **Use AI for test generation** - Accelerate scaffolding, not replace human review
-6. **Mutation testing sparingly** - Critical paths only, weekly runs
-
-**Expected Outcome:**
-- **Backend:** 26.15% → 80% (53.85 pp gap) with PR-level enforcement + AI-assisted generation
-- **Frontend:** 65.85% → 80% (14.15 pp gap) with existing thresholds + gap analysis
-- **Mobile:** 60% → 80% (20 pp gap) with threshold adjustment
-- **Desktop:** 65-70% → 80% (10-15 pp gap) with CI/CD enforcement
-
-**Timeline:** 2-3 months (depending on codebase size and test writer velocity).
+### Current Codebase Analysis (HIGH confidence)
+- /Users/rushiparikh/projects/atom/backend/pytest.ini
+- /Users/rushiparikh/projects/atom/backend/pyproject.toml
+- /Users/rushiparikh/projects/atom/backend/requirements.txt
+- /Users/rushiparikh/projects/atom/backend/tests/conftest.py
+- /Users/rushiparikh/projects/atom/backend/coverage.json
