@@ -855,3 +855,268 @@ class TestHTTPClientErrorHandling:
         reset_http_clients()
         # Should not raise an error
         assert True
+
+
+# ============================================================================
+# HTTP Mocking with httpx.MockTransport
+# ============================================================================
+
+class TestHTTPXMockTransport:
+    """Test HTTP mocking using httpx.MockTransport for deterministic tests.
+
+    Note: The 'responses' library is designed for requests library, not httpx.
+    For httpx, we use MockTransport which is the recommended approach.
+    """
+
+    @pytest.mark.asyncio
+    async def test_mock_get_with_transport(self):
+        """Test mocking GET request with httpx.MockTransport."""
+        import httpx
+
+        def custom_transport(request):
+            # Mock response
+            return httpx.Response(
+                200,
+                json={"status": "ok", "data": "test"},
+                request=request
+            )
+
+        # Create client with mock transport
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        response = await client.get("https://api.example.com/test")
+
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_post_with_transport(self):
+        """Test mocking POST request with httpx.MockTransport."""
+        import httpx
+
+        def custom_transport(request):
+            return httpx.Response(
+                201,
+                json={"id": "123", "created": True},
+                request=request
+            )
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        response = await client.post(
+            "https://api.example.com/create",
+            json={"name": "test"}
+        )
+
+        assert response.status_code == 201
+        assert response.json()["id"] == "123"
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_error_response_with_transport(self):
+        """Test mocking error response with httpx.MockTransport."""
+        import httpx
+
+        def custom_transport(request):
+            return httpx.Response(
+                404,
+                json={"error": "Not found"},
+                request=request
+            )
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        response = await client.get("https://api.example.com/error")
+
+        assert response.status_code == 404
+        assert response.json()["error"] == "Not found"
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_sequential_requests_with_transport(self):
+        """Test mocking multiple sequential requests."""
+        import httpx
+
+        request_count = [0]
+
+        def custom_transport(request):
+            request_count[0] += 1
+            if request_count[0] == 1:
+                return httpx.Response(200, json={"step": 1}, request=request)
+            else:
+                return httpx.Response(200, json={"step": 2}, request=request)
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        response1 = await client.get("https://api.example.com/first")
+        response2 = await client.get("https://api.example.com/second")
+
+        assert response1.json()["step"] == 1
+        assert response2.json()["step"] == 2
+        assert request_count[0] == 2
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_llm_provider_with_transport(self):
+        """Test mocking LLM provider response."""
+        import httpx
+
+        def custom_transport(request):
+            return httpx.Response(
+                200,
+                json={
+                    "id": "chatcmpl-123",
+                    "object": "chat.completion",
+                    "created": 1677652288,
+                    "choices": [{
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "Hello, world!"
+                        },
+                        "finish_reason": "stop"
+                    }]
+                },
+                request=request
+            )
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        response = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={
+                "model": "gpt-4",
+                "messages": [{"role": "user", "content": "Hello"}]
+            }
+        )
+
+        assert response.status_code == 200
+        assert response.json()["choices"][0]["message"]["content"] == "Hello, world!"
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_llm_error_with_transport(self):
+        """Test mocking LLM provider error response."""
+        import httpx
+
+        def custom_transport(request):
+            return httpx.Response(
+                401,
+                json={
+                    "error": {
+                        "message": "Invalid API key",
+                        "type": "invalid_request_error",
+                        "code": "invalid_api_key"
+                    }
+                },
+                request=request
+            )
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        response = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"model": "gpt-4", "messages": []}
+        )
+
+        assert response.status_code == 401
+        assert "Invalid API key" in response.json()["error"]["message"]
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_llm_rate_limit_with_transport(self):
+        """Test mocking LLM provider rate limit."""
+        import httpx
+
+        def custom_transport(request):
+            return httpx.Response(
+                429,
+                json={
+                    "error": {
+                        "message": "Rate limit exceeded",
+                        "type": "rate_limit_error"
+                    }
+                },
+                headers={"Retry-After": "60"},
+                request=request
+            )
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        response = await client.post(
+            "https://api.openai.com/v1/chat/completions",
+            json={"model": "gpt-4", "messages": []}
+        )
+
+        assert response.status_code == 429
+        assert "Rate limit exceeded" in response.json()["error"]["message"]
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_timeout_with_transport(self):
+        """Test mocking timeout scenario."""
+        import httpx
+
+        def custom_transport(request):
+            # Simulate timeout by raising exception
+            raise httpx.TimeoutException("Request timed out")
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        with pytest.raises(httpx.TimeoutException):
+            await client.get("https://api.example.com/slow")
+
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_mock_network_error_with_transport(self):
+        """Test mocking network error."""
+        import httpx
+
+        def custom_transport(request):
+            raise httpx.NetworkError("Network unreachable")
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.AsyncClient(transport=transport)
+
+        with pytest.raises(httpx.NetworkError):
+            await client.get("https://api.example.com/fail")
+
+        await client.aclose()
+
+    def test_sync_mock_with_transport(self):
+        """Test mocking synchronous requests."""
+        import httpx
+
+        def custom_transport(request):
+            return httpx.Response(
+                200,
+                json={"sync": "true"},
+                request=request
+            )
+
+        transport = httpx.MockTransport(custom_transport)
+        client = httpx.Client(transport=transport)
+
+        response = client.get("https://api.example.com/test")
+
+        assert response.status_code == 200
+        assert response.json()["sync"] == "true"
+
+        client.close()
