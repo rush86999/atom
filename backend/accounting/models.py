@@ -88,6 +88,7 @@ class Transaction(Base):
     preventing uncategorized transactions that would bypass budget tracking.
     """
     __tablename__ = "accounting_transactions"
+    __table_args__ = {'extend_existing': True}  # Resolve SQLAlchemy metadata conflict with core/models.py
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -119,6 +120,7 @@ class Transaction(Base):
 class JournalEntry(Base):
     """The double-entry record"""
     __tablename__ = "accounting_journal_entries"
+    __table_args__ = {'extend_existing': True}  # Resolve SQLAlchemy metadata conflict with core/models.py
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=False)
