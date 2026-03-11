@@ -89,6 +89,19 @@ Recent decisions affecting current work:
 - [Phase 163]: Create COVERAGE_GUIDE.md (497 lines) with CRITICAL warning section to prevent recurrence of estimation errors
 - [Phase 163]: All 3 requirements satisfied: COV-01 (line coverage), COV-02 (branch coverage), COV-03 (quality gates)
 
+**Phase 165 - Core Services Coverage (Governance & LLM):**
+- Plan 165-01: Agent governance service coverage (completed 2026-03-11)
+- Coverage achieved: 88% line coverage (up from 59% baseline, exceeding 80% target)
+- Tests added: 23 new tests (59 total tests, up from 36 baseline)
+- Test classes added: TestConfidenceAndCache, TestRecordOutcome, TestPromoteToAutonomous, TestEvolutionDirectiveValidation, TestPermissionEnforcement
+- Key functionality tested: Cache invalidation, confidence bounds [0.0, 1.0], maturity transitions (0.5, 0.7, 0.9), permission enforcement (BLOCKED/PENDING_APPROVAL/APPROVED), agent capabilities, admin override, specialty matching
+- Commit: 042ad3fec - feat(165-01): add comprehensive governance service tests achieving 88% coverage
+- [Phase 165-01]: Add cache invalidation tests for agent status changes
+- [Phase 165-01]: Add confidence score bounds enforcement tests [0.0, 1.0]
+- [Phase 165-01]: Add maturity transition tests at 0.5, 0.7, 0.9 thresholds
+- [Phase 165-01]: Add permission enforcement tests for BLOCKED, PENDING_APPROVAL, APPROVED statuses
+- [Phase 165-01]: Add agent data access control tests (admin override, specialty match)
+
 **Phase 164 - Gap Analysis & Prioritization (COMPLETE):**
 - Plan 164-01: Coverage gap analysis tool with business impact scoring (completed 2026-03-11)
 - Plan 164-02: Test stub generation for uncovered code (completed 2026-03-11)
