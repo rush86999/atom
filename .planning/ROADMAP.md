@@ -242,7 +242,13 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. Device capabilities tool (camera, location, notifications, shell access) achieves 75%+ line coverage
   3. External service dependencies (Playwright, device APIs) are properly mocked
   4. Tool error handling and edge cases are tested
-**Plans**: TBD
+**Plans**: 5 plans
+- [x] 169-01-PLAN.md — Fix syntax errors and encoding issues in tool files
+- [x] 169-02-PLAN.md — Browser tool coverage with Playwright AsyncMock fixtures
+- [x] 169-03-PLAN.md — Device tool coverage with WebSocket AsyncMock fixtures
+- [x] 169-04-PLAN.md — Governance integration tests and coverage verification
+- [x] 169-05-PLAN.md — Edge case tests and final gap analysis
+**Status**: Complete (2026-03-11)
 
 #### Phase 170: Integration Testing (LanceDB, WebSocket, HTTP)
 **Goal**: Achieve 70%+ coverage on LanceDB, WebSocket, and HTTP client integrations with deterministic mocks
@@ -289,7 +295,7 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 165. Core Services Coverage (Governance & LLM) | v5.4 | 4/4 | Complete | 2026-03-11 |
 | 166. Core Services Coverage (Episodic Memory) | v5.4 | 4/4 | Complete (Gaps Found) | 2026-03-11 |
 | 167. API Routes Coverage | v5.4 | 4/4 | Complete | 2026-03-11 |
-| 168. Database Layer Coverage | v5.4 | 5/5 | Planned | - |
-| 169. Tools & Integrations Coverage | v5.4 | 0/0 | Not started | - |
+| 168. Database Layer Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
+| 169. Tools & Integrations Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
 | 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 0/0 | Not started | - |
 | 171. Gap Closure & Final Push | v5.4 | 0/0 | Not started | - |
