@@ -226,7 +226,12 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. Complex model relationships (many-to-many, self-referential, polymorphic) tested with proper session isolation
   3. Database constraints and cascades are validated
   4. Transaction rollback and error handling are tested
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 168-01-PLAN.md — Core models coverage (Workspace, Team, Tenant, UserAccount, OAuthToken, ChatSession, ChatMessage)
+- [ ] 168-02-PLAN.md — Accounting models coverage (12 models: Account, Transaction, JournalEntry, Entity, Bill, Invoice, etc.)
+- [ ] 168-03-PLAN.md — Sales and service delivery models coverage (11 models: Lead, Deal, Contract, Project, Milestone, etc.)
+- [ ] 168-04-PLAN.md — Relationship testing (one-to-many, many-to-many, self-referential, polymorphic)
+- [ ] 168-05-PLAN.md — Constraint and cascade testing (unique, not null, FK constraints, cascade behaviors, transactions)
 
 #### Phase 169: Tools & Integrations Coverage
 **Goal**: Achieve 75%+ coverage on browser automation and device capabilities tools with proper mocking
@@ -283,8 +288,8 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 164. Gap Analysis & Prioritization | v5.4 | 3/3 | Complete | 2026-03-11 |
 | 165. Core Services Coverage (Governance & LLM) | v5.4 | 4/4 | Complete | 2026-03-11 |
 | 166. Core Services Coverage (Episodic Memory) | v5.4 | 4/4 | Complete (Gaps Found) | 2026-03-11 |
-| 167. API Routes Coverage | v5.4 | 0/0 | Not started | - |
-| 168. Database Layer Coverage | v5.4 | 0/0 | Not started | - |
+| 167. API Routes Coverage | v5.4 | 4/4 | Complete | 2026-03-11 |
+| 168. Database Layer Coverage | v5.4 | 5/5 | Planned | - |
 | 169. Tools & Integrations Coverage | v5.4 | 0/0 | Not started | - |
 | 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 0/0 | Not started | - |
 | 171. Gap Closure & Final Push | v5.4 | 0/0 | Not started | - |
