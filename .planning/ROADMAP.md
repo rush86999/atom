@@ -197,9 +197,13 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 **Success Criteria** (what must be TRUE):
   1. Episodic memory services (segmentation, retrieval modes, lifecycle) achieve 80%+ line coverage
   2. All four retrieval modes (temporal, semantic, sequential, contextual) are tested
-  3. Episode lifecycle operations (decay, consolidation, archival) are tested
+   3. Episode lifecycle operations (decay, consolidation, archival) are tested
   4. Canvas and feedback integration with episodic memory is tested
-**Plans**: TBD
+**Plans**: 4 plans
+- [x] 166-01-PLAN.md — Episode boundary detection coverage (time gaps, topic changes, task completion)
+- [x] 166-02-PLAN.md — Episode segmentation service full coverage (creation flow, canvas/feedback, segments)
+- [x] 166-03-PLAN.md — Episode retrieval modes coverage (temporal, semantic, sequential, contextual)
+- [x] 166-04-PLAN.md — Episode lifecycle and overall coverage verification
 
 #### Phase 167: API Routes Coverage
 **Goal**: Achieve 75%+ coverage on FastAPI endpoints with contract testing and comprehensive error path validation
