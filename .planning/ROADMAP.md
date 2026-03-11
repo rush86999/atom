@@ -183,7 +183,12 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. LLM service (provider routing, cognitive tier classification, streaming, cache) achieves 80%+ line coverage
   3. Governance invariants tested using property-based tests (Hypothesis) - cache consistency, maturity rules, permission checks
   4. Maturity matrix (4 levels × 4 complexities) tested using parametrized tests covering all agent behaviors
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 165-01-PLAN.md — Governance service coverage tests (maturity routing, permission checks, cache validation)
+- [ ] 165-02-PLAN.md — LLM service coverage tests (provider routing, cognitive tier classification, streaming)
+- [ ] 165-03-PLAN.md — Property-based tests for governance invariants (Hypothesis)
+- [ ] 165-04-PLAN.md — Coverage measurement and verification
+**Status**: Not started
 
 #### Phase 166: Core Services Coverage (Episodic Memory)
 **Goal**: Achieve 80%+ coverage on episodic memory services (segmentation, retrieval modes, lifecycle)
@@ -271,7 +276,7 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 162. Episode Service Comprehensive Testing | v5.3 | 8/8 | Complete | 2026-03-11 |
 | 163. Coverage Baseline & Infrastructure Enhancement | v5.4 | 3/3 | Complete | 2026-03-11 |
 | 164. Gap Analysis & Prioritization | v5.4 | 3/3 | Complete | 2026-03-11 |
-| 165. Core Services Coverage (Governance & LLM) | v5.4 | 0/0 | Not started | - |
+| 165. Core Services Coverage (Governance & LLM) | v5.4 | 0/4 | Not started | - |
 | 166. Core Services Coverage (Episodic Memory) | v5.4 | 0/0 | Not started | - |
 | 167. API Routes Coverage | v5.4 | 0/0 | Not started | - |
 | 168. Database Layer Coverage | v5.4 | 0/0 | Not started | - |
