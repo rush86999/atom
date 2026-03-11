@@ -2690,6 +2690,90 @@ class DeviceNode(Base):
     user = relationship("User", backref="devices")
 
 
+class DeviceAudit(Base):
+    """
+    Device Operations Audit Log
+    Tracks all device operations (camera, screen recording, location, notifications) for governance and compliance.
+    """
+    __tablename__ = "device_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_node_id = Column(String, nullable=True, index=True)
+
+    # Action details
+    action = Column(String(100), nullable=False, index=True)  # camera_snap, screen_record, get_location, etc.
+    endpoint = Column(String(200), nullable=False)
+
+    # Request/Response tracking
+    request_params = Column(JSON, nullable=True)  # Input parameters
+    response_summary = Column(JSON, nullable=True)  # Output summary
+
+    # Status and governance
+    status_code = Column(Integer, nullable=True)  # HTTP-like status code
+    success = Column(Boolean, default=True, index=True)
+    error_message = Column(Text, nullable=True)
+
+    # Governance metadata
+    maturity_level = Column(String(50), nullable=True)  # INTERN, SUPERVISED, AUTONOMOUS
+    governance_allowed = Column(Boolean, default=True)
+    governance_reason = Column(Text, nullable=True)
+
+    # Device-specific metadata
+    session_id = Column(String, nullable=True, index=True)  # Link to DeviceSession
+    device_type = Column(String(50), nullable=True)  # mobile, desktop, etc.
+    file_path = Column(String(500), nullable=True)  # For camera/screen recording outputs
+
+    # Metadata
+    metadata_json = Column(JSON, default={})
+
+
+class DeviceSession(Base):
+    """
+    Device Operation Session
+    Tracks active device operation sessions (screen recording, etc.) for lifecycle management.
+    """
+    __tablename__ = "device_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Session identifiers
+    session_id = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    device_node_id = Column(String, nullable=False, index=True)
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+
+    # Session details
+    session_type = Column(String(50), nullable=False, index=True)  # screen_record, camera_stream, etc.
+    status = Column(String(50), default="active", index=True)  # active, stopped, error
+
+    # Configuration
+    configuration = Column(JSON, nullable=True)  # Session configuration (resolution, etc.)
+    capabilities = Column(JSON, nullable=True)  # Device capabilities for this session
+
+    # Timestamps
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    stopped_at = Column(DateTime(timezone=True), nullable=True)
+    last_activity = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Output tracking
+    output_files = Column(JSON, default=[])  # List of generated file paths
+    total_duration_seconds = Column(Integer, nullable=True)
+
+    # Metadata
+    metadata_json = Column(JSON, default={})
+
+
 class MenuBarAudit(Base):
     """
     Menu Bar Operations Audit Log
