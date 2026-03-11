@@ -41,7 +41,7 @@ def run_coverage_measurement():
     """Run pytest with coverage and generate report."""
     cmd = [
         "pytest",
-        *TEST_FILES,
+    ] + TEST_FILES + [
         "--cov", "core.agent_governance_service",
         "--cov", "core.llm.byok_handler",
         "--cov", "core.llm.cognitive_tier_system",
