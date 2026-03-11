@@ -19,7 +19,9 @@ from tests.factories.execution_factory import AgentExecutionFactory
 from tests.factories.canvas_factory import CanvasAuditFactory
 from tests.factories.chat_session_factory import ChatSessionFactory
 from tests.factories.workspace_factory import WorkspaceFactory, TeamFactory
-from tests.factories.workflow_factory import WorkflowExecutionFactory, WorkflowStepExecutionFactory
+# NOTE: WorkflowStepExecution import broken - commented out for Phase 168
+# from tests.factories.workflow_factory import WorkflowExecutionFactory, WorkflowStepExecutionFactory
+from tests.factories.workflow_factory import WorkflowExecutionFactory
 from tests.factories.feedback_factory import AgentFeedbackFactory
 from tests.factories.training_factory import BlockedTriggerContextFactory, AgentProposalFactory
 from tests.factories.operation_tracker_factory import AgentOperationTrackerFactory
@@ -42,7 +44,7 @@ __all__ = [
     'WorkspaceFactory',
     'TeamFactory',
     'WorkflowExecutionFactory',
-    'WorkflowStepExecutionFactory',
+    # 'WorkflowStepExecutionFactory',  # NOTE: Broken import
     'AgentFeedbackFactory',
     'BlockedTriggerContextFactory',
     'AgentProposalFactory',
