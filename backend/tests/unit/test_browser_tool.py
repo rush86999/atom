@@ -2760,5 +2760,300 @@ class TestBrowserErrorHandling:
         assert manager.get_session("test-session") == session2
 
 
+# ============================================================================
+# Governance Enforcement Tests for browser_create_session
+# ============================================================================
+
+class TestBrowserCreateSessionGovernance:
+    """Tests for browser_create_session() with governance enforcement enabled."""
+
+    @pytest.mark.asyncio
+    async def test_create_session_no_agent_no_governance_check(self, sample_user_id):
+        """Test session creation without agent skips governance check."""
+        from tools.browser_tool import browser_create_session
+
+        with patch('tools.browser_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            result = await browser_create_session(
+                user_id=sample_user_id,
+                agent_id=None,
+                db=None
+            )
+
+            assert result["success"] is True
+            assert "session_id" in result
+
+    @pytest.mark.asyncio
+    async def test_create_session_intern_agent_allowed(self, sample_user_id):
+        """Test INTERN agent can create browser session with governance."""
+        from tools.browser_tool import browser_create_session
+        from unittest.mock import AsyncMock
+
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        with patch('tools.browser_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.browser_tool.ServiceFactory') as mock_factory:
+                mock_gov = MagicMock()
+                mock_gov.can_perform_action.return_value = {
+                    "allowed": True,
+                    "reason": "INTERN maturity level permitted"
+                }
+                mock_gov.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_gov
+
+                with patch('tools.browser_tool.AgentContextResolver') as mock_resolver:
+                    # Mock INTERN agent
+                    mock_agent = MagicMock()
+                    mock_agent.id = "intern-agent-123"
+                    mock_agent.maturity_level = 1  # INTERN
+                    mock_agent.status = "INTERN"
+
+                    mock_resolver_instance = MagicMock()
+                    mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+                    mock_resolver.return_value = mock_resolver_instance
+
+                    result = await browser_create_session(
+                        user_id=sample_user_id,
+                        agent_id="intern-agent-123",
+                        db=mock_db
+                    )
+
+                    assert result["success"] is True
+                    assert "session_id" in result
+                    assert result["agent_id"] == "intern-agent-123"
+                    # Verify governance check was called
+                    mock_gov.can_perform_action.assert_called_once()
+                    # Verify outcome was recorded
+                    mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
+
+    @pytest.mark.asyncio
+    async def test_create_session_student_agent_blocked(self, sample_user_id):
+        """Test STUDENT agent is blocked from creating browser session."""
+        from tools.browser_tool import browser_create_session
+        from unittest.mock import AsyncMock
+
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        with patch('tools.browser_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.browser_tool.ServiceFactory') as mock_factory:
+                mock_gov = MagicMock()
+                mock_gov.can_perform_action.return_value = {
+                    "allowed": False,
+                    "reason": "STUDENT agents cannot use browser automation"
+                }
+                mock_gov.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_gov
+
+                with patch('tools.browser_tool.AgentContextResolver') as mock_resolver:
+                    # Mock STUDENT agent
+                    mock_agent = MagicMock()
+                    mock_agent.id = "student-agent-123"
+                    mock_agent.maturity_level = 0  # STUDENT
+                    mock_agent.status = "STUDENT"
+
+                    mock_resolver_instance = MagicMock()
+                    mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+                    mock_resolver.return_value = mock_resolver_instance
+
+                    result = await browser_create_session(
+                        user_id=sample_user_id,
+                        agent_id="student-agent-123",
+                        db=mock_db
+                    )
+
+                    assert result["success"] is False
+                    assert "not permitted" in result["error"]
+                    # Verify governance check was called
+                    mock_gov.can_perform_action.assert_called_once()
+                    # When governance blocks early, record_outcome is NOT called
+                    # (only called in success path or exception handler)
+                    mock_gov.record_outcome.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_create_session_supervised_agent_allowed(self, sample_user_id):
+        """Test SUPERVISED agent can create browser session."""
+        from tools.browser_tool import browser_create_session
+        from unittest.mock import AsyncMock
+
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        with patch('tools.browser_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.browser_tool.ServiceFactory') as mock_factory:
+                mock_gov = MagicMock()
+                mock_gov.can_perform_action.return_value = {
+                    "allowed": True,
+                    "reason": "SUPERVISED maturity level permitted"
+                }
+                mock_gov.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_gov
+
+                with patch('tools.browser_tool.AgentContextResolver') as mock_resolver:
+                    # Mock SUPERVISED agent
+                    mock_agent = MagicMock()
+                    mock_agent.id = "supervised-agent-123"
+                    mock_agent.maturity_level = 2  # SUPERVISED
+                    mock_agent.status = "SUPERVISED"
+
+                    mock_resolver_instance = MagicMock()
+                    mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+                    mock_resolver.return_value = mock_resolver_instance
+
+                    result = await browser_create_session(
+                        user_id=sample_user_id,
+                        agent_id="supervised-agent-123",
+                        db=mock_db
+                    )
+
+                    assert result["success"] is True
+                    assert result["agent_id"] == "supervised-agent-123"
+                    mock_gov.can_perform_action.assert_called_once()
+                    mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
+
+    @pytest.mark.asyncio
+    async def test_create_session_autonomous_agent_allowed(self, sample_user_id):
+        """Test AUTONOMOUS agent can create browser session."""
+        from tools.browser_tool import browser_create_session
+        from unittest.mock import AsyncMock
+
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        with patch('tools.browser_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.browser_tool.ServiceFactory') as mock_factory:
+                mock_gov = MagicMock()
+                mock_gov.can_perform_action.return_value = {
+                    "allowed": True,
+                    "reason": "AUTONOMOUS maturity level permitted"
+                }
+                mock_gov.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_gov
+
+                with patch('tools.browser_tool.AgentContextResolver') as mock_resolver:
+                    # Mock AUTONOMOUS agent
+                    mock_agent = MagicMock()
+                    mock_agent.id = "autonomous-agent-123"
+                    mock_agent.maturity_level = 3  # AUTONOMOUS
+                    mock_agent.status = "AUTONOMOUS"
+
+                    mock_resolver_instance = MagicMock()
+                    mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+                    mock_resolver.return_value = mock_resolver_instance
+
+                    result = await browser_create_session(
+                        user_id=sample_user_id,
+                        agent_id="autonomous-agent-123",
+                        db=mock_db
+                    )
+
+                    assert result["success"] is True
+                    assert result["agent_id"] == "autonomous-agent-123"
+                    mock_gov.can_perform_action.assert_called_once()
+                    mock_gov.record_outcome.assert_called_once_with(mock_agent.id, success=True)
+
+    @pytest.mark.asyncio
+    async def test_create_session_records_execution_on_success(self, sample_user_id):
+        """Test successful session creation records AgentExecution."""
+        from tools.browser_tool import browser_create_session
+        from core.models import AgentExecution
+        from unittest.mock import AsyncMock
+
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        with patch('tools.browser_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.browser_tool.ServiceFactory') as mock_factory:
+                mock_gov = MagicMock()
+                mock_gov.can_perform_action.return_value = {"allowed": True}
+                mock_gov.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_gov
+
+                with patch('tools.browser_tool.AgentContextResolver') as mock_resolver:
+                    mock_agent = MagicMock()
+                    mock_agent.id = "agent-123"
+                    mock_agent.maturity_level = 1
+
+                    mock_resolver_instance = MagicMock()
+                    mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+                    mock_resolver.return_value = mock_resolver_instance
+
+                    result = await browser_create_session(
+                        user_id=sample_user_id,
+                        agent_id="agent-123",
+                        db=mock_db
+                    )
+
+                    assert result["success"] is True
+                    # Verify AgentExecution was created and committed
+                    mock_db.add.assert_called()
+                    assert any(call[0][0].__class__.__name__ == "AgentExecution" for call in mock_db.add.call_args_list)
+
+    @pytest.mark.asyncio
+    async def test_create_session_records_outcome_on_failure(self, sample_user_id):
+        """Test failed session creation records negative outcome."""
+        from tools.browser_tool import browser_create_session
+        from unittest.mock import AsyncMock
+
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.commit = MagicMock()
+        mock_db.refresh = MagicMock()
+
+        with patch('tools.browser_tool.FeatureFlags') as mock_flags:
+            mock_flags.should_enforce_governance.return_value = True
+
+            with patch('tools.browser_tool.ServiceFactory') as mock_factory:
+                mock_gov = MagicMock()
+                mock_gov.can_perform_action.return_value = {"allowed": True}
+                mock_gov.record_outcome = AsyncMock()
+                mock_factory.get_governance_service.return_value = mock_gov
+
+                with patch('tools.browser_tool.AgentContextResolver') as mock_resolver:
+                    mock_agent = MagicMock()
+                    mock_agent.id = "agent-123"
+                    mock_agent.maturity_level = 1
+
+                    mock_resolver_instance = MagicMock()
+                    mock_resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
+                    mock_resolver.return_value = mock_resolver_instance
+
+                    with patch('tools.browser_tool.get_browser_manager') as mock_manager:
+                        # Make session creation fail
+                        mock_manager.return_value.create_session = AsyncMock(side_effect=Exception("Browser launch failed"))
+
+                        result = await browser_create_session(
+                            user_id=sample_user_id,
+                            agent_id="agent-123",
+                            db=mock_db
+                        )
+
+                        assert result["success"] is False
+                        # Verify governance outcome was recorded with failure
+                        mock_gov.record_outcome.assert_called_once_with("agent-123", success=False)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
