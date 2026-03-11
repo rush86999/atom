@@ -57,6 +57,7 @@ class InvoiceStatus(str, enum.Enum):
 
 class Account(Base):
     __tablename__ = "accounting_accounts"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
