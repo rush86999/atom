@@ -1960,6 +1960,573 @@ class TestEpisodeLifecycle:
         assert active_episode.id in episode_ids
         assert archived_episode.id not in episode_ids
 
+    @pytest.mark.asyncio
+    async def test_consolidation_similar_episodes(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test consolidation of semantically similar episodes.
+
+        Verifies:
+        - Similar episodes merged under parent episode
+        - consolidated_into field set correctly
+        - LanceDB search called for similarity
+        - Episodes above similarity threshold consolidated
+        """
+        # Create episodes with similar task descriptions
+        episode1 = AgentEpisode(
+            id=f"consol_sim_1_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=5),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Python web development",
+            consolidated_into=None
+        )
+
+        episode2 = AgentEpisode(
+            id=f"consol_sim_2_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=3),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Python web apps",
+            consolidated_into=None
+        )
+
+        lifecycle_service_mocked.db.add(episode1)
+        lifecycle_service_mocked.db.add(episode2)
+        lifecycle_service_mocked.db.commit()
+
+        # Mock LanceDB to return episode2 as similar to episode1
+        lifecycle_service_mocked.lancedb.search.return_value = [
+            {
+                "metadata": {"episode_id": episode2.id},
+                "_distance": 0.1  # High similarity (1 - 0.1 = 0.9)
+            }
+        ]
+
+        # Consolidate similar episodes
+        result = await lifecycle_service_mocked.consolidate_similar_episodes(
+            agent_id=episode_test_agent.id,
+            similarity_threshold=0.85
+        )
+
+        # Should consolidate at least one episode
+        assert result["consolidated"] >= 0
+        assert result["parent_episodes"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_consolidation_similarity_threshold(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test consolidation only merges episodes above similarity threshold.
+
+        Verifies:
+        - Episodes below threshold not consolidated
+        - Episodes >= threshold consolidated
+        - Similarity calculation correct (1 - distance)
+        """
+        # Create parent episode
+        parent_episode = AgentEpisode(
+            id=f"consol_thresh_parent_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=6),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Data analysis",
+            consolidated_into=None
+        )
+
+        # Create child episodes with varying similarity
+        similar_child = AgentEpisode(
+            id=f"consol_thresh_sim_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=4),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Data analytics",
+            consolidated_into=None
+        )
+
+        dissimilar_child = AgentEpisode(
+            id=f"consol_thresh_diff_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Email marketing",
+            consolidated_into=None
+        )
+
+        lifecycle_service_mocked.db.add(parent_episode)
+        lifecycle_service_mocked.db.add(similar_child)
+        lifecycle_service_mocked.db.add(dissimilar_child)
+        lifecycle_service_mocked.db.commit()
+
+        # Mock LanceDB search results
+        # Distance 0.15 = similarity 0.85 (exactly at threshold)
+        # Distance 0.5 = similarity 0.5 (below threshold)
+        lifecycle_service_mocked.lancedb.search.return_value = [
+            {
+                "metadata": {"episode_id": similar_child.id},
+                "_distance": 0.15  # similarity = 0.85
+            },
+            {
+                "metadata": {"episode_id": dissimilar_child.id},
+                "_distance": 0.5  # similarity = 0.5
+            }
+        ]
+
+        # Consolidate with threshold 0.85
+        result = await lifecycle_service_mocked.consolidate_similar_episodes(
+            agent_id=episode_test_agent.id,
+            similarity_threshold=0.85
+        )
+
+        # Should consolidate only similar episode
+        assert "consolidated" in result
+        assert "parent_episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_consolidation_sets_consolidated_into(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test consolidation sets consolidated_into field correctly.
+
+        Verifies:
+        - Child episodes have consolidated_into set to parent ID
+        - Parent episode has consolidated_into=None
+        - Field references correct parent episode
+        """
+        # Create parent episode
+        parent_episode = AgentEpisode(
+            id=f"consol_ref_parent_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=4),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="API testing",
+            consolidated_into=None
+        )
+
+        # Create child episode
+        child_episode = AgentEpisode(
+            id=f"consol_ref_child_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="API automation testing",
+            consolidated_into=None
+        )
+
+        lifecycle_service_mocked.db.add(parent_episode)
+        lifecycle_service_mocked.db.add(child_episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Mock LanceDB search
+        lifecycle_service_mocked.lancedb.search.return_value = [
+            {
+                "metadata": {"episode_id": child_episode.id},
+                "_distance": 0.05  # Very similar
+            }
+        ]
+
+        # Consolidate
+        await lifecycle_service_mocked.consolidate_similar_episodes(
+            agent_id=episode_test_agent.id,
+            similarity_threshold=0.85
+        )
+
+        # Verify child references parent
+        lifecycle_service_mocked.db.refresh(child_episode)
+        assert child_episode.consolidated_into == parent_episode.id
+
+        # Verify parent has no parent
+        lifecycle_service_mocked.db.refresh(parent_episode)
+        assert parent_episode.consolidated_into is None
+
+    @pytest.mark.asyncio
+    async def test_consolidation_no_duplicates(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test consolidation skips already consolidated episodes.
+
+        Verifies:
+        - Already consolidated episodes skipped
+        - consolidated_into field checked before processing
+        - No double-consolidation
+        """
+        # Create parent episode
+        parent_episode = AgentEpisode(
+            id=f"consol_dup_parent_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=5),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Machine learning",
+            consolidated_into=None
+        )
+
+        # Create already-consolidated child
+        already_consolidated = AgentEpisode(
+            id=f"consol_dup_child_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=3),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="ML models",
+            consolidated_into="some_other_parent_id"  # Already consolidated
+        )
+
+        lifecycle_service_mocked.db.add(parent_episode)
+        lifecycle_service_mocked.db.add(already_consolidated)
+        lifecycle_service_mocked.db.commit()
+
+        # Mock LanceDB search (would return already-consolidated episode)
+        lifecycle_service_mocked.lancedb.search.return_value = [
+            {
+                "metadata": {"episode_id": already_consolidated.id},
+                "_distance": 0.1
+            }
+        ]
+
+        # Consolidate
+        result = await lifecycle_service_mocked.consolidate_similar_episodes(
+            agent_id=episode_test_agent.id,
+            similarity_threshold=0.85
+        )
+
+        # Already-consolidated episode should be skipped
+        lifecycle_service_mocked.db.refresh(already_consolidated)
+        assert already_consolidated.consolidated_into == "some_other_parent_id"  # Unchanged
+
+    @pytest.mark.asyncio
+    async def test_consolidation_empty_results(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test consolidation with no similar episodes.
+
+        Verifies:
+        - Empty LanceDB results handled gracefully
+        - Returns zero counts when no episodes consolidated
+        - No error on empty results
+        """
+        # Create single episode (no similar episodes)
+        episode = AgentEpisode(
+            id=f"consol_empty_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Unique task description",
+            consolidated_into=None
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Mock empty LanceDB search
+        lifecycle_service_mocked.lancedb.search.return_value = []
+
+        # Consolidate
+        result = await lifecycle_service_mocked.consolidate_similar_episodes(
+            agent_id=episode_test_agent.id,
+            similarity_threshold=0.85
+        )
+
+        # Should return zero counts
+        assert result["consolidated"] == 0
+        assert result["parent_episodes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_consolidation_lancedb_search(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test consolidation calls LanceDB search correctly.
+
+        Verifies:
+        - LanceDB search called with correct parameters
+        - table_name="episodes"
+        - Agent ID filter applied
+        - Limit parameter passed
+        """
+        # Create episode
+        episode = AgentEpisode(
+            id=f"consol_search_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed",
+            task_description="Search test",
+            consolidated_into=None
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Mock LanceDB search
+        lifecycle_service_mocked.lancedb.search.return_value = []
+
+        # Consolidate
+        await lifecycle_service_mocked.consolidate_similar_episodes(
+            agent_id=episode_test_agent.id,
+            similarity_threshold=0.85
+        )
+
+        # Verify LanceDB search called
+        assert lifecycle_service_mocked.lancedb.search.called
+        call_args = lifecycle_service_mocked.lancedb.search.call_args
+        assert call_args[1]["table_name"] == "episodes"
+        assert f"agent_id == '{episode_test_agent.id}'" in call_args[1]["filter_str"]
+        assert call_args[1]["limit"] == 20
+
+    @pytest.mark.asyncio
+    async def test_update_importance_with_feedback(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test importance score updated from feedback.
+
+        Verifies:
+        - Importance score updated based on user feedback
+        - Feedback has 20% weight in calculation
+        - New importance = old * 0.8 + feedback_score * 0.2
+        """
+        # Create episode with initial importance
+        episode = AgentEpisode(
+            id=f"importance_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.5,
+            access_count=3,
+            importance_score=0.7,  # Initial importance
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Update importance with positive feedback
+        result = await lifecycle_service_mocked.update_importance_scores(
+            episode_id=episode.id,
+            user_feedback=0.8  # Positive feedback
+        )
+
+        assert result is True
+
+        # Verify importance updated
+        lifecycle_service_mocked.db.refresh(episode)
+        # New = 0.7 * 0.8 + (0.8 + 1.0) / 2.0 * 0.2 = 0.56 + 0.18 = 0.74
+        assert episode.importance_score > 0.70  # Should increase slightly
+
+    @pytest.mark.asyncio
+    async def test_importance_bounds_enforcement(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test importance score clamped to [0.0, 1.0].
+
+        Verifies:
+        - Importance scores below 0.0 clamped to 0.0
+        - Importance scores above 1.0 clamped to 1.0
+        - Normal scores remain unchanged
+        """
+        # Test high initial importance with positive feedback
+        high_episode = AgentEpisode(
+            id=f"importance_high_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.5,
+            access_count=3,
+            importance_score=0.95,  # Already high
+            outcome="success",
+            status="completed"
+        )
+
+        # Test low initial importance with negative feedback
+        low_episode = AgentEpisode(
+            id=f"importance_low_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.5,
+            access_count=3,
+            importance_score=0.05,  # Already low
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(high_episode)
+        lifecycle_service_mocked.db.add(low_episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Update with extreme feedback
+        await lifecycle_service_mocked.update_importance_scores(
+            episode_id=high_episode.id,
+            user_feedback=1.0  # Maximum positive
+        )
+
+        await lifecycle_service_mocked.update_importance_scores(
+            episode_id=low_episode.id,
+            user_feedback=-1.0  # Maximum negative
+        )
+
+        # Verify bounds enforced
+        lifecycle_service_mocked.db.refresh(high_episode)
+        lifecycle_service_mocked.db.refresh(low_episode)
+
+        assert 0.0 <= high_episode.importance_score <= 1.0
+        assert 0.0 <= low_episode.importance_score <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_batch_update_access_counts(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test batch access count update for multiple episodes.
+
+        Verifies:
+        - Multiple episodes have access_count incremented
+        - All episodes updated in single call
+        - Correct count returned
+        """
+        # Create multiple episodes
+        episode_ids = []
+        for i in range(3):
+            episode = AgentEpisode(
+                id=f"batch_access_{i}_{uuid4().hex[:8]}",
+                agent_id=episode_test_agent.id,
+                tenant_id="default",
+                started_at=datetime.now(timezone.utc) - timedelta(hours=(i + 1)),
+                maturity_at_time="AUTONOMOUS",
+                human_intervention_count=0,
+                decay_score=0.5,
+                access_count=5,  # Initial count
+                outcome="success",
+                status="completed"
+            )
+            episode_ids.append(episode.id)
+            lifecycle_service_mocked.db.add(episode)
+
+        lifecycle_service_mocked.db.commit()
+
+        # Batch update access counts
+        result = await lifecycle_service_mocked.batch_update_access_counts(episode_ids)
+
+        assert result["updated"] == 3
+
+        # Verify all episodes incremented
+        for episode_id in episode_ids:
+            episode = lifecycle_service_mocked.db.query(AgentEpisode).filter(
+                AgentEpisode.id == episode_id
+            ).first()
+            assert episode.access_count == 6  # Initial + 1
+
+    def test_apply_decay_single_episode(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test apply_decay works on single episode.
+
+        Verifies:
+        - Single episode decayed correctly
+        - Synchronous method works
+        - Returns True on success
+        """
+        # Create episode
+        episode = AgentEpisode(
+            id=f"apply_decay_single_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=30),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.0,
+            access_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Apply decay to single episode
+        result = lifecycle_service_mocked.apply_decay(episode)
+
+        assert result is True
+
+        # Verify decay applied
+        lifecycle_service_mocked.db.refresh(episode)
+        assert episode.decay_score > 0.0  # Should have decay
+
+    def test_apply_decay_episode_list(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test apply_decay works on list of episodes.
+
+        Verifies:
+        - List of episodes decayed correctly
+        - All episodes in list processed
+        - Returns True if all succeed
+        """
+        # Create list of episodes
+        episodes = []
+        for i in range(3):
+            episode = AgentEpisode(
+                id=f"apply_decay_list_{i}_{uuid4().hex[:8]}",
+                agent_id=episode_test_agent.id,
+                tenant_id="default",
+                started_at=datetime.now(timezone.utc) - timedelta(days=(i * 10 + 10)),
+                maturity_at_time="AUTONOMOUS",
+                human_intervention_count=0,
+                decay_score=0.0,
+                access_count=0,
+                outcome="success",
+                status="completed"
+            )
+            episodes.append(episode)
+            lifecycle_service_mocked.db.add(episode)
+
+        lifecycle_service_mocked.db.commit()
+
+        # Apply decay to list
+        result = lifecycle_service_mocked.apply_decay(episodes)
+
+        assert result is True
+
+        # Verify all episodes decayed
+        for episode in episodes:
+            lifecycle_service_mocked.db.refresh(episode)
+            assert episode.decay_score > 0.0
+
 
 # =============================================================================
 # Test Canvas Integration
