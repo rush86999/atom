@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 Phase: 165 of 171 (Core Services Coverage - Governance & LLM)
 Plan: 3 of 4 in current phase
 Status: Complete
-Last activity: 2026-03-11 — Plan 165-03 completed: Property-based tests for governance and LLM invariants (31 tests, 1,307 lines)
+Last activity: 2026-03-11 — Plan 165-03 completed: Property-based tests for governance and LLM invariants (29 tests, 1,307 lines)
 
 Progress: [█████░░░░░] 75% (3/4 plans complete in Phase 165)
 
@@ -93,7 +93,7 @@ Recent decisions affecting current work:
 - Plan 165-01: Agent governance service coverage (completed 2026-03-11)
 - Plan 165-02: LLM service coverage (completed 2026-03-11)
 - Plan 165-03: Property-based tests for governance and LLM invariants (completed 2026-03-11)
-- Coverage achieved: 31 property-based tests (8 extended governance + 11 cache consistency + 12 cognitive tier)
+- Coverage achieved: 29 property-based tests (8 extended governance + 10 cache consistency + 11 cognitive tier)
 - Tests added: 1,307 lines of property-based tests using Hypothesis
 - Test files created: test_governance_invariants_extended.py (459 lines), test_governance_cache_consistency.py (424 lines), test_cognitive_tier_invariants.py (424 lines)
 - Key invariants validated: Confidence bounds [0.0, 1.0], cache get/set consistency, cognitive tier classification validity

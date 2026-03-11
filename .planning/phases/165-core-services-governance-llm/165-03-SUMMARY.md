@@ -57,7 +57,7 @@ completed: 2026-03-11
 
 # Phase 165: Core Services Coverage (Governance & LLM) - Plan 03 Summary
 
-**Property-based tests for governance and LLM invariants using Hypothesis (31 tests, 1,307 lines)**
+**Property-based tests for governance and LLM invariants using Hypothesis (29 tests, 1,307 lines)**
 
 ## Performance
 
@@ -71,7 +71,7 @@ completed: 2026-03-11
 ## Accomplishments
 
 - **3 property-based test files created** for governance cache consistency and cognitive tier classification
-- **31 property-based tests written** (8 + 11 + 12 tests)
+- **29 property-based tests written** (8 + 10 + 11 tests)
 - **100% syntax validation passed** (all files parse correctly with Python AST)
 - **Hypothesis integration verified** (@given, @settings, @example decorators used correctly)
 - **Test structure validated** (proper test class names, test methods, Hypothesis strategies)
@@ -96,6 +96,7 @@ Each task was committed atomically:
    - TestPermissionInvariantsExtended: 3 property tests for permission determinism
    - 8 tests total
    - Tests: confidence bounds [0.0, 1.0], maturity × complexity matrix (16 combinations), STUDENT blocking from complexity 4
+   - Tests: confidence bounds [0.0, 1.0], maturity × complexity matrix (16 combinations), STUDENT blocking from complexity 4
    - Strategies: floats(min_value=0.0, max_value=1.0), sampled_from(maturity levels), integers(complexity 1-4)
    - Settings: @settings(max_examples=200) for comprehensive validation
 
@@ -115,7 +116,7 @@ Each task was committed atomically:
 
 ## Test Coverage
 
-### 31 Property-Based Tests Added
+### 29 Property-Based Tests Added
 
 **Governance Invariants Extended (8 tests):**
 1. test_confidence_bounds_invariant_extended - Validates confidence [0.0, 1.0] with extreme boosts (-1.0 to 1.0)
@@ -201,11 +202,11 @@ None - no external service configuration required. All tests use Hypothesis for 
 All verification steps passed (adapted for syntax validation):
 
 1. ✅ **3 property-based test files created** - test_governance_invariants_extended.py, test_governance_cache_consistency.py, test_cognitive_tier_invariants.py
-2. ✅ **31 property-based tests written** - 8 + 11 + 12 = 31 tests
+2. ✅ **29 property-based tests written** - 8 + 10 + 11 = 29 tests
 3. ✅ **100% syntax validation passed** - All files parse correctly with Python AST
 4. ✅ **Hypothesis integration verified** - @given, @settings, @example decorators used correctly
 5. ✅ **Test structure validated** - Proper test class names (Test*), test methods (test_*), Hypothesis strategies
-6. ✅ **File line counts validated** - 459 + 424 + 424 = 1,307 total lines (exceeds 450 + 150 + 100 minimum)
+6. ✅ **File line counts validated** - 459 + 424 + 424 = 1,307 total lines (exceeds 200 + 100 + 150 minimum)
 
 ## Test Structure Verification
 
@@ -272,7 +273,7 @@ All verification steps passed (adapted for syntax validation):
 
 ## Next Phase Readiness
 
-✅ **Property-based tests for governance and LLM invariants complete** - 31 tests covering confidence bounds, cache consistency, and cognitive tier classification
+✅ **Property-based tests for governance and LLM invariants complete** - 29 tests covering confidence bounds, cache consistency, and cognitive tier classification
 
 **Ready for:**
 - Phase 165 Plan 04: Complete remaining LLM service methods coverage
@@ -298,7 +299,7 @@ All commits exist:
 - ✅ 83c33dcbd - test(165-03): add cognitive tier classification property tests
 
 All syntax validation passed:
-- ✅ 31 test methods across 3 files
+- ✅ 29 test methods across 3 files
 - ✅ 5 test classes (TestConfidenceScoreInvariantsExtended, TestMaturityRoutingInvariantsExtended, TestPermissionInvariantsExtended, TestGovernanceCacheConsistencyInvariants, TestCognitiveTierInvariants)
 - ✅ Hypothesis decorators used correctly (@given, @settings, @example)
 - ✅ Proper strategies (floats, integers, text, dictionaries, lists, sampled_from)
