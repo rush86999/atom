@@ -26,9 +26,6 @@ class AgentExecutionFactory(BaseFactory):
 
     # Input/Output
     input_summary = factory.Faker('text', max_nb_chars=200)
-    output_summary = factory.LazyAttribute(
-        lambda o: f"Output summary for {o.status}" if o.status in ['completed', 'running'] else None
-    )
 
     # Timing
     started_at = factory.Faker('date_time_this_year')
