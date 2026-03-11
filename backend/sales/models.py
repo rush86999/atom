@@ -51,13 +51,13 @@ class Lead(Base):
     company = Column(String, nullable=True)
     source = Column(String, nullable=True) # Website, LinkedIn, etc.
     status = Column(SQLEnum(LeadStatus), default=LeadStatus.NEW)
-    
+
     # AI Enrichment
     ai_score = Column(Float, default=0.0)
     ai_qualification_summary = Column(Text, nullable=True)
     is_spam = Column(Boolean, default=False)
     is_converted = Column(Boolean, default=False)
-    
+
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -82,7 +82,7 @@ class Deal(Base):
     currency = Column(String, default="USD")
     stage = Column(SQLEnum(DealStage), default=DealStage.DISCOVERY)
     probability = Column(Float, default=0.0)
-    
+
     # Intelligence
     health_score = Column(Float, default=0.0) # 0 to 100
     risk_level = Column(String, default="low") # low, medium, high
@@ -90,7 +90,7 @@ class Deal(Base):
     negotiation_state = Column(SQLEnum(NegotiationState), default=NegotiationState.INITIAL)
     last_followup_at = Column(DateTime(timezone=True), nullable=True)
     followup_count = Column(Integer, default=0)
-    
+
     metadata_json = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -106,15 +106,15 @@ class CommissionEntry(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=False)
     invoice_id = Column(String, nullable=True) # Linked accounting invoice
-    
+
     payee_id = Column(String, nullable=True) # User/Rep ID
     amount = Column(Float, nullable=False)
     currency = Column(String, default="USD")
     status = Column(SQLEnum(CommissionStatus), default=CommissionStatus.ACCRUED)
-    
+
     calculated_at = Column(DateTime(timezone=True), server_default=func.now())
     paid_at = Column(DateTime(timezone=True), nullable=True)
-    
+
     metadata_json = Column(JSON, nullable=True)
 
     # Relationships
@@ -127,14 +127,14 @@ class CallTranscript(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=True)
     meeting_id = Column(String, nullable=True) # Zoom/Teams ID
-    
+
     title = Column(String, nullable=True)
     raw_transcript = Column(Text, nullable=False)
     summary = Column(Text, nullable=True)
     objections = Column(JSON, nullable=True) # List of extracted objections
     action_items = Column(JSON, nullable=True) # List of extracted tasks
     metadata_json = Column(JSON, nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -146,12 +146,12 @@ class FollowUpTask(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
     deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=False)
-    
+
     description = Column(Text, nullable=False)
     suggested_date = Column(DateTime(timezone=True), nullable=True)
     is_completed = Column(Boolean, default=False)
-    
+
     # Reason why AI suggested this
     ai_rationale = Column(Text, nullable=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
