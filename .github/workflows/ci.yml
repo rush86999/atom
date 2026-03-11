@@ -232,6 +232,51 @@ jobs:
             python tests/scripts/generate_coverage_trend.py || echo "Trend generation failed (non-blocking)"
           fi
 
+      # Backend Coverage Quality Gate (70% → 75% → 80% progressive thresholds)
+      - name: Enforce Coverage Quality Gate (Backend)
+        working-directory: ./backend
+        if: always()
+        env:
+          DATABASE_URL: "sqlite:///:memory:"
+          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
+          # Emergency bypass: set COVERAGE_THRESHOLD_OVERRIDE to bypass temporarily
+          # Example: COVERAGE_THRESHOLD_OVERRIDE=65 (use only for critical PRs)
+          # Or provide justification: BYPASS_REASON="Security fix: Critical auth vulnerability"
+        run: |
+          echo "=== Backend Coverage Quality Gate ==="
+          echo ""
+          echo "Progressive thresholds (COV-03):"
+          echo "  Phase 1: 70% minimum (baseline enforcement)"
+          echo "  Phase 2: 75% interim target"
+          echo "  Phase 3: 80% final target"
+          echo ""
+          echo "Emergency bypass:"
+          echo "  Set COVERAGE_THRESHOLD_OVERRIDE to bypass temporarily"
+          echo "  Set BYPASS_REASON with >= 20 char justification for audit trail"
+          echo ""
+
+          # Run backend coverage gate (uses existing coverage.json)
+          python tests/scripts/backend_coverage_gate.py --no-measure || GATE_FAILED=true
+
+          if [ "$GATE_FAILED" = "true" ]; then
+            echo ""
+            echo "::error::Backend coverage gate failed. See details above."
+            echo ""
+            echo "Remediation:"
+            echo "  1. Add tests to improve coverage above threshold"
+            echo "  2. Use emergency bypass only for critical PRs:"
+            echo "     COVERAGE_THRESHOLD_OVERRIDE=65  (temporary, documented)"
+            echo "     BYPASS_REASON=\"<justification>\"  (>= 20 chars, logged)"
+            echo ""
+            exit 1
+          fi
+
+          echo "✅ Backend coverage gate passed"
+          echo ""
+
   # Quality Gates Job - Enforces TQ-01 through TQ-05
   test-quality-gates:
     runs-on: ubuntu-latest
