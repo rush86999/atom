@@ -1404,3 +1404,642 @@ class TestDocumentModel:
         ).first()
         assert retrieved_doc.invoice_id == invoice.id
 
+
+# ============================================================================
+# Task 4: Categorization, Tax, Close, Rule, and Budget Model Tests
+# ============================================================================
+
+class TestCategorizationProposalModel:
+    """Test CategorizationProposal model (AI categorization suggestions)."""
+
+    def test_categorization_proposal_create(self, db_session: Session):
+        """Test creating AI categorization suggestion."""
+        workspace = WorkspaceFactory(_session=db_session)
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        proposal = CategorizationProposal(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            confidence=0.85,
+            reasoning="Pattern matches AWS expenses"
+        )
+        db_session.add(proposal)
+        db_session.commit()
+        db_session.refresh(proposal)
+
+        assert proposal.transaction_id == transaction.id
+        assert proposal.suggested_account_id == account.id
+        assert proposal.confidence == 0.85
+        assert proposal.reasoning == "Pattern matches AWS expenses"
+        assert proposal.is_accepted is None  # Default (pending)
+
+    def test_categorization_proposal_confidence_range(self, db_session: Session):
+        """Test confidence values in 0.0-1.0 range."""
+        workspace = WorkspaceFactory(_session=db_session)
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Test various confidence levels
+        confidences = [0.0, 0.5, 0.75, 1.0]
+
+        for confidence in confidences:
+            proposal = CategorizationProposalFactory(
+                transaction_id=transaction.id,
+                suggested_account_id=account.id,
+                confidence=confidence,
+                _session=db_session
+            )
+            db_session.commit()
+            assert proposal.confidence == confidence
+
+    def test_categorization_proposal_is_accepted_nullable(self, db_session: Session):
+        """Test is_accepted field: None=pending, True=accepted, False=rejected."""
+        workspace = WorkspaceFactory(_session=db_session)
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Pending (None)
+        proposal1 = CategorizationProposalFactory(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            is_accepted=None,
+            _session=db_session
+        )
+
+        # Accepted (True)
+        proposal2 = CategorizationProposalFactory(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            is_accepted=True,
+            _session=db_session
+        )
+
+        # Rejected (False)
+        proposal3 = CategorizationProposalFactory(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            is_accepted=False,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert proposal1.is_accepted is None
+        assert proposal2.is_accepted is True
+        assert proposal3.is_accepted is False
+
+    def test_categorization_proposal_transaction_relationship(self, db_session: Session):
+        """Test proposal belongs to transaction."""
+        workspace = WorkspaceFactory(_session=db_session)
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        proposal = CategorizationProposalFactory(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify proposal references transaction
+        retrieved = db_session.query(CategorizationProposal).filter(
+            CategorizationProposal.id == proposal.id
+        ).first()
+        assert retrieved.transaction_id == transaction.id
+
+    def test_categorization_proposal_account_relationship(self, db_session: Session):
+        """Test proposal references suggested account."""
+        workspace = WorkspaceFactory(_session=db_session)
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            name="AWS Expenses",
+            _session=db_session
+        )
+        db_session.commit()
+
+        proposal = CategorizationProposalFactory(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify proposal references account
+        retrieved = db_session.query(CategorizationProposal).filter(
+            CategorizationProposal.id == proposal.id
+        ).first()
+        assert retrieved.suggested_account_id == account.id
+
+    def test_categorization_proposal_reviewed_by_nullable(self, db_session: Session):
+        """Test reviewed_by user FK is nullable."""
+        workspace = WorkspaceFactory(_session=db_session)
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Proposal without reviewer
+        proposal1 = CategorizationProposalFactory(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            reviewed_by=None,
+            _session=db_session
+        )
+
+        # Proposal with reviewer
+        proposal2 = CategorizationProposalFactory(
+            transaction_id=transaction.id,
+            suggested_account_id=account.id,
+            reviewed_by="user_123",
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert proposal1.reviewed_by is None
+        assert proposal2.reviewed_by == "user_123"
+
+
+class TestTaxNexusModel:
+    """Test TaxNexus model (tax jurisdictions)."""
+
+    def test_tax_nexus_create(self, db_session: Session):
+        """Test creating tax jurisdiction entry."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        nexus = TaxNexus(
+            workspace_id=workspace.id,
+            region="California",
+            tax_type="Sales Tax"
+        )
+        db_session.add(nexus)
+        db_session.commit()
+        db_session.refresh(nexus)
+
+        assert nexus.workspace_id == workspace.id
+        assert nexus.region == "California"
+        assert nexus.tax_type == "Sales Tax"
+        assert nexus.is_active is True  # Default
+
+    def test_tax_nexus_region_variety(self, db_session: Session):
+        """Test different region formats (state, country)."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        regions = [
+            "California",
+            "New York",
+            "Texas",
+            "UK",
+            "Germany",
+            "France"
+        ]
+
+        for region in regions:
+            nexus = TaxNexusFactory(
+                workspace_id=workspace.id,
+                region=region,
+                _session=db_session
+            )
+            db_session.commit()
+            assert nexus.region == region
+
+    def test_tax_nexus_is_active_filter(self, db_session: Session):
+        """Test active vs inactive nexus filtering."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Active nexus
+        nexus1 = TaxNexusFactory(
+            workspace_id=workspace.id,
+            is_active=True,
+            _session=db_session
+        )
+
+        # Inactive nexus
+        nexus2 = TaxNexusFactory(
+            workspace_id=workspace.id,
+            is_active=False,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Filter by active
+        active_nexus = db_session.query(TaxNexus).filter(
+            TaxNexus.workspace_id == workspace.id,
+            TaxNexus.is_active == True
+        ).all()
+        assert len(active_nexus) == 1
+
+
+class TestFinancialCloseModel:
+    """Test FinancialClose model (period close tracking)."""
+
+    def test_financial_close_create(self, db_session: Session):
+        """Test creating period close tracker."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        close = FinancialClose(
+            workspace_id=workspace.id,
+            period="2025-03"
+        )
+        db_session.add(close)
+        db_session.commit()
+        db_session.refresh(close)
+
+        assert close.workspace_id == workspace.id
+        assert close.period == "2025-03"
+        assert close.is_closed is False  # Default
+        assert close.closed_at is None  # Default
+        assert close.closed_by is None  # Default
+
+    def test_financial_close_period_format(self, db_session: Session):
+        """Test YYYY-MM period format."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        periods = [
+            "2025-01",
+            "2025-03",
+            "2025-12",
+            "2024-06"
+        ]
+
+        for period in periods:
+            close = FinancialCloseFactory(
+                workspace_id=workspace.id,
+                period=period,
+                _session=db_session
+            )
+            db_session.commit()
+            assert close.period == period
+
+    def test_financial_close_is_closed_boolean(self, db_session: Session):
+        """Test is_closed boolean field."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Open period
+        close1 = FinancialCloseFactory(
+            workspace_id=workspace.id,
+            is_closed=False,
+            _session=db_session
+        )
+
+        # Closed period
+        close2 = FinancialCloseFactory(
+            workspace_id=workspace.id,
+            is_closed=True,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert close1.is_closed is False
+        assert close2.is_closed is True
+
+    def test_financial_close_closed_at_nullable(self, db_session: Session):
+        """Test closed_at timestamp is nullable."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Open period (no closed_at)
+        close1 = FinancialCloseFactory(
+            workspace_id=workspace.id,
+            is_closed=False,
+            closed_at=None,
+            _session=db_session
+        )
+
+        # Closed period (with closed_at)
+        close2 = FinancialCloseFactory(
+            workspace_id=workspace.id,
+            is_closed=True,
+            closed_at=datetime.utcnow(),
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert close1.closed_at is None
+        assert close2.closed_at is not None
+
+    def test_financial_close_metadata_json(self, db_session: Session):
+        """Test metadata_json field for checklist."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        metadata = {
+            "checklist": [
+                "journal_entries",
+                "reconciliations",
+                "reports"
+            ],
+            "blockers": [
+                "Missing invoice from Vendor X"
+            ],
+            "closed_by": "user_123"
+        }
+
+        close = FinancialCloseFactory(
+            workspace_id=workspace.id,
+            metadata_json=metadata,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Retrieve and verify JSON data
+        retrieved = db_session.query(FinancialClose).filter(
+            FinancialClose.id == close.id
+        ).first()
+        assert retrieved.metadata_json == metadata
+        assert len(retrieved.metadata_json["checklist"]) == 3
+
+
+class TestCategorizationRuleModel:
+    """Test CategorizationRule model (auto-categorization rules)."""
+
+    def test_categorization_rule_create(self, db_session: Session):
+        """Test creating auto-categorization rule."""
+        workspace = WorkspaceFactory(_session=db_session)
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        rule = CategorizationRule(
+            workspace_id=workspace.id,
+            merchant_pattern="Amazon",
+            target_account_id=account.id
+        )
+        db_session.add(rule)
+        db_session.commit()
+        db_session.refresh(rule)
+
+        assert rule.workspace_id == workspace.id
+        assert rule.merchant_pattern == "Amazon"
+        assert rule.target_account_id == account.id
+        assert rule.confidence_weight == 1.0  # Default
+        assert rule.is_active is True  # Default
+
+    def test_categorization_rule_workspace_merchant_unique(self, db_session: Session):
+        """Test workspace+merchant_pattern unique constraint."""
+        workspace = WorkspaceFactory(_session=db_session)
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create first rule
+        rule1 = CategorizationRule(
+            workspace_id=workspace.id,
+            merchant_pattern="Amazon",
+            target_account_id=account.id
+        )
+        db_session.add(rule1)
+        db_session.commit()
+
+        # Try to create second rule with same workspace+merchant_pattern
+        with pytest.raises(IntegrityError):
+            rule2 = CategorizationRule(
+                workspace_id=workspace.id,
+                merchant_pattern="Amazon",  # Duplicate
+                target_account_id=account.id
+            )
+            db_session.add(rule2)
+            db_session.commit()
+
+        db_session.rollback()
+
+    def test_categorization_rule_confidence_weight(self, db_session: Session):
+        """Test confidence_weight increases with acceptance."""
+        workspace = WorkspaceFactory(_session=db_session)
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Low confidence (new rule)
+        rule1 = CategorizationRuleFactory(
+            workspace_id=workspace.id,
+            target_account_id=account.id,
+            merchant_pattern="Vendor A",
+            confidence_weight=1.0,
+            _session=db_session
+        )
+
+        # High confidence (established rule)
+        rule2 = CategorizationRuleFactory(
+            workspace_id=workspace.id,
+            target_account_id=account.id,
+            merchant_pattern="Vendor B",
+            confidence_weight=10.0,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert rule1.confidence_weight == 1.0
+        assert rule2.confidence_weight == 10.0
+
+    def test_categorization_rule_is_active_filter(self, db_session: Session):
+        """Test active rules filtering."""
+        workspace = WorkspaceFactory(_session=db_session)
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Active rule
+        rule1 = CategorizationRuleFactory(
+            workspace_id=workspace.id,
+            target_account_id=account.id,
+            is_active=True,
+            _session=db_session
+        )
+
+        # Inactive rule
+        rule2 = CategorizationRuleFactory(
+            workspace_id=workspace.id,
+            target_account_id=account.id,
+            is_active=False,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Filter by active
+        active_rules = db_session.query(CategorizationRule).filter(
+            CategorizationRule.workspace_id == workspace.id,
+            CategorizationRule.is_active == True
+        ).all()
+        assert len(active_rules) == 1
+
+
+class TestBudgetModel:
+    """Test Budget model (budget constraints)."""
+
+    def test_budget_create(self, db_session: Session):
+        """Test creating budget constraint."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        budget = Budget(
+            workspace_id=workspace.id,
+            amount=Decimal("10000.00"),
+            start_date=datetime.utcnow().replace(day=1),
+            end_date=datetime.utcnow().replace(day=1) + timedelta(days=90)
+        )
+        db_session.add(budget)
+        db_session.commit()
+        db_session.refresh(budget)
+
+        assert budget.workspace_id == workspace.id
+        assert budget.amount == Decimal("10000.00")
+        assert budget.period == "month"  # Default
+
+    def test_budget_amount_numeric_precision(self, db_session: Session):
+        """Test Numeric(19,4) precision for amounts."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        amounts = [
+            Decimal("1000.00"),
+            Decimal("5000.50"),
+            Decimal("10000.9999"),
+        ]
+
+        for amount in amounts:
+            budget = BudgetFactory(
+                workspace_id=workspace.id,
+                amount=amount,
+                _session=db_session
+            )
+            db_session.commit()
+            assert budget.amount == amount
+
+    def test_budget_period_variety(self, db_session: Session):
+        """Test month/quarter/year periods."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        periods = ["month", "quarter", "year"]
+
+        for period in periods:
+            budget = BudgetFactory(
+                workspace_id=workspace.id,
+                period=period,
+                _session=db_session
+            )
+            db_session.commit()
+            assert budget.period == period
+
+    def test_budget_project_linking(self, db_session: Session):
+        """Test optional project FK."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Budget without project
+        budget1 = BudgetFactory(
+            workspace_id=workspace.id,
+            project_id=None,
+            _session=db_session
+        )
+
+        # Budget with project
+        budget2 = BudgetFactory(
+            workspace_id=workspace.id,
+            project_id="project_123",
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert budget1.project_id is None
+        assert budget2.project_id == "project_123"
+
+    def test_budget_category_linking(self, db_session: Session):
+        """Test optional account FK for category."""
+        workspace = WorkspaceFactory(_session=db_session)
+        account = AccountFactory(
+            workspace_id=workspace.id,
+            type=AccountType.EXPENSE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        budget = BudgetFactory(
+            workspace_id=workspace.id,
+            category_id=account.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert budget.category_id == account.id
+
+    def test_budget_date_range(self, db_session: Session):
+        """Test start_date < end_date."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        start = datetime.utcnow()
+        end = start + timedelta(days=90)
+
+        budget = BudgetFactory(
+            workspace_id=workspace.id,
+            start_date=start,
+            end_date=end,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert budget.start_date < budget.end_date
+
+
