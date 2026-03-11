@@ -259,7 +259,11 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. WebSocket connections (async streaming, connection lifecycle, error handling) tested using AsyncMock patterns
   3. HTTP clients (LLM providers, external APIs) tested using responses library with proper error handling
   4. Integration error paths (network failures, timeouts, malformed responses) are systematically tested
-**Plans**: TBD
+**Plans**: 3 plans
+- [x] 170-01-PLAN.md — LanceDB integration coverage tests (connection, vector search, batch operations, knowledge graph)
+- [x] 170-02-PLAN.md — WebSocket AsyncMock pattern tests (connection lifecycle, broadcasting, debugging manager)
+- [x] 170-03-PLAN.md — HTTP client with responses library tests (LLM integration, error handling, connection pooling)
+**Status**: Complete (2026-03-11)
 
 #### Phase 171: Gap Closure & Final Push
 **Goal**: Achieve 80% overall line coverage and 70%+ branch coverage through systematic gap closure, error path testing, and flaky test fixes
@@ -297,5 +301,5 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 167. API Routes Coverage | v5.4 | 4/4 | Complete | 2026-03-11 |
 | 168. Database Layer Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
 | 169. Tools & Integrations Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
-| 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 0/0 | Not started | - |
+| 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 3/3 | Complete | 2026-03-11 |
 | 171. Gap Closure & Final Push | v5.4 | 0/0 | Not started | - |
