@@ -605,6 +605,56 @@ class TestEpisodeBoundaryDetection:
         # Should be <0.75 (different topic)
         assert similarity < 0.75
 
+    def test_cosine_similarity_pure_python_fallback(self, segmentation_service_mocked):
+        """
+        Test pure Python fallback when numpy raises exception.
+
+        Verifies graceful degradation when numpy operations fail.
+        """
+        detector = EpisodeBoundaryDetector(segmentation_service_mocked.lancedb)
+
+        # Mock numpy import to raise ImportError
+        import builtins
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == 'numpy':
+                raise ImportError("No module named 'numpy'")
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, '__import__', side_effect=mock_import):
+            vec1 = [1.0, 0.0, 0.0]
+            vec2 = [0.0, 1.0, 0.0]
+            similarity = detector._cosine_similarity(vec1, vec2)
+
+            # Should fallback to pure Python and return 0.0 (orthogonal)
+            assert abs(similarity - 0.0) < 0.001
+
+    def test_cosine_similarity_pure_python_zero_magnitude(self, segmentation_service_mocked):
+        """
+        Test pure Python fallback with zero-magnitude vector.
+
+        Verifies pure Python implementation handles division by zero.
+        """
+        detector = EpisodeBoundaryDetector(segmentation_service_mocked.lancedb)
+
+        # Mock numpy import to raise ImportError
+        import builtins
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == 'numpy':
+                raise ImportError("No module named 'numpy'")
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, '__import__', side_effect=mock_import):
+            vec1 = [0.0, 0.0, 0.0]  # Zero vector
+            vec2 = [1.0, 0.0, 0.0]
+            similarity = detector._cosine_similarity(vec1, vec2)
+
+            # Should return 0.0 (pure Python division by zero check)
+            assert similarity == 0.0
+
     def test_cosine_similarity_numpy_fallback(self, segmentation_service_mocked):
         """
         Test fallback to pure Python when numpy unavailable.

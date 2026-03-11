@@ -130,7 +130,14 @@ class EpisodeBoundaryDetector:
             import numpy as np
             v1 = np.array(vec1) if not isinstance(vec1, np.ndarray) else vec1
             v2 = np.array(vec2) if not isinstance(vec2, np.ndarray) else vec2
-            return float(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2)))
+
+            # Check for zero-magnitude vectors before dividing (prevents NaN)
+            norm1 = np.linalg.norm(v1)
+            norm2 = np.linalg.norm(v2)
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+
+            return float(np.dot(v1, v2) / (norm1 * norm2))
         except (ImportError, ValueError, TypeError) as e:
             # Fallback to pure Python implementation
             logger.debug(f"Numpy calculation failed, using pure Python: {e}")
