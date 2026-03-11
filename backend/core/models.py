@@ -4448,7 +4448,7 @@ class Appointment(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     tenant = relationship("Tenant")
-    customer = relationship("Entity")
+    customer = relationship(Entity)  # Entity imported from accounting.models
     service = relationship("BusinessProductService")
 
 class ClientHealthScore(Base):
