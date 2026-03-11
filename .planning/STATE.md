@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 
 ## Current Position
 
-Phase: 167 of 171 (API Routes Coverage)
-Plan: 4 of 4 in current phase
-Status: Complete
-Last activity: 2026-03-11 — Phase 167: All 4 plans complete (7,115+ lines, 318+ tests)
+Phase: 168 of 171 (Database Layer Coverage)
+Plan: 3 of 5 in current phase
+Status: In Progress
+Last activity: 2026-03-11 — Phase 168 Plan 03: Sales and service delivery model tests complete (89 tests, 2,360 lines)
 
-Progress: [██████████████████] 100% (4/4 plans in Phase 167)
+Progress: [████████░░░░░░░░░░] 60% (3/5 plans in Phase 168)
 
 ## Performance Metrics
 
@@ -224,6 +224,17 @@ Recent decisions affecting current work:
 - [Phase 167-01]: Create per-file FastAPI app instances to avoid SQLAlchemy metadata conflicts
 - [Phase 167-01]: 3,467+ lines of TestClient-based API tests covering 5 core route files
 
+**Phase 168-03 - Sales and Service Delivery Model Tests (COMPLETE):**
+- Plan 168-03: Comprehensive tests for sales (5 models) and service delivery (6 models) (completed 2026-03-11)
+- 2,535 lines of factory code created (sales_factory.py 175 lines, service_factory.py 200 lines)
+- 2,360 lines of test code created across 1 test file (test_sales_service_models.py)
+- 89 test methods covering: enum validation, AI enrichment, budget tracking, JSON serialization, cross-module relationships, workflow chains
+- Models tested: Lead, Deal, CommissionEntry, CallTranscript, FollowUpTask (sales), Contract, Project, Milestone, ProjectTask, Appointment (service_delivery)
+- Coverage: All enum values (9 types), AI enrichment (ai_score, health_score, ai_rationale), budget guardrails (warn/pause/block), cross-module relationships (Deal→Contract, Entity→Appointment)
+- Commits: 0fd95f846 (factories), 2e2717312 (tests)
+- Files created: backend/tests/factories/sales_factory.py, backend/tests/factories/service_factory.py, backend/tests/database/test_sales_service_models.py, 168-03-SUMMARY.md
+- [Phase 168-03]: Create 89 tests for 11 sales and service delivery models with enum validation, AI enrichment, budget tracking, and cross-module relationship testing
+
 **Phase 167-02 - Schemathesis Contract Testing (COMPLETE):**
 - Plan 167-02: OpenAPI contract testing with Schemathesis (completed 2026-03-11)
 - 2,048+ lines of contract test code created across 5 test files (conftest.py + 4 contract test files + results report)
@@ -265,6 +276,13 @@ None yet.
 
 ### Blockers/Concerns
 
+**From Phase 168 (NEW - Pre-existing Issue):**
+- workflow_factory.py import issue: Imports WorkflowStepExecution from core.models but model doesn't exist
+- Impact: Cannot import factories through tests.factories.__init__.py, must import directly
+- Workaround: Direct imports work when factories are imported individually
+- Technical Debt: Fix workflow_factory.py imports or remove non-existent models
+- Status: Not blocking for Phase 168, factories work with direct imports
+
 **From Phase 166 (RESOLVED - Phase Complete):**
 - SQLAlchemy metadata conflicts: Duplicate model definitions in core/models.py and accounting/models.py
 - Impact: Integration tests cannot run together, requires temporary workaround
@@ -289,8 +307,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11 (Phase 167 complete, SQLAlchemy fix committed)
-Stopped at: Phase 167 complete - All 4 plans executed with 7,115+ lines of test code and 318+ test methods
+Last session: 2026-03-11 (Phase 168 Plan 03 complete)
+Stopped at: Phase 168 Plan 03 complete - Sales and service delivery model tests with 89 tests and 2,360 lines
 Resume file: None
-Next: Phase 168 - Edge Cases and Integration Testing (to be created) OR verify SQLAlchemy fix
-Prerequisite: None - SQLAlchemy metadata conflict resolved in commit 718078bbc
+Next: Phase 168 Plan 04 - Additional database model coverage
+Prerequisite: None - All factories and tests created successfully
