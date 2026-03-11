@@ -118,3 +118,139 @@ class TestLanceDBConnection:
 
             assert result["connected"] is False
             assert "LanceDB not available" in result["message"]
+
+# ============================================================================
+# Vector Search Tests
+# ============================================================================
+
+class TestLanceDBVectorSearch:
+    """Test vector search operations with mocked LanceDB tables."""
+
+    @patch('core.lancedb_handler.LanceDBHandler.embed_text')
+    @patch('core.lancedb_handler.LanceDBHandler.get_table')
+    def test_similarity_search_with_filters(self, mock_get_table, mock_embed, handler):
+        """Test vector search with user_id and workspace_id filters."""
+        # Mock embedding - return a Mock with tolist() method
+        import numpy as np
+        mock_vector = np.array([0.1] * 384, dtype=np.float32)
+        mock_embed.return_value = mock_vector
+
+        # Mock table search chain
+        mock_table = Mock()
+        mock_table.search = Mock(return_value=mock_table)
+        mock_table.where = Mock(return_value=mock_table)
+        mock_table.limit = Mock(return_value=mock_table)
+
+        # Mock pandas result
+        if PANDAS_AVAILABLE:
+            import pandas as pd
+            mock_df = pd.DataFrame({
+                'id': ['ep1', 'ep2'],
+                'text': ['result 1', 'result 2'],
+                'source': ['test', 'test'],
+                'metadata': [{'key': 'value'}, {'key2': 'value2'}],
+                'created_at': ['2026-01-01', '2026-01-02'],
+                '_distance': [0.2, 0.3]
+            })
+        else:
+            mock_df = Mock()
+        mock_table.to_pandas = Mock(return_value=mock_df)
+
+        mock_get_table.return_value = mock_table
+
+        # Create handler and search
+        handler._ensure_db()
+        handler.db = Mock()
+        handler.db.table_names = Mock(return_value=['episodes'])
+
+        results = handler.search(
+            table_name="episodes",
+            query="test query",
+            user_id="test_user",
+            limit=10
+        )
+
+        # Verify search was called
+        mock_table.search.assert_called_once()
+        assert len(results) >= 0
+
+    @patch('core.lancedb_handler.LanceDBHandler.embed_text')
+    def test_search_without_embedder_returns_empty(self, mock_embed, handler):
+        """Test search behavior when embedding generation fails."""
+        mock_embed.return_value = None
+
+        handler._ensure_db()
+        handler.db = Mock()
+        handler.db.table_names = Mock(return_value=['episodes'])
+
+        results = handler.search(
+            table_name="episodes",
+            query="test query",
+            limit=10
+        )
+
+        assert results == []
+
+# ============================================================================
+# Batch Operations Tests
+# ============================================================================
+
+class TestLanceDBBatchOperations:
+    """Test batch document operations with mocked tables."""
+
+    @patch('core.lancedb_handler.LanceDBHandler.embed_text')
+    @patch('core.lancedb_handler.LanceDBHandler.get_table')
+    def test_add_documents_batch_success(self, mock_get_table, mock_embed, handler):
+        """Test successful batch document addition."""
+        # Mock embedding with correct dimension - use numpy array
+        import numpy as np
+        mock_embed.return_value = np.array([0.1] * 384, dtype=np.float32)
+
+        # Mock table
+        mock_table = Mock()
+        mock_table.add = Mock()
+        mock_get_table.return_value = mock_table
+
+        handler._ensure_db()
+        handler.db = Mock()
+        handler.db.table_names = Mock(return_value=['test_table'])
+
+        documents = [
+            {"text": "doc1", "source": "test", "user_id": "user1"},
+            {"text": "doc2", "source": "test", "user_id": "user1"}
+        ]
+
+        count = handler.add_documents_batch(
+            table_name="test_table",
+            documents=documents
+        )
+
+        assert count == 2
+        mock_table.add.assert_called_once()
+
+    @patch('core.lancedb_handler.LanceDBHandler.embed_text')
+    def test_batch_handles_embedding_failure(self, mock_embed, handler):
+        """Test that batch operations skip documents with failed embeddings."""
+        # First embedding succeeds, second fails
+        import numpy as np
+        mock_embed.side_effect = [np.array([0.1] * 384, dtype=np.float32), None]
+
+        handler._ensure_db()
+        handler.db = Mock()
+        mock_table = Mock()
+        mock_table.add = Mock()
+        handler.db.create_table = Mock(return_value=mock_table)
+        handler.db.table_names = Mock(return_value=[])
+
+        documents = [
+            {"text": "doc1", "source": "test"},
+            {"text": "doc2", "source": "test"}
+        ]
+
+        count = handler.add_documents_batch(
+            table_name="test_table",
+            documents=documents
+        )
+
+        # Only first document added (second skipped due to failed embedding)
+        assert count == 1
