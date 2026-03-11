@@ -4103,30 +4103,9 @@ class InvoiceStatus(str, enum.Enum):
     VOID = "void"
     OVERDUE = "overdue"
 
-# DUPLICATE NOTE: Account class is defined in accounting/models.py
-# This duplicate definition was causing SQLAlchemy metadata conflicts
-# class Account(Base):
-#     __tablename__ = "accounting_accounts"
-#
-#     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-#     name = Column(String, nullable=False)
-#     code = Column(String, nullable=False)
-#     type = Column(SQLEnum(AccountType), nullable=False)
-#     description = Column(Text, nullable=True)
-#     is_active = Column(Boolean, default=True)
-#     parent_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=True)
-#     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-#     standards_mapping = Column(JSON, nullable=True)
-#     last_audit_at = Column(DateTime(timezone=True), nullable=True)
-#     created_at = Column(DateTime(timezone=True), server_default=func.now())
-#     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-#
-#     __table_args__ = (
-#         UniqueConstraint('tenant_id', 'code', name='_tenant_code_uc'),
-#     )
-#
-#     parent = relationship("Account", remote_side=[id], foreign_keys=[parent_id], backref="sub_accounts")
-#     entries = relationship("JournalEntry", back_populates="account")
+# Import Account from accounting.models to avoid duplicate table definition
+# This resolves SQLAlchemy metadata conflicts while maintaining relationships
+from accounting.models import Account
 
 class Transaction(Base):
     __tablename__ = "accounting_transactions"
