@@ -154,7 +154,10 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. Team can measure branch coverage with `--cov-branch` flag enabled in pytest configuration
   3. Team can enforce progressive coverage thresholds (70% → 75% → 80%) via quality gates with emergency bypass mechanism
   4. Coverage baseline is accurate and prevents false confidence from service-level estimates
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 163-01-PLAN.md — Branch coverage configuration and baseline generation script
+- [ ] 163-02-PLAN.md — Progressive quality gates and emergency bypass verification
+- [ ] 163-03-PLAN.md — Methodology documentation and phase verification
 
 #### Phase 164: Gap Analysis & Prioritization
 **Goal**: Identify untested code prioritized by business impact and generate test stubs for systematic gap closure
@@ -262,7 +265,7 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 160. Backend 80% Target (Blockers) | v5.3 | 2/2 | Complete (Not Achieved) | 2026-03-10 |
 | 161. Model Fixes and Database | v5.3 | 3/3 | Complete (Partial Success) | 2026-03-10 |
 | 162. Episode Service Comprehensive Testing | v5.3 | 8/8 | Complete | 2026-03-11 |
-| 163. Coverage Baseline & Infrastructure Enhancement | v5.4 | 0/0 | Not started | - |
+| 163. Coverage Baseline & Infrastructure Enhancement | v5.4 | 0/3 | Planning | - |
 | 164. Gap Analysis & Prioritization | v5.4 | 0/0 | Not started | - |
 | 165. Core Services Coverage (Governance & LLM) | v5.4 | 0/0 | Not started | - |
 | 166. Core Services Coverage (Episodic Memory) | v5.4 | 0/0 | Not started | - |
