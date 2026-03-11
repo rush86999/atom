@@ -4092,135 +4092,18 @@ from accounting.models import (
 )
 
 
-# Sales Enums
-class LeadStatus(str, enum.Enum):
-    NEW = "new"
-    QUALIFIED = "qualified"
-    DISQUALIFIED = "disqualified"
-    CONTACTED = "contacted"
-    SPAM = "spam"
-
-class DealStage(str, enum.Enum):
-    DISCOVERY = "discovery"
-    QUALIFICATION = "qualification"
-    PROPOSAL = "proposal"
-    NEGOTIATION = "negotiation"
-    CLOSED_WON = "closed_won"
-    CLOSED_LOST = "closed_lost"
-
-class CommissionStatus(str, enum.Enum):
-    ACCRUED = "accrued"
-    APPROVED = "approved"
-    PAID = "paid"
-    CANCELLED = "cancelled"
-
-class NegotiationState(str, enum.Enum):
-    INITIAL = "initial"
-    DISCOVERY = "discovery"
-    BARGAINING = "bargaining"
-    CLOSING = "closing"
-    FOLLOW_UP = "follow_up"
-    WON = "won"
-    LOST = "lost"
-
-class Lead(Base):
-    __tablename__ = "sales_leads"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    external_id = Column(String, nullable=True, index=True)
-    email = Column(String, nullable=False)
-    first_name = Column(String, nullable=True)
-    last_name = Column(String, nullable=True)
-    company = Column(String, nullable=True)
-    source = Column(String, nullable=True)
-    status = Column(SQLEnum(LeadStatus), default=LeadStatus.NEW)
-    
-    ai_score = Column(Float, default=0.0)
-    ai_qualification_summary = Column(Text, nullable=True)
-    is_spam = Column(Boolean, default=False)
-    is_converted = Column(Boolean, default=False)
-    
-    metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-class Deal(Base):
-    __tablename__ = "sales_deals"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    external_id = Column(String, nullable=True, index=True)
-    name = Column(String, nullable=False)
-    value = Column(Float, default=0.0)
-    currency = Column(String, default="USD")
-    stage = Column(SQLEnum(DealStage), default=DealStage.DISCOVERY)
-    probability = Column(Float, default=0.0)
-    
-    health_score = Column(Float, default=0.0)
-    risk_level = Column(String, default="low")
-    last_engagement_at = Column(DateTime(timezone=True), nullable=True)
-    negotiation_state = Column(SQLEnum(NegotiationState), default=NegotiationState.INITIAL)
-    last_followup_at = Column(DateTime(timezone=True), nullable=True)
-    followup_count = Column(Integer, default=0)
-    
-    metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    transcripts = relationship("CallTranscript", back_populates="deal")
-    commissions = relationship("CommissionEntry", back_populates="deal")
-
-class CommissionEntry(Base):
-    __tablename__ = "sales_commissions"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=False)
-    invoice_id = Column(String, nullable=True)
-    
-    payee_id = Column(String, nullable=True)
-    amount = Column(Float, nullable=False)
-    currency = Column(String, default="USD")
-    status = Column(SQLEnum(CommissionStatus), default=CommissionStatus.ACCRUED)
-    
-    calculated_at = Column(DateTime(timezone=True), server_default=func.now())
-    paid_at = Column(DateTime(timezone=True), nullable=True)
-    
-    metadata_json = Column(JSON, nullable=True)
-    deal = relationship("Deal", back_populates="commissions")
-
-class CallTranscript(Base):
-    __tablename__ = "sales_call_transcripts"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=True)
-    meeting_id = Column(String, nullable=True)
-    
-    title = Column(String, nullable=True)
-    raw_transcript = Column(Text, nullable=False)
-    summary = Column(Text, nullable=True)
-    objections = Column(JSON, nullable=True)
-    action_items = Column(JSON, nullable=True)
-    metadata_json = Column(JSON, nullable=True)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    deal = relationship("Deal", back_populates="transcripts")
-
-class FollowUpTask(Base):
-    __tablename__ = "sales_follow_up_tasks"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=False)
-    
-    description = Column(Text, nullable=False)
-    suggested_date = Column(DateTime(timezone=True), nullable=True)
-    is_completed = Column(Boolean, default=False)
-    
-    ai_rationale = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+# Import sales models from their dedicated module
+from sales.models import (
+    Lead,
+    Deal,
+    CommissionEntry,
+    CallTranscript,
+    FollowUpTask,
+    LeadStatus,
+    DealStage,
+    CommissionStatus,
+    NegotiationState,
+)
 
 # Marketing Enums
 class ChannelType(str, enum.Enum):
@@ -4278,178 +4161,19 @@ class AttributionEvent(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
     metadata_json = Column(JSON, nullable=True)
 
-# Service Delivery Enums
-class ContractType(str, enum.Enum):
-    FIXED_FEE = "fixed_fee"
-    RETAINER = "retainer"
-    TIME_MATERIAL = "time_material"
-
-class ProjectStatus(str, enum.Enum):
-    PENDING = "pending"
-    ACTIVE = "active"
-    PAUSED_PAYMENT = "paused_payment"
-    PAUSED_CLIENT = "paused_client"
-    COMPLETED = "completed"
-    CANCELED = "canceled"
-
-class MilestoneStatus(str, enum.Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    APPROVED = "approved"
-    INVOICED = "invoiced"
-
-class BudgetStatus(str, enum.Enum):
-    ON_TRACK = "on_track"
-    AT_RISK = "at_risk"
-    OVER_BUDGET = "over_budget"
-
-class AppointmentStatus(str, enum.Enum):
-    SCHEDULED = "scheduled"
-    COMPLETED = "completed"
-    NO_SHOW = "no_show"
-    CANCELED = "canceled"
-
-class Contract(Base):
-    __tablename__ = "service_contracts"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    deal_id = Column(String, ForeignKey("sales_deals.id"), nullable=True) 
-    product_service_id = Column(String, ForeignKey("business_product_services.id"), nullable=True)
-    
-    name = Column(String, nullable=False)
-    type = Column(SQLEnum(ContractType), default=ContractType.FIXED_FEE)
-    total_amount = Column(Float, default=0.0)
-    currency = Column(String, default="USD")
-    
-    start_date = Column(DateTime(timezone=True), nullable=True)
-    end_date = Column(DateTime(timezone=True), nullable=True)
-    
-    metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    deal = relationship("Deal")
-    product_service = relationship("BusinessProductService")
-    projects = relationship("Project", back_populates="contract")
-
-class Project(Base):
-    __tablename__ = "service_projects"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    contract_id = Column(String, ForeignKey("service_contracts.id"), nullable=True)
-    
-    name = Column(String, nullable=False)
-    status = Column(SQLEnum(ProjectStatus), default=ProjectStatus.PENDING)
-    description = Column(Text, nullable=True)
-    
-    budget_hours = Column(Float, default=0.0)
-    actual_hours = Column(Float, default=0.0)
-    budget_amount = Column(Float, default=0.0)
-    actual_burn = Column(Float, default=0.0)
-    budget_status = Column(SQLEnum(BudgetStatus), default=BudgetStatus.ON_TRACK)
-    
-    priority = Column(String, default="medium")
-    project_type = Column(String, default="general")
-    
-    planned_start_date = Column(DateTime(timezone=True), nullable=True)
-    planned_end_date = Column(DateTime(timezone=True), nullable=True)
-    actual_start_date = Column(DateTime(timezone=True), nullable=True)
-    actual_end_date = Column(DateTime(timezone=True), nullable=True)
-    
-    risk_level = Column(String, default="low")
-    predicted_end_date = Column(DateTime(timezone=True), nullable=True)
-    risk_score = Column(Float, default=0.0)
-    risk_rationale = Column(Text, nullable=True)
-    
-    metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    contract = relationship("Contract", back_populates="projects")
-    milestones = relationship("Milestone", back_populates="project")
-
-class Milestone(Base):
-    __tablename__ = "service_milestones"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id = Column(String, ForeignKey("service_projects.id"), nullable=False)
-    
-    name = Column(String, nullable=False)
-    amount = Column(Float, default=0.0)
-    percentage = Column(Float, default=0.0)
-    
-    status = Column(SQLEnum(MilestoneStatus), default=MilestoneStatus.PENDING)
-    order = Column(Integer, default=0)
-    
-    actual_burn = Column(Float, default=0.0)
-    budget_status = Column(SQLEnum(BudgetStatus), default=BudgetStatus.ON_TRACK)
-    
-    planned_start_date = Column(DateTime(timezone=True), nullable=True)
-    due_date = Column(DateTime(timezone=True), nullable=True)
-    completed_at = Column(DateTime(timezone=True), nullable=True)
-
-    invoice_id = Column(String, nullable=True)
-    customer_entity_id = Column(String, ForeignKey("accounting_entities.id"), nullable=True)
-
-    metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    project = relationship("Project", back_populates="milestones")
-    tasks = relationship("ProjectTask", back_populates="milestone")
-
-class ProjectTask(Base):
-    __tablename__ = "service_tasks"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id = Column(String, ForeignKey("service_projects.id"), nullable=False)
-    milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=False)
-    
-    name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    status = Column(String, default="pending")
-    
-    assigned_to = Column(String, ForeignKey("users.id"), nullable=True)
-    due_date = Column(DateTime(timezone=True), nullable=True)
-    completed_at = Column(DateTime(timezone=True), nullable=True)
-    
-    actual_hours = Column(Float, default=0.0)
-    metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    milestone = relationship("Milestone", back_populates="tasks")
-    assignee = relationship("User")
-
-class Appointment(Base):
-    __tablename__ = "service_appointments"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    customer_id = Column(String, ForeignKey("accounting_entities.id"), nullable=False)
-    service_id = Column(String, ForeignKey("business_product_services.id"), nullable=True)
-    
-    start_time = Column(DateTime(timezone=True), nullable=False)
-    end_time = Column(DateTime(timezone=True), nullable=False)
-    status = Column(SQLEnum(AppointmentStatus), default=AppointmentStatus.SCHEDULED)
-    
-    deposit_amount = Column(Float, default=0.0)
-    is_deposit_paid = Column(Boolean, default=False)
-    
-    notes = Column(Text, nullable=True)
-    metadata_json = Column(JSON, nullable=True)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    tenant = relationship("Tenant")
-    customer = relationship(Entity)  # Entity imported from accounting.models
-    service = relationship("BusinessProductService")
+# Import service delivery models from their dedicated module
+from service_delivery.models import (
+    Contract,
+    Project,
+    Milestone,
+    ProjectTask,
+    Appointment,
+    ContractType,
+    ProjectStatus,
+    MilestoneStatus,
+    BudgetStatus,
+    AppointmentStatus,
+)
 
 class ClientHealthScore(Base):
     __tablename__ = "intelligence_client_health"
