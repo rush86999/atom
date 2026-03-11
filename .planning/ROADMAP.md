@@ -169,9 +169,10 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. High-impact files (governance, LLM, episodic memory) are prioritized for testing first
   4. Coverage gaps are mapped to specific missing lines for targeted test writing
 **Plans**: 3 plans
-- [ ] 164-01-PLAN.md — Coverage gap analysis tool with business impact scoring
-- [ ] 164-02-PLAN.md — Test stub generator CLI with testing patterns library
-- [ ] 164-03-PLAN.md — Test prioritization service with phased roadmap generation
+- [x] 164-01-PLAN.md — Coverage gap analysis tool with business impact scoring
+- [x] 164-02-PLAN.md — Test stub generator CLI with testing patterns library
+- [x] 164-03-PLAN.md — Test prioritization service with phased roadmap generation
+**Status**: Complete (2026-03-11)
 
 #### Phase 165: Core Services Coverage (Governance & LLM)
 **Goal**: Achieve 80%+ coverage on agent governance service and LLM service with property-based tests for invariants
@@ -268,8 +269,8 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 160. Backend 80% Target (Blockers) | v5.3 | 2/2 | Complete (Not Achieved) | 2026-03-10 |
 | 161. Model Fixes and Database | v5.3 | 3/3 | Complete (Partial Success) | 2026-03-10 |
 | 162. Episode Service Comprehensive Testing | v5.3 | 8/8 | Complete | 2026-03-11 |
-| 163. Coverage Baseline & Infrastructure Enhancement | v5.4 | 0/3 | Planning | - |
-| 164. Gap Analysis & Prioritization | v5.4 | 0/0 | Not started | - |
+| 163. Coverage Baseline & Infrastructure Enhancement | v5.4 | 3/3 | Complete | 2026-03-11 |
+| 164. Gap Analysis & Prioritization | v5.4 | 3/3 | Complete | 2026-03-11 |
 | 165. Core Services Coverage (Governance & LLM) | v5.4 | 0/0 | Not started | - |
 | 166. Core Services Coverage (Episodic Memory) | v5.4 | 0/0 | Not started | - |
 | 167. API Routes Coverage | v5.4 | 0/0 | Not started | - |
