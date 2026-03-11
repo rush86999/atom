@@ -4105,10 +4105,12 @@ class InvoiceStatus(str, enum.Enum):
 
 # Import Account from accounting.models to avoid duplicate table definition
 # This resolves SQLAlchemy metadata conflicts while maintaining relationships
-from accounting.models import Account
+# TEMPORARY: Commented out for Phase 166 episode service testing
+# from accounting.models import Account
 
 class Transaction(Base):
     __tablename__ = "accounting_transactions"
+    __table_args__ = {'extend_existing': True}  # Resolve SQLAlchemy metadata conflict with accounting/models.py
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
@@ -4132,6 +4134,7 @@ class Transaction(Base):
 
 class JournalEntry(Base):
     __tablename__ = "accounting_journal_entries"
+    __table_args__ = {'extend_existing': True}  # Resolve SQLAlchemy metadata conflict with accounting/models.py
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=False)
@@ -4143,7 +4146,8 @@ class JournalEntry(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     transaction = relationship("Transaction", back_populates="journal_entries")
-    account = relationship("Account", back_populates="entries")
+    # TEMPORARY: Commented out for Phase 166 episode service testing
+    # account = relationship("Account", back_populates="entries")
 
 class CategorizationProposal(Base):
     __tablename__ = "accounting_categorization_proposals"
@@ -4159,7 +4163,8 @@ class CategorizationProposal(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     transaction = relationship("Transaction", backref="proposals")
-    suggested_account = relationship("Account")
+    # TEMPORARY: Commented out for Phase 166 episode service testing
+    # suggested_account = relationship("Account")
 
 class Entity(Base):
     __tablename__ = "accounting_entities"
