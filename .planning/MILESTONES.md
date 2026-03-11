@@ -99,3 +99,42 @@
 
 ---
 
+## v5.4 Backend 80% Coverage - Baseline & Plan (Started: 2026-03-11)
+
+**Goal:** Achieve 80% actual line coverage across entire backend through comprehensive baseline measurement, gap analysis, and targeted testing of core services, API routes, database layer, and integrations.
+
+**Target features:**
+- Comprehensive backend coverage baseline (actual line coverage, not service-level estimates)
+- Core services testing (agent governance, LLM routing, episodic memory, world model)
+- API routes coverage (FastAPI endpoints, validation, error handling)
+- Database layer testing (models, relationships, migrations)
+- Integration testing (external services, browser automation, device capabilities)
+- Progressive quality gates (70% → 75% → 80% with emergency bypass)
+- Property-based testing (invariants for critical paths)
+
+**Strategy:** Baseline first → targeted phases → quality enforcement
+
+**Timeline:** 2-3 weeks (aggressive execution)
+
+**Planned phases:** 9 (163-171), TBD plans, 25 requirements
+
+**Status:** 🚧 IN PLANNING
+
+**Critical Insight from v5.3:**
+- Service-level coverage estimates (74.6%) mask actual line coverage (8.50%)
+- 71.5 percentage point gap between estimates and reality
+- v5.4 focuses on ACTUAL line coverage measurement with coverage.py JSON output
+- Progressive rollout: 70% → 75% → 80% with emergency bypass mechanism
+
+**Phase Breakdown:**
+- Phase 163: Coverage Baseline & Infrastructure Enhancement (COV-01, COV-02, COV-03)
+- Phase 164: Gap Analysis & Prioritization (COV-04, COV-05)
+- Phase 165: Core Services Coverage - Governance & LLM (CORE-01, CORE-02, CORE-04, CORE-05)
+- Phase 166: Core Services Coverage - Episodic Memory (CORE-03)
+- Phase 167: API Routes Coverage (API-01, API-03, API-05)
+- Phase 168: Database Layer Coverage (API-02, API-04)
+- Phase 169: Tools & Integrations Coverage (TOOL-01, TOOL-02)
+- Phase 170: Integration Testing - LanceDB, WebSocket, HTTP (TOOL-03, TOOL-04, TOOL-05)
+- Phase 171: Gap Closure & Final Push (GAP-01, GAP-02, GAP-03, GAP-04, GAP-05)
+
+---

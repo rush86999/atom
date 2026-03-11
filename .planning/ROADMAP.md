@@ -12,6 +12,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - ✅ **v5.0 Coverage Expansion** - Phases 123-152 (shipped 2026-03-01)
 - ✅ **v5.2 Complete Codebase Coverage** - Phases 153-152 (shipped 2026-03-08)
 - ✅ **v5.3 Coverage Expansion to 80% Targets** - Phases 153-162 (shipped 2026-03-11)
+- 🚧 **v5.4 Backend 80% Coverage - Baseline & Plan** - Phases 163-171 (in progress)
 
 ## Phases
 
@@ -139,51 +140,115 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - Episode services achieved 79.2% coverage (exceeding all targets)
 
 </details>
-- [x] Phase 154: Coverage Trends & Quality Metrics (4/4 plans) — completed 2026-03-08
-- [x] Phase 155: Quick Wins (5/5 plans) — completed 2026-03-08
-- [x] Phase 156: Core Services Coverage (12/12 plans) — completed 2026-03-08
-- [x] Phase 157: Edge Cases & Integration Testing (4/4 plans) — completed 2026-03-09
-- [x] Phase 158: Coverage Gap Closure (5/5 plans) — completed 2026-03-09
 
-</details>
+### 🚧 v5.4 Backend 80% Coverage - Baseline & Plan (In Progress)
 
-### 🚧 Phase 159: Backend 80% Coverage (In Progress)
+**Milestone Goal:** Achieve 80% actual line coverage across entire backend through comprehensive baseline measurement, gap analysis, and targeted testing of core services, API routes, database layer, and integrations.
 
-**Goal:** Achieve 80% backend test coverage by completing LLM service, episodic memory, and governance/canvas coverage
-**Depends on**: Phase 158
+#### Phase 163: Coverage Baseline & Infrastructure Enhancement
+**Goal**: Establish accurate actual line coverage baseline (not service-level estimates) with branch coverage and progressive quality gates
+**Depends on**: Phase 162
+**Requirements**: COV-01, COV-02, COV-03
 **Success Criteria** (what must be TRUE):
-  1. Backend overall coverage reaches 80%+ target (up from 74.55%)
-  2. LLM service coverage increases from 43% to 80%+
-  3. Episodic memory coverage increases from 21.3% to 80%+
-  4. Governance and canvas coverage increases to 80%+
-  5. Backend quality gates pass at 80% threshold
-**Plans**: 4 plans
+  1. Team can measure actual line coverage across entire backend using coverage.py JSON output (not service-level estimates)
+  2. Team can measure branch coverage with `--cov-branch` flag enabled in pytest configuration
+  3. Team can enforce progressive coverage thresholds (70% → 75% → 80%) via quality gates with emergency bypass mechanism
+  4. Coverage baseline is accurate and prevents false confidence from service-level estimates
+**Plans**: TBD
 
-**Wave Structure:**
-- Wave 1: Plan 01 (LLM service gap closure - highest impact)
-- Wave 2: Plan 02 (Backend services gap closure - governance, episodic, canvas)
-- Wave 3: Plan 03 (Final verification and 80% target status)
+#### Phase 164: Gap Analysis & Prioritization
+**Goal**: Identify untested code prioritized by business impact and generate test stubs for systematic gap closure
+**Depends on**: Phase 163
+**Requirements**: COV-04, COV-05
+**Success Criteria** (what must be TRUE):
+  1. Team can generate coverage gap analysis identifying untested code prioritized by business impact (critical → moderate → low)
+  2. Team can generate test stub files for uncovered code using automated gap-driven tooling
+  3. High-impact files (governance, LLM, episodic memory) are prioritized for testing first
+  4. Coverage gaps are mapped to specific missing lines for targeted test writing
+**Plans**: TBD
 
-**Plan Breakdown:**
-- [ ] 159-01-PLAN.md — LLM service gap closure (43% → target 80%, 75 tests)
-- [ ] 159-02-PLAN.md — Backend services gap closure (governance, episodic, canvas, 85 tests)
-- [ ] 159-03-PLAN.md — Backend 80% verification and quality gate compliance
+#### Phase 165: Core Services Coverage (Governance & LLM)
+**Goal**: Achieve 80%+ coverage on agent governance service and LLM service with property-based tests for invariants
+**Depends on**: Phase 164
+**Requirements**: CORE-01, CORE-02, CORE-04, CORE-05
+**Success Criteria** (what must be TRUE):
+  1. Agent governance service (maturity routing, permission checks, cache validation) achieves 80%+ line coverage
+  2. LLM service (provider routing, cognitive tier classification, streaming, cache) achieves 80%+ line coverage
+  3. Governance invariants tested using property-based tests (Hypothesis) - cache consistency, maturity rules, permission checks
+  4. Maturity matrix (4 levels × 4 complexities) tested using parametrized tests covering all agent behaviors
+**Plans**: TBD
 
-**Wave Structure:**
-- Wave 1: Plan 01 (Desktop compilation fixes - blocks all desktop work)
-- Wave 2: Plans 02-04 (Mobile, Frontend, Backend - parallel platform coverage expansion)
-- Wave 3: Plan 05 (Final verification and summary - depends on Waves 1-2)
+#### Phase 166: Core Services Coverage (Episodic Memory)
+**Goal**: Achieve 80%+ coverage on episodic memory services (segmentation, retrieval modes, lifecycle)
+**Depends on**: Phase 165
+**Requirements**: CORE-03
+**Success Criteria** (what must be TRUE):
+  1. Episodic memory services (segmentation, retrieval modes, lifecycle) achieve 80%+ line coverage
+  2. All four retrieval modes (temporal, semantic, sequential, contextual) are tested
+  3. Episode lifecycle operations (decay, consolidation, archival) are tested
+  4. Canvas and feedback integration with episodic memory is tested
+**Plans**: TBD
 
-**Plan Breakdown:**
-- [ ] 158-01-PLAN.md — Desktop compilation fixes (unblocks Tarpaulin + 23 accessibility tests)
-- [ ] 158-02-PLAN.md — Mobile test suite execution (navigation, screens, state management)
-- [ ] 158-03-PLAN.md — Frontend component testing blitz (Dashboard, Calendar, CommunicationHub, integrations)
-- [ ] 158-04-PLAN.md — Backend LLM service HTTP-level mocking (36.5% → 80% coverage)
-- [ ] 158-05-PLAN.md — Final verification and cross-platform summary
+#### Phase 167: API Routes Coverage
+**Goal**: Achieve 75%+ coverage on FastAPI endpoints with contract testing and comprehensive error path validation
+**Depends on**: Phase 164
+**Requirements**: API-01, API-03, API-05
+**Success Criteria** (what must be TRUE):
+  1. FastAPI endpoints (agent chat, canvas, browser, device, auth) achieve 75%+ line coverage using TestClient
+  2. API contracts tested using Schemathesis for OpenAPI spec validation
+  3. Error paths (401 unauthorized, 500 server errors, constraint violations) tested for all endpoints
+  4. Request validation and response serialization are tested
+**Plans**: TBD
+
+#### Phase 168: Database Layer Coverage
+**Goal**: Achieve 80%+ coverage on database models with comprehensive relationship and constraint testing
+**Depends on**: Phase 164
+**Requirements**: API-02, API-04
+**Success Criteria** (what must be TRUE):
+  1. Database models (CRUD operations, relationships, foreign keys, cascades) achieve 80%+ line coverage using SQLite temp DBs
+  2. Complex model relationships (many-to-many, self-referential, polymorphic) tested with proper session isolation
+  3. Database constraints and cascades are validated
+  4. Transaction rollback and error handling are tested
+**Plans**: TBD
+
+#### Phase 169: Tools & Integrations Coverage
+**Goal**: Achieve 75%+ coverage on browser automation and device capabilities tools with proper mocking
+**Depends on**: Phase 164
+**Requirements**: TOOL-01, TOOL-02
+**Success Criteria** (what must be TRUE):
+  1. Browser automation tool (Playwright CDP, session management, screenshot capture) achieves 75%+ line coverage
+  2. Device capabilities tool (camera, location, notifications, shell access) achieves 75%+ line coverage
+  3. External service dependencies (Playwright, device APIs) are properly mocked
+  4. Tool error handling and edge cases are tested
+**Plans**: TBD
+
+#### Phase 170: Integration Testing (LanceDB, WebSocket, HTTP)
+**Goal**: Achieve 70%+ coverage on LanceDB, WebSocket, and HTTP client integrations with deterministic mocks
+**Depends on**: Phase 164
+**Requirements**: TOOL-03, TOOL-04, TOOL-05
+**Success Criteria** (what must be TRUE):
+  1. LanceDB integration (vector search, semantic similarity, batch operations) achieves 70%+ line coverage with deterministic mocks
+  2. WebSocket connections (async streaming, connection lifecycle, error handling) tested using AsyncMock patterns
+  3. HTTP clients (LLM providers, external APIs) tested using responses library with proper error handling
+  4. Integration error paths (network failures, timeouts, malformed responses) are systematically tested
+**Plans**: TBD
+
+#### Phase 171: Gap Closure & Final Push
+**Goal**: Achieve 80% overall line coverage and 70%+ branch coverage through systematic gap closure, error path testing, and flaky test fixes
+**Depends on**: Phase 165, 166, 167, 168, 169, 170
+**Requirements**: GAP-01, GAP-02, GAP-03, GAP-04, GAP-05
+**Success Criteria** (what must be TRUE):
+  1. Team achieves 80% overall line coverage and 70%+ branch coverage across entire backend codebase
+  2. Coverage exclusions (`# pragma: no cover`) are audited and outdated/unnecessary exclusions removed
+  3. Error paths (network failures, timeouts, malformed responses) are systematically tested across all services
+  4. Edge cases (boundary conditions, invalid inputs, state transitions) are tested across all services
+  5. Flaky tests (timing issues, race conditions, async coordination) are fixed by addressing root causes not just adding retries
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
+Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 → 169 → 170 → 171
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -196,31 +261,13 @@ Phases execute in numeric order: 153 → 154 → 155 → 156 → 157
 | 159. Backend 80% Coverage | v5.3 | 3/3 | Complete | 2026-03-09 |
 | 160. Backend 80% Target (Blockers) | v5.3 | 2/2 | Complete (Not Achieved) | 2026-03-10 |
 | 161. Model Fixes and Database | v5.3 | 3/3 | Complete (Partial Success) | 2026-03-10 |
-| 162. Episode Service Comprehensive Testing | v5.3 | 4/8 | Gap Closure | - |
-
-### 🚧 Phase 162: Episode Service Comprehensive Testing (Gap Closure)
-
-**Goal:** Achieve 65%+ coverage on episode services through comprehensive async method testing, full episode creation flows, supervision/skill episodes, and advanced retrieval modes
-**Depends on**: Phase 161
-**Success Criteria** (what must be TRUE):
-  1. EpisodeLifecycleService coverage increases from 32.2% to 65%+
-  2. EpisodeSegmentationService coverage increases from 17.1% to 45%+
-  3. EpisodeRetrievalService coverage increases from 32.5% to 65%+
-  4. Async service methods (decay_old_episodes, consolidate_similar_episodes, create_episode_from_session) are tested
-  5. Overall backend coverage increases by ~5-8 percentage points (target: 13-16%)
-**Plans**: 8 plans (4 baseline + 4 gap closure)
-
-**Wave Structure:**
-- Wave 1: Plans 05 (schema migration - unblocks all)
-- Wave 2: Plans 06-07 (test unblocking - parallel after schema)
-- Wave 3: Plan 08 (overall verification)
-
-**Plan Breakdown:**
-- [x] 162-01-PLAN.md — Async lifecycle service testing (50% coverage, 5 tests xfailed)
-- [x] 162-02-PLAN.md — Full episode creation flow testing (27.4% coverage, 12 tests failing)
-- [x] 162-03-PLAN.md — Supervision and skill episode testing (18 tests, 14 passing)
-- [x] 162-04-PLAN.md — Advanced retrieval mode testing (47.5% coverage, 19 tests blocked)
-- [ ] 162-05-PLAN.md — Schema migration (consolidated_into, canvas_context, episode_id, supervision fields)
-- [ ] 162-06-PLAN.md — Lifecycle test unblocking (65% target)
-- [ ] 162-07-PLAN.md — Retrieval/segmentation test unblocking (65%/45% targets)
-- [ ] 162-08-PLAN.md — Overall backend coverage measurement
+| 162. Episode Service Comprehensive Testing | v5.3 | 8/8 | Complete | 2026-03-11 |
+| 163. Coverage Baseline & Infrastructure Enhancement | v5.4 | 0/0 | Not started | - |
+| 164. Gap Analysis & Prioritization | v5.4 | 0/0 | Not started | - |
+| 165. Core Services Coverage (Governance & LLM) | v5.4 | 0/0 | Not started | - |
+| 166. Core Services Coverage (Episodic Memory) | v5.4 | 0/0 | Not started | - |
+| 167. API Routes Coverage | v5.4 | 0/0 | Not started | - |
+| 168. Database Layer Coverage | v5.4 | 0/0 | Not started | - |
+| 169. Tools & Integrations Coverage | v5.4 | 0/0 | Not started | - |
+| 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 0/0 | Not started | - |
+| 171. Gap Closure & Final Push | v5.4 | 0/0 | Not started | - |
