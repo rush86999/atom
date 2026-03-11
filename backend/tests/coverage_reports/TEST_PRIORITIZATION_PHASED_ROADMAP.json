@@ -1,0 +1,153 @@
+{
+  "165": {
+    "name": "Core Services Coverage (Governance & LLM)",
+    "focus_areas": [
+      "agent_governance",
+      "llm",
+      "byok_handler",
+      "cognitive_tier"
+    ],
+    "files": [
+      {
+        "file": "core/agent_governance_service.py",
+        "coverage_pct": 74.55,
+        "total_lines": 205,
+        "covered_lines": 156,
+        "uncovered_lines": 49,
+        "missing_lines": [
+          76,
+          77,
+          78,
+          80,
+          88,
+          89,
+          92,
+          94,
+          100,
+          101,
+          108,
+          113,
+          114,
+          117,
+          118,
+          120,
+          122,
+          123,
+          124,
+          125,
+          128,
+          131,
+          132,
+          136,
+          150,
+          154,
+          155,
+          156,
+          157,
+          159,
+          165,
+          166,
+          167,
+          176,
+          197,
+          199,
+          201,
+          206,
+          208,
+          209,
+          221,
+          225,
+          335,
+          423,
+          548,
+          592,
+          595,
+          612,
+          613
+        ],
+        "business_impact": "Critical",
+        "tier_score": 10,
+        "complexity": "low",
+        "priority_score": 6.49,
+        "gap_to_target": 5.45,
+        "dependency_level": 1,
+        "assigned_phase": 165
+      }
+    ],
+    "target_coverage_gain": 10.0,
+    "cumulative_coverage": 74.55,
+    "target_cumulative_coverage": 84.55
+  },
+  "166": {
+    "name": "Core Services Coverage (Episodic Memory)",
+    "focus_areas": [
+      "episode_segmentation",
+      "episode_retrieval",
+      "episode_lifecycle",
+      "agent_graduation"
+    ],
+    "files": [],
+    "target_coverage_gain": 8.0,
+    "cumulative_coverage": 84.55,
+    "target_cumulative_coverage": 92.55
+  },
+  "167": {
+    "name": "API Routes Coverage",
+    "focus_areas": [
+      "routes",
+      "api/",
+      "endpoints"
+    ],
+    "files": [],
+    "target_coverage_gain": 12.0,
+    "cumulative_coverage": 92.55,
+    "target_cumulative_coverage": 104.55
+  },
+  "168": {
+    "name": "Database Layer Coverage",
+    "focus_areas": [
+      "models",
+      "schema",
+      "database"
+    ],
+    "files": [],
+    "target_coverage_gain": 10.0,
+    "cumulative_coverage": 104.55,
+    "target_cumulative_coverage": 114.55
+  },
+  "169": {
+    "name": "Tools & Integrations Coverage",
+    "focus_areas": [
+      "browser_tool",
+      "device_tool",
+      "canvas_tool"
+    ],
+    "files": [],
+    "target_coverage_gain": 8.0,
+    "cumulative_coverage": 114.55,
+    "target_cumulative_coverage": 122.55
+  },
+  "170": {
+    "name": "Integration Testing (LanceDB, WebSocket, HTTP)",
+    "focus_areas": [
+      "lancedb",
+      "websocket",
+      "http_client",
+      "external_api"
+    ],
+    "files": [],
+    "target_coverage_gain": 7.0,
+    "cumulative_coverage": 122.55,
+    "target_cumulative_coverage": 129.55
+  },
+  "171": {
+    "name": "Gap Closure & Final Push",
+    "focus_areas": [
+      "all_remaining"
+    ],
+    "files": [],
+    "target_coverage_gain": 15.0,
+    "cumulative_coverage": 129.55,
+    "target_cumulative_coverage": 144.55
+  }
+}

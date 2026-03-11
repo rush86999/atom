@@ -1,0 +1,447 @@
+{
+  "generated_at": "2026-03-11T10:42:47.997695Z",
+  "source": "Phase 164 gap analysis (transformed from existing data)",
+  "summary": {
+    "total_files": 37,
+    "total_uncovered_lines": 17598,
+    "tier_breakdown": {
+      "Critical": 4,
+      "High": 2,
+      "Medium": 30,
+      "Low": 1
+    }
+  },
+  "tier_breakdown": {
+    "Critical": {
+      "files": [
+        {
+          "file": "core/llm/byok_handler.py",
+          "business_impact": "Critical",
+          "uncovered_lines": 610,
+          "priority_score": 6100,
+          "current_percent": 6.73,
+          "total_lines": 654,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/episode_segmentation_service.py",
+          "business_impact": "Critical",
+          "uncovered_lines": 474,
+          "priority_score": 4740,
+          "current_percent": 17.28,
+          "total_lines": 573,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "tools/canvas_tool.py",
+          "business_impact": "Critical",
+          "uncovered_lines": 347,
+          "priority_score": 3470,
+          "current_percent": 17.77,
+          "total_lines": 422,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/proposal_service.py",
+          "business_impact": "Critical",
+          "uncovered_lines": 342,
+          "priority_score": 3420,
+          "current_percent": 0.0,
+          "total_lines": 342,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        }
+      ],
+      "total_uncovered": 1773,
+      "file_count": 4
+    },
+    "High": {
+      "files": [
+        {
+          "file": "core/skill_registry_service.py",
+          "business_impact": "High",
+          "uncovered_lines": 366,
+          "priority_score": 2562,
+          "current_percent": 0.0,
+          "total_lines": 366,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/agent_world_model.py",
+          "business_impact": "High",
+          "uncovered_lines": 317,
+          "priority_score": 2219,
+          "current_percent": 0.0,
+          "total_lines": 317,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        }
+      ],
+      "total_uncovered": 683,
+      "file_count": 2
+    },
+    "Medium": {
+      "files": [
+        {
+          "file": "core/workflow_engine.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 1163,
+          "priority_score": 5815,
+          "current_percent": 0.0,
+          "total_lines": 1163,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/workflow_engine.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 1163,
+          "priority_score": 5815,
+          "current_percent": 0.0,
+          "total_lines": 1163,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/atom_agent_endpoints.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 787,
+          "priority_score": 3935,
+          "current_percent": 0.0,
+          "total_lines": 787,
+          "missing_lines": [],
+          "recommended_test_type": "integration",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/atom_agent_endpoints.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 787,
+          "priority_score": 3935,
+          "current_percent": 0.0,
+          "total_lines": 787,
+          "missing_lines": [],
+          "recommended_test_type": "integration",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/lancedb_handler.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 609,
+          "priority_score": 3045,
+          "current_percent": 14.1,
+          "total_lines": 709,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/workflow_analytics_engine.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 561,
+          "priority_score": 2805,
+          "current_percent": 0.0,
+          "total_lines": 561,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/workflow_analytics_engine.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 561,
+          "priority_score": 2805,
+          "current_percent": 0.0,
+          "total_lines": 561,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/workflow_debugger.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 527,
+          "priority_score": 2635,
+          "current_percent": 0.0,
+          "total_lines": 527,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/workflow_debugger.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 527,
+          "priority_score": 2635,
+          "current_percent": 0.0,
+          "total_lines": 527,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 1"
+        },
+        {
+          "file": "core/advanced_workflow_system.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 495,
+          "priority_score": 2475,
+          "current_percent": 0.0,
+          "total_lines": 495,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/advanced_workflow_system.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 495,
+          "priority_score": 2475,
+          "current_percent": 0.0,
+          "total_lines": 495,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/auto_document_ingestion.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 468,
+          "priority_score": 2340,
+          "current_percent": 0.0,
+          "total_lines": 468,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/auto_document_ingestion.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 468,
+          "priority_score": 2340,
+          "current_percent": 0.0,
+          "total_lines": 468,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/workflow_versioning_system.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 442,
+          "priority_score": 2210,
+          "current_percent": 0.0,
+          "total_lines": 442,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/workflow_versioning_system.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 442,
+          "priority_score": 2210,
+          "current_percent": 0.0,
+          "total_lines": 442,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/atom_meta_agent.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 422,
+          "priority_score": 2110,
+          "current_percent": 0.0,
+          "total_lines": 422,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/atom_meta_agent.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 422,
+          "priority_score": 2110,
+          "current_percent": 0.0,
+          "total_lines": 422,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/agent_social_layer.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 376,
+          "priority_score": 1880,
+          "current_percent": 0.0,
+          "total_lines": 376,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/agent_social_layer.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 376,
+          "priority_score": 1880,
+          "current_percent": 0.0,
+          "total_lines": 376,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "api/admin_routes.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 374,
+          "priority_score": 1870,
+          "current_percent": 0.0,
+          "total_lines": 374,
+          "missing_lines": [],
+          "recommended_test_type": "integration",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "api/admin_routes.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 374,
+          "priority_score": 1870,
+          "current_percent": 0.0,
+          "total_lines": 374,
+          "missing_lines": [],
+          "recommended_test_type": "integration",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "api/package_routes.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 373,
+          "priority_score": 1865,
+          "current_percent": 0.0,
+          "total_lines": 373,
+          "missing_lines": [],
+          "recommended_test_type": "integration",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/workflow_template_system.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 350,
+          "priority_score": 1750,
+          "current_percent": 0.0,
+          "total_lines": 350,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/workflow_marketplace.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 332,
+          "priority_score": 1660,
+          "current_percent": 0.0,
+          "total_lines": 332,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/atom_saas_websocket.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 328,
+          "priority_score": 1640,
+          "current_percent": 0.0,
+          "total_lines": 328,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/integration_data_mapper.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 325,
+          "priority_score": 1625,
+          "current_percent": 0.0,
+          "total_lines": 325,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/embedding_service.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 321,
+          "priority_score": 1605,
+          "current_percent": 0.0,
+          "total_lines": 321,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/workflow_analytics_endpoints.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 314,
+          "priority_score": 1570,
+          "current_percent": 0.0,
+          "total_lines": 314,
+          "missing_lines": [],
+          "recommended_test_type": "property",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/formula_extractor.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 313,
+          "priority_score": 1565,
+          "current_percent": 0.0,
+          "total_lines": 313,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        },
+        {
+          "file": "core/hybrid_data_ingestion.py",
+          "business_impact": "Medium",
+          "uncovered_lines": 311,
+          "priority_score": 1555,
+          "current_percent": 0.0,
+          "total_lines": 311,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        }
+      ],
+      "total_uncovered": 14806,
+      "file_count": 30
+    },
+    "Low": {
+      "files": [
+        {
+          "file": "core/config.py",
+          "business_impact": "Low",
+          "uncovered_lines": 336,
+          "priority_score": 1008,
+          "current_percent": 0.0,
+          "total_lines": 336,
+          "missing_lines": [],
+          "recommended_test_type": "unit",
+          "tier": "Tier 2"
+        }
+      ],
+      "total_uncovered": 336,
+      "file_count": 1
+    }
+  }
+}
