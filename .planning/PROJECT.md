@@ -1,26 +1,20 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: Planning Next Milestone
+## Current Milestone: v5.4 Backend 80% Coverage - Baseline & Plan
 
-**Last Shipped:** v5.3 Coverage Expansion to 80% Targets (2026-03-11)
+**Goal:** Achieve 80% actual line coverage across the entire backend codebase through comprehensive baseline measurement and targeted testing phases.
 
-**v5.3 Achievements:**
-- Coverage gates with progressive thresholds (70% → 75% → 80%)
-- Quality metrics infrastructure (trend tracking, assert-to-test ratio, complexity metrics)
-- Quick wins: DTOs, utilities, UI components, configuration (80%+ coverage)
-- Core services coverage: Governance, LLM, episodic memory, canvas, API client (12 plans)
-- Edge cases and integration testing
-- Coverage gap closure with schema migrations and test unblocking
-- Episode services comprehensive testing with 79.2% coverage (exceeding all targets)
+**Target features:**
+- Comprehensive backend coverage baseline (actual line coverage, not service-level estimates)
+- Core services testing (agent governance, LLM routing, episodic memory, world model)
+- API routes coverage (FastAPI endpoints, validation, error handling)
+- Database layer testing (models, relationships, migrations)
+- Integration testing (external services, browser automation, device capabilities)
+- Progressive quality gates (70% → 75% → 80% with emergency bypass)
 
-**Current State (v5.3 Complete):**
-- Episode services: 79.2% coverage (up from 27.3% baseline)
-- Schema migrations: 8 columns added across 3 tables
-- Test infrastructure: Coverage gates, quality metrics, CI/CD integration
-- 180 episode service tests created (121 passing, 67.2% pass rate)
-- Coverage verification: EpisodeLifecycleService 70.1%, EpisodeSegmentationService 79.5%, EpisodeRetrievalService 83.4%
+**Strategy:** Baseline first → targeted phases → quality enforcement
 
-**Next Milestone Goals:** TBD (awaiting planning)
+**Timeline:** 2-3 weeks (aggressive execution)
 
 ---
 
@@ -140,7 +134,15 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-**Next milestone TBD (awaiting planning)**
+**v5.4 Backend 80% Coverage - Baseline & Plan (2026-03-11):**
+- [ ] Comprehensive baseline measurement — Actual line coverage across all backend modules (not estimates) — v5.4
+- [ ] High-impact file prioritization — Rank by coverage gap, criticality, complexity — v5.4
+- [ ] Core services testing — Governance (80%+), LLM routing, episodic memory, world model — v5.4
+- [ ] API routes coverage — FastAPI endpoints, validation, error handling (80%+) — v5.4
+- [ ] Database layer testing — Models, relationships, migrations, constraints (80%+) — v5.4
+- [ ] Integration testing — External services, browser, device capabilities (80%+) — v5.4
+- [ ] Progressive quality gates — 70% → 75% → 80% enforcement with bypass mechanism — v5.4
+- [ ] Property-based testing — Invariants for critical paths (governance, security, data integrity) — v5.4
 
 ### Out of Scope
 
@@ -170,11 +172,17 @@ If everything else fails, the following must have comprehensive test coverage:
 - Coverage reports in `backend/tests/coverage_reports/`
 
 **Coverage (v5.1 final):**
-- Backend: 74.6%
+- Backend: 74.6% (service-level estimate) vs 8.50% actual line coverage — Critical methodology gap identified
 - Frontend: 89.84%
 - Mobile: 16.16%
 - Desktop: TBD (needs baseline measurement)
 - Overall: ~60% (weighted average)
+
+**Critical Gap Identified (Phase 160-162):**
+- Service-level coverage estimates (74.6%) do not reflect actual line coverage (8.50%)
+- Episode services: 79.2% coverage achieved (exceeding targets)
+- Backend overall: 8.50% actual coverage vs 80% target (71.5 percentage point gap)
+- Estimated effort: 25 additional phases needed (~125 hours of work)
 
 **Technical Debt (post-v5.0):**
 - Phase 101 mock issues — Canvas tests failing with Mock vs float comparison errors (66 tests affected, 4-5 hours to fix)
@@ -184,12 +192,14 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ## Constraints
 
-- **Timeline**: 2-3 weeks (4-platform coverage: frontend, backend, mobile, desktop)
-- **Test Types**: Property-based (Hypothesis, FastCheck, proptest), integration, E2E
-- **Priority**: Whole codebase 80% target (balanced across all platforms)
-- **Scope**: All platforms — Frontend (React), Backend (Python), Mobile (React Native), Desktop (Tauri)
+- **Timeline**: 2-3 weeks (aggressive execution for backend 80% coverage)
+- **Test Types**: Property-based (Hypothesis), integration, unit, E2E
+- **Priority**: Backend 80% actual line coverage (full codebase measurement)
+- **Scope**: Entire backend — Core services, API routes, database layer, integrations
 - **Performance**: Tests must run efficiently (parallel execution, <30 min full suite preferred)
-- **Blocking**: None — all test infrastructure operational from v5.0/v5.1
+- **Quality Approach**: Progressive rollout (70% → 75% → 80%) with emergency bypass
+- **Methodology**: Actual line coverage measurement (not service-level estimates)
+- **Blocking**: None — all test infrastructure operational from v5.0-v5.3
 
 ## Key Decisions
 
@@ -218,4 +228,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-03-11 after v5.3 milestone (Coverage Expansion to 80% Targets)*
+*Last updated: 2026-03-11 after v5.3 milestone, starting v5.4 (Backend 80% Coverage - Baseline & Plan)*
