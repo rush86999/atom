@@ -299,15 +299,20 @@ class TestNotNullConstraints:
 
     def test_project_name_not_null(self, db_session: Session):
         """Test Project.name is required."""
+        from service_delivery.models import Project
+
         workspace = WorkspaceFactory(_session=db_session)
         db_session.commit()
 
         # Project name should be required
-        project = ProjectFactory(
+        project = Project(
+            id=str(int(1e9)),
             workspace_id=workspace.id,
             name="Website Redesign",
-            _session=db_session
+            planned_start_date=datetime.utcnow(),
+            planned_end_date=datetime.utcnow() + timedelta(days=90)
         )
+        db_session.add(project)
         db_session.commit()
         assert project.name is not None
 
@@ -364,7 +369,15 @@ class TestForeignKeyConstraints:
         from service_delivery.models import Project
 
         workspace = WorkspaceFactory(_session=db_session)
-        project = ProjectFactory(workspace_id=workspace.id, _session=db_session)
+        # Create project directly without factory to avoid field name issues
+        project = Project(
+            id=str(int(1e9)),
+            workspace_id=workspace.id,
+            name="Test Project",
+            planned_start_date=datetime.utcnow(),
+            planned_end_date=datetime.utcnow() + timedelta(days=90)
+        )
+        db_session.add(project)
         db_session.commit()
 
         # Valid FK reference
@@ -506,23 +519,23 @@ class TestCheckConstraints:
 
         workspace = WorkspaceFactory(_session=db_session)
 
-        # Valid guardrail thresholds
+        # Valid guardrail thresholds (using percentage fields)
         project = Project(
             id=str(int(1e9)),
             workspace_id=workspace.id,
             name="Test Project",
-            budget_warn_threshold=5000.0,
-            budget_pause_threshold=7500.0,
-            budget_block_threshold=10000.0,
-            start_date=datetime.utcnow(),
-            end_date=datetime.utcnow() + timedelta(days=90)
+            warn_threshold_pct=80,
+            pause_threshold_pct=90,
+            block_threshold_pct=100,
+            planned_start_date=datetime.utcnow(),
+            planned_end_date=datetime.utcnow() + timedelta(days=90)
         )
         db_session.add(project)
         db_session.commit()
 
         # Verify thresholds are ordered correctly
-        assert project.budget_warn_threshold < project.budget_pause_threshold
-        assert project.budget_pause_threshold < project.budget_block_threshold
+        assert project.warn_threshold_pct < project.pause_threshold_pct
+        assert project.pause_threshold_pct < project.block_threshold_pct
 
 
 # ============================================================================
@@ -630,8 +643,8 @@ class TestEnumConstraints:
                 workspace_id=workspace.id,
                 name=f"Project {status.value}",
                 status=status.value,
-                start_date=datetime.utcnow(),
-                end_date=datetime.utcnow() + timedelta(days=90)
+                planned_start_date=datetime.utcnow(),
+                planned_end_date=datetime.utcnow() + timedelta(days=90)
             )
             db_session.add(project)
         db_session.commit()
