@@ -1,0 +1,2048 @@
+{
+  "meta": {
+    "format": 3,
+    "version": "7.13.4",
+    "timestamp": "2026-02-25T07:49:35.352364",
+    "branch_coverage": true,
+    "show_contexts": false
+  },
+  "files": {
+    "core/agent_governance_service.py": {
+      "executed_lines": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        20,
+        22,
+        24,
+        25,
+        26,
+        28,
+        37,
+        42,
+        44,
+        52,
+        53,
+        56,
+        57,
+        58,
+        60,
+        61,
+        62,
+        64,
+        96,
+        161,
+        169,
+        174,
+        175,
+        179,
+        182,
+        183,
+        185,
+        186,
+        188,
+        190,
+        194,
+        196,
+        198,
+        200,
+        203,
+        205,
+        211,
+        212,
+        214,
+        220,
+        223,
+        224,
+        228,
+        229,
+        232,
+        233,
+        235,
+        236,
+        237,
+        239,
+        241,
+        242,
+        243,
+        244,
+        249,
+        300,
+        307,
+        329,
+        330,
+        331,
+        332,
+        334,
+        336,
+        338,
+        339,
+        340,
+        341,
+        349,
+        350,
+        351,
+        352,
+        353,
+        354,
+        355,
+        357,
+        360,
+        361,
+        365,
+        368,
+        369,
+        370,
+        371,
+        372,
+        373,
+        376,
+        379,
+        386,
+        387,
+        389,
+        390,
+        392,
+        393,
+        395,
+        397,
+        399,
+        410,
+        411,
+        413,
+        415,
+        421,
+        422,
+        425,
+        432,
+        433,
+        435,
+        440,
+        453,
+        465,
+        467,
+        469,
+        478,
+        480,
+        490,
+        499,
+        507,
+        518,
+        519,
+        520,
+        521,
+        523,
+        525,
+        526,
+        527,
+        529,
+        536,
+        544,
+        545,
+        547,
+        551,
+        552,
+        555,
+        556,
+        557,
+        559,
+        565,
+        578,
+        579,
+        590,
+        591,
+        598,
+        599,
+        602,
+        605,
+        610,
+        611,
+        615,
+        616
+      ],
+      "summary": {
+        "covered_lines": 156,
+        "num_statements": 205,
+        "percent_covered": 74.55197132616487,
+        "percent_covered_display": "74.55",
+        "missing_lines": 49,
+        "excluded_lines": 2,
+        "percent_statements_covered": 76.09756097560975,
+        "percent_statements_covered_display": "76.10",
+        "num_branches": 74,
+        "num_partial_branches": 14,
+        "covered_branches": 52,
+        "missing_branches": 22,
+        "percent_branches_covered": 70.27027027027027,
+        "percent_branches_covered_display": "70.27"
+      },
+      "missing_lines": [
+        76,
+        77,
+        78,
+        80,
+        88,
+        89,
+        92,
+        94,
+        100,
+        101,
+        108,
+        113,
+        114,
+        117,
+        118,
+        120,
+        122,
+        123,
+        124,
+        125,
+        128,
+        131,
+        132,
+        136,
+        150,
+        154,
+        155,
+        156,
+        157,
+        159,
+        165,
+        166,
+        167,
+        176,
+        197,
+        199,
+        201,
+        206,
+        208,
+        209,
+        221,
+        225,
+        335,
+        423,
+        548,
+        592,
+        595,
+        612,
+        613
+      ],
+      "excluded_lines": [
+        347,
+        582
+      ],
+      "executed_branches": [
+        [
+          42,
+          44
+        ],
+        [
+          42,
+          56
+        ],
+        [
+          175,
+          179
+        ],
+        [
+          185,
+          186
+        ],
+        [
+          185,
+          188
+        ],
+        [
+          196,
+          198
+        ],
+        [
+          198,
+          200
+        ],
+        [
+          200,
+          203
+        ],
+        [
+          205,
+          211
+        ],
+        [
+          220,
+          223
+        ],
+        [
+          224,
+          228
+        ],
+        [
+          242,
+          243
+        ],
+        [
+          242,
+          244
+        ],
+        [
+          331,
+          332
+        ],
+        [
+          331,
+          338
+        ],
+        [
+          334,
+          336
+        ],
+        [
+          340,
+          341
+        ],
+        [
+          340,
+          349
+        ],
+        [
+          350,
+          351
+        ],
+        [
+          350,
+          352
+        ],
+        [
+          352,
+          353
+        ],
+        [
+          352,
+          354
+        ],
+        [
+          354,
+          355
+        ],
+        [
+          354,
+          357
+        ],
+        [
+          360,
+          361
+        ],
+        [
+          360,
+          368
+        ],
+        [
+          370,
+          371
+        ],
+        [
+          371,
+          370
+        ],
+        [
+          371,
+          372
+        ],
+        [
+          392,
+          393
+        ],
+        [
+          392,
+          395
+        ],
+        [
+          422,
+          425
+        ],
+        [
+          467,
+          469
+        ],
+        [
+          467,
+          478
+        ],
+        [
+          478,
+          480
+        ],
+        [
+          478,
+          490
+        ],
+        [
+          526,
+          527
+        ],
+        [
+          526,
+          529
+        ],
+        [
+          547,
+          551
+        ],
+        [
+          551,
+          552
+        ],
+        [
+          551,
+          555
+        ],
+        [
+          555,
+          556
+        ],
+        [
+          556,
+          557
+        ],
+        [
+          556,
+          559
+        ],
+        [
+          590,
+          591
+        ],
+        [
+          590,
+          598
+        ],
+        [
+          591,
+          590
+        ],
+        [
+          598,
+          599
+        ],
+        [
+          598,
+          605
+        ],
+        [
+          610,
+          611
+        ],
+        [
+          610,
+          615
+        ],
+        [
+          611,
+          610
+        ]
+      ],
+      "missing_branches": [
+        [
+          77,
+          78
+        ],
+        [
+          77,
+          80
+        ],
+        [
+          114,
+          117
+        ],
+        [
+          114,
+          120
+        ],
+        [
+          117,
+          118
+        ],
+        [
+          117,
+          120
+        ],
+        [
+          122,
+          123
+        ],
+        [
+          122,
+          154
+        ],
+        [
+          175,
+          176
+        ],
+        [
+          196,
+          197
+        ],
+        [
+          198,
+          199
+        ],
+        [
+          200,
+          201
+        ],
+        [
+          205,
+          206
+        ],
+        [
+          220,
+          221
+        ],
+        [
+          224,
+          225
+        ],
+        [
+          334,
+          335
+        ],
+        [
+          370,
+          376
+        ],
+        [
+          422,
+          423
+        ],
+        [
+          547,
+          548
+        ],
+        [
+          555,
+          559
+        ],
+        [
+          591,
+          592
+        ],
+        [
+          611,
+          612
+        ]
+      ],
+      "functions": {
+        "AgentGovernanceService.__init__": {
+          "executed_lines": [
+            26
+          ],
+          "summary": {
+            "covered_lines": 1,
+            "num_statements": 1,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 25,
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "AgentGovernanceService.register_or_update_agent": {
+          "executed_lines": [
+            37,
+            42,
+            44,
+            52,
+            53,
+            56,
+            57,
+            58,
+            60,
+            61,
+            62
+          ],
+          "summary": {
+            "covered_lines": 11,
+            "num_statements": 11,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 2,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 28,
+          "executed_branches": [
+            [
+              42,
+              44
+            ],
+            [
+              42,
+              56
+            ]
+          ],
+          "missing_branches": []
+        },
+        "AgentGovernanceService.submit_feedback": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 8,
+            "percent_covered": 0.0,
+            "percent_covered_display": "0.00",
+            "missing_lines": 8,
+            "excluded_lines": 0,
+            "percent_statements_covered": 0.0,
+            "percent_statements_covered_display": "0.00",
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 2,
+            "percent_branches_covered": 0.0,
+            "percent_branches_covered_display": "0.00"
+          },
+          "missing_lines": [
+            76,
+            77,
+            78,
+            80,
+            88,
+            89,
+            92,
+            94
+          ],
+          "excluded_lines": [],
+          "start_line": 64,
+          "executed_branches": [],
+          "missing_branches": [
+            [
+              77,
+              78
+            ],
+            [
+              77,
+              80
+            ]
+          ]
+        },
+        "AgentGovernanceService._adjudicate_feedback": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 22,
+            "percent_covered": 0.0,
+            "percent_covered_display": "0.00",
+            "missing_lines": 22,
+            "excluded_lines": 0,
+            "percent_statements_covered": 0.0,
+            "percent_statements_covered_display": "0.00",
+            "num_branches": 6,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 6,
+            "percent_branches_covered": 0.0,
+            "percent_branches_covered_display": "0.00"
+          },
+          "missing_lines": [
+            100,
+            101,
+            108,
+            113,
+            114,
+            117,
+            118,
+            120,
+            122,
+            123,
+            124,
+            125,
+            128,
+            131,
+            132,
+            136,
+            150,
+            154,
+            155,
+            156,
+            157,
+            159
+          ],
+          "excluded_lines": [],
+          "start_line": 96,
+          "executed_branches": [],
+          "missing_branches": [
+            [
+              114,
+              117
+            ],
+            [
+              114,
+              120
+            ],
+            [
+              117,
+              118
+            ],
+            [
+              117,
+              120
+            ],
+            [
+              122,
+              123
+            ],
+            [
+              122,
+              154
+            ]
+          ]
+        },
+        "AgentGovernanceService.record_outcome": {
+          "executed_lines": [],
+          "summary": {
+            "covered_lines": 0,
+            "num_statements": 3,
+            "percent_covered": 0.0,
+            "percent_covered_display": "0.00",
+            "missing_lines": 3,
+            "excluded_lines": 0,
+            "percent_statements_covered": 0.0,
+            "percent_statements_covered_display": "0.00",
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [
+            165,
+            166,
+            167
+          ],
+          "excluded_lines": [],
+          "start_line": 161,
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "AgentGovernanceService._update_confidence_score": {
+          "executed_lines": [
+            174,
+            175,
+            179,
+            182,
+            183,
+            185,
+            186,
+            188,
+            190,
+            194,
+            196,
+            198,
+            200,
+            203,
+            205,
+            211,
+            212
+          ],
+          "summary": {
+            "covered_lines": 17,
+            "num_statements": 24,
+            "percent_covered": 66.66666666666667,
+            "percent_covered_display": "66.67",
+            "missing_lines": 7,
+            "excluded_lines": 0,
+            "percent_statements_covered": 70.83333333333333,
+            "percent_statements_covered_display": "70.83",
+            "num_branches": 12,
+            "num_partial_branches": 5,
+            "covered_branches": 7,
+            "missing_branches": 5,
+            "percent_branches_covered": 58.333333333333336,
+            "percent_branches_covered_display": "58.33"
+          },
+          "missing_lines": [
+            176,
+            197,
+            199,
+            201,
+            206,
+            208,
+            209
+          ],
+          "excluded_lines": [],
+          "start_line": 169,
+          "executed_branches": [
+            [
+              175,
+              179
+            ],
+            [
+              185,
+              186
+            ],
+            [
+              185,
+              188
+            ],
+            [
+              196,
+              198
+            ],
+            [
+              198,
+              200
+            ],
+            [
+              200,
+              203
+            ],
+            [
+              205,
+              211
+            ]
+          ],
+          "missing_branches": [
+            [
+              175,
+              176
+            ],
+            [
+              196,
+              197
+            ],
+            [
+              198,
+              199
+            ],
+            [
+              200,
+              201
+            ],
+            [
+              205,
+              206
+            ]
+          ]
+        },
+        "AgentGovernanceService.promote_to_autonomous": {
+          "executed_lines": [
+            220,
+            223,
+            224,
+            228,
+            229,
+            232,
+            233,
+            235,
+            236,
+            237
+          ],
+          "summary": {
+            "covered_lines": 10,
+            "num_statements": 12,
+            "percent_covered": 75.0,
+            "percent_covered_display": "75.00",
+            "missing_lines": 2,
+            "excluded_lines": 0,
+            "percent_statements_covered": 83.33333333333333,
+            "percent_statements_covered_display": "83.33",
+            "num_branches": 4,
+            "num_partial_branches": 2,
+            "covered_branches": 2,
+            "missing_branches": 2,
+            "percent_branches_covered": 50.0,
+            "percent_branches_covered_display": "50.00"
+          },
+          "missing_lines": [
+            221,
+            225
+          ],
+          "excluded_lines": [],
+          "start_line": 214,
+          "executed_branches": [
+            [
+              220,
+              223
+            ],
+            [
+              224,
+              228
+            ]
+          ],
+          "missing_branches": [
+            [
+              220,
+              221
+            ],
+            [
+              224,
+              225
+            ]
+          ]
+        },
+        "AgentGovernanceService.list_agents": {
+          "executed_lines": [
+            241,
+            242,
+            243,
+            244
+          ],
+          "summary": {
+            "covered_lines": 4,
+            "num_statements": 4,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 2,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 239,
+          "executed_branches": [
+            [
+              242,
+              243
+            ],
+            [
+              242,
+              244
+            ]
+          ],
+          "missing_branches": []
+        },
+        "AgentGovernanceService.can_perform_action": {
+          "executed_lines": [
+            329,
+            330,
+            331,
+            332,
+            334,
+            336,
+            338,
+            339,
+            340,
+            341,
+            349,
+            350,
+            351,
+            352,
+            353,
+            354,
+            355,
+            357,
+            360,
+            361,
+            365,
+            368,
+            369,
+            370,
+            371,
+            372,
+            373,
+            376,
+            379,
+            386,
+            387,
+            389,
+            390,
+            392,
+            393,
+            395,
+            397,
+            399,
+            410,
+            411,
+            413
+          ],
+          "summary": {
+            "covered_lines": 41,
+            "num_statements": 42,
+            "percent_covered": 95.16129032258064,
+            "percent_covered_display": "95.16",
+            "missing_lines": 1,
+            "excluded_lines": 1,
+            "percent_statements_covered": 97.61904761904762,
+            "percent_statements_covered_display": "97.62",
+            "num_branches": 20,
+            "num_partial_branches": 2,
+            "covered_branches": 18,
+            "missing_branches": 2,
+            "percent_branches_covered": 90.0,
+            "percent_branches_covered_display": "90.00"
+          },
+          "missing_lines": [
+            335
+          ],
+          "excluded_lines": [
+            347
+          ],
+          "start_line": 307,
+          "executed_branches": [
+            [
+              331,
+              332
+            ],
+            [
+              331,
+              338
+            ],
+            [
+              334,
+              336
+            ],
+            [
+              340,
+              341
+            ],
+            [
+              340,
+              349
+            ],
+            [
+              350,
+              351
+            ],
+            [
+              350,
+              352
+            ],
+            [
+              352,
+              353
+            ],
+            [
+              352,
+              354
+            ],
+            [
+              354,
+              355
+            ],
+            [
+              354,
+              357
+            ],
+            [
+              360,
+              361
+            ],
+            [
+              360,
+              368
+            ],
+            [
+              370,
+              371
+            ],
+            [
+              371,
+              370
+            ],
+            [
+              371,
+              372
+            ],
+            [
+              392,
+              393
+            ],
+            [
+              392,
+              395
+            ]
+          ],
+          "missing_branches": [
+            [
+              334,
+              335
+            ],
+            [
+              370,
+              376
+            ]
+          ]
+        },
+        "AgentGovernanceService.get_agent_capabilities": {
+          "executed_lines": [
+            421,
+            422,
+            425,
+            432,
+            433,
+            435,
+            440
+          ],
+          "summary": {
+            "covered_lines": 7,
+            "num_statements": 8,
+            "percent_covered": 80.0,
+            "percent_covered_display": "80.00",
+            "missing_lines": 1,
+            "excluded_lines": 0,
+            "percent_statements_covered": 87.5,
+            "percent_statements_covered_display": "87.50",
+            "num_branches": 2,
+            "num_partial_branches": 1,
+            "covered_branches": 1,
+            "missing_branches": 1,
+            "percent_branches_covered": 50.0,
+            "percent_branches_covered_display": "50.00"
+          },
+          "missing_lines": [
+            423
+          ],
+          "excluded_lines": [],
+          "start_line": 415,
+          "executed_branches": [
+            [
+              422,
+              425
+            ]
+          ],
+          "missing_branches": [
+            [
+              422,
+              423
+            ]
+          ]
+        },
+        "AgentGovernanceService.enforce_action": {
+          "executed_lines": [
+            465,
+            467,
+            469,
+            478,
+            480,
+            490
+          ],
+          "summary": {
+            "covered_lines": 6,
+            "num_statements": 6,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 4,
+            "num_partial_branches": 0,
+            "covered_branches": 4,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 453,
+          "executed_branches": [
+            [
+              467,
+              469
+            ],
+            [
+              467,
+              478
+            ],
+            [
+              478,
+              480
+            ],
+            [
+              478,
+              490
+            ]
+          ],
+          "missing_branches": []
+        },
+        "AgentGovernanceService.request_approval": {
+          "executed_lines": [
+            507,
+            518,
+            519,
+            520,
+            521
+          ],
+          "summary": {
+            "covered_lines": 5,
+            "num_statements": 5,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 499,
+          "executed_branches": [],
+          "missing_branches": []
+        },
+        "AgentGovernanceService.get_approval_status": {
+          "executed_lines": [
+            525,
+            526,
+            527,
+            529
+          ],
+          "summary": {
+            "covered_lines": 4,
+            "num_statements": 4,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 2,
+            "num_partial_branches": 0,
+            "covered_branches": 2,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 523,
+          "executed_branches": [
+            [
+              526,
+              527
+            ],
+            [
+              526,
+              529
+            ]
+          ],
+          "missing_branches": []
+        },
+        "AgentGovernanceService.can_access_agent_data": {
+          "executed_lines": [
+            544,
+            545,
+            547,
+            551,
+            552,
+            555,
+            556,
+            557,
+            559
+          ],
+          "summary": {
+            "covered_lines": 9,
+            "num_statements": 10,
+            "percent_covered": 83.33333333333333,
+            "percent_covered_display": "83.33",
+            "missing_lines": 1,
+            "excluded_lines": 0,
+            "percent_statements_covered": 90.0,
+            "percent_statements_covered_display": "90.00",
+            "num_branches": 8,
+            "num_partial_branches": 2,
+            "covered_branches": 6,
+            "missing_branches": 2,
+            "percent_branches_covered": 75.0,
+            "percent_branches_covered_display": "75.00"
+          },
+          "missing_lines": [
+            548
+          ],
+          "excluded_lines": [],
+          "start_line": 536,
+          "executed_branches": [
+            [
+              547,
+              551
+            ],
+            [
+              551,
+              552
+            ],
+            [
+              551,
+              555
+            ],
+            [
+              555,
+              556
+            ],
+            [
+              556,
+              557
+            ],
+            [
+              556,
+              559
+            ]
+          ],
+          "missing_branches": [
+            [
+              547,
+              548
+            ],
+            [
+              555,
+              559
+            ]
+          ]
+        },
+        "AgentGovernanceService.validate_evolution_directive": {
+          "executed_lines": [
+            578,
+            579,
+            590,
+            591,
+            598,
+            599,
+            602,
+            605,
+            610,
+            611,
+            615,
+            616
+          ],
+          "summary": {
+            "covered_lines": 12,
+            "num_statements": 16,
+            "percent_covered": 76.92307692307692,
+            "percent_covered_display": "76.92",
+            "missing_lines": 4,
+            "excluded_lines": 1,
+            "percent_statements_covered": 75.0,
+            "percent_statements_covered_display": "75.00",
+            "num_branches": 10,
+            "num_partial_branches": 2,
+            "covered_branches": 8,
+            "missing_branches": 2,
+            "percent_branches_covered": 80.0,
+            "percent_branches_covered_display": "80.00"
+          },
+          "missing_lines": [
+            592,
+            595,
+            612,
+            613
+          ],
+          "excluded_lines": [
+            582
+          ],
+          "start_line": 565,
+          "executed_branches": [
+            [
+              590,
+              591
+            ],
+            [
+              590,
+              598
+            ],
+            [
+              591,
+              590
+            ],
+            [
+              598,
+              599
+            ],
+            [
+              598,
+              605
+            ],
+            [
+              610,
+              611
+            ],
+            [
+              610,
+              615
+            ],
+            [
+              611,
+              610
+            ]
+          ],
+          "missing_branches": [
+            [
+              591,
+              592
+            ],
+            [
+              611,
+              612
+            ]
+          ]
+        },
+        "": {
+          "executed_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            8,
+            9,
+            10,
+            20,
+            22,
+            24,
+            25,
+            28,
+            64,
+            96,
+            161,
+            169,
+            214,
+            239,
+            249,
+            300,
+            307,
+            415,
+            453,
+            499,
+            523,
+            536,
+            565
+          ],
+          "summary": {
+            "covered_lines": 29,
+            "num_statements": 29,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 1,
+          "executed_branches": [],
+          "missing_branches": []
+        }
+      },
+      "classes": {
+        "AgentGovernanceService": {
+          "executed_lines": [
+            26,
+            37,
+            42,
+            44,
+            52,
+            53,
+            56,
+            57,
+            58,
+            60,
+            61,
+            62,
+            174,
+            175,
+            179,
+            182,
+            183,
+            185,
+            186,
+            188,
+            190,
+            194,
+            196,
+            198,
+            200,
+            203,
+            205,
+            211,
+            212,
+            220,
+            223,
+            224,
+            228,
+            229,
+            232,
+            233,
+            235,
+            236,
+            237,
+            241,
+            242,
+            243,
+            244,
+            329,
+            330,
+            331,
+            332,
+            334,
+            336,
+            338,
+            339,
+            340,
+            341,
+            349,
+            350,
+            351,
+            352,
+            353,
+            354,
+            355,
+            357,
+            360,
+            361,
+            365,
+            368,
+            369,
+            370,
+            371,
+            372,
+            373,
+            376,
+            379,
+            386,
+            387,
+            389,
+            390,
+            392,
+            393,
+            395,
+            397,
+            399,
+            410,
+            411,
+            413,
+            421,
+            422,
+            425,
+            432,
+            433,
+            435,
+            440,
+            465,
+            467,
+            469,
+            478,
+            480,
+            490,
+            507,
+            518,
+            519,
+            520,
+            521,
+            525,
+            526,
+            527,
+            529,
+            544,
+            545,
+            547,
+            551,
+            552,
+            555,
+            556,
+            557,
+            559,
+            578,
+            579,
+            590,
+            591,
+            598,
+            599,
+            602,
+            605,
+            610,
+            611,
+            615,
+            616
+          ],
+          "summary": {
+            "covered_lines": 127,
+            "num_statements": 176,
+            "percent_covered": 71.6,
+            "percent_covered_display": "71.60",
+            "missing_lines": 49,
+            "excluded_lines": 2,
+            "percent_statements_covered": 72.1590909090909,
+            "percent_statements_covered_display": "72.16",
+            "num_branches": 74,
+            "num_partial_branches": 14,
+            "covered_branches": 52,
+            "missing_branches": 22,
+            "percent_branches_covered": 70.27027027027027,
+            "percent_branches_covered_display": "70.27"
+          },
+          "missing_lines": [
+            76,
+            77,
+            78,
+            80,
+            88,
+            89,
+            92,
+            94,
+            100,
+            101,
+            108,
+            113,
+            114,
+            117,
+            118,
+            120,
+            122,
+            123,
+            124,
+            125,
+            128,
+            131,
+            132,
+            136,
+            150,
+            154,
+            155,
+            156,
+            157,
+            159,
+            165,
+            166,
+            167,
+            176,
+            197,
+            199,
+            201,
+            206,
+            208,
+            209,
+            221,
+            225,
+            335,
+            423,
+            548,
+            592,
+            595,
+            612,
+            613
+          ],
+          "excluded_lines": [
+            347,
+            582
+          ],
+          "start_line": 24,
+          "executed_branches": [
+            [
+              42,
+              44
+            ],
+            [
+              42,
+              56
+            ],
+            [
+              175,
+              179
+            ],
+            [
+              185,
+              186
+            ],
+            [
+              185,
+              188
+            ],
+            [
+              196,
+              198
+            ],
+            [
+              198,
+              200
+            ],
+            [
+              200,
+              203
+            ],
+            [
+              205,
+              211
+            ],
+            [
+              220,
+              223
+            ],
+            [
+              224,
+              228
+            ],
+            [
+              242,
+              243
+            ],
+            [
+              242,
+              244
+            ],
+            [
+              331,
+              332
+            ],
+            [
+              331,
+              338
+            ],
+            [
+              334,
+              336
+            ],
+            [
+              340,
+              341
+            ],
+            [
+              340,
+              349
+            ],
+            [
+              350,
+              351
+            ],
+            [
+              350,
+              352
+            ],
+            [
+              352,
+              353
+            ],
+            [
+              352,
+              354
+            ],
+            [
+              354,
+              355
+            ],
+            [
+              354,
+              357
+            ],
+            [
+              360,
+              361
+            ],
+            [
+              360,
+              368
+            ],
+            [
+              370,
+              371
+            ],
+            [
+              371,
+              370
+            ],
+            [
+              371,
+              372
+            ],
+            [
+              392,
+              393
+            ],
+            [
+              392,
+              395
+            ],
+            [
+              422,
+              425
+            ],
+            [
+              467,
+              469
+            ],
+            [
+              467,
+              478
+            ],
+            [
+              478,
+              480
+            ],
+            [
+              478,
+              490
+            ],
+            [
+              526,
+              527
+            ],
+            [
+              526,
+              529
+            ],
+            [
+              547,
+              551
+            ],
+            [
+              551,
+              552
+            ],
+            [
+              551,
+              555
+            ],
+            [
+              555,
+              556
+            ],
+            [
+              556,
+              557
+            ],
+            [
+              556,
+              559
+            ],
+            [
+              590,
+              591
+            ],
+            [
+              590,
+              598
+            ],
+            [
+              591,
+              590
+            ],
+            [
+              598,
+              599
+            ],
+            [
+              598,
+              605
+            ],
+            [
+              610,
+              611
+            ],
+            [
+              610,
+              615
+            ],
+            [
+              611,
+              610
+            ]
+          ],
+          "missing_branches": [
+            [
+              77,
+              78
+            ],
+            [
+              77,
+              80
+            ],
+            [
+              114,
+              117
+            ],
+            [
+              114,
+              120
+            ],
+            [
+              117,
+              118
+            ],
+            [
+              117,
+              120
+            ],
+            [
+              122,
+              123
+            ],
+            [
+              122,
+              154
+            ],
+            [
+              175,
+              176
+            ],
+            [
+              196,
+              197
+            ],
+            [
+              198,
+              199
+            ],
+            [
+              200,
+              201
+            ],
+            [
+              205,
+              206
+            ],
+            [
+              220,
+              221
+            ],
+            [
+              224,
+              225
+            ],
+            [
+              334,
+              335
+            ],
+            [
+              370,
+              376
+            ],
+            [
+              422,
+              423
+            ],
+            [
+              547,
+              548
+            ],
+            [
+              555,
+              559
+            ],
+            [
+              591,
+              592
+            ],
+            [
+              611,
+              612
+            ]
+          ]
+        },
+        "": {
+          "executed_lines": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            8,
+            9,
+            10,
+            20,
+            22,
+            24,
+            25,
+            28,
+            64,
+            96,
+            161,
+            169,
+            214,
+            239,
+            249,
+            300,
+            307,
+            415,
+            453,
+            499,
+            523,
+            536,
+            565
+          ],
+          "summary": {
+            "covered_lines": 29,
+            "num_statements": 29,
+            "percent_covered": 100.0,
+            "percent_covered_display": "100.00",
+            "missing_lines": 0,
+            "excluded_lines": 0,
+            "percent_statements_covered": 100.0,
+            "percent_statements_covered_display": "100.00",
+            "num_branches": 0,
+            "num_partial_branches": 0,
+            "covered_branches": 0,
+            "missing_branches": 0,
+            "percent_branches_covered": 100.0,
+            "percent_branches_covered_display": "100.00"
+          },
+          "missing_lines": [],
+          "excluded_lines": [],
+          "start_line": 1,
+          "executed_branches": [],
+          "missing_branches": []
+        }
+      }
+    }
+  },
+  "totals": {
+    "covered_lines": 156,
+    "num_statements": 205,
+    "percent_covered": 74.55197132616487,
+    "percent_covered_display": "74.55",
+    "missing_lines": 49,
+    "excluded_lines": 2,
+    "percent_statements_covered": 76.09756097560975,
+    "percent_statements_covered_display": "76.10",
+    "num_branches": 74,
+    "num_partial_branches": 14,
+    "covered_branches": 52,
+    "missing_branches": 22,
+    "percent_branches_covered": 70.27027027027027,
+    "percent_branches_covered_display": "70.27"
+  }
+}
