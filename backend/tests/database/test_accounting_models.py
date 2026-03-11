@@ -755,3 +755,652 @@ class TestDoubleEntryPrinciples:
             JournalEntry.transaction_id == transaction.id
         ).all()
         assert len(entries) == 2  # Both entries created
+
+
+# ============================================================================
+# Task 3: Entity, Bill, Invoice, and Document Model Tests
+# ============================================================================
+
+class TestEntityModel:
+    """Test Entity model (vendors and customers)."""
+
+    def test_entity_create_vendor(self, db_session: Session):
+        """Test creating vendor entity."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        vendor = Entity(
+            workspace_id=workspace.id,
+            name="ACME Corp",
+            type=EntityType.VENDOR.value,
+            email="billing@acme.com",
+            phone="555-0100",
+            address="123 Vendor St"
+        )
+        db_session.add(vendor)
+        db_session.commit()
+        db_session.refresh(vendor)
+
+        assert vendor.name == "ACME Corp"
+        assert vendor.type == EntityType.VENDOR.value
+        assert vendor.email == "billing@acme.com"
+
+    def test_entity_create_customer(self, db_session: Session):
+        """Test creating customer entity."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        customer = Entity(
+            workspace_id=workspace.id,
+            name="Customer Inc",
+            type=EntityType.CUSTOMER.value,
+            email="accounts@customer.com"
+        )
+        db_session.add(customer)
+        db_session.commit()
+
+        assert customer.type == EntityType.CUSTOMER.value
+
+    def test_entity_create_both(self, db_session: Session):
+        """Test creating entity with type=both (vendor and customer)."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        entity = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.BOTH.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert entity.type == EntityType.BOTH.value
+
+    def test_entity_type_enum(self, db_session: Session):
+        """Test all EntityType enum values."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        entity_types = [
+            EntityType.VENDOR.value,
+            EntityType.CUSTOMER.value,
+            EntityType.BOTH.value,
+        ]
+
+        for entity_type in entity_types:
+            entity = EntityFactory(
+                workspace_id=workspace.id,
+                type=entity_type,
+                _session=db_session
+            )
+            db_session.commit()
+            assert entity.type == entity_type
+
+    def test_entity_bills_relationship(self, db_session: Session):
+        """Test vendor has many bills (accounts payable)."""
+        workspace = WorkspaceFactory(_session=db_session)
+        vendor = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.VENDOR.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create bills for vendor
+        bill1 = BillFactory(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            _session=db_session
+        )
+        bill2 = BillFactory(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify vendor has bills
+        retrieved_vendor = db_session.query(Entity).filter(
+            Entity.id == vendor.id
+        ).first()
+        assert len(retrieved_vendor.bills) == 2
+
+    def test_entity_invoices_relationship(self, db_session: Session):
+        """Test customer has many invoices (accounts receivable)."""
+        workspace = WorkspaceFactory(_session=db_session)
+        customer = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.CUSTOMER.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create invoices for customer
+        invoice1 = InvoiceFactory(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            _session=db_session
+        )
+        invoice2 = InvoiceFactory(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify customer has invoices
+        retrieved_customer = db_session.query(Entity).filter(
+            Entity.id == customer.id
+        ).first()
+        assert len(retrieved_customer.invoices) == 2
+
+    def test_entity_tax_id_field(self, db_session: Session):
+        """Test optional tax_id field for tax identifiers."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        entity = EntityFactory(
+            workspace_id=workspace.id,
+            tax_id="12-3456789",
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert entity.tax_id == "12-3456789"
+
+
+class TestBillModel:
+    """Test Bill model (accounts payable)."""
+
+    def test_bill_create_with_defaults(self, db_session: Session):
+        """Test creating accounts payable bill."""
+        workspace = WorkspaceFactory(_session=db_session)
+        vendor = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.VENDOR.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        bill = Bill(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            issue_date=datetime.utcnow(),
+            due_date=datetime.utcnow() + timedelta(days=30),
+            amount=Decimal("1500.00")
+        )
+        db_session.add(bill)
+        db_session.commit()
+        db_session.refresh(bill)
+
+        assert bill.workspace_id == workspace.id
+        assert bill.vendor_id == vendor.id
+        assert bill.amount == Decimal("1500.00")
+        assert bill.status == BillStatus.DRAFT.value  # Default
+
+    def test_bill_status_enum(self, db_session: Session):
+        """Test all BillStatus enum values."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        statuses = [
+            BillStatus.DRAFT.value,
+            BillStatus.OPEN.value,
+            BillStatus.PAID.value,
+            BillStatus.VOID.value,
+        ]
+
+        for status in statuses:
+            bill = BillFactory(
+                workspace_id=workspace.id,
+                status=status,
+                _session=db_session
+            )
+            db_session.commit()
+            assert bill.status == status
+
+    def test_bill_vendor_relationship(self, db_session: Session):
+        """Test bill belongs to vendor."""
+        workspace = WorkspaceFactory(_session=db_session)
+        vendor = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.VENDOR.value,
+            name="Test Vendor",
+            _session=db_session
+        )
+        db_session.commit()
+
+        bill = BillFactory(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify bill references vendor
+        retrieved_bill = db_session.query(Bill).filter(
+            Bill.id == bill.id
+        ).first()
+        assert retrieved_bill.vendor_id == vendor.id
+
+        # Verify vendor relationship
+        assert retrieved_bill.vendor.name == "Test Vendor"
+
+    def test_bill_ledger_transaction_relationship(self, db_session: Session):
+        """Test bill can link to ledger transaction."""
+        workspace = WorkspaceFactory(_session=db_session)
+        vendor = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.VENDOR.value,
+            _session=db_session
+        )
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        bill = BillFactory(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            transaction_id=transaction.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert bill.transaction_id == transaction.id
+
+    def test_bill_project_linking(self, db_session: Session):
+        """Test project_id and milestone_id foreign keys."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        bill = BillFactory(
+            workspace_id=workspace.id,
+            project_id="project_123",
+            milestone_id="milestone_456",
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert bill.project_id == "project_123"
+        assert bill.milestone_id == "milestone_456"
+
+    def test_bill_documents_cascade(self, db_session: Session):
+        """Test cascade delete to documents."""
+        workspace = WorkspaceFactory(_session=db_session)
+        vendor = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.VENDOR.value,
+            _session=db_session
+        )
+        bill = BillFactory(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create documents for bill
+        doc1 = DocumentFactory(
+            workspace_id=workspace.id,
+            bill_id=bill.id,
+            _session=db_session
+        )
+        doc2 = DocumentFactory(
+            workspace_id=workspace.id,
+            bill_id=bill.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        bill_id = bill.id
+        doc_ids = [doc1.id, doc2.id]
+
+        # Delete bill (should cascade to documents)
+        db_session.delete(bill)
+        db_session.commit()
+
+        # Verify documents are deleted
+        remaining_docs = db_session.query(Document).filter(
+            Document.id.in_(doc_ids)
+        ).all()
+        assert len(remaining_docs) == 0
+
+    def test_bill_amount_numeric_precision(self, db_session: Session):
+        """Test Numeric(19,4) precision for amounts."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        amounts = [
+            Decimal("0.01"),
+            Decimal("999.9999"),
+            Decimal("10000.00"),
+        ]
+
+        for amount in amounts:
+            bill = BillFactory(
+                workspace_id=workspace.id,
+                amount=amount,
+                _session=db_session
+            )
+            db_session.commit()
+            assert bill.amount == amount
+
+
+class TestInvoiceModel:
+    """Test Invoice model (accounts receivable)."""
+
+    def test_invoice_create_with_defaults(self, db_session: Session):
+        """Test creating accounts receivable invoice."""
+        workspace = WorkspaceFactory(_session=db_session)
+        customer = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.CUSTOMER.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        invoice = Invoice(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            issue_date=datetime.utcnow(),
+            due_date=datetime.utcnow() + timedelta(days=30),
+            amount=Decimal("2500.00")
+        )
+        db_session.add(invoice)
+        db_session.commit()
+        db_session.refresh(invoice)
+
+        assert invoice.workspace_id == workspace.id
+        assert invoice.customer_id == customer.id
+        assert invoice.amount == Decimal("2500.00")
+        assert invoice.status == InvoiceStatus.DRAFT.value  # Default
+
+    def test_invoice_status_enum(self, db_session: Session):
+        """Test all InvoiceStatus enum values."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        statuses = [
+            InvoiceStatus.DRAFT.value,
+            InvoiceStatus.OPEN.value,
+            InvoiceStatus.PAID.value,
+            InvoiceStatus.VOID.value,
+            InvoiceStatus.OVERDUE.value,
+        ]
+
+        for status in statuses:
+            invoice = InvoiceFactory(
+                workspace_id=workspace.id,
+                status=status,
+                _session=db_session
+            )
+            db_session.commit()
+            assert invoice.status == status
+
+    def test_invoice_customer_relationship(self, db_session: Session):
+        """Test invoice belongs to customer."""
+        workspace = WorkspaceFactory(_session=db_session)
+        customer = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.CUSTOMER.value,
+            name="Test Customer",
+            _session=db_session
+        )
+        db_session.commit()
+
+        invoice = InvoiceFactory(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify invoice references customer
+        retrieved_invoice = db_session.query(Invoice).filter(
+            Invoice.id == invoice.id
+        ).first()
+        assert retrieved_invoice.customer_id == customer.id
+
+        # Verify customer relationship
+        assert retrieved_invoice.customer.name == "Test Customer"
+
+    def test_invoice_metadata_json_field(self, db_session: Session):
+        """Test metadata_json field for line items and billing details."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        metadata = {
+            "line_items": [
+                {"description": "Service A", "quantity": 2, "unit_price": 100.00},
+                {"description": "Service B", "quantity": 1, "unit_price": 300.00}
+            ],
+            "billing_details": {
+                "terms": "net 30",
+                "payment_method": "ACH"
+            }
+        }
+
+        invoice = InvoiceFactory(
+            workspace_id=workspace.id,
+            metadata_json=metadata,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Retrieve and verify JSON data
+        retrieved = db_session.query(Invoice).filter(
+            Invoice.id == invoice.id
+        ).first()
+        assert retrieved.metadata_json == metadata
+        assert len(retrieved.metadata_json["line_items"]) == 2
+
+    def test_invoice_ledger_transaction_relationship(self, db_session: Session):
+        """Test invoice can link to ledger transaction."""
+        workspace = WorkspaceFactory(_session=db_session)
+        customer = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.CUSTOMER.value,
+            _session=db_session
+        )
+        transaction = TransactionFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        invoice = InvoiceFactory(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            transaction_id=transaction.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        assert invoice.transaction_id == transaction.id
+
+    def test_invoice_documents_cascade(self, db_session: Session):
+        """Test cascade delete to documents."""
+        workspace = WorkspaceFactory(_session=db_session)
+        customer = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.CUSTOMER.value,
+            _session=db_session
+        )
+        invoice = InvoiceFactory(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create documents for invoice
+        doc1 = DocumentFactory(
+            workspace_id=workspace.id,
+            invoice_id=invoice.id,
+            _session=db_session
+        )
+        doc2 = DocumentFactory(
+            workspace_id=workspace.id,
+            invoice_id=invoice.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        invoice_id = invoice.id
+        doc_ids = [doc1.id, doc2.id]
+
+        # Delete invoice (should cascade to documents)
+        db_session.delete(invoice)
+        db_session.commit()
+
+        # Verify documents are deleted
+        remaining_docs = db_session.query(Document).filter(
+            Document.id.in_(doc_ids)
+        ).all()
+        assert len(remaining_docs) == 0
+
+
+class TestDocumentModel:
+    """Test Document model (financial documents)."""
+
+    def test_document_create_for_bill(self, db_session: Session):
+        """Test creating document linked to bill."""
+        workspace = WorkspaceFactory(_session=db_session)
+        vendor = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.VENDOR.value,
+            _session=db_session
+        )
+        bill = BillFactory(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        document = Document(
+            workspace_id=workspace.id,
+            file_path="/docs/bill_123.pdf",
+            file_name="bill_123.pdf",
+            file_type="pdf",
+            bill_id=bill.id
+        )
+        db_session.add(document)
+        db_session.commit()
+
+        assert document.bill_id == bill.id
+
+    def test_document_create_for_invoice(self, db_session: Session):
+        """Test creating document linked to invoice."""
+        workspace = WorkspaceFactory(_session=db_session)
+        customer = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.CUSTOMER.value,
+            _session=db_session
+        )
+        invoice = InvoiceFactory(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        document = Document(
+            workspace_id=workspace.id,
+            file_path="/docs/invoice_456.pdf",
+            file_name="invoice_456.pdf",
+            file_type="pdf",
+            invoice_id=invoice.id
+        )
+        db_session.add(document)
+        db_session.commit()
+
+        assert document.invoice_id == invoice.id
+
+    def test_document_extracted_data_json(self, db_session: Session):
+        """Test extracted_data JSON field for AI extraction cache."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        extracted_data = {
+            "vendor": "ACME Corp",
+            "amount": 1500.00,
+            "date": "2025-03-11",
+            "line_items": [
+                {"description": "Consulting Services", "amount": 1000.00},
+                {"description": "Travel", "amount": 500.00}
+            ],
+            "confidence": 0.95
+        }
+
+        document = DocumentFactory(
+            workspace_id=workspace.id,
+            extracted_data=extracted_data,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Retrieve and verify JSON data
+        retrieved = db_session.query(Document).filter(
+            Document.id == document.id
+        ).first()
+        assert retrieved.extracted_data == extracted_data
+        assert retrieved.extracted_data["vendor"] == "ACME Corp"
+
+    def test_document_bill_relationship(self, db_session: Session):
+        """Test document belongs to bill."""
+        workspace = WorkspaceFactory(_session=db_session)
+        vendor = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.VENDOR.value,
+            _session=db_session
+        )
+        bill = BillFactory(
+            workspace_id=workspace.id,
+            vendor_id=vendor.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        document = DocumentFactory(
+            workspace_id=workspace.id,
+            bill_id=bill.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify document references bill
+        retrieved_doc = db_session.query(Document).filter(
+            Document.id == document.id
+        ).first()
+        assert retrieved_doc.bill_id == bill.id
+
+    def test_document_invoice_relationship(self, db_session: Session):
+        """Test document belongs to invoice."""
+        workspace = WorkspaceFactory(_session=db_session)
+        customer = EntityFactory(
+            workspace_id=workspace.id,
+            type=EntityType.CUSTOMER.value,
+            _session=db_session
+        )
+        invoice = InvoiceFactory(
+            workspace_id=workspace.id,
+            customer_id=customer.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        document = DocumentFactory(
+            workspace_id=workspace.id,
+            invoice_id=invoice.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify document references invoice
+        retrieved_doc = db_session.query(Document).filter(
+            Document.id == document.id
+        ).first()
+        assert retrieved_doc.invoice_id == invoice.id
+
