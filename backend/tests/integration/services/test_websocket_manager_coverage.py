@@ -129,3 +129,200 @@ class TestWebSocketConnectionLifecycle:
 
         # Stream should be removed
         assert "temp_stream" not in manager.active_connections
+
+# ============================================================================
+# Broadcast Tests
+# ============================================================================
+
+class TestWebSocketBroadcast:
+    """Test WebSocket broadcasting functionality."""
+
+    @pytest.mark.asyncio
+    async def test_broadcast_to_all_subscribers(self, manager):
+        """Test that broadcast reaches all subscribers in a stream."""
+        mock_ws1 = Mock(spec=WebSocket)
+        mock_ws2 = Mock(spec=WebSocket)
+        mock_ws1.accept = AsyncMock()
+        mock_ws2.accept = AsyncMock()
+        mock_ws1.send_text = AsyncMock()
+        mock_ws2.send_text = AsyncMock()
+
+        await manager.connect(mock_ws1, stream_id="stream1")
+        await manager.connect(mock_ws2, stream_id="stream1")
+
+        message = {"type": "test", "data": "hello"}
+        sent_count = await manager.broadcast("stream1", message)
+
+        # Verify both received message
+        assert sent_count == 2
+        # send_text is called twice: once for welcome message, once for broadcast
+        assert mock_ws1.send_text.call_count == 2
+        assert mock_ws2.send_text.call_count == 2
+
+        # Verify message format (last call is the broadcast)
+        import json
+        call_args = mock_ws1.send_text.call_args[0][0]
+        sent_message = json.loads(call_args)
+        assert sent_message["type"] == "test"
+        assert sent_message["data"] == "hello"
+
+    @pytest.mark.asyncio
+    async def test_broadcast_handles_failed_connection(self, manager):
+        """Test that broadcast handles connection failures gracefully."""
+        mock_ws1 = Mock(spec=WebSocket)
+        mock_ws2 = Mock(spec=WebSocket)
+        mock_ws1.accept = AsyncMock()
+        mock_ws2.accept = AsyncMock()
+        mock_ws1.send_text = AsyncMock()
+        mock_ws2.send_text = AsyncMock(side_effect=Exception("Connection lost"))
+        mock_ws1.send_json = AsyncMock()
+        mock_ws2.send_json = AsyncMock()
+
+        await manager.connect(mock_ws1, stream_id="stream1")
+        await manager.connect(mock_ws2, stream_id="stream1")
+
+        # Broadcast (one will fail)
+        sent_count = await manager.broadcast("stream1", {"type": "test"})
+
+        # Should return successful sends only
+        assert sent_count == 1
+
+        # Failed connection should be disconnected
+        assert mock_ws2 not in manager.active_connections.get("stream1", set())
+
+    @pytest.mark.asyncio
+    async def test_broadcast_to_empty_stream(self, manager):
+        """Test broadcast to stream with no subscribers."""
+        sent_count = await manager.broadcast("empty_stream", {"type": "test"})
+
+        assert sent_count == 0
+
+    @pytest.mark.asyncio
+    async def test_send_personal_succeeds(self, manager, mock_websocket):
+        """Test sending a message to a specific connection."""
+        mock_websocket.send_text = AsyncMock(return_value=True)
+
+        success = await manager.send_personal(
+            mock_websocket,
+            {"type": "personal", "data": "test"}
+        )
+
+        assert success is True
+        mock_websocket.send_text.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_send_personal_handles_failure(self, manager, mock_websocket):
+        """Test send_personal handles send failure."""
+        mock_websocket.send_text = AsyncMock(side_effect=Exception("Send failed"))
+
+        success = await manager.send_personal(
+            mock_websocket,
+            {"type": "personal", "data": "test"}
+        )
+
+        assert success is False
+        # WebSocket should be disconnected after failed send
+        assert mock_websocket not in manager.connection_streams
+
+    @pytest.mark.asyncio
+    async def test_broadcast_trace_update(self, manager):
+        """Test trace update broadcasting."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await manager.connect(mock_ws, stream_id="stream1")
+
+        sent_count = await manager.broadcast_trace_update(
+            "stream1",
+            {"step": 1, "status": "running"}
+        )
+
+        assert sent_count == 1
+        # Verify message structure
+        call_args = mock_ws.send_text.call_args[0][0]
+        import json
+        message = json.loads(call_args)
+        assert message["type"] == "trace_update"
+        assert message["data"]["step"] == 1
+
+    @pytest.mark.asyncio
+    async def test_broadcast_session_update(self, manager):
+        """Test debug session update broadcasting."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await manager.connect(mock_ws, stream_id="debug_session_test123")
+
+        sent_count = await manager.broadcast_session_update(
+            "test123",
+            "variable_changed",
+            {"var": "value"}
+        )
+
+        assert sent_count == 1
+        # Verify message routed to correct stream
+        assert "debug_session_test123" in manager.active_connections
+
+    @pytest.mark.asyncio
+    async def test_broadcast_to_workspace(self, manager):
+        """Test workspace broadcast."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await manager.connect(mock_ws, stream_id="workspace_test_ws")
+
+        sent_count = await manager.broadcast_to_workspace(
+            "test_ws",
+            {"type": "workspace_update"}
+        )
+
+        assert sent_count == 1
+
+# ============================================================================
+# Stream Info Tests
+# ============================================================================
+
+class TestWebSocketStreamInfo:
+    """Test stream information and statistics."""
+
+    def test_get_connection_count(self, manager):
+        """Test getting connection count for a stream."""
+        assert manager.get_connection_count("non_existent") == 0
+
+        # Add mock connection
+        manager.active_connections["stream1"] = {Mock(), Mock()}
+        assert manager.get_connection_count("stream1") == 2
+
+    def test_get_all_streams(self, manager):
+        """Test getting all active stream IDs."""
+        manager.active_connections = {
+            "stream1": {Mock()},
+            "stream2": {Mock(), Mock()}
+        }
+
+        streams = manager.get_all_streams()
+        assert "stream1" in streams
+        assert "stream2" in streams
+        assert len(streams) == 2
+
+    @pytest.mark.asyncio
+    async def test_get_stream_info(self, manager, mock_websocket):
+        """Test getting detailed information about a stream."""
+        await manager.connect(mock_websocket, stream_id="test_stream")
+
+        info = manager.get_stream_info("test_stream")
+
+        assert info["stream_id"] == "test_stream"
+        assert info["connection_count"] == 1
+        assert "connected_at" in info["connections"][0]
+
+    def test_get_stream_info_for_non_existent(self, manager):
+        """Test get_stream_info for non-existent stream."""
+        info = manager.get_stream_info("non_existent")
+
+        assert info["stream_id"] == "non_existent"
+        assert info["connection_count"] == 0
+        assert info["connections"] == []
