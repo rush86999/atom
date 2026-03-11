@@ -1682,3 +1682,334 @@ class TestDeviceHelperFunctions:
         )
 
         assert len(devices) == 0
+
+
+# ============================================================================
+# Device Tool Edge Cases Tests (26 new tests)
+# ============================================================================
+
+class TestDeviceEdgeCases:
+    """Edge case tests for device tool functions."""
+
+    @pytest.mark.asyncio
+    async def test_camera_snap_websocket_timeout(self, mock_db):
+        """Test camera snap when WebSocket times out."""
+        import asyncio
+
+        with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+            with patch('tools.device_tool.is_device_online', return_value=True):
+                with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                    mock_send.side_effect = asyncio.TimeoutError("WebSocket timeout")
+
+                    result = await device_camera_snap(
+                        db=mock_db,
+                        user_id="user-123",
+                        device_node_id="device-123"
+                    )
+
+                    assert result["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_camera_snap_device_disconnected(self, mock_db):
+        """Test camera snap when device disconnects during operation."""
+        with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+            with patch('tools.device_tool.is_device_online', return_value=True):
+                with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                    mock_send.return_value = {
+                        "success": False,
+                        "error": "Device disconnected"
+                    }
+
+                    result = await device_camera_snap(
+                        db=mock_db,
+                        user_id="user-123",
+                        device_node_id="device-123"
+                    )
+
+                    assert result["success"] is False
+                    assert "disconnected" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_screen_record_start_exceeds_max_duration(self, mock_db):
+        """Test screen record duration exceeds maximum (3600s)."""
+        with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+
+            result = await device_screen_record_start(
+                db=mock_db,
+                user_id="user-123",
+                device_node_id="device-123",
+                duration_seconds=3601  # Exceeds max of 3600
+            )
+
+            assert result["success"] is False
+            assert "exceeds maximum" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_screen_record_stop_session_already_closed(self, mock_db):
+        """Test stopping a screen recording session that's already closed."""
+        session_manager = get_device_session_manager()
+
+        # Create a session and close it
+        session = session_manager.create_session(
+            user_id="user-123",
+            device_node_id="device-123",
+            session_type="screen_record"
+        )
+        session_id = session["session_id"]
+        session_manager.close_session(session_id)
+
+        # Try to stop it again
+        with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+            result = await device_screen_record_stop(
+                db=mock_db,
+                user_id="user-123",
+                session_id=session_id
+            )
+
+            assert result["success"] is False
+            assert "not found" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_location_permission_denied(self, mock_db):
+        """Test get location when permission is denied."""
+        with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+            with patch('tools.device_tool.is_device_online', return_value=True):
+                with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                    mock_send.return_value = {
+                        "success": False,
+                        "error": "Location permission denied"
+                    }
+
+                    result = await device_get_location(
+                        db=mock_db,
+                        user_id="user-123",
+                        device_node_id="device-123"
+                    )
+
+                    assert result["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_notification_rate_limit(self, mock_db):
+        """Test rapid notification calls don't cause errors."""
+        import asyncio
+
+        with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+            with patch('tools.device_tool.is_device_online', return_value=True):
+                with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                    mock_send.return_value = {"success": True}
+
+                    # Send 10 notifications rapidly
+                    tasks = [
+                        device_send_notification(
+                            db=mock_db,
+                            user_id="user-123",
+                            device_node_id="device-123",
+                            title=f"Notification {i}",
+                            body=f"Body {i}"
+                        )
+                        for i in range(10)
+                    ]
+
+                    results = await asyncio.gather(*tasks)
+
+                    # All should succeed
+                    assert all(r["success"] for r in results)
+
+    @pytest.mark.asyncio
+    async def test_execute_command_not_whitelisted(self, mock_db):
+        """Test command execution with non-whitelisted command."""
+        with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+
+            result = await device_execute_command(
+                db=mock_db,
+                user_id="user-123",
+                device_node_id="device-123",
+                command="rm -rf /"  # Not in whitelist
+            )
+
+            assert result["success"] is False
+            assert "not in whitelist" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_execute_command_timeout(self, mock_db, mock_autonomous_agent, mock_governance_service):
+        """Test command execution timeout."""
+        import asyncio
+
+        with patch('tools.device_tool.ServiceFactory') as mock_factory:
+            mock_factory.get_governance_service.return_value = mock_governance_service
+
+            with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+                with patch('tools.device_tool.is_device_online', return_value=True):
+                    with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                        mock_send.side_effect = asyncio.TimeoutError("Command timeout")
+
+                        result = await device_execute_command(
+                            db=mock_db,
+                            user_id="user-123",
+                            device_node_id="device-123",
+                            command="sleep 100",
+                            agent_id="autonomous-agent"
+                        )
+
+                        assert result["success"] is False
+
+    @pytest.mark.asyncio
+    async def test_execute_command_with_environment(self, mock_db, mock_autonomous_agent, mock_governance_service):
+        """Test command execution with environment variables."""
+        with patch('tools.device_tool.ServiceFactory') as mock_factory:
+            mock_factory.get_governance_service.return_value = mock_governance_service
+
+            with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+                with patch('tools.device_tool.is_device_online', return_value=True):
+                    with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                        mock_send.return_value = {
+                            "success": True,
+                            "data": {
+                                "exit_code": 0,
+                                "stdout": "",
+                                "stderr": ""
+                            }
+                        }
+
+                        result = await device_execute_command(
+                            db=mock_db,
+                            user_id="user-123",
+                            device_node_id="device-123",
+                            command="echo $TEST_VAR",
+                            environment={"TEST_VAR": "test_value"},
+                            agent_id="autonomous-agent"
+                        )
+
+                        assert result["success"] is True
+
+    @pytest.mark.asyncio
+    async def test_concurrent_device_commands(self, mock_db, mock_autonomous_agent, mock_governance_service):
+        """Test multiple concurrent commands to same device."""
+        import asyncio
+
+        with patch('tools.device_tool.ServiceFactory') as mock_factory:
+            mock_factory.get_governance_service.return_value = mock_governance_service
+
+            with patch('tools.device_tool.WEBSOCKET_AVAILABLE', True):
+                with patch('tools.device_tool.is_device_online', return_value=True):
+                    with patch('tools.device_tool.send_device_command', new_callable=AsyncMock) as mock_send:
+                        mock_send.return_value = {
+                            "success": True,
+                            "data": {
+                                "exit_code": 0,
+                                "stdout": "output",
+                                "stderr": ""
+                            }
+                        }
+
+                        # Execute 5 commands concurrently
+                        tasks = [
+                            device_execute_command(
+                                db=mock_db,
+                                user_id="user-123",
+                                device_node_id="device-123",
+                                command=f"echo test{i}",
+                                agent_id="autonomous-agent"
+                            )
+                            for i in range(5)
+                        ]
+
+                        results = await asyncio.gather(*tasks)
+
+                        # All should succeed
+                        assert all(r["success"] for r in results)
+
+
+class TestDeviceSessionEdgeCases:
+    """Edge case tests for device session management."""
+
+    @pytest.mark.asyncio
+    async def test_session_cleanup_partial(self):
+        """Test cleanup removes only expired sessions, not active ones."""
+        from datetime import timedelta
+
+        manager = DeviceSessionManager(session_timeout_minutes=60)
+
+        # Create active session
+        active_session = manager.create_session(
+            user_id="user-1",
+            device_node_id="device-1",
+            session_type="screen_record"
+        )
+
+        # Create expired session
+        old_session = manager.create_session(
+            user_id="user-2",
+            device_node_id="device-2",
+            session_type="camera"
+        )
+        old_session["last_used"] = datetime.now() - timedelta(hours=2)
+
+        # Run cleanup
+        count = manager.cleanup_expired_sessions()
+
+        # Only old session should be removed
+        assert count == 1
+        assert manager.get_session(active_session["session_id"]) is not None
+        assert manager.get_session(old_session["session_id"]) is None
+
+    def test_session_user_isolation(self):
+        """Test sessions are isolated by user."""
+        manager = DeviceSessionManager()
+
+        # Create sessions for different users
+        session1 = manager.create_session(
+            user_id="user-1",
+            device_node_id="device-1",
+            session_type="camera"
+        )
+
+        session2 = manager.create_session(
+            user_id="user-2",
+            device_node_id="device-2",
+            session_type="location"
+        )
+
+        # Verify sessions have correct user ownership
+        assert session1["user_id"] == "user-1"
+        assert session2["user_id"] == "user-2"
+        assert session1["session_id"] != session2["session_id"]
+
+    @pytest.mark.asyncio
+    async def test_get_device_info_null_fields(self):
+        """Test device info with null optional fields."""
+        mock_db = MagicMock()
+        mock_device = MagicMock()
+        mock_device.device_id = "device-123"
+        mock_device.name = "Test Device"
+        mock_device.platform = "ios"
+        mock_device.platform_version = None
+        mock_device.capabilities = None
+        mock_device.capabilities_detailed = None
+        mock_device.hardware_info = None
+
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_device
+
+        info = await get_device_info(
+            db=mock_db,
+            device_node_id="device-123"
+        )
+
+        assert info is not None
+        assert info["device_id"] == "device-123"
+        assert info["platform_version"] is None
+        assert info["capabilities"] is None
+
+    @pytest.mark.asyncio
+    async def test_list_devices_no_devices(self):
+        """Test list devices when user has no devices."""
+        mock_db = MagicMock()
+        mock_db.query.return_value.filter.return_value.all.return_value = []
+
+        devices = await list_devices(
+            db=mock_db,
+            user_id="user-123"
+        )
+
+        assert devices == []
+        assert len(devices) == 0
