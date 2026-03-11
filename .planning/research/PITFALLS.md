@@ -1,586 +1,609 @@
 # Domain Pitfalls
 
-**Domain:** Finance/Accounting Testing for v3.3
-**Researched:** February 25, 2026
-**Overall confidence:** HIGH
+**Domain:** Backend Testing Coverage Expansion (Existing Python System)
+**Researched:** March 11, 2026
+**Overall confidence:** HIGH (based on pytest/coverage.py official docs, existing Atom coverage analysis)
 
 ## Executive Summary
 
-Finance and accounting testing introduces unique pitfalls beyond general testing challenges. Based on research across precision mathematics, property-based testing for financial invariants, payment integration testing, audit trail requirements, and performance testing with large financial datasets, this document identifies critical pitfalls specific to adding comprehensive finance testing to existing systems.
+Adding comprehensive backend testing coverage to existing systems has unique pitfalls distinct from greenfield testing. Atom's discovery of a 71.5 percentage point gap between service-level estimates (74.6%) and actual line coverage (8.50%) illustrates the **critical methodology pitfall**: coverage estimation without actual execution data.
 
-The most critical pitfall is **floating-point precision in financial calculations** - using `float` instead of `Decimal` causes accumulation errors that violate accounting standards and create reconciliation failures. The second most critical is **inadequate audit trail testing** - missing audit entries make financial compliance impossible and prevent debugging payment discrepancies.
+The highest-impact pitfalls for Atom's 80% backend coverage target are:
 
-## Key Findings
-
-**Stack:** Python `decimal.Decimal` for all monetary values, Hypothesis property testing with financial invariants (double-entry bookkeeping, conservation of value), pytest with transaction isolation
-**Architecture:** Precision-first design pattern (Decimal at API boundaries, integer cents for storage), property tests for financial invariants, integration tests with payment provider mocks
-**Critical pitfall:** Floating-point precision errors causing reconciliation failures and compliance violations
-**Integration challenge:** Payment provider mocks must match real provider behavior (timeouts, race conditions, idempotency)
-
-## Implications for Roadmap
-
-Based on research, suggested phase structure:
-
-1.  **Core Accounting Logic** - MUST USE FIRST to establish precision foundation
-    - Addresses: Decimal vs float precision, rounding rules, currency conversion
-    - Avoids: Accumulation errors that violate GAAP/IFRS standards
-    - Property tests: Double-entry invariants (debits == credits), balance conservation
-
-2.  **Payment Integration Testing** - SECOND to prevent transaction race conditions
-    - Addresses: Idempotency, webhook reliability, timeout handling
-    - Avoids: Duplicate charges, lost payments, reconciliation failures
-    - Integration tests: Mock payment providers with realistic failure modes
-
-3.  **Cost Tracking & Budgets** - THIRD builds on precision foundation
-    - Addresses: Budget enforcement, cost leak detection, savings calculation accuracy
-    - Avoids: Floating-point errors in budget calculations
-    - Property tests: Budget guardrail invariants, leak detection accuracy
-
-4.  **Audit Trails & Compliance** - FOURTH to verify all financial operations are traceable
-    - Addresses: Audit log completeness, reconciliation test coverage, SOX compliance
-    - Avoids: Untraceable transactions, compliance violations
-    - Integration tests: End-to-end audit trail verification
-
-**Phase ordering rationale:**
-- Precision errors are foundational - if caught late, require rewriting all financial calculations
-- Payment integrations have complex race conditions that benefit from property tests
-- Budget tracking depends on accurate precision from Phase 1
-- Audit trails span all phases and require complete implementation to test meaningfully
-
-**Research flags for phases:**
-- Phase 1 (Core Accounting): HIGH risk - Floating-point precision errors violate accounting standards
-- Phase 2 (Payment Integration): MEDIUM risk - Payment provider mocks may not match real behavior
-- Phase 3 (Cost Tracking): LOW risk - Standard property testing patterns apply
-- Phase 4 (Audit Trails): HIGH risk - Compliance gaps are expensive to fix post-deployment
-
-## Confidence Assessment
-
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Stack (Decimal, Hypothesis) | HIGH | Official Python Decimal docs, Hypothesis documentation |
-| Precision & Rounding Issues | HIGH | Multiple authoritative sources on IEEE 754 limitations in finance |
-| Payment Integration Testing | MEDIUM | WebSearch results, payment provider documentation varies |
-| Property Testing Invariants | HIGH | Research + existing Atom property test patterns (38 tests in governance) |
-| Audit Trail Requirements | HIGH | SOX compliance documentation, audit trail testing best practices |
-| Performance with Large Datasets | MEDIUM | CI/CD performance research, financial system case studies |
-
-## Gaps to Address
-
-- **Specific payment provider testing patterns**: Stripe/Stripe/Braintree have different webhook formats - Phase 2 should research specific providers used in Atom
-- **Currency exchange rate precision**: Banker's rounding (half-even) research shows complexity - may need dedicated phase for multi-currency
-- **Property test performance**: 100+ examples for financial invariants may be slow - need benchmarking with Atom's existing property test suite
-
----
+1. **Methodology Pitfalls** - Coverage estimation vs actual measurement, sampling bias
+2. **Fixture Leaks** - Database session isolation, shared state in pytest-xdist
+3. **Testing Anti-Patterns** - Over-mocking, testing implementation not behavior
+4. **Coverage Gaming** - Wrong exclusion patterns, targeting wrong metrics
+5. **Process Failures** - Unmaintainable test suites, technical debt accumulation
 
 ## Critical Pitfalls
 
-### Pitfall 1: Floating-Point Precision in Financial Calculations
+### Pitfall 1: Service-Level Coverage Estimation Masking True Gaps
 
-**What goes wrong:**
-Using `float` for monetary amounts causes binary representation errors (0.1 + 0.2 != 0.3) that accumulate in batch processing, violating accounting standards (GAAP/IFRS) and causing reconciliation failures. Tests using `assert abs(a - b) < 0.01` hide precision issues that become critical in production.
+**What goes wrong:** Calculating coverage by aggregating service-level estimates (e.g., "episode services have ~74% coverage") instead of measuring actual line execution creates false confidence. Atom's episode services appeared at 74.6% estimated but actual line coverage was only 8.50% - a 71.5 percentage point gap.
 
 **Why it happens:**
-- IEEE 754 binary floating-point cannot exactly represent decimal numbers like 0.1
-- Python's `float` uses binary representation, causing rounding errors
-- Tests use epsilon tolerance (0.01) that masks precision issues
-- Developers assume "close enough is acceptable" for accounting
-- Schema design uses `FLOAT` or `DOUBLE` instead of `DECIMAL` in databases
-- APIs accept float parameters without conversion to Decimal
+- Manual estimation based on "services tested" vs "total services"
+- Sampling bias: only checking test file count, not execution paths
+- Confusing "tests exist for module X" with "module X is covered"
+- Using file-level metrics (e.g., "15 test files cover 20 services") instead of line coverage
 
 **Consequences:**
-- **Compliance violations**: GAAP/IFRS require zero-error calculations for financial reporting
-- **Reconciliation failures**: Sum of line items != invoice total due to accumulation errors
-- **Audit trail inconsistencies**: Same transaction calculated differently in different parts of system
-- **Production incidents**: High-frequency trading systems lose millions due to precision errors
-- **Cross-system incompatibility**: SWIFT and financial protocols require fixed-point decimals
-- **Customer disputes**: $0.01 differences compound to material amounts over thousands of transactions
+- False sense of coverage progress
+- Wasted effort testing already-covered code
+- Critical untested paths remain hidden until production
+- Sudden discovery of massive coverage gaps late in milestones
 
 **Prevention:**
-1. **Use `decimal.Decimal` for all monetary values**: At API boundaries, database layer, calculation functions
-2. **Store amounts as integer cents**: Convert to Decimal for calculations, store as integer (avoid DECIMAL column type overhead)
-3. **Define rounding strategy**: Banker's rounding (half-even) for financial calculations, explicit `round(value, 2)` with `ROUND_HALF_EVEN`
-4. **Property test precision invariants**: Round-trip conversion (Decimal → string → Decimal) preserves value, summation of 1000 identical amounts equals amount × 1000
-5. **Test with large datasets**: Verify precision doesn't degrade over 10,000+ transactions
-6. **Database schema enforcement**: Use `DECIMAL(19,4)` or `BIGINT` (cents) columns, reject FLOAT/DOUBLE
-7. **API validation**: FastAPI Pydantic models that reject float for monetary fields, require Decimal or string
+- **ALWAYS use actual coverage.py execution data** - `pytest --cov=backend --cov-report=json`
+- Require coverage JSON as source of truth for all metrics
+- Calculate coverage at **function/line level**, not service level
+- Use `coverage report -m` for per-module line coverage
+- Set up CI coverage gates that fail on actual measurements, not estimates
 
 **Detection:**
-- Warning sign: Tests using `epsilon = 0.01` or `abs(a - b) < 0.01` comparisons
-- Warning sign: Database schema with `FLOAT` or `DOUBLE` for amount columns
-- Warning sign: Reconciliation reports showing "off by pennies" discrepancies
-- Warning sign: Invoice line item sums != invoice total in production data
-- Test failures: `0.1 + 0.2 = 0.30000000000000004` in floating-point arithmetic
+- Service coverage % ≠ actual line coverage % (gap > 10% is warning sign)
+- Test files exist but coverage report shows low execution percentages
+- Manual calculations or spreadsheets used for coverage metrics
 
-**Phase to address:**
-**Phase 1: Core Accounting Logic** - Establish `Decimal`-first design pattern before writing any financial calculations. Create property tests for precision invariants. Audit existing codebase for float usage in financial contexts.
-
-**Sources:**
-- [致命精度陷阱：金融与科学计算中的数值准确性实战指南](https://m.blog.csdn.net/gitblog_00567/article/details/151815158) (December 2025) - HIGH confidence, Chinese technical guide on numerical accuracy in financial trading
-- [Why 0.1 + 0.2 != 0.3: Building a Precise Calculator with Go's Decimal](https://dev.to/jayk0001/why-01-02-03-building-a-precise-calculator-with-gos-decimal-package-i8) (November 2025) - MEDIUM confidence, demonstrates arbitrary-precision decimals
-- [Java精确计算实战（从浮点错误到BigDecimal完美解决方案）](https://m.blog.csdn.net/IterLoom/article/details/154173661) (October 2025) - HIGH confidence, discusses audit inconsistencies from floating-point errors
-- [Float and Decimal Golden Rule](https://juejin.cn/post/7522367598815739913) (July 2025) - MEDIUM confidence, performance testing with 1M records comparing FLOAT vs DECIMAL
-- [程序员必看！FLOAT和DECIMAL的黄金取舍法则](https://juejin.cn/post/7522367598815739913) (July 2025) - MEDIUM confidence, industry-specific use cases for financial reconciliation
+**Phase to Address:** Phase 159 (Backend 80% Coverage) - Establish baseline with actual coverage.py measurement before any test writing.
 
 ---
 
-### Pitfall 2: Inadequate Audit Trail Testing
+### Pitfall 2: Fixture Scope Leaks and Database Session Pollution
 
-**What goes wrong:**
-Audit trail tests verify entries are created but don't validate completeness (all financial operations logged), integrity (entries tamper-proof), or traceability (can reconstruct transaction from start to finish). Gaps in audit trail coverage make SOX compliance impossible and prevent debugging payment discrepancies.
+**What goes wrong:** Tests share database sessions, fixtures, or state due to incorrect pytest fixture scoping, causing tests to pass in isolation but fail in parallel runs or produce different coverage results.
 
 **Why it happens:**
-- Tests check "audit log has entry" but not "all steps logged"
-- Audit trail coverage gaps between microservices (payment processed in one service, recorded in another)
-- No tests for audit trail completeness across transaction lifecycle
-- Missing audit entries for edge cases (refunds, chargebacks, adjustments)
-- Audit log queries not tested for performance (retrieving 1000+ entries)
-- No tests for audit trail immutability (entries modified after creation)
+- Using `scope="session"` or `scope="module"` for database fixtures when `scope="function"` is needed
+- Fixture finalizers not executing due to early exceptions (yield fixtures before yield)
+- Database transactions not rolled back between tests
+- Autouse fixtures modifying global state
+
+**From pytest docs:**
+> "pytest does not do any special processing for SIGTERM and SIGQUIT signals, so fixtures that manage external resources which are important to be cleared when the Python process is terminated might leak resources."
+>
+> "If a yield fixture raises an exception before yielding, pytest won't try to run the teardown code after that yield fixture's yield statement."
 
 **Consequences:**
-- **SOX compliance failures**: Walk-through testing reveals missing audit steps
-- **Untraceable transactions**: Cannot reconstruct what happened for disputed payments
-- **Forensic analysis failures**: Cannot investigate security incidents or fraud
-- **Reconciliation nightmares**: No way to verify why totals don't match
-- **Regulatory fines**: Audit trail gaps violate financial regulations
-- **Customer support failures**: Cannot answer "why was I charged $X?"
+- Tests pass locally but fail in CI (parallel execution)
+- Coverage results vary between runs
+- Test data from one test affects another (false positives/negatives)
+- Database locks in parallel test execution
 
 **Prevention:**
-1. **Test audit trail completeness**: Every financial operation (create, update, delete, post, refund) creates audit entry
-2. **Property test audit invariants**: Number of audit entries = number of financial operations, audit timestamps are non-decreasing
-3. **End-to-end traceability tests**: Given audit log, can reconstruct entire transaction (initiation → approval → payment → posting)
-4. **Test audit entry immutability**: Entries cannot be modified after creation, only new entries can be appended
-5. **Performance test audit queries**: Retrieving 1000 audit entries < 100ms, audit trail doesn't slow down financial operations
-6. **Test cross-service audit propagation**: Payment in service A creates audit entry in service A and linked entry in service B
-7. **Test edge case coverage**: Refunds, chargebacks, adjustments, cancellations all have audit entries
+```python
+# BAD: Session-scoped database fixture
+@pytest.fixture(scope="session")
+def db_session():
+    session = create_session()
+    yield session  # NEVER cleaned up properly
+
+# GOOD: Function-scoped with explicit cleanup
+@pytest.fixture(scope="function")
+def db_session():
+    session = create_session()
+    yield session
+    session.rollback()
+    session.close()
+```
+
+- Use `scope="function"` for all database fixtures
+- Use `yield` fixtures with cleanup code after yield
+- Implement transaction rollback in teardown: `session.rollback()`
+- Use autouse fixtures to reset global state
+- Run tests with `pytest -x` to stop at first failure (catches cascading issues)
 
 **Detection:**
-- Warning sign: Audit tests only check `len(audit_log) > 0` without verifying which operations were logged
-- Warning sign: No tests for audit trail query performance with large datasets
-- Warning sign: Missing audit entries for refunds, chargebacks, adjustments in test coverage
-- Warning sign: Audit log can be modified (no immutability tests)
-- Test failures: "Cannot reconstruct transaction from audit log" scenarios
+- Tests pass when run singly but fail in suite: `pytest tests/test_specific.py` vs `pytest`
+- Coverage differs between runs
+- Tests fail with pytest-xdist but pass without: `pytest -n 4` failures
+- Database constraint violations about duplicate records
 
-**Phase to address:**
-**Phase 4: Audit Trails & Compliance** - Audit trail testing requires complete implementation of all financial operations. Test completeness after core logic, payments, and budgets are implemented. Use property tests for audit invariants (count, ordering, immutability).
-
-**Sources:**
-- [Audit Trail Testing - Walk-Through Testing](https://www.dodig.mil/sites/default/files/financial-statement-audits/) (DOD Financial Management) - HIGH confidence, discusses adequate audit trail documentation requirements
-- [SOX Testing Best Practices](https://www.coso.org/guidance/guidance-papers/icoso-guidance-on-monitoring-internal-control-systems) - MEDIUM confidence, SOX 404 control testing methodologies
-- [Tesla China SOX Compliance Example](https://www.tesla.com/cn/investor-relations) - HIGH confidence, demonstrates monthly closing deadlines and reconciliation requirements
+**Phase to Address:** Phase 157 (Edge Cases & Integration Testing) - Fix fixture scope issues before writing parallel test infrastructure.
 
 ---
 
-### Pitfall 3: Property Testing Without Financial Invariants
+### Pitfall 3: Over-Mocking External Dependencies
 
-**What goes wrong:**
-Property-based testing (Hypothesis) applied to financial systems without identifying meaningful financial invariants (double-entry bookkeeping, conservation of value, balance sheet equation). Tests generate hundreds of examples but don't verify accounting principles, missing critical bugs like debit != credit or negative balances where not allowed.
+**What goes wrong:** Tests mock everything (database, HTTP clients, LLM providers) and verify implementation details (method calls) rather than behavior, creating brittle tests that break on refactoring and don't catch real integration bugs.
 
 **Why it happens:**
-- Difficulty determining "what is invariant here?" for financial operations
-- Property tests focus on implementation details (function returns in <5ms) rather than business invariants
-- Financial invariants not documented or understood by developers
-- Tests use generic properties (commutativity, associativity) instead of domain-specific invariants
-- No reference patterns for financial property testing
-- Pressure to add "fancy tests" leads to surface-level adoption
+- Desire for "fast" tests that avoid external dependencies
+- Mocking everything to make tests deterministic
+- Verifying mock call counts: `mock_llm.generate.assert_called_once()`
+- Testing implementation: "did function call X" vs "did function produce Y"
 
 **Consequences:**
-- Property tests become expensive assertion checks (100x execution with no bug-finding value)
-- False confidence: "we have property tests" but they don't verify financial correctness
-- Missed bugs: Double-entry violations (debits != credits), balance sheet inconsistencies
-- Slow test suites (100 examples per test) without financial coverage
-- Property tests abandoned as "not useful" when the issue was weak properties
+- Tests pass but production code fails (mocks don't match real behavior)
+- Refactoring breaks tests even when behavior unchanged
+- False sense of security from high test counts
+- Integration bugs only caught in production
 
 **Prevention:**
-1. **Identify financial invariants first**: Document 3-5 domain invariants per module before writing tests
-   - Double-entry: Sum of debits == sum of credits for every transaction
-   - Conservation: Total balance of all accounts remains constant during transfers
-   - Balance sheet: Assets = Liabilities + Equity (accounting equation)
-   - Non-negative: User accounts cannot have negative balances (for most account types)
-   - Precision: All calculations use Decimal, no floating-point errors
-2. **Use established property patterns**:
-   - Round-trip: serialize → deserialize → equals
-   - Inductive: f(x, f(y)) == f(f(x), y)
-   - Invariant preservation: transformation preserves key properties
-3. **Test critical financial paths**: Transaction posting, invoice reconciliation, budget enforcement, cost leak detection
-4. **Require bug-finding evidence**: Each property test must include "example bug this would have caught" in docstring
-5. **Reference existing Atom property tests**: Governance maturity invariants (1200+ lines in `test_governance_maturity_invariants.py`)
+```python
+# BAD: Testing implementation details
+def test_episode_creation(mock_llm, mock_db):
+    service.create_episode(data)
+    mock_llm.generate.assert_called_once()  # Brittle!
+    mock_db.add.assert_called_once()
+
+# GOOD: Testing behavior
+def test_episode_creation_creates_record(db_session):
+    episode = service.create_episode(data)
+    assert episode.title == "Expected Title"  # Behavior!
+    assert episode.summary is not None
+    # Verify actual DB state
+    db_session.query(Episode).filter_by(id=episode.id).first()
+```
+
+- Only mock external services (LLM providers, S3, external APIs)
+- Use real database (SQLite in-memory) for tests
+- Test observable behavior (return values, database state), not call sequences
+- Prefer state-based testing over interaction-based testing
+- Use Testcontainers or similar for real dependencies when possible
 
 **Detection:**
-- Warning sign: Properties testing commutativity (a + b == b + a) without financial relevance
-- Warning sign: Property tests with no @assume or .filter() (testing invalid inputs)
-- Warning sign: Properties that never fail after 200+ examples (likely too weak)
-- Warning sign: Developers struggle to explain "what financial invariant does this verify?"
-- Warning sign: No property tests for double-entry bookkeeping or conservation of value
+- Tests have > 50% mock assertions (assert_called, assert_called_once)
+- Tests break when refactoring code without changing behavior
+- High test count but low bug detection rate
+- Tests use `@patch` decorators extensively
 
-**Phase to address:**
-**Phase 1: Core Accounting Logic** - Dedicate time to invariant identification before implementation. Document financial invariants (double-entry, conservation, balance sheet equation) in test docstrings. Use Hypothesis with `@given` strategies for financial data (amounts, currencies, dates).
-
-**Sources:**
-- Existing Atom property tests: `backend/tests/property_tests/financial/test_financial_invariants.py` (814 lines) - HIGH confidence, demonstrates financial property testing patterns
-- Existing Atom property tests: `backend/tests/property_tests/accounting/test_ai_accounting_invariants.py` (705 lines) - HIGH confidence, AI accounting engine invariants
-- Existing Atom property tests: `backend/tests/property_tests/governance/test_governance_maturity_invariants.py` (1205 lines) - HIGH confidence, maturity gate enforcement invariants
+**Phase to Address:** All phases - Establish testing patterns early (Phase 155) that avoid over-mocking.
 
 ---
 
-### Pitfall 4: Payment Integration Mock Mismatch
+### Pitfall 4: Coverage Gaming - Excluding Untestable Code
 
-**What goes wrong:**
-Payment integration tests use mocks that don't match real payment provider behavior (Stripe, PayPal, Braintree), missing race conditions, webhook failures, timeout scenarios, and idempotency issues. Tests pass but production fails because mocks are too simple.
+**What goes wrong:** Adding `# pragma: no cover` or coverage exclusion patterns to avoid testing difficult code (error handlers, edge cases, async paths), inflating coverage percentages while leaving critical paths untested.
 
 **Why it happens:**
-- Mocks return success for all requests (no failure modes)
-- No testing of webhook delivery failures (timeouts, retries)
-- Mocks don't simulate network latency or provider downtime
-- Idempotency not tested (same request sent twice causes duplicate charges)
-- Webhook signature verification not tested
-- Mocks don't match provider-specific error codes and retry logic
+- Pressure to meet 80% coverage targets
+- Error handlers and exception paths are hard to trigger
+- Async/await code requires complex test setup
+- Fear of "breaking" fragile code with tests
+
+**From Atom's pytest.ini:**
+```ini
+[coverage:report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+```
 
 **Consequences:**
-- **Production payment failures**: Tests pass but real provider returns unexpected errors
-- **Duplicate charges**: Idempotency not tested, same payment processed twice
-- **Lost payments**: Webhook delivery failures not handled, payment status unknown
-- **Reconciliation failures**: Mock payment IDs don't match real provider format
-- **Customer support escalations**: Payments "stuck" in pending state due to untested edge cases
-- **Revenue loss**: Payment failures not caught in tests, affect real customers
+- Coverage percentage meets target but actual protection is low
+- Production failures in "excluded" error paths
+- False confidence from high coverage numbers
+- Difficult to justify which exclusions are legitimate
 
 **Prevention:**
-1. **Use provider test mode**: Stripe Test Mode, PayPal Sandbox for realistic responses (not mocks)
-2. **Test failure modes**: declined cards, insufficient funds, timeouts, 500 errors
-3. **Test webhook reliability**: Webhook delivery failures, retry logic, signature verification
-4. **Test idempotency**: Same payment request sent twice should only charge once
-5. **Use VCR/recording**: Record real provider responses for replay in tests (maintains contract accuracy)
-6. **Test provider-specific quirks**: Stripe uses cents (integer), PayPal uses decimals (different precision)
-7. **Race condition tests**: Simulate concurrent payment requests, webhook out-of-order delivery
+- **Audit coverage exclusions quarterly** - remove outdated pragmas
+- Only exclude genuinely untestable code: generated protocols, abstract methods
+- Require PR review for any new `# pragma: no cover`
+- Use `@pytest.mark.skipif` for platform-specific code instead of pragmas
+- Focus coverage targets on critical paths (security, financial) first
 
 **Detection:**
-- Warning sign: Mock returns `{"status": "success"}` for all requests
-- Warning sign: No tests for webhook failures or timeout scenarios
-- Warning sign: Payment tests don't verify idempotency keys
-- Warning sign: No tests for signature verification on webhooks
-- Test failures: Production payments fail with errors never seen in tests
+- Coverage report shows `pragma: no cover` on > 5% of lines
+- High coverage % but many excluded lines
+- Error handlers, raise statements, or exception paths excluded
+- Coverage config has broad `omit` patterns
 
-**Phase to address:**
-**Phase 2: Payment Integration Testing** - Payment integrations require realistic testing of failure modes. Use test modes and VCR recording instead of simple mocks. Test idempotency, webhook reliability, and race conditions explicitly.
-
-**Sources:**
-- [Stripe Testing Documentation](https://stripe.com/docs/testing) - HIGH confidence, comprehensive test cards for declines, disputes, refunds
-- [pytest Mock Technology Complete Guide](https://blog.csdn.net/weixin_63779518/article/details/148582244) (June 10, 2025) - MEDIUM confidence, payment gateway mock implementation
-- [Common Problems in Payment Systems](https://blog.csdn.net/Rookie_CEO/article/details/141039745) - MEDIUM confidence, discusses testing challenges with third-party payment systems
+**Phase to Address:** Phase 160 (Backend 80% Target) - Audit and remove coverage exclusions as part of final push.
 
 ---
 
-### Pitfall 5: Test Data Edge Cases Missing
+### Pitfall 5: Flaky Tests Masking Real Issues
 
-**What goes wrong:**
-Financial test data uses typical values ($100, $50) but misses critical edge cases (zero amounts, negative amounts, maximum limits, scientific notation, formatted numbers with commas). Tests pass for normal cases but fail in production for edge cases, causing calculation errors or crashes.
+**What goes wrong:** Tests that fail intermittently due to timing issues, race conditions, or async coordination problems are marked as `@pytest.mark.flaky` and auto-retried, masking real bugs and creating unreliable test suites.
 
 **Why it happens:**
-- Test data generation focused on "realistic" values, not boundary conditions
-- Missing edge cases: zero ($0.00), negative (-$100.00), very large amounts ($999,999.99)
-- Format variations not tested: "1,234.56" (commas), European format "1.234,56"
-- Floating-point precision edges: 0.0001, scientific notation (1E-16)
-- Business rule violations not tested: negative balances, overdrafts
-- Property tests use `st.floats()` without constraining to valid financial ranges
+- Async tests without proper event loop management
+- Time-based assertions: `assert time.time() - start < 1.0`
+- Shared state between tests (global variables, singleton instances)
+- External service dependencies (network timeouts, rate limits)
+
+**From Atom's pytest.ini:**
+```ini
+# Pytest-rerunfailures configuration
+addopts = --reruns 2 --reruns-delay 1 --maxfail=10
+```
+
+**Common causes documented in Atom's config:**
+- Race conditions in parallel execution
+- Improper async/await handling
+- External service dependencies
+- Time-based assertions without mocking
+- Shared state between tests
 
 **Consequences:**
-- **Production crashes**: Division by zero on zero-amount transactions
-- **Calculation errors**: Negative amounts handled incorrectly (double-negative bugs)
-- **Validation failures**: Very large amounts exceed database column limits
-- **Customer disputes**: Amount formatting differences (commas vs periods)
-- **Security issues**: Negative amounts exploited for refunds (positive → negative flip)
+- Flaky tests create "cry wolf" effect - ignored when they fail
+- Real bugs hidden behind "it's just a flaky test"
+- CI runs take longer due to retries
+- Unreliable coverage measurements
 
 **Prevention:**
-1. **Property test edge cases**: Include zero, negative, very large amounts in Hypothesis strategies
-   ```python
-   @given(amount=st.floats(min_value=-1000000.0, max_value=1000000.0, allow_nan=False, allow_infinity=False))
-   ```
-2. **Test boundary values**: Minimum valid amount (0.01), maximum (account limit), zero (0.00)
-3. **Test format variations**: Commas ("1,234.56"), European format ("1.234,56"), scientific notation
-4. **Test business rules**: Negative balance validation, overdraft prevention, credit limit enforcement
-5. **Use factory_boy for test data**: Define valid ranges, generate edge cases automatically
-6. **Test with Luhn algorithm**: Valid credit card numbers, not just "4111111111111111"
-7. **Distribution realism**: Apply Pareto principle (80/20 rule) for order amounts (most small, few large)
+```python
+# BAD: Time-based assertion
+def test_episode_timeout():
+    start = time.time()
+    episode = service.create_long_episode()
+    assert time.time() - start < 5.0  # Flaky!
+
+# GOOD: Mock time or use explicit waits
+def test_episode_timeout(mock_time):
+    mock_time.advance(timedelta(seconds=10))
+    with pytest.raises(TimeoutError):
+        service.create_long_episode()
+```
+
+- Use `pytest-asyncio` with explicit event loop management
+- Mock time-dependent code: `freezegun` library or `unittest.mock.patch`
+- Use unique resource names for parallel tests: `f"test_{uuid.uuid4()}"`
+- Avoid shared state; use fresh fixtures for each test
+- Fix root cause of flakiness, don't just add retries
 
 **Detection:**
-- Warning sign: All test amounts are "nice round numbers" ($100, $50, $25.00)
-- Warning sign: No tests with zero, negative, or maximum amount values
-- Warning sign: Property tests don't use `allow_nan=False, allow_infinity=False`
-- Warning sign: Tests don't verify formatting (commas, European formats)
-- Test failures: Production errors for "division by zero" or "amount too large"
+- Test fails intermittently: `pytest` fails, `pytest` again passes
+- Tests marked with `@pytest.mark.flaky`
+- High rerun count in CI logs
+- Tests fail in CI but pass locally (or vice versa)
 
-**Phase to address:**
-**Phase 1: Core Accounting Logic** - Edge case testing is fundamental to financial correctness. Use Hypothesis strategies with explicit min/max values. Include zero, negative, and boundary values in all financial test suites.
-
-**Sources:**
-- Financial test data generation research (WebSearch results) - MEDIUM confidence, identifies critical edge cases for financial testing
-- [Test Data Generation for Financial Systems](https://testdriven.io/blog/test-data-generation/) - MEDIUM confidence, discusses boundary values and format variations
+**Phase to Address:** Phase 157 (Edge Cases) - Fix flaky tests before scaling test suite. Establish "no flaky tests" policy.
 
 ---
 
-### Pitfall 6: Currency Exchange Rate Precision Loss
+### Pitfall 6: Wrong Coverage Metrics - Line vs Branch Coverage
 
-**What goes wrong:**
-Multi-currency systems lose precision during conversion due to floating-point exchange rates, incorrect rounding strategies, or insufficient decimal places. Tests check "conversion worked" but don't verify round-trip consistency (USD → EUR → USD returns original amount), causing silent losses in international transactions.
+**What goes wrong:** Focusing only on line coverage (80% target) while ignoring branch coverage, creating false confidence. Line coverage measures "lines executed" but branch coverage measures "decision outcomes tested" - a critical distinction for complex conditional logic.
 
 **Why it happens:**
-- Exchange rates stored as `float` instead of high-precision `Decimal`
-- Rounding strategy not defined (banker's rounding vs. traditional rounding)
-- Insufficient decimal places (4 vs. 6+ decimal places for rates)
-- Round-trip conversion not tested (USD → EUR → USD)
-- Cross-currency calculations (USD → EUR → GBP) compound errors
-- No tests for accumulation over many conversions (1000+ transactions)
+- Line coverage is default metric in coverage.py
+- Branch coverage requires explicit enabling: `--branch`
+- Branch coverage percentages are always lower than line coverage
+- Misunderstanding that 80% line = 80% branch
+
+**From Atom's pytest.ini:**
+```ini
+[coverage:run]
+branch = true  # Branch coverage enabled
+
+[coverage:report]
+fail_under = 80
+fail_under_branch = 70  # Different target for branch
+```
+
+**Example of difference:**
+```python
+def get_episode_maturity(agent_id):
+    if agent_id is None:  # Line 1
+        return "STUDENT"   # Line 2
+    if agent.governance_level > 0.9:  # Line 3
+        return "AUTONOMOUS"  # Line 4
+    return "INTERN"  # Line 5
+```
+
+- **Line coverage**: Test with `agent_id="abc"` → lines 1, 3, 5 = **60%** (3/5 lines)
+- **Branch coverage**: Test covers 1/4 decision paths = **25%** (False, True/False outcome not tested)
 
 **Consequences:**
-- **Silent losses**: $0.01 lost per transaction, $1000+ lost over 100,000 transactions
-- **Customer disputes**: Converted amount doesn't match expected value
-- **Regulatory issues**: Currency conversion violates foreign exchange regulations
-- **Accounting errors**: Multi-currency balance sheet doesn't balance
-- **Reconciliation failures**: Converted amounts don't sum correctly
+- 80% line coverage might be only 50% branch coverage
+- Error handling paths (exception branches) often uncovered
+- Complex boolean logic: `if x and y or z` appears covered but misses combinations
+- False confidence in conditional logic protection
 
 **Prevention:**
-1. **Store exchange rates as `Decimal` with 6+ decimal places**: Use `DECIMAL(19,6)` in database
-2. **Define rounding strategy**: Banker's rounding (half-even) for financial conversions
-3. **Property test round-trip consistency**: `convert(convert(amount, rate1), 1/rate1) == amount` (within tolerance)
-4. **Test cross-currency conversions**: USD → EUR → GBP should equal USD → GBP (direct conversion)
-5. **Test accumulation errors**: 1000 conversions should not compound errors beyond acceptable threshold
-6. **Use ISO 4217 currency codes**: Standard 3-letter codes (USD, EUR, GBP) to avoid ambiguity
-7. **Test edge cases**: Very small amounts (0.01), very large amounts (1,000,000), zero-crossing rates
+- **ALWAYS enable branch coverage**: `pytest --cov=backend --cov-branch`
+- Set separate targets: 80% line, 70% branch (as Atom does)
+- Review coverage report's "missing branches" section specifically
+- Use mutation testing (e.g., `mutmut`) to verify branch quality
+- Focus coverage efforts on low-branch-coverage modules
 
 **Detection:**
-- Warning sign: Exchange rates stored as `float` in database schema
-- Warning sign: No tests for round-trip conversion consistency
-- Warning sign: Currency conversion tests only check "function doesn't crash"
-- Warning sign: Rounding strategy not documented or tested
-- Test failures: Round-trip conversion shows precision loss
+- Coverage report shows "Missed" column with branch counts: `23 missed, 15 partial`
+- High line coverage % but significantly lower branch coverage %
+- Complex conditional logic with minimal tests
+- Coverage run without `--branch` flag
 
-**Phase to address:**
-**Phase 1: Core Accounting Logic** - Currency precision is foundational. Define `Decimal`-first design for exchange rates. Property test round-trip consistency. Consider separate phase for multi-currency if Atom supports international payments.
-
-**Sources:**
-- [Banker's rounding(银行家舍入法)](https://zhidao.baidu.com/question/1809928104317370587.html) - MEDIUM confidence, explains half-even rounding for financial systems
-- [兑换外币小数点后的怎么算](https://zhidao.baidu.com/question/1124391813496637219.html) - MEDIUM confidence, discusses foreign exchange precision requirements
+**Phase to Address:** Phase 159 (Backend 80% Coverage) - Enable branch coverage from start; track both metrics separately.
 
 ---
 
-### Pitfall 7: Slow Financial Tests Blocking CI
+### Pitfall 7: Async Testing Without Proper Event Loop Management
 
-**What goes wrong:**
-Financial tests with large datasets (10,000+ transactions) or complex calculations take 5+ minutes, blocking CI pipelines and causing developers to skip running tests locally. Slow tests reduce feedback velocity and hide bugs.
+**What goes wrong:** Async tests using `pytest-asyncio` without proper event loop configuration, causing tests to pass in isolation but hang or fail when run in parallel, and producing unreliable coverage results.
 
 **Why it happens:**
-- Property tests with 200-1000 examples per test
-- Integration tests with full database dumps (not minimal fixtures)
-- No test prioritization (critical tests run after slow tests)
-- Database queries not indexed (slow joins on large datasets)
-- Tests use real calculation logic instead of fast mocks for unit tests
-- No parallel execution (pytest-xdist not configured)
+- Using `asyncio.run()` in fixtures instead of `@pytest.fixture` with async generators
+- Mixing sync and async test code without proper event loop isolation
+- Not using `pytest-asyncio`'s `auto` mode or explicit `@pytest.mark.asyncio`
+- Event loop not closed between tests, causing resource leaks
+
+**From Atom's pytest.ini:**
+```ini
+[pytest]
+asyncio_mode = auto
+```
 
 **Consequences:**
-- **Developers skip tests**: "Tests take too long, I'll just commit and see what CI says"
-- **Reduced feedback velocity**: 10+ minute wait for test results breaks developer flow
-- **Bugs caught late**: Failures in CI instead of locally, slower iteration
-- **Test suite abandoned**: Team stops running full test suite, only runs smoke tests
-- **CI costs increase**: Longer test runs = more compute time = higher bills
+- Tests hang indefinitely in CI
+- "Event loop is closed" errors
+- Coverage results inconsistent (async functions sometimes execute, sometimes don't)
+- Database connection pool exhaustion
 
 **Prevention:**
-1. **Use pytest-xdist for parallel execution**: `pytest-xdist -n auto` from day one
-2. **Prioritize test ordering**: Smoke tests (<2 min) → critical tests (governance, financial invariants) → comprehensive tests
-3. **Limit property test examples**: Start with 50 examples, increase only if bug-finding justifies it
-4. **Use minimal fixtures**: Don't load full database dump, create minimal test data per test
-5. **Index database queries**: Ensure financial queries use indexes, add `EXPLAIN ANALYZE` tests
-6. **Test categorization**: Mark slow tests with `@pytest.mark.slow`, run in separate CI job
-7. **Benchmark critical paths**: Verify governance cache <1ms, financial calculations <100ms with pytest-benchmark
+```python
+# BAD: Manual event loop management
+@pytest.fixture
+def async_client():
+    loop = asyncio.new_event_loop()
+    client = AsyncClient(loop=loop)
+    yield client
+    loop.close()  # Too late if test failed
+
+# GOOD: Let pytest-asyncio manage event loop
+@pytest.fixture
+async def async_client():
+    async with AsyncClient() as client:
+        yield client
+    # Automatic cleanup
+```
+
+- Use `pytest-asyncio` with `asyncio_mode = auto` (as Atom does)
+- Use `async def` for fixtures and tests
+- Never manually create/close event loops in tests
+- Use `async with` for resource cleanup
+- Ensure all async dependencies use same event loop
 
 **Detection:**
-- Warning sign: Test suite takes >10 minutes to run
-- Warning sign: Property tests with `@settings(max_examples=1000)` without justification
-- Warning sign: No pytest-xdist configured for parallel execution
-- Warning sign: Developers say "I'll just let CI handle the tests"
-- Test failures: CI timeout errors (tests exceeded 30 minute limit)
+- Tests hang or timeout
+- "RuntimeError: Event loop is closed" errors
+- "Task attached to different loop" warnings
+- Coverage missing for async functions
 
-**Phase to address:**
-**Phase 3: Cost Tracking & Budgets** - Performance issues appear with large datasets. Set up test performance benchmarks during phase 1, validate in phase 3. Use pytest-xdist from day one.
-
-**Sources:**
-- [CI/CD Performance Testing Pitfalls](https://dev.to/ci_cd/improving-ci-performance-6x-faster) - MEDIUM confidence, discusses 6-10x CI performance improvements
-- [Big Data Testing Challenges](https://www.testautomationguru.com/big-data-testing-challenges/) - MEDIUM confidence, performance testing with large datasets
-- pytest-xdist documentation - HIGH confidence, official documentation for parallel test execution
+**Phase to Address:** Phase 148 (Cross-Platform E2E Orchestration) - Establish async testing patterns before writing async integration tests.
 
 ---
 
-### Pitfall 8: Rounding Strategy Inconsistency
+### Pitfall 8: Test Data Factories Creating Duplicate Records
 
-**What goes wrong:**
-Different parts of the system use different rounding strategies (traditional "round half up" vs. banker's "round half even"), causing reconciliation failures. Tests don't verify consistent rounding, allowing $0.01 discrepancies to accumulate.
+**What goes wrong:** Test data factories (e.g., `create_test_agent()`) using hardcoded names or sequential IDs cause unique constraint violations when tests run in parallel with pytest-xdist.
 
 **Why it happens:**
-- Python's `round()` uses banker's rounding (half-even) by default
-- Database `ROUND()` function may use traditional rounding (half-up)
-- JavaScript `Math.round()` uses half-up (different from Python!)
-- No documented rounding strategy for the system
-- Tests don't verify rounding behavior for edge cases (0.5, 1.5, 2.5)
-- Different rounding for display vs. storage vs. calculation
+- Factories use static names: `create_test_agent(name="test-agent")`
+- Sequential IDs from shared sequence generators
+- Tests run in parallel with same seed data
+- No worker ID in generated test data
 
 **Consequences:**
-- **Reconciliation failures**: Sum of line items != invoice total due to rounding differences
-- **Cross-language inconsistency**: Python backend rounds differently than JavaScript frontend
-- **Compliance issues**: GAAP/IFRS require specific rounding methods
-- **Customer disputes**: Displayed amount doesn't match charged amount
-- **Audit trail inconsistencies**: Same amount rounded differently in different logs
+- Tests pass serially but fail with `pytest -n 4`
+- "IntegrityError: duplicate key value violates unique constraint"
+- False test failures due to data collisions
+- Developers run tests serially to avoid failures, slowing CI
 
 **Prevention:**
-1. **Document rounding strategy**: Specify banker's rounding (half-even) or traditional (half-up) for all financial calculations
-2. **Use explicit rounding**: `round(value, 2, rounding=ROUND_HALF_EVEN)` instead of implicit `round(value, 2)`
-3. **Property test rounding invariants**: Round(0.5) + Round(1.5) == Round(2.0) (banker's: 0 + 2 = 2)
-4. **Test edge cases**: 0.5, 1.5, 2.5, 2.5 → verify rounding behavior matches strategy
-5. **Cross-language consistency**: Ensure Python backend and JavaScript frontend use same rounding
-6. **Separate display rounding from calculation**: Calculate with full precision, round only for display
-7. **Test accumulation errors**: 1000 round operations should not accumulate beyond threshold
+```python
+# BAD: Hardcoded names
+def create_test_agent():
+    return Agent(name="test-agent", maturity="STUDENT")
+
+# GOOD: Unique data generation
+def create_test_agent():
+    suffix = uuid.uuid4().hex[:8]
+    return Agent(name=f"test-agent-{suffix}", maturity="STUDENT")
+
+# BEST: Use pytest-xdist worker ID
+def create_test_agent(request):
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
+    return Agent(name=f"test-agent-{worker_id}-{uuid.uuid4().hex[:8]}")
+```
+
+- Use UUIDs or random suffixes for all unique fields
+- Include worker ID in parallel test execution
+- Use database transactions with rollback (not commit) in tests
+- Check Atom's conftest.py for `pytest_configure` hook example
 
 **Detection:**
-- Warning sign: Tests use implicit `round()` without specifying rounding mode
-- Warning sign: No documented rounding strategy in codebase
-- Warning sign: Displayed amount differs from stored amount by $0.01
-- Warning sign: Reconciliation reports show "rounding differences"
-- Test failures: Sum of rounded amounts != rounded sum
+- Tests fail with `-n 4` but pass without
+- Unique constraint violations in test logs
+- Tests depend on execution order
+- Factories use loops or counters for IDs
 
-**Phase to address:**
-**Phase 1: Core Accounting Logic** - Rounding strategy is foundational. Document rounding rules before writing financial calculations. Property test rounding invariants with edge cases (0.5, 1.5, 2.5).
+**Phase to Address:** Phase 157 (Edge Cases) - Fix test data factories before parallel test infrastructure (Phase 148).
 
-**Sources:**
-- [银行家舍入规则（IEEE 754 标准）详解](https://m.blog.csdn.net/teeeeeeemo/article/details/148671927) - HIGH confidence, IEEE 754 banker's rounding specification
-- [金额舍入只有四舍五入一种方式？](https://baijiahao.baidu.com/s?id=1827677774822295749) - MEDIUM confidence, discusses multiple rounding methods for financial systems
+---
+
+### Pitfall 9: Coverage Measurement False Positives from Import-Only Execution
+
+**What goes wrong:** Code appears "covered" because modules are imported during test collection, but actual code paths are never executed, inflating coverage percentages for unused functions.
+
+**Why it happens:**
+- Coverage counts line execution during import time
+- `def` statements and class definitions execute on import
+- Decorators and default arguments execute on import
+- Test collection imports modules without testing them
+
+**Example:**
+```python
+# episode_service.py
+def create_episode(data):
+    validate(data)  # Line 10
+    episode = Episode(data)  # Line 11
+    return save(episode)  # Line 12
+
+# test_episode.py
+import episode_service  # Coverage marks lines 10-12 as "executed"
+# But never calls create_episode()!
+```
+
+**Consequences:**
+- Coverage reports 50-70% but actual behavioral coverage is near 0%
+- Functions with 100% coverage but never called with real data
+- False progress toward 80% target
+- Production failures in "covered" code
+
+**Prevention:**
+- Use `coverage report --include="*/tests/*"` to verify test code vs production code
+- Review coverage report for "import-only" modules (high coverage, 0 function calls)
+- Write tests that explicitly call functions, don't just import modules
+- Use `--cov-context=test` in pytest-cov to see which tests cover which lines
+- Audit modules with > 90% coverage but < 10 test cases
+
+**Detection:**
+- Coverage shows high % for module but no tests call its functions
+- `coverage html` report shows green on function definitions but red on function bodies
+- Module has 0 test files but > 50% coverage
+- Removing tests doesn't reduce coverage percentage
+
+**Phase to Address:** Phase 159 (Backend 80% Coverage) - Audit coverage for import-only false positives when establishing baseline.
+
+---
+
+### Pitfall 10: CI/CD Test Suite Bloat - Slow Tests Blocking Feedback
+
+**What goes wrong:** Test suite becomes too slow (10+ minutes) due to integration tests, database operations, or lack of parallelization, causing developers to skip running tests locally and reducing feedback cycle quality.
+
+**Why it happens:**
+- Too many integration tests, not enough unit tests
+- Tests not marked with speed markers (`@pytest.mark.slow`, `@pytest.mark.fast`)
+- Database fixtures not optimized (recreating schema each test)
+- No test parallelization (pytest-xdist not configured)
+
+**From Atom's pytest.ini markers:**
+```ini
+markers =
+    fast: Fast tests (<0.1s)
+    slow: Slow tests (> 1 second)
+    integration: Integration tests (slower, requires dependencies)
+```
+
+**Consequences:**
+- Developers push code without running tests locally
+- CI queues back up, slowing team velocity
+- Tests run less frequently, allowing regressions to accumulate
+- Coverage becomes stale due to long feedback cycles
+
+**Prevention:**
+- Mark slow tests: `@pytest.mark.slow`
+- Run fast tests in pre-commit hooks: `pytest -m "not slow"`
+- Use pytest-xdist for parallel execution: `pytest -n auto`
+- Optimize database fixtures: use SQLite in-memory, schema rollback not recreation
+- Measure and track test execution time: `pytest --durations=10`
+
+**Detection:**
+- Full test suite takes > 10 minutes
+- Pre-commit hooks skip tests
+- Developers commonly push without local test runs
+- CI queue backup or frequent timeout failures
+
+**Phase to Address:** Phase 149 (Quality Infrastructure) - Set up test timing benchmarks and fast/slow test separation early.
 
 ---
 
 ## Moderate Pitfalls
 
-### Pitfall 9: Reconciliation Test Coverage Gaps
+### Pitfall 11: Missing Test Documentation - Unknown Test Purpose
 
-**What goes wrong:**
-Reconciliation tests verify "invoices matched to contracts" but don't test discrepancy resolution, tolerance thresholds, or exception handling. Tests pass for happy path but fail in production when amounts don't match exactly.
-
-**Why it happens:**
-- Tests only test exact matches (invoice amount == contract amount)
-- Discrepancy tolerance not tested (5% variance, 10% variance)
-- No tests for exception workflow (what happens when invoice doesn't match any contract?)
-- Missing edge cases: Multiple invoices for one contract, partial payments, credits
-- No tests for reconciliation report generation
-- Performance not tested (reconciling 10,000+ invoices)
+**What goes wrong:** Test files lack docstrings or comments explaining what's being tested and why, making it difficult to maintain tests or understand what edge cases they cover.
 
 **Consequences:**
-- **Manual reconciliation required**: Automatic reconciliation fails on edge cases
-- **Missed discrepancies**: Invoices outside tolerance not flagged for review
-- **Workflow failures**: Discrepancy resolution process not tested, breaks in production
-- **Reconciliation report errors**: Reports don't match actual reconciliation results
-- **Performance issues**: Month-end reconciliation takes hours instead of minutes
+- Tests become black boxes - breakage requires detective work
+- Duplicate tests for same scenarios
+- Edge cases tested but not documented
+- Onboarding time increases for new developers
 
 **Prevention:**
-1. **Test exact matches**: Invoice amount == contract amount → matched
-2. **Test tolerance thresholds**: Invoice within 5% → matched with warning, >5% → discrepancy
-3. **Test discrepancy workflow**: Flagged discrepancies require manual review, track resolution
-4. **Test edge cases**: Multiple invoices per contract, partial payments, credit notes
-5. **Test reconciliation reports**: Verify report summary matches actual reconciliation results
-6. **Performance test reconciliation**: Reconcile 10,000 invoices < 5 minutes
-7. **Property test reconciliation invariants**: Matched count + discrepancy count + unmatched count = total invoices
+```python
+def test_episode_retrieval_with_canvas_context_filters_by_type():
+    """
+    Test that episode retrieval with canvas context correctly filters
+    by canvas type when detail level is 'summary'.
 
-**Detection:**
-- Warning sign: Reconciliation tests only check exact matches
-- Warning sign: No tests for discrepancy tolerance thresholds
-- Warning sign: Missing tests for exception workflows (unmatched invoices)
-- Warning sign: No performance tests for reconciliation with large datasets
-- Test failures: Production reconciliation finds discrepancies not caught by tests
+    Regression test for bug where canvas_type filter was ignored
+    in contextual retrieval mode, returning all canvas types.
+    """
+    episode = retrieval_service.retrieve_contextual(
+        agent_id="test-agent",
+        canvas_types=["chart"],
+        detail_level="summary"
+    )
+    assert episode.canvas_context[0]["type"] == "chart"
+```
 
-**Phase to address:**
-**Phase 2: Payment Integration Testing** - Reconciliation is critical for payment accuracy. Test tolerance thresholds and discrepancy workflows explicitly. Use property tests for reconciliation invariants.
+- Require docstrings for all test functions
+- Document regression tests with bug IDs/tickets
+- Use test class docstrings to explain test scenario groups
+- Comment complex test data setup
 
-**Sources:**
-- Existing Atom property tests: `backend/tests/property_tests/financial/test_financial_invariants.py` - HIGH confidence, demonstrates invoice reconciliation testing patterns
+**Phase to Address:** Ongoing - Establish test documentation standards in Phase 155.
 
 ---
 
-### Pitfall 10: Budget Guardrail Race Conditions
+### Pitfall 12: Test Fragility - Brittle Assertions
 
-**What goes wrong:**
-Budget enforcement tests don't verify concurrent spend checks, allowing multiple agents to exceed budgets simultaneously due to race conditions. Tests pass serially but fail in production under load.
-
-**Why it happens:**
-- Tests check budget synchronously (one agent at a time)
-- No tests for concurrent budget checks (multiple agents spending simultaneously)
-- Database locking not tested (SELECT FOR UPDATE skipped for performance)
-- Budget updates not atomic (read → check → update window allows races)
-- No integration tests with realistic load (10+ agents spending concurrently)
+**What goes wrong:** Tests have overly specific assertions that break on minor implementation changes (e.g., asserting exact error messages, specific dict key ordering, internal function call sequences).
 
 **Consequences:**
-- **Budget overruns**: Multiple agents spend simultaneously, total exceeds limit
-- **Spend blocking**: Budget paused but one more charge slips through
-- **Financial losses**: Uncontrolled spending when budget enforcement fails
-- **Compliance issues**: Budget limits violated for regulated categories
+- Tests fail due to refactoring, not bugs
+- Developers ignore test failures ("it's just the test being brittle")
+- Test maintenance becomes burden, not safety net
+- Fear of refactoring reduces code quality
 
 **Prevention:**
-1. **Test concurrent budget checks**: Property test with 10 agents spending simultaneously
-2. **Use database locking**: `SELECT FOR UPDATE` to prevent race conditions on budget reads
-3. **Atomic budget updates**: Single SQL statement to check and update budget (compare-and-swap)
-4. **Integration test under load**: 10+ concurrent agents spending, verify budget not exceeded
-5. **Test budget recovery**: After budget exceeded, verify new requests are blocked
-6. **Test budget pause/resume**: Verify paused budgets correctly block and resume allows spending
+```python
+# BAD: Brittle assertion
+def test_error_message():
+    with pytest.raises(ValueError, match="Agent ID must be non-empty"):
+        service.create_agent("")
 
-**Detection:**
-- Warning sign: Budget tests only run serially (one agent at a time)
-- Warning sign: No `SELECT FOR UPDATE` in budget enforcement SQL
-- Warning sign: Budget check and update are separate operations (not atomic)
-- Warning sign: No integration tests with concurrent budget checks
-- Test failures: Production budgets exceeded despite tests passing
+# GOOD: Behavior-focused assertion
+def test_error_handling():
+    with pytest.raises(ValueError):
+        service.create_agent("")
+    # Verify system state, not message text
+```
 
-**Phase to address:**
-**Phase 3: Cost Tracking & Budgets** - Budget enforcement requires concurrency testing. Use property tests with concurrent agents. Test database locking strategies. Integration tests with realistic load.
+- Assert on behavior (return values, state changes), not implementation
+- Use partial matching for error messages if needed: `match="agent.*invalid"`
+- Avoid asserting on dict/list ordering: use set comparisons
+- Test outcomes, not intermediate steps
 
-**Sources:**
-- Existing Atom property tests: `backend/tests/property_tests/financial/test_financial_invariants.py` - HIGH confidence, demonstrates budget guardrail testing patterns
+**Phase to Address:** Phase 155 (Quick Wins) - Establish test writing patterns early.
 
 ---
 
 ## Minor Pitfalls
 
-### Pitfall 11: Tax Calculation Overflow
+### Pitfall 13: Missing Negative Test Cases
 
-**What goes wrong:**
-Tax calculations on very large amounts ($1,000,000+) cause overflow or precision loss. Tests use typical amounts ($100, $1000) and miss edge cases.
+**What goes wrong:** Tests only cover happy paths and valid inputs, leaving error handling untested.
 
 **Prevention:**
-- Property test tax calculations with amounts from $0.01 to $10,000,000
-- Verify tax amount = amount × tax_rate (within precision tolerance)
-- Test compound tax (federal + state) for correctness
-- Test tax-inclusive calculations (amount includes tax)
+- Use `pytest.mark.parametrize` for input validation testing
+- Test error cases for each public function
+- Use Hypothesis for property-based testing of edge cases
+- Review code for `raise` statements and ensure tests trigger them
 
-**Detection:**
-- Warning sign: Tax tests only use amounts < $10,000
-- Warning sign: No tests for compound tax (federal + state + local)
-- Test failures: Production tax calculations fail on large invoices
-
-**Phase to address:**
-**Phase 1: Core Accounting Logic** - Tax precision is foundational. Property test tax calculations with large amounts.
+**Phase to Address:** Phase 157 (Edge Cases) - Focus specifically on negative testing.
 
 ---
 
-### Pitfall 12: Invoice Aging Calculation Errors
+### Pitfall 14: Ignoring Coverage for Helper/Utility Functions
 
-**What goes wrong:**
-Aging bucket calculations have off-by-one errors (invoices in wrong bucket). Tests don't verify bucket boundaries (1-30 days, 31-60 days, 61+ days).
+**What goes wrong:** Focusing coverage on "service" layer while ignoring utility modules, helpers, and private functions, leaving critical code untested.
 
 **Prevention:**
-- Property test aging calculations with invoice dates from -120 to +120 days
-- Test exact bucket boundaries (30 days, 60 days, 90 days)
-- Verify aging report sums (bucket totals = total outstanding)
-- Test leap year, month-end boundaries
+- Set coverage targets per module, not just overall
+- Review coverage report for modules with < 50% coverage
+- Test utility functions directly, don't rely on service-level coverage
+- Use `coverage report -m` to see per-module coverage
 
-**Detection:**
-- Warning sign: Aging tests don't test exact boundary values
-- Warning sign: No tests for leap year or month-end edge cases
-- Test failures: Production aging reports show wrong bucket counts
-
-**Phase to address:**
-**Phase 4: Audit Trails & Compliance** - Aging reports are critical for financial reporting. Test boundary conditions explicitly.
+**Phase to Address:** Phase 159 (Backend 80% Coverage) - Audit utility modules as part of baseline.
 
 ---
 
@@ -588,45 +611,38 @@ Aging bucket calculations have off-by-one errors (invoices in wrong bucket). Tes
 
 | Phase Topic | Likely Pitfall | Mitigation |
 |-------------|---------------|------------|
-| **Core Accounting Logic** | Floating-point precision errors | Use `Decimal` for all monetary values, property test precision invariants |
-| **Core Accounting Logic** | Rounding strategy inconsistency | Document banker's rounding, test edge cases (0.5, 1.5, 2.5) |
-| **Core Accounting Logic** | Missing test data edge cases | Include zero, negative, large amounts in Hypothesis strategies |
-| **Payment Integration** | Mock mismatch with real providers | Use test modes and VCR recording, test failure modes |
-| **Payment Integration** | Race conditions in transactions | Test idempotency, concurrent requests, webhook out-of-order delivery |
-| **Payment Integration** | Reconciliation gaps | Test tolerance thresholds, discrepancy workflows, edge cases |
-| **Cost Tracking & Budgets** | Budget guardrail race conditions | Test concurrent budget checks, use database locking |
-| **Cost Tracking & Budgets** | Slow financial tests blocking CI | Use pytest-xdist, limit property test examples to 50 |
-| **Audit Trails & Compliance** | Inadequate audit trail testing | Test completeness, integrity, traceability, immutability |
-| **Audit Trails & Compliance** | SOX compliance gaps | Walk-through testing, verify all financial operations logged |
+| **Phase 155: Quick Wins** | Over-mocking implementation details, brittleness | Establish testing patterns early: real DB, state-based assertions |
+| **Phase 157: Edge Cases** | Flaky tests from time/assertions, async race conditions | Use mocks for time, explicit event loop management, unique test data |
+| **Phase 159: Backend 80%** | Coverage estimation false positives, import-only coverage | Require actual coverage.py JSON, audit for false positives, enable branch coverage |
+| **Phase 148: E2E Orchestration** | Fixture scope leaks, test data collisions | Use function-scoped fixtures, UUID-based test data, pytest-xdist worker isolation |
+| **Phase 160: 80% Target** | Coverage gaming with exclusions, wrong metrics focus | Audit `# pragma: no cover`, track branch coverage separately, review edge case coverage |
 
 ---
 
 ## Sources
 
-### High Confidence (Official Documentation & Research)
+**HIGH Confidence** (official documentation, verified):
 
-- **[致命精度陷阱：金融与科学计算中的数值准确性实战指南](https://m.blog.csdn.net/gitblog_00567/article/details/151815158)** (December 2025) - HIGH confidence, comprehensive guide on numerical accuracy in financial trading, discusses IEEE 754 limitations and accumulation errors
-- **[Java精确计算实战（从浮点错误到BigDecimal完美解决方案）](https://m.blog.csdn.net/IterLoom/article/details/154173661)** (October 2025) - HIGH confidence, details actual impacts of floating-point errors in financial systems, audit inconsistencies, compliance risks
-- **[银行家舍入规则（IEEE 754 标准）详解](https://m.blog.csdn.net/teeeeeeemo/article/details/148671927)** - HIGH confidence, IEEE 754 banker's rounding specification with examples
-- **[Stripe Testing Documentation](https://stripe.com/docs/testing)** - HIGH confidence, official Stripe testing guide with test cards for declines, disputes, refunds
-- **Existing Atom property tests** (backend/tests/property_tests/) - HIGH confidence, 814 lines of financial invariants, 705 lines of accounting invariants, 1205 lines of governance invariants
+- [pytest Fixtures Documentation](https://docs.pytest.org/en/stable/how-to/fixtures.html) - Fixture scopes, teardown, finalizers, yield patterns (verified)
+- [pytest Good Integration Practices](https://docs.pytest.org/en/stable/explanation/goodpractices.html) - Test layouts, import modes, strict configuration (verified)
+- [Coverage.py Documentation](https://coverage.readthedocs.io/) - Line vs branch coverage, exclude patterns, reporting (verified)
+- Atom's existing coverage reports - `/Users/rushiparikh/projects/atom/backend/coverage.json` (verified: episode_segmentation_service.py at 27.41% line coverage)
+- Atom's pytest.ini configuration - `/Users/rushiparikh/projects/atom/backend/pytest.ini` (verified: flaky test reruns, branch coverage enabled)
+- Atom's conftest.py - `/Users/rushiparikh/projects/atom/backend/tests/conftest.py` (verified: environment isolation, numpy restoration, fixture patterns)
 
-### Medium Confidence (Industry Articles & Blog Posts)
+**MEDIUM Confidence** (industry best practices, multiple sources):
 
-- **[Why 0.1 + 0.2 != 0.3: Building a Precise Calculator with Go's Decimal](https://dev.to/jayk0001/why-01-02-03-building-a-precise-calculator-with-gos-decimal-package-i8)** (November 2025) - MEDIUM confidence, demonstrates arbitrary-precision fixed-point decimal numbers
-- **[Float and Decimal Golden Rule](https://juejin.cn/post/7522367598815739913)** (July 2025) - MEDIUM confidence, performance testing with 1M records comparing FLOAT vs DECIMAL, industry-specific use cases
-- **[pytest Mock Technology Complete Guide](https://blog.csdn.net/weixin_63779518/article/details/148582244)** (June 10, 2025) - MEDIUM confidence, payment gateway mock implementation examples
-- **[Common Problems in Payment Systems](https://blog.csdn.net/Rookie_CEO/article/details/141039745)** - MEDIUM confidence, discusses testing challenges with third-party payment systems, mock limitations
-- **[CI/CD Performance Testing Pitfalls](https://dev.to/ci_cd/improving-ci-performance-6x-faster)** - MEDIUM confidence, discusses 6-10x CI performance improvements, test parallelization
+- Pytest-xdist documentation for parallel execution patterns
+- Hypothesis documentation for property-based testing pitfalls
+- Mutation testing literature for coverage false positives
 
-### Low Confidence (Community Discussions & Forums)
+**LOW Confidence** (needs validation):
 
-- **[Hacker News: Floating Point in Financial Systems](https://news.ycombinator.com/item?id=44144207)** (May 2025) - LOW confidence, community discussion on binary floating-point vs. fixed-point for accounting
-- **[Banker's rounding(银行家舍入法)](https://zhidao.baidu.com/question/1809928104317370587.html)** - LOW confidence, Q&A format explaining half-even rounding
-- **[兑换外币小数点后的怎么算](https://zhidao.baidu.com/question/1124391813496637219.html)** - LOW confidence, Q&A on foreign exchange precision requirements
+- Specific industry statistics on coverage gaps (service-level vs line coverage estimates)
+- Quantitative impact of over-mocking on defect detection rates
 
----
+**Gaps to Address:**
 
-*Domain Pitfalls Research for: Finance/Accounting Testing v3.3*
-*Researched: February 25, 2026*
-*Confidence: HIGH*
+- **Mutation testing tools validation**: Research `mutmut` or `pymut` for Python to verify branch coverage quality
+- **pytest-benchmark integration**: Performance regression testing patterns for test suite optimization
+- **Testcontainers Python**: Real dependency testing patterns for database/integration tests
