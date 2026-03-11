@@ -168,7 +168,10 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. Team can generate test stub files for uncovered code using automated gap-driven tooling
   3. High-impact files (governance, LLM, episodic memory) are prioritized for testing first
   4. Coverage gaps are mapped to specific missing lines for targeted test writing
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 164-01-PLAN.md — Coverage gap analysis tool with business impact scoring
+- [ ] 164-02-PLAN.md — Test stub generator CLI with testing patterns library
+- [ ] 164-03-PLAN.md — Test prioritization service with phased roadmap generation
 
 #### Phase 165: Core Services Coverage (Governance & LLM)
 **Goal**: Achieve 80%+ coverage on agent governance service and LLM service with property-based tests for invariants
