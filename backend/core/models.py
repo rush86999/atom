@@ -2700,6 +2700,7 @@ class DeviceAudit(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())  # Alias for timestamp, used by device_tool.py
 
     # Agent context
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
@@ -2709,11 +2710,15 @@ class DeviceAudit(Base):
 
     # Action details
     action = Column(String(100), nullable=False, index=True)  # camera_snap, screen_record, get_location, etc.
+    action_type = Column(String(100), nullable=True, index=True)  # Alias for action, used by device_tool.py
     endpoint = Column(String(200), nullable=False)
 
     # Request/Response tracking
     request_params = Column(JSON, nullable=True)  # Input parameters
+    action_params = Column(JSON, nullable=True)  # Alias for request_params, used by device_tool.py
     response_summary = Column(JSON, nullable=True)  # Output summary
+    result_summary = Column(Text, nullable=True)  # Alias for response_summary text
+    result_data = Column(JSON, nullable=True)  # Structured result data
 
     # Status and governance
     status_code = Column(Integer, nullable=True)  # HTTP-like status code
@@ -2729,6 +2734,8 @@ class DeviceAudit(Base):
     session_id = Column(String, nullable=True, index=True)  # Link to DeviceSession
     device_type = Column(String(50), nullable=True)  # mobile, desktop, etc.
     file_path = Column(String(500), nullable=True)  # For camera/screen recording outputs
+    duration_ms = Column(Integer, nullable=True)  # Operation duration in milliseconds
+    governance_check_passed = Column(Boolean, nullable=True)  # Whether governance check passed
 
     # Metadata
     metadata_json = Column(JSON, default={})
@@ -2752,6 +2759,9 @@ class DeviceSession(Base):
     # Agent context
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+
+    # Governance tracking
+    governance_check_passed = Column(Boolean, nullable=True)  # Whether governance check passed
 
     # Session details
     session_type = Column(String(50), nullable=False, index=True)  # screen_record, camera_stream, etc.
