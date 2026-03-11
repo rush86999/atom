@@ -43,8 +43,8 @@ class UserAccountFactory(BaseFactory):
 
     # Required fields
     id = factory.Faker('uuid4')
-    user_id = factory.LazyFunction(lambda: str(factory.Faker('uuid4').generate()))
-    tenant_id = factory.LazyFunction(lambda: str(factory.Faker('uuid4').generate()))
+    user_id = factory.Faker('uuid4')
+    tenant_id = factory.Faker('uuid4')
     platform = fuzzy.FuzzyChoice(['slack', 'discord', 'teams', 'telegram'])
 
     # Optional fields
@@ -62,7 +62,7 @@ class OAuthTokenFactory(BaseFactory):
 
     # Required fields
     id = factory.Faker('uuid4')
-    user_id = factory.LazyFunction(lambda: str(factory.Faker('uuid4').generate()))
+    user_id = factory.Faker('uuid4')
     provider = fuzzy.FuzzyChoice(['google', 'github', 'microsoft', 'slack'])
     token = factory.Faker('password')  # In tests, use fake token
 
@@ -80,13 +80,12 @@ class ChatMessageFactory(BaseFactory):
 
     # Required fields
     id = factory.Faker('uuid4')
-    session_id = factory.LazyFunction(lambda: str(factory.Faker('uuid4').generate()))
+    conversation_id = factory.Faker('uuid4')
+    tenant_id = factory.Faker('uuid4')
     role = fuzzy.FuzzyChoice(['user', 'assistant', 'system'])
     content = factory.Faker('text', max_nb_chars=500)
 
     # Optional fields
-    metadata_json = factory.LazyFunction(lambda: {
-        "tokens": 150,
-        "model": "gpt-4"
-    })
+    agent_id = factory.Faker('uuid4')
+    metadata_json = factory.LazyFunction(lambda: '{"tokens": 150, "model": "gpt-4"}')
     created_at = factory.Faker('date_time_this_year')
