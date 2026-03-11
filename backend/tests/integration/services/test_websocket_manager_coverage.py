@@ -326,3 +326,151 @@ class TestWebSocketStreamInfo:
         assert info["stream_id"] == "non_existent"
         assert info["connection_count"] == 0
         assert info["connections"] == []
+
+# ============================================================================
+# DebuggingWebSocketManager Tests
+# ============================================================================
+
+class TestDebuggingWebSocketManager:
+    """Test debugging-specific WebSocket manager functionality."""
+
+    @pytest.mark.asyncio
+    async def test_stream_trace(self, debug_manager):
+        """Test trace streaming."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await debug_manager.manager.connect(mock_ws, stream_id="trace_exec1_session1")
+
+        sent_count = await debug_manager.stream_trace(
+            execution_id="exec1",
+            session_id="session1",
+            trace_data={"step": 1, "status": "running"}
+        )
+
+        assert sent_count == 1
+        # Verify stream_id format
+        assert "trace_exec1_session1" in debug_manager.manager.active_connections
+
+    @pytest.mark.asyncio
+    async def test_notify_variable_changed(self, debug_manager):
+        """Test variable change notification."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await debug_manager.manager.connect(mock_ws, stream_id="debug_session_test123")
+
+        sent_count = await debug_manager.notify_variable_changed(
+            session_id="test123",
+            variable_name="counter",
+            new_value=42,
+            previous_value=41
+        )
+
+        assert sent_count == 1
+        # Verify message structure
+        call_args = mock_ws.send_text.call_args[0][0]
+        import json
+        message = json.loads(call_args)
+        assert message["type"] == "variable_changed"
+        assert message["variable"]["name"] == "counter"
+        assert message["variable"]["new_value"] == 42
+        assert message["variable"]["previous_value"] == 41
+
+    @pytest.mark.asyncio
+    async def test_notify_breakpoint_hit(self, debug_manager):
+        """Test breakpoint hit notification."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await debug_manager.manager.connect(mock_ws, stream_id="debug_session_test123")
+
+        sent_count = await debug_manager.notify_breakpoint_hit(
+            session_id="test123",
+            breakpoint_id="bp1",
+            node_id="node1",
+            hit_count=5
+        )
+
+        assert sent_count == 1
+
+    @pytest.mark.asyncio
+    async def test_notify_session_paused(self, debug_manager):
+        """Test session paused notification."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await debug_manager.manager.connect(mock_ws, stream_id="debug_session_test123")
+
+        sent_count = await debug_manager.notify_session_paused(
+            session_id="test123",
+            reason="user_action",
+            node_id="node1"
+        )
+
+        assert sent_count == 1
+
+    @pytest.mark.asyncio
+    async def test_notify_session_resumed(self, debug_manager):
+        """Test session resumed notification."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await debug_manager.manager.connect(mock_ws, stream_id="debug_session_test123")
+
+        sent_count = await debug_manager.notify_session_resumed("test123")
+
+        assert sent_count == 1
+
+    @pytest.mark.asyncio
+    async def test_notify_step_completed(self, debug_manager):
+        """Test step completed notification."""
+        mock_ws = Mock(spec=WebSocket)
+        mock_ws.accept = AsyncMock()
+        mock_ws.send_text = AsyncMock()
+
+        await debug_manager.manager.connect(mock_ws, stream_id="debug_session_test123")
+
+        sent_count = await debug_manager.notify_step_completed(
+            session_id="test123",
+            action="step_over",
+            step_number=5,
+            node_id="node1"
+        )
+
+        assert sent_count == 1
+
+# ============================================================================
+# Singleton Tests
+# ============================================================================
+
+class TestWebSocketManagerSingleton:
+    """Test WebSocket manager singleton pattern."""
+
+    def test_get_websocket_manager_returns_singleton(self):
+        """Test that get_websocket_manager returns same instance."""
+        # Reset singleton
+        import core.websocket_manager as ws_module
+        ws_module._manager = None
+
+        manager1 = get_websocket_manager()
+        manager2 = get_websocket_manager()
+
+        assert manager1 is manager2
+
+    def test_get_debugging_websocket_manager_returns_singleton(self):
+        """Test that get_debugging_websocket_manager returns same instance."""
+        # Reset singletons
+        import core.websocket_manager as ws_module
+        ws_module._manager = None
+        ws_module._debug_manager = None
+
+        debug_mgr1 = get_debugging_websocket_manager()
+        debug_mgr2 = get_debugging_websocket_manager()
+
+        assert debug_mgr1 is debug_mgr2
