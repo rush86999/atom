@@ -4067,232 +4067,30 @@ class SubscriptionAudit(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     subscription = relationship("Subscription", back_populates="audit_logs")
 
-# Accounting Enums
-class AccountType(str, enum.Enum):
-    ASSET = "asset"
-    LIABILITY = "liability"
-    EQUITY = "equity"
-    REVENUE = "revenue"
-    EXPENSE = "expense"
+# Import accounting models from accounting.models to avoid duplicate table definitions
+# This resolves SQLAlchemy metadata conflicts that were blocking episodic memory tests
+from accounting.models import (
+    Account,
+    Transaction,
+    JournalEntry,
+    CategorizationProposal,
+    Entity,
+    Bill,
+    Invoice,
+    Document,
+    TaxNexus,
+    FinancialClose,
+    CategorizationRule,
+    Budget,
+    # Accounting enums
+    AccountType,
+    TransactionStatus,
+    EntryType,
+    EntityType,
+    BillStatus,
+    InvoiceStatus,
+)
 
-class TransactionStatus(str, enum.Enum):
-    PENDING = "pending"
-    POSTED = "posted"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-class EntryType(str, enum.Enum):
-    DEBIT = "debit"
-    CREDIT = "credit"
-
-class EntityType(str, enum.Enum):
-    VENDOR = "vendor"
-    CUSTOMER = "customer"
-    BOTH = "both"
-
-class BillStatus(str, enum.Enum):
-    DRAFT = "draft"
-    OPEN = "open"
-    PAID = "paid"
-    VOID = "void"
-
-class InvoiceStatus(str, enum.Enum):
-    DRAFT = "draft"
-    OPEN = "open"
-    PAID = "paid"
-    VOID = "void"
-    OVERDUE = "overdue"
-
-# Import Account from accounting.models to avoid duplicate table definition
-# This resolves SQLAlchemy metadata conflicts while maintaining relationships
-# TEMPORARY: Commented out for Phase 166 episode service testing
-# from accounting.models import Account
-
-class Transaction(Base):
-    __tablename__ = "accounting_transactions"
-    __table_args__ = {'extend_existing': True}  # Resolve SQLAlchemy metadata conflict with accounting/models.py
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    external_id = Column(String, nullable=True, index=True)
-    source = Column(String, nullable=False)
-    status = Column(SQLEnum(TransactionStatus), default=TransactionStatus.PENDING)
-    transaction_date = Column(DateTime(timezone=True), nullable=False)
-    description = Column(Text, nullable=True)
-    amount = Column(Float, nullable=True)
-    metadata_json = Column(JSON, nullable=True)
-    is_intercompany = Column(Boolean, default=False)
-    counterparty_tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True)
-    
-    project_id = Column(String, ForeignKey("service_projects.id"), nullable=True)
-    milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=True)
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    journal_entries = relationship("JournalEntry", back_populates="transaction", cascade="all, delete-orphan")
-
-class JournalEntry(Base):
-    __tablename__ = "accounting_journal_entries"
-    __table_args__ = {'extend_existing': True}  # Resolve SQLAlchemy metadata conflict with accounting/models.py
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=False)
-    account_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=False)
-    type = Column(SQLEnum(EntryType), nullable=False)
-    amount = Column(Float, nullable=False)
-    currency = Column(String, default="USD")
-    description = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    transaction = relationship("Transaction", back_populates="journal_entries")
-    # TEMPORARY: Commented out for Phase 166 episode service testing
-    # account = relationship("Account", back_populates="entries")
-
-class CategorizationProposal(Base):
-    __tablename__ = "accounting_categorization_proposals"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=False)
-    suggested_account_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=False)
-    confidence = Column(Float, nullable=False)
-    reasoning = Column(Text, nullable=True)
-    is_accepted = Column(Boolean, nullable=True)
-    reviewed_by = Column(String, ForeignKey("users.id"), nullable=True)
-    reviewed_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    transaction = relationship("Transaction", backref="proposals")
-    # TEMPORARY: Commented out for Phase 166 episode service testing
-    # suggested_account = relationship("Account")
-
-class Entity(Base):
-    __tablename__ = "accounting_entities"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String, nullable=False)
-    email = Column(String, nullable=True)
-    phone = Column(String, nullable=True)
-    address = Column(Text, nullable=True)
-    type = Column(SQLEnum(EntityType), nullable=False)
-    tax_id = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    bills = relationship("Bill", back_populates="vendor")
-    invoices = relationship("Invoice", back_populates="customer")
-
-class Bill(Base):
-    __tablename__ = "accounting_bills"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    vendor_id = Column(String, ForeignKey("accounting_entities.id"), nullable=False)
-    bill_number = Column(String, nullable=True)
-    issue_date = Column(DateTime(timezone=True), nullable=False)
-    due_date = Column(DateTime(timezone=True), nullable=False)
-    amount = Column(Float, nullable=False)
-    currency = Column(String, default="USD")
-    status = Column(SQLEnum(BillStatus), default=BillStatus.DRAFT)
-    description = Column(Text, nullable=True)
-    transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=True)
-    
-    project_id = Column(String, ForeignKey("service_projects.id"), nullable=True)
-    milestone_id = Column(String, ForeignKey("service_milestones.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    vendor = relationship("Entity", back_populates="bills")
-    ledger_transaction = relationship("Transaction")
-    documents = relationship("Document", back_populates="bill", cascade="all, delete-orphan")
-
-class Invoice(Base):
-    __tablename__ = "accounting_invoices"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    customer_id = Column(String, ForeignKey("accounting_entities.id"), nullable=False)
-    invoice_number = Column(String, nullable=True)
-    issue_date = Column(DateTime(timezone=True), nullable=False)
-    due_date = Column(DateTime(timezone=True), nullable=False)
-    amount = Column(Float, nullable=False)
-    currency = Column(String, default="USD")
-    status = Column(SQLEnum(InvoiceStatus), default=InvoiceStatus.DRAFT)
-    description = Column(Text, nullable=True)
-    transaction_id = Column(String, ForeignKey("accounting_transactions.id"), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    customer = relationship("Entity", back_populates="invoices")
-    ledger_transaction = relationship("Transaction")
-    documents = relationship("Document", back_populates="invoice", cascade="all, delete-orphan")
-
-class Document(Base):
-    __tablename__ = "accounting_documents"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    file_path = Column(String, nullable=False)
-    file_name = Column(String, nullable=False)
-    file_type = Column(String, nullable=True)
-    bill_id = Column(String, ForeignKey("accounting_bills.id"), nullable=True)
-    invoice_id = Column(String, ForeignKey("accounting_invoices.id"), nullable=True)
-    extracted_data = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    bill = relationship("Bill", back_populates="documents")
-    invoice = relationship("Invoice", back_populates="documents")
-
-class TaxNexus(Base):
-    __tablename__ = "accounting_tax_nexus"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    region = Column(String, nullable=False)
-    tax_type = Column(String, default="Sales Tax")
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-class FinancialClose(Base):
-    __tablename__ = "accounting_closes"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    period = Column(String, nullable=False)
-    is_closed = Column(Boolean, default=False)
-    closed_at = Column(DateTime(timezone=True), nullable=True)
-    closed_by = Column(String, ForeignKey("users.id"), nullable=True)
-    metadata_json = Column(JSON, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-class CategorizationRule(Base):
-    __tablename__ = "accounting_rules"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    merchant_pattern = Column(String, nullable=False)
-    target_account_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=False)
-    confidence_weight = Column(Float, default=1.0)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    __table_args__ = (
-        UniqueConstraint('tenant_id', 'merchant_pattern', name='_tenant_merchant_uc'),
-    )
-
-class Budget(Base):
-    __tablename__ = "accounting_budgets"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    project_id = Column(String, nullable=True)
-    category_id = Column(String, ForeignKey("accounting_accounts.id"), nullable=True)
-    amount = Column(Float, nullable=False)
-    period = Column(String, default="month")
-    start_date = Column(DateTime(timezone=True), nullable=False)
-    end_date = Column(DateTime(timezone=True), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # Sales Enums
 class LeadStatus(str, enum.Enum):
