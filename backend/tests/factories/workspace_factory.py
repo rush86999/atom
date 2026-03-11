@@ -22,7 +22,6 @@ class WorkspaceFactory(BaseFactory):
     # Metadata
     status = factory.LazyAttribute(lambda o: WorkspaceStatus.ACTIVE.value)
     plan_tier = factory.LazyAttribute(lambda o: "standard")
-    satellite_api_key = factory.LazyAttribute(lambda o: None)
     is_startup = fuzzy.FuzzyChoice([True, False])
     learning_phase_completed = fuzzy.FuzzyChoice([True, False])
 
