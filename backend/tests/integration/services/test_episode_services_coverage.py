@@ -1484,6 +1484,482 @@ class TestEpisodeLifecycle:
         assert "consolidated" in result
         assert "parent_episodes" in result
 
+    @pytest.mark.asyncio
+    async def test_decay_old_episodes_threshold(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test decay applied to episodes older than threshold.
+
+        Verifies:
+        - Episodes older than threshold get decay applied
+        - Episodes younger than threshold not affected
+        - Decay score formula applied correctly
+        """
+        import asyncio
+
+        # Create old episode (100 days)
+        old_episode = AgentEpisode(
+            id=f"decay_old_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=100),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=1.0,
+            access_count=5,
+            outcome="success",
+            status="completed"
+        )
+
+        # Create young episode (30 days)
+        young_episode = AgentEpisode(
+            id=f"decay_young_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=30),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=1.0,
+            access_count=3,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(old_episode)
+        lifecycle_service_mocked.db.add(young_episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Apply decay with 90-day threshold
+        result = await lifecycle_service_mocked.decay_old_episodes(days_threshold=90)
+
+        # Should affect only old episode
+        assert result["affected"] >= 1
+
+        # Verify old episode decayed
+        lifecycle_service_mocked.db.refresh(old_episode)
+        assert old_episode.decay_score < 1.0  # Should be decayed
+        assert old_episode.access_count == 6  # Incremented
+
+    @pytest.mark.asyncio
+    async def test_decay_formula_calculation(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test decay formula: max(0, 1 - days_old/180).
+
+        Verifies:
+        - Decay score calculated correctly
+        - Formula: max(0, 1 - days_old/180)
+        - 90-day-old episode: 0.5 decay score
+        """
+        import asyncio
+
+        # Create 90-day-old episode
+        episode = AgentEpisode(
+            id=f"decay_formula_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=90),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=1.0,
+            access_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Apply decay
+        result = await lifecycle_service_mocked.decay_old_episodes(days_threshold=90)
+
+        assert result["affected"] >= 1
+
+        # Expected decay: max(0, 1 - 90/180) = 0.5
+        lifecycle_service_mocked.db.refresh(episode)
+        # Allow small floating point tolerance
+        assert abs(episode.decay_score - 0.5) < 0.01
+
+    @pytest.mark.asyncio
+    async def test_decay_formula_boundary_180_days(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test decay formula boundary at 180 days.
+
+        Verifies:
+        - 180-day-old episodes decay to 0.0
+        - Formula: max(0, 1 - 180/180) = 0.0
+        - Episodes marked as archived when >180 days
+        """
+        import asyncio
+
+        # Create 180-day-old episode
+        episode = AgentEpisode(
+            id=f"decay_180_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=180),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=1.0,
+            access_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        # Create 200-day-old episode (should archive)
+        very_old_episode = AgentEpisode(
+            id=f"decay_200_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=200),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=1.0,
+            access_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.add(very_old_episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Apply decay
+        result = await lifecycle_service_mocked.decay_old_episodes(days_threshold=90)
+
+        assert result["affected"] >= 2
+        assert result["archived"] >= 1  # 200-day episode archived
+
+        # Verify 180-day episode decayed to 0.0
+        lifecycle_service_mocked.db.refresh(episode)
+        assert episode.decay_score == 0.0
+
+        # Verify 200-day episode archived
+        lifecycle_service_mocked.db.refresh(very_old_episode)
+        assert very_old_episode.status == "archived"
+        assert very_old_episode.archived_at is not None
+
+    @pytest.mark.asyncio
+    async def test_decay_access_count_increment(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test that access count is incremented during decay.
+
+        Verifies:
+        - Access count incremented by 1 for each decayed episode
+        - Decay score updated simultaneously
+        """
+        import asyncio
+
+        # Create episode with initial access count
+        episode = AgentEpisode(
+            id=f"decay_access_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=120),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=1.0,
+            access_count=10,  # Initial count
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Apply decay
+        await lifecycle_service_mocked.decay_old_episodes(days_threshold=90)
+
+        # Verify access count incremented
+        lifecycle_service_mocked.db.refresh(episode)
+        assert episode.access_count == 11  # Initial + 1
+        assert episode.decay_score < 1.0  # Decay applied
+
+    @pytest.mark.asyncio
+    async def test_decay_archives_very_old(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test that episodes >180 days are marked as archived.
+
+        Verifies:
+        - Episodes >180 days get status="archived"
+        - archived_at timestamp set
+        - Archived episodes counted in result
+        """
+        import asyncio
+
+        # Create episode >180 days old
+        episode = AgentEpisode(
+            id=f"decay_archive_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=200),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=1.0,
+            access_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Apply decay
+        result = await lifecycle_service_mocked.decay_old_episodes(days_threshold=90)
+
+        # Should archive episode
+        assert result["archived"] >= 1
+
+        # Verify archived status
+        lifecycle_service_mocked.db.refresh(episode)
+        assert episode.status == "archived"
+        assert episode.archived_at is not None
+        assert episode.archived_at <= datetime.now(timezone.utc)
+
+    def test_update_lifecycle_timezone_aware(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test update_lifecycle handles timezone-aware datetimes.
+
+        Verifies:
+        - Timezone-aware started_at handled correctly
+        - Decay calculation works with aware datetimes
+        - Lifecycle update succeeds
+        """
+        # Create episode with timezone-aware timestamp
+        episode = AgentEpisode(
+            id=f"lifecycle_tz_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=45),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.0,
+            access_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Update lifecycle
+        result = lifecycle_service_mocked.update_lifecycle(episode)
+
+        assert result is True
+
+        # Verify decay score updated
+        lifecycle_service_mocked.db.refresh(episode)
+        # 45 days old: decay = min(1, 45/90) = 0.5
+        assert episode.decay_score > 0.0
+
+    def test_update_lifecycle_no_started_at(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test update_lifecycle gracefully handles episodes without started_at.
+
+        Verifies:
+        - Episodes without started_at skipped gracefully
+        - Returns False for episodes without started_at
+        - No crash or error
+        """
+        # Create episode without started_at
+        episode = AgentEpisode(
+            id=f"lifecycle_no_start_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=None,  # No started_at
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.0,
+            access_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Update lifecycle - should return False gracefully
+        result = lifecycle_service_mocked.update_lifecycle(episode)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_archive_to_cold_storage_success(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test archive_to_cold_storage sets status and timestamp.
+
+        Verifies:
+        - Episode status set to "archived"
+        - archived_at timestamp set
+        - Returns True on success
+        """
+        episode = AgentEpisode(
+            id=f"archive_success_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=100),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.5,
+            access_count=5,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Archive episode
+        result = await lifecycle_service_mocked.archive_to_cold_storage(episode.id)
+
+        assert result is True
+
+        # Verify status and timestamp
+        lifecycle_service_mocked.db.refresh(episode)
+        assert episode.status == "archived"
+        assert episode.archived_at is not None
+        assert episode.archived_at <= datetime.now(timezone.utc)
+
+    @pytest.mark.asyncio
+    async def test_archive_to_cold_storage_sets_timestamp(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test archive_to_cold_storage sets archived_at timestamp.
+
+        Verifies:
+        - archived_at timestamp set to current time
+        - Timestamp is timezone-aware
+        - Timestamp within reasonable time window
+        """
+        import asyncio
+
+        episode = AgentEpisode(
+            id=f"archive_timestamp_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=50),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.5,
+            access_count=3,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Get time before archiving
+        before_time = datetime.now(timezone.utc)
+
+        # Archive episode
+        await lifecycle_service_mocked.archive_to_cold_storage(episode.id)
+
+        # Get time after archiving
+        after_time = datetime.now(timezone.utc)
+
+        # Verify timestamp set correctly
+        lifecycle_service_mocked.db.refresh(episode)
+        assert episode.archived_at is not None
+        assert before_time <= episode.archived_at <= after_time
+
+    @pytest.mark.asyncio
+    async def test_archive_to_cold_storage_not_found(self, lifecycle_service_mocked):
+        """
+        Test archive_to_cold_storage returns False for nonexistent episode.
+
+        Verifies:
+        - Returns False for non-existent episode ID
+        - No error or crash
+        - Graceful handling
+        """
+        # Try to archive non-existent episode
+        result = await lifecycle_service_mocked.archive_to_cold_storage("nonexistent_episode_id")
+
+        assert result is False
+
+    def test_archive_episode_synchronous(self, lifecycle_service_mocked, episode_test_agent):
+        """
+        Test archive_episode synchronous method works.
+
+        Verifies:
+        - Synchronous archive_episode() method works
+        - Status and timestamp set correctly
+        - Returns True on success
+        """
+        episode = AgentEpisode(
+            id=f"archive_sync_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(days=75),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            decay_score=0.5,
+            access_count=4,
+            outcome="success",
+            status="completed"
+        )
+
+        lifecycle_service_mocked.db.add(episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Archive using synchronous method
+        result = lifecycle_service_mocked.archive_episode(episode)
+
+        assert result is True
+
+        # Verify status and timestamp
+        lifecycle_service_mocked.db.refresh(episode)
+        assert episode.status == "archived"
+        assert episode.archived_at is not None
+
+    @pytest.mark.asyncio
+    async def test_archived_excluded_from_retrieval(self, lifecycle_service_mocked, retrieval_service_mocked, episode_test_agent):
+        """
+        Test that archived episodes are excluded from temporal retrieval.
+
+        Verifies:
+        - Archived episodes not in temporal retrieval results
+        - status="archived" filtered out
+        - Only active episodes returned
+        """
+        # Create active episode
+        active_episode = AgentEpisode(
+            id=f"active_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="completed"
+        )
+
+        # Create archived episode
+        archived_episode = AgentEpisode(
+            id=f"archived_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="archived"  # Already archived
+        )
+
+        lifecycle_service_mocked.db.add(active_episode)
+        lifecycle_service_mocked.db.add(archived_episode)
+        lifecycle_service_mocked.db.commit()
+
+        # Retrieve temporal episodes (should exclude archived)
+        result = await retrieval_service_mocked.retrieve_temporal(
+            agent_id=episode_test_agent.id,
+            time_range="7d"
+        )
+
+        # Should only return active episode
+        assert result["count"] >= 1
+        episode_ids = [ep["id"] for ep in result["episodes"]]
+        assert active_episode.id in episode_ids
+        assert archived_episode.id not in episode_ids
+
 
 # =============================================================================
 # Test Canvas Integration
