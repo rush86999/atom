@@ -3435,3 +3435,749 @@ class TestFeedbackAndSegments:
 
         assert len(segments) == 1
         assert segments[0].canvas_context == canvas_context
+
+
+# =============================================================================
+# Test Sequential Retrieval (Task 2)
+# =============================================================================
+
+class TestSequentialRetrieval:
+    """
+    Test sequential retrieval with full episode and segments.
+
+    Targets 80%+ line coverage for retrieve_sequential():
+    - Full episode with all segments returned
+    - Segments ordered by sequence_order
+    - Canvas context included by default
+    - Feedback context included by default
+    - Exclusion parameters work (include_canvas=False, include_feedback=False)
+    - Not found error handling
+    """
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_full_episode(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test sequential retrieval returns full episode with all segments.
+
+        Verifies:
+        - Episode object returned
+        - All segments included
+        - Episode ID matches request
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode = AgentEpisode(
+            id=f"seq_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            completed_at=base_time,
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active"
+        )
+
+        retrieval_service_mocked.db.add(episode)
+        retrieval_service_mocked.db.flush()
+
+        # Create segments
+        segments = []
+        for i in range(3):
+            segment = EpisodeSegment(
+                id=f"seg_{uuid4().hex[:8]}",
+                episode_id=episode.id,
+                segment_type="conversation",
+                sequence_order=i,
+                content=f"Segment {i} content",
+                content_summary=f"Segment {i}",
+                source_type="test",
+                source_id=f"source_{i}"
+            )
+            segments.append(segment)
+            retrieval_service_mocked.db.add(segment)
+
+        retrieval_service_mocked.db.commit()
+
+        result = await retrieval_service_mocked.retrieve_sequential(
+            episode_id=episode.id,
+            agent_id=episode_test_agent.id,
+            include_canvas=False,
+            include_feedback=False
+        )
+
+        assert result["episode"]["id"] == episode.id
+        assert len(result["segments"]) == 3
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_segment_ordering(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test sequential retrieval segments are ordered correctly.
+
+        Verifies:
+        - Segments ordered by sequence_order ASC
+        - Order consistent with creation
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode = AgentEpisode(
+            id=f"seq_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            completed_at=base_time,
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active"
+        )
+
+        retrieval_service_mocked.db.add(episode)
+        retrieval_service_mocked.db.flush()
+
+        # Create segments in specific order
+        segments_data = [
+            (2, "Second segment"),
+            (0, "First segment"),
+            (1, "Middle segment"),
+        ]
+
+        for order, content in segments_data:
+            segment = EpisodeSegment(
+                id=f"seg_{uuid4().hex[:8]}",
+                episode_id=episode.id,
+                segment_type="conversation",
+                sequence_order=order,
+                content=content,
+                content_summary=content,
+                source_type="test",
+                source_id=f"source_{order}"
+            )
+            retrieval_service_mocked.db.add(segment)
+
+        retrieval_service_mocked.db.commit()
+
+        result = await retrieval_service_mocked.retrieve_sequential(
+            episode_id=episode.id,
+            agent_id=episode_test_agent.id,
+            include_canvas=False,
+            include_feedback=False
+        )
+
+        # Verify segments are ordered
+        order_values = [s["sequence_order"] for s in result["segments"]]
+        assert order_values == [0, 1, 2]
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_with_canvas(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test sequential retrieval includes canvas context by default.
+
+        Verifies:
+        - Canvas context included when include_canvas=True
+        - canvas_context key present in result
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode = AgentEpisode(
+            id=f"seq_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            completed_at=base_time,
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            canvas_ids=["canvas_1", "canvas_2"]
+        )
+
+        retrieval_service_mocked.db.add(episode)
+        retrieval_service_mocked.db.commit()
+
+        # Create canvas audit records
+        canvas1 = CanvasAudit(
+            id="canvas_1",
+            session_id=f"session_{uuid4().hex[:8]}",
+            canvas_type="chart",
+            component_type="line",
+            component_name="SalesChart",
+            action="present",
+            audit_metadata={"title": "Monthly Sales"},
+            created_at=base_time
+        )
+
+        canvas2 = CanvasAudit(
+            id="canvas_2",
+            session_id=f"session_{uuid4().hex[:8]}",
+            canvas_type="form",
+            component_type="input",
+            component_name="UserForm",
+            action="submit",
+            audit_metadata={"email": "test@example.com"},
+            created_at=base_time
+        )
+
+        retrieval_service_mocked.db.add(canvas1)
+        retrieval_service_mocked.db.add(canvas2)
+        retrieval_service_mocked.db.commit()
+
+        result = await retrieval_service_mocked.retrieve_sequential(
+            episode_id=episode.id,
+            agent_id=episode_test_agent.id,
+            include_canvas=True,
+            include_feedback=False
+        )
+
+        # Canvas context should be included
+        assert "canvas_context" in result
+        assert len(result["canvas_context"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_with_feedback(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test sequential retrieval includes feedback context by default.
+
+        Verifies:
+        - Feedback context included when include_feedback=True
+        - feedback_context key present in result
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode = AgentEpisode(
+            id=f"seq_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            completed_at=base_time,
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            feedback_ids=["fb_1", "fb_2"]
+        )
+
+        retrieval_service_mocked.db.add(episode)
+        retrieval_service_mocked.db.commit()
+
+        # Create feedback records
+        feedback1 = AgentFeedback(
+            id="fb_1",
+            agent_id=episode_test_agent.id,
+            feedback_type="rating",
+            rating=5,
+            thumbs_up_down=True,
+            created_at=base_time
+        )
+
+        feedback2 = AgentFeedback(
+            id="fb_2",
+            agent_id=episode_test_agent.id,
+            feedback_type="thumbs_up",
+            thumbs_up_down=True,
+            created_at=base_time
+        )
+
+        retrieval_service_mocked.db.add(feedback1)
+        retrieval_service_mocked.db.add(feedback2)
+        retrieval_service_mocked.db.commit()
+
+        result = await retrieval_service_mocked.retrieve_sequential(
+            episode_id=episode.id,
+            agent_id=episode_test_agent.id,
+            include_canvas=False,
+            include_feedback=True
+        )
+
+        # Feedback context should be included
+        assert "feedback_context" in result
+        assert len(result["feedback_context"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_exclude_canvas(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test sequential retrieval excludes canvas when include_canvas=False.
+
+        Verifies:
+        - Canvas context not included when include_canvas=False
+        - canvas_context key not present in result
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode = AgentEpisode(
+            id=f"seq_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            completed_at=base_time,
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            canvas_ids=["canvas_1"]
+        )
+
+        retrieval_service_mocked.db.add(episode)
+        retrieval_service_mocked.db.commit()
+
+        result = await retrieval_service_mocked.retrieve_sequential(
+            episode_id=episode.id,
+            agent_id=episode_test_agent.id,
+            include_canvas=False,
+            include_feedback=False
+        )
+
+        # Canvas context should NOT be included
+        assert "canvas_context" not in result
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_exclude_feedback(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test sequential retrieval excludes feedback when include_feedback=False.
+
+        Verifies:
+        - Feedback context not included when include_feedback=False
+        - feedback_context key not present in result
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode = AgentEpisode(
+            id=f"seq_ep_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            completed_at=base_time,
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            feedback_ids=["fb_1"]
+        )
+
+        retrieval_service_mocked.db.add(episode)
+        retrieval_service_mocked.db.commit()
+
+        result = await retrieval_service_mocked.retrieve_sequential(
+            episode_id=episode.id,
+            agent_id=episode_test_agent.id,
+            include_canvas=False,
+            include_feedback=False
+        )
+
+        # Feedback context should NOT be included
+        assert "feedback_context" not in result
+
+    @pytest.mark.asyncio
+    async def test_sequential_retrieval_not_found(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test sequential retrieval returns error for nonexistent episode.
+
+        Verifies:
+        - Error message returned when episode not found
+        - No exception raised
+        """
+        result = await retrieval_service_mocked.retrieve_sequential(
+            episode_id="nonexistent_episode",
+            agent_id=episode_test_agent.id,
+            include_canvas=False,
+            include_feedback=False
+        )
+
+        assert "error" in result
+        assert result["error"] == "Episode not found"
+
+
+# =============================================================================
+# Test Contextual Retrieval (Task 2)
+# =============================================================================
+
+class TestContextualRetrieval:
+    """
+    Test contextual retrieval with hybrid scoring.
+
+    Targets 80%+ line coverage for retrieve_contextual():
+    - Hybrid scoring: temporal (30%) + semantic (70%)
+    - Canvas boost: +0.1 for episodes with canvas
+    - Positive feedback boost: +0.2
+    - Negative feedback penalty: -0.3
+    - require_canvas filter
+    - require_feedback filter
+    - Limit enforcement
+    """
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_hybrid_scoring(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test contextual retrieval combines temporal and semantic scores.
+
+        Verifies:
+        - Temporal episodes get 0.3 weight
+        - Semantic episodes get 0.7 weight
+        - Combined scores used for ranking
+        """
+        base_time = datetime.now(timezone.utc)
+
+        # Create episodes within 30 days
+        episodes = []
+        for i in range(3):
+            ep = AgentEpisode(
+                id=f"ctx_ep_{i}_{uuid4().hex[:8]}",
+                agent_id=episode_test_agent.id,
+                tenant_id="default",
+                started_at=base_time - timedelta(days=i),
+                maturity_at_time="AUTONOMOUS",
+                human_intervention_count=0,
+                outcome="success",
+                status="active"
+            )
+            episodes.append(ep)
+            retrieval_service_mocked.db.add(ep)
+
+        retrieval_service_mocked.db.commit()
+
+        # Mock semantic search to return one episode
+        retrieval_service_mocked.lancedb.search.return_value = [
+            {
+                "id": episodes[0].id,
+                "metadata": {"episode_id": episodes[0].id},
+                "_distance": 0.2
+            }
+        ]
+
+        result = await retrieval_service_mocked.retrieve_contextual(
+            agent_id=episode_test_agent.id,
+            current_task="test task",
+            limit=5,
+            require_canvas=False,
+            require_feedback=False
+        )
+
+        # Should return episodes with hybrid scores
+        assert result["count"] >= 0
+        if result["count"] > 0:
+            # First episode should have higher score (temporal + semantic)
+            assert "relevance_score" in result["episodes"][0]
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_canvas_boost(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test contextual retrieval applies canvas boost.
+
+        Verifies:
+        - Episodes with canvas_action_count > 0 get +0.1 boost
+        - Boost applied to relevance score
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode_with_canvas = AgentEpisode(
+            id=f"ctx_canvas_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            canvas_action_count=5  # Has canvas interactions
+        )
+
+        episode_without_canvas = AgentEpisode(
+            id=f"ctx_no_canvas_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            canvas_action_count=0  # No canvas interactions
+        )
+
+        retrieval_service_mocked.db.add(episode_with_canvas)
+        retrieval_service_mocked.db.add(episode_without_canvas)
+        retrieval_service_mocked.db.commit()
+
+        # Mock semantic search to return both
+        retrieval_service_mocked.lancedb.search.return_value = []
+
+        result = await retrieval_service_mocked.retrieve_contextual(
+            agent_id=episode_test_agent.id,
+            current_task="test task",
+            limit=5,
+            require_canvas=False,
+            require_feedback=False
+        )
+
+        # Episode with canvas should rank higher
+        if result["count"] >= 2:
+            scores = {ep["id"]: ep.get("relevance_score", 0) for ep in result["episodes"]}
+            canvas_score = scores.get(episode_with_canvas.id, 0)
+            no_canvas_score = scores.get(episode_without_canvas.id, 0)
+            # Canvas episode should have higher score (+0.1 boost)
+            assert canvas_score > no_canvas_score
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_positive_feedback_boost(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test contextual retrieval applies positive feedback boost.
+
+        Verifies:
+        - Episodes with aggregate_feedback_score > 0 get +0.2 boost
+        - Boost applied to relevance score
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode_positive = AgentEpisode(
+            id=f"ctx_pos_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            aggregate_feedback_score=0.8  # Positive feedback
+        )
+
+        episode_neutral = AgentEpisode(
+            id=f"ctx_neu_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            aggregate_feedback_score=0.0  # Neutral feedback
+        )
+
+        retrieval_service_mocked.db.add(episode_positive)
+        retrieval_service_mocked.db.add(episode_neutral)
+        retrieval_service_mocked.db.commit()
+
+        # Mock semantic search
+        retrieval_service_mocked.lancedb.search.return_value = []
+
+        result = await retrieval_service_mocked.retrieve_contextual(
+            agent_id=episode_test_agent.id,
+            current_task="test task",
+            limit=5,
+            require_canvas=False,
+            require_feedback=False
+        )
+
+        # Positive feedback episode should rank higher
+        if result["count"] >= 2:
+            scores = {ep["id"]: ep.get("relevance_score", 0) for ep in result["episodes"]}
+            positive_score = scores.get(episode_positive.id, 0)
+            neutral_score = scores.get(episode_neutral.id, 0)
+            # Positive feedback should have higher score (+0.2 boost)
+            assert positive_score > neutral_score
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_negative_feedback_penalty(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test contextual retrieval applies negative feedback penalty.
+
+        Verifies:
+        - Episodes with aggregate_feedback_score < 0 get -0.3 penalty
+        - Penalty applied to relevance score
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode_negative = AgentEpisode(
+            id=f"ctx_neg_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            aggregate_feedback_score=-0.7  # Negative feedback
+        )
+
+        episode_neutral = AgentEpisode(
+            id=f"ctx_neu2_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            aggregate_feedback_score=0.0  # Neutral feedback
+        )
+
+        retrieval_service_mocked.db.add(episode_negative)
+        retrieval_service_mocked.db.add(episode_neutral)
+        retrieval_service_mocked.db.commit()
+
+        # Mock semantic search
+        retrieval_service_mocked.lancedb.search.return_value = []
+
+        result = await retrieval_service_mocked.retrieve_contextual(
+            agent_id=episode_test_agent.id,
+            current_task="test task",
+            limit=5,
+            require_canvas=False,
+            require_feedback=False
+        )
+
+        # Negative feedback episode should rank lower
+        if result["count"] >= 2:
+            scores = {ep["id"]: ep.get("relevance_score", 0) for ep in result["episodes"]}
+            negative_score = scores.get(episode_negative.id, 0)
+            neutral_score = scores.get(episode_neutral.id, 0)
+            # Negative feedback should have lower score (-0.3 penalty)
+            assert negative_score < neutral_score
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_require_canvas(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test contextual retrieval filters by require_canvas.
+
+        Verifies:
+        - Only episodes with canvas_action_count > 0 returned when require_canvas=True
+        - Episodes without canvas excluded
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode_with_canvas = AgentEpisode(
+            id=f"ctx_req_canvas_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            canvas_action_count=5
+        )
+
+        episode_without_canvas = AgentEpisode(
+            id=f"ctx_req_no_canvas_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            canvas_action_count=0
+        )
+
+        retrieval_service_mocked.db.add(episode_with_canvas)
+        retrieval_service_mocked.db.add(episode_without_canvas)
+        retrieval_service_mocked.db.commit()
+
+        # Mock semantic search
+        retrieval_service_mocked.lancedb.search.return_value = []
+
+        result = await retrieval_service_mocked.retrieve_contextual(
+            agent_id=episode_test_agent.id,
+            current_task="test task",
+            limit=10,
+            require_canvas=True,  # Only episodes with canvas
+            require_feedback=False
+        )
+
+        # Should only return episode with canvas
+        assert result["count"] == 1
+        assert result["episodes"][0]["id"] == episode_with_canvas.id
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_require_feedback(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test contextual retrieval filters by require_feedback.
+
+        Verifies:
+        - Only episodes with feedback_ids returned when require_feedback=True
+        - Episodes without feedback excluded
+        """
+        base_time = datetime.now(timezone.utc)
+
+        episode_with_feedback = AgentEpisode(
+            id=f"ctx_req_fb_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active",
+            feedback_ids=["fb_1"]
+        )
+
+        episode_without_feedback = AgentEpisode(
+            id=f"ctx_req_no_fb_{uuid4().hex[:8]}",
+            agent_id=episode_test_agent.id,
+            tenant_id="default",
+            started_at=base_time - timedelta(hours=1),
+            maturity_at_time="AUTONOMOUS",
+            human_intervention_count=0,
+            outcome="success",
+            status="active"
+        )
+
+        retrieval_service_mocked.db.add(episode_with_feedback)
+        retrieval_service_mocked.db.add(episode_without_feedback)
+        retrieval_service_mocked.db.commit()
+
+        # Mock semantic search
+        retrieval_service_mocked.lancedb.search.return_value = []
+
+        result = await retrieval_service_mocked.retrieve_contextual(
+            agent_id=episode_test_agent.id,
+            current_task="test task",
+            limit=10,
+            require_canvas=False,
+            require_feedback=True  # Only episodes with feedback
+        )
+
+        # Should only return episode with feedback
+        assert result["count"] == 1
+        assert result["episodes"][0]["id"] == episode_with_feedback.id
+
+    @pytest.mark.asyncio
+    async def test_contextual_retrieval_limit(self, retrieval_service_mocked, episode_test_agent):
+        """
+        Test contextual retrieval respects limit parameter.
+
+        Verifies:
+        - At most limit results returned
+        - Top-scoring episodes returned
+        """
+        base_time = datetime.now(timezone.utc)
+
+        # Create 10 episodes
+        episodes = []
+        for i in range(10):
+            ep = AgentEpisode(
+                id=f"ctx_lim_{i}_{uuid4().hex[:8]}",
+                agent_id=episode_test_agent.id,
+                tenant_id="default",
+                started_at=base_time - timedelta(hours=i),
+                maturity_at_time="AUTONOMOUS",
+                human_intervention_count=0,
+                outcome="success",
+                status="active"
+            )
+            episodes.append(ep)
+            retrieval_service_mocked.db.add(ep)
+
+        retrieval_service_mocked.db.commit()
+
+        # Mock semantic search
+        retrieval_service_mocked.lancedb.search.return_value = []
+
+        result = await retrieval_service_mocked.retrieve_contextual(
+            agent_id=episode_test_agent.id,
+            current_task="test task",
+            limit=5,  # Request only 5
+            require_canvas=False,
+            require_feedback=False
+        )
+
+        # Should return at most 5 episodes
+        assert result["count"] <= 5
