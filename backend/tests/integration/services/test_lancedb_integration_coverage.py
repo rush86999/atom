@@ -427,3 +427,38 @@ class TestLanceDBErrorPaths:
 
         result = handler.drop_table("test_table")
         assert result is False
+
+    @patch('core.lancedb_handler.LanceDBHandler.embed_text')
+    def test_search_with_table_not_found(self, mock_embed, handler):
+        """Test search returns empty when table doesn't exist."""
+        import numpy as np
+        mock_embed.return_value = np.array([0.1] * 384, dtype=np.float32)
+
+        handler._ensure_db()
+        handler.db = Mock()
+        handler.db.table_names = Mock(return_value=[])
+        handler.get_table = Mock(return_value=None)
+
+        results = handler.search("nonexistent", "test query")
+
+        assert results == []
+
+    @patch('core.lancedb_handler.LanceDBHandler.embed_text')
+    def test_search_with_pandas_unavailable(self, mock_embed, handler):
+        """Test search returns empty when Pandas is unavailable."""
+        import numpy as np
+        mock_embed.return_value = np.array([0.1] * 384, dtype=np.float32)
+
+        handler._ensure_db()
+        handler.db = Mock()
+
+        mock_table = Mock()
+        mock_table.search = Mock(return_value=mock_table)
+        mock_table.where = Mock(return_value=mock_table)
+        mock_table.limit = Mock(return_value=mock_table)
+        handler.get_table = Mock(return_value=mock_table)
+
+        with patch('core.lancedb_handler.PANDAS_AVAILABLE', False):
+            results = handler.search("test_table", "test query")
+
+            assert results == []
