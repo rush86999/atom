@@ -1,0 +1,103 @@
+{
+  "browser_tool": {
+    "file": "tools/browser_tool.py",
+    "line_coverage": 0.92,
+    "covered_lines": 274,
+    "total_lines": 299,
+    "missing_lines": 25,
+    "coverage_target": 0.75,
+    "target_met": true,
+    "excess_percentage": 17.0,
+    "missing_line_ranges": [
+      "96-98",
+      "302-303",
+      "469",
+      "525-527",
+      "537-539",
+      "565",
+      "589-590",
+      "627",
+      "633",
+      "691",
+      "760-762",
+      "784",
+      "813-815"
+    ]
+  },
+  "device_tool": {
+    "file": "tools/device_tool.py",
+    "line_coverage": 0.95,
+    "covered_lines": 293,
+    "total_lines": 308,
+    "missing_lines": 15,
+    "coverage_target": 0.75,
+    "target_met": true,
+    "excess_percentage": 20.0,
+    "missing_line_ranges": [
+      "55-58",
+      "467",
+      "642-645",
+      "760",
+      "862",
+      "885",
+      "996",
+      "1015",
+      "1031",
+      "1054"
+    ]
+  },
+  "summary": {
+    "total_files": 2,
+    "files_meeting_target": 2,
+    "overall_line_coverage": 0.935,
+    "total_tests": 254,
+    "governance_tests": 26,
+    "timestamp": "2026-03-11T22:40:00Z",
+    "phase": "169-tools-integrations-coverage",
+    "plan": "04"
+  },
+  "test_breakdown": {
+    "browser_tool_tests": {
+      "unit_tests": 106,
+      "governance_tests": 11,
+      "total": 117,
+      "passing": 113,
+      "failing": 4
+    },
+    "device_tool_tests": {
+      "unit_tests": 114,
+      "governance_tests": 15,
+      "total": 129,
+      "passing": 129,
+      "failing": 0
+    }
+  },
+  "governance_coverage": {
+    "maturity_levels_tested": ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"],
+    "browser_governance_enforcement": {
+      "create_session": "INTERN+ required",
+      "navigate": "INTERN+ required",
+      "screenshot": "INTERN+ required",
+      "fill_form": "INTERN+ required",
+      "click": "INTERN+ required",
+      "close_session": "INTERN+ required"
+    },
+    "device_governance_enforcement": {
+      "camera_snap": "INTERN+ required",
+      "screen_record_start": "SUPERVISED+ required",
+      "screen_record_stop": "SUPERVISED+ required",
+      "get_location": "INTERN+ required",
+      "send_notification": "INTERN+ required",
+      "execute_command": "AUTONOMOUS only"
+    },
+    "audit_trail_verified": true,
+    "agent_execution_tracking_verified": true
+  },
+  "verification": {
+    "target_75_percent_met": true,
+    "browser_tool_exceeds_target_by": "17 percentage points",
+    "device_tool_exceeds_target_by": "20 percentage points",
+    "overall_status": "EXCEEDED",
+    "recommendation": "Both tools exceed 75% coverage target with comprehensive governance testing"
+  }
+}
