@@ -362,3 +362,123 @@ class TestAdminSkillRoutesSuccess:
                 os.environ["ATOM_SECURITY_ENABLE_LLM_SCAN"] = original_env
             else:
                 os.environ.pop("ATOM_SECURITY_ENABLE_LLM_SCAN", None)
+
+
+# ============================================================================
+# POST /api/admin/skills - Authentication & Authorization Tests
+# ============================================================================
+
+class TestAdminSkillRoutesAuth:
+    """Tests for authentication and authorization on admin skill routes."""
+
+    def test_create_skill_requires_super_admin(
+        self,
+        client: TestClient,
+        regular_user: User,
+        mock_static_analyzer: MagicMock,
+        mock_skill_builder: AsyncMock
+    ):
+        """Test that non-super_admin cannot create skills."""
+        from core.admin_endpoints import get_super_admin
+
+        def override_get_super_admin():
+            return regular_user  # Regular user, not super_admin
+
+        client.app.dependency_overrides[get_super_admin] = override_get_super_admin
+
+        try:
+            with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+                with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                    response = client.post(
+                        "/api/admin/skills",
+                        json={
+                            "name": "unauthorized_skill",
+                            "description": "Should fail",
+                            "instructions": "You are an assistant",
+                            "scripts": {"main.py": "def main():\n    pass"}
+                        }
+                    )
+
+            # Should return 403 because regular_user is not super_admin
+            assert response.status_code == 403
+        finally:
+            client.app.dependency_overrides.clear()
+
+    def test_create_skill_unauthenticated(
+        self,
+        unauthenticated_client: TestClient
+    ):
+        """Test that unauthenticated request fails."""
+        response = unauthenticated_client.post(
+            "/api/admin/skills",
+            json={
+                "name": "unauth_skill",
+                "description": "Should fail",
+                "instructions": "You are an assistant",
+                "scripts": {"main.py": "def main():\n    pass"}
+            }
+        )
+
+        # Should return 401 because no authentication provided
+        assert response.status_code == 401
+
+    def test_create_skill_inactive_admin(
+        self,
+        client: TestClient,
+        inactive_admin_user: User,
+        mock_static_analyzer: MagicMock,
+        mock_skill_builder: AsyncMock
+    ):
+        """Test that inactive admin cannot create skills."""
+        from core.admin_endpoints import get_super_admin
+
+        def override_get_super_admin():
+            return inactive_admin_user  # Inactive super_admin
+
+        client.app.dependency_overrides[get_super_admin] = override_get_super_admin
+
+        try:
+            with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+                with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                    response = client.post(
+                        "/api/admin/skills",
+                        json={
+                            "name": "inactive_skill",
+                            "description": "Should fail",
+                            "instructions": "You are an assistant",
+                            "scripts": {"main.py": "def main():\n    pass"}
+                        }
+                    )
+
+            # Should return 401 or 403 because admin is inactive
+            # The exact behavior depends on get_super_admin implementation
+            assert response.status_code in [401, 403]
+        finally:
+            client.app.dependency_overrides.clear()
+
+    def test_get_super_admin_dependency(
+        self,
+        client: TestClient,
+        super_admin_user: User,
+        regular_user: User
+    ):
+        """Test get_super_admin dependency directly."""
+        from core.admin_endpoints import get_super_admin
+
+        # Test 1: super_admin role should pass
+        client.app.dependency_overrides[get_super_admin] = lambda: super_admin_user
+        try:
+            result = get_super_admin(user=super_admin_user)
+            assert result == super_admin_user
+        finally:
+            client.app.dependency_overrides.clear()
+
+        # Test 2: non-super_admin role should raise HTTPException
+        client.app.dependency_overrides[get_super_admin] = lambda: regular_user
+        try:
+            with pytest.raises(Exception) as exc_info:
+                result = get_super_admin(user=regular_user)
+            # Should raise HTTPException with 403 status
+            assert exc_info.value.status_code == 403
+        finally:
+            client.app.dependency_overrides.clear()
