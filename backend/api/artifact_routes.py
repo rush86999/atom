@@ -68,6 +68,7 @@ async def save_artifact(
     new_artifact = Artifact(
         id=str(uuid.uuid4()),
         workspace_id="default",
+        tenant_id="default_tenant",  # Required field
         agent_id=artifact_data.agent_id,
         session_id=artifact_data.session_id,
         name=artifact_data.name,
