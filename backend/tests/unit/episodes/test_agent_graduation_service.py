@@ -679,3 +679,290 @@ class TestEdgeCases:
 
         # Should default to 1.0 (100% intervention rate) when no episodes
         assert result["intervention_rate"] == 1.0
+
+
+# ============================================================================
+# Readiness Scoring Tests for All Maturity Levels
+# ============================================================================
+
+class TestReadinessScoring:
+    """Test readiness scoring for all maturity levels (INTERN, SUPERVISED, AUTONOMOUS)."""
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_intern_ready(self, graduation_service):
+        """Test readiness score when agent meets INTERN criteria."""
+        # Create agent with 10 completed episodes, low intervention, good constitutional score
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0  # 0% intervention (excellent)
+            ep.constitutional_score = 0.85  # Above 0.70 threshold
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["ready"] == True
+        assert result["score"] >= 70
+        assert result["episode_count"] == 10
+        assert result["intervention_rate"] == 0.0
+        assert result["avg_constitutional_score"] == 0.85
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_intern_not_ready(self, graduation_service):
+        """Test readiness score when agent fails INTERN criteria."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Only 5 episodes (need 10)
+        episodes = []
+        for i in range(5):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 3  # 60% intervention (exceeds 50%)
+            ep.constitutional_score = 0.65  # Below 0.70 threshold
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["ready"] == False
+        assert len(result["gaps"]) > 0
+        assert result["episode_count"] == 5
+        assert any("episode" in gap.lower() for gap in result["gaps"])
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_supervised_ready(self, graduation_service):
+        """Test readiness score when agent meets SUPERVISED criteria."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # 25 episodes, 15% intervention (below 20%), 0.90 constitutional (above 0.85)
+        episodes = []
+        for i in range(25):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 0 if i < 21 else 1  # 4/25 = 16% intervention
+            ep.constitutional_score = 0.90
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert result["ready"] == True
+        assert result["score"] >= 70
+        assert result["episode_count"] == 25
+        assert result["intervention_rate"] <= 0.2
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_supervised_not_ready(self, graduation_service):
+        """Test readiness score when agent fails SUPERVISED criteria."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # Only 15 episodes (need 25), high intervention
+        episodes = []
+        for i in range(15):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 1  # 6.7% but too few episodes
+            ep.constitutional_score = 0.80  # Below 0.85 threshold
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert result["ready"] == False
+        assert len(result["gaps"]) > 0
+        assert any("episode" in gap.lower() for gap in result["gaps"])
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_autonomous_ready(self, graduation_service):
+        """Test readiness score when agent meets AUTONOMOUS criteria."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "SUPERVISED"
+        agent.status = mock_status
+
+        # 50 episodes, 0% intervention, 0.97 constitutional (above 0.95)
+        episodes = []
+        for i in range(50):
+            ep = Mock()
+            ep.maturity_at_time = "SUPERVISED"
+            ep.status = "completed"
+            ep.human_intervention_count = 0  # 0% intervention required
+            ep.constitutional_score = 0.97
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="AUTONOMOUS"
+        )
+
+        assert result["ready"] == True
+        assert result["score"] >= 70
+        assert result["episode_count"] == 50
+        assert result["intervention_rate"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_autonomous_not_ready(self, graduation_service):
+        """Test readiness score when agent fails AUTONOMOUS criteria."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "SUPERVISED"
+        agent.status = mock_status
+
+        # Only 30 episodes (need 50), some interventions
+        episodes = []
+        for i in range(30):
+            ep = Mock()
+            ep.maturity_at_time = "SUPERVISED"
+            ep.status = "completed"
+            ep.human_intervention_count = 1  # 3.3% - fails 0% requirement
+            ep.constitutional_score = 0.90  # Below 0.95 threshold
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="AUTONOMOUS"
+        )
+
+        assert result["ready"] == False
+        assert len(result["gaps"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_unknown_maturity(self, graduation_service, sample_agent):
+        """Test readiness score returns error for unknown maturity level."""
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INVALID_LEVEL"
+        )
+
+        assert "error" in result
+        assert "Unknown maturity level" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_custom_min_episodes(self, graduation_service, sample_agent):
+        """Test readiness score with custom min_episodes parameter."""
+        # Create 8 episodes (below default 10, but above custom 5)
+        episodes = []
+        for i in range(8):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN",
+            min_episodes=5  # Custom minimum
+        )
+
+        # Should meet custom minimum
+        assert result["episode_count"] == 8
+        # No gap about episode count since 8 >= 5
+        assert not any("episode" in gap.lower() for gap in result["gaps"])
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_gaps_identified(self, graduation_service, sample_agent):
+        """Test that gaps list is returned for unready agents."""
+        # Create episodes that fail all criteria
+        episodes = []
+        for i in range(5):  # Too few (need 10)
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 3  # 60% intervention (exceeds 50%)
+            ep.constitutional_score = 0.65  # Below 0.70
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        # Should have multiple gaps
+        assert len(result["gaps"]) >= 2
+        # Gap types: episodes, intervention rate, constitutional score
+        gap_messages = " ".join(result["gaps"]).lower()
+        assert "episode" in gap_messages
+        assert "intervention" in gap_messages or "constitutional" in gap_messages
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_recommendation(self, graduation_service, sample_agent):
+        """Test that recommendation string is generated correctly."""
+        # Test ready agent
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert "recommendation" in result
+        assert isinstance(result["recommendation"], str)
+        assert len(result["recommendation"]) > 0
+        # Ready agent recommendation
+        assert "ready" in result["recommendation"].lower() or "INTERN" in result["recommendation"]
