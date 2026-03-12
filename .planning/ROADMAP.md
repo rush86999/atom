@@ -130,7 +130,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - [x] Phase 157: Edge Cases & Integration Testing (4/4 plans) — completed 2026-03-09
 - [x] Phase 158: Coverage Gap Closure (5/5 plans) — completed 2026-03-09
 - [x] Phase 159: Backend 80% Coverage (3/3 plans) — completed 2026-03-09
-- [x] Phase 160: Backend 80% Target Blockers (2/2 plans) — completed 2026-03-10
+- [x] Phase 160: Backend 80% Target (Blockers) (2/2 plans) — completed 2026-03-10
 - [x] Phase 161: Model Fixes and Database (3/3 plans) — completed 2026-03-10
 - [x] Phase 162: Episode Service Comprehensive Testing (8/8 plans) — completed 2026-03-11
 
@@ -156,9 +156,9 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. Team can enforce progressive coverage thresholds (70% → 75% → 80%) via quality gates with emergency bypass mechanism
   4. Coverage baseline is accurate and prevents false confidence from service-level estimates
 **Plans**: 3 plans
-- [ ] 163-01-PLAN.md — Branch coverage configuration and baseline generation script
-- [ ] 163-02-PLAN.md — Progressive quality gates and emergency bypass verification
-- [ ] 163-03-PLAN.md — Methodology documentation and phase verification
+- [x] 163-01-PLAN.md — Branch coverage configuration and baseline generation script
+- [x] 163-02-PLAN.md — Progressive quality gates and emergency bypass verification
+- [x] 163-03-PLAN.md — Methodology documentation and phase verification
 
 #### Phase 164: Gap Analysis & Prioritization
 **Goal**: Identify untested code prioritized by business impact and generate test stubs for systematic gap closure
@@ -285,7 +285,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - [x] 171-04B-PLAN.md — Update ROADMAP.md with Phase 172+ and create final summary
 **Status**: Complete (2026-03-11)
 
-### Phase 172: High-Impact Zero Coverage (Governance)
+#### Phase 172: High-Impact Zero Coverage (Governance)
 **Goal**: Achieve target coverage on high-impact zero-coverage governance files
 **Depends on**: Phase 171
 **Requirements**: GAP-05
@@ -295,14 +295,14 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   3. Admin routes achieve 75%+ line coverage
   4. Background agent routes achieve 75%+ line coverage
 **Plans**: 5 plans
-- [ ] 172-01-PLAN.md — Agent governance routes coverage (13 endpoints, 30+ tests)
-- [ ] 172-02-PLAN.md — Agent guidance routes coverage (14 endpoints, 42+ tests)
-- [ ] 172-03-PLAN.md — Admin routes coverage Part 1: User/Role management (27 endpoints, 40+ tests)
-- [ ] 172-04-PLAN.md — Admin routes coverage Part 2: WebSocket/Rating sync/Conflicts (14 endpoints, 46+ tests)
-- [ ] 172-05-PLAN.md — Background agent routes coverage (7 endpoints, 20+ tests)
+- [x] 172-01-PLAN.md — Agent governance routes coverage (13 endpoints, 30+ tests)
+- [x] 172-02-PLAN.md — Agent guidance routes coverage (14 endpoints, 42+ tests)
+- [x] 172-03-PLAN.md — Admin routes coverage Part 1: User/Role management (27 endpoints, 40+ tests)
+- [x] 172-04-PLAN.md — Admin routes coverage Part 2: WebSocket/Rating sync/Conflicts (14 endpoints, 46+ tests)
+- [x] 172-05-PLAN.md — Background agent routes coverage (7 endpoints, 20+ tests)
 **Estimated Coverage**: 12.50%
 
-### Phase 173: High-Impact Zero Coverage (LLM)
+#### Phase 173: High-Impact Zero Coverage (LLM)
 **Goal**: Achieve target coverage on high-impact zero-coverage LLM and cognitive tier files
 **Depends on**: Phase 172
 **Requirements**: GAP-05
@@ -326,7 +326,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - atom_agent_endpoints.py: 57% (8%→57%, significant progress)
 **Estimated Coverage**: 16.50% → Actual: 3 files at 75%+, 2 files with significant progress
 
-### Phase 174: High-Impact Zero Coverage (Episodic Memory)
+#### Phase 174: High-Impact Zero Coverage (Episodic Memory)
 **Goal**: Achieve target coverage on high-impact zero-coverage episodic memory files
 **Depends on**: Phase 173
 **Requirements**: GAP-05
@@ -355,7 +355,12 @@ Plans:
   2. Device capabilities routes achieve 75%+ line coverage
   3. Canvas presentation routes achieve 75%+ line coverage
   4. Device audit models achieve 75%+ line coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 5 plans
+- [ ] 175-01-PLAN.md — Baseline coverage and test infrastructure verification
+- [ ] 175-02-PLAN.md — Browser routes coverage (11 endpoints, 75%+ target)
+- [ ] 175-03-PLAN.md — Device routes coverage (10 endpoints, 75%+ target)
+- [ ] 175-04-PLAN.md — Canvas routes coverage (2 endpoints, 75%+ target)
+- [ ] 175-05-PLAN.md — Final verification and summary
 **Estimated Coverage**: 24.50%
 
 ### Phase 176: API Routes Coverage (Authentication & Authorization)
@@ -555,7 +560,7 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 172. High-Impact Zero Coverage (Governance) | v5.5 | 5/5 | Complete | 2026-03-12 |
 | 173. High-Impact Zero Coverage (LLM) | v5.5 | 5/5 | Complete | 2026-03-12 |
 | 174. High-Impact Zero Coverage (Episodic Memory) | v5.5 | 5/5 | Complete | 2026-03-12 |
-| 175. High-Impact Zero Coverage (Tools) | v5.5 | TBD | Pending | - |
+| 175. High-Impact Zero Coverage (Tools) | v5.5 | 5/5 | Complete | 2026-03-12 |
 | 176. API Routes Coverage (Auth & Authz) | v5.5 | TBD | Pending | - |
 | 177. API Routes Coverage (Analytics) | v5.5 | TBD | Pending | - |
 | 178. API Routes Coverage (Admin & System) | v5.5 | TBD | Pending | - |
