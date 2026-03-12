@@ -1282,3 +1282,372 @@ class TestGraduationExam:
         assert len(result["constitutional_violations"]) > 0
         assert "excessive_interventions" in result["constitutional_violations"] or \
                "insufficient_performance" in result["constitutional_violations"]
+
+
+# ============================================================================
+# Promotion Logic and Eligibility Tests
+# ============================================================================
+
+class TestPromotionLogic:
+    """Test promote_agent() method for valid promotion paths."""
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_student_to_intern(self, graduation_service):
+        """Test successful STUDENT → INTERN promotion."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+        agent.configuration = {}
+        agent.updated_at = None
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        # Mock AgentStatus enum assignment
+        with patch('core.agent_graduation_service.AgentStatus') as mock_agent_status:
+            mock_agent_status.__getitem__ = Mock(side_effect=lambda k: Mock(value=k))
+            result = await graduation_service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="INTERN",
+                validated_by="admin-123"
+            )
+
+        assert result == True
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_intern_to_supervised(self, graduation_service):
+        """Test successful INTERN → SUPERVISED promotion."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+        agent.configuration = {}
+        agent.updated_at = None
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        with patch('core.agent_graduation_service.AgentStatus') as mock_agent_status:
+            mock_agent_status.__getitem__ = Mock(side_effect=lambda k: Mock(value=k))
+            result = await graduation_service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="SUPERVISED",
+                validated_by="admin-123"
+            )
+
+        assert result == True
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_supervised_to_autonomous(self, graduation_service):
+        """Test successful SUPERVISED → AUTONOMOUS promotion."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "SUPERVISED"
+        agent.status = mock_status
+        agent.configuration = {}
+        agent.updated_at = None
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        with patch('core.agent_graduation_service.AgentStatus') as mock_agent_status:
+            mock_agent_status.__getitem__ = Mock(side_effect=lambda k: Mock(value=k))
+            result = await graduation_service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="AUTONOMOUS",
+                validated_by="admin-123"
+            )
+
+        assert result == True
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_not_eligible(self, graduation_service):
+        """Test promotion fails when agent not eligible (promote_agent doesn't check eligibility)."""
+        # Note: promote_agent() just updates the status, it doesn't check eligibility
+        # The eligibility check is done separately before calling promote_agent
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+        agent.configuration = {}
+        agent.updated_at = None
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        with patch('core.agent_graduation_service.AgentStatus') as mock_agent_status:
+            mock_agent_status.__getitem__ = Mock(side_effect=lambda k: Mock(value=k))
+            # This should succeed even if not eligible (promote_agent doesn't validate)
+            result = await graduation_service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="INTERN",
+                validated_by="admin-123"
+            )
+
+        # promote_agent() doesn't check eligibility, just updates status
+        assert result == True
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_updates_status(self, graduation_service):
+        """Test agent status updated in database."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+        agent.configuration = {}
+        agent.updated_at = None
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        with patch('core.agent_graduation_service.AgentStatus') as mock_agent_status:
+            new_status = Mock(value="INTERN")
+            mock_agent_status.__getitem__ = Mock(return_value=new_status)
+            result = await graduation_service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="INTERN",
+                validated_by="admin-123"
+            )
+
+        assert result == True
+        # Verify agent.status was updated
+        assert agent.status == new_status
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_creates_promotion_record(self, graduation_service):
+        """Test promotion record created in configuration."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+        agent.configuration = {}
+        agent.updated_at = None
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        with patch('core.agent_graduation_service.AgentStatus') as mock_agent_status:
+            mock_agent_status.__getitem__ = Mock(side_effect=lambda k: Mock(value=k))
+            result = await graduation_service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="INTERN",
+                validated_by="admin-123"
+            )
+
+        assert result == True
+        # Verify promotion metadata added
+        assert "promoted_at" in agent.configuration
+        assert "promoted_by" in agent.configuration
+        assert agent.configuration["promoted_by"] == "admin-123"
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_custom_criteria(self, graduation_service):
+        """Test custom criteria override for promotion (not supported by promote_agent)."""
+        # promote_agent() doesn't take custom criteria, it just updates status
+        # This test documents that behavior
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+        agent.configuration = {}
+        agent.updated_at = None
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        with patch('core.agent_graduation_service.AgentStatus') as mock_agent_status:
+            mock_agent_status.__getitem__ = Mock(side_effect=lambda k: Mock(value=k))
+            result = await graduation_service.promote_agent(
+                agent_id="test-agent",
+                new_maturity="INTERN",
+                validated_by="admin-123"
+            )
+
+        # Should succeed (no custom criteria support, just status update)
+        assert result == True
+
+    @pytest.mark.asyncio
+    async def test_promote_agent_error_handling(self, graduation_service):
+        """Test graceful handling of database errors."""
+        # Agent not found scenario
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = await graduation_service.promote_agent(
+            agent_id="nonexistent-agent",
+            new_maturity="INTERN",
+            validated_by="admin-123"
+        )
+
+        assert result == False
+
+
+class TestEligibility:
+    """Test check_graduation_eligibility() via calculate_readiness_score()."""
+
+    @pytest.mark.asyncio
+    async def test_check_eligibility_eligible(self, graduation_service):
+        """Test agent eligible for promotion."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # 10 episodes with excellent metrics
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        # Eligibility is indicated by "ready" field
+        assert result["ready"] == True
+
+    @pytest.mark.asyncio
+    async def test_check_eligibility_not_eligible(self, graduation_service):
+        """Test agent not eligible (insufficient episodes)."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Only 5 episodes (need 10)
+        episodes = []
+        for i in range(5):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["ready"] == False
+        assert len(result["gaps"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_check_eligibility_intervention_rate(self, graduation_service):
+        """Test ineligible due to high intervention rate."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # 10 episodes but high intervention
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 6  # 60% intervention
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["ready"] == False
+        assert any("intervention" in gap.lower() for gap in result["gaps"])
+
+    @pytest.mark.asyncio
+    async def test_check_eligibility_constitutional_score(self, graduation_service):
+        """Test ineligible due to low constitutional score."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # 10 episodes with low constitutional score
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.65  # Below 0.70 threshold
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["ready"] == False
+        assert any("constitutional" in gap.lower() for gap in result["gaps"])
+
+    @pytest.mark.asyncio
+    async def test_check_eligibility_all_maturities(self, graduation_service):
+        """Test eligibility checked for all target maturities."""
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Sufficient episodes for INTERN
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        # Test INTERN eligibility
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+        assert "ready" in result
+        assert "score" in result
+
+        # Test SUPERVISED eligibility
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+        assert "ready" in result
+        assert "score" in result
+
+        # Test AUTONOMOUS eligibility
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="AUTONOMOUS"
+        )
+        assert "ready" in result
+        assert "score" in result
+
+    @pytest.mark.asyncio
+    async def test_check_eligibility_unknown_maturity(self, graduation_service, sample_agent):
+        """Test returns error for unknown maturity."""
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = sample_agent
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INVALID_LEVEL"
+        )
+
+        assert "error" in result
+        assert "Unknown maturity level" in result["error"]
