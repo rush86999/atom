@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 173 Plan 05 Complete - Atom agent endpoints API coverage. Created test_atom_agent_endpoints.py (2,615 lines, 119 tests) covering POST /chat, GET/POST /sessions, POST /stream, intent routing, chat history. TestClient-based testing with comprehensive mocking. 90/119 tests passing (75.6%). Coverage increased from ~8% to 57% (+49pp, 446/787 lines). Fixed SQLAlchemy conflicts (9 models). Duration: ~75 minutes.
+**Current focus**: Phase 173 Plan 04 Complete - LLM integration workflow coverage. Created test_llm_integration.py (604 lines, 21 tests) and test_cognitive_tier_service_integration.py (450 lines, 22 tests). 43 total integration tests with 93% pass rate (40/43 passing). Provider fallback, budget enforcement, cache-aware routing, escalation workflows, cognitive tier service orchestration tested. Duration: ~27 minutes.
 
 ## Current Position
 
 Phase: 173 of 173 (High-Impact Zero Coverage - LLM)
-Plan: 05 of 5 in current phase (COMPLETE)
-Status: Complete
-Last activity: 2026-03-12 — Phase 173 Plan 05 Complete: Atom agent endpoints API tests with 90 passing tests. Test file: test_atom_agent_endpoints.py (2,615 lines, 119 tests). Coverage increased from ~8% to 57% (+49pp). Fixed SQLAlchemy conflicts in 9 model classes. TestClient pattern following Phase 172. Duration: ~75 minutes.
+Plan: 04 of 5 in current phase (COMPLETE)
+Status: In Progress
+Last activity: 2026-03-12 — Phase 173 Plan 04 Complete: LLM integration workflow tests with 40 passing tests. Created test_llm_integration.py (604 lines, 21 tests) and test_cognitive_tier_service_integration.py (450 lines, 22 tests). 93% pass rate. Provider fallback, budget enforcement, cache-aware routing, escalation workflows, cognitive tier service orchestration tested. Duration: ~27 minutes.
 
-Progress: [█████████] 100% (5/5 plans in Phase 173)
+Progress: [████████░] 80% (4/5 plans in Phase 173)
 
-**Next Phase:** Phase 174 or next phase in roadmap
-**Next Action:** Continue high-impact zero-coverage testing with Phase 174 (Episodic Memory) or next phase
+**Next Phase:** Phase 173 Plan 05 or next phase in roadmap
+**Next Action:** Complete Phase 173 Plan 05 (Atom agent endpoints API coverage) or continue to Phase 174 (Episodic Memory)
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [█████████] 100% (5/5 plans in Phase 173)
 | Phase 172 P02 | 1712 | 5 tasks | 2 files |
 | Phase 173 P01 | 64 | 44 tasks | 1 files |
 | Phase 173 P05 | 75 | 6 tasks | 3 files |
+| Phase 173 P04 | 1676 | 5 tasks | 2 files |
 
 ## Accumulated Context
 
