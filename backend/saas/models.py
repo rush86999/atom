@@ -8,6 +8,7 @@ from core.database import Base
 
 class SaaSTier(Base):
     __tablename__ = "saas_tiers"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -36,6 +37,7 @@ class SaaSTier(Base):
 
 class UsageEvent(Base):
     __tablename__ = "saas_usage_events"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -58,6 +60,7 @@ class Formula(Base):
     Metadata and Context are mirrored to LanceDB for Semantic Search.
     """
     __tablename__ = "formulas"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True)

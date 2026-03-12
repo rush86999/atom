@@ -9,6 +9,7 @@ from core.database import Base
 
 class EcommerceStore(Base):
     __tablename__ = "ecommerce_stores"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
@@ -23,6 +24,7 @@ class EcommerceStore(Base):
 
 class EcommerceCustomer(Base):
     __tablename__ = "ecommerce_customers"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -55,6 +57,7 @@ class EcommerceCustomer(Base):
 
 class EcommerceOrder(Base):
     __tablename__ = "ecommerce_orders"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -90,6 +93,7 @@ class EcommerceOrder(Base):
 
 class EcommerceOrderItem(Base):
     __tablename__ = "ecommerce_order_items"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     order_id = Column(String, ForeignKey("ecommerce_orders.id"), nullable=False)
@@ -110,6 +114,7 @@ class EcommerceOrderItem(Base):
 
 class Subscription(Base):
     __tablename__ = "ecommerce_subscriptions"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)
@@ -140,6 +145,7 @@ class Subscription(Base):
 
 class SubscriptionAudit(Base):
     __tablename__ = "ecommerce_subscription_audit"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     subscription_id = Column(String, ForeignKey("ecommerce_subscriptions.id"), nullable=False)
