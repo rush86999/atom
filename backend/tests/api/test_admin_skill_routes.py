@@ -145,8 +145,8 @@ def mock_static_analyzer():
 
 @pytest.fixture(scope="function")
 def mock_skill_builder():
-    """Create AsyncMock for skill_builder_service with deterministic return values."""
-    mock = AsyncMock()
+    """Create MagicMock for skill_builder_service with deterministic return values."""
+    mock = MagicMock()
 
     # Default: successful skill creation
     mock.create_skill_package.return_value = {
@@ -193,13 +193,13 @@ class TestAdminSkillRoutesSuccess:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test successful skill creation with valid request."""
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "test_skill",
                         "description": "A test skill for coverage",
@@ -224,13 +224,13 @@ class TestAdminSkillRoutesSuccess:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test skill creation with all optional fields populated."""
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "advanced_skill",
                         "description": "An advanced skill with all fields",
@@ -268,13 +268,13 @@ class TestAdminSkillRoutesSuccess:
         authenticated_admin_client: TestClient,
         super_admin_user: User,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test that tenant_id is extracted from admin user."""
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "tenant_skill",
                         "description": "Skill for specific tenant",
@@ -294,13 +294,13 @@ class TestAdminSkillRoutesSuccess:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test that author defaults to admin email."""
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "author_skill",
                         "description": "Skill to test author default",
@@ -320,7 +320,7 @@ class TestAdminSkillRoutesSuccess:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test skill creation when LLM scan is disabled."""
         # Ensure LLM scan is disabled
@@ -331,7 +331,7 @@ class TestAdminSkillRoutesSuccess:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
                 with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                     response = authenticated_admin_client.post(
-                        "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                         json={
                             "name": "no_llm_skill",
                             "description": "Skill without LLM scan",
@@ -363,7 +363,7 @@ class TestAdminSkillRoutesAuth:
         client: TestClient,
         regular_user: User,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test that non-super_admin cannot create skills."""
         from core.admin_endpoints import get_super_admin
@@ -377,7 +377,7 @@ class TestAdminSkillRoutesAuth:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
                 with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                     response = client.post(
-                        "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                         json={
                             "name": "unauthorized_skill",
                             "description": "Should fail",
@@ -397,7 +397,7 @@ class TestAdminSkillRoutesAuth:
     ):
         """Test that unauthenticated request fails."""
         response = unauthenticated_client.post(
-            "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
             json={
                 "name": "unauth_skill",
                 "description": "Should fail",
@@ -414,7 +414,7 @@ class TestAdminSkillRoutesAuth:
         client: TestClient,
         inactive_admin_user: User,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test that inactive admin cannot create skills."""
         from core.admin_endpoints import get_super_admin
@@ -428,7 +428,7 @@ class TestAdminSkillRoutesAuth:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
                 with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                     response = client.post(
-                        "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                         json={
                             "name": "inactive_skill",
                             "description": "Should fail",
@@ -482,7 +482,7 @@ class TestAdminSkillRoutesSecurity:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test skill creation when static scan passes."""
         # Static scan returns no findings
@@ -491,7 +491,7 @@ class TestAdminSkillRoutesSecurity:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "clean_skill",
                         "description": "Passes security scan",
@@ -527,7 +527,7 @@ class TestAdminSkillRoutesSecurity:
 
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             response = authenticated_admin_client.post(
-                "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                 json={
                     "name": "malicious_skill",
                     "description": "Contains critical findings",
@@ -584,7 +584,7 @@ class TestAdminSkillRoutesSecurity:
 
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             response = authenticated_admin_client.post(
-                "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                 json={
                     "name": "mixed_findings_skill",
                     "description": "Has multiple findings",
@@ -600,7 +600,7 @@ class TestAdminSkillRoutesSecurity:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test LLM scan when enabled."""
         # Enable LLM scan
@@ -626,7 +626,7 @@ class TestAdminSkillRoutesSecurity:
                 with patch('api.admin.skill_routes.LLMAnalyzer', return_value=mock_llm_analyzer):
                     with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                         response = authenticated_admin_client.post(
-                            "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                             json={
                                 "name": "llm_scanned_skill",
                                 "description": "Skill with LLM scan",
@@ -648,7 +648,7 @@ class TestAdminSkillRoutesSecurity:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test that LLM scan failure doesn't block skill creation."""
         # Enable LLM scan
@@ -667,7 +667,7 @@ class TestAdminSkillRoutesSecurity:
                 with patch('api.admin.skill_routes.LLMAnalyzer', return_value=mock_llm_analyzer):
                     with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                         response = authenticated_admin_client.post(
-                            "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                             json={
                                 "name": "llm_fail_skill",
                                 "description": "LLM scan fails but continues",
@@ -690,7 +690,7 @@ class TestAdminSkillRoutesSecurity:
     def test_security_scan_exception(
         self,
         authenticated_admin_client: TestClient,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test handling of security module exceptions."""
         # Mock StaticAnalyzer that raises exception
@@ -700,7 +700,7 @@ class TestAdminSkillRoutesSecurity:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "scan_exception_skill",
                         "description": "Security scan fails",
@@ -728,7 +728,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test request validation failures."""
         response = authenticated_admin_client.post(
-            "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
             json={
                 # Missing required fields: name, description, instructions, scripts
                 "capabilities": ["web_search"]
@@ -743,7 +743,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test invalid scripts format."""
         response = authenticated_admin_client.post(
-            "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
             json={
                 "name": "invalid_scripts",
                 "description": "Has invalid scripts",
@@ -758,7 +758,7 @@ class TestAdminSkillRoutesError:
         self,
         authenticated_admin_client: TestClient,
         mock_static_analyzer: MagicMock,
-        mock_skill_builder: AsyncMock
+        mock_skill_builder: MagicMock
     ):
         """Test skill builder service failure."""
         # Mock skill builder to return failure
@@ -770,7 +770,7 @@ class TestAdminSkillRoutesError:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "builder_fail",
                         "description": "Builder fails",
@@ -787,13 +787,13 @@ class TestAdminSkillRoutesError:
         mock_static_analyzer: MagicMock
     ):
         """Test unhandled exception path."""
-        mock_skill_builder = AsyncMock()
+        mock_skill_builder = MagicMock()
         mock_skill_builder.create_skill_package.side_effect = Exception("Unexpected error")
 
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
                     json={
                         "name": "exception_skill",
                         "description": "Raises exception",
@@ -810,7 +810,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test empty name validation."""
         response = authenticated_admin_client.post(
-            "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
             json={
                 "name": "",  # Empty name
                 "description": "Empty name",
@@ -827,7 +827,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test invalid capabilities format."""
         response = authenticated_admin_client.post(
-            "/api/admin/skills",
+                    "/api/admin/skills/api/admin/skills",
             json={
                 "name": "invalid_caps",
                 "description": "Invalid capabilities",
