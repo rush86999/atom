@@ -14,7 +14,7 @@ Scope:
 - Error paths (validation 422, not found 404)
 
 Test Fixtures:
-- In-memory SQLite database with StaticPool
+- In-memory SQLite database with manually created tables
 - Mock User object (NOT real model - avoids SQLAlchemy relationship issues)
 - TestClient with auth and DB overrides
 - Factory fixtures for test data
@@ -27,15 +27,17 @@ from unittest.mock import MagicMock
 from datetime import datetime
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
-# Import router and models
+# Import router
 from api.artifact_routes import router
-from core.models import Base, Artifact, ArtifactVersion
 from core.database import get_db
 from core.security_dependencies import get_current_user
+
+# Import models for type hints
+from core.models import Artifact, ArtifactVersion
 
 
 # ============================================================================
@@ -45,17 +47,59 @@ from core.security_dependencies import get_current_user
 @pytest.fixture(scope="function")
 def test_db():
     """
-    In-memory SQLite database with StaticPool for testing.
+    In-memory SQLite database with manually created tables.
 
-    Using StaticPool ensures the same connection is reused across the session,
-    preventing database locking issues during tests.
+    We create Artifact and ArtifactVersion tables manually using raw SQL to avoid
+    JSONB compatibility issues with SQLite (PackageInstallation uses JSONB which
+    SQLite doesn't support).
     """
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
+
+    # Create tables manually using raw SQL
+    with engine.connect() as conn:
+        # Create artifacts table (all columns from core.models.Artifact)
+        # Using CURRENT_TIMESTAMP as default for datetime fields
+        conn.execute(text("""
+            CREATE TABLE artifacts (
+                id VARCHAR PRIMARY KEY,
+                workspace_id VARCHAR NOT NULL,
+                tenant_id VARCHAR NOT NULL,
+                agent_id VARCHAR,
+                session_id VARCHAR,
+                canvas_id VARCHAR,
+                name VARCHAR NOT NULL,
+                type VARCHAR NOT NULL,
+                content TEXT NOT NULL,
+                metadata_json TEXT DEFAULT '{}',
+                version INTEGER DEFAULT 1,
+                is_locked BOOLEAN DEFAULT 0,
+                locked_by_user_id VARCHAR,
+                author_id VARCHAR,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+
+        # Create artifact_versions table (all columns from core.models.ArtifactVersion)
+        conn.execute(text("""
+            CREATE TABLE artifact_versions (
+                id VARCHAR PRIMARY KEY,
+                artifact_id VARCHAR NOT NULL,
+                version INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                metadata_json TEXT DEFAULT '{}',
+                author_id VARCHAR,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(artifact_id) REFERENCES artifacts(id)
+            )
+        """))
+
+        conn.commit()
+
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     db = TestingSessionLocal()
@@ -167,6 +211,7 @@ def sample_artifact(test_db, mock_user):
     artifact = Artifact(
         id="test_artifact_1",
         workspace_id="default",
+        tenant_id="default_tenant",  # Required field
         agent_id="test_agent_1",
         session_id="test_session_1",
         name="Test Artifact",
@@ -199,6 +244,7 @@ class TestArtifactList:
             artifact = Artifact(
                 id=f"artifact_{i}",
                 workspace_id="default",
+                tenant_id="default_tenant",  # Required field
                 name=f"Artifact {i}",
                 type="code",
                 content=f"content_{i}",
@@ -214,7 +260,9 @@ class TestArtifactList:
         assert response.status_code == 200
         artifacts = response.json()
         assert len(artifacts) == 3
-        assert all(a["workspace_id"] == "default" for a in artifacts)
+        # Check response fields (workspace_id and tenant_id not in ArtifactResponse)
+        assert all("id" in a for a in artifacts)
+        assert all("name" in a for a in artifacts)
 
     def test_list_artifacts_filter_by_session(self, authenticated_client, test_db, mock_user):
         """Test filtering artifacts by session_id."""
@@ -222,6 +270,7 @@ class TestArtifactList:
         artifact1 = Artifact(
             id="artifact_1",
             workspace_id="default",
+            tenant_id="default_tenant",  # Required field
             session_id="session_A",
             name="Artifact A",
             type="code",
@@ -232,6 +281,7 @@ class TestArtifactList:
         artifact2 = Artifact(
             id="artifact_2",
             workspace_id="default",
+            tenant_id="default_tenant",  # Required field
             session_id="session_B",
             name="Artifact B",
             type="code",
@@ -256,6 +306,7 @@ class TestArtifactList:
         artifact1 = Artifact(
             id="artifact_1",
             workspace_id="default",
+            tenant_id="default_tenant",  # Required field
             name="Code Artifact",
             type="code",
             content="python code",
@@ -265,6 +316,7 @@ class TestArtifactList:
         artifact2 = Artifact(
             id="artifact_2",
             workspace_id="default",
+            tenant_id="default_tenant",  # Required field
             name="Markdown Artifact",
             type="markdown",
             content="# markdown",
@@ -288,6 +340,7 @@ class TestArtifactList:
         artifact1 = Artifact(
             id="artifact_1",
             workspace_id="default",
+            tenant_id="default_tenant",  # Required field
             session_id="session_A",
             name="Code A",
             type="code",
@@ -298,6 +351,7 @@ class TestArtifactList:
         artifact2 = Artifact(
             id="artifact_2",
             workspace_id="default",
+            tenant_id="default_tenant",  # Required field
             session_id="session_A",
             name="Markdown A",
             type="markdown",
@@ -308,6 +362,7 @@ class TestArtifactList:
         artifact3 = Artifact(
             id="artifact_3",
             workspace_id="default",
+            tenant_id="default_tenant",  # Required field
             session_id="session_B",
             name="Code B",
             type="code",
@@ -355,7 +410,7 @@ class TestArtifactSave:
         assert artifact["type"] == sample_artifact_data["type"]
         assert artifact["content"] == sample_artifact_data["content"]
         assert artifact["version"] == 1
-        assert artifact["workspace_id"] == "default"
+        # Note: workspace_id and tenant_id not in ArtifactResponse
 
     def test_save_artifact_with_agent_id(self, authenticated_client, sample_artifact_data):
         """Test creating artifact with agent_id field."""
@@ -387,7 +442,7 @@ class TestArtifactSave:
         artifact = response.json()
         assert artifact["name"] == "minimal_artifact"
         assert artifact["version"] == 1
-        assert artifact["workspace_id"] == "default"
+        # Note: workspace_id and tenant_id not in ArtifactResponse
         # Optional fields should be None or default
         assert artifact["session_id"] is None
 
