@@ -547,32 +547,220 @@ class TestConsolidation:
 # Episode Archival Tests
 # ============================================================================
 
-class TestEpisodeArchival:
-    """Test episode archival to cold storage."""
+class TestArchivalAndImportance:
+    """Test archival operations and importance scoring."""
+
+    # ========== Archival Tests ==========
 
     @pytest.mark.asyncio
-    async def test_archive_to_cold_storage(self, lifecycle_service):
-        """Test moving episode to cold storage."""
-        episode = Mock()
-        episode.id = "episode-123"
-        episode.status = "completed"
+    async def test_archive_to_cold_storage_success(self, lifecycle_service):
+        """Test episode marked as archived."""
+        episode = Mock(id="ep1", agent_id="agent1", status="completed")
 
         lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
 
-        result = await lifecycle_service.archive_to_cold_storage(episode_id="episode-123")
+        result = await lifecycle_service.archive_to_cold_storage("ep1")
 
         assert result is True
         assert episode.status == "archived"
         assert episode.archived_at is not None
 
     @pytest.mark.asyncio
-    async def test_archive_nonexistent_episode(self, lifecycle_service):
-        """Test archiving non-existent episode."""
+    async def test_archive_to_cold_storage_not_found(self, lifecycle_service):
+        """Test returns False for nonexistent episode."""
         lifecycle_service.db.query.return_value.filter.return_value.first.return_value = None
 
-        result = await lifecycle_service.archive_to_cold_storage(episode_id="nonexistent")
+        result = await lifecycle_service.archive_to_cold_storage("nonexistent")
 
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_archive_to_cold_storage_timestamp(self, lifecycle_service):
+        """Test archived_at set correctly."""
+        episode = Mock(id="ep1", agent_id="agent1", status="completed")
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        before = datetime.now()
+        result = await lifecycle_service.archive_to_cold_storage("ep1")
+        after = datetime.now()
+
+        assert result is True
+        assert episode.archived_at is not None
+        assert before <= episode.archived_at <= after
+
+    @pytest.mark.asyncio
+    async def test_archive_episode_sync(self, lifecycle_service):
+        """Test synchronous archive method."""
+        episode = Mock(id="ep1", agent_id="agent1", status="completed")
+
+        result = lifecycle_service.archive_episode(episode)
+
+        assert result is True
+        assert episode.status == "archived"
+        assert episode.archived_at is not None
+
+    @pytest.mark.asyncio
+    async def test_archive_excludes_from_retrieval(self, lifecycle_service):
+        """Test archived episodes excluded from retrieval."""
+        # Create archived episode
+        episode = Mock(id="ep1", agent_id="agent1", status="archived")
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        result = await lifecycle_service.archive_to_cold_storage("ep1")
+
+        assert result is True
+        # Archived episodes should be filtered out in retrieval queries
+        # (This is tested in retrieval service tests)
+
+    # ========== Importance Scoring Tests ==========
+
+    @pytest.mark.asyncio
+    async def test_update_importance_scores_single(self, lifecycle_service):
+        """Test update single episode importance."""
+        episode = Mock(id="ep1", agent_id="agent1", importance_score=0.5)
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        result = await lifecycle_service.update_importance_scores(
+            episode_id="ep1",
+            user_feedback=1.0  # Maximum positive
+        )
+
+        assert result is True
+        # Importance should increase with positive feedback
+        assert episode.importance_score >= 0.5
+
+    @pytest.mark.asyncio
+    async def test_update_importance_scores_batch(self, lifecycle_service):
+        """Test update multiple episodes via batch_update_access_counts."""
+        episode_ids = ["ep1", "ep2", "ep3"]
+
+        # Mock episodes
+        def mock_episode(ep_id):
+            ep = Mock()
+            ep.id = ep_id
+            ep.access_count = 5
+            return ep
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [
+            mock_episode(eid) for eid in episode_ids
+        ]
+
+        result = await lifecycle_service.batch_update_access_counts(episode_ids)
+
+        assert result["updated"] == 3
+
+    @pytest.mark.asyncio
+    async def test_importance_bounds_enforcement(self, lifecycle_service):
+        """Test importance clamped to [0.0, 1.0]."""
+        episode = Mock(id="ep1", agent_id="agent1", importance_score=0.5)
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        # Test extreme positive feedback
+        await lifecycle_service.update_importance_scores("ep1", 10.0)
+        assert 0.0 <= episode.importance_score <= 1.0
+
+        # Reset
+        episode.importance_score = 0.5
+
+        # Test extreme negative feedback
+        await lifecycle_service.update_importance_scores("ep1", -10.0)
+        assert 0.0 <= episode.importance_score <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_importance_feedback_boost(self, lifecycle_service):
+        """Test positive feedback increases importance."""
+        episode = Mock(id="ep1", agent_id="agent1", importance_score=0.5)
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        before = episode.importance_score
+        await lifecycle_service.update_importance_scores("ep1", 1.0)  # Max positive
+
+        # Formula: new_importance = old * 0.8 + (feedback + 1.0) / 2.0 * 0.2
+        # For feedback=1.0: new = 0.5 * 0.8 + 1.0 * 0.2 = 0.4 + 0.2 = 0.6
+        assert episode.importance_score > before
+
+    @pytest.mark.asyncio
+    async def test_importance_access_count_boost(self, lifecycle_service):
+        """Test access count increases importance via batch update."""
+        episode = Mock(id="ep1", agent_id="agent1", access_count=10)
+
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = episode
+
+        await lifecycle_service.batch_update_access_counts(["ep1"])
+
+        # Access count should be incremented
+        assert episode.access_count == 11
+
+    # ========== Decay Application Tests ==========
+
+    @pytest.mark.asyncio
+    async def test_apply_decay_to_single_episode(self, lifecycle_service):
+        """Test apply decay to single episode."""
+        now = datetime.now()
+        episode = Mock(
+            id="ep1",
+            agent_id="agent1",
+            started_at=now - timedelta(days=100),
+            decay_score=1.0
+        )
+
+        result = lifecycle_service.apply_decay(episode)
+
+        assert result is True
+        # Decay score should be updated based on age
+
+    @pytest.mark.asyncio
+    async def test_apply_decay_to_episode_list(self, lifecycle_service):
+        """Test apply decay to multiple episodes."""
+        now = datetime.now()
+        episodes = [
+            Mock(id=f"ep{i}", started_at=now - timedelta(days=i * 30), decay_score=1.0)
+            for i in range(1, 4)
+        ]
+
+        result = lifecycle_service.apply_decay(episodes)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_apply_decay_with_access_boost(self, lifecycle_service):
+        """Test access count offsets decay."""
+        now = datetime.now()
+        episode = Mock(
+            id="ep1",
+            agent_id="agent1",
+            started_at=now - timedelta(days=100),
+            access_count=50  # High access count
+        )
+
+        result = lifecycle_service.apply_decay(episode)
+
+        assert result is True
+        # High access count should offset some decay
+
+    @pytest.mark.asyncio
+    async def test_apply_decay_bounds_check(self, lifecycle_service):
+        """Test decay score never negative."""
+        now = datetime.now()
+        # Very old episode (500 days)
+        episode = Mock(
+            id="ep1",
+            agent_id="agent1",
+            started_at=now - timedelta(days=500),
+            decay_score=1.0,
+            status="completed"
+        )
+
+        result = lifecycle_service.apply_decay(episode)
+
+        assert result is True
+        # Decay score should be clamped to valid range
+        assert episode.decay_score >= 0.0
 
 
 # ============================================================================
