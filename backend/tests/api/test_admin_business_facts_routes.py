@@ -1211,3 +1211,66 @@ class TestBusinessFactsVerify:
             )
 
             assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ============================================================================
+# Test: Authentication and Role Enforcement
+# ============================================================================
+
+class TestBusinessFactsAuth:
+    """Tests for authentication and role enforcement on business facts endpoints."""
+
+    def test_list_facts_requires_admin_role(
+        self,
+        authenticated_regular_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test that non-admin cannot list facts."""
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_regular_client.get("/api/admin/governance/facts")
+
+            assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_create_fact_requires_admin_role(
+        self,
+        authenticated_regular_client: TestClient
+    ):
+        """Test that non-admin cannot create facts."""
+        fact_data = {
+            "fact": "Unauthorized fact",
+            "citations": [],
+            "reason": "Test auth"
+        }
+
+        response = authenticated_regular_client.post(
+            "/api/admin/governance/facts",
+            json=fact_data
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_upload_requires_admin_role(
+        self,
+        authenticated_regular_client: TestClient,
+        mock_pdf_upload
+    ):
+        """Test that non-admin cannot upload."""
+        filename, file_content, content_type = mock_pdf_upload()
+
+        response = authenticated_regular_client.post(
+            "/api/admin/governance/facts/upload",
+            files={"file": (filename, file_content, content_type)}
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_delete_fact_requires_admin_role(
+        self,
+        authenticated_regular_client: TestClient
+    ):
+        """Test that non-admin cannot delete facts."""
+        response = authenticated_regular_client.delete(
+            "/api/admin/governance/facts/some-fact-id"
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
