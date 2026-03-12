@@ -390,7 +390,11 @@ Plans:
   2. Analytics endpoints achieve 75%+ line coverage
   3. Feedback analytics routes achieve 75%+ line coverage
   4. A/B testing routes achieve 75%+ line coverage
-**Plans**: TBD (estimated 3-4 plans)
+Plans: 4 plans
+- [ ] 177-01-PLAN.md — Analytics dashboard routes coverage (KPIs, timelines, errors, alerts)
+- [ ] 177-02-PLAN.md — Analytics endpoints coverage (summary, sentiment, response times, activity)
+- [ ] 177-03-PLAN.md — Feedback analytics routes coverage (dashboard, per-agent, trends)
+- [ ] 177-04-PLAN.md — A/B testing routes coverage (create, start, complete, assign, record, results)
 **Estimated Coverage**: 32.50%
 
 ### Phase 178: API Routes Coverage (Admin & System)
