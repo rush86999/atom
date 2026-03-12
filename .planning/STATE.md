@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 173 Plan 03 Complete - Cognitive tier and escalation manager comprehensive testing. Created test_escalation_manager.py (715 lines, 45 tests) covering all escalation reasons, cooldown logic, escalation limits, and database logging. Added 6 property-based invariant tests to cognitive tier coverage. 89 tests passing (100% pass rate). Estimated 75%+ coverage on both cognitive_tier_system.py (297 lines) and escalation_manager.py (457 lines).
+**Current focus**: Phase 173 Plan 01 Complete - Cognitive tier routes API tests. Created test_cognitive_tier_routes.py (1,067 lines, 44 tests) covering all 6 endpoints (GET/POST/PUT/DELETE preferences, estimate-cost, compare-tiers). TestClient-based testing with database dependency override, transaction rollback, mock pricing fetcher. Success paths (20 tests), validation errors (8 tests), edge cases (16 tests). 100% pass rate (44/44). Estimated 75%+ coverage on cognitive_tier_routes.py (601 lines). Duration: ~64 minutes.
 
 ## Current Position
 
 Phase: 173 of 173 (High-Impact Zero Coverage - LLM)
-Plan: 03 of 5 in current phase (COMPLETE)
+Plan: 01 of 5 in current phase (COMPLETE)
 Status: In Progress
-Last activity: 2026-03-12 — Phase 173 Plan 03 Complete: Cognitive tier and escalation manager comprehensive testing with 89 tests. Escalation manager tests (45) covering quality/confidence/rate-limit/error triggers, 5-minute cooldown enforcement, max escalation limit (2), database logging with graceful failure. Property-based invariants (6) validating tier classification correctness. Estimated 75%+ coverage on both files (566+/754 lines). Duration: ~22 minutes.
+Last activity: 2026-03-12 — Phase 173 Plan 01 Complete: Cognitive tier routes API tests with 44 passing tests. Test file: test_cognitive_tier_routes.py (1,067 lines, exceeds 450 minimum by 137%). All 6 endpoints tested with comprehensive coverage. TestClient pattern following Phase 172. Duration: ~64 minutes.
 
-Progress: [████░░░░] 60% (3/5 plans in Phase 173)
+Progress: [███░░░░░] 20% (1/5 plans in Phase 173)
 
 **Next Phase:** Phase 173 Plan 04 or next plan in Phase 173
 **Next Action:** Continue LLM coverage testing with remaining zero-coverage files
@@ -61,6 +61,7 @@ Progress: [████░░░░] 60% (3/5 plans in Phase 173)
 | Phase 171 P04B | 2 | 2 tasks | 2 files |
 | Phase 172 P01 | 14 | 43 tasks | 1 files |
 | Phase 172 P02 | 1712 | 5 tasks | 2 files |
+| Phase 173 P01 | 64 | 44 tasks | 1 files |
 
 ## Accumulated Context
 
