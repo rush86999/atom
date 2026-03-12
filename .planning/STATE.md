@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 171 Plan 03 Complete - Pragma no-cover audit confirming excellent coverage hygiene
+**Current focus**: Phase 171 Plan 02 Complete - Actual backend coverage measurement and realistic roadmap to 80%
 
 ## Current Position
 
 Phase: 171 of 171 (Gap Closure & Final Push)
-Plan: 03 of 6 in current phase
+Plan: 02 of 6 in current phase
 Status: Complete
-Last activity: 2026-03-12 — Phase 171 Plan 03 Complete: Pragma no-cover audit with zero directives found (excellent coverage hygiene, 93% coverage on browser/device tools, 220 tests passing)
+Last activity: 2026-03-11 — Phase 171 Plan 02 Complete: Actual backend coverage measured at 8.50% (6,179/72,727 lines), discrepancy analysis showing 66-76pp gaps from previous estimates, realistic roadmap calculated (18 phases, 1,040 hours to reach 80%)
 
-Progress: [█████] 50% (3/6 plans in Phase 171)
+Progress: [███] 33% (2/6 plans in Phase 171)
 
 ## Performance Metrics
 
@@ -107,6 +107,15 @@ Recent decisions affecting current work:
 
 **Phase 166-02 - Episode Segmentation Service Coverage (COMPLETE):**
 - 23 new tests added for episode creation flow (TestEpisodeCreationFlow, TestCanvasContextExtraction, TestFeedbackAndSegments)
+
+**Phase 171 - Gap Closure & Final Push (In Progress):**
+- [Phase 171-02]: Actual backend coverage measured at 8.50% (6,179/72,727 lines) from Phase 161 baseline
+- [Phase 171-02]: Service-level estimates debunked: Phase 166 claimed 85% (76.50pp gap), Phase 164 estimated 74.55% (66.05pp gap)
+- [Phase 171-02]: Realistic roadmap to 80%: 18 phases needed (Phases 172-189), 1,040 hours estimated
+- [Phase 171-02]: Effort calculation: 52,002 lines needed at 50 lines/hour average (4pp/phase based on Phases 165-170)
+- [Phase 171-02]: File statistics: 532 total files, 524 below 80%, 490 with zero coverage
+- [Phase 171-02]: Comparison analysis created: actual_vs_estimated.json with discrepancy documentation
+- [Phase 171-02]: Markdown report created with all sections (Executive Summary, Discrepancy Analysis, Coverage Gap, Roadmap)
 - Episode creation tested with canvas and feedback integration
 - Canvas context extraction tested for all canvas types and detail levels
 - Feedback aggregation tested for thumbs_up, thumbs_down, and rating types
@@ -553,6 +562,31 @@ Next: Phase 171 or next phase in roadmap
 - Ready for 171-02 (coverage measurement)
 
 Next: Phase 171 Plan 02 - Coverage measurement
+
+## Session Update: 2026-03-11
+
+**Phase 171 Plan 02 Complete:**
+- Coverage measurement script created (measure_phase_171_coverage.py, 329 lines)
+- Analyzed Phase 161 baseline (8.50% coverage, 6,179/72,727 lines)
+- Created actual_vs_estimated.json with discrepancy analysis
+- Comparison against previous estimates: Phase 166 claimed 85% (76.50pp gap), Phase 164 estimated 74.55% (66.05pp gap)
+- File statistics: 532 total files, 524 below 80%, 490 with zero coverage
+- Realistic roadmap to 80%: 18 phases needed (Phases 172-189), 1,040 hours estimated
+- Effort calculation: 52,002 lines needed at 50 lines/hour average
+- Markdown report created with all sections (Executive Summary, Discrepancy Analysis, Coverage Gap, File Statistics, Roadmap)
+- Duration: ~15 minutes
+- Commits: e9dd325f0, d9ff2a913
+- Files created: measure_phase_171_coverage.py, backend_phase_171_overall.json, backend_phase_171_overall.md, actual_vs_estimated.json
+- SUMMARY.md created: 171-02-SUMMARY.md
+
+**Phase 171 Plan 02 COMPLETE:**
+- All 4 tasks executed successfully (consolidated into 2 commits)
+- Actual coverage baseline confirmed: 8.50% (6,179/72,727 lines)
+- Service-level estimates debunked: 66-76pp gaps from reality
+- Realistic roadmap established: 18 phases, 1,040 hours to 80%
+- Ready for 171-03 (prioritization) or 171-04A/04B (test implementation)
+
+Next: Phase 171 Plan 03 - Prioritize zero-coverage files by business impact
 
 ## Session Update: 2026-03-12
 
