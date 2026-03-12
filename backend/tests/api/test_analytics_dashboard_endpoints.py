@@ -16,7 +16,7 @@ Tests: 55+ comprehensive tests
 """
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from datetime import datetime, timedelta
 
@@ -45,7 +45,7 @@ class TestDashboardKPIs:
     def test_get_dashboard_kpis_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting dashboard KPIs returns all fields."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis")
             
             assert response.status_code == 200
             data = response.json()
@@ -63,7 +63,7 @@ class TestDashboardKPIs:
         mock_workflow_analytics.get_performance_metrics.return_value = None
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis")
             
             assert response.status_code == 200
             data = response.json()
@@ -78,7 +78,7 @@ class TestDashboardKPIs:
     def test_get_dashboard_kpis_with_time_window_1h(self, dashboard_client, mock_workflow_analytics):
         """Test getting dashboard KPIs respects time_window parameter (1h)."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis?time_window=1h")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis?time_window=1h")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_performance_metrics.assert_called_once_with(
@@ -89,7 +89,7 @@ class TestDashboardKPIs:
     def test_get_dashboard_kpis_with_time_window_24h(self, dashboard_client, mock_workflow_analytics):
         """Test getting dashboard KPIs respects time_window parameter (24h)."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis?time_window=24h")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis?time_window=24h")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_performance_metrics.assert_called_once_with(
@@ -100,7 +100,7 @@ class TestDashboardKPIs:
     def test_get_dashboard_kpis_with_time_window_7d(self, dashboard_client, mock_workflow_analytics):
         """Test getting dashboard KPIs respects time_window parameter (7d)."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis?time_window=7d")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis?time_window=7d")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_performance_metrics.assert_called_once_with(
@@ -111,7 +111,7 @@ class TestDashboardKPIs:
     def test_get_dashboard_kpis_filtered_by_user(self, dashboard_client, mock_workflow_analytics):
         """Test getting dashboard KPIs can filter by user_id."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis?user_id=user-123")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis?user_id=user-123")
             
             assert response.status_code == 200
             # user_id filtering happens at engine level, endpoint just passes through
@@ -119,7 +119,7 @@ class TestDashboardKPIs:
     def test_get_dashboard_kpis_calculation(self, dashboard_client, mock_workflow_analytics):
         """Test dashboard KPIs correctly calculates success_rate and error_rate."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis")
             
             assert response.status_code == 200
             data = response.json()
@@ -133,7 +133,7 @@ class TestDashboardKPIs:
         mock_workflow_analytics.get_performance_metrics.side_effect = Exception("Service failure")
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/kpis")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/kpis")
             
             assert response.status_code == 500
 
@@ -148,7 +148,7 @@ class TestTopWorkflows:
     def test_get_top_workflows_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting top workflows returns ranked list."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing")
             
             assert response.status_code == 200
             data = response.json()
@@ -159,7 +159,7 @@ class TestTopWorkflows:
     def test_get_top_workflows_sort_by_success_rate(self, dashboard_client, mock_workflow_analytics):
         """Test getting top workflows sorts by success_rate descending."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing?sort_by=success_rate")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing?sort_by=success_rate")
             
             assert response.status_code == 200
             data = response.json()
@@ -170,7 +170,7 @@ class TestTopWorkflows:
     def test_get_top_workflows_sort_by_executions(self, dashboard_client, mock_workflow_analytics):
         """Test getting top workflows sorts by total_executions descending."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing?sort_by=executions")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing?sort_by=executions")
             
             assert response.status_code == 200
             data = response.json()
@@ -181,7 +181,7 @@ class TestTopWorkflows:
     def test_get_top_workflows_sort_by_duration(self, dashboard_client, mock_workflow_analytics):
         """Test getting top workflows sorts by average_duration_ms ascending."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing?sort_by=duration")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing?sort_by=duration")
             
             assert response.status_code == 200
             data = response.json()
@@ -192,7 +192,7 @@ class TestTopWorkflows:
     def test_get_top_workflows_with_limit(self, dashboard_client, mock_workflow_analytics):
         """Test getting top workflows respects limit parameter."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing?limit=2")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing?limit=2")
             
             assert response.status_code == 200
             data = response.json()
@@ -201,7 +201,7 @@ class TestTopWorkflows:
     def test_get_top_workflows_trend_calculation(self, dashboard_client, mock_workflow_analytics):
         """Test getting top workflows calculates trend (up/down/stable)."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing")
             
             assert response.status_code == 200
             data = response.json()
@@ -215,7 +215,7 @@ class TestTopWorkflows:
         mock_workflow_analytics.get_all_workflow_ids.return_value = []
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing")
             
             assert response.status_code == 200
             data = response.json()
@@ -225,7 +225,7 @@ class TestTopWorkflows:
     def test_get_top_workflows_invalid_sort_by(self, dashboard_client, mock_workflow_analytics):
         """Test getting top workflows defaults to success_rate for invalid sort_by."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflows/top-performing?sort_by=invalid")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflows/top-performing?sort_by=invalid")
             
             assert response.status_code == 200
             # Should still work, just use default sorting
@@ -241,7 +241,7 @@ class TestExecutionTimeline:
     def test_get_execution_timeline_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting execution timeline returns timeline data."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/timeline")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/timeline")
             
             assert response.status_code == 200
             data = response.json()
@@ -255,7 +255,7 @@ class TestExecutionTimeline:
     def test_get_execution_timeline_with_time_window(self, dashboard_client, mock_workflow_analytics):
         """Test getting execution timeline respects time_window parameter."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/timeline?time_window=7d")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/timeline?time_window=7d")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_execution_timeline.assert_called_once()
@@ -263,7 +263,7 @@ class TestExecutionTimeline:
     def test_get_execution_timeline_with_interval_5m(self, dashboard_client, mock_workflow_analytics):
         """Test getting execution timeline respects interval parameter (5m)."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/timeline?interval=5m")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/timeline?interval=5m")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_execution_timeline.assert_called_once()
@@ -271,7 +271,7 @@ class TestExecutionTimeline:
     def test_get_execution_timeline_with_interval_1h(self, dashboard_client, mock_workflow_analytics):
         """Test getting execution timeline respects interval parameter (1h)."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/timeline?interval=1h")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/timeline?interval=1h")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_execution_timeline.assert_called_once()
@@ -279,7 +279,7 @@ class TestExecutionTimeline:
     def test_get_execution_timeline_filtered_by_workflow(self, dashboard_client, mock_workflow_analytics):
         """Test getting execution timeline filters by workflow_id."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/timeline?workflow_id=workflow-001")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/timeline?workflow_id=workflow-001")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_execution_timeline.assert_called_once()
@@ -289,7 +289,7 @@ class TestExecutionTimeline:
         mock_workflow_analytics.get_execution_timeline.return_value = []
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/timeline")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/timeline")
             
             assert response.status_code == 200
             data = response.json()
@@ -299,7 +299,7 @@ class TestExecutionTimeline:
     def test_get_execution_timeline_invalid_interval(self, dashboard_client, mock_workflow_analytics):
         """Test getting execution timeline uses default for invalid interval."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/timeline?interval=invalid")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/timeline?interval=invalid")
             
             assert response.status_code == 200
             # Should still work with default interval
@@ -315,7 +315,7 @@ class TestErrorBreakdown:
     def test_get_error_breakdown_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting error breakdown returns error breakdown."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/errors/breakdown")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/errors/breakdown")
             
             assert response.status_code == 200
             data = response.json()
@@ -325,7 +325,7 @@ class TestErrorBreakdown:
     def test_get_error_breakdown_with_time_window(self, dashboard_client, mock_workflow_analytics):
         """Test getting error breakdown respects time_window."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/errors/breakdown?time_window=7d")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/errors/breakdown?time_window=7d")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_error_breakdown.assert_called_once()
@@ -333,7 +333,7 @@ class TestErrorBreakdown:
     def test_get_error_breakdown_filtered_by_workflow(self, dashboard_client, mock_workflow_analytics):
         """Test getting error breakdown filters by workflow_id."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/errors/breakdown?workflow_id=workflow-001")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/errors/breakdown?workflow_id=workflow-001")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_error_breakdown.assert_called_once()
@@ -343,7 +343,7 @@ class TestErrorBreakdown:
         mock_workflow_analytics.get_error_breakdown.return_value = {}
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/errors/breakdown")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/errors/breakdown")
             
             assert response.status_code == 200
             data = response.json()
@@ -355,7 +355,7 @@ class TestErrorBreakdown:
         mock_workflow_analytics.get_error_breakdown.side_effect = Exception("Service failure")
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/errors/breakdown")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/errors/breakdown")
             
             assert response.status_code == 500
 
@@ -370,7 +370,7 @@ class TestAlertsManagement:
     def test_get_alerts_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting alerts returns all alerts."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/alerts")
+            response = dashboard_client.get("/api/analytics/api/analytics/alerts")
             
             assert response.status_code == 200
             data = response.json()
@@ -384,7 +384,7 @@ class TestAlertsManagement:
     def test_get_alerts_filtered_by_workflow(self, dashboard_client, mock_workflow_analytics):
         """Test getting alerts filters by workflow_id."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/alerts?workflow_id=workflow-001")
+            response = dashboard_client.get("/api/analytics/api/analytics/alerts?workflow_id=workflow-001")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_all_alerts.assert_called_once()
@@ -392,7 +392,7 @@ class TestAlertsManagement:
     def test_get_alerts_enabled_only(self, dashboard_client, mock_workflow_analytics):
         """Test getting alerts returns only enabled alerts."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/alerts?enabled_only=true")
+            response = dashboard_client.get("/api/analytics/api/analytics/alerts?enabled_only=true")
             
             assert response.status_code == 200
             data = response.json()
@@ -405,7 +405,7 @@ class TestAlertsManagement:
         mock_workflow_analytics.get_all_alerts.return_value = []
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/alerts")
+            response = dashboard_client.get("/api/analytics/api/analytics/alerts")
             
             assert response.status_code == 200
             data = response.json()
@@ -427,7 +427,7 @@ class TestAlertsManagement:
         }
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.post("/api/analytics/alerts", json=alert_data)
+            response = dashboard_client.post("/api/analytics/api/analytics/alerts", json=alert_data)
             
             assert response.status_code == 200
 
@@ -449,7 +449,7 @@ class TestAlertsManagement:
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
             # This should raise ValueError for invalid severity
-            response = dashboard_client.post("/api/analytics/alerts", json=alert_data)
+            response = dashboard_client.post("/api/analytics/api/analytics/alerts", json=alert_data)
             
             # Should handle error gracefully
             assert response.status_code in [200, 500]
@@ -457,7 +457,7 @@ class TestAlertsManagement:
     def test_update_alert_success(self, dashboard_client, mock_workflow_analytics):
         """Test updating alert updates alert (enabled, threshold)."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.put("/api/analytics/alerts/alert-001?enabled=false&threshold_value=15.0")
+            response = dashboard_client.put("/api/analytics/api/analytics/alerts/alert-001?enabled=false&threshold_value=15.0")
             
             assert response.status_code == 200
             mock_workflow_analytics.update_alert.assert_called_once()
@@ -467,7 +467,7 @@ class TestAlertsManagement:
         mock_workflow_analytics.update_alert.return_value = False
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.put("/api/analytics/alerts/nonexistent?enabled=true")
+            response = dashboard_client.put("/api/analytics/api/analytics/alerts/nonexistent?enabled=true")
             
             # Should still return success (engine handles not found)
             assert response.status_code == 200
@@ -475,7 +475,7 @@ class TestAlertsManagement:
     def test_delete_alert_success(self, dashboard_client, mock_workflow_analytics):
         """Test deleting alert deletes alert."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.delete("/api/analytics/alerts/alert-001")
+            response = dashboard_client.delete("/api/analytics/api/analytics/alerts/alert-001")
             
             assert response.status_code == 200
             mock_workflow_analytics.delete_alert.assert_called_once_with("alert-001")
@@ -485,7 +485,7 @@ class TestAlertsManagement:
         mock_workflow_analytics.delete_alert.return_value = False
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.delete("/api/analytics/alerts/nonexistent")
+            response = dashboard_client.delete("/api/analytics/api/analytics/alerts/nonexistent")
             
             # Should still return success (engine handles not found)
             assert response.status_code == 200
@@ -501,7 +501,7 @@ class TestRealtimeFeed:
     def test_get_realtime_feed_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting realtime feed returns recent events."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/realtime-feed")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/realtime-feed")
             
             assert response.status_code == 200
             data = response.json()
@@ -515,7 +515,7 @@ class TestRealtimeFeed:
     def test_get_realtime_feed_with_limit(self, dashboard_client, mock_workflow_analytics):
         """Test getting realtime feed respects limit parameter."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/realtime-feed?limit=10")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/realtime-feed?limit=10")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_recent_events.assert_called_once_with(
@@ -526,7 +526,7 @@ class TestRealtimeFeed:
     def test_get_realtime_feed_filtered_by_workflow(self, dashboard_client, mock_workflow_analytics):
         """Test getting realtime feed filters by workflow_id."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/realtime-feed?workflow_id=workflow-001")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/realtime-feed?workflow_id=workflow-001")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_recent_events.assert_called_once()
@@ -536,7 +536,7 @@ class TestRealtimeFeed:
         mock_workflow_analytics.get_recent_events.return_value = []
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/realtime-feed")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/realtime-feed")
             
             assert response.status_code == 200
             data = response.json()
@@ -546,7 +546,7 @@ class TestRealtimeFeed:
     def test_get_realtime_feed_max_limit(self, dashboard_client, mock_workflow_analytics):
         """Test getting realtime feed enforces maximum limit of 500."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/realtime-feed?limit=1000")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/realtime-feed?limit=1000")
             
             assert response.status_code == 200
             # Limit should be capped at 500 by endpoint
@@ -566,7 +566,7 @@ class TestMetricsSummary:
     def test_get_metrics_summary_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting metrics summary returns comprehensive summary."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/metrics/summary")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/metrics/summary")
             
             assert response.status_code == 200
             data = response.json()
@@ -578,14 +578,14 @@ class TestMetricsSummary:
     def test_get_metrics_summary_with_time_window(self, dashboard_client, mock_workflow_analytics):
         """Test getting metrics summary respects time_window."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/metrics/summary?time_window=7d")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/metrics/summary?time_window=7d")
             
             assert response.status_code == 200
 
     def test_get_metrics_summary_includes_kpis(self, dashboard_client, mock_workflow_analytics):
         """Test getting metrics summary includes KPIs in response."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/metrics/summary")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/metrics/summary")
             
             assert response.status_code == 200
             data = response.json()
@@ -597,7 +597,7 @@ class TestMetricsSummary:
     def test_get_metrics_summary_includes_top_workflows(self, dashboard_client, mock_workflow_analytics):
         """Test getting metrics summary includes top workflows in response."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/metrics/summary")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/metrics/summary")
             
             assert response.status_code == 200
             data = response.json()
@@ -609,7 +609,7 @@ class TestMetricsSummary:
         mock_workflow_analytics.get_performance_metrics.side_effect = Exception("Service failure")
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/metrics/summary")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/metrics/summary")
             
             assert response.status_code == 500
 
@@ -624,7 +624,7 @@ class TestWorkflowPerformanceDetail:
     def test_get_workflow_performance_success(self, dashboard_client, mock_workflow_analytics):
         """Test getting workflow performance returns workflow metrics."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflow/workflow-001/performance")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflow/workflow-001/performance")
             
             assert response.status_code == 200
             data = response.json()
@@ -634,7 +634,7 @@ class TestWorkflowPerformanceDetail:
     def test_get_workflow_performance_with_time_window(self, dashboard_client, mock_workflow_analytics):
         """Test getting workflow performance respects time_window."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflow/workflow-001/performance?time_window=7d")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflow/workflow-001/performance?time_window=7d")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_performance_metrics.assert_called_once()
@@ -644,14 +644,14 @@ class TestWorkflowPerformanceDetail:
         mock_workflow_analytics.get_performance_metrics.return_value = None
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflow/nonexistent/performance")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflow/nonexistent/performance")
             
             assert response.status_code == 404
 
     def test_get_workflow_performance_includes_step_performance(self, dashboard_client, mock_workflow_analytics):
         """Test getting workflow performance includes step breakdown."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflow/workflow-001/performance")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflow/workflow-001/performance")
             
             assert response.status_code == 200
             data = response.json()
@@ -660,7 +660,7 @@ class TestWorkflowPerformanceDetail:
     def test_get_workflow_performance_includes_common_errors(self, dashboard_client, mock_workflow_analytics):
         """Test getting workflow performance includes error analysis."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflow/workflow-001/performance")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflow/workflow-001/performance")
             
             assert response.status_code == 200
             data = response.json()
@@ -671,14 +671,14 @@ class TestWorkflowPerformanceDetail:
         mock_workflow_analytics.get_performance_metrics.side_effect = Exception("Service failure")
         
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/workflow/workflow-001/performance")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/workflow/workflow-001/performance")
             
             assert response.status_code == 500
 
     def test_get_realtime_feed_default_limit(self, dashboard_client, mock_workflow_analytics):
         """Test getting realtime feed uses default limit of 50."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
-            response = dashboard_client.get("/api/analytics/dashboard/realtime-feed")
+            response = dashboard_client.get("/api/analytics/api/analytics/dashboard/realtime-feed")
             
             assert response.status_code == 200
             mock_workflow_analytics.get_recent_events.assert_called_once_with(

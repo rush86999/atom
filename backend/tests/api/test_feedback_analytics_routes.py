@@ -23,7 +23,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_success(self, feedback_analytics_client: TestClient):
         """Test complete dashboard returns all sections."""
-        response = feedback_analytics_client.get("/api/feedback/analytics")
+        response = feedback_analytics_client.get("/api/feedback/analytics/")
 
         assert response.status_code == 200
         data = response.json()
@@ -39,7 +39,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_with_days(self, feedback_analytics_client: TestClient):
         """Test dashboard respects days parameter (1-365)."""
-        response = feedback_analytics_client.get("/api/feedback/analytics?days=7")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?days=7")
 
         assert response.status_code == 200
         data = response.json()
@@ -48,7 +48,7 @@ class TestFeedbackAnalyticsDashboard:
 
     def test_get_feedback_dashboard_with_limit(self, feedback_analytics_client: TestClient):
         """Test dashboard respects limit parameter."""
-        response = feedback_analytics_client.get("/api/feedback/analytics?limit=5")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?limit=5")
 
         assert response.status_code == 200
         data = response.json()
@@ -148,21 +148,21 @@ class TestFeedbackAnalyticsValidation:
     def test_get_feedback_dashboard_days_validation(self, feedback_analytics_client: TestClient):
         """Test enforces ge=1, le=365 for days parameter."""
         # Test days < 1 (should fail)
-        response = feedback_analytics_client.get("/api/feedback/analytics?days=0")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?days=0")
         assert response.status_code == 422  # Validation error
 
         # Test days > 365 (should fail)
-        response = feedback_analytics_client.get("/api/feedback/analytics?days=400")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?days=400")
         assert response.status_code == 422  # Validation error
 
     def test_get_feedback_dashboard_limit_validation(self, feedback_analytics_client: TestClient):
         """Test enforces ge=1, le=100 for limit parameter."""
         # Test limit < 1 (should fail)
-        response = feedback_analytics_client.get("/api/feedback/analytics?limit=0")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?limit=0")
         assert response.status_code == 422  # Validation error
 
         # Test limit > 100 (should fail)
-        response = feedback_analytics_client.get("/api/feedback/analytics?limit=150")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?limit=150")
         assert response.status_code == 422  # Validation error
 
     def test_get_feedback_dashboard_default_values(self, feedback_analytics_client: TestClient):
@@ -186,7 +186,7 @@ class TestAgentFeedbackDashboard:
     def test_get_agent_dashboard_success(self, feedback_analytics_client: TestClient):
         """Test returns agent-specific dashboard."""
         agent_id = "agent-sales-001"
-        response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+        response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -199,7 +199,7 @@ class TestAgentFeedbackDashboard:
     def test_get_agent_dashboard_with_agent_id(self, feedback_analytics_client: TestClient):
         """Test routes to correct agent."""
         agent_id = "agent-support-001"
-        response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+        response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -219,7 +219,7 @@ class TestAgentFeedbackDashboard:
     def test_get_agent_dashboard_feedback_summary(self, feedback_analytics_client: TestClient):
         """Test includes feedback_summary section."""
         agent_id = "agent-sales-001"
-        response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+        response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -233,7 +233,7 @@ class TestAgentFeedbackDashboard:
     def test_get_agent_dashboard_learning_signals(self, feedback_analytics_client: TestClient):
         """Test includes learning_signals section."""
         agent_id = "agent-sales-001"
-        response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+        response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -246,7 +246,7 @@ class TestAgentFeedbackDashboard:
     def test_get_agent_dashboard_improvements(self, feedback_analytics_client: TestClient):
         """Test includes improvement_suggestions."""
         agent_id = "agent-sales-001"
-        response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+        response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -258,7 +258,7 @@ class TestAgentFeedbackDashboard:
     def test_get_agent_dashboard_corrections(self, feedback_analytics_client: TestClient):
         """Test includes common_corrections."""
         agent_id = "agent-sales-001"
-        response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+        response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
         assert response.status_code == 200
         data = response.json()
@@ -277,7 +277,7 @@ class TestAgentFeedbackDashboard:
             mock_service.get_agent_feedback_summary.side_effect = ValueError(f"Agent '{agent_id}' not found")
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+            response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
             # Should handle error gracefully
             assert response.status_code in [404, 500]
@@ -292,7 +292,7 @@ class TestFeedbackTrends:
 
     def test_get_feedback_trends_success(self, feedback_analytics_client: TestClient):
         """Test returns trends data."""
-        response = feedback_analytics_client.get("/api/feedback/trends")
+        response = feedback_analytics_client.get("/api/feedback/analytics/trends")
 
         assert response.status_code == 200
         data = response.json()
@@ -312,7 +312,7 @@ class TestFeedbackTrends:
 
     def test_get_feedback_trends_period_days(self, feedback_analytics_client: TestClient):
         """Test includes period_days in response."""
-        response = feedback_analytics_client.get("/api/feedback/trends")
+        response = feedback_analytics_client.get("/api/feedback/analytics/trends")
 
         assert response.status_code == 200
         data = response.json()
@@ -322,7 +322,7 @@ class TestFeedbackTrends:
 
     def test_get_feedback_trends_daily_data(self, feedback_analytics_client: TestClient):
         """Test returns array of daily trends."""
-        response = feedback_analytics_client.get("/api/feedback/trends")
+        response = feedback_analytics_client.get("/api/feedback/analytics/trends")
 
         assert response.status_code == 200
         data = response.json()
@@ -346,7 +346,7 @@ class TestFeedbackTrends:
             mock_service.get_feedback_trends.return_value = []
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get("/api/feedback/trends")
+            response = feedback_analytics_client.get("/api/feedback/analytics/trends")
 
             assert response.status_code == 200
             data = response.json()
@@ -361,7 +361,7 @@ class TestFeedbackTrends:
             mock_service.get_feedback_trends.side_effect = Exception("Database error")
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get("/api/feedback/trends")
+            response = feedback_analytics_client.get("/api/feedback/analytics/trends")
 
             # Should handle error gracefully
             assert response.status_code in [500, 503]
@@ -461,7 +461,7 @@ class TestTopPerformingAgents:
 
     def test_top_performing_agents_limit(self, feedback_analytics_client: TestClient):
         """Test respects limit parameter."""
-        response = feedback_analytics_client.get("/api/feedback/analytics?limit=5")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?limit=5")
 
         assert response.status_code == 200
         data = response.json()
@@ -516,7 +516,7 @@ class TestMostCorrectedAgents:
 
     def test_most_corrected_agents_limit(self, feedback_analytics_client: TestClient):
         """Test respects limit parameter."""
-        response = feedback_analytics_client.get("/api/feedback/analytics?limit=5")
+        response = feedback_analytics_client.get("/api/feedback/analytics/?limit=5")
 
         assert response.status_code == 200
         data = response.json()
@@ -570,7 +570,7 @@ class TestErrorHandling:
             mock_service.get_learning_signals.side_effect = Exception("Learning service unavailable")
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get(f"/api/feedback/agent/{agent_id}/analytics")
+            response = feedback_analytics_client.get(f"/api/feedback/analytics/agent/{agent_id}")
 
             # Should handle error gracefully
             assert response.status_code in [500, 503]
@@ -583,7 +583,7 @@ class TestErrorHandling:
             mock_service.get_feedback_trends.side_effect = Exception("Database error")
             mock_service_class.return_value = mock_service
 
-            response = feedback_analytics_client.get("/api/feedback/trends")
+            response = feedback_analytics_client.get("/api/feedback/analytics/trends")
 
             # Should handle error gracefully
             assert response.status_code in [500, 503]
