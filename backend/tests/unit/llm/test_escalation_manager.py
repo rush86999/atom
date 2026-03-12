@@ -174,6 +174,9 @@ class TestEscalationDecision:
         )
         assert should is True, "Quality just below threshold should escalate"
 
+        # Reset cooldown for next test
+        escalation_manager.reset_cooldown(CognitiveTier.STANDARD)
+
         # Confidence exactly at threshold (0.7) should NOT escalate
         should, _, _ = escalation_manager.should_escalate(
             current_tier=CognitiveTier.STANDARD,
