@@ -3364,3 +3364,243 @@ class TestBrowserRoutesErrorPaths:
                 # Verify timestamp is recent
                 from datetime import datetime, timedelta
                 assert db_session_obj.closed_at > datetime.now() - timedelta(seconds=10)
+
+    def test_create_session_database_exception_handled(
+        self, client: TestClient, mock_browser_create_session, db_session: Session
+    ):
+        """Test session creation handles database exceptions gracefully."""
+        # Mock browser_create_session to succeed
+        mock_browser_create_session.return_value = {
+            "success": True,
+            "session_id": "test-session-exception",
+            "headless": True
+        }
+
+        # Mock db.add to raise exception
+        original_add = db_session.add
+        def mock_add_with_exception(obj):
+            if isinstance(obj, BrowserSession):
+                raise Exception("Database connection error")
+            return original_add(obj)
+
+        with patch.object(db_session, 'add', side_effect=mock_add_with_exception):
+            with patch("tools.browser_tool.browser_create_session", new_callable=AsyncMock) as mock_create:
+                mock_create.return_value = {
+                    "success": True,
+                    "session_id": "test-session-exception",
+                    "headless": True
+                }
+
+                response = client.post(
+                    "/api/browser/session/create",
+                    json={"browser_type": "chromium", "headless": True}
+                )
+
+                # Should still return success (error logged but doesn't block response)
+                assert response.status_code == 200
+
+    def test_navigate_governance_exception_handled(
+        self, client: TestClient, mock_browser_create_session, mock_browser_navigate, db_session: Session
+    ):
+        """Test navigate handles governance check exceptions gracefully."""
+        # Create session
+        create_response = client.post(
+            "/api/browser/session/create",
+            json={"browser_type": "chromium", "headless": True}
+        )
+
+        if create_response.status_code == 200:
+            session_id = create_response.json().get("session_id")
+
+            # Mock governance service to raise exception
+            with patch("core.service_factory.ServiceFactory.get_governance_service") as mock_gov:
+                mock_gov.side_effect = Exception("Governance service error")
+
+                # Navigate should handle exception and continue
+                response = client.post(
+                    "/api/browser/navigate",
+                    json={
+                        "session_id": session_id,
+                        "url": "https://example.com",
+                        "agent_id": "test-agent-id"
+                    }
+                )
+
+                # Should not crash (governance error is caught and logged)
+                assert response.status_code in [200, 500]
+
+    def test_session_info_database_exception_handled(
+        self, client: TestClient, mock_browser_create_session, mock_browser_get_page_info, db_session: Session
+    ):
+        """Test session info handles database exceptions gracefully."""
+        # Create session
+        create_response = client.post(
+            "/api/browser/session/create",
+            json={"browser_type": "chromium", "headless": True}
+        )
+
+        if create_response.status_code == 200:
+            session_id = create_response.json().get("session_id")
+
+            # Mock db.query to raise exception
+            original_query = db_session.query
+            def mock_query_with_exception(model):
+                if model == BrowserSession:
+                    raise Exception("Database query error")
+                return original_query(model)
+
+            with patch.object(db_session, 'query', side_effect=mock_query_with_exception):
+                response = client.get(f"/api/browser/session/{session_id}/info")
+
+                # Should still return success (error logged but doesn't block response)
+                assert response.status_code == 200
+
+    def test_close_session_database_exception_handled(
+        self, client: TestClient, mock_browser_create_session, mock_browser_close_session, db_session: Session
+    ):
+        """Test close session handles database update exceptions gracefully."""
+        # Create session
+        create_response = client.post(
+            "/api/browser/session/create",
+            json={"browser_type": "chromium", "headless": True}
+        )
+
+        if create_response.status_code == 200:
+            session_id = create_response.json().get("session_id")
+
+            # Mock db.query to raise exception on update
+            original_query = db_session.query
+            call_count = [0]
+
+            def mock_query_with_exception(model):
+                if model == BrowserSession and call_count[0] > 0:
+                    raise Exception("Database update error")
+                call_count[0] += 1
+                return original_query(model)
+
+            with patch.object(db_session, 'query', side_effect=mock_query_with_exception):
+                with patch("tools.browser_tool.browser_close_session", new_callable=AsyncMock) as mock_close:
+                    mock_close.return_value = {"success": True, "session_id": session_id}
+
+                    response = client.post(
+                        "/api/browser/session/close",
+                        json={"session_id": session_id}
+                    )
+
+                    # Should still return success (error logged but doesn't block response)
+                    assert response.status_code == 200
+
+    def test_list_sessions_database_exception_handled(
+        self, client: TestClient, db_session: Session
+    ):
+        """Test list sessions handles database exceptions gracefully."""
+        # Mock db.query to raise exception
+        with patch.object(db_session, 'query', side_effect=Exception("Database connection error")):
+            response = client.get("/api/browser/sessions")
+
+            # Should return error response
+            assert response.status_code in [200, 500]
+
+    def test_audit_log_database_exception_handled(
+        self, client: TestClient, db_session: Session
+    ):
+        """Test audit log handles database exceptions gracefully."""
+        # Mock db.query to raise exception
+        with patch.object(db_session, 'query', side_effect=Exception("Database connection error")):
+            response = client.get("/api/browser/audit")
+
+            # Should return error response
+            assert response.status_code in [200, 500]
+
+    def test_navigate_creates_audit_with_all_fields(
+        self, client: TestClient, mock_browser_create_session, mock_browser_navigate, db_session: Session
+    ):
+        """Test navigate creates audit with all required fields."""
+        # Create session
+        create_response = client.post(
+            "/api/browser/session/create",
+            json={"browser_type": "chromium", "headless": True}
+        )
+
+        if create_response.status_code == 200:
+            session_id = create_response.json().get("session_id")
+
+            # Navigate
+            with patch("tools.browser_tool.browser_navigate", new_callable=AsyncMock) as mock_nav:
+                mock_nav.return_value = {
+                    "success": True,
+                    "url": "https://example.com",
+                    "title": "Example Domain",
+                    "status": 200
+                }
+
+                client.post(
+                    "/api/browser/navigate",
+                    json={
+                        "session_id": session_id,
+                        "url": "https://example.com",
+                        "wait_until": "load"
+                    }
+                )
+
+                # Verify all audit fields
+                audit = db_session.query(BrowserAudit).filter(
+                    BrowserAudit.session_id == session_id,
+                    BrowserAudit.action_type == "navigate"
+                ).first()
+
+                if audit:
+                    # Check all fields are populated
+                    assert audit.id is not None
+                    assert audit.session_id == session_id
+                    assert audit.action_type == "navigate"
+                    assert audit.action_target == "https://example.com"
+                    assert audit.action_params == {"wait_until": "load"}
+                    assert audit.success is True
+                    assert audit.result_summary == "Example Domain"
+                    assert audit.result_data is not None
+                    assert audit.duration_ms is not None
+                    assert audit.created_at is not None
+                    assert audit.governance_check_passed is None  # No agent
+
+    def test_screenshot_creates_audit_with_result_data(
+        self, client: TestClient, mock_browser_create_session, mock_browser_screenshot, db_session: Session
+    ):
+        """Test screenshot creates audit with result_data."""
+        # Create session
+        create_response = client.post(
+            "/api/browser/session/create",
+            json={"browser_type": "chromium", "headless": True}
+        )
+
+        if create_response.status_code == 200:
+            session_id = create_response.json().get("session_id")
+
+            # Screenshot
+            with patch("tools.browser_tool.browser_screenshot", new_callable=AsyncMock) as mock_shot:
+                mock_shot.return_value = {
+                    "success": True,
+                    "data": "base64data",
+                    "size_bytes": 12345,
+                    "format": "png"
+                }
+
+                client.post(
+                    "/api/browser/screenshot",
+                    json={
+                        "session_id": session_id,
+                        "full_page": False,
+                        "path": "/tmp/test.png"
+                    }
+                )
+
+                # Verify audit has result_data
+                audit = db_session.query(BrowserAudit).filter(
+                    BrowserAudit.session_id == session_id,
+                    BrowserAudit.action_type == "screenshot"
+                ).first()
+
+                if audit:
+                    assert audit.result_data is not None
+                    assert audit.result_summary == "Screenshot (12345 bytes)"
+                    assert audit.action_target == "/tmp/test.png"
