@@ -565,3 +565,44 @@ class TestArtifactVersions:
         # Verify current artifact has new content
         current_artifact = test_db.query(Artifact).filter(Artifact.id == sample_artifact.id).first()
         assert current_artifact.content == "updated content"
+
+
+# ============================================================================
+# Test Artifact Authentication
+# ============================================================================
+
+class TestArtifactAuth:
+    """Test that all artifact endpoints require authentication."""
+
+    def test_list_requires_auth(self, unauthenticated_client):
+        """Test GET /api/artifacts/ requires authentication."""
+        response = unauthenticated_client.get("/api/artifacts/")
+
+        assert response.status_code == 401
+
+    def test_save_requires_auth(self, unauthenticated_client):
+        """Test POST /api/artifacts/ requires authentication."""
+        artifact_data = {
+            "name": "test",
+            "type": "code",
+            "content": "test content"
+        }
+        response = unauthenticated_client.post("/api/artifacts/", json=artifact_data)
+
+        assert response.status_code == 401
+
+    def test_update_requires_auth(self, unauthenticated_client):
+        """Test POST /api/artifacts/update requires authentication."""
+        update_data = {
+            "id": "some_id",
+            "name": "updated"
+        }
+        response = unauthenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 401
+
+    def test_versions_requires_auth(self, unauthenticated_client):
+        """Test GET /api/artifacts/{id}/versions requires authentication."""
+        response = unauthenticated_client.get("/api/artifacts/some_id/versions")
+
+        assert response.status_code == 401
