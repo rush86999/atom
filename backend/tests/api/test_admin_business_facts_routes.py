@@ -293,3 +293,242 @@ def mock_txt_upload():
         return (filename, io.BytesIO(content), "text/plain")
 
     return _create_txt
+
+
+# ============================================================================
+# Test: List Facts Endpoint
+# ============================================================================
+
+class TestBusinessFactsList:
+    """Tests for GET /api/admin/governance/facts"""
+
+    def test_list_facts_success(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test listing all facts with no filters."""
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get("/api/admin/governance/facts")
+
+            assert response.status_code == status.HTTP_200_OK
+            facts = response.json()
+            assert isinstance(facts, list)
+            assert len(facts) >= 1
+
+            # Verify structure of first fact
+            fact = facts[0]
+            assert "id" in fact
+            assert "fact" in fact
+            assert "citations" in fact
+            assert "reason" in fact
+            assert "domain" in fact
+            assert "verification_status" in fact
+            assert "created_at" in fact
+
+            # Verify deleted facts are filtered out
+            for f in facts:
+                assert f["verification_status"] != "deleted"
+
+    def test_list_facts_with_status_filter(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test listing facts with status filter."""
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get(
+                "/api/admin/governance/facts?status=verified"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            facts = response.json()
+            assert isinstance(facts, list)
+
+            # Verify list_all_facts was called with status filter
+            mock_world_model_service.list_all_facts.assert_called_once_with(
+                status="verified",
+                domain=None,
+                limit=100
+            )
+
+    def test_list_facts_with_domain_filter(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test listing facts with domain filter."""
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get(
+                "/api/admin/governance/facts?domain=accounting"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            facts = response.json()
+            assert isinstance(facts, list)
+
+            # Verify list_all_facts was called with domain filter
+            mock_world_model_service.list_all_facts.assert_called_once_with(
+                status=None,
+                domain="accounting",
+                limit=100
+            )
+
+    def test_list_facts_with_limit(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test listing facts with custom limit."""
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get(
+                "/api/admin/governance/facts?limit=50"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+
+            # Verify list_all_facts was called with limit
+            mock_world_model_service.list_all_facts.assert_called_once_with(
+                status=None,
+                domain=None,
+                limit=50
+            )
+
+    def test_list_facts_excludes_deleted(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test that deleted facts are not returned."""
+        # Create a deleted fact
+        deleted_fact = BusinessFact(
+            id=str(uuid.uuid4()),
+            fact="Deleted fact",
+            citations=["deleted.pdf"],
+            reason="Should not appear",
+            source_agent_id="user:test",
+            created_at=datetime.now(timezone.utc),
+            last_verified=datetime.now(timezone.utc),
+            verification_status="deleted",
+            metadata={"domain": "test"}
+        )
+
+        mock_world_model_service.list_all_facts.return_value = [
+            sample_business_fact := BusinessFact(
+                id=str(uuid.uuid4()),
+                fact="Active fact",
+                citations=["active.pdf"],
+                reason="Should appear",
+                source_agent_id="user:test",
+                created_at=datetime.now(timezone.utc),
+                last_verified=datetime.now(timezone.utc),
+                verification_status="verified",
+                metadata={"domain": "test"}
+            ),
+            deleted_fact
+        ]
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get("/api/admin/governance/facts")
+
+            assert response.status_code == status.HTTP_200_OK
+            facts = response.json()
+
+            # Verify deleted fact is filtered out
+            assert len(facts) == 1
+            assert facts[0]["fact"] == "Active fact"
+            assert all(f["verification_status"] != "deleted" for f in facts)
+
+    def test_list_facts_empty(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test listing when no facts exist."""
+        mock_world_model_service.list_all_facts.return_value = []
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get("/api/admin/governance/facts")
+
+            assert response.status_code == status.HTTP_200_OK
+            facts = response.json()
+            assert facts == []
+
+
+# ============================================================================
+# Test: Get Fact Endpoint
+# ============================================================================
+
+class TestBusinessFactsGet:
+    """Tests for GET /api/admin/governance/facts/{fact_id}"""
+
+    def test_get_fact_success(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test getting fact by ID."""
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get(
+                f"/api/admin/governance/facts/{sample_business_fact.id}"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            fact = response.json()
+
+            # Verify all fields populated
+            assert fact["id"] == sample_business_fact.id
+            assert fact["fact"] == sample_business_fact.fact
+            assert fact["citations"] == sample_business_fact.citations
+            assert fact["reason"] == sample_business_fact.reason
+            assert fact["domain"] == "accounting"  # From metadata
+            assert fact["verification_status"] == sample_business_fact.verification_status
+            assert "created_at" in fact
+
+    def test_get_fact_not_found(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test getting non-existent fact."""
+        mock_world_model_service.get_fact_by_id.return_value = None
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get(
+                "/api/admin/governance/facts/non-existent-id"
+            )
+
+            assert response.status_code == status.HTTP_404_NOT_FOUND
+            assert "not found" in response.json()["detail"].lower()
+
+    def test_get_fact_with_metadata(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test fact with metadata domain extraction."""
+        custom_fact = BusinessFact(
+            id=str(uuid.uuid4()),
+            fact="Custom domain fact",
+            citations=["custom.pdf"],
+            reason="Test",
+            source_agent_id="user:test",
+            created_at=datetime.now(timezone.utc),
+            last_verified=datetime.now(timezone.utc),
+            verification_status="verified",
+            metadata={"domain": "custom", "extra": "data"}
+        )
+
+        mock_world_model_service.get_fact_by_id.return_value = custom_fact
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.get(
+                f"/api/admin/governance/facts/{custom_fact.id}"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            fact = response.json()
+            # Verify domain is extracted from metadata
+            assert fact["domain"] == "custom"
