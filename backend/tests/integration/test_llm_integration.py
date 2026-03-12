@@ -103,8 +103,21 @@ def cognitive_tier_service(mock_db_session, mock_pricing_fetcher):
         mock_router = MagicMock()
         mock_router.predict_cache_hit_probability = MagicMock(return_value=0.8)
         mock_router.calculate_effective_cost = MagicMock(return_value=0.0001)  # $0.0001
+        mock_router.cache_hit_history = {}  # Add cache_hit_history attribute
         mock_router_class.return_value = mock_router
         service._cache_router = mock_router
+
+    return service
+
+
+@pytest.fixture
+def cognitive_tier_service_with_real_cache(mock_db_session, mock_pricing_fetcher):
+    """Create cognitive tier service with real cache router for testing cache outcomes."""
+    from core.llm.cache_aware_router import CacheAwareRouter
+    service = CognitiveTierService(workspace_id="test_workspace", db_session=mock_db_session)
+
+    # Use real cache router
+    service._cache_router = CacheAwareRouter(mock_pricing_fetcher)
 
     return service
 
@@ -380,28 +393,28 @@ class TestCacheAwareRouting:
             assert model == 'gpt-4o'
 
     @pytest.mark.asyncio
-    async def test_cache_outcome_recording(self, cognitive_tier_service):
+    async def test_cache_outcome_recording(self, cognitive_tier_service_with_real_cache):
         """Test cache outcomes recorded for future predictions."""
         # Test cache hit history exists
-        assert hasattr(cognitive_tier_service.cache_router, 'cache_hit_history')
+        assert hasattr(cognitive_tier_service_with_real_cache.cache_router, 'cache_hit_history')
 
         # Record cache hit (parameter order: prompt_hash, workspace_id, was_cached)
-        cognitive_tier_service.cache_router.record_cache_outcome(
+        cognitive_tier_service_with_real_cache.cache_router.record_cache_outcome(
             prompt_hash="abc123",
             workspace_id="test_workspace",
             was_cached=True
         )
 
         # Record cache miss
-        cognitive_tier_service.cache_router.record_cache_outcome(
+        cognitive_tier_service_with_real_cache.cache_router.record_cache_outcome(
             prompt_hash="def456",
             workspace_id="test_workspace",
             was_cached=False
         )
 
         # History should be updated
-        assert len(cognitive_tier_service.cache_router.cache_hit_history) > 0
-        assert "test_workspace:abc123" in cognitive_tier_service.cache_router.cache_hit_history
+        assert len(cognitive_tier_service_with_real_cache.cache_router.cache_hit_history) > 0
+        assert "test_workspace:abc123" in cognitive_tier_service_with_real_cache.cache_router.cache_hit_history
 
 
 # ============================================================================
