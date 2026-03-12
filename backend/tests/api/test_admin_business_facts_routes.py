@@ -1014,3 +1014,200 @@ class TestBusinessFactsUpload:
             )
 
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+# ============================================================================
+# Test: Citation Verification Endpoint
+# ============================================================================
+
+class TestBusinessFactsVerify:
+    """Tests for POST /api/admin/governance/facts/{fact_id}/verify-citation"""
+
+    def test_verify_citation_s3_exists(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        mock_storage_service: MagicMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test verifying S3 citation that exists."""
+        # Mock fact with S3 citation
+        sample_business_fact.citations = ["s3://atom-business-facts/policies/test.pdf"]
+        mock_storage_service.check_exists.return_value = True
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+             patch('core.storage.get_storage_service', return_value=mock_storage_service):
+
+            response = authenticated_admin_client.post(
+                f"/api/admin/governance/facts/{sample_business_fact.id}/verify-citation"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            result = response.json()
+
+            # Verify response structure
+            assert result["fact_id"] == sample_business_fact.id
+            assert result["new_status"] == "verified"
+            assert "citations" in result
+
+            # Verify update_fact_verification called
+            mock_world_model_service.update_fact_verification.assert_called_once_with(
+                sample_business_fact.id,
+                "verified"
+            )
+
+    def test_verify_citation_s3_missing(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        mock_storage_service: MagicMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test verifying S3 citation that doesn't exist."""
+        sample_business_fact.citations = ["s3://atom-business-facts/policies/missing.pdf"]
+        mock_storage_service.check_exists.return_value = False
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+             patch('core.storage.get_storage_service', return_value=mock_storage_service):
+
+            response = authenticated_admin_client.post(
+                f"/api/admin/governance/facts/{sample_business_fact.id}/verify-citation"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            result = response.json()
+            assert result["new_status"] == "outdated"
+
+            # Verify citations show missing file
+            citations = result["citations"]
+            assert len(citations) == 1
+            assert citations[0]["exists"] is False
+
+    def test_verify_citation_local_exists(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test verifying local file citation that exists."""
+        # Mock fact with local citation
+        sample_business_fact.citations = ["local-file.pdf"]
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+             patch('os.path.exists') as mock_exists:
+
+            mock_exists.return_value = True
+
+            response = authenticated_admin_client.post(
+                f"/api/admin/governance/facts/{sample_business_fact.id}/verify-citation"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            result = response.json()
+
+            # Verify citation source is Local
+            citations = result["citations"]
+            assert citations[0]["source"] == "Local"
+
+    def test_verify_citation_mixed_sources(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        mock_storage_service: MagicMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test fact with mixed citation sources."""
+        sample_business_fact.citations = [
+            "s3://atom-business-facts/policies/test.pdf",
+            "local-file.pdf"
+        ]
+        mock_storage_service.check_exists.return_value = True
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+             patch('core.storage.get_storage_service', return_value=mock_storage_service), \
+             patch('os.path.exists', return_value=True):
+
+            response = authenticated_admin_client.post(
+                f"/api/admin/governance/facts/{sample_business_fact.id}/verify-citation"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            result = response.json()
+
+            # Verify both sources checked
+            citations = result["citations"]
+            assert len(citations) == 2
+            sources = [c["source"] for c in citations]
+            assert "R2" in sources
+            assert "Local" in sources
+
+    def test_verify_citation_all_valid(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        mock_storage_service: MagicMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test verification when all citations valid."""
+        sample_business_fact.citations = [
+            "s3://atom-business-facts/policies/test.pdf",
+            "s3://atom-business-facts/policies/test2.pdf"
+        ]
+        mock_storage_service.check_exists.return_value = True
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+             patch('core.storage.get_storage_service', return_value=mock_storage_service):
+
+            response = authenticated_admin_client.post(
+                f"/api/admin/governance/facts/{sample_business_fact.id}/verify-citation"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            result = response.json()
+            assert result["new_status"] == "verified"
+
+            # Verify all citations marked as existing
+            citations = result["citations"]
+            assert all(c["exists"] for c in citations)
+
+    def test_verify_citation_cross_bucket(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        mock_storage_service: MagicMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test citation from different bucket."""
+        # Different bucket citation
+        sample_business_fact.citations = ["s3://other-bucket/policies/test.pdf"]
+        mock_storage_service.bucket = "atom-business-facts"
+        mock_storage_service.check_exists.return_value = False
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+             patch('core.storage.get_storage_service', return_value=mock_storage_service):
+
+            response = authenticated_admin_client.post(
+                f"/api/admin/governance/facts/{sample_business_fact.id}/verify-citation"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            result = response.json()
+
+            # Should verify but mark as not existing (wrong bucket)
+            citations = result["citations"]
+            assert citations[0]["exists"] is False
+
+    def test_verify_citation_fact_not_found(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test verifying non-existent fact."""
+        mock_world_model_service.get_fact_by_id.return_value = None
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.post(
+                "/api/admin/governance/facts/non-existent-id/verify-citation"
+            )
+
+            assert response.status_code == status.HTTP_404_NOT_FOUND
