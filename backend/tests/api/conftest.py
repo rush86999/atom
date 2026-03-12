@@ -900,7 +900,7 @@ def mock_correlation_engine() -> AsyncMock:
     mock_linked_conv.platforms = {"slack", "teams"}
     mock_linked_conv.participants = {"user1@example.com", "user2@example.com"}
     mock_linked_conv.message_count = 15
-    mock_linked_conv.correlation_strength = CorrelationStrength.HIGH
+    mock_linked_conv.correlation_strength = CorrelationStrength.STRONG
     mock_linked_conv.unified_messages = [
         {"id": "msg1", "platform": "slack", "content": "Test message", "sender": "user1", "timestamp": "2026-03-12T10:00:00Z", "_correlation_source": "slack"},
         {"id": "msg2", "platform": "teams", "content": "Related message", "sender": "user2", "timestamp": "2026-03-12T10:05:00Z", "_correlation_source": "teams"}
@@ -909,10 +909,10 @@ def mock_correlation_engine() -> AsyncMock:
     mock = AsyncMock()
 
     # Mock correlate_conversations method
-    mock.correlate_conversations = AsyncMock(return_value=[mock_linked_conv])
+    mock.correlate_conversations = Mock(return_value=[mock_linked_conv])
 
     # Mock get_unified_timeline method (returns None for non-existent conversation)
-    mock.get_unified_timeline = AsyncMock(return_value=[
+    mock.get_unified_timeline = Mock(return_value=[
         {"id": "msg1", "platform": "slack", "content": "Test message", "sender": "user1", "timestamp": "2026-03-12T10:00:00Z", "_correlation_source": "slack"},
         {"id": "msg2", "platform": "teams", "content": "Related message", "sender": "user2", "timestamp": "2026-03-12T10:05:00Z", "_correlation_source": "teams"}
     ])
@@ -944,13 +944,13 @@ def mock_insights_engine() -> AsyncMock:
             response = client.get("/api/analytics/predictions/response-time")
     """
     from unittest.mock import AsyncMock, Mock
-    from core.predictive_insights import Prediction, ChannelRecommendation, BottleneckAlert, UserPattern, Confidence, Severity
+    from core.predictive_insights import ResponseTimePrediction, ChannelRecommendation, BottleneckAlert, CommunicationPattern, RecommendationConfidence, UrgencyLevel
 
     # Create mock prediction
-    mock_prediction = Mock(spec=Prediction)
+    mock_prediction = Mock(spec=ResponseTimePrediction)
     mock_prediction.user_id = "user123"
     mock_prediction.predicted_seconds = 3600
-    mock_prediction.confidence = Confidence.HIGH
+    mock_prediction.confidence = RecommendationConfidence.HIGH
     mock_prediction.factors = ["Time of day", "Historical patterns", "Platform activity"]
 
     # Create mock channel recommendation
@@ -958,13 +958,13 @@ def mock_insights_engine() -> AsyncMock:
     mock_recommendation.user_id = "user123"
     mock_recommendation.recommended_platform = "slack"
     mock_recommendation.reason = "User is most active on Slack during this time"
-    mock_recommendation.confidence = Confidence.HIGH
+    mock_recommendation.confidence = RecommendationConfidence.HIGH
     mock_recommendation.expected_response_time = 1800  # 30 minutes
     mock_recommendation.alternatives = ["teams", "gmail"]
 
     # Create mock bottleneck alert
     mock_bottleneck = Mock(spec=BottleneckAlert)
-    mock_bottleneck.severity = Severity.WARNING
+    mock_bottleneck.severity = UrgencyLevel.MEDIUM
     mock_bottleneck.thread_id = "thread-123"
     mock_bottleneck.platform = "slack"
     mock_bottleneck.description = "No response for 24 hours"
@@ -973,7 +973,7 @@ def mock_insights_engine() -> AsyncMock:
     mock_bottleneck.suggested_action = "Send follow-up message or escalate"
 
     # Create mock user pattern
-    mock_pattern = Mock(spec=UserPattern)
+    mock_pattern = Mock(spec=CommunicationPattern)
     mock_pattern.user_id = "user123"
     mock_pattern.most_active_platform = "slack"
     mock_pattern.most_active_hours = [9, 10, 11, 14, 15]
@@ -986,19 +986,19 @@ def mock_insights_engine() -> AsyncMock:
     mock = AsyncMock()
 
     # Mock predict_response_time method
-    mock.predict_response_time = AsyncMock(return_value=mock_prediction)
+    mock.predict_response_time = Mock(return_value=mock_prediction)
 
     # Mock recommend_channel method
-    mock.recommend_channel = AsyncMock(return_value=mock_recommendation)
+    mock.recommend_channel = Mock(return_value=mock_recommendation)
 
     # Mock detect_bottlenecks method
-    mock.detect_bottlenecks = AsyncMock(return_value=[mock_bottleneck])
+    mock.detect_bottlenecks = Mock(return_value=[mock_bottleneck])
 
     # Mock get_user_pattern method (returns None for non-existent user)
-    mock.get_user_pattern = AsyncMock(return_value=mock_pattern)
+    mock.get_user_pattern = Mock(return_value=mock_pattern)
 
     # Mock get_insights_summary method
-    mock.get_insights_summary = AsyncMock(return_value={
+    mock.get_insights_summary = Mock(return_value={
         "users_analyzed": 50,
         "bottlenecks_detected": 5,
         "avg_response_time_all_users": 3600,
@@ -1043,7 +1043,7 @@ def analytics_routes_client(mock_message_analytics, mock_correlation_engine, moc
 # ============================================================================
 
 @pytest.fixture(scope="function")
-def mock_feedback_analytics() -> AsyncMock:
+def mock_feedback_analytics() -> MagicMock:
     """
     Mock FeedbackAnalytics service for feedback analytics routes testing.
 
@@ -1067,10 +1067,10 @@ def mock_feedback_analytics() -> AsyncMock:
     """
     from unittest.mock import AsyncMock
 
-    mock = AsyncMock()
+    mock = MagicMock()
 
     # Mock get_feedback_statistics
-    mock.get_feedback_statistics = AsyncMock(return_value={
+    mock.get_feedback_statistics = MagicMock(return_value={
         "total_feedback": 100,
         "positive_count": 75,
         "negative_count": 25,
@@ -1081,7 +1081,7 @@ def mock_feedback_analytics() -> AsyncMock:
     })
 
     # Mock get_top_performing_agents
-    mock.get_top_performing_agents = AsyncMock(return_value=[
+    mock.get_top_performing_agents = MagicMock(return_value=[
         {
             "agent_id": "agent-sales-001",
             "agent_name": "Sales Assistant",
@@ -1099,7 +1099,7 @@ def mock_feedback_analytics() -> AsyncMock:
     ])
 
     # Mock get_most_corrected_agents
-    mock.get_most_corrected_agents = AsyncMock(return_value=[
+    mock.get_most_corrected_agents = MagicMock(return_value=[
         {
             "agent_id": "agent-data-001",
             "agent_name": "Data Analyst",
@@ -1117,7 +1117,7 @@ def mock_feedback_analytics() -> AsyncMock:
     ])
 
     # Mock get_feedback_breakdown_by_type
-    mock.get_feedback_breakdown_by_type = AsyncMock(return_value={
+    mock.get_feedback_breakdown_by_type = MagicMock(return_value={
         "thumbs_up": 60,
         "thumbs_down": 15,
         "rating": 20,
@@ -1125,7 +1125,7 @@ def mock_feedback_analytics() -> AsyncMock:
     })
 
     # Mock get_feedback_trends
-    mock.get_feedback_trends = AsyncMock(return_value=[
+    mock.get_feedback_trends = MagicMock(return_value=[
         {
             "date": "2026-03-01",
             "total_feedback": 10,
@@ -1143,7 +1143,7 @@ def mock_feedback_analytics() -> AsyncMock:
     ])
 
     # Mock get_agent_feedback_summary
-    mock.get_agent_feedback_summary = AsyncMock(return_value={
+    mock.get_agent_feedback_summary = MagicMock(return_value={
         "agent_id": "agent-sales-001",
         "agent_name": "Sales Assistant",
         "total_feedback": 50,
@@ -1160,7 +1160,7 @@ def mock_feedback_analytics() -> AsyncMock:
 
 
 @pytest.fixture(scope="function")
-def mock_agent_learning() -> AsyncMock:
+def mock_agent_learning() -> MagicMock:
     """
     Mock AgentLearningEnhanced service for learning signal testing.
 
@@ -1183,10 +1183,10 @@ def mock_agent_learning() -> AsyncMock:
     """
     from unittest.mock import AsyncMock
 
-    mock = AsyncMock()
+    mock = MagicMock()
 
     # Mock get_learning_signals
-    mock.get_learning_signals = AsyncMock(return_value={
+    mock.get_learning_signals = MagicMock(return_value={
         "improvement_suggestions": [
             "Improve response accuracy for technical queries",
             "Add more context to product recommendations",
@@ -1209,7 +1209,7 @@ def mock_agent_learning() -> AsyncMock:
 
 
 @pytest.fixture(scope="function")
-def feedback_analytics_client(mock_feedback_analytics: AsyncMock) -> TestClient:
+def feedback_analytics_client(mock_feedback_analytics: AsyncMock, mock_agent_learning: AsyncMock) -> TestClient:
     """
     Create TestClient with feedback analytics router.
 
@@ -1233,10 +1233,11 @@ def feedback_analytics_client(mock_feedback_analytics: AsyncMock) -> TestClient:
         return mock_db
 
     # Patch FeedbackAnalytics and AgentLearningEnhanced
+    # Note: AgentLearningEnhanced is imported inside the function, so patch at core module level
     with patch('api.feedback_analytics.FeedbackAnalytics', return_value=mock_feedback_analytics):
-        with patch('api.feedback_analytics.AgentLearningEnhanced', return_value=mock_agent_learning()):
+        with patch('core.agent_learning_enhanced.AgentLearningEnhanced', return_value=mock_agent_learning):
             from api.feedback_analytics import router
-            app.include_router(router)
+            app.include_router(router, prefix="/api/feedback/analytics")
 
             # Override get_db dependency
             app.dependency_overrides[lambda: None] = mock_get_db
@@ -1563,7 +1564,7 @@ def mock_db_session() -> Session:
 # ============================================================================
 
 @pytest.fixture(scope="function")
-def mock_workflow_analytics() -> AsyncMock:
+def mock_workflow_analytics() -> MagicMock:
     """
     AsyncMock for WorkflowAnalyticsEngine with deterministic return values.
 
@@ -1584,7 +1585,7 @@ def mock_workflow_analytics() -> AsyncMock:
     from datetime import datetime, timedelta
     from unittest.mock import AsyncMock
 
-    mock = AsyncMock()
+    mock = MagicMock()
 
     # Mock get_performance_metrics
     from collections import namedtuple
@@ -1658,8 +1659,12 @@ def mock_workflow_analytics() -> AsyncMock:
     }
 
     # Mock get_all_alerts
+    from core.workflow_analytics_engine import AlertSeverity
+    # Mock severity enum
+    MockSeverity = namedtuple('MockSeverity', ['value'])(['high'])
+
     from collections import namedtuple
-    Alert = namedtuple('Alert', [
+    Alert = namedtuple(('Alert', [
         'alert_id', 'name', 'description', 'severity', 'metric_name',
         'condition', 'threshold_value', 'workflow_id', 'enabled',
         'created_at', 'notification_channels'
@@ -1670,7 +1675,7 @@ def mock_workflow_analytics() -> AsyncMock:
             alert_id="alert-001",
             name="High Error Rate",
             description="Error rate exceeds 5%",
-            severity="high",
+            severity=MockSeverity('high'),
             metric_name="error_rate",
             condition="error_rate > 5",
             threshold_value=5.0,

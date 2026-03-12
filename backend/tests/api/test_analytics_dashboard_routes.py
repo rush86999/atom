@@ -504,7 +504,7 @@ class TestPredictResponseTime:
 
     def test_predict_response_time_confidence_levels(self, mock_insights_engine, analytics_routes_client):
         """Test response time prediction returns confidence levels"""
-        from core.predictive_insights import Confidence
+        from core.predictive_insights import RecommendationConfidence as Confidence
 
         mock_insights_engine.predict_response_time = AsyncMock()
         mock_prediction = Mock()
