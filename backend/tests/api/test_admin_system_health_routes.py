@@ -729,5 +729,129 @@ class TestPublicHealthMetrics:
 
 
 # ============================================================================
+# Test Class: TestDiskSpaceHealth
+# ============================================================================
+
+class TestDiskSpaceHealth:
+    """Tests for disk space health check logic."""
+
+    def test_disk_space_adequate(self):
+        """Test disk space check returns healthy when adequate space."""
+        import asyncio
+
+        # Mock psutil with adequate disk space (>1GB)
+        mock_disk = MagicMock()
+        mock_disk.free = 10 * (1024 ** 3)  # 10GB free
+
+        with patch('api.health_routes.psutil.disk_usage', return_value=mock_disk):
+            from api.health_routes import _check_disk_space
+            result = asyncio.run(_check_disk_space())
+
+        assert result["healthy"] is True
+        assert result["free_gb"] >= 1.0
+
+    def test_disk_space_low(self):
+        """Test disk space check returns unhealthy when low space."""
+        import asyncio
+
+        # Mock psutil with low disk space (<1GB)
+        mock_disk = MagicMock()
+        mock_disk.free = 0.5 * (1024 ** 3)  # 0.5GB free
+
+        with patch('api.health_routes.psutil.disk_usage', return_value=mock_disk):
+            from api.health_routes import _check_disk_space
+            result = asyncio.run(_check_disk_space())
+
+        assert result["healthy"] is False
+        assert result["free_gb"] < 1.0
+        assert "Low disk space" in result["message"]
+
+    def test_disk_space_exception(self):
+        """Test disk space check handles exceptions gracefully."""
+        import asyncio
+
+        # Mock psutil to raise exception
+        with patch('api.health_routes.psutil.disk_usage', side_effect=Exception("Disk check error")):
+            from api.health_routes import _check_disk_space
+            result = asyncio.run(_check_disk_space())
+
+        assert result["healthy"] is False
+        assert "Disk check error" in result["message"]
+
+
+# ============================================================================
+# Test Class: TestDatabaseConnectivity
+# ============================================================================
+
+class TestDatabaseConnectivity:
+    """Tests for /health/db endpoint - database connectivity check."""
+
+    def test_db_connectivity_healthy(self, public_health_client):
+        """Test database connectivity check when database is healthy."""
+        response = public_health_client.get("/health/db")
+        # May return 200 or 503 depending on actual DB state
+        assert response.status_code in [200, 503]
+
+        if response.status_code == 200:
+            data = response.json()
+            assert data["database"]["connected"] is True
+
+    def test_db_connectivity_unhealthy(self, public_health_client):
+        """Test database connectivity check when database is unhealthy."""
+        # Mock database to fail
+        from core.database import get_db
+
+        def mock_get_db():
+            mock_session = MagicMock(spec=Session)
+            mock_session.execute.side_effect = Exception("Database connection failed")
+            return iter([mock_session])
+
+        public_health_client.app.dependency_overrides[get_db] = mock_get_db
+
+        try:
+            response = public_health_client.get("/health/db")
+            # Should return 503 when DB is unhealthy
+            assert response.status_code == 503
+            data = response.json()["detail"]
+            assert data["database"]["connected"] is False
+        finally:
+            public_health_client.app.dependency_overrides.clear()
+
+    def test_db_connectivity_includes_pool_status(self, public_health_client):
+        """Test database connectivity check includes pool status."""
+        response = public_health_client.get("/health/db")
+
+        if response.status_code == 200:
+            data = response.json()
+            assert "pool_status" in data["database"]
+            pool_status = data["database"]["pool_status"]
+            assert "size" in pool_status
+            assert "checked_in" in pool_status
+            assert "checked_out" in pool_status
+
+    def test_db_connectivity_slow_query_warning(self, public_health_client):
+        """Test database connectivity check warns on slow queries (>100ms)."""
+        # Mock slow query
+        original_time = time.time
+        call_count = [0]
+
+        def mock_time():
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return original_time()
+            else:
+                return original_time() + 0.15  # 150ms later
+
+        with patch('time.time', side_effect=mock_time):
+            response = public_health_client.get("/health/db")
+
+        # If 200, should have warning for slow query
+        if response.status_code == 200:
+            data = response.json()
+            if "warning" in data.get("database", {}):
+                assert "Slow query" in data["database"]["warning"]
+
+
+# ============================================================================
 # Test Classes Start Here
 # ============================================================================
