@@ -439,8 +439,14 @@ Plans: 4 plans
   2. Artifact routes achieve 75%+ line coverage
   3. Deep links achieve 75%+ line coverage
   4. Advanced integrations achieve 75%+ line coverage
-**Plans**: TBD (estimated 3-4 plans)
+**Plans**: 4 plans
 **Estimated Coverage**: 44.50%
+
+**Plan List:**
+- [ ] 180-01-PLAN.md — APAR routes coverage (45+ tests, ~600 lines)
+- [ ] 180-02-PLAN.md — Artifact routes coverage (20+ tests, ~400 lines)
+- [ ] 180-03-PLAN.md — Deep links coverage (35+ tests, ~700 lines)
+- [ ] 180-04-PLAN.md — Integration catalog coverage (15+ tests, ~350 lines)
 
 ### Phase 181: Core Services Coverage (World Model & Business Facts)
 **Goal**: Achieve target coverage on world model and business facts services
