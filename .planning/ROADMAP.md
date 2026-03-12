@@ -12,7 +12,8 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - ✅ **v5.0 Coverage Expansion** - Phases 123-152 (shipped 2026-03-01)
 - ✅ **v5.2 Complete Codebase Coverage** - Phases 153-152 (shipped 2026-03-08)
 - ✅ **v5.3 Coverage Expansion to 80% Targets** - Phases 153-162 (shipped 2026-03-11)
-- 🚧 **v5.4 Backend 80% Coverage - Baseline & Plan** - Phases 163-171 (in progress)
+- ✅ **v5.4 Backend 80% Coverage - Baseline & Plan** - Phases 163-171 (shipped 2026-03-11)
+- 🚧 **v5.5 Backend 80% Coverage - Execution** - Phases 172-189 (in progress)
 
 ## Phases
 
@@ -276,12 +277,229 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   4. Realistic roadmap to 80% is created based on actual measurements (not estimates)
   5. ROADMAP.md is updated with Phase 172+ definitions based on roadmap
 **Plans**: 6 plans (Wave 1: 171-01A, 171-01B | Wave 2: 171-02, 171-03 | Wave 3: 171-04A, 171-04B)
-- [ ] 171-01A-PLAN.md — Identify and remove duplicate SQLAlchemy model definitions
-- [ ] 171-01B-PLAN.md — Fix test imports and verify combined test suite execution
-- [ ] 171-02-PLAN.md — Measure actual backend coverage with branch measurement
-- [ ] 171-03-PLAN.md — Audit and cleanup pragma no-cover directives
+- [x] 171-01A-PLAN.md — Identify and remove duplicate SQLAlchemy model definitions
+- [x] 171-01B-PLAN.md — Fix test imports and verify combined test suite execution
+- [x] 171-02-PLAN.md — Measure actual backend coverage with branch measurement
+- [x] 171-03-PLAN.md — Audit and cleanup pragma no-cover directives
 - [ ] 171-04A-PLAN.md — Analyze coverage data and create roadmap to 80%
-- [ ] 171-04B-PLAN.md — Update ROADMAP.md with Phase 172+ and create final summary
+- [x] 171-04B-PLAN.md — Update ROADMAP.md with Phase 172+ and create final summary
+**Status**: Complete (2026-03-11)
+
+### Phase 172: High-Impact Zero Coverage (Governance)
+**Goal**: Achieve target coverage on high-impact zero-coverage governance files
+**Depends on**: Phase 171
+**Requirements**: GAP-05
+**Success Criteria** (what must be TRUE):
+  1. Agent governance routes achieve 75%+ line coverage
+  2. Agent guidance routes achieve 75%+ line coverage
+  3. Admin routes achieve 75%+ line coverage
+  4. Background agent routes achieve 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 12.50%
+
+### Phase 173: High-Impact Zero Coverage (LLM)
+**Goal**: Achieve target coverage on high-impact zero-coverage LLM and cognitive tier files
+**Depends on**: Phase 172
+**Requirements**: GAP-05
+**Success Criteria** (what must be TRUE):
+  1. LLM service routes achieve 75%+ line coverage
+  2. BYOK handler achieves 75%+ line coverage
+  3. Cognitive tier system achieves 75%+ line coverage
+  4. LLM integration tests achieve 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 16.50%
+
+### Phase 174: High-Impact Zero Coverage (Episodic Memory)
+**Goal**: Achieve target coverage on high-impact zero-coverage episodic memory files
+**Depends on**: Phase 173
+**Requirements**: GAP-05
+**Success Criteria** (what must be TRUE):
+  1. Episode segmentation service achieves 75%+ line coverage
+  2. Episode retrieval service achieves 75%+ line coverage
+  3. Episode lifecycle service achieves 75%+ line coverage
+  4. Episode graduation service achieves 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 20.50%
+
+### Phase 175: High-Impact Zero Coverage (Tools)
+**Goal**: Achieve target coverage on high-impact zero-coverage tools and integrations
+**Depends on**: Phase 174
+**Requirements**: GAP-05
+**Success Criteria** (what must be TRUE):
+  1. Browser automation routes achieve 75%+ line coverage
+  2. Device capabilities routes achieve 75%+ line coverage
+  3. Canvas presentation routes achieve 75%+ line coverage
+  4. Device audit models achieve 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 24.50%
+
+### Phase 176: API Routes Coverage (Authentication & Authorization)
+**Goal**: Achieve target coverage on authentication and authorization routes
+**Depends on**: Phase 175
+**Requirements**: API-01, API-03
+**Success Criteria** (what must be TRUE):
+  1. Auth routes achieve 75%+ line coverage
+  2. 2FA auth routes achieve 75%+ line coverage
+  3. Agent control routes achieve 75%+ line coverage
+  4. Permission checks achieve 75%+ line coverage
+**Plans**: TBD (estimated 3-4 plans)
+**Estimated Coverage**: 28.50%
+
+### Phase 177: API Routes Coverage (Analytics & Reporting)
+**Goal**: Achieve target coverage on analytics and reporting routes
+**Depends on**: Phase 176
+**Requirements**: API-01, API-03
+**Success Criteria** (what must be TRUE):
+  1. Analytics dashboard routes achieve 75%+ line coverage
+  2. Analytics endpoints achieve 75%+ line coverage
+  3. Feedback analytics routes achieve 75%+ line coverage
+  4. A/B testing routes achieve 75%+ line coverage
+**Plans**: TBD (estimated 3-4 plans)
+**Estimated Coverage**: 32.50%
+
+### Phase 178: API Routes Coverage (Admin & System)
+**Goal**: Achieve target coverage on admin and system management routes
+**Depends on**: Phase 177
+**Requirements**: API-01, API-03
+**Success Criteria** (what must be TRUE):
+  1. Admin skill routes achieve 75%+ line coverage
+  2. Admin business facts routes achieve 75%+ line coverage
+  3. System health routes achieve 75%+ line coverage
+  4. Admin endpoints achieve 75%+ line coverage
+**Plans**: TBD (estimated 3-4 plans)
+**Estimated Coverage**: 36.50%
+
+### Phase 179: API Routes Coverage (AI Workflows & Automation)
+**Goal**: Achieve target coverage on AI workflows and automation routes
+**Depends on**: Phase 178
+**Requirements**: API-01, API-03
+**Success Criteria** (what must be TRUE):
+  1. AI workflows routes achieve 75%+ line coverage
+  2. AI accounting routes achieve 75%+ line coverage
+  3. Auto install routes achieve 75%+ line coverage
+  4. Workflow automation achieves 75%+ line coverage
+**Plans**: TBD (estimated 3-4 plans)
+**Estimated Coverage**: 40.50%
+
+### Phase 180: API Routes Coverage (Advanced Features)
+**Goal**: Achieve target coverage on advanced feature routes
+**Depends on**: Phase 179
+**Requirements**: API-01, API-03
+**Success Criteria** (what must be TRUE):
+  1. APAR routes achieve 75%+ line coverage
+  2. Artifact routes achieve 75%+ line coverage
+  3. Deep links achieve 75%+ line coverage
+  4. Advanced integrations achieve 75%+ line coverage
+**Plans**: TBD (estimated 3-4 plans)
+**Estimated Coverage**: 44.50%
+
+### Phase 181: Core Services Coverage (World Model & Business Facts)
+**Goal**: Achieve target coverage on world model and business facts services
+**Depends on**: Phase 180
+**Requirements**: CORE-01, CORE-02
+**Success Criteria** (what must be TRUE):
+  1. Agent world model achieves 75%+ line coverage
+  2. Business facts routes achieve 75%+ line coverage
+  3. JIT fact verification achieves 75%+ line coverage
+  4. Knowledge graph achieves 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 48.50%
+
+### Phase 182: Core Services Coverage (Package Governance)
+**Goal**: Achieve target coverage on package governance and security services
+**Depends on**: Phase 181
+**Requirements**: CORE-01, CORE-02
+**Success Criteria** (what must be TRUE):
+  1. Package governance service achieves 75%+ line coverage
+  2. Package dependency scanner achieves 75%+ line coverage
+  3. Package installer achieves 75%+ line coverage
+  4. Security scan integration achieves 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 52.50%
+
+### Phase 183: Core Services Coverage (Skill Execution)
+**Goal**: Achieve target coverage on skill execution and composition services
+**Depends on**: Phase 182
+**Requirements**: CORE-01, CORE-02
+**Success Criteria** (what must be TRUE):
+  1. Skill adapter achieves 75%+ line coverage
+  2. Skill composition engine achieves 75%+ line coverage
+  3. Skill marketplace achieves 75%+ line coverage
+  4. Skill execution achieves 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 56.50%
+
+### Phase 184: Integration Testing (Advanced)
+**Goal**: Achieve target coverage on advanced integration testing scenarios
+**Depends on**: Phase 183
+**Requirements**: TOOL-03, TOOL-04
+**Success Criteria** (what must be TRUE):
+  1. Advanced LanceDB operations achieve 75%+ line coverage
+  2. WebSocket debugging achieves 75%+ line coverage
+  3. HTTP connection pooling achieves 75%+ line coverage
+  4. Integration error paths achieve 75%+ line coverage
+**Plans**: TBD (estimated 3-4 plans)
+**Estimated Coverage**: 60.50%
+
+### Phase 185: Database Layer Coverage (Advanced Models)
+**Goal**: Achieve target coverage on advanced database models and relationships
+**Depends on**: Phase 184
+**Requirements**: API-02, API-04
+**Success Criteria** (what must be TRUE):
+  1. Accounting models achieve 80%+ line coverage
+  2. Sales models achieve 80%+ line coverage
+  3. Service delivery models achieve 80%+ line coverage
+  4. Advanced relationships achieve 80%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 64.50%
+
+### Phase 186: Edge Cases & Error Handling
+**Goal**: Achieve target coverage on edge cases and error handling paths
+**Depends on**: Phase 185
+**Requirements**: CORE-04, CORE-05
+**Success Criteria** (what must be TRUE):
+  1. Error handling paths achieve 75%+ line coverage
+  2. Edge case scenarios achieve 75%+ line coverage
+  3. Boundary conditions achieve 75%+ line coverage
+  4. Failure modes achieve 75%+ line coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 68.50%
+
+### Phase 187: Property-Based Testing (Comprehensive)
+**Goal**: Achieve comprehensive property-based test coverage for invariants
+**Depends on**: Phase 186
+**Requirements**: CORE-04, CORE-05
+**Success Criteria** (what must be TRUE):
+  1. Governance invariants achieve 80%+ property test coverage
+  2. LLM invariants achieve 80%+ property test coverage
+  3. Episode invariants achieve 80%+ property test coverage
+  4. Database invariants achieve 80%+ property test coverage
+**Plans**: TBD (estimated 4-5 plans)
+**Estimated Coverage**: 72.50%
+
+### Phase 188: Coverage Gap Closure (Final Push)
+**Goal**: Close remaining coverage gaps to approach 80% target
+**Depends on**: Phase 187
+**Requirements**: GAP-01, GAP-02
+**Success Criteria** (what must be TRUE):
+  1. All zero-coverage files tested
+  2. All below-50% files raised above 50%
+  3. Overall coverage reaches 76%+
+  4. Critical paths fully covered
+**Plans**: TBD (estimated 5-6 plans)
+**Estimated Coverage**: 76.50%
+
+### Phase 189: Backend 80% Coverage Achievement
+**Goal**: Achieve and verify 80% backend coverage target
+**Depends on**: Phase 188
+**Requirements**: GAP-03, GAP-04, GAP-05
+**Success Criteria** (what must be TRUE):
+  1. Overall backend coverage reaches 80.00%+
+  2. All critical services achieve 80%+ coverage
+  3. Coverage verified with pytest --cov-branch
+  4. No service-level estimates used (actual line coverage only)
+**Plans**: TBD (estimated 3-4 plans)
+**Estimated Coverage**: 80.00% (TARGET ACHIEVED)
 
 ## Progress
 
@@ -309,3 +527,21 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 169. Tools & Integrations Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
 | 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 3/3 | Complete | 2026-03-11 |
 | 171. Gap Closure & Final Push | v5.4 | 6/6 | Complete | 2026-03-11 |
+| 172. High-Impact Zero Coverage (Governance) | v5.5 | TBD | Pending | - |
+| 173. High-Impact Zero Coverage (LLM) | v5.5 | TBD | Pending | - |
+| 174. High-Impact Zero Coverage (Episodic Memory) | v5.5 | TBD | Pending | - |
+| 175. High-Impact Zero Coverage (Tools) | v5.5 | TBD | Pending | - |
+| 176. API Routes Coverage (Auth & Authz) | v5.5 | TBD | Pending | - |
+| 177. API Routes Coverage (Analytics) | v5.5 | TBD | Pending | - |
+| 178. API Routes Coverage (Admin & System) | v5.5 | TBD | Pending | - |
+| 179. API Routes Coverage (AI Workflows) | v5.5 | TBD | Pending | - |
+| 180. API Routes Coverage (Advanced Features) | v5.5 | TBD | Pending | - |
+| 181. Core Services Coverage (World Model) | v5.5 | TBD | Pending | - |
+| 182. Core Services Coverage (Package Governance) | v5.5 | TBD | Pending | - |
+| 183. Core Services Coverage (Skill Execution) | v5.5 | TBD | Pending | - |
+| 184. Integration Testing (Advanced) | v5.5 | TBD | Pending | - |
+| 185. Database Layer Coverage (Advanced) | v5.5 | TBD | Pending | - |
+| 186. Edge Cases & Error Handling | v5.5 | TBD | Pending | - |
+| 187. Property-Based Testing (Comprehensive) | v5.5 | TBD | Pending | - |
+| 188. Coverage Gap Closure (Final Push) | v5.5 | TBD | Pending | - |
+| 189. Backend 80% Coverage Achievement | v5.5 | TBD | Pending | - |
