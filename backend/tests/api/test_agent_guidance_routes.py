@@ -563,7 +563,18 @@ def test_switch_view_browser(
 
             response = client.post("/api/agent-guidance/view/switch", json=view_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify switch_to_browser_view called with correct params
+            mock_coordinator_instance.switch_to_browser_view.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                url="https://example.com",
+                guidance="Navigate to example.com",
+                session_id=view_data["session_id"]
+            )
 
 
 def test_switch_view_browser_missing_url(
@@ -585,6 +596,8 @@ def test_switch_view_browser_missing_url(
 
         # Should return validation error
         assert response.status_code in [400, 422]
+        data = response.json()
+        assert "error" in data or "detail" in data
 
 
 def test_switch_view_terminal(
@@ -611,7 +624,18 @@ def test_switch_view_terminal(
 
             response = client.post("/api/agent-guidance/view/switch", json=view_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify switch_to_terminal_view called with correct params
+            mock_coordinator_instance.switch_to_terminal_view.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                command="ls -la",
+                guidance="List directory contents",
+                session_id=view_data["session_id"]
+            )
 
 
 def test_switch_view_terminal_missing_command(
@@ -633,6 +657,8 @@ def test_switch_view_terminal_missing_command(
 
         # Should return validation error
         assert response.status_code in [400, 422]
+        data = response.json()
+        assert "error" in data or "detail" in data
 
 
 def test_switch_view_unknown_type(
@@ -654,6 +680,8 @@ def test_switch_view_unknown_type(
 
         # Should return validation error
         assert response.status_code in [400, 422]
+        data = response.json()
+        assert "error" in data or "detail" in data
 
 
 # ============================================================================
@@ -681,7 +709,16 @@ def test_set_layout_canvas(
 
             response = client.post("/api/agent-guidance/view/layout", json=layout_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify set_layout called with correct params
+            mock_coordinator_instance.set_layout.assert_called_once_with(
+                user_id=mock_user.id,
+                layout="canvas",
+                session_id=layout_data["session_id"]
+            )
 
 
 def test_set_layout_split_horizontal(
@@ -704,7 +741,14 @@ def test_set_layout_split_horizontal(
 
             response = client.post("/api/agent-guidance/view/layout", json=layout_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify set_layout called with correct params
+            mock_coordinator_instance.set_layout.assert_called_once_with(
+                user_id=mock_user.id,
+                layout="split_horizontal",
+                session_id=None
+            )
 
 
 def test_set_layout_split_vertical(
@@ -727,7 +771,14 @@ def test_set_layout_split_vertical(
 
             response = client.post("/api/agent-guidance/view/layout", json=layout_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify set_layout called with correct params
+            mock_coordinator_instance.set_layout.assert_called_once_with(
+                user_id=mock_user.id,
+                layout="split_vertical",
+                session_id=None
+            )
 
 
 def test_set_layout_tabs(
@@ -750,7 +801,14 @@ def test_set_layout_tabs(
 
             response = client.post("/api/agent-guidance/view/layout", json=layout_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify set_layout called with correct params
+            mock_coordinator_instance.set_layout.assert_called_once_with(
+                user_id=mock_user.id,
+                layout="tabs",
+                session_id=None
+            )
 
 
 def test_set_layout_grid(
@@ -773,7 +831,14 @@ def test_set_layout_grid(
 
             response = client.post("/api/agent-guidance/view/layout", json=layout_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify set_layout called with correct params
+            mock_coordinator_instance.set_layout.assert_called_once_with(
+                user_id=mock_user.id,
+                layout="grid",
+                session_id=None
+            )
 
 
 # ============================================================================
