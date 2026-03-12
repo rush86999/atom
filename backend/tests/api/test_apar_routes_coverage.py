@@ -352,3 +352,121 @@ def sample_ar_invoice():
         status=InvoiceStatus.DRAFT,
         source="manual"
     )
+
+
+# ============================================================================
+# TestAPARSuccess - Happy Path Tests
+# ============================================================================
+
+class TestAPARSuccess:
+    """
+    Happy path tests for APAR endpoints.
+
+    Tests all success paths for AP invoice operations:
+    - Intake with auto-approval threshold
+    - Manual approval workflow
+    - Pending approvals list
+    - Upcoming payments (default and custom days)
+    """
+
+    def test_intake_ap_invoice_success(self, apar_client, sample_ap_intake_request):
+        """Test AP invoice intake with valid data."""
+        response = apar_client.post("/api/apar/ap/intake", json=sample_ap_intake_request)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "id" in data["data"]
+        assert data["data"]["vendor"] == "Test Vendor Inc"
+        assert data["data"]["amount"] == 100.0
+        assert data["message"] == "AP invoice intake successful"
+
+    def test_intake_ap_invoice_auto_approved(self, apar_client, mock_apar_engine):
+        """Test AP invoice auto-approval for amounts under threshold ($500)."""
+        from core.apar_engine import InvoiceStatus
+
+        # Configure mock to return auto-approved invoice
+        mock_apar_engine.intake_invoice.return_value.status = InvoiceStatus.APPROVED
+        mock_apar_engine.intake_invoice.return_value.approved_by = "auto"
+
+        response = apar_client.post("/api/apar/ap/intake", json={
+            "vendor": "Auto Vendor",
+            "amount": 100.0,  # Under $500 threshold
+            "due_date": "2026-04-15"
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["auto_approved"] is True
+        assert data["data"]["status"] == "approved"
+
+    def test_intake_ap_invoice_manual_approval(self, apar_client, mock_apar_engine):
+        """Test AP invoice requires manual approval for amounts above threshold ($500)."""
+        from core.apar_engine import InvoiceStatus
+
+        # Configure mock to return pending approval invoice
+        mock_apar_engine.intake_invoice.return_value.status = InvoiceStatus.PENDING_APPROVAL
+        mock_apar_engine.intake_invoice.return_value.approved_by = None
+
+        response = apar_client.post("/api/apar/ap/intake", json={
+            "vendor": "Manual Vendor",
+            "amount": 750.0,  # Above $500 threshold
+            "due_date": "2026-04-15"
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["auto_approved"] is False
+        assert data["data"]["status"] == "pending_approval"
+
+    def test_approve_ap_invoice_success(self, apar_client):
+        """Test AP invoice approval workflow."""
+        response = apar_client.post("/api/apar/ap/ap_1234567890/approve", json={
+            "approver": "user_1"
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["status"] == "approved"
+        assert data["data"]["id"] == "ap_1234567890"
+        assert data["message"] == "Invoice approved successfully"
+
+    def test_get_pending_approvals_success(self, apar_client):
+        """Test retrieving pending approval invoices."""
+        response = apar_client.get("/api/apar/ap/pending")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["count"] == 2
+        assert len(data["data"]["invoices"]) == 2
+        assert data["data"]["invoices"][0]["vendor"] == "Vendor A"
+        assert data["data"]["invoices"][0]["amount"] == 750.0
+        assert data["message"] == "Retrieved 2 pending approvals"
+
+    def test_get_upcoming_payments_default(self, apar_client):
+        """Test retrieving upcoming payments with default 7 days."""
+        response = apar_client.get("/api/apar/ap/upcoming")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["count"] == 2
+        assert data["data"]["total_due"] == 750.0
+        assert len(data["data"]["invoices"]) == 2
+        assert "due_date" in data["data"]["invoices"][0]
+        assert data["message"] == "Retrieved 2 upcoming payments"
+
+    def test_get_upcoming_payments_custom_days(self, apar_client):
+        """Test retrieving upcoming payments with custom days parameter."""
+        response = apar_client.get("/api/apar/ap/upcoming?days=30")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        # Verify the endpoint accepts custom days parameter
+        assert "count" in data["data"]
+        assert "invoices" in data["data"]
