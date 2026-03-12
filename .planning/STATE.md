@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 174 COMPLETE - High-Impact Zero Coverage (Episodic Memory). Achieved 72.2% combined coverage across 4 episodic memory services (EpisodeRetrievalService 75.2%, EpisodeSegmentationService 74.9%, EpisodeLifecycleService 74.3%, AgentGraduationService 57.9%). Created 264 tests with 8,642 lines of test code (6,014 integration + 2,628 property-based). 3 of 4 services at or near 75% target. Duration: ~59 minutes.
+**Current focus**: Phase 175 Plan 01 COMPLETE - High-Impact Zero Coverage (Tools). Established baseline coverage for browser, device, and canvas API routes (1,726 lines, 23 endpoints). Collected 85 tests (45 browser + 40 device), 47 passing (55.3%), 38 failing (44.7%). Created BrowserAudit model, fixed WorkflowExecutionLog duplicate. Baseline gap analysis report created. Duration: ~9 minutes.
 
 ## Current Position
 
-Phase: 174 of 189 (High-Impact Zero Coverage - Episodic Memory)
-Plan: 05 of 5 in current phase (COMPLETE)
-Status: Complete
-Last activity: 2026-03-12 — Phase 174 COMPLETE: Achieved 72.2% combined episodic memory coverage (994/1,325 lines). EpisodeRetrievalService 75.2% (exceeds target), EpisodeSegmentationService 74.9% (near target), EpisodeLifecycleService 74.3% (near target), AgentGraduationService 57.9% (below target). 264 tests created (193 integration + 71 property-based). 8,642 lines of test code. Duration: ~59 minutes.
+Phase: 175 of 189 (High-Impact Zero Coverage - Tools)
+Plan: 01 of 5 in current phase (COMPLETE)
+Status: In Progress
+Last activity: 2026-03-12 — Phase 175 P01 COMPLETE: Baseline established for API routes (1,726 lines, 23 endpoints). 85 tests collected (96.6%), 47 passing (55.3%). BrowserAudit model created (+58 lines), WorkflowExecutionLog duplicate fixed (temporary). Gap analysis: governance mocking missing, DB state management needed, canvas imports blocked. Estimated 50-60pp gap to 75% target. Duration: ~9 minutes.
 
-Progress: [█████] 100% (5/5 plans in Phase 174)
+Progress: [███] 20% (1/5 plans in Phase 175)
 
 **Next Phase:** Phase 175 - High-Impact Zero Coverage (Tools)
-**Next Action:** Begin Phase 175 tools coverage (browser, device, canvas tools)
+**Next Action:** Phase 175 Plan 02 - Browser routes coverage enhancement (governance mocking, error paths, audit verification)
 
 ## Performance Metrics
 
@@ -553,6 +553,30 @@ Next: Phase 169 Plan 05 - Final verification and summary (if exists)
 - Used httpx.MockTransport for deterministic mocking
 
 Next: Phase 171 or next phase in roadmap
+
+## Session Update: 2026-03-12
+
+**Phase 175 Plan 01 Complete:**
+- Baseline coverage established for browser, device, and canvas API routes (1,726 lines, 23 endpoints)
+- 85 tests collected (45 browser + 40 device), 47 passing (55.3%), 38 failing (44.7%)
+- BrowserAudit model created (+58 lines) - similar to DeviceAudit structure
+- WorkflowExecutionLog duplicate fixed (commented out in analytics/models.py)
+- Baseline gap analysis report created (175-01-baseline-report.json, 195 lines)
+- Gap categories identified: no_test (2 canvas), error_path (all), governance (all), audit (all)
+- Technical debt: Governance mocking missing, DB state management needed, canvas imports blocked
+- Estimated 50-60pp gap to 75% coverage target
+- Duration: ~9 minutes
+- Commits: c555b57ab, 01ce26aa5, e3113423a, 85f088750, 7e0d68fee
+- Files created: 175-01-SUMMARY.md, 175-01-baseline-report.json, BrowserAudit model
+- Files modified: analytics/models.py, STATE.md
+
+**Phase 175 Plan 01 COMPLETE:**
+- All 3 tasks executed successfully (baseline measurement, fixtures verified, gap analysis)
+- Tests runnable and collectable (96.6% success, 3 blocked by import error)
+- Test infrastructure verified functional (AsyncMock patterns, agent fixtures, client overrides)
+- Ready for 175-02 (browser routes coverage enhancement)
+
+Next: Phase 175 Plan 02 - Browser routes coverage enhancement
 
 ## Session Update: 2026-03-12
 
