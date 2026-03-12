@@ -458,3 +458,110 @@ class TestDeepLinkAudit:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 0
+
+
+class TestDeepLinkGenerate:
+    """Test deep link generation endpoint."""
+
+    def test_generate_deeplink_agent(self, deeplink_client):
+        """Test POST /api/deeplinks/generate with resource_type=agent."""
+        with patch('api.deeplinks.generate_deep_link', return_value="atom://agent/123"):
+            response = deeplink_client.post(
+                "/api/deeplinks/generate",
+                json={
+                    "resource_type": "agent",
+                    "resource_id": "123"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert "deeplink_url" in data
+            assert data["deeplink_url"] == "atom://agent/123"
+            assert data["resource_type"] == "agent"
+            assert data["resource_id"] == "123"
+
+    def test_generate_deeplink_workflow(self, deeplink_client):
+        """Test POST /api/deeplinks/generate with resource_type=workflow."""
+        with patch('api.deeplinks.generate_deep_link', return_value="atom://workflow/456"):
+            response = deeplink_client.post(
+                "/api/deeplinks/generate",
+                json={
+                    "resource_type": "workflow",
+                    "resource_id": "456"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert "deeplink_url" in data
+            assert "workflow" in data["deeplink_url"]
+            assert data["resource_type"] == "workflow"
+
+    def test_generate_deeplink_canvas(self, deeplink_client):
+        """Test POST /api/deeplinks/generate with resource_type=canvas."""
+        with patch('api.deeplinks.generate_deep_link', return_value="atom://canvas/789"):
+            response = deeplink_client.post(
+                "/api/deeplinks/generate",
+                json={
+                    "resource_type": "canvas",
+                    "resource_id": "789"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert "deeplink_url" in data
+            assert "canvas" in data["deeplink_url"]
+            assert data["resource_type"] == "canvas"
+
+    def test_generate_deeplink_tool(self, deeplink_client):
+        """Test POST /api/deeplinks/generate with resource_type=tool."""
+        with patch('api.deeplinks.generate_deep_link', return_value="atom://tool/skill-name"):
+            response = deeplink_client.post(
+                "/api/deeplinks/generate",
+                json={
+                    "resource_type": "tool",
+                    "resource_id": "skill-name"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert "deeplink_url" in data
+            assert "tool" in data["deeplink_url"]
+            assert data["resource_type"] == "tool"
+
+    def test_generate_deeplink_with_parameters(self, deeplink_client):
+        """Test POST /api/deeplinks/generate with query parameters."""
+        with patch('api.deeplinks.generate_deep_link', return_value="atom://agent/123?message=hello"):
+            response = deeplink_client.post(
+                "/api/deeplinks/generate",
+                json={
+                    "resource_type": "agent",
+                    "resource_id": "123",
+                    "parameters": {"message": "hello"}
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert "deeplink_url" in data
+            assert data["parameters"] == {"message": "hello"}
+
+    @pytest.mark.parametrize("resource_type,resource_id,url_pattern", [
+        ("agent", "123", "atom://agent/123"),
+        ("workflow", "456", "atom://workflow/456"),
+        ("canvas", "789", "atom://canvas/789"),
+        ("tool", "my-tool", "atom://tool/my-tool")
+    ])
+    def test_generate_deeplink_all_valid_types(self, deeplink_client, resource_type, resource_id, url_pattern):
+        """Parametrized test for all 4 valid resource types."""
+        with patch('api.deeplinks.generate_deep_link', return_value=url_pattern):
+            response = deeplink_client.post(
+                "/api/deeplinks/generate",
+                json={
+                    "resource_type": resource_type,
+                    "resource_id": resource_id
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert "deeplink_url" in data
+            assert data["resource_type"] == resource_type
+            assert data["resource_id"] == resource_id
