@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
@@ -360,7 +361,7 @@ async def get_deeplink_stats(
     ).group_by(
         DeepLinkAudit.agent_id, AgentRegistry.name
     ).order_by(
-        db.func.count(DeepLinkAudit.id).desc()
+        func.count(DeepLinkAudit.id).desc()
     ).limit(10).all()
 
     top_agents = [
