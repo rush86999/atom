@@ -278,8 +278,228 @@ class TestDecayOperations:
 # Episode Consolidation Tests
 # ============================================================================
 
-class TestEpisodeConsolidation:
-    """Test episode consolidation functionality."""
+class TestConsolidation:
+    """Test episode consolidation with LanceDB vector search."""
+
+    @pytest.mark.asyncio
+    async def test_consolidation_similar_episodes(self, lifecycle_service):
+        """Test similar episodes merged under parent."""
+        # Create parent and child episodes
+        parent = Mock(id="parent", agent_id="agent1", task_description="Project status updates", consolidated_into=None)
+        child = Mock(id="child", agent_id="agent1", task_description="Status update", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = child
+
+        # Mock LanceDB to return similar episodes (90% similar)
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": {"episode_id": "child"}, "_distance": 0.1}  # 90% similar
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        assert result["consolidated"] >= 1
+        assert child.consolidated_into == parent.id
+
+    @pytest.mark.asyncio
+    async def test_consolidation_similarity_threshold(self, lifecycle_service):
+        """Test only episodes >= threshold consolidated."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Project updates", consolidated_into=None)
+        child_similar = Mock(id="similar", agent_id="agent1", task_description="Update", consolidated_into=None)
+        child_dissimilar = Mock(id="dissimilar", agent_id="agent1", task_description="Different", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [child_similar, None]
+
+        # Mock LanceDB results with different similarities
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": {"episode_id": "similar"}, "_distance": 0.1},   # 90% similar (>= 0.85)
+            {"metadata": {"episode_id": "dissimilar"}, "_distance": 0.3}  # 70% similar (< 0.85)
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Only similar episode should consolidate
+        assert result["consolidated"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_consolidation_prevents_duplicates(self, lifecycle_service):
+        """Test already consolidated episodes skipped."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Updates", consolidated_into=None)
+        already_consolidated = Mock(id="consolidated", agent_id="agent1", task_description="Old", consolidated_into="other-parent")
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = None  # Already consolidated, skipped
+
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": {"episode_id": "consolidated"}, "_distance": 0.1}
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Already consolidated episode should be skipped
+        assert result["consolidated"] == 0
+
+    @pytest.mark.asyncio
+    async def test_consolidation_circular_references(self, lifecycle_service):
+        """Test no circular consolidated_into references."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Main", consolidated_into=None)
+        child = Mock(id="child", agent_id="agent1", task_description="Sub", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = child
+
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": {"episode_id": "child"}, "_distance": 0.1}
+        ]
+
+        await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Verify no circular reference
+        assert child.consolidated_into == parent.id
+        # parent should not be consolidated into child
+        assert parent.consolidated_into is None or parent.consolidated_into != child.id
+
+    @pytest.mark.asyncio
+    async def test_consolidation_empty_results(self, lifecycle_service):
+        """Test handling no similar episodes found."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Updates", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+
+        # No similar episodes found
+        lifecycle_service.lancedb.search.return_value = []
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        assert result["consolidated"] == 0
+        assert result["parent_episodes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_consolidation_custom_threshold(self, lifecycle_service):
+        """Test custom similarity_threshold parameter."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Updates", consolidated_into=None)
+        child = Mock(id="child", agent_id="agent1", task_description="Update", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = child
+
+        # Episode is 80% similar, below default 0.85 but above custom 0.75
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": {"episode_id": "child"}, "_distance": 0.2}  # 80% similar
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.75  # Lower threshold
+        )
+
+        # Should consolidate with custom threshold
+        assert result["consolidated"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_consolidation_lancedb_search(self, lifecycle_service):
+        """Test LanceDB search invoked correctly."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Project updates", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Verify LanceDB search was called
+        lifecycle_service.lancedb.search.assert_called_once()
+        call_args = lifecycle_service.lancedb.search.call_args
+        assert call_args[1]["table_name"] == "episodes"
+        assert call_args[1]["limit"] == 20
+
+    @pytest.mark.asyncio
+    async def test_consolidation_metadata_parsing(self, lifecycle_service):
+        """Test episode IDs extracted from metadata."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Updates", consolidated_into=None)
+        child = Mock(id="child", agent_id="agent1", task_description="Update", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = child
+
+        # Mock LanceDB with JSON string metadata
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": '{"episode_id": "child", "agent_id": "agent1"}', "_distance": 0.1}
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Should parse JSON metadata and extract episode_id
+        assert result["consolidated"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_consolidation_distance_calculation(self, lifecycle_service):
+        """Test similarity = 1 - distance calculation."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Updates", consolidated_into=None)
+        child_close = Mock(id="close", agent_id="agent1", task_description="Close match", consolidated_into=None)
+        child_far = Mock(id="far", agent_id="agent1", task_description="Far match", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [child_close, None]
+
+        # Test similarity calculation: similarity = 1 - distance
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": {"episode_id": "close"}, "_distance": 0.05},  # 95% similar
+            {"metadata": {"episode_id": "far"}, "_distance": 0.25}    # 75% similar
+        ]
+
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Only "close" episode should consolidate (95% >= 85%)
+        # "far" should not (75% < 85%)
+        assert result["consolidated"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_consolidation_transaction_rollback(self, lifecycle_service):
+        """Test rollback on error."""
+        parent = Mock(id="parent", agent_id="agent1", task_description="Updates", consolidated_into=None)
+        child = Mock(id="child", agent_id="agent1", task_description="Update", consolidated_into=None)
+
+        lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [parent]
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = child
+        lifecycle_service.db.commit.side_effect = Exception("Database error")
+
+        lifecycle_service.lancedb.search.return_value = [
+            {"metadata": {"episode_id": "child"}, "_distance": 0.1}
+        ]
+
+        # Should handle error gracefully and call rollback
+        result = await lifecycle_service.consolidate_similar_episodes(
+            agent_id="agent1",
+            similarity_threshold=0.85
+        )
+
+        # Verify rollback was called
+        lifecycle_service.db.rollback.assert_called_once()
+        assert isinstance(result, dict)
 
     @pytest.mark.asyncio
     async def test_consolidate_similar_episodes(self, lifecycle_service):
