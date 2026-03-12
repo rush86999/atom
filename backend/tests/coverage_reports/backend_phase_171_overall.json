@@ -1,0 +1,3735 @@
+{
+  "measured_at": "2026-03-10T11:58:00Z",
+  "line_coverage": 8.496156860588227,
+  "lines_covered": 6179,
+  "lines_total": 72727,
+  "branch_coverage": 8.496156860588227,
+  "branches_covered": 0,
+  "branches_total": 0,
+  "files": [
+    {
+      "file": "api/ab_testing.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 79,
+      "missing_lines": 79
+    },
+    {
+      "file": "api/admin/business_facts_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 149,
+      "missing_lines": 149
+    },
+    {
+      "file": "api/admin/skill_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 46,
+      "missing_lines": 46
+    },
+    {
+      "file": "api/admin/system_health_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 60,
+      "missing_lines": 60
+    },
+    {
+      "file": "api/admin_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 374,
+      "missing_lines": 374
+    },
+    {
+      "file": "api/agent_control_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 78,
+      "missing_lines": 78
+    },
+    {
+      "file": "api/agent_governance_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 209,
+      "missing_lines": 209
+    },
+    {
+      "file": "api/agent_guidance_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 171,
+      "missing_lines": 171
+    },
+    {
+      "file": "api/agent_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 283,
+      "missing_lines": 283
+    },
+    {
+      "file": "api/agent_status_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 127,
+      "missing_lines": 127
+    },
+    {
+      "file": "api/ai_accounting_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 117,
+      "missing_lines": 117
+    },
+    {
+      "file": "api/ai_workflows_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 79,
+      "missing_lines": 79
+    },
+    {
+      "file": "api/analytics_dashboard_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 158,
+      "missing_lines": 158
+    },
+    {
+      "file": "api/analytics_dashboard_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 114,
+      "missing_lines": 114
+    },
+    {
+      "file": "api/apar_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 101,
+      "missing_lines": 101
+    },
+    {
+      "file": "api/artifact_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 60,
+      "missing_lines": 60
+    },
+    {
+      "file": "api/auth_2fa_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 56,
+      "missing_lines": 56
+    },
+    {
+      "file": "api/auth_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 154,
+      "missing_lines": 154
+    },
+    {
+      "file": "api/auto_install_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 35,
+      "missing_lines": 35
+    },
+    {
+      "file": "api/background_agent_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 61,
+      "missing_lines": 61
+    },
+    {
+      "file": "api/billing_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 23,
+      "missing_lines": 23
+    },
+    {
+      "file": "api/browser_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 235,
+      "missing_lines": 235
+    },
+    {
+      "file": "api/canvas_coding_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 46,
+      "missing_lines": 46
+    },
+    {
+      "file": "api/canvas_collaboration.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 120,
+      "missing_lines": 120
+    },
+    {
+      "file": "api/canvas_docs_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 81,
+      "missing_lines": 81
+    },
+    {
+      "file": "api/canvas_email_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 59,
+      "missing_lines": 59
+    },
+    {
+      "file": "api/canvas_orchestration_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 68,
+      "missing_lines": 68
+    },
+    {
+      "file": "api/canvas_recording_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 111,
+      "missing_lines": 111
+    },
+    {
+      "file": "api/canvas_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 71,
+      "missing_lines": 71
+    },
+    {
+      "file": "api/canvas_sheets_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 49,
+      "missing_lines": 49
+    },
+    {
+      "file": "api/canvas_skill_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 26,
+      "missing_lines": 26
+    },
+    {
+      "file": "api/canvas_state_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 62,
+      "missing_lines": 62
+    },
+    {
+      "file": "api/canvas_terminal_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 38,
+      "missing_lines": 38
+    },
+    {
+      "file": "api/canvas_type_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 117,
+      "missing_lines": 117
+    },
+    {
+      "file": "api/channel_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 102,
+      "missing_lines": 102
+    },
+    {
+      "file": "api/cognitive_tier_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 163,
+      "missing_lines": 163
+    },
+    {
+      "file": "api/competitor_analysis_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 209,
+      "missing_lines": 209
+    },
+    {
+      "file": "api/composition_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 42,
+      "missing_lines": 42
+    },
+    {
+      "file": "api/connection_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 42,
+      "missing_lines": 42
+    },
+    {
+      "file": "api/creative_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 157,
+      "missing_lines": 157
+    },
+    {
+      "file": "api/custom_components.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 119,
+      "missing_lines": 119
+    },
+    {
+      "file": "api/dashboard_data_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 156,
+      "missing_lines": 156
+    },
+    {
+      "file": "api/data_ingestion_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 97,
+      "missing_lines": 97
+    },
+    {
+      "file": "api/debug_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 296,
+      "missing_lines": 296
+    },
+    {
+      "file": "api/deeplinks.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 108,
+      "missing_lines": 108
+    },
+    {
+      "file": "api/device_capabilities.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 214,
+      "missing_lines": 214
+    },
+    {
+      "file": "api/device_nodes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 37,
+      "missing_lines": 37
+    },
+    {
+      "file": "api/device_websocket.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 196,
+      "missing_lines": 196
+    },
+    {
+      "file": "api/document_ingestion_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 185,
+      "missing_lines": 185
+    },
+    {
+      "file": "api/document_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 143,
+      "missing_lines": 143
+    },
+    {
+      "file": "api/dynamic_options_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 40,
+      "missing_lines": 40
+    },
+    {
+      "file": "api/edition_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 60,
+      "missing_lines": 60
+    },
+    {
+      "file": "api/email_verification_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 129,
+      "missing_lines": 129
+    },
+    {
+      "file": "api/enterprise_auth_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 183,
+      "missing_lines": 183
+    },
+    {
+      "file": "api/episode_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 161,
+      "missing_lines": 161
+    },
+    {
+      "file": "api/evolution_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 17,
+      "missing_lines": 17
+    },
+    {
+      "file": "api/feedback_analytics.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 31,
+      "missing_lines": 31
+    },
+    {
+      "file": "api/feedback_batch.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 141,
+      "missing_lines": 141
+    },
+    {
+      "file": "api/feedback_enhanced.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 138,
+      "missing_lines": 138
+    },
+    {
+      "file": "api/feedback_phase2.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 76,
+      "missing_lines": 76
+    },
+    {
+      "file": "api/financial_audit_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 66,
+      "missing_lines": 66
+    },
+    {
+      "file": "api/financial_ops_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 68,
+      "missing_lines": 68
+    },
+    {
+      "file": "api/financial_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 173,
+      "missing_lines": 173
+    },
+    {
+      "file": "api/forensics_api.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 31,
+      "missing_lines": 31
+    },
+    {
+      "file": "api/formula_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 76,
+      "missing_lines": 76
+    },
+    {
+      "file": "api/google_chat_enhanced_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 194,
+      "missing_lines": 194
+    },
+    {
+      "file": "api/graphrag_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 35,
+      "missing_lines": 35
+    },
+    {
+      "file": "api/health_monitoring_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 84,
+      "missing_lines": 84
+    },
+    {
+      "file": "api/health_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 114,
+      "missing_lines": 114
+    },
+    {
+      "file": "api/integration_dashboard_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 170,
+      "missing_lines": 170
+    },
+    {
+      "file": "api/integration_health_stubs.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 241,
+      "missing_lines": 241
+    },
+    {
+      "file": "api/integrations_catalog_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 45,
+      "missing_lines": 45
+    },
+    {
+      "file": "api/intelligence_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 85,
+      "missing_lines": 85
+    },
+    {
+      "file": "api/learning_plan_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 212,
+      "missing_lines": 212
+    },
+    {
+      "file": "api/line_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 125,
+      "missing_lines": 125
+    },
+    {
+      "file": "api/local_agent_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 90,
+      "missing_lines": 90
+    },
+    {
+      "file": "api/marketing_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 64,
+      "missing_lines": 64
+    },
+    {
+      "file": "api/marketplace_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 44,
+      "missing_lines": 44
+    },
+    {
+      "file": "api/maturity_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 208,
+      "missing_lines": 208
+    },
+    {
+      "file": "api/media_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 212,
+      "missing_lines": 212
+    },
+    {
+      "file": "api/meeting_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 71,
+      "missing_lines": 71
+    },
+    {
+      "file": "api/memory_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 63,
+      "missing_lines": 63
+    },
+    {
+      "file": "api/menubar_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 220,
+      "missing_lines": 220
+    },
+    {
+      "file": "api/messaging_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 76,
+      "missing_lines": 76
+    },
+    {
+      "file": "api/messenger_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 106,
+      "missing_lines": 106
+    },
+    {
+      "file": "api/mobile_agent_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 202,
+      "missing_lines": 202
+    },
+    {
+      "file": "api/mobile_canvas_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 172,
+      "missing_lines": 172
+    },
+    {
+      "file": "api/mobile_workflows.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 200,
+      "missing_lines": 200
+    },
+    {
+      "file": "api/monitoring_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 109,
+      "missing_lines": 109
+    },
+    {
+      "file": "api/notification_settings_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 40,
+      "missing_lines": 40
+    },
+    {
+      "file": "api/oauth_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 174,
+      "missing_lines": 174
+    },
+    {
+      "file": "api/onboarding_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 24,
+      "missing_lines": 24
+    },
+    {
+      "file": "api/operational_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 71,
+      "missing_lines": 71
+    },
+    {
+      "file": "api/operations_api.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 31,
+      "missing_lines": 31
+    },
+    {
+      "file": "api/package_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 373,
+      "missing_lines": 373
+    },
+    {
+      "file": "api/pm_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 46,
+      "missing_lines": 46
+    },
+    {
+      "file": "api/productivity_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 156,
+      "missing_lines": 156
+    },
+    {
+      "file": "api/project_health_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 162,
+      "missing_lines": 162
+    },
+    {
+      "file": "api/project_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 28,
+      "missing_lines": 28
+    },
+    {
+      "file": "api/protection_api.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 65,
+      "missing_lines": 65
+    },
+    {
+      "file": "api/reasoning_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 26,
+      "missing_lines": 26
+    },
+    {
+      "file": "api/reconciliation_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 105,
+      "missing_lines": 105
+    },
+    {
+      "file": "api/recording_review_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 95,
+      "missing_lines": 95
+    },
+    {
+      "file": "api/reports.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 5,
+      "missing_lines": 5
+    },
+    {
+      "file": "api/resource_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 37,
+      "missing_lines": 37
+    },
+    {
+      "file": "api/risk_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 30,
+      "missing_lines": 30
+    },
+    {
+      "file": "api/sales_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 28,
+      "missing_lines": 28
+    },
+    {
+      "file": "api/satellite_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 60,
+      "missing_lines": 60
+    },
+    {
+      "file": "api/scheduled_messaging_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 93,
+      "missing_lines": 93
+    },
+    {
+      "file": "api/security_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 90,
+      "missing_lines": 90
+    },
+    {
+      "file": "api/shell_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 37,
+      "missing_lines": 37
+    },
+    {
+      "file": "api/signal_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 84,
+      "missing_lines": 84
+    },
+    {
+      "file": "api/skill_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 123,
+      "missing_lines": 123
+    },
+    {
+      "file": "api/smarthome_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 188,
+      "missing_lines": 188
+    },
+    {
+      "file": "api/social_media_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 248,
+      "missing_lines": 248
+    },
+    {
+      "file": "api/social_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 90,
+      "missing_lines": 90
+    },
+    {
+      "file": "api/supervised_queue_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 82,
+      "missing_lines": 82
+    },
+    {
+      "file": "api/supervision_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 93,
+      "missing_lines": 93
+    },
+    {
+      "file": "api/sync_admin_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 157,
+      "missing_lines": 157
+    },
+    {
+      "file": "api/task_monitoring_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 124,
+      "missing_lines": 124
+    },
+    {
+      "file": "api/tenant_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 27,
+      "missing_lines": 27
+    },
+    {
+      "file": "api/time_travel_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 17,
+      "missing_lines": 17
+    },
+    {
+      "file": "api/token_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 61,
+      "missing_lines": 61
+    },
+    {
+      "file": "api/tools.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 78,
+      "missing_lines": 78
+    },
+    {
+      "file": "api/user_activity_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 102,
+      "missing_lines": 102
+    },
+    {
+      "file": "api/user_management_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 60,
+      "missing_lines": 60
+    },
+    {
+      "file": "api/user_templates_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 261,
+      "missing_lines": 261
+    },
+    {
+      "file": "api/voice_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 41,
+      "missing_lines": 41
+    },
+    {
+      "file": "api/webhook_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 25,
+      "missing_lines": 25
+    },
+    {
+      "file": "api/websocket_debugging.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 88,
+      "missing_lines": 88
+    },
+    {
+      "file": "api/websocket_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 19,
+      "missing_lines": 19
+    },
+    {
+      "file": "api/workflow_analytics_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 17,
+      "missing_lines": 17
+    },
+    {
+      "file": "api/workflow_collaboration.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 244,
+      "missing_lines": 244
+    },
+    {
+      "file": "api/workflow_debugging.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 204,
+      "missing_lines": 204
+    },
+    {
+      "file": "api/workflow_debugging_advanced.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 116,
+      "missing_lines": 116
+    },
+    {
+      "file": "api/workflow_template_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 131,
+      "missing_lines": 131
+    },
+    {
+      "file": "api/workflow_versioning_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 228,
+      "missing_lines": 228
+    },
+    {
+      "file": "api/workspace_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 96,
+      "missing_lines": 96
+    },
+    {
+      "file": "api/zoho_workdrive_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 44,
+      "missing_lines": 44
+    },
+    {
+      "file": "core/ab_testing_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 148,
+      "missing_lines": 148
+    },
+    {
+      "file": "core/accounting_validator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 69,
+      "missing_lines": 69
+    },
+    {
+      "file": "core/active_intervention_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 112,
+      "missing_lines": 112
+    },
+    {
+      "file": "core/admin_bootstrap.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 28,
+      "missing_lines": 28
+    },
+    {
+      "file": "core/admin_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 7,
+      "missing_lines": 7
+    },
+    {
+      "file": "core/advanced_workflow_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 265,
+      "missing_lines": 265
+    },
+    {
+      "file": "core/advanced_workflow_system.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 495,
+      "missing_lines": 495
+    },
+    {
+      "file": "core/agent_communication.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 136,
+      "missing_lines": 136
+    },
+    {
+      "file": "core/agent_evolution_loop.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 191,
+      "missing_lines": 191
+    },
+    {
+      "file": "core/agent_execution_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 134,
+      "missing_lines": 134
+    },
+    {
+      "file": "core/agent_graduation_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 240,
+      "missing_lines": 240
+    },
+    {
+      "file": "core/agent_integration_gateway.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 290,
+      "missing_lines": 290
+    },
+    {
+      "file": "core/agent_learning_enhanced.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 106,
+      "missing_lines": 106
+    },
+    {
+      "file": "core/agent_promotion_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 128,
+      "missing_lines": 128
+    },
+    {
+      "file": "core/agent_request_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 130,
+      "missing_lines": 130
+    },
+    {
+      "file": "core/agent_social_layer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 376,
+      "missing_lines": 376
+    },
+    {
+      "file": "core/agent_task_registry.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 115,
+      "missing_lines": 115
+    },
+    {
+      "file": "core/agent_utils.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 150,
+      "missing_lines": 150
+    },
+    {
+      "file": "core/agent_world_model.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 317,
+      "missing_lines": 317
+    },
+    {
+      "file": "core/ai_accounting_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 295,
+      "missing_lines": 295
+    },
+    {
+      "file": "core/ai_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 27,
+      "missing_lines": 27
+    },
+    {
+      "file": "core/ai_trigger_coordinator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 144,
+      "missing_lines": 144
+    },
+    {
+      "file": "core/ai_workflow_optimization_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 137,
+      "missing_lines": 137
+    },
+    {
+      "file": "core/ai_workflow_optimizer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 240,
+      "missing_lines": 240
+    },
+    {
+      "file": "core/analytics_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 119,
+      "missing_lines": 119
+    },
+    {
+      "file": "core/analytics_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 130,
+      "missing_lines": 130
+    },
+    {
+      "file": "core/apar_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 177,
+      "missing_lines": 177
+    },
+    {
+      "file": "core/api_governance.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 102,
+      "missing_lines": 102
+    },
+    {
+      "file": "core/api_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 164,
+      "missing_lines": 164
+    },
+    {
+      "file": "core/app_secrets.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 85,
+      "missing_lines": 85
+    },
+    {
+      "file": "core/atom_agent_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 787,
+      "missing_lines": 787
+    },
+    {
+      "file": "core/atom_meta_agent.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 422,
+      "missing_lines": 422
+    },
+    {
+      "file": "core/atom_saas_client.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 114,
+      "missing_lines": 114
+    },
+    {
+      "file": "core/atom_saas_websocket.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 328,
+      "missing_lines": 328
+    },
+    {
+      "file": "core/audit_immutable_guard.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 16,
+      "missing_lines": 16
+    },
+    {
+      "file": "core/audit_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 103,
+      "missing_lines": 103
+    },
+    {
+      "file": "core/audit_trail_validator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 80,
+      "missing_lines": 80
+    },
+    {
+      "file": "core/auth_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 123,
+      "missing_lines": 123
+    },
+    {
+      "file": "core/auth_helpers.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 142,
+      "missing_lines": 142
+    },
+    {
+      "file": "core/auto_document_ingestion.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 468,
+      "missing_lines": 468
+    },
+    {
+      "file": "core/auto_healing.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 85,
+      "missing_lines": 85
+    },
+    {
+      "file": "core/auto_healing_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 28,
+      "missing_lines": 28
+    },
+    {
+      "file": "core/auto_installer_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 98,
+      "missing_lines": 98
+    },
+    {
+      "file": "core/auto_invoicer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 224,
+      "missing_lines": 224
+    },
+    {
+      "file": "core/automation_insight_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 29,
+      "missing_lines": 29
+    },
+    {
+      "file": "core/automation_insight_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 67,
+      "missing_lines": 67
+    },
+    {
+      "file": "core/automation_settings.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 45,
+      "missing_lines": 45
+    },
+    {
+      "file": "core/automation_settings_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 27,
+      "missing_lines": 27
+    },
+    {
+      "file": "core/autonomous_supervisor_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 119,
+      "missing_lines": 119
+    },
+    {
+      "file": "core/availability_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 22,
+      "missing_lines": 22
+    },
+    {
+      "file": "core/availability_negotiator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 39,
+      "missing_lines": 39
+    },
+    {
+      "file": "core/background_agent_runner.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 121,
+      "missing_lines": 121
+    },
+    {
+      "file": "core/base_agent_mixin.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 10,
+      "missing_lines": 10
+    },
+    {
+      "file": "core/base_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 138,
+      "missing_lines": 138
+    },
+    {
+      "file": "core/behavior_analyzer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 40,
+      "missing_lines": 40
+    },
+    {
+      "file": "core/billing.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 16,
+      "missing_lines": 16
+    },
+    {
+      "file": "core/billing_orchestrator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 52,
+      "missing_lines": 52
+    },
+    {
+      "file": "core/blueprint_healer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 35,
+      "missing_lines": 35
+    },
+    {
+      "file": "core/budget_enforcement_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 151,
+      "missing_lines": 151
+    },
+    {
+      "file": "core/budget_guardrail.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 53,
+      "missing_lines": 53
+    },
+    {
+      "file": "core/bulk_operations_processor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 288,
+      "missing_lines": 288
+    },
+    {
+      "file": "core/burnout_detection_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 79,
+      "missing_lines": 79
+    },
+    {
+      "file": "core/business_agents.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 182,
+      "missing_lines": 182
+    },
+    {
+      "file": "core/business_health_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 80,
+      "missing_lines": 80
+    },
+    {
+      "file": "core/business_intelligence.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 142,
+      "missing_lines": 142
+    },
+    {
+      "file": "core/byok_competitive_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 137,
+      "missing_lines": 137
+    },
+    {
+      "file": "core/byok_cost_optimizer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 168,
+      "missing_lines": 168
+    },
+    {
+      "file": "core/cache.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 70,
+      "missing_lines": 70
+    },
+    {
+      "file": "core/canvas_coding_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 83,
+      "missing_lines": 83
+    },
+    {
+      "file": "core/canvas_collaboration_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 194,
+      "missing_lines": 194
+    },
+    {
+      "file": "core/canvas_docs_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 169,
+      "missing_lines": 169
+    },
+    {
+      "file": "core/canvas_email_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 106,
+      "missing_lines": 106
+    },
+    {
+      "file": "core/canvas_orchestration_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 129,
+      "missing_lines": 129
+    },
+    {
+      "file": "core/canvas_recording_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 157,
+      "missing_lines": 157
+    },
+    {
+      "file": "core/canvas_sheets_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 77,
+      "missing_lines": 77
+    },
+    {
+      "file": "core/canvas_skill_integration.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 66,
+      "missing_lines": 66
+    },
+    {
+      "file": "core/canvas_terminal_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 81,
+      "missing_lines": 81
+    },
+    {
+      "file": "core/cash_flow_forecaster.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 37,
+      "missing_lines": 37
+    },
+    {
+      "file": "core/change_order_agent.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 40,
+      "missing_lines": 40
+    },
+    {
+      "file": "core/chat_context_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 73,
+      "missing_lines": 73
+    },
+    {
+      "file": "core/chat_process_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 101,
+      "missing_lines": 101
+    },
+    {
+      "file": "core/chat_session_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 231,
+      "missing_lines": 231
+    },
+    {
+      "file": "core/chronological_integrity.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 120,
+      "missing_lines": 120
+    },
+    {
+      "file": "core/circuit_breaker.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 104,
+      "missing_lines": 104
+    },
+    {
+      "file": "core/collaboration_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 291,
+      "missing_lines": 291
+    },
+    {
+      "file": "core/collection_agent.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 33,
+      "missing_lines": 33
+    },
+    {
+      "file": "core/command_whitelist.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 94,
+      "missing_lines": 94
+    },
+    {
+      "file": "core/communication_intelligence.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 122,
+      "missing_lines": 122
+    },
+    {
+      "file": "core/communication_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 145,
+      "missing_lines": 145
+    },
+    {
+      "file": "core/competitive_advantage_dashboard.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 123,
+      "missing_lines": 123
+    },
+    {
+      "file": "core/competitive_advantage_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 90,
+      "missing_lines": 90
+    },
+    {
+      "file": "core/condition_checkers.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 134,
+      "missing_lines": 134
+    },
+    {
+      "file": "core/condition_evaluator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 100,
+      "missing_lines": 100
+    },
+    {
+      "file": "core/condition_monitoring_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 186,
+      "missing_lines": 186
+    },
+    {
+      "file": "core/config.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 336,
+      "missing_lines": 336
+    },
+    {
+      "file": "core/conflict_resolution_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 180,
+      "missing_lines": 180
+    },
+    {
+      "file": "core/connection_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 173,
+      "missing_lines": 173
+    },
+    {
+      "file": "core/constitutional_validator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 157,
+      "missing_lines": 157
+    },
+    {
+      "file": "core/cost_attribution_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 92,
+      "missing_lines": 92
+    },
+    {
+      "file": "core/creative/__init__.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 2,
+      "missing_lines": 2
+    },
+    {
+      "file": "core/creative/ffmpeg_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 197,
+      "missing_lines": 197
+    },
+    {
+      "file": "core/crm_event_bridge.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 34,
+      "missing_lines": 34
+    },
+    {
+      "file": "core/cron_parser.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 172,
+      "missing_lines": 172
+    },
+    {
+      "file": "core/cross_platform_correlation.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 255,
+      "missing_lines": 255
+    },
+    {
+      "file": "core/cross_system_reasoning.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 49,
+      "missing_lines": 49
+    },
+    {
+      "file": "core/custom_components_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 224,
+      "missing_lines": 224
+    },
+    {
+      "file": "core/data_ingestion_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 58,
+      "missing_lines": 58
+    },
+    {
+      "file": "core/database_helper.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 102,
+      "missing_lines": 102
+    },
+    {
+      "file": "core/database_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 194,
+      "missing_lines": 194
+    },
+    {
+      "file": "core/database_session_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 81,
+      "missing_lines": 81
+    },
+    {
+      "file": "core/debug_ai_assistant.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 188,
+      "missing_lines": 188
+    },
+    {
+      "file": "core/debug_alerting.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 155,
+      "missing_lines": 155
+    },
+    {
+      "file": "core/debug_cache.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 141,
+      "missing_lines": 141
+    },
+    {
+      "file": "core/debug_collector.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 149,
+      "missing_lines": 149
+    },
+    {
+      "file": "core/debug_insight_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 168,
+      "missing_lines": 168
+    },
+    {
+      "file": "core/debug_insights/__init__.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 5,
+      "missing_lines": 5
+    },
+    {
+      "file": "core/debug_insights/consistency.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 93,
+      "missing_lines": 93
+    },
+    {
+      "file": "core/debug_insights/error_causality.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 117,
+      "missing_lines": 117
+    },
+    {
+      "file": "core/debug_insights/flow.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 93,
+      "missing_lines": 93
+    },
+    {
+      "file": "core/debug_insights/performance.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 143,
+      "missing_lines": 143
+    },
+    {
+      "file": "core/debug_monitor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 145,
+      "missing_lines": 145
+    },
+    {
+      "file": "core/debug_prediction.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 155,
+      "missing_lines": 155
+    },
+    {
+      "file": "core/debug_query.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 163,
+      "missing_lines": 163
+    },
+    {
+      "file": "core/debug_self_healing.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 141,
+      "missing_lines": 141
+    },
+    {
+      "file": "core/debug_storage.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 271,
+      "missing_lines": 271
+    },
+    {
+      "file": "core/debug_streaming.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 123,
+      "missing_lines": 123
+    },
+    {
+      "file": "core/decimal_utils.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 38,
+      "missing_lines": 38
+    },
+    {
+      "file": "core/deeplinks.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 188,
+      "missing_lines": 188
+    },
+    {
+      "file": "core/dependency_resolver.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 73,
+      "missing_lines": 73
+    },
+    {
+      "file": "core/directory_permission.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 83,
+      "missing_lines": 83
+    },
+    {
+      "file": "core/docling_processor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 167,
+      "missing_lines": 167
+    },
+    {
+      "file": "core/document_learner.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 68,
+      "missing_lines": 68
+    },
+    {
+      "file": "core/email_followup_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 29,
+      "missing_lines": 29
+    },
+    {
+      "file": "core/email_utils.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 156,
+      "missing_lines": 156
+    },
+    {
+      "file": "core/embedding_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 321,
+      "missing_lines": 321
+    },
+    {
+      "file": "core/enhanced_execution_state_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 281,
+      "missing_lines": 281
+    },
+    {
+      "file": "core/enterprise_auth_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 293,
+      "missing_lines": 293
+    },
+    {
+      "file": "core/enterprise_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 54,
+      "missing_lines": 54
+    },
+    {
+      "file": "core/enterprise_security.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 200,
+      "missing_lines": 200
+    },
+    {
+      "file": "core/enterprise_user_management.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 208,
+      "missing_lines": 208
+    },
+    {
+      "file": "core/episode_integration.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 17,
+      "missing_lines": 17
+    },
+    {
+      "file": "core/error_guidance_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 188,
+      "missing_lines": 188
+    },
+    {
+      "file": "core/error_handler_decorator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 132,
+      "missing_lines": 132
+    },
+    {
+      "file": "core/error_middleware.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 137,
+      "missing_lines": 137
+    },
+    {
+      "file": "core/event_sourced_architecture.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 173,
+      "missing_lines": 173
+    },
+    {
+      "file": "core/execution_state_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 72,
+      "missing_lines": 72
+    },
+    {
+      "file": "core/expense_optimizer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 38,
+      "missing_lines": 38
+    },
+    {
+      "file": "core/expression_parser.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 164,
+      "missing_lines": 164
+    },
+    {
+      "file": "core/external_integration_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 24,
+      "missing_lines": 24
+    },
+    {
+      "file": "core/external_pm_sync.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 55,
+      "missing_lines": 55
+    },
+    {
+      "file": "core/feedback_advanced_analytics.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 143,
+      "missing_lines": 143
+    },
+    {
+      "file": "core/feedback_analytics.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 107,
+      "missing_lines": 107
+    },
+    {
+      "file": "core/feedback_export_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 65,
+      "missing_lines": 65
+    },
+    {
+      "file": "core/feedback_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 219,
+      "missing_lines": 219
+    },
+    {
+      "file": "core/financial_audit_orchestrator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 112,
+      "missing_lines": 112
+    },
+    {
+      "file": "core/financial_audit_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 154,
+      "missing_lines": 154
+    },
+    {
+      "file": "core/financial_forensics.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 30,
+      "missing_lines": 30
+    },
+    {
+      "file": "core/financial_ops_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 220,
+      "missing_lines": 220
+    },
+    {
+      "file": "core/followup_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 37,
+      "missing_lines": 37
+    },
+    {
+      "file": "core/formula_extractor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 313,
+      "missing_lines": 313
+    },
+    {
+      "file": "core/formula_memory.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 147,
+      "missing_lines": 147
+    },
+    {
+      "file": "core/generic_agent.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 242,
+      "missing_lines": 242
+    },
+    {
+      "file": "core/goal_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 93,
+      "missing_lines": 93
+    },
+    {
+      "file": "core/governance_config.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 135,
+      "missing_lines": 135
+    },
+    {
+      "file": "core/governance_decorator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 127,
+      "missing_lines": 127
+    },
+    {
+      "file": "core/governance_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 80,
+      "missing_lines": 80
+    },
+    {
+      "file": "core/governance_helper.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 130,
+      "missing_lines": 130
+    },
+    {
+      "file": "core/governance_helpers.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 47,
+      "missing_lines": 47
+    },
+    {
+      "file": "core/governance_wrapper.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 111,
+      "missing_lines": 111
+    },
+    {
+      "file": "core/graduation_exam.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 227,
+      "missing_lines": 227
+    },
+    {
+      "file": "core/graphrag_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 275,
+      "missing_lines": 275
+    },
+    {
+      "file": "core/group_reflection_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 178,
+      "missing_lines": 178
+    },
+    {
+      "file": "core/hash_chain_integrity.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 85,
+      "missing_lines": 85
+    },
+    {
+      "file": "core/health_monitor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 113,
+      "missing_lines": 113
+    },
+    {
+      "file": "core/health_monitoring_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 228,
+      "missing_lines": 228
+    },
+    {
+      "file": "core/historical_learner.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 25,
+      "missing_lines": 25
+    },
+    {
+      "file": "core/host_shell_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 105,
+      "missing_lines": 105
+    },
+    {
+      "file": "core/http_client.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 76,
+      "missing_lines": 76
+    },
+    {
+      "file": "core/hybrid_data_ingestion.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 311,
+      "missing_lines": 311
+    },
+    {
+      "file": "core/hybrid_retrieval_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 100,
+      "missing_lines": 100
+    },
+    {
+      "file": "core/identity_resolver.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 39,
+      "missing_lines": 39
+    },
+    {
+      "file": "core/im_governance_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 137,
+      "missing_lines": 137
+    },
+    {
+      "file": "core/industry_workflow_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 181,
+      "missing_lines": 181
+    },
+    {
+      "file": "core/industry_workflow_templates.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 71,
+      "missing_lines": 71
+    },
+    {
+      "file": "core/integration_adapter.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 49,
+      "missing_lines": 49
+    },
+    {
+      "file": "core/integration_dashboard.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 252,
+      "missing_lines": 252
+    },
+    {
+      "file": "core/integration_data_mapper.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 325,
+      "missing_lines": 325
+    },
+    {
+      "file": "core/integration_enhancement_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 169,
+      "missing_lines": 169
+    },
+    {
+      "file": "core/integration_loader.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 89,
+      "missing_lines": 89
+    },
+    {
+      "file": "core/intervention_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 60,
+      "missing_lines": 60
+    },
+    {
+      "file": "core/jwt_verifier.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 155,
+      "missing_lines": 155
+    },
+    {
+      "file": "core/knowledge_extractor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 60,
+      "missing_lines": 60
+    },
+    {
+      "file": "core/knowledge_ingestion.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 77,
+      "missing_lines": 77
+    },
+    {
+      "file": "core/knowledge_query_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 51,
+      "missing_lines": 51
+    },
+    {
+      "file": "core/lancedb_config.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 41,
+      "missing_lines": 41
+    },
+    {
+      "file": "core/lazy_integration_registry.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 36,
+      "missing_lines": 36
+    },
+    {
+      "file": "core/lifecycle_comm_generator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 40,
+      "missing_lines": 40
+    },
+    {
+      "file": "core/llm/minimax_integration.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 47,
+      "missing_lines": 47
+    },
+    {
+      "file": "core/llm_router.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 19,
+      "missing_lines": 19
+    },
+    {
+      "file": "core/llm_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 12,
+      "missing_lines": 12
+    },
+    {
+      "file": "core/local_agent_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 116,
+      "missing_lines": 116
+    },
+    {
+      "file": "core/local_llm_secrets_detector.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 137,
+      "missing_lines": 137
+    },
+    {
+      "file": "core/local_ocr_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 166,
+      "missing_lines": 166
+    },
+    {
+      "file": "core/logging_config.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 148,
+      "missing_lines": 148
+    },
+    {
+      "file": "core/lux_config.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 19,
+      "missing_lines": 19
+    },
+    {
+      "file": "core/marketing_agent.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 41,
+      "missing_lines": 41
+    },
+    {
+      "file": "core/marketing_analytics.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 30,
+      "missing_lines": 30
+    },
+    {
+      "file": "core/marketing_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 26,
+      "missing_lines": 26
+    },
+    {
+      "file": "core/mcp_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 122,
+      "missing_lines": 122
+    },
+    {
+      "file": "core/media/__init__.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 7,
+      "missing_lines": 7
+    },
+    {
+      "file": "core/media/sonos_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 153,
+      "missing_lines": 153
+    },
+    {
+      "file": "core/media/spotify_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 196,
+      "missing_lines": 196
+    },
+    {
+      "file": "core/message_analytics_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 219,
+      "missing_lines": 219
+    },
+    {
+      "file": "core/messaging_schemas.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 19,
+      "missing_lines": 19
+    },
+    {
+      "file": "core/meta_agent_training_orchestrator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 142,
+      "missing_lines": 142
+    },
+    {
+      "file": "core/meta_automation.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 51,
+      "missing_lines": 51
+    },
+    {
+      "file": "core/microsoft365_learner.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 69,
+      "missing_lines": 69
+    },
+    {
+      "file": "core/missing_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 42,
+      "missing_lines": 42
+    },
+    {
+      "file": "core/mock_mode.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 57,
+      "missing_lines": 57
+    },
+    {
+      "file": "core/models_registration.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 16,
+      "missing_lines": 16
+    },
+    {
+      "file": "core/monitoring.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 106,
+      "missing_lines": 106
+    },
+    {
+      "file": "core/negotiation_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 48,
+      "missing_lines": 48
+    },
+    {
+      "file": "core/notification_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 38,
+      "missing_lines": 38
+    },
+    {
+      "file": "core/npm_dependency_scanner.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 146,
+      "missing_lines": 146
+    },
+    {
+      "file": "core/npm_package_installer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 169,
+      "missing_lines": 169
+    },
+    {
+      "file": "core/npm_script_analyzer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 86,
+      "missing_lines": 86
+    },
+    {
+      "file": "core/oauth_handler.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 77,
+      "missing_lines": 77
+    },
+    {
+      "file": "core/oauth_user_context.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 142,
+      "missing_lines": 142
+    },
+    {
+      "file": "core/offline_sync_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 165,
+      "missing_lines": 165
+    },
+    {
+      "file": "core/openclaw_parser.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 87,
+      "missing_lines": 87
+    },
+    {
+      "file": "core/operation_tracker_hooks.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 94,
+      "missing_lines": 94
+    },
+    {
+      "file": "core/package_dependency_scanner.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 109,
+      "missing_lines": 109
+    },
+    {
+      "file": "core/package_feature_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 127,
+      "missing_lines": 127
+    },
+    {
+      "file": "core/package_governance_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 119,
+      "missing_lines": 119
+    },
+    {
+      "file": "core/package_installer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 126,
+      "missing_lines": 126
+    },
+    {
+      "file": "core/performance_monitor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 91,
+      "missing_lines": 91
+    },
+    {
+      "file": "core/periodic_tasks.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 31,
+      "missing_lines": 31
+    },
+    {
+      "file": "core/pii_redactor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 124,
+      "missing_lines": 124
+    },
+    {
+      "file": "core/pm_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 143,
+      "missing_lines": 143
+    },
+    {
+      "file": "core/pm_orchestrator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 49,
+      "missing_lines": 49
+    },
+    {
+      "file": "core/pm_swarm.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 103,
+      "missing_lines": 103
+    },
+    {
+      "file": "core/policy_fact_extractor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 23,
+      "missing_lines": 23
+    },
+    {
+      "file": "core/predictive_insights.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 211,
+      "missing_lines": 211
+    },
+    {
+      "file": "core/privsec/__init__.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 7,
+      "missing_lines": 7
+    },
+    {
+      "file": "core/privsec/audit_logger.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 125,
+      "missing_lines": 125
+    },
+    {
+      "file": "core/privsec/local_only_guard.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 82,
+      "missing_lines": 82
+    },
+    {
+      "file": "core/privsec/token_encryption.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 117,
+      "missing_lines": 117
+    },
+    {
+      "file": "core/proactive_messaging_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 150,
+      "missing_lines": 150
+    },
+    {
+      "file": "core/productivity/notion_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 277,
+      "missing_lines": 277
+    },
+    {
+      "file": "core/proposal_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 342,
+      "missing_lines": 342
+    },
+    {
+      "file": "core/push_notification_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 149,
+      "missing_lines": 149
+    },
+    {
+      "file": "core/rating_sync_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 140,
+      "missing_lines": 140
+    },
+    {
+      "file": "core/react_models.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 12,
+      "missing_lines": 12
+    },
+    {
+      "file": "core/reasoning_chain.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 155,
+      "missing_lines": 155
+    },
+    {
+      "file": "core/reconciliation_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 164,
+      "missing_lines": 164
+    },
+    {
+      "file": "core/recording_review_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 207,
+      "missing_lines": 207
+    },
+    {
+      "file": "core/reputation_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 26,
+      "missing_lines": 26
+    },
+    {
+      "file": "core/resource_guards.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 136,
+      "missing_lines": 136
+    },
+    {
+      "file": "core/resource_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 45,
+      "missing_lines": 45
+    },
+    {
+      "file": "core/resource_reasoning.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 66,
+      "missing_lines": 66
+    },
+    {
+      "file": "core/response_models.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 55,
+      "missing_lines": 55
+    },
+    {
+      "file": "core/risk_forecaster.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 52,
+      "missing_lines": 52
+    },
+    {
+      "file": "core/risk_prevention.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 30,
+      "missing_lines": 30
+    },
+    {
+      "file": "core/sandbox_executor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 86,
+      "missing_lines": 86
+    },
+    {
+      "file": "core/satellite_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 63,
+      "missing_lines": 63
+    },
+    {
+      "file": "core/schedule_optimizer.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 71,
+      "missing_lines": 71
+    },
+    {
+      "file": "core/scheduled_messaging_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 159,
+      "missing_lines": 159
+    },
+    {
+      "file": "core/scheduler.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 144,
+      "missing_lines": 144
+    },
+    {
+      "file": "core/secret_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 59,
+      "missing_lines": 59
+    },
+    {
+      "file": "core/secrets_redactor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 111,
+      "missing_lines": 111
+    },
+    {
+      "file": "core/security.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 30,
+      "missing_lines": 30
+    },
+    {
+      "file": "core/security_dependencies.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 25,
+      "missing_lines": 25
+    },
+    {
+      "file": "core/self_evolution_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 63,
+      "missing_lines": 63
+    },
+    {
+      "file": "core/service_registry.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 13,
+      "missing_lines": 13
+    },
+    {
+      "file": "core/skill_adapter.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 229,
+      "missing_lines": 229
+    },
+    {
+      "file": "core/skill_builder_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 59,
+      "missing_lines": 59
+    },
+    {
+      "file": "core/skill_composition_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 132,
+      "missing_lines": 132
+    },
+    {
+      "file": "core/skill_dynamic_loader.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 117,
+      "missing_lines": 117
+    },
+    {
+      "file": "core/skill_marketplace_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 102,
+      "missing_lines": 102
+    },
+    {
+      "file": "core/skill_parser.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 144,
+      "missing_lines": 144
+    },
+    {
+      "file": "core/skill_registry_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 366,
+      "missing_lines": 366
+    },
+    {
+      "file": "core/skill_sandbox.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 104,
+      "missing_lines": 104
+    },
+    {
+      "file": "core/skill_security_scanner.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 69,
+      "missing_lines": 69
+    },
+    {
+      "file": "core/skill_versioning_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 98,
+      "missing_lines": 98
+    },
+    {
+      "file": "core/small_biz_scheduler.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 50,
+      "missing_lines": 50
+    },
+    {
+      "file": "core/smarthome/home_assistant_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 126,
+      "missing_lines": 126
+    },
+    {
+      "file": "core/smarthome/hue_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 156,
+      "missing_lines": 156
+    },
+    {
+      "file": "core/social_post_generator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 170,
+      "missing_lines": 170
+    },
+    {
+      "file": "core/staffing_advisor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 51,
+      "missing_lines": 51
+    },
+    {
+      "file": "core/stakeholder_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 22,
+      "missing_lines": 22
+    },
+    {
+      "file": "core/stakeholder_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 87,
+      "missing_lines": 87
+    },
+    {
+      "file": "core/storage.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 41,
+      "missing_lines": 41
+    },
+    {
+      "file": "core/supervision_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 218,
+      "missing_lines": 218
+    },
+    {
+      "file": "core/supervisor_learning_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 212,
+      "missing_lines": 212
+    },
+    {
+      "file": "core/supervisor_performance_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 135,
+      "missing_lines": 135
+    },
+    {
+      "file": "core/sync_health_monitor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 64,
+      "missing_lines": 64
+    },
+    {
+      "file": "core/sync_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 230,
+      "missing_lines": 230
+    },
+    {
+      "file": "core/system_status.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 78,
+      "missing_lines": 78
+    },
+    {
+      "file": "core/task_queue.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 129,
+      "missing_lines": 129
+    },
+    {
+      "file": "core/team_messaging.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 33,
+      "missing_lines": 33
+    },
+    {
+      "file": "core/time_expression_parser.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 81,
+      "missing_lines": 81
+    },
+    {
+      "file": "core/timeline_prediction.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 35,
+      "missing_lines": 35
+    },
+    {
+      "file": "core/token_refresher.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 107,
+      "missing_lines": 107
+    },
+    {
+      "file": "core/token_storage.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 63,
+      "missing_lines": 63
+    },
+    {
+      "file": "core/trace_validator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 31,
+      "missing_lines": 31
+    },
+    {
+      "file": "core/training_websocket_events.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 82,
+      "missing_lines": 82
+    },
+    {
+      "file": "core/trajectory.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 53,
+      "missing_lines": 53
+    },
+    {
+      "file": "core/unified_calendar_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 99,
+      "missing_lines": 99
+    },
+    {
+      "file": "core/unified_message_processor.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 267,
+      "missing_lines": 267
+    },
+    {
+      "file": "core/unified_search_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 96,
+      "missing_lines": 96
+    },
+    {
+      "file": "core/unified_task_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 204,
+      "missing_lines": 204
+    },
+    {
+      "file": "core/uptime_tracker.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 103,
+      "missing_lines": 103
+    },
+    {
+      "file": "core/user_context_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 102,
+      "missing_lines": 102
+    },
+    {
+      "file": "core/user_preference_routes.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 26,
+      "missing_lines": 26
+    },
+    {
+      "file": "core/user_preference_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 53,
+      "missing_lines": 53
+    },
+    {
+      "file": "core/validation_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 258,
+      "missing_lines": 258
+    },
+    {
+      "file": "core/view_coordinator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 129,
+      "missing_lines": 129
+    },
+    {
+      "file": "core/voice_service.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 71,
+      "missing_lines": 71
+    },
+    {
+      "file": "core/webhook_handlers.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 219,
+      "missing_lines": 219
+    },
+    {
+      "file": "core/websocket_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 106,
+      "missing_lines": 106
+    },
+    {
+      "file": "core/workflow_analytics_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 314,
+      "missing_lines": 314
+    },
+    {
+      "file": "core/workflow_analytics_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 561,
+      "missing_lines": 561
+    },
+    {
+      "file": "core/workflow_debugger.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 527,
+      "missing_lines": 527
+    },
+    {
+      "file": "core/workflow_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 245,
+      "missing_lines": 245
+    },
+    {
+      "file": "core/workflow_engine.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 1163,
+      "missing_lines": 1163
+    },
+    {
+      "file": "core/workflow_marketplace.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 332,
+      "missing_lines": 332
+    },
+    {
+      "file": "core/workflow_metrics.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 58,
+      "missing_lines": 58
+    },
+    {
+      "file": "core/workflow_notifier.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 96,
+      "missing_lines": 96
+    },
+    {
+      "file": "core/workflow_parameter_validator.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 286,
+      "missing_lines": 286
+    },
+    {
+      "file": "core/workflow_step_types.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 8,
+      "missing_lines": 8
+    },
+    {
+      "file": "core/workflow_template_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 243,
+      "missing_lines": 243
+    },
+    {
+      "file": "core/workflow_template_manager.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 155,
+      "missing_lines": 155
+    },
+    {
+      "file": "core/workflow_template_system.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 350,
+      "missing_lines": 350
+    },
+    {
+      "file": "core/workflow_ui_endpoints.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 304,
+      "missing_lines": 304
+    },
+    {
+      "file": "core/workflow_versioning_system.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 442,
+      "missing_lines": 442
+    },
+    {
+      "file": "core/workforce_analytics.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 121,
+      "missing_lines": 121
+    },
+    {
+      "file": "tools/agent_guidance_canvas_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 120,
+      "missing_lines": 120
+    },
+    {
+      "file": "tools/atom_cli_skill_wrapper.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 75,
+      "missing_lines": 75
+    },
+    {
+      "file": "tools/browser_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 299,
+      "missing_lines": 299
+    },
+    {
+      "file": "tools/canvas_coding_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 21,
+      "missing_lines": 21
+    },
+    {
+      "file": "tools/canvas_docs_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 34,
+      "missing_lines": 34
+    },
+    {
+      "file": "tools/canvas_email_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 21,
+      "missing_lines": 21
+    },
+    {
+      "file": "tools/canvas_orchestration_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 21,
+      "missing_lines": 21
+    },
+    {
+      "file": "tools/canvas_sheets_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 21,
+      "missing_lines": 21
+    },
+    {
+      "file": "tools/canvas_terminal_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 21,
+      "missing_lines": 21
+    },
+    {
+      "file": "tools/creative_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 76,
+      "missing_lines": 76
+    },
+    {
+      "file": "tools/device_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 308,
+      "missing_lines": 308
+    },
+    {
+      "file": "tools/media_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 196,
+      "missing_lines": 196
+    },
+    {
+      "file": "tools/productivity_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 163,
+      "missing_lines": 163
+    },
+    {
+      "file": "tools/registry.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 150,
+      "missing_lines": 150
+    },
+    {
+      "file": "tools/smarthome_tool.py",
+      "line_coverage": 0.0,
+      "lines_covered": 0,
+      "lines_total": 168,
+      "missing_lines": 168
+    },
+    {
+      "file": "core/student_training_service.py",
+      "line_coverage": 13.471502590673575,
+      "lines_covered": 26,
+      "lines_total": 193,
+      "missing_lines": 167
+    },
+    {
+      "file": "core/lancedb_handler.py",
+      "line_coverage": 14.104372355430183,
+      "lines_covered": 100,
+      "lines_total": 709,
+      "missing_lines": 609
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "line_coverage": 17.11864406779661,
+      "lines_covered": 101,
+      "lines_total": 590,
+      "missing_lines": 489
+    },
+    {
+      "file": "tools/canvas_tool.py",
+      "line_coverage": 17.77251184834123,
+      "lines_covered": 75,
+      "lines_total": 422,
+      "missing_lines": 347
+    },
+    {
+      "file": "core/llm/cognitive_tier_service.py",
+      "line_coverage": 18.705035971223023,
+      "lines_covered": 26,
+      "lines_total": 139,
+      "missing_lines": 113
+    },
+    {
+      "file": "core/user_activity_service.py",
+      "line_coverage": 19.867549668874172,
+      "lines_covered": 30,
+      "lines_total": 151,
+      "missing_lines": 121
+    },
+    {
+      "file": "core/supervised_queue_service.py",
+      "line_coverage": 21.48148148148148,
+      "lines_covered": 29,
+      "lines_total": 135,
+      "missing_lines": 106
+    },
+    {
+      "file": "core/auth.py",
+      "line_coverage": 22.352941176470587,
+      "lines_covered": 38,
+      "lines_total": 170,
+      "missing_lines": 132
+    },
+    {
+      "file": "core/llm/canvas_summary_service.py",
+      "line_coverage": 23.863636363636363,
+      "lines_covered": 21,
+      "lines_total": 88,
+      "missing_lines": 67
+    },
+    {
+      "file": "core/dynamic_pricing_fetcher.py",
+      "line_coverage": 28.342245989304814,
+      "lines_covered": 53,
+      "lines_total": 187,
+      "missing_lines": 134
+    },
+    {
+      "file": "core/llm/escalation_manager.py",
+      "line_coverage": 29.591836734693878,
+      "lines_covered": 29,
+      "lines_total": 98,
+      "missing_lines": 69
+    },
+    {
+      "file": "core/cost_config.py",
+      "line_coverage": 30.434782608695652,
+      "lines_covered": 7,
+      "lines_total": 23,
+      "missing_lines": 16
+    },
+    {
+      "file": "core/episode_lifecycle_service.py",
+      "line_coverage": 32.18390804597701,
+      "lines_covered": 56,
+      "lines_total": 174,
+      "missing_lines": 118
+    },
+    {
+      "file": "core/episode_retrieval_service.py",
+      "line_coverage": 32.5,
+      "lines_covered": 104,
+      "lines_total": 320,
+      "missing_lines": 216
+    },
+    {
+      "file": "core/agent_governance_service.py",
+      "line_coverage": 37.13235294117647,
+      "lines_covered": 101,
+      "lines_total": 272,
+      "missing_lines": 171
+    },
+    {
+      "file": "core/governance_cache.py",
+      "line_coverage": 38.489208633093526,
+      "lines_covered": 107,
+      "lines_total": 278,
+      "missing_lines": 171
+    },
+    {
+      "file": "core/data_visibility.py",
+      "line_coverage": 38.63636363636363,
+      "lines_covered": 17,
+      "lines_total": 44,
+      "missing_lines": 27
+    },
+    {
+      "file": "core/byok_endpoints.py",
+      "line_coverage": 39.959016393442624,
+      "lines_covered": 195,
+      "lines_total": 488,
+      "missing_lines": 293
+    },
+    {
+      "file": "core/llm/cognitive_tier_system.py",
+      "line_coverage": 40.0,
+      "lines_covered": 20,
+      "lines_total": 50,
+      "missing_lines": 30
+    },
+    {
+      "file": "core/websockets.py",
+      "line_coverage": 40.625,
+      "lines_covered": 52,
+      "lines_total": 128,
+      "missing_lines": 76
+    },
+    {
+      "file": "core/llm/byok_handler.py",
+      "line_coverage": 40.97859327217125,
+      "lines_covered": 268,
+      "lines_total": 654,
+      "missing_lines": 386
+    },
+    {
+      "file": "core/benchmarks.py",
+      "line_coverage": 41.1764705882353,
+      "lines_covered": 7,
+      "lines_total": 17,
+      "missing_lines": 10
+    },
+    {
+      "file": "core/agent_context_resolver.py",
+      "line_coverage": 42.10526315789474,
+      "lines_covered": 40,
+      "lines_total": 95,
+      "missing_lines": 55
+    },
+    {
+      "file": "core/database.py",
+      "line_coverage": 47.65625,
+      "lines_covered": 61,
+      "lines_total": 128,
+      "missing_lines": 67
+    },
+    {
+      "file": "core/rbac_service.py",
+      "line_coverage": 48.717948717948715,
+      "lines_covered": 19,
+      "lines_total": 39,
+      "missing_lines": 20
+    },
+    {
+      "file": "core/llm/cache_aware_router.py",
+      "line_coverage": 50.0,
+      "lines_covered": 29,
+      "lines_total": 58,
+      "missing_lines": 29
+    },
+    {
+      "file": "core/exceptions.py",
+      "line_coverage": 55.81395348837209,
+      "lines_covered": 144,
+      "lines_total": 258,
+      "missing_lines": 114
+    },
+    {
+      "file": "core/error_handlers.py",
+      "line_coverage": 56.05095541401274,
+      "lines_covered": 88,
+      "lines_total": 157,
+      "missing_lines": 69
+    },
+    {
+      "file": "core/service_factory.py",
+      "line_coverage": 56.89655172413793,
+      "lines_covered": 33,
+      "lines_total": 58,
+      "missing_lines": 25
+    },
+    {
+      "file": "core/feature_flags.py",
+      "line_coverage": 57.534246575342465,
+      "lines_covered": 42,
+      "lines_total": 73,
+      "missing_lines": 31
+    },
+    {
+      "file": "core/canvas_type_registry.py",
+      "line_coverage": 60.0,
+      "lines_covered": 51,
+      "lines_total": 85,
+      "missing_lines": 34
+    },
+    {
+      "file": "core/trigger_interceptor.py",
+      "line_coverage": 60.0,
+      "lines_covered": 84,
+      "lines_total": 140,
+      "missing_lines": 56
+    },
+    {
+      "file": "core/llm_usage_tracker.py",
+      "line_coverage": 62.264150943396224,
+      "lines_covered": 33,
+      "lines_total": 53,
+      "missing_lines": 20
+    },
+    {
+      "file": "core/structured_logger.py",
+      "line_coverage": 66.30434782608695,
+      "lines_covered": 61,
+      "lines_total": 92,
+      "missing_lines": 31
+    },
+    {
+      "file": "core/models.py",
+      "line_coverage": 97.53086419753086,
+      "lines_covered": 4029,
+      "lines_total": 4131,
+      "missing_lines": 102
+    },
+    {
+      "file": "api/__init__.py",
+      "line_coverage": 100.0,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "missing_lines": 0
+    },
+    {
+      "file": "api/admin/__init__.py",
+      "line_coverage": 100.0,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "missing_lines": 0
+    },
+    {
+      "file": "core/__init__.py",
+      "line_coverage": 100.0,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "missing_lines": 0
+    },
+    {
+      "file": "core/llm/__init__.py",
+      "line_coverage": 100.0,
+      "lines_covered": 3,
+      "lines_total": 3,
+      "missing_lines": 0
+    },
+    {
+      "file": "core/productivity/__init__.py",
+      "line_coverage": 100.0,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "missing_lines": 0
+    },
+    {
+      "file": "core/smarthome/__init__.py",
+      "line_coverage": 100.0,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "missing_lines": 0
+    },
+    {
+      "file": "tools/__init__.py",
+      "line_coverage": 100.0,
+      "lines_covered": 0,
+      "lines_total": 0,
+      "missing_lines": 0
+    }
+  ]
+}
