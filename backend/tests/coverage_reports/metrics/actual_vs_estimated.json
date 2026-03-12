@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-03-11T20:13:23.398431",
+  "actual_coverage": {
+    "line_percent": 8.496156860588227,
+    "lines_covered": 6179,
+    "lines_total": 72727
+  },
+  "previous_estimates": {
+    "phase_161_baseline": 8.5,
+    "phase_166_claimed": 85.0,
+    "phase_164_gap_analysis": 74.55
+  },
+  "discrepancies": [
+    {
+      "source": "phase_166",
+      "claimed": 85.0,
+      "actual": 8.496156860588227,
+      "gap": 76.50384313941177
+    },
+    {
+      "source": "phase_164",
+      "claimed": 74.55,
+      "actual": 8.496156860588227,
+      "gap": 66.05384313941177
+    }
+  ],
+  "files_below_80_percent": 524,
+  "files_with_zero_coverage": 490,
+  "recommended_focus_areas": [
+    "Governance services (high business impact)",
+    "LLM services (high business impact)",
+    "Episodic memory (medium business impact)",
+    "API routes (medium business impact)"
+  ]
+}
