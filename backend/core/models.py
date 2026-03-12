@@ -848,6 +848,84 @@ class AgentRequestLog(Base):
     agent = relationship("AgentRegistry")
     user = relationship("User")
 
+class OperationErrorResolution(Base):
+    """
+    Track error resolution outcomes for learning and guidance.
+
+    Records which resolutions work for which errors to improve
+    automated error guidance suggestions over time.
+    """
+    __tablename__ = "operation_error_resolutions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Error identification
+    error_type = Column(String(100), nullable=False, index=True)
+    error_code = Column(String(50), nullable=True, index=True)
+
+    # Resolution details
+    resolution_attempted = Column(Text, nullable=False)
+    success = Column(Boolean, nullable=False, default=False, index=True)
+
+    # Feedback
+    user_feedback = Column(Text, nullable=True)
+    agent_suggested = Column(Boolean, default=True, index=True)
+
+    # Timestamps
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Metadata
+    operation_id = Column(String, ForeignKey("agent_operation_tracker.operation_id", ondelete="SET NULL"), nullable=True, index=True)
+    resolution_metadata = Column(JSON, default={})
+
+    # Relationships
+    tenant = relationship("Tenant")
+    operation = relationship("AgentOperationTracker")
+
+    def __repr__(self):
+        return f"<OperationErrorResolution(id={self.id}, error_type={self.error_type}, success={self.success})>"
+
+class ViewOrchestrationState(Base):
+    """
+    Track multi-view orchestration state for agent guidance.
+
+    Manages which views (browser, terminal, canvas) are active and their layout.
+    """
+    __tablename__ = "view_orchestration_state"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Session tracking
+    session_id = Column(String(255), nullable=False, unique=True, index=True)
+
+    # View management
+    active_views = Column(JSON, nullable=False, default=list)  # List of active view configs
+    layout = Column(String(50), nullable=False, default="canvas")  # canvas, split_horizontal, split_vertical, tabs, grid
+
+    # Control
+    controlling_agent = Column(String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_activity_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Metadata
+    orchestration_metadata = Column(JSON, default={})
+
+    # Relationships
+    tenant = relationship("Tenant")
+    user = relationship("User")
+    agent = relationship("AgentRegistry", foreign_keys=[agent_id])
+    controller = relationship("AgentRegistry", foreign_keys=[controlling_agent])
+
+    def __repr__(self):
+        return f"<ViewOrchestrationState(id={self.id}, session_id={self.session_id}, layout={self.layout})>"
+
 class AgentExecution(Base):
     """
     Detailed execution record for an Agent run (Phase 30).

@@ -37,7 +37,7 @@ def client():
 
 
 @pytest.fixture
-def mock_user(db: Session):
+def mock_user(db_session: Session):
     """Create test user."""
     user_id = str(uuid.uuid4())
     user = User(
@@ -48,14 +48,14 @@ def mock_user(db: Session):
         role="member",
         status="active"
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
     return user
 
 
 @pytest.fixture
-def mock_operation(db: Session, mock_user: User):
+def mock_operation(db_session: Session, mock_user: User):
     """Create test operation tracker."""
     operation_id = str(uuid.uuid4())
     operation = AgentOperationTracker(
@@ -74,14 +74,14 @@ def mock_operation(db: Session, mock_user: User):
         logs=[],
         metadata={}
     )
-    db.add(operation)
-    db.commit()
-    db.refresh(operation)
+    db_session.add(operation)
+    db_session.commit()
+    db_session.refresh(operation)
     return operation
 
 
 @pytest.fixture
-def mock_request(db: Session, mock_user: User):
+def mock_request(db_session: Session, mock_user: User):
     """Create test agent request."""
     request_id = str(uuid.uuid4())
     request = AgentRequestLog(
@@ -92,9 +92,9 @@ def mock_request(db: Session, mock_user: User):
         request_data={"permission": "test_action"},
         status="pending"
     )
-    db.add(request)
-    db.commit()
-    db.refresh(request)
+    db_session.add(request)
+    db_session.commit()
+    db_session.refresh(request)
     return request
 
 
@@ -104,7 +104,7 @@ def mock_request(db: Session, mock_user: User):
 
 def test_start_operation_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test starting operation successfully."""
@@ -146,7 +146,7 @@ def test_start_operation_success(
 
 def test_start_operation_minimal_data(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test starting operation with minimal data."""
@@ -189,7 +189,7 @@ def test_start_operation_minimal_data(
 
 def test_update_operation_step(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -232,7 +232,7 @@ def test_update_operation_step(
 
 def test_update_operation_context(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -276,7 +276,7 @@ def test_update_operation_context(
 
 def test_update_operation_add_log(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -320,7 +320,7 @@ def test_update_operation_add_log(
 
 def test_update_operation_combined(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -375,7 +375,7 @@ def test_update_operation_combined(
 
 def test_complete_operation_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -413,7 +413,7 @@ def test_complete_operation_success(
 
 def test_complete_operation_failed(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -451,7 +451,7 @@ def test_complete_operation_failed(
 
 def test_complete_operation_default_status(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -488,7 +488,7 @@ def test_complete_operation_default_status(
 
 def test_get_operation_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -521,7 +521,7 @@ def test_get_operation_success(
 
 def test_get_operation_not_found(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test getting non-existent operation."""
@@ -541,7 +541,7 @@ def test_get_operation_not_found(
 
 def test_switch_view_browser(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test switching to browser view."""
@@ -579,7 +579,7 @@ def test_switch_view_browser(
 
 def test_switch_view_browser_missing_url(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test switching to browser view without URL (should fail validation)."""
@@ -602,7 +602,7 @@ def test_switch_view_browser_missing_url(
 
 def test_switch_view_terminal(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test switching to terminal view."""
@@ -640,7 +640,7 @@ def test_switch_view_terminal(
 
 def test_switch_view_terminal_missing_command(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test switching to terminal view without command (should fail validation)."""
@@ -663,7 +663,7 @@ def test_switch_view_terminal_missing_command(
 
 def test_switch_view_unknown_type(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test switching to unknown view type."""
@@ -690,7 +690,7 @@ def test_switch_view_unknown_type(
 
 def test_set_layout_canvas(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test setting canvas layout."""
@@ -723,7 +723,7 @@ def test_set_layout_canvas(
 
 def test_set_layout_split_horizontal(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test setting split horizontal layout."""
@@ -753,7 +753,7 @@ def test_set_layout_split_horizontal(
 
 def test_set_layout_split_vertical(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test setting split vertical layout."""
@@ -783,7 +783,7 @@ def test_set_layout_split_vertical(
 
 def test_set_layout_tabs(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test setting tabs layout."""
@@ -813,7 +813,7 @@ def test_set_layout_tabs(
 
 def test_set_layout_grid(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test setting grid layout."""
@@ -847,7 +847,7 @@ def test_set_layout_grid(
 
 def test_present_error_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -887,7 +887,7 @@ def test_present_error_success(
 
 def test_present_error_without_agent_id(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -923,7 +923,7 @@ def test_present_error_without_agent_id(
 
 def test_present_error_with_complex_error(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_operation: AgentOperationTracker
 ):
@@ -961,7 +961,7 @@ def test_present_error_with_complex_error(
 
 def test_present_error_operation_not_found(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test error handling when operation doesn't exist."""
@@ -994,7 +994,7 @@ def test_present_error_operation_not_found(
 
 def test_track_resolution_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test tracking error resolution successfully."""
@@ -1034,7 +1034,7 @@ def test_track_resolution_success(
 
 def test_track_resolution_failed(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test tracking failed error resolution."""
@@ -1072,7 +1072,7 @@ def test_track_resolution_failed(
 
 def test_track_resolution_minimal_data(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test tracking resolution with minimal required data."""
@@ -1107,7 +1107,7 @@ def test_track_resolution_minimal_data(
 
 def test_track_resolution_with_user_feedback(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test tracking resolution with detailed user feedback."""
@@ -1140,7 +1140,7 @@ def test_track_resolution_with_user_feedback(
 
 def test_track_resolution_not_agent_suggested(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test tracking resolution with agent_suggested=False (human-initiated)."""
@@ -1180,7 +1180,7 @@ def test_track_resolution_not_agent_suggested(
 
 def test_create_permission_request_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test creating permission request successfully."""
@@ -1223,7 +1223,7 @@ def test_create_permission_request_success(
 
 def test_create_permission_request_with_expiration(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test creating permission request with expiration."""
@@ -1263,7 +1263,7 @@ def test_create_permission_request_with_expiration(
 
 def test_create_permission_request_all_urgency_levels(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test creating permission requests with all urgency levels."""
@@ -1300,7 +1300,7 @@ def test_create_permission_request_all_urgency_levels(
 
 def test_create_decision_request_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test creating decision request successfully."""
@@ -1345,7 +1345,7 @@ def test_create_decision_request_success(
 
 def test_create_decision_request_with_suggestion(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test creating decision request with suggested option."""
@@ -1388,7 +1388,7 @@ def test_create_decision_request_with_suggestion(
 
 def test_create_decision_request_with_expiration(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test decision request with expires_in parameter."""
@@ -1435,7 +1435,7 @@ def test_create_decision_request_with_expiration(
 
 def test_respond_to_request_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_request: AgentRequestLog
 ):
@@ -1474,7 +1474,7 @@ def test_respond_to_request_success(
 
 def test_respond_to_request_deny(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_request: AgentRequestLog
 ):
@@ -1511,7 +1511,7 @@ def test_respond_to_request_deny(
 
 def test_respond_to_request_with_custom_response(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_request: AgentRequestLog
 ):
@@ -1553,7 +1553,7 @@ def test_respond_to_request_with_custom_response(
 
 def test_get_request_success(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User,
     mock_request: AgentRequestLog
 ):
@@ -1582,7 +1582,7 @@ def test_get_request_success(
 
 def test_get_request_not_found(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test getting non-existent request."""
@@ -1600,7 +1600,7 @@ def test_get_request_not_found(
 
 def test_get_request_with_response(
     client: TestClient,
-    db: Session,
+    db_session: Session,
     mock_user: User
 ):
     """Test getting request that already has user_response."""
@@ -1619,8 +1619,8 @@ def test_get_request_with_response(
         created_at=datetime.utcnow(),
         responded_at=datetime.utcnow()
     )
-    db.add(test_request)
-    db.commit()
+    db_session.add(test_request)
+    db_session.commit()
 
     with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
         mock_auth.return_value = mock_user
