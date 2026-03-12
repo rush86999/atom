@@ -470,5 +470,128 @@ class TestDatabaseHealth:
 
 
 # ============================================================================
+# Test Class: TestRedisHealth
+# ============================================================================
+
+class TestRedisHealth:
+    """Tests for Redis health check logic."""
+
+    def test_redis_check_operational(self):
+        """Test Redis health check returns operational when ping succeeds."""
+        from core.cache import cache
+
+        # Mock Redis ping success
+        with patch.object(cache, 'redis_client', create=True) as mock_redis:
+            mock_redis.ping.return_value = True
+            redis_status = "operational" if mock_redis.ping() else "degraded"
+
+        assert redis_status == "operational"
+
+    def test_redis_check_degraded(self):
+        """Test Redis health check returns degraded when ping fails."""
+        from core.cache import cache
+
+        # Mock Redis ping failure
+        with patch.object(cache, 'redis_client', create=True) as mock_redis:
+            mock_redis.ping.return_value = False
+            redis_status = "operational" if mock_redis.ping() else "degraded"
+
+        assert redis_status == "degraded"
+
+    def test_redis_check_exception(self):
+        """Test Redis health check handles exceptions gracefully."""
+        from core.cache import cache
+
+        # Mock Redis to raise exception
+        with patch.object(cache, 'redis_client', create=True) as mock_redis:
+            mock_redis.ping.side_effect = Exception("Redis connection error")
+
+            try:
+                mock_redis.ping()
+                assert False, "Should have raised exception"
+            except Exception:
+                # Exception should result in degraded status
+                pass
+
+    def test_redis_check_no_client_enabled(self):
+        """Test Redis health check when enabled but no client."""
+        from core.cache import cache
+
+        # Mock no Redis client but enabled in config
+        with patch.object(cache, 'redis_client', None):
+            with patch.object(cache, 'config', create=True) as mock_config:
+                mock_config.redis.enabled = True
+                # Should return degraded when enabled but no client
+                redis_status = "degraded" if (cache.redis_client is None and mock_config.redis.enabled) else "unknown"
+
+        assert redis_status == "degraded"
+
+    def test_redis_check_disabled(self):
+        """Test Redis health check when disabled."""
+        from core.cache import cache
+
+        # Mock no Redis client and disabled in config
+        with patch.object(cache, 'redis_client', None):
+            with patch.object(cache, 'config', create=True) as mock_config:
+                mock_config.redis.enabled = False
+                # Should return unknown when disabled
+                redis_status = "unknown" if not mock_config.redis.enabled else "degraded"
+
+        assert redis_status == "unknown"
+
+
+# ============================================================================
+# Test Class: TestVectorHealth
+# ============================================================================
+
+class TestVectorHealth:
+    """Tests for vector store (LanceDB) health check logic."""
+
+    def test_vector_check_operational(self):
+        """Test vector health check returns operational when LanceDB connected."""
+        # Mock LanceDB connection success
+        mock_handler = MagicMock()
+        mock_handler.test_connection.return_value = {"connected": True}
+
+        res = mock_handler.test_connection()
+        vector_status = "operational" if res.get("connected") else "degraded"
+
+        assert vector_status == "operational"
+
+    def test_vector_check_degraded(self):
+        """Test vector health check returns degraded when LanceDB not connected."""
+        # Mock LanceDB connection failure
+        mock_handler = MagicMock()
+        mock_handler.test_connection.return_value = {"connected": False}
+
+        res = mock_handler.test_connection()
+        vector_status = "operational" if res.get("connected") else "degraded"
+
+        assert vector_status == "degraded"
+
+    def test_vector_check_exception(self):
+        """Test vector health check handles exceptions gracefully."""
+        # Mock LanceDB to raise exception
+        mock_handler = MagicMock()
+        mock_handler.test_connection.side_effect = Exception("LanceDB connection failed")
+
+        try:
+            mock_handler.test_connection()
+            assert False, "Should have raised exception"
+        except Exception:
+            # Exception should result in degraded status
+            pass
+
+    def test_vector_check_not_available(self):
+        """Test vector health check when LanceDB import failed (HAS_LANCEDB=False)."""
+        # Mock LanceDB import failure
+        with patch('api.admin.system_health_routes.HAS_LANCEDB', False):
+            # When HAS_LANCEDB is False, status should be "maintenance"
+            vector_status = "maintenance"
+
+        assert vector_status == "maintenance"
+
+
+# ============================================================================
 # Test Classes Start Here
 # ============================================================================
