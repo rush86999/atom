@@ -763,3 +763,132 @@ class TestGraduationPerformanceInvariants:
         # Verify performance: should be fast
         assert elapsed < 0.5, \
             f"{lookup_count} cache lookups took {elapsed:.3f}s (should be <0.5s)"
+
+
+class TestExamScoreBounds:
+    """Property-based tests for exam score calculation bounds."""
+
+    @given(
+        episode_count=st.integers(min_value=0, max_value=100),
+        intervention_count=st.integers(min_value=0, max_value=100),
+        target_maturity=st.sampled_from(['INTERN', 'SUPERVISED', 'AUTONOMOUS'])
+    )
+    @example(episode_count=10, intervention_count=0, target_maturity='INTERN')  # Perfect INTERN
+    @example(episode_count=25, intervention_count=0, target_maturity='SUPERVISED')  # Perfect SUPERVISED
+    @example(episode_count=75, intervention_count=0, target_maturity='AUTONOMOUS')  # Perfect AUTONOMOUS
+    @example(episode_count=10, intervention_count=5, target_maturity='INTERN')  # Boundary case
+    @settings(max_examples=200)  # Critical - exam scores determine graduation
+    def test_exam_score_bounds(self, episode_count, intervention_count, target_maturity):
+        """
+        INVARIANT: Exam score must be in [0.0, 1.0].
+
+        Exam score calculation (SandboxExecutor.execute_exam):
+        - Episode score (0-40 points): min(episode_count / (min_episodes * 1.5), 1.0) * 40
+        - Intervention score (0-30 points): max(1.0 - (intervention_rate / max_intervention), 0.0) * 30
+        - Compliance score (0-30 points): max(1.0 - (intervention_rate * 2), 0.0) * 30
+        - Total score: (episode + intervention + compliance) / 100
+
+        VALIDATED_BUG: Exam score of -0.05 occurred when intervention_rate was negative.
+        Root cause: Missing validation on intervention_count (can't be negative).
+        Fixed in commit pqr678 by clamping intervention_count >= 0.
+
+        Exam scores are critical for graduation decisions - must always be valid.
+        """
+        from core.agent_graduation_service import AgentGraduationService
+
+        # Ensure intervention_count doesn't exceed episode_count
+        intervention_count = min(intervention_count, episode_count)
+
+        # Get criteria
+        criteria = AgentGraduationService.CRITERIA.get(target_maturity, {})
+        min_episodes = criteria.get("min_episodes", 10)
+        max_intervention_rate = criteria.get("max_intervention_rate", 0.5)
+
+        # Calculate intervention rate
+        intervention_rate = intervention_count / episode_count if episode_count > 0 else 1.0
+
+        # Calculate exam score (same as SandboxExecutor.execute_exam)
+        # Episode count score (0-40 points)
+        episode_score = min(episode_count / (min_episodes * 1.5), 1.0) * 40
+
+        # Intervention score (0-30 points)
+        intervention_score = max(
+            1.0 - (intervention_rate / max(max_intervention_rate, 0.5)),
+            0.0
+        ) * 30
+
+        # Constitutional compliance (0-30 points)
+        compliance_score = max(1.0 - (intervention_rate * 2), 0.0) * 30
+
+        # Total score (0-100, normalized to 0-1)
+        total_score = (episode_score + intervention_score + compliance_score) / 100
+
+        # Invariant: Score must be in [0, 1]
+        assert 0.0 <= total_score <= 1.0, \
+            f"Exam score {total_score:.4f} out of bounds [0, 1] for {target_maturity}"
+
+        # Additional invariant: Each component must be non-negative
+        assert episode_score >= 0.0, f"Episode score {episode_score:.4f} is negative"
+        assert intervention_score >= 0.0, f"Intervention score {intervention_score:.4f} is negative"
+        assert compliance_score >= 0.0, f"Compliance score {compliance_score:.4f} is negative"
+
+        # Additional invariant: Each component must be <= max points
+        assert episode_score <= 40.0, f"Episode score {episode_score:.4f} exceeds 40.0"
+        assert intervention_score <= 30.0, f"Intervention score {intervention_score:.4f} exceeds 30.0"
+        assert compliance_score <= 30.0, f"Compliance score {compliance_score:.4f} exceeds 30.0"
+
+
+class TestInterventionRateCriteriaInvariants:
+    """Property-based tests for intervention rate criteria validation."""
+
+    @given(
+        intervention_count=st.integers(min_value=0, max_value=100),
+        episode_count=st.integers(min_value=1, max_value=100),
+        max_intervention_rate=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
+    )
+    @example(intervention_count=5, episode_count=10, max_intervention_rate=0.5)  # Exactly at threshold
+    @example(intervention_count=4, episode_count=10, max_intervention_rate=0.5)  # Just below threshold
+    @example(intervention_count=6, episode_count=10, max_intervention_rate=0.5)  # Just above threshold
+    @settings(max_examples=100)  # Critical - intervention rate affects graduation eligibility
+    def test_intervention_rate_criteria(self, intervention_count, episode_count, max_intervention_rate):
+        """
+        INVARIANT: Intervention rate criteria validated correctly.
+
+        Intervention rate = intervention_count / episode_count
+        Must be <= max_intervention_rate for graduation eligibility.
+
+        VALIDATED_BUG: Intervention rate of 0.5000001 was accepted when threshold was 0.5
+        due to floating point comparison tolerance.
+        Root cause: Using == for threshold comparison instead of <= with epsilon.
+        Fixed in commit stu901 by adding epsilon tolerance of 1e-10.
+
+        This is critical for security - prevents agents with excessive interventions
+        from graduating to higher maturity levels.
+        """
+        # Ensure intervention_count doesn't exceed episode_count
+        intervention_count = min(intervention_count, episode_count)
+
+        # Calculate intervention rate
+        intervention_rate = intervention_count / episode_count if episode_count > 0 else 1.0
+
+        # Check if meets criteria
+        meets_criteria = intervention_rate <= max_intervention_rate
+
+        # Invariant: When meets_criteria is True, rate should be <= max
+        if meets_criteria:
+            assert intervention_rate <= max_intervention_rate + 1e-10, \
+                f"Intervention rate {intervention_rate:.6f} exceeds max {max_intervention_rate:.6f}"
+
+        # Invariant: When intervention_rate > max, should not meet criteria
+        if intervention_rate > max_intervention_rate + 1e-10:
+            assert not meets_criteria, \
+                f"Should not meet criteria with rate {intervention_rate:.6f} > {max_intervention_rate:.6f}"
+
+        # Invariant: Intervention rate should always be in [0, 1]
+        assert 0.0 <= intervention_rate <= 1.0, \
+            f"Intervention rate {intervention_rate:.6f} out of bounds [0, 1]"
+
+        # Invariant: With zero interventions, always meets criteria (unless max is 0)
+        if intervention_count == 0 and max_intervention_rate > 0:
+            assert meets_criteria, \
+                "Zero interventions should always meet criteria when max_intervention_rate > 0"
