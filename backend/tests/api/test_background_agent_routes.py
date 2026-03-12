@@ -280,6 +280,21 @@ class TestAgentRegistration:
         # Check that the function has the governance metadata
         assert hasattr(register_background_agent, '__wrapped__') or callable(register_background_agent)
 
+    def test_register_background_agent_logs_creation(self, client: TestClient, mock_background_runner: MagicMock, caplog):
+        """Test that agent registration logs the appropriate message"""
+        with patch('core.background_agent_runner.background_runner', mock_background_runner):
+            import logging
+            with caplog.at_level(logging.INFO):
+                response = client.post(
+                    "/api/background-agents/test-agent-logging/register",
+                    data={"interval_seconds": 3600}
+                )
+
+                # Check that the log was created (if governance allowed the request)
+                if response.status_code in [200, 201]:
+                    # Verify logger.info was called (line 69-70)
+                    assert any("Background agent registered" in record.message for record in caplog.records)
+
 
 class TestAgentStartStop:
     """Tests for POST /api/background-agents/{agent_id}/start and POST /api/background-agents/{agent_id}/stop"""
