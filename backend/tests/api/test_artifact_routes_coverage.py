@@ -398,3 +398,107 @@ class TestArtifactSave:
         assert response.status_code == 200
         artifact = response.json()
         assert artifact["author_id"] == mock_user.id
+
+
+# ============================================================================
+# Test Artifact Update
+# ============================================================================
+
+class TestArtifactUpdate:
+    """Test artifact update endpoint with versioning."""
+
+    def test_update_artifact_name(self, authenticated_client, test_db, sample_artifact):
+        """Test updating artifact name increments version."""
+        update_data = {
+            "id": sample_artifact.id,
+            "name": "Updated Artifact Name"
+        }
+
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["name"] == "Updated Artifact Name"
+        assert artifact["version"] == 2  # Version incremented
+
+    def test_update_artifact_content(self, authenticated_client, test_db, sample_artifact):
+        """Test updating artifact content increments version."""
+        update_data = {
+            "id": sample_artifact.id,
+            "content": "print('updated content')"
+        }
+
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["content"] == "print('updated content')"
+        assert artifact["version"] == 2
+
+    def test_update_artifact_metadata(self, authenticated_client, test_db, sample_artifact):
+        """Test updating artifact metadata increments version."""
+        new_metadata = {"language": "python", "version": "3.11"}
+        update_data = {
+            "id": sample_artifact.id,
+            "metadata_json": new_metadata
+        }
+
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["metadata_json"] == new_metadata
+        assert artifact["version"] == 2
+
+    def test_update_creates_version_record(self, authenticated_client, test_db, sample_artifact, mock_user):
+        """Test that update creates ArtifactVersion record with old content."""
+        # Verify initial state
+        assert sample_artifact.version == 1
+        assert sample_artifact.content == "print('hello')"
+
+        # Update content
+        update_data = {
+            "id": sample_artifact.id,
+            "content": "print('updated')"
+        }
+
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 200
+
+        # Verify artifact updated
+        updated_artifact = test_db.query(Artifact).filter(Artifact.id == sample_artifact.id).first()
+        assert updated_artifact.version == 2
+        assert updated_artifact.content == "print('updated')"
+
+        # Verify ArtifactVersion record created
+        versions = test_db.query(ArtifactVersion).filter(
+            ArtifactVersion.artifact_id == sample_artifact.id
+        ).all()
+        assert len(versions) == 1
+        assert versions[0].version == 1  # Old version stored
+        assert versions[0].content == "print('hello')"  # Old content stored
+
+    def test_update_multiple_fields(self, authenticated_client, test_db, sample_artifact):
+        """Test updating name, content, and metadata together."""
+        update_data = {
+            "id": sample_artifact.id,
+            "name": "Multi Update",
+            "content": "new content",
+            "metadata_json": {"key": "value"}
+        }
+
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["name"] == "Multi Update"
+        assert artifact["content"] == "new content"
+        assert artifact["metadata_json"] == {"key": "value"}
+        assert artifact["version"] == 2
+
+        # Verify single version record created
+        versions = test_db.query(ArtifactVersion).filter(
+            ArtifactVersion.artifact_id == sample_artifact.id
+        ).all()
+        assert len(versions) == 1
