@@ -337,12 +337,14 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   4. Episode graduation service achieves 75%+ line coverage
 **Plans**: 5 plans
 Plans:
-- [ ] 174-01-PLAN.md — EpisodeSegmentationService coverage (LLM canvas summaries, episode creation)
-- [ ] 174-02-PLAN.md — EpisodeRetrievalService coverage (4 retrieval modes, access logging)
-- [ ] 174-03-PLAN.md — EpisodeLifecycleService coverage (decay, consolidation, archival)
-- [ ] 174-04-PLAN.md — AgentGraduationService coverage (readiness scoring, graduation exams)
-- [ ] 174-05-PLAN.md — Coverage verification and summary
+- [x] 174-01-PLAN.md — EpisodeSegmentationService coverage (LLM canvas summaries, episode creation)
+- [x] 174-02-PLAN.md — EpisodeRetrievalService coverage (4 retrieval modes, access logging)
+- [x] 174-03-PLAN.md — EpisodeLifecycleService coverage (decay, consolidation, archival)
+- [x] 174-04-PLAN.md — AgentGraduationService coverage (readiness scoring, graduation exams)
+- [x] 174-05-PLAN.md — Coverage verification and summary
 **Estimated Coverage**: 20.50%
+**Actual Coverage**: 72.2% combined (EpisodeRetrievalService 75.2%, EpisodeSegmentationService 74.9%, EpisodeLifecycleService 74.3%, AgentGraduationService 57.9%)
+**Status**: PARTIAL SUCCESS - 3 of 4 services at or near 75% target
 
 ### Phase 175: High-Impact Zero Coverage (Tools)
 **Goal**: Achieve target coverage on high-impact zero-coverage tools and integrations
@@ -552,7 +554,7 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 171. Gap Closure & Final Push | v5.4 | 6/6 | Complete | 2026-03-11 |
 | 172. High-Impact Zero Coverage (Governance) | v5.5 | 5/5 | Complete | 2026-03-12 |
 | 173. High-Impact Zero Coverage (LLM) | v5.5 | 5/5 | Complete | 2026-03-12 |
-| 174. High-Impact Zero Coverage (Episodic Memory) | v5.5 | 5 | Pending | - |
+| 174. High-Impact Zero Coverage (Episodic Memory) | v5.5 | 5/5 | Complete | 2026-03-12 |
 | 175. High-Impact Zero Coverage (Tools) | v5.5 | TBD | Pending | - |
 | 176. API Routes Coverage (Auth & Authz) | v5.5 | TBD | Pending | - |
 | 177. API Routes Coverage (Analytics) | v5.5 | TBD | Pending | - |
