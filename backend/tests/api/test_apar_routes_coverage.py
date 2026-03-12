@@ -709,3 +709,117 @@ class TestARSummary:
         assert data["data"]["overdue_count"] == 0
         assert data["data"]["invoices_sent"] == 0
         assert data["data"]["invoices_paid"] == 0
+
+
+# ============================================================================
+# TestAllInvoices - Combined AP/AR Invoice Tests
+# ============================================================================
+
+class TestAllInvoices:
+    """
+    Combined AP/AR invoice tests.
+
+    Tests the /apar/all endpoint that returns both AP and AR invoices:
+    - Mixed list of AP and AR invoices
+    - AP-only invoices
+    - AR-only invoices
+    - Type discrimination using hasattr(inv, \"customer\")
+    """
+
+    def test_get_all_invoices_mixed(self, apar_client):
+        """Test retrieving mixed list of AP and AR invoices."""
+        response = apar_client.get("/api/apar/all")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["count"] == 2
+        assert len(data["data"]["invoices"]) == 2
+
+        # Verify first invoice is AR (has customer field)
+        first_invoice = data["data"]["invoices"][0]
+        assert first_invoice["type"] == "AR"
+        assert first_invoice["customer"] == "Customer X"
+        assert first_invoice["vendor"] is None
+
+        # Verify second invoice is AP (has vendor field)
+        second_invoice = data["data"]["invoices"][1]
+        assert second_invoice["type"] == "AP"
+        assert second_invoice["vendor"] == "Vendor Y"
+        assert second_invoice["customer"] is None
+
+        assert data["message"] == "Retrieved 2 invoices"
+
+    def test_get_all_invoices_ap_only(self, apar_client, mock_apar_engine):
+        """Test retrieving AP-only invoices."""
+        from core.apar_engine import APInvoice
+
+        # Configure mock to return only AP invoices
+        mock_apar_engine.get_all_invoices.return_value = [
+            APInvoice(
+                id="ap_1",
+                vendor="Vendor A",
+                amount=100.0,
+                due_date=datetime.now() + timedelta(days=15),
+                line_items=[],
+                status=InvoiceStatus.APPROVED
+            ),
+            APInvoice(
+                id="ap_2",
+                vendor="Vendor B",
+                amount=200.0,
+                due_date=datetime.now() + timedelta(days=20),
+                line_items=[],
+                status=InvoiceStatus.APPROVED
+            )
+        ]
+
+        response = apar_client.get("/api/apar/all")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["count"] == 2
+
+        # Verify all invoices are AP type
+        for invoice in data["data"]["invoices"]:
+            assert invoice["type"] == "AP"
+            assert invoice["vendor"] is not None
+            assert invoice["customer"] is None
+
+    def test_get_all_invoices_ar_only(self, apar_client, mock_apar_engine):
+        """Test retrieving AR-only invoices."""
+        from core.apar_engine import ARInvoice
+
+        # Configure mock to return only AR invoices
+        mock_apar_engine.get_all_invoices.return_value = [
+            ARInvoice(
+                id="ar_1",
+                customer="Customer A",
+                amount=500.0,
+                due_date=datetime.now() + timedelta(days=30),
+                line_items=[],
+                status=InvoiceStatus.SENT
+            ),
+            ARInvoice(
+                id="ar_2",
+                customer="Customer B",
+                amount=750.0,
+                due_date=datetime.now() + timedelta(days=30),
+                line_items=[],
+                status=InvoiceStatus.SENT
+            )
+        ]
+
+        response = apar_client.get("/api/apar/all")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["count"] == 2
+
+        # Verify all invoices are AR type
+        for invoice in data["data"]["invoices"]:
+            assert invoice["type"] == "AR"
+            assert invoice["customer"] is not None
+            assert invoice["vendor"] is None
