@@ -404,3 +404,283 @@ class TestAutoInstallSuccess:
         assert response.status_code == 422
         data = response.json()
         assert "detail" in data
+
+
+# ============================================================================
+# TestAutoInstallBatch - Batch Install Endpoint Tests
+# ============================================================================
+
+class TestAutoInstallBatch:
+    """
+    Tests for POST /auto-install/batch endpoint.
+
+    Tests batch installation scenarios:
+    - Multiple skills installation
+    - Two different skills
+    - Mixed package types (python and npm)
+    - Empty installations list validation
+    - Partial failures
+    """
+
+    def test_batch_install_success(
+        self,
+        auto_install_client,
+        sample_batch_install_request,
+        mock_auto_installer
+    ):
+        """Test POST /auto-install/batch installs multiple skills successfully."""
+        response = auto_install_client.post("/auto-install/batch", json=sample_batch_install_request)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["total"] == 2
+        assert data["successes"] == 2
+        assert data["failures"] == 0
+        assert len(data["results"]) == 2
+
+        # Verify batch_install was called
+        mock_auto_installer.batch_install.assert_called_once()
+
+    def test_batch_install_two_skills(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test batch install with 2 different skills."""
+        request_data = {
+            "installations": [
+                {
+                    "skill_id": "skill-analytics",
+                    "packages": ["numpy", "pandas"],
+                    "package_type": "python",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": True
+                },
+                {
+                    "skill_id": "skill-frontend",
+                    "packages": ["react", "axios"],
+                    "package_type": "npm",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": False
+                }
+            ],
+            "agent_id": "agent-001"
+        }
+
+        response = auto_install_client.post("/auto-install/batch", json=request_data)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        assert data["successes"] == 2
+        assert len(data["results"]) == 2
+
+        # Verify both skills are in results
+        skill_ids = [r["skill_id"] for r in data["results"]]
+        assert "skill-analytics" in skill_ids
+        assert "skill-frontend" in skill_ids
+
+    def test_batch_install_mixed_package_types(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test batch with both python and npm packages."""
+        request_data = {
+            "installations": [
+                {
+                    "skill_id": "python-skill",
+                    "packages": ["numpy"],
+                    "package_type": "python",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": True
+                },
+                {
+                    "skill_id": "npm-skill",
+                    "packages": ["lodash"],
+                    "package_type": "npm",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": True
+                }
+            ],
+            "agent_id": "agent-001"
+        }
+
+        response = auto_install_client.post("/auto-install/batch", json=request_data)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["total"] == 2
+
+    def test_batch_install_empty(
+        self,
+        auto_install_client
+    ):
+        """Test empty installations list returns 422 (min_items=1 constraint)."""
+        request_data = {
+            "installations": [],  # Empty list violates min_items=1
+            "agent_id": "agent-001"
+        }
+
+        response = auto_install_client.post("/auto-install/batch", json=request_data)
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+    def test_batch_install_partial_failure(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test batch with some successes and some failures."""
+        # Configure batch_install to return partial failure
+        mock_auto_installer.batch_install.return_value = {
+            "success": False,  # Overall success is False due to failures
+            "total": 3,
+            "successes": 2,
+            "failures": 1,
+            "results": [
+                {
+                    "skill_id": "skill-1",
+                    "result": {"success": True, "image_tag": "atom-skill:skill-1-v1"}
+                },
+                {
+                    "skill_id": "skill-2",
+                    "result": {"success": True, "image_tag": "atom-skill:skill-2-v1"}
+                },
+                {
+                    "skill_id": "skill-3",
+                    "result": {"success": False, "error": "Package not found"}
+                }
+            ]
+        }
+
+        request_data = {
+            "installations": [
+                {
+                    "skill_id": "skill-1",
+                    "packages": ["numpy"],
+                    "package_type": "python",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": True
+                },
+                {
+                    "skill_id": "skill-2",
+                    "packages": ["pandas"],
+                    "package_type": "python",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": True
+                },
+                {
+                    "skill_id": "skill-3",
+                    "packages": ["nonexistent"],
+                    "package_type": "python",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": True
+                }
+            ],
+            "agent_id": "agent-001"
+        }
+
+        response = auto_install_client.post("/auto-install/batch", json=request_data)
+
+        assert response.status_code == 200  # Batch endpoint returns 200 even with partial failures
+        data = response.json()
+        assert data["success"] is False  # Overall success is False
+        assert data["total"] == 3
+        assert data["successes"] == 2
+        assert data["failures"] == 1
+
+
+# ============================================================================
+# TestAutoInstallStatus - Status Check Endpoint Tests
+# ============================================================================
+
+class TestAutoInstallStatus:
+    """
+    Tests for GET /auto-install/status/{skill_id} endpoint.
+
+    Tests installation status check scenarios:
+    - Installed status (image exists)
+    - Not installed status (image doesn't exist)
+    - NPM package type
+    - Python package type (default)
+    """
+
+    def test_get_status_installed(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test GET /auto-install/status/{skill_id} returns installed=True when image exists."""
+        # Configure mock to return image exists
+        mock_auto_installer._image_exists.return_value = True
+        mock_auto_installer._get_image_tag.return_value = "atom-skill:skill-123-v1"
+
+        response = auto_install_client.get("/auto-install/status/skill-123?package_type=python")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["installed"] is True
+        assert data["skill_id"] == "skill-123"
+        assert data["package_type"] == "python"
+        assert data["image_tag"] == "atom-skill:skill-123-v1"
+
+    def test_get_status_not_installed(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test returns installed=False when image doesn't exist."""
+        # Configure mock to return image doesn't exist
+        mock_auto_installer._image_exists.return_value = False
+        mock_auto_installer._get_image_tag.return_value = "atom-skill:skill-456-v1"
+
+        response = auto_install_client.get("/auto-install/status/skill-456?package_type=python")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["installed"] is False
+        assert data["skill_id"] == "skill-456"
+        assert data["package_type"] == "python"
+        assert data["image_tag"] is None  # No image_tag when not installed
+
+    def test_get_status_npm_package(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test status check with npm package_type."""
+        # Configure mock for npm package
+        mock_auto_installer._image_exists.return_value = True
+        mock_auto_installer._get_image_tag.return_value = "atom-npm-skill:npm-skill-789-v1"
+
+        response = auto_install_client.get("/auto-install/status/npm-skill-789?package_type=npm")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["installed"] is True
+        assert data["skill_id"] == "npm-skill-789"
+        assert data["package_type"] == "npm"
+        assert "atom-npm-skill:" in data["image_tag"]
+
+    def test_get_status_python_default(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test status check defaults to python package_type when not specified."""
+        mock_auto_installer._image_exists.return_value = True
+        mock_auto_installer._get_image_tag.return_value = "atom-skill:skill-default-v1"
+
+        # Request without package_type query parameter (defaults to python)
+        response = auto_install_client.get("/auto-install/status/skill-default")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["installed"] is True
+        assert data["package_type"] == "python"  # Default
+        assert data["skill_id"] == "skill-default"
