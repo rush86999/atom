@@ -406,11 +406,12 @@ Plans: 4 plans
   2. Admin business facts routes achieve 75%+ line coverage
   3. System health routes achieve 75%+ line coverage
   4. Admin endpoints achieve 75%+ line coverage
-**Plans**: 4 plans
+**Plans**: 5 plans
 - [ ] 178-01-PLAN.md — Admin skill routes coverage (create skill, security scanning, auth, error paths)
 - [ ] 178-02-PLAN.md — Admin business facts routes coverage (CRUD, upload, citation verification)
 - [ ] 178-03-PLAN.md — System health routes coverage (admin health, public health probes)
 - [ ] 178-04-PLAN.md — Sync admin routes coverage (sync trigger, rating sync, WebSocket, conflicts)
+- [ ] 178-05-PLAN.md — Admin routes coverage (user/role CRUD, WebSocket, rating sync, conflicts)
 **Estimated Coverage**: 36.50%
 
 ### Phase 179: API Routes Coverage (AI Workflows & Automation)
@@ -422,7 +423,11 @@ Plans: 4 plans
   2. AI accounting routes achieve 75%+ line coverage
   3. Auto install routes achieve 75%+ line coverage
   4. Workflow automation achieves 75%+ line coverage
-**Plans**: TBD (estimated 3-4 plans)
+**Plans**: 4 plans
+- [ ] 179-01-PLAN.md — AI workflows routes coverage (NLU parse, providers, text completion)
+- [ ] 179-02-PLAN.md — AI accounting routes coverage (transactions, categorization, posting, forecast, export)
+- [ ] 179-03-PLAN.md — Auto install routes coverage (install, batch install, status check)
+- [ ] 179-04-PLAN.md — Workflow analytics and template routes enhanced coverage
 **Estimated Coverage**: 40.50%
 
 ### Phase 180: API Routes Coverage (Advanced Features)
