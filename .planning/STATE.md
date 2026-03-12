@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 170 Plan 03 Complete - HTTP Client and LLM HTTP Integration Testing
+**Current focus**: Phase 171 Plan 01B Complete - Test import fixes and combined suite verification
 
 ## Current Position
 
 Phase: 171 of 171 (Gap Closure & Final Push)
-Plan: 1A of 6 in current phase
+Plan: 01B of 6 in current phase
 Status: Complete
-Last activity: 2026-03-12 — Phase 171 Plan 01A Complete: Model deduplication verification (no duplicates found, setup already correct)
+Last activity: 2026-03-12 — Phase 171 Plan 01B Complete: Test import fixes and combined suite verification (244/295 tests passing, 82.7% pass rate, no SQLAlchemy conflicts)
 
 Progress: [███] 17% (1/6 plans in Phase 171)
 
@@ -528,6 +528,30 @@ Next: Phase 169 Plan 05 - Final verification and summary (if exists)
 - Used httpx.MockTransport for deterministic mocking
 
 Next: Phase 171 or next phase in roadmap
+
+## Session Update: 2026-03-12
+
+**Phase 171 Plan 01B Complete:**
+- Removed accounting module mocks from test fixtures (3 files)
+- Fixed conftest.py (governance/LLM tests)
+- Fixed conftest_episode.py (episode tests)
+- Fixed test_episode_services_coverage.py
+- Combined test suite execution: 295 tests total, 244 passing (82.7% pass rate)
+- No SQLAlchemy "Table already defined" errors
+- No import conflicts
+- Ready for coverage measurement (171-02)
+- Duration: ~10 minutes
+- Commit: 8b9c426fc
+- Files created: 171-01B-SUMMARY.md
+
+**Phase 171 Plan 01B COMPLETE:**
+- All 3 tasks executed successfully
+- Accounting module mocks removed after 171-01A deduplication
+- Combined test suite verified (governance + LLM + episode)
+- SQLAlchemy conflicts fully resolved
+- Ready for 171-02 (coverage measurement)
+
+Next: Phase 171 Plan 02 - Coverage measurement
 
 ## Session Update: 2026-03-12
 
