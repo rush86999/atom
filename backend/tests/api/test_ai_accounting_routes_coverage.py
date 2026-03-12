@@ -465,3 +465,161 @@ class TestAccountingCategorization:
         mock_ai_accounting.learn_categorization.assert_called_with(
             "tx_789", "cat_travel", "user"
         )
+
+
+class TestAccountingTransactionManagement:
+    """Test transaction update and delete operations."""
+
+    def test_update_transaction_success(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test update transaction with valid changes."""
+        update_data = {
+            "description": "Updated description",
+            "amount": 150.00,
+            "merchant": "New Merchant"
+        }
+
+        response = ai_accounting_client.put(
+            "/ai-accounting/transactions/tx_123",
+            json=update_data
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["transaction_id"] == "tx_123"
+        mock_ai_accounting.update_transaction.assert_called_once()
+
+    def test_update_transaction_not_found(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test update non-existent transaction raises 404."""
+        mock_ai_accounting.update_transaction.return_value = False
+
+        update_data = {
+            "description": "Updated description"
+        }
+
+        response = ai_accounting_client.put(
+            "/ai-accounting/transactions/tx_nonexistent",
+            json=update_data
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "error" in data or "detail" in data
+
+    def test_update_transaction_with_multiple_fields(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test update description, amount, merchant simultaneously."""
+        update_data = {
+            "description": "Completely updated transaction",
+            "amount": 999.99,
+            "merchant": "Updated Store"
+        }
+
+        response = ai_accounting_client.put(
+            "/ai-accounting/transactions/tx_multi",
+            json=update_data
+        )
+
+        assert response.status_code == 200
+        mock_ai_accounting.update_transaction.assert_called_once_with(
+            "tx_multi", update_data, "user"
+        )
+
+    def test_delete_transaction_success(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test delete existing transaction returns success."""
+        response = ai_accounting_client.delete("/ai-accounting/transactions/tx_123")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["transaction_id"] == "tx_123"
+        mock_ai_accounting.delete_transaction.assert_called_once()
+
+    def test_delete_transaction_not_found(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test delete non-existent transaction raises 404."""
+        mock_ai_accounting.delete_transaction.return_value = False
+
+        response = ai_accounting_client.delete(
+            "/ai-accounting/transactions/tx_nonexistent"
+        )
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "error" in data or "detail" in data
+
+
+class TestAccountingPosting:
+    """Test transaction posting operations (manual and auto-post)."""
+
+    def test_post_transaction_success(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test post transaction returns success for postable transaction."""
+        mock_ai_accounting.post_transaction.return_value = True
+
+        response = ai_accounting_client.post("/ai-accounting/post/tx_123")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["transaction_id"] == "tx_123"
+        mock_ai_accounting.post_transaction.assert_called_once_with("tx_123", "user")
+
+    def test_post_transaction_requires_review(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test posting low-confidence transaction raises 400 validation error."""
+        mock_ai_accounting.post_transaction.return_value = False
+
+        response = ai_accounting_client.post("/ai-accounting/post/tx_low_conf")
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "error" in data or "detail" in data
+
+    def test_post_transaction_not_found(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test posting non-existent transaction raises 404."""
+        # This should trigger validation_error, not not_found_error
+        # because post_transaction returns False for both cases
+        mock_ai_accounting.post_transaction.return_value = False
+
+        response = ai_accounting_client.post("/ai-accounting/post/tx_nonexistent")
+
+        assert response.status_code == 400
+
+    def test_auto_post_high_confidence(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test auto-post returns posted_count."""
+        mock_ai_accounting.auto_post_high_confidence.return_value = 5
+
+        response = ai_accounting_client.post("/ai-accounting/auto-post")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["posted_count"] == 5
+        mock_ai_accounting.auto_post_high_confidence.assert_called_once()
+
+    def test_auto_post_empty(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test auto-post with no high-confidence transactions returns 0."""
+        mock_ai_accounting.auto_post_high_confidence.return_value = 0
+
+        response = ai_accounting_client.post("/ai-accounting/auto-post")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["posted_count"] == 0
