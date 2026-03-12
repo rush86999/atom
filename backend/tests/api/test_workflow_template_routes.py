@@ -614,3 +614,261 @@ class TestRequestValidation:
         response = client.post(f"/{sample_template_id}/instantiate", json=request)
 
         assert response.status_code == 422
+
+
+# =============================================================================
+# Template Creation Error Paths Tests (Enhanced Coverage)
+# =============================================================================
+
+class TestTemplateCreationErrorPaths:
+    """Tests for template creation error paths and edge cases."""
+
+    def test_create_template_duplicate_name(self, client, mock_template_manager):
+        """Test creating template with duplicate name handled correctly."""
+        # Simulate duplicate name error from service
+        mock_template_manager.create_template.side_effect = ValueError("Template with this name already exists")
+
+        request = {
+            "name": "Duplicate Template",
+            "description": "Should fail",
+            "steps": []
+        }
+
+        response = client.post("/", json=request)
+
+        # Should return 500 with error details
+        assert response.status_code == 500
+
+    def test_create_template_invalid_complexity(self, client):
+        """Test creating template with invalid complexity value returns 422."""
+        # FastAPI validates enums at the Pydantic level
+        request = {
+            "name": "Invalid Complexity Template",
+            "description": "Invalid complexity",
+            "complexity": "invalid_level",
+            "steps": []
+        }
+
+        response = client.post("/", json=request)
+
+        # Pydantic validation error
+        assert response.status_code == 422
+
+    def test_create_template_invalid_category(self, client):
+        """Test creating template with invalid category returns 422."""
+        request = {
+            "name": "Invalid Category Template",
+            "description": "Invalid category",
+            "category": "invalid_category",
+            "steps": []
+        }
+
+        response = client.post("/", json=request)
+
+        # Pydantic validation error
+        assert response.status_code == 422
+
+    def test_create_template_service_error(self, client, mock_template_manager):
+        """Test template manager exception returns 500."""
+        mock_template_manager.create_template.side_effect = Exception("Service unavailable")
+
+        request = {
+            "name": "Error Template",
+            "description": "Should fail with service error",
+            "steps": []
+        }
+
+        response = client.post("/", json=request)
+
+        assert response.status_code == 500
+
+    def test_create_template_empty_steps(self, client, mock_template_manager):
+        """Test creating template with empty steps list succeeds."""
+        mock_template = MagicMock()
+        mock_template.template_id = "tpl_empty"
+        mock_template.name = "Empty Steps Template"
+        mock_template_manager.create_template.return_value = mock_template
+
+        request = {
+            "name": "Empty Steps Template",
+            "description": "Template with no steps",
+            "steps": []
+        }
+
+        response = client.post("/", json=request)
+
+        assert response.status_code == 200
+
+
+# =============================================================================
+# Template Execution Error Paths Tests (Enhanced Coverage)
+# =============================================================================
+
+class TestTemplateExecutionErrorPaths:
+    """Tests for template execution error paths and edge cases."""
+
+    def test_execute_template_not_found_enhanced(self, client, mock_template_manager, sample_template_id):
+        """Test executing non-existent template returns 404."""
+        mock_template_manager.create_workflow_from_template.side_effect = ValueError("Template not found")
+
+        response = client.post(f"/{sample_template_id}/execute")
+
+        assert response.status_code == 404
+
+    def test_execute_template_invalid_parameters(self, client, mock_template_manager, sample_template_id):
+        """Test executing template with invalid parameters."""
+        # Service returns workflow_id but orchestrator fails
+        mock_template_manager.create_workflow_from_template.return_value = {
+            "workflow_id": "wf_invalid",
+            "status": "created"
+        }
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.execute_workflow = AsyncMock(side_effect=Exception("Invalid parameters"))
+
+        with patch('api.workflow_template_routes.get_orchestrator', return_value=mock_orchestrator):
+            response = client.post(f"/{sample_template_id}/execute", json={"invalid": "params"})
+
+        # Should return 500 due to orchestrator error
+        assert response.status_code == 500
+
+    def test_execute_template_instantiation_failure(self, client, mock_template_manager, sample_template_id):
+        """Test workflow instantiation failure handled gracefully."""
+        mock_template_manager.create_workflow_from_template.side_effect = Exception("Instantiation failed")
+
+        response = client.post(f"/{sample_template_id}/execute")
+
+        assert response.status_code == 500
+
+    def test_execute_template_orchestrator_error(self, client, mock_template_manager, sample_template_id):
+        """Test orchestrator exception during execute_template."""
+        mock_template_manager.create_workflow_from_template.return_value = {
+            "workflow_id": "wf_123",
+            "status": "created"
+        }
+
+        mock_orchestrator = MagicMock()
+        mock_orchestrator.execute_workflow = AsyncMock(side_effect=Exception("Orchestrator error"))
+
+        with patch('api.workflow_template_routes.get_orchestrator', return_value=mock_orchestrator):
+            response = client.post(f"/{sample_template_id}/execute")
+
+        assert response.status_code == 500
+
+
+# =============================================================================
+# Template Import Tests (Enhanced Coverage)
+# =============================================================================
+
+class TestTemplateImport:
+    """Tests for template import endpoint."""
+
+    def test_import_template_success(self, client, mock_template_manager, sample_template_id):
+        """Test importing template as new workflow succeeds."""
+        mock_template = MagicMock()
+        mock_template.name = "Importable Template"
+        mock_template_manager.get_template.return_value = mock_template
+
+        mock_template_manager.create_workflow_from_template.return_value = {
+            "workflow_id": "wf_imported",
+            "workflow_name": "Imported Importable Template",
+            "status": "created"
+        }
+
+        response = client.post(f"/{sample_template_id}/import")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert "workflow_id" in data
+
+    def test_import_template_not_found(self, client, mock_template_manager, sample_template_id):
+        """Test importing non-existent template returns 404."""
+        mock_template_manager.get_template.return_value = None
+
+        response = client.post(f"/{sample_template_id}/import")
+
+        assert response.status_code == 404
+
+    def test_import_template_customizations(self, client, mock_template_manager, sample_template_id):
+        """Test importing template with customizations parameter."""
+        mock_template = MagicMock()
+        mock_template.name = "Customizable Template"
+        mock_template_manager.get_template.return_value = mock_template
+
+        mock_template_manager.create_workflow_from_template.return_value = {
+            "workflow_id": "wf_customized",
+            "workflow_name": "Imported Customizable Template",
+            "status": "created"
+        }
+
+        response = client.post(
+            f"/{sample_template_id}/import",
+            json={"customizations": {"timeout": 300}}
+        )
+
+        assert response.status_code == 200
+
+    def test_import_template_service_error(self, client, mock_template_manager, sample_template_id):
+        """Test import with service error returns 500."""
+        mock_template = MagicMock()
+        mock_template.name = "Error Template"
+        mock_template_manager.get_template.return_value = mock_template
+
+        mock_template_manager.create_workflow_from_template.side_effect = Exception("Import failed")
+
+        response = client.post(f"/{sample_template_id}/import")
+
+        assert response.status_code == 500
+
+
+# =============================================================================
+# Template Search Error Paths Tests (Enhanced Coverage)
+# =============================================================================
+
+class TestTemplateSearchErrorPaths:
+    """Tests for template search error paths and edge cases."""
+
+    def test_search_empty_query(self, client, mock_template_manager):
+        """Test search with empty query returns all templates."""
+        mock_templates = [MagicMock(template_id="tpl_1", name="Template 1")]
+        mock_templates[0].category = MagicMock()
+        mock_templates[0].category.value = "automation"
+        mock_templates[0].tags = []
+        mock_template_manager.search_templates.return_value = mock_templates
+
+        response = client.get("/search?query=")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+
+    def test_search_no_results_enhanced(self, client, mock_template_manager):
+        """Test search with non-matching query returns empty list."""
+        mock_template_manager.search_templates.return_value = []
+
+        response = client.get("/search?query=nonexistent_xyz_123")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data == []
+
+    def test_search_service_error(self, client, mock_template_manager):
+        """Test search service exception handled gracefully."""
+        mock_template_manager.search_templates.side_effect = Exception("Search service error")
+
+        response = client.get("/search?query=test")
+
+        # FastAPI global error handler catches exception
+        assert response.status_code == 500
+
+    def test_search_with_category_filter(self, client, mock_template_manager):
+        """Test search behavior when combined with category."""
+        mock_template_manager.search_templates.return_value = []
+
+        response = client.get("/search?query=automation&category=data_processing")
+
+        # Note: Search endpoint doesn't have category parameter (list endpoint does)
+        # This validates that query parameter is processed
+        assert response.status_code == 200
+
