@@ -114,12 +114,12 @@ def regular_user():
 @pytest.fixture(scope="function")
 def authenticated_admin_client(client: TestClient, super_admin_user: User):
     """Create authenticated TestClient with super admin user."""
-    from core.admin_endpoints import get_super_admin
+    from core.auth import get_current_user
 
-    def override_get_super_admin():
+    def override_get_current_user():
         return super_admin_user
 
-    client.app.dependency_overrides[get_super_admin] = override_get_super_admin
+    client.app.dependency_overrides[get_current_user] = override_get_current_user
     yield client
     client.app.dependency_overrides.clear()
 
@@ -366,12 +366,12 @@ class TestAdminSkillRoutesAuth:
         mock_skill_builder: MagicMock
     ):
         """Test that non-super_admin cannot create skills."""
-        from core.admin_endpoints import get_super_admin
+        from core.auth import get_current_user
 
-        def override_get_super_admin():
+        def override_get_current_user():
             return regular_user  # Regular user, not super_admin
 
-        client.app.dependency_overrides[get_super_admin] = override_get_super_admin
+        client.app.dependency_overrides[get_current_user] = override_get_current_user
 
         try:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
@@ -417,12 +417,12 @@ class TestAdminSkillRoutesAuth:
         mock_skill_builder: MagicMock
     ):
         """Test that inactive admin cannot create skills."""
-        from core.admin_endpoints import get_super_admin
+        from core.auth import get_current_user
 
-        def override_get_super_admin():
+        def override_get_current_user():
             return inactive_admin_user  # Inactive super_admin
 
-        client.app.dependency_overrides[get_super_admin] = override_get_super_admin
+        client.app.dependency_overrides[get_current_user] = override_get_current_user
 
         try:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
@@ -438,7 +438,7 @@ class TestAdminSkillRoutesAuth:
                     )
 
             # Should return 401 or 403 because admin is inactive
-            # The exact behavior depends on get_super_admin implementation
+            # The exact behavior depends on get_current_user implementation
             assert response.status_code in [401, 403]
         finally:
             client.app.dependency_overrides.clear()
@@ -453,22 +453,14 @@ class TestAdminSkillRoutesAuth:
         from core.admin_endpoints import get_super_admin
 
         # Test 1: super_admin role should pass
-        client.app.dependency_overrides[get_super_admin] = lambda: super_admin_user
-        try:
-            result = get_super_admin(user=super_admin_user)
-            assert result == super_admin_user
-        finally:
-            client.app.dependency_overrides.clear()
+        result = get_super_admin(current_user=super_admin_user)
+        assert result == super_admin_user
 
         # Test 2: non-super_admin role should raise HTTPException
-        client.app.dependency_overrides[get_super_admin] = lambda: regular_user
-        try:
-            with pytest.raises(Exception) as exc_info:
-                result = get_super_admin(user=regular_user)
-            # Should raise HTTPException with 403 status
-            assert exc_info.value.status_code == 403
-        finally:
-            client.app.dependency_overrides.clear()
+        with pytest.raises(Exception) as exc_info:
+            result = get_super_admin(current_user=regular_user)
+        # Should raise HTTPException with 403 status
+        assert exc_info.value.status_code == 403
 
 
 # ============================================================================
