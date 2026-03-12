@@ -23,9 +23,6 @@ from sqlalchemy.pool import StaticPool
 # Import admin skill routes router
 from api.admin.skill_routes import router
 
-# Import models
-from core.models import Base, User
-
 
 # ============================================================================
 # Test Database Setup
@@ -33,25 +30,18 @@ from core.models import Base, User
 
 @pytest.fixture(scope="function")
 def test_db():
-    """Create in-memory SQLite database for testing."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
-    )
+    """Create in-memory SQLite database for testing.
 
-    # Create only the User table for admin skill routes testing
-    User.__table__.create(bind=engine, checkfirst=True)
+    Note: We use a mock session to avoid SQLAlchemy model relationship issues.
+    The admin skill routes don't actually use the database for skill creation,
+    they use the skill_builder_service which we mock.
+    """
+    from unittest.mock import MagicMock
+    from sqlalchemy.orm import Session
 
-    # Create session
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = TestingSessionLocal()
+    mock_db = MagicMock(spec=Session)
 
-    yield db
-
-    # Cleanup
-    db.close()
-    User.__table__.drop(bind=engine)
+    yield mock_db
 
 
 @pytest.fixture(scope="function")
@@ -84,42 +74,40 @@ def client(test_app: FastAPI):
 
 
 @pytest.fixture(scope="function")
-def super_admin_user(test_db: Session) -> User:
-    """Create super admin user for authorization tests."""
-    user = User(
-        id=str(uuid.uuid4()),
-        email="superadmin@test.com",
-        first_name="Super",
-        last_name="Admin",
-        name="Super Admin",
-        role="super_admin",
-        status="active",
-        email_verified=True,
-        tenant_id="test_tenant"
-    )
-    test_db.add(user)
-    test_db.commit()
-    test_db.refresh(user)
+def super_admin_user():
+    """Create mock super admin user for authorization tests."""
+    from unittest.mock import MagicMock
+
+    user = MagicMock()
+    user.id = str(uuid.uuid4())
+    user.email = "superadmin@test.com"
+    user.first_name = "Super"
+    user.last_name = "Admin"
+    user.name = "Super Admin"
+    user.role = "super_admin"
+    user.status = "active"
+    user.email_verified = True
+    user.tenant_id = "test_tenant"
+
     return user
 
 
 @pytest.fixture(scope="function")
-def regular_user(test_db: Session) -> User:
-    """Create regular user for authentication testing."""
-    user = User(
-        id=str(uuid.uuid4()),
-        email="member@test.com",
-        first_name="Regular",
-        last_name="Member",
-        name="Regular Member",
-        role="member",
-        status="active",
-        email_verified=True,
-        tenant_id="test_tenant"
-    )
-    test_db.add(user)
-    test_db.commit()
-    test_db.refresh(user)
+def regular_user():
+    """Create mock regular user for authentication testing."""
+    from unittest.mock import MagicMock
+
+    user = MagicMock()
+    user.id = str(uuid.uuid4())
+    user.email = "member@test.com"
+    user.first_name = "Regular"
+    user.last_name = "Member"
+    user.name = "Regular Member"
+    user.role = "member"
+    user.status = "active"
+    user.email_verified = True
+    user.tenant_id = "test_tenant"
+
     return user
 
 
@@ -176,22 +164,21 @@ def mock_skill_builder():
 
 
 @pytest.fixture(scope="function")
-def inactive_admin_user(test_db: Session) -> User:
-    """Create inactive super admin user for testing."""
-    user = User(
-        id=str(uuid.uuid4()),
-        email="inactive_admin@test.com",
-        first_name="Inactive",
-        last_name="Admin",
-        name="Inactive Admin",
-        role="super_admin",
-        status="inactive",
-        email_verified=True,
-        tenant_id="test_tenant"
-    )
-    test_db.add(user)
-    test_db.commit()
-    test_db.refresh(user)
+def inactive_admin_user():
+    """Create mock inactive super admin user for testing."""
+    from unittest.mock import MagicMock
+
+    user = MagicMock()
+    user.id = str(uuid.uuid4())
+    user.email = "inactive_admin@test.com"
+    user.first_name = "Inactive"
+    user.last_name = "Admin"
+    user.name = "Inactive Admin"
+    user.role = "super_admin"
+    user.status = "inactive"
+    user.email_verified = True
+    user.tenant_id = "test_tenant"
+
     return user
 
 
