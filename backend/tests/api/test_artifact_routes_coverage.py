@@ -335,3 +335,66 @@ class TestArtifactList:
         assert response.status_code == 200
         artifacts = response.json()
         assert len(artifacts) == 0
+
+
+# ============================================================================
+# Test Artifact Save
+# ============================================================================
+
+class TestArtifactSave:
+    """Test artifact creation (save) endpoint."""
+
+    def test_save_artifact_success(self, authenticated_client, sample_artifact_data):
+        """Test creating an artifact with valid data returns 200."""
+        response = authenticated_client.post("/api/artifacts/", json=sample_artifact_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert "id" in artifact
+        assert artifact["name"] == sample_artifact_data["name"]
+        assert artifact["type"] == sample_artifact_data["type"]
+        assert artifact["content"] == sample_artifact_data["content"]
+        assert artifact["version"] == 1
+        assert artifact["workspace_id"] == "default"
+
+    def test_save_artifact_with_agent_id(self, authenticated_client, sample_artifact_data):
+        """Test creating artifact with agent_id field."""
+        response = authenticated_client.post("/api/artifacts/", json=sample_artifact_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["agent_id"] == sample_artifact_data["agent_id"]
+
+    def test_save_artifact_with_metadata(self, authenticated_client, sample_artifact_data):
+        """Test creating artifact with metadata_json field."""
+        response = authenticated_client.post("/api/artifacts/", json=sample_artifact_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["metadata_json"] == sample_artifact_data["metadata_json"]
+
+    def test_save_artifact_minimal(self, authenticated_client):
+        """Test creating artifact with only required fields."""
+        minimal_data = {
+            "name": "minimal_artifact",
+            "type": "markdown",
+            "content": "# Minimal"
+        }
+
+        response = authenticated_client.post("/api/artifacts/", json=minimal_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["name"] == "minimal_artifact"
+        assert artifact["version"] == 1
+        assert artifact["workspace_id"] == "default"
+        # Optional fields should be None or default
+        assert artifact["session_id"] is None
+
+    def test_save_artifact_author_assigned(self, authenticated_client, mock_user, sample_artifact_data):
+        """Test that author_id is set to authenticated user ID."""
+        response = authenticated_client.post("/api/artifacts/", json=sample_artifact_data)
+
+        assert response.status_code == 200
+        artifact = response.json()
+        assert artifact["author_id"] == mock_user.id
