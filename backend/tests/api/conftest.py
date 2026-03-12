@@ -495,3 +495,146 @@ def test_pid() -> int:
             assert mock_daemon_manager.start_daemon() == 12345
     """
     return 12345
+
+
+# ============================================================================
+# Auth-Specific Fixtures (Phase 176-01)
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def mock_mobile_device() -> MagicMock:
+    """
+    Mock MobileDevice for authentication testing.
+
+    Usage:
+        def test_mobile_login(mock_mobile_device):
+            mock_mobile_device.device_token = "test_token_123"
+            # Call login endpoint
+    """
+    from unittest.mock import Mock
+    from datetime import datetime
+
+    mock = Mock()
+    mock.id = "device-test-123"
+    mock.device_token = "test_device_token_123"
+    mock.platform = "ios"
+    mock.user_id = "user-test-123"
+    mock.status = "active"
+    mock.notification_enabled = True
+    mock.device_info = {"model": "iPhone 14", "os_version": "16.0"}
+    mock.last_active = datetime.utcnow()
+    mock.created_at = datetime.utcnow()
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def test_user_with_device(db_session: Session) -> tuple:
+    """
+    Create test User with associated MobileDevice.
+
+    Returns:
+        tuple: (User, MobileDevice) for testing
+
+    Usage:
+        def test_mobile_auth(test_user_with_device):
+            user, device = test_user_with_device
+            assert user.email == "test-mobile@example.com"
+    """
+    import uuid
+    from core.models import User, MobileDevice
+
+    user_id = str(uuid.uuid4())
+    device_id = str(uuid.uuid4())
+
+    user = User(
+        id=user_id,
+        email=f"test-mobile-{user_id}@example.com",
+        password_hash="hashed_password",
+        first_name="Test",
+        last_name="Mobile",
+        role="member",
+        status="active"
+    )
+
+    device = MobileDevice(
+        id=device_id,
+        user_id=user_id,
+        device_token=f"device_token_{device_id}",
+        platform="ios",
+        status="active",
+        notification_enabled=True,
+        last_active=datetime.utcnow(),
+        created_at=datetime.utcnow(),
+        device_info={"model": "iPhone 14", "os_version": "16.0"}
+    )
+
+    db_session.add(user)
+    db_session.add(device)
+    db_session.commit()
+    db_session.refresh(user)
+    db_session.refresh(device)
+
+    return (user, device)
+
+
+@pytest.fixture(scope="function")
+def mock_auth_service() -> MagicMock:
+    """
+    Mock authentication service functions for auth routes testing.
+
+    Usage:
+        def test_login_with_mock(mock_auth_service):
+            mock_auth_service['authenticate_mobile_user'].return_value = {
+                "user": {"id": "123"},
+                "access_token": "token"
+            }
+            # Call login endpoint
+    """
+    from unittest.mock import MagicMock
+
+    mock = MagicMock()
+
+    # Mock authenticate_mobile_user
+    mock_auth_result = {
+        "access_token": "test_access_token",
+        "refresh_token": "test_refresh_token",
+        "expires_at": "2026-03-12T17:00:00Z",
+        "token_type": "bearer",
+        "user": {
+            "id": "user-test-123",
+            "email": "test@example.com"
+        }
+    }
+    mock.authenticate_mobile_user = MagicMock(return_value=mock_auth_result)
+
+    # Mock create_mobile_token
+    mock.create_mobile_token = MagicMock(return_value=mock_auth_result)
+
+    # Mock verify_biometric_signature
+    mock.verify_biometric_signature = MagicMock(return_value=True)
+
+    # Mock get_mobile_device
+    mock.get_mobile_device = MagicMock(return_value=mock_mobile_device())
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def biometric_test_data() -> dict:
+    """
+    Provide biometric authentication test data.
+
+    Returns dict with fake keys for testing (no real crypto).
+
+    Usage:
+        def test_biometric_auth(biometric_test_data):
+            data = biometric_test_data
+            response = client.post("/api/auth/mobile/biometric/authenticate", json=data)
+    """
+    return {
+        "public_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA" + "A" * 100,
+        "device_token": "biometric_device_token_123",
+        "signature": "mock_signature_" + "B" * 200,
+        "challenge": "test_challenge_" + "C" * 50
+    }
