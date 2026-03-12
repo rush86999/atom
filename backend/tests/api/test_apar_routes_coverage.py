@@ -533,3 +533,59 @@ class TestARGenerate:
         assert data["data"]["invoices"][0]["customer"] == "Customer A"
         assert data["data"]["invoices"][0]["amount"] == 800.0
         assert data["message"] == "Retrieved 2 overdue invoices"
+
+
+# ============================================================================
+# TestARPDFDownload - PDF Download Tests
+# ============================================================================
+
+class TestARPDFDownload:
+    """
+    PDF download endpoint tests for AR and AP invoices.
+
+    Tests PDF generation and download:
+    - AR invoice download
+    - AP invoice download
+    - Invoice not found error
+    - ReportLab missing error
+    """
+
+    def test_download_ar_invoice_success(self, apar_client, mock_apar_engine):
+        """Test AR invoice PDF download."""
+        response = apar_client.get("/api/apar/ar/ar_1234567890/download")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert "attachment" in response.headers["content-disposition"]
+        assert "invoice_ar_1234567890.pdf" in response.headers["content-disposition"]
+        assert b"fake pdf content" in response.content
+
+    def test_download_ap_invoice_success(self, apar_client, mock_apar_engine):
+        """Test AP invoice PDF download."""
+        response = apar_client.get("/api/apar/ap/ap_1234567890/download")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert "attachment" in response.headers["content-disposition"]
+        assert "invoice_ap_1234567890.pdf" in response.headers["content-disposition"]
+        assert b"fake pdf content" in response.content
+
+    def test_download_ar_invoice_not_found(self, apar_client, mock_apar_engine):
+        """Test PDF download when invoice not found (ValueError)."""
+        # Configure mock to raise ValueError for not found
+        mock_apar_engine.generate_invoice_pdf.side_effect = ValueError("Invoice not found")
+
+        response = apar_client.get("/api/apar/ar/invalid_id/download")
+
+        assert response.status_code == 404
+        assert "not found" in response.json()["detail"].lower()
+
+    def test_download_ap_invoice_reportlab_missing(self, apar_client, mock_apar_engine):
+        """Test PDF download when reportlab not installed (ImportError)."""
+        # Configure mock to raise ImportError for missing reportlab
+        mock_apar_engine.generate_invoice_pdf.side_effect = ImportError("reportlab not installed")
+
+        response = apar_client.get("/api/apar/ap/ap_1234567890/download")
+
+        assert response.status_code == 500
+        assert "reportlab" in response.json()["detail"].lower()
