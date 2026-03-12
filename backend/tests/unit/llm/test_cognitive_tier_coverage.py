@@ -452,3 +452,149 @@ class TestClassifierEdgeCases:
         # Only newlines should be MICRO
         assert tier == CognitiveTier.MICRO, \
             f"Expected MICRO for newlines-only prompt, got {tier}"
+
+
+class TestCognitiveTierInvariants:
+    """Property-based tests for cognitive tier classification invariants."""
+
+    @pytest.fixture
+    def classifier(self):
+        """Create a fresh classifier for each test."""
+        return CognitiveClassifier()
+
+    def test_classification_always_returns_valid_tier(self, classifier):
+        """
+        INVARIANT: Classification always returns valid CognitiveTier enum for any input.
+
+        This is a deterministic version of property-based testing.
+        Tests that no input causes classification to fail or return invalid tier.
+        """
+        # Test various input patterns
+        test_prompts = [
+            "",  # Empty
+            "a",  # Single char
+            "hello world",  # Simple
+            "analyze this in detail " * 100,  # Long
+            "!@#$%^&*()",  # Special chars
+            "Привет мир",  # Unicode
+            "code function debug",  # Code keywords
+            "calculate equation theorem",  # Math keywords
+            "architecture security cryptography",  # Advanced keywords
+            "hi thanks summarize brief",  # Simple keywords
+        ]
+
+        for prompt in test_prompts:
+            tier = classifier.classify(prompt)
+            assert tier in CognitiveTier, \
+                f"Classification returned invalid tier for '{prompt[:50]}...': {tier}"
+
+    def test_short_prompts_never_classify_as_complex(self, classifier):
+        """
+        INVARIANT: Short prompts (<100 chars) never classify as COMPLEX.
+
+        COMPLEX tier requires >5000 tokens (~20000 chars), so short prompts
+        should never reach this tier.
+        """
+        # Generate short prompts (0-99 characters)
+        for length in [0, 1, 10, 50, 99]:
+            prompt = "a" * length
+            tier = classifier.classify(prompt)
+
+            if length < 100:  # Only enforce for truly short prompts
+                assert tier != CognitiveTier.COMPLEX, \
+                    f"Short prompt ({length} chars) should not be COMPLEX, got {tier}"
+
+    def test_code_keywords_increase_tier(self, classifier):
+        """
+        INVARIANT: Adding code keywords increases or maintains tier.
+
+        This is a simplified version of property-based testing with specific examples.
+        """
+        base_prompts = [
+            "explain this",
+            "write about",
+            "describe the",
+            "analyze the",
+        ]
+
+        code_suffixes = [
+            " write code to debug the function",
+            " implement this interface",
+            " refactor the class method",
+            " optimize the database schema",
+        ]
+
+        tier_order = [
+            CognitiveTier.MICRO,
+            CognitiveTier.STANDARD,
+            CognitiveTier.VERSATILE,
+            CognitiveTier.HEAVY,
+            CognitiveTier.COMPLEX
+        ]
+
+        for base_prompt in base_prompts:
+            base_tier = classifier.classify(base_prompt)
+
+            for code_suffix in code_suffixes:
+                code_prompt = base_prompt + code_suffix
+                code_tier = classifier.classify(code_prompt)
+
+                # Code version should be same or higher tier
+                base_index = tier_order.index(base_tier)
+                code_index = tier_order.index(code_tier)
+
+                assert code_index >= base_index, \
+                    f"Code keywords should not decrease tier: {base_tier} -> {code_tier} for '{code_prompt[:50]}'"
+
+    def test_longer_prompts_not_lower_tier(self, classifier):
+        """
+        INVARIANT: Very long prompts (>5000 chars) are not MICRO tier.
+
+        This tests the lower bound of tier assignment for long content.
+        """
+        # Generate very long prompts
+        for length in [5000, 10000, 20000]:
+            prompt = "test " * (length // 5)  # Approximate length
+            tier = classifier.classify(prompt)
+
+            # Very long prompts should not be MICRO tier
+            assert tier != CognitiveTier.MICRO, \
+                f"Very long prompt ({len(prompt)} chars) should not be MICRO, got {tier}"
+
+    def test_classification_deterministic_for_same_input(self, classifier):
+        """
+        INVARIANT: Classification is deterministic for the same input.
+
+        Calling classify() multiple times with same input should always return same tier.
+        """
+        test_prompts = [
+            "hello world",
+            "analyze this code",
+            "calculate the integral",
+            "architecture security audit",
+        ]
+
+        for prompt in test_prompts:
+            # Classify 10 times
+            results = [classifier.classify(prompt) for _ in range(10)]
+
+            # All results should be identical
+            assert all(t == results[0] for t in results), \
+                f"Classification not deterministic for '{prompt}': got {set(results)}"
+
+    def test_task_type_consistency(self, classifier):
+        """
+        INVARIANT: Task type adjustments are consistent across multiple calls.
+
+        Same prompt + task type should always produce same tier.
+        """
+        prompt = "implement this feature"
+        task_types = ["code", "analysis", "chat", "general"]
+
+        for task_type in task_types:
+            # Classify 5 times with same task type
+            results = [classifier.classify(prompt, task_type=task_type) for _ in range(5)]
+
+            # All results should be identical
+            assert all(t == results[0] for t in results), \
+                f"Classification inconsistent for task_type='{task_type}': got {set(results)}"
