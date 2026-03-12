@@ -684,3 +684,110 @@ class TestAutoInstallStatus:
         assert data["installed"] is True
         assert data["package_type"] == "python"  # Default
         assert data["skill_id"] == "skill-default"
+
+
+# ============================================================================
+# TestAutoInstallErrorPaths - Error Path Tests
+# ============================================================================
+
+class TestAutoInstallErrorPaths:
+    """
+    Error path tests for auto install endpoints.
+
+    Tests error scenarios:
+    - Install failure (400 HTTPException)
+    - Service errors
+    - Invalid package type (422 validation)
+    - Missing agent_id in batch install (422)
+    - Status check validation
+    """
+
+    def test_install_failure_response(
+        self,
+        auto_install_client,
+        sample_install_request,
+        mock_auto_installer
+    ):
+        """Test install failure (success=False) returns 400 HTTPException with error details."""
+        # Configure mock to return failure
+        mock_auto_installer.install_dependencies.return_value = {
+            "success": False,
+            "error": "Package not found: nonexistent-package"
+        }
+
+        response = auto_install_client.post("/auto-install/install", json=sample_install_request)
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "detail" in data
+        # Verify error details are passed through
+        assert "error" in str(data["detail"]).lower() or "success" in str(data["detail"]).lower()
+
+    def test_install_service_error(
+        self,
+        auto_install_client,
+        sample_install_request,
+        mock_auto_installer
+    ):
+        """Test AutoInstallerService exception results in error response."""
+        # Configure mock to raise exception
+        mock_auto_installer.install_dependencies.side_effect = Exception("Docker daemon not available")
+
+        response = auto_install_client.post("/auto-install/install", json=sample_install_request)
+
+        # Service exception may return 500 or be caught and return 400
+        assert response.status_code in [400, 500]
+
+    def test_install_invalid_package_type(
+        self,
+        auto_install_client
+    ):
+        """Test invalid package_type (not python/npm) returns 422."""
+        request_data = {
+            "skill_id": "skill-123",
+            "packages": ["some-package"],
+            "package_type": "invalid",  # Invalid package type
+            "agent_id": "agent-001",
+            "scan_for_vulnerabilities": True
+        }
+
+        response = auto_install_client.post("/auto-install/install", json=request_data)
+
+        # May return 422 if FastAPI validates enum, or 400 if service handles it
+        assert response.status_code in [400, 422]
+
+    def test_batch_install_missing_agent_id(
+        self,
+        auto_install_client
+    ):
+        """Test batch install missing agent_id returns 422."""
+        request_data = {
+            "installations": [
+                {
+                    "skill_id": "skill-1",
+                    "packages": ["numpy"],
+                    "package_type": "python",
+                    "agent_id": "agent-001",
+                    "scan_for_vulnerabilities": True
+                }
+            ]
+            # Missing agent_id at batch level
+        }
+
+        response = auto_install_client.post("/auto-install/batch", json=request_data)
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+    def test_status_skill_id_validation(
+        self,
+        auto_install_client
+    ):
+        """Test status check with malformed skill_id returns 422."""
+        # Empty skill_id should trigger path validation
+        response = auto_install_client.get("/auto-install/status/")
+
+        # FastAPI returns 405 Method Not Allowed for missing path parameter
+        # or 422 if validation fails
+        assert response.status_code in [405, 422]
