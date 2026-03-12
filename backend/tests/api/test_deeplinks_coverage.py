@@ -834,3 +834,149 @@ class TestDeepLinkFeatureFlag:
             assert response.status_code == 200
             data = response.json()
             assert "total_executions" in data
+
+
+class TestDeepLinkErrorPaths:
+    """Test error paths for deep link endpoints."""
+
+    def test_execute_deeplink_invalid_url(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with malformed URL returns 422."""
+        from core.deeplinks import DeepLinkParseException
+
+        # Configure mock to raise DeepLinkParseException
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   side_effect=DeepLinkParseException("Invalid deep link format")):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "not-a-deep-link",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 422
+            data = response.json()
+            # Error should mention validation issue
+
+    def test_execute_deeplink_security_violation(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with blocked resource returns 422."""
+        from core.deeplinks import DeepLinkSecurityException
+
+        # Configure mock to raise DeepLinkSecurityException
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   side_effect=DeepLinkSecurityException("Resource not allowed")):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://blocked-resource/123",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 422
+            data = response.json()
+            # Error should mention security/validation
+
+    def test_execute_deeplink_service_error(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with service failure returns 422."""
+        # Configure mock to return failure
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   return_value={"success": False, "error": "Service unavailable"}):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://agent/123",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 422
+            data = response.json()
+            # Error should mention failure
+
+    def test_execute_deeplink_unexpected_error(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with unexpected error returns 500."""
+        # Configure mock to raise generic exception
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   side_effect=Exception("Unexpected error")):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://agent/123",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 500
+            data = response.json()
+            # Error should mention internal server error
+
+    def test_generate_invalid_resource_type(self, deeplink_client):
+        """Test POST /api/deeplinks/generate with invalid resource_type returns 422."""
+        response = deeplink_client.post(
+            "/api/deeplinks/generate",
+            json={
+                "resource_type": "invalid",
+                "resource_id": "123"
+            }
+        )
+        assert response.status_code == 422
+        data = response.json()
+        # Error should list valid types
+
+    def test_generate_missing_resource_type(self, deeplink_client):
+        """Test POST /api/deeplinks/generate without resource_type returns 422."""
+        response = deeplink_client.post(
+            "/api/deeplinks/generate",
+            json={
+                "resource_id": "123"
+            }
+        )
+        assert response.status_code == 422
+        data = response.json()
+
+    def test_generate_missing_resource_id(self, deeplink_client):
+        """Test POST /api/deeplinks/generate without resource_id returns 422."""
+        response = deeplink_client.post(
+            "/api/deeplinks/generate",
+            json={
+                "resource_type": "agent"
+            }
+        )
+        assert response.status_code == 422
+        data = response.json()
+
+    def test_execute_missing_deeplink_url(self, deeplink_client):
+        """Test POST /api/deeplinks/execute without deeplink_url returns 422."""
+        response = deeplink_client.post(
+            "/api/deeplinks/execute",
+            json={
+                "user_id": "user-456",
+                "source": "external"
+            }
+        )
+        assert response.status_code == 422
+        data = response.json()
+
+    def test_execute_missing_user_id(self, deeplink_client):
+        """Test POST /api/deeplinks/execute without user_id returns 422."""
+        response = deeplink_client.post(
+            "/api/deeplinks/execute",
+            json={
+                "deeplink_url": "atom://agent/123",
+                "source": "external"
+            }
+        )
+        assert response.status_code == 422
+        data = response.json()
+
+    def test_audit_limit_validation(self, deeplink_client):
+        """Test GET /api/deeplinks/audit with limit > 1000 returns 422."""
+        response = deeplink_client.get("/api/deeplinks/audit?limit=2000")
+        assert response.status_code == 422
+        data = response.json()
+        # Error should mention limit constraint
