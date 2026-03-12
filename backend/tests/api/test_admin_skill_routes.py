@@ -482,3 +482,247 @@ class TestAdminSkillRoutesAuth:
             assert exc_info.value.status_code == 403
         finally:
             client.app.dependency_overrides.clear()
+
+
+# ============================================================================
+# POST /api/admin/skills - Security Scanning Tests
+# ============================================================================
+
+class TestAdminSkillRoutesSecurity:
+    """Tests for security scanning on admin skill routes."""
+
+    def test_security_scan_static_pass(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_static_analyzer: MagicMock,
+        mock_skill_builder: AsyncMock
+    ):
+        """Test skill creation when static scan passes."""
+        # Static scan returns no findings
+        mock_static_analyzer.scan_content.return_value = []
+
+        with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+            with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                response = authenticated_admin_client.post(
+                    "/api/admin/skills",
+                    json={
+                        "name": "clean_skill",
+                        "description": "Passes security scan",
+                        "instructions": "You are an assistant",
+                        "scripts": {"main.py": "def main():\n    pass"}
+                    }
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+    def test_security_scan_critical_finding(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_static_analyzer: MagicMock
+    ):
+        """Test skill rejection for critical findings."""
+        from atom_security.analyzers.static import StaticAnalyzer
+        from atom_security.models import Severity
+
+        # Create mock finding with HIGH severity
+        mock_finding = MagicMock()
+        mock_finding.severity = Severity.HIGH
+        mock_finding.dict.return_value = {
+            "severity": "HIGH",
+            "category": "command_injection",
+            "line": 1,
+            "description": "Potential command injection detected"
+        }
+
+        mock_static_analyzer.scan_content.return_value = [mock_finding]
+
+        with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+            response = authenticated_admin_client.post(
+                "/api/admin/skills",
+                json={
+                    "name": "malicious_skill",
+                    "description": "Contains critical findings",
+                    "instructions": "You are an assistant",
+                    "scripts": {"main.py": "import os; os.system('rm -rf /')"}
+                }
+            )
+
+        assert response.status_code == 403
+        data = response.json()
+        assert "security policy violations" in data["detail"].lower()
+
+    def test_security_scan_multiple_findings(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_static_analyzer: MagicMock
+    ):
+        """Test with multiple security findings of mixed severity."""
+        from atom_security.models import Severity
+
+        # Create multiple findings with different severities
+        low_finding = MagicMock()
+        low_finding.severity = Severity.LOW
+        low_finding.dict.return_value = {
+            "severity": "LOW",
+            "category": "code_style",
+            "line": 5,
+            "description": "Line too long"
+        }
+
+        medium_finding = MagicMock()
+        medium_finding.severity = Severity.MEDIUM
+        medium_finding.dict.return_value = {
+            "severity": "MEDIUM",
+            "category": "error_handling",
+            "line": 10,
+            "description": "Missing error handling"
+        }
+
+        high_finding = MagicMock()
+        high_finding.severity = Severity.HIGH
+        high_finding.dict.return_value = {
+            "severity": "HIGH",
+            "category": "injection",
+            "line": 15,
+            "description": "SQL injection risk"
+        }
+
+        mock_static_analyzer.scan_content.return_value = [
+            low_finding,
+            medium_finding,
+            high_finding
+        ]
+
+        with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+            response = authenticated_admin_client.post(
+                "/api/admin/skills",
+                json={
+                    "name": "mixed_findings_skill",
+                    "description": "Has multiple findings",
+                    "instructions": "You are an assistant",
+                    "scripts": {"main.py": "def main():\n    pass"}
+                }
+            )
+
+        # Should fail due to HIGH severity finding
+        assert response.status_code == 403
+
+    def test_llm_scan_enabled(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_static_analyzer: MagicMock,
+        mock_skill_builder: AsyncMock
+    ):
+        """Test LLM scan when enabled."""
+        # Enable LLM scan
+        original_env = os.environ.get("ATOM_SECURITY_ENABLE_LLM_SCAN")
+        os.environ["ATOM_SECURITY_ENABLE_LLM_SCAN"] = "true"
+
+        # Mock LLM analyzer
+        mock_llm_analyzer = AsyncMock()
+        mock_llm_finding = MagicMock()
+        mock_llm_finding.severity.value = "LOW"
+        mock_llm_finding.dict.return_value = {
+            "severity": "LOW",
+            "category": "semantics",
+            "description": "Potential ambiguity"
+        }
+        mock_llm_analyzer.analyze.return_value = [mock_llm_finding]
+
+        # Static scan passes
+        mock_static_analyzer.scan_content.return_value = []
+
+        try:
+            with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+                with patch('api.admin.skill_routes.LLMAnalyzer', return_value=mock_llm_analyzer):
+                    with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                        response = authenticated_admin_client.post(
+                            "/api/admin/skills",
+                            json={
+                                "name": "llm_scanned_skill",
+                                "description": "Skill with LLM scan",
+                                "instructions": "You are an assistant",
+                                "scripts": {"main.py": "def main():\n    pass"}
+                            }
+                        )
+
+            # Should succeed because only LOW findings from LLM
+            assert response.status_code == 200
+        finally:
+            # Restore original environment
+            if original_env is not None:
+                os.environ["ATOM_SECURITY_ENABLE_LLM_SCAN"] = original_env
+            else:
+                os.environ.pop("ATOM_SECURITY_ENABLE_LLM_SCAN", None)
+
+    def test_llm_scan_failure_blocks(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_static_analyzer: MagicMock,
+        mock_skill_builder: AsyncMock
+    ):
+        """Test that LLM scan failure doesn't block skill creation."""
+        # Enable LLM scan
+        original_env = os.environ.get("ATOM_SECURITY_ENABLE_LLM_SCAN")
+        os.environ["ATOM_SECURITY_ENABLE_LLM_SCAN"] = "true"
+
+        # Mock LLM analyzer that raises exception
+        mock_llm_analyzer = AsyncMock()
+        mock_llm_analyzer.analyze.side_effect = Exception("LLM service unavailable")
+
+        # Static scan passes
+        mock_static_analyzer.scan_content.return_value = []
+
+        try:
+            with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+                with patch('api.admin.skill_routes.LLMAnalyzer', return_value=mock_llm_analyzer):
+                    with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                        response = authenticated_admin_client.post(
+                            "/api/admin/skills",
+                            json={
+                                "name": "llm_fail_skill",
+                                "description": "LLM scan fails but continues",
+                                "instructions": "You are an assistant",
+                                "scripts": {"main.py": "def main():\n    pass"}
+                            }
+                        )
+
+            # Should succeed despite LLM scan failure (graceful degradation)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+        finally:
+            # Restore original environment
+            if original_env is not None:
+                os.environ["ATOM_SECURITY_ENABLE_LLM_SCAN"] = original_env
+            else:
+                os.environ.pop("ATOM_SECURITY_ENABLE_LLM_SCAN", None)
+
+    def test_security_scan_exception(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_skill_builder: AsyncMock
+    ):
+        """Test handling of security module exceptions."""
+        # Mock StaticAnalyzer that raises exception
+        mock_analyzer = MagicMock()
+        mock_analyzer.scan_content.side_effect = Exception("Security module crashed")
+
+        with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_analyzer):
+            with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                response = authenticated_admin_client.post(
+                    "/api/admin/skills",
+                    json={
+                        "name": "scan_exception_skill",
+                        "description": "Security scan fails",
+                        "instructions": "You are an assistant",
+                        "scripts": {"main.py": "def main():\n    pass"}
+                    }
+                )
+
+        # Should succeed despite security scan exception (graceful degradation)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
