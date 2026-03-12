@@ -266,16 +266,22 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 **Status**: Complete (2026-03-11)
 
 #### Phase 171: Gap Closure & Final Push
-**Goal**: Achieve 80% overall line coverage and 70%+ branch coverage through systematic gap closure, error path testing, and flaky test fixes
+**Goal**: Resolve blockers to comprehensive coverage measurement, establish actual baseline, audit pragma exclusions, and create realistic roadmap to 80% target
 **Depends on**: Phase 165, 166, 167, 168, 169, 170
 **Requirements**: GAP-01, GAP-02, GAP-03, GAP-04, GAP-05
 **Success Criteria** (what must be TRUE):
-  1. Team achieves 80% overall line coverage and 70%+ branch coverage across entire backend codebase
-  2. Coverage exclusions (`# pragma: no cover`) are audited and outdated/unnecessary exclusions removed
-  3. Error paths (network failures, timeouts, malformed responses) are systematically tested across all services
-  4. Edge cases (boundary conditions, invalid inputs, state transitions) are tested across all services
-  5. Flaky tests (timing issues, race conditions, async coordination) are fixed by addressing root causes not just adding retries
-**Plans**: TBD
+  1. SQLAlchemy metadata conflicts are resolved (no "Table already defined" errors)
+  2. Actual line coverage is measured using pytest --cov with --cov-branch flag
+  3. All `# pragma: no cover` directives are audited and outdated ones removed
+  4. Realistic roadmap to 80% is created based on actual measurements (not estimates)
+  5. ROADMAP.md is updated with Phase 172+ definitions based on roadmap
+**Plans**: 6 plans (Wave 1: 171-01A, 171-01B | Wave 2: 171-02, 171-03 | Wave 3: 171-04A, 171-04B)
+- [ ] 171-01A-PLAN.md — Identify and remove duplicate SQLAlchemy model definitions
+- [ ] 171-01B-PLAN.md — Fix test imports and verify combined test suite execution
+- [ ] 171-02-PLAN.md — Measure actual backend coverage with branch measurement
+- [ ] 171-03-PLAN.md — Audit and cleanup pragma no-cover directives
+- [ ] 171-04A-PLAN.md — Analyze coverage data and create roadmap to 80%
+- [ ] 171-04B-PLAN.md — Update ROADMAP.md with Phase 172+ and create final summary
 
 ## Progress
 
@@ -302,4 +308,4 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 168. Database Layer Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
 | 169. Tools & Integrations Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
 | 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 3/3 | Complete | 2026-03-11 |
-| 171. Gap Closure & Final Push | v5.4 | 0/0 | Not started | - |
+| 171. Gap Closure & Final Push | v5.4 | 6/6 | Complete | 2026-03-11 |

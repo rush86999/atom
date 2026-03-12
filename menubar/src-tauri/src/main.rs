@@ -17,11 +17,10 @@ use menu::create_menu;
 use notifications::*;
 use std::sync::Mutex;
 use tauri::{
-    menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder, TrayIconEvent},
-    Manager, App, Emitter, Listener, RunEvent
+    menu::Menu,
+    tray::TrayIconBuilder,
+    Emitter, Listener, Manager,
 };
-use tokio::sync::Mutex as TokioMutex;
 
 // Global state for auth token and user session
 struct AppState {
@@ -29,6 +28,7 @@ struct AppState {
     user_session: Mutex<Option<UserSession>>,
 }
 
+#[derive(Clone)]
 struct UserSession {
     token: String,
     user_id: String,
@@ -71,21 +71,22 @@ async fn main() {
         ])
         .setup(|app| {
             // Create system tray
-            let tray_menu = create_menu(app);
+            let tray_menu = create_menu(app).map_err(|e| format!("Failed to create menu: {}", e))?;
+            let app_handle = app.handle().clone();
             let _tray = TrayIconBuilder::new()
                 .menu(&tray_menu)
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("Atom Menu Bar")
-                .on_menu_event(|app, event| match event.id.as_ref() {
+                .on_menu_event(move |app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
-                            window.show().unwrap();
-                            window.set_focus().unwrap();
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
                     }
                     "hide" => {
                         if let Some(window) = app.get_webview_window("main") {
-                            window.hide().unwrap();
+                            let _ = window.hide();
                         }
                     }
                     "quit" => {
@@ -95,25 +96,12 @@ async fn main() {
                 })
                 .build(app)?;
 
-            // Set up window behavior (hide when focus is lost)
-            let window = app.get_webview_window("main").unwrap();
-            window.on_window_event(|event| match event {
-                tauri::WindowEvent::Focused(focused) => {
-                    if !focused {
-                        // Auto-hide when window loses focus
-                        if let Some(window) = window.app_handle().get_webview_window("main") {
-                            let _ = window.hide();
-                        }
-                    }
-                }
-                _ => {}
-            });
-
             // Listen for global hotkey events (Cmd+Shift+A)
-            app.listen("quick-chat-hotkey", |event| {
-                println!("Quick chat hotkey triggered: {:?}", event.payload);
+            let app_handle = app.handle().clone();
+            app.listen("quick-chat-hotkey", move |event| {
+                println!("Quick chat hotkey triggered: {:?}", event.payload());
                 // Show window and focus on chat input
-                if let Some(window) = event.window().unwrap().app_handle().get_webview_window("main") {
+                if let Some(window) = app_handle.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }

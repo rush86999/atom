@@ -1,0 +1,15 @@
+{
+  "platforms": {
+    "backend": {"coverage_pct": 75.0, "covered": 1500, "total": 2000, "file_path": "path/to/backend.json", "error": null},
+    "frontend": {"coverage_pct": 82.0, "covered": 1800, "total": 2200, "file_path": "path/to/frontend.json", "error": null}
+  },
+  "thresholds": {"backend": 70.0, "frontend": 80.0, "mobile": 50.0, "desktop": 40.0},
+  "timestamp": "2026-03-06T12:00:00Z",
+  "weighted": {
+    "overall_pct": 78.5,
+    "platform_breakdown": [
+      {"platform": "backend", "coverage_pct": 75.0, "weight": 0.35, "contribution": 26.25},
+      {"platform": "frontend", "coverage_pct": 82.0, "weight": 0.4, "contribution": 32.8}
+    ]
+  }
+}

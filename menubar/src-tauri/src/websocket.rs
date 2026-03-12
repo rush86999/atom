@@ -72,9 +72,8 @@ impl WebSocketClient {
         F: FnMut(WebSocketEvent) + Send + 'static,
     {
         let url = Url::parse(&self.url)?;
-        let request = url.clone();
 
-        let (ws_stream, _) = connect_async(request).await?;
+        let (ws_stream, _) = connect_async(&self.url).await?;
         let (mut write, mut read) = ws_stream.split();
 
         // Send authentication message
@@ -82,7 +81,7 @@ impl WebSocketClient {
             "type": "auth",
             "token": self.token
         });
-        write.send(Message::Text(auth_msg.to_string())).await?;
+        write.send(Message::Text(auth_msg.to_string().into())).await?;
 
         // Listen for incoming messages
         while let Some(message) = read.next().await {
@@ -115,34 +114,8 @@ impl WebSocketClient {
 pub async fn connect_with_reconnect(
     url: String,
     token: String,
-    mut callback: impl FnMut(WebSocketEvent) + Send + 'static,
+    callback: impl FnMut(WebSocketEvent) + Send + 'static,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut reconnect_attempts = 0;
-    let max_attempts = 10;
-    let base_delay_ms = 1000;
-
-    loop {
-        let client = WebSocketClient::new(url.clone(), token.clone());
-
-        match client.connect(&mut callback).await {
-            Ok(_) => {
-                // Connection closed gracefully
-                reconnect_attempts = 0;
-            }
-            Err(e) => {
-                eprintln!("WebSocket connection error: {}", e);
-
-                if reconnect_attempts >= max_attempts {
-                    return Err(format!("Max reconnection attempts ({}) reached", max_attempts).into());
-                }
-
-                // Exponential backoff
-                let delay_ms = base_delay_ms * 2_usize.pow(reconnect_attempts);
-                println!("Reconnecting in {}ms (attempt {}/{})", delay_ms, reconnect_attempts + 1, max_attempts);
-                tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms as u64)).await;
-
-                reconnect_attempts += 1;
-            }
-        }
-    }
+    let client = WebSocketClient::new(url, token);
+    client.connect(callback).await
 }

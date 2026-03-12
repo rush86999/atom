@@ -1,11 +1,9 @@
 use crate::AppState;
 use crate::UserSession;
-use keyring::{Entry, Error as KeyringError};
+use keyring::Entry;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
 use tauri::State;
-use chrono::{DateTime, Utc};
 
 const API_BASE_URL: &str = "http://localhost:8000"; // Configure as needed
 const SERVICE_NAME: &str = "AtomMenuBar";
@@ -154,7 +152,7 @@ pub async fn logout(state: State<'_, AppState>) -> Result<(), String> {
         let entry = Entry::new(SERVICE_NAME, &session.email)
             .map_err(|e| format!("Keychain error: {}", e))?;
         entry
-            .delete_password()
+            .delete_credential()
             .map_err(|e| format!("Failed to delete token: {}", e))?;
     }
 
@@ -166,9 +164,11 @@ pub async fn logout(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn get_session(state: State<'_, AppState>) -> Option<(String, User)> {
-    let token = state.auth_token.lock().unwrap().clone()?;
-    let session = state.user_session.lock().unwrap().clone()?;
+pub async fn get_session(state: State<'_, AppState>) -> Result<(String, User), String> {
+    let token = state.auth_token.lock().unwrap().clone()
+        .ok_or("Not authenticated")?;
+    let session = state.user_session.lock().unwrap().clone()
+        .ok_or("No session found")?;
 
     let user = User {
         id: session.user_id,
@@ -177,7 +177,7 @@ pub async fn get_session(state: State<'_, AppState>) -> Option<(String, User)> {
         last_name: "".to_string(),
     };
 
-    Some((token, user))
+    Ok((token, user))
 }
 
 #[tauri::command]
@@ -214,7 +214,7 @@ pub async fn get_connection_status(
 #[tauri::command]
 pub async fn get_recent_items(
     token: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<RecentItemsResponse, String> {
     let client = Client::new();
     let response = client
