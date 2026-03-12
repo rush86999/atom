@@ -502,3 +502,66 @@ class TestArtifactUpdate:
             ArtifactVersion.artifact_id == sample_artifact.id
         ).all()
         assert len(versions) == 1
+
+
+# ============================================================================
+# Test Artifact Versions
+# ============================================================================
+
+class TestArtifactVersions:
+    """Test artifact version history retrieval."""
+
+    def test_get_artifact_versions_success(self, authenticated_client, test_db, sample_artifact):
+        """Test retrieving version history returns all versions ordered desc."""
+        # Update artifact twice to create 2 version records
+        for i in range(2):
+            update_data = {
+                "id": sample_artifact.id,
+                "content": f"update_{i}"
+            }
+            authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        # Get versions
+        response = authenticated_client.get(f"/api/artifacts/{sample_artifact.id}/versions")
+
+        assert response.status_code == 200
+        versions = response.json()
+        assert len(versions) == 2
+        # Verify ordered by version desc (version 2, then version 1)
+        assert versions[0]["version"] == 2
+        assert versions[1]["version"] == 1
+
+    def test_get_artifact_versions_empty(self, authenticated_client, sample_artifact):
+        """Test retrieving versions for artifact with no updates."""
+        # Artifact never updated - no version records
+        response = authenticated_client.get(f"/api/artifacts/{sample_artifact.id}/versions")
+
+        assert response.status_code == 200
+        versions = response.json()
+        assert len(versions) == 0
+
+    def test_get_artifact_versions_content_preserved(self, authenticated_client, test_db, sample_artifact):
+        """Test that version records preserve old content."""
+        # Store original content
+        original_content = sample_artifact.content
+
+        # Update artifact
+        update_data = {
+            "id": sample_artifact.id,
+            "content": "updated content"
+        }
+        authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        # Get versions
+        response = authenticated_client.get(f"/api/artifacts/{sample_artifact.id}/versions")
+
+        assert response.status_code == 200
+        versions = response.json()
+        assert len(versions) == 1
+
+        # Verify version record has old content
+        assert versions[0]["content"] == original_content
+
+        # Verify current artifact has new content
+        current_artifact = test_db.query(Artifact).filter(Artifact.id == sample_artifact.id).first()
+        assert current_artifact.content == "updated content"
