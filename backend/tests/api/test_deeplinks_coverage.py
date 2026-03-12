@@ -352,3 +352,109 @@ class TestDeepLinkExecute:
             data = response.json()
             assert data["success"] is True
             assert data["resource_type"] == resource_type
+
+
+class TestDeepLinkAudit:
+    """Test deep link audit log endpoint."""
+
+    def test_get_deeplink_audit_success(self, deeplink_client, sample_audit_entries):
+        """Test GET /api/deeplinks/audit returns all entries."""
+        response = deeplink_client.get("/api/deeplinks/audit")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) == 5
+
+    def test_get_audit_filter_by_user(self, deeplink_client, sample_audit_entries):
+        """Test GET /api/deeplinks/audit?user_id={id} filters by user."""
+        response = deeplink_client.get("/api/deeplinks/audit?user_id=user-0")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        # Should only return entries with user_id=user-0
+        assert all(entry["user_id"] == "user-0" for entry in data)
+
+    def test_get_audit_filter_by_agent(self, deeplink_client, sample_audit_entries):
+        """Test GET /api/deeplinks/audit?agent_id={id} filters by agent."""
+        response = deeplink_client.get("/api/deeplinks/audit?agent_id=agent-1")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        # Should only return entries with agent_id=agent-1
+        assert all(entry["agent_id"] == "agent-1" for entry in data)
+
+    def test_get_audit_filter_by_resource_type(self, deeplink_client, sample_audit_entries):
+        """Test GET /api/deeplinks/audit?resource_type=agent filters by resource type."""
+        response = deeplink_client.get("/api/deeplinks/audit?resource_type=agent")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        # Should only return entries with resource_type=agent
+        assert all(entry["resource_type"] == "agent" for entry in data)
+
+    def test_get_audit_pagination(self, deeplink_client):
+        """Test GET /api/deeplinks/audit with limit and offset."""
+        # Create 20+ entries for pagination test
+        from core.models import DeepLinkAudit
+        from api.deeplinks import get_db
+        from sqlalchemy.orm import Session
+
+        # Need to access the test_db from the fixture
+        # We'll create entries directly in the test
+        app = deeplink_client.app
+
+        # Get the test_db session from dependency override
+        db_gen = app.dependency_overrides[get_db]()
+        db = next(db_gen)
+
+        try:
+            # Create 20 entries
+            for i in range(20):
+                entry = DeepLinkAudit(
+                    id=f"audit-pagination-{i}",
+                    user_id=f"user-{i}",
+                    resource_type="agent",
+                    resource_id=f"resource-{i}",
+                    action="trigger",
+                    source="external",
+                    deeplink_url=f"atom://agent/{i}",
+                    parameters={},
+                    status="success"
+                )
+                db.add(entry)
+            db.commit()
+
+            # Test pagination
+            response = deeplink_client.get("/api/deeplinks/audit?limit=5&offset=10")
+            assert response.status_code == 200
+            data = response.json()
+            assert isinstance(data, list)
+            assert len(data) <= 5
+        finally:
+            # Clean up
+            try:
+                for i in range(20):
+                    entry = db.query(DeepLinkAudit).filter(
+                        DeepLinkAudit.id == f"audit-pagination-{i}"
+                    ).first()
+                    if entry:
+                        db.delete(entry)
+                db.commit()
+            except:
+                pass
+            try:
+                db_gen.close()
+            except:
+                pass
+
+    def test_get_audit_empty(self, deeplink_client, test_db):
+        """Test GET /api/deeplinks/audit with no entries returns empty list."""
+        # Clear all audit entries
+        test_db.query(DeepLinkAudit).delete()
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/audit")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) == 0
