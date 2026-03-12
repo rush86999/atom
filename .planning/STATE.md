@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 171 Complete - Gap closure, baseline measurement, pragma audit, and roadmap to 80% coverage. ROADMAP.md updated with Phase 172-189 definitions. Milestone v5.4 complete, v5.5 ready for execution.
+**Current focus**: Phase 171 Plan 04A Complete - Realistic roadmap to 80% coverage created (22 phases, 4.4 weeks, 3.4 hours). Data-driven planning based on Phase 171 actual coverage (8.50%) and historical performance from Phases 165-170 (+3.33% avg per phase).
 
 ## Current Position
 
-Phase: 171 of 189 (Gap Closure & Final Push)
-Plan: 04B of 6 in current phase (COMPLETE)
-Status: Phase 171 COMPLETE
-Last activity: 2026-03-12 — Phase 171 Plan 04B Complete: ROADMAP.md updated with Phase 172-189 definitions, Phase 171 final summary created. Milestone v5.4 (Baseline & Plan) complete. v5.5 (Execution) ready. All 6 plans executed: 171-01A (SQLAlchemy conflicts), 171-01B (test imports), 171-02 (actual coverage), 171-03 (pragma audit), 171-04A (skipped), 171-04B (ROADMAP update).
+Phase: 171 of 171 (Gap Closure & Final Push)
+Plan: 04A of 6 in current phase (COMPLETE)
+Status: In Progress
+Last activity: 2026-03-12 — Phase 171 Plan 04A Complete: Realistic roadmap to 80% coverage created based on actual coverage data (8.50%) and historical performance (+3.33% avg per phase). 22 phases needed (Phases 172-193), 4.4 weeks, 3.4 hours estimated. Roadmap JSON (709 lines) and markdown report (695 lines) created with complete phase breakdown and file assignments.
 
-Progress: [██████████] 100% (6/6 plans in Phase 171)
+Progress: [█████░░░░] 50% (3/6 plans in Phase 171)
 
-**Next Phase:** 172 - High-Impact Zero Coverage (Governance)
-**Target Coverage:** 12.50% (+4.00pp from 8.50% baseline)
+**Next Phase:** 171 Plan 04B - ROADMAP.md update and final summary
+**Next Action:** Update ROADMAP.md with Phase 172-193 definitions, create Phase 171 final summary
 
 ## Performance Metrics
 
@@ -677,3 +677,30 @@ Next: Phase 171 Plan 04A - Zero-coverage file testing strategy (if exists) or ne
 
 Next: Phase 172 - High-Impact Zero Coverage (Governance)
 Target: 12.50% coverage (+4.00pp from baseline)
+
+## Session Update: 2026-03-12
+
+**Phase 171 Plan 04A Complete:**
+- Coverage gap analysis script created (analyze_phase_171_coverage_gap.py, 209 lines)
+- Phase 171 baseline analyzed: 8.50% coverage (6,179/72,727 lines)
+- Gap to 80% target: 71.50 percentage points (52,002 lines needed)
+- Historical performance analyzed: Phases 165-170 average +3.33% per phase
+- Realistic roadmap created: 22 phases (Phases 172-193), 4.4 weeks, 3.4 hours
+- Roadmap JSON created (phase_171_roadmap_to_80_percent.json, 709 lines, 24KB)
+- Roadmap markdown created (phase_171_roadmap_to_80_percent.md, 695 lines)
+- File inventory categorized: 490 zero coverage, 524 below 80%, 8 above 80%
+- Risk factors documented: SQLAlchemy conflicts, external dependencies, complex logic, flaky tests
+- Recommendations provided: Execute sequentially, focus on high-impact, use proven patterns
+- Duration: ~5 minutes
+- Commits: 085980b59, ec184eaa3, e40c365fd
+- SUMMARY.md created: 171-04A-SUMMARY.md
+
+**Phase 171 Plan 04A COMPLETE:**
+- All 3 tasks executed successfully
+- Realistic roadmap based on actual data (not estimates)
+- 22 phases needed to reach 80% (not 1-2 as hoped)
+- Data-driven planning: +3.33% per phase average from Phases 165-170
+- Total effort: 4.4 weeks, 3.4 hours (based on ~9 min per phase)
+- Ready for 171-04B (ROADMAP.md update and final summary)
+
+Next: Phase 171 Plan 04B - ROADMAP.md update and final summary
