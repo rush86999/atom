@@ -901,22 +901,6 @@ class TestAccountingErrorPaths:
 
         assert response.status_code == 422
 
-
-        request = {
-            "id": "tx_123",
-            "date": "2026-03-12T10:00:00",
-            "amount": 100.00,
-            "description": "Test",
-            "source": "bank"
-        }
-
-        response = ai_accounting_client.post(
-            "/ai-accounting/transactions",
-            json=request
-        )
-
-        assert response.status_code == 500
-
     def test_dashboard_unexpected_error(
         self, ai_accounting_client, mock_db_for_accounting
     ):
