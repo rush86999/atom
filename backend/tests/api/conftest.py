@@ -763,3 +763,276 @@ def role_permission_mapping() -> dict:
     from core.rbac_service import ROLE_PERMISSIONS
 
     return ROLE_PERMISSIONS
+
+
+# ============================================================================
+# Analytics Engine Fixtures (Phase 177-02)
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def mock_message_analytics() -> AsyncMock:
+    """
+    Mock MessageAnalyticsEngine for analytics routes testing.
+
+    Returns deterministic analytics data with configurable filters.
+
+    Usage:
+        def test_analytics_summary(mock_message_analytics):
+            mock_message_analytics.get_summary.return_value = {
+                "message_stats": {"total_messages": 100},
+                "sentiment_distribution": {"positive": 40, "negative": 20, "neutral": 40}
+            }
+            response = client.get("/api/analytics/summary")
+    """
+    from unittest.mock import AsyncMock
+
+    mock = AsyncMock()
+
+    # Mock get_summary method
+    mock.get_summary = AsyncMock(return_value={
+        "message_stats": {
+            "total_messages": 100,
+            "total_words": 5000,
+            "with_attachments": 25,
+            "with_mentions": 40,
+            "with_urls": 30
+        },
+        "sentiment_distribution": {
+            "positive": 40,
+            "negative": 20,
+            "neutral": 40
+        },
+        "response_times": {
+            "avg_response_seconds": 3600,
+            "median_response_seconds": 2400,
+            "p95_response_seconds": 7200
+        },
+        "activity_peaks": {
+            "peak_days": ["Monday", "Tuesday", "Wednesday"],
+            "messages_per_day": {"2026-03-12": 50, "2026-03-11": 45}
+        },
+        "cross_platform": {
+            "platforms": {"slack": 60, "teams": 30, "gmail": 10},
+            "most_active_platform": "slack",
+            "total_messages": 100
+        }
+    })
+
+    # Mock get_sentiment_analysis method
+    mock.get_sentiment_analysis = AsyncMock(return_value={
+        "sentiment_distribution": {"positive": 40, "negative": 20, "neutral": 40},
+        "sentiment_trend": [{"timestamp": "2026-03-12T00:00:00Z", "positive": 0.4}],
+        "most_positive_topics": ["product launch", "feature request"],
+        "most_negative_topics": ["bug report", "performance issue"]
+    })
+
+    # Mock get_response_time_metrics method
+    mock.get_response_time_metrics = AsyncMock(return_value={
+        "avg_response_seconds": 3600,
+        "median_response_seconds": 2400,
+        "p95_response_seconds": 7200,
+        "p99_response_seconds": 10800,
+        "response_time_distribution": [
+            {"range": "0-1h", "count": 20},
+            {"range": "1-4h", "count": 30},
+            {"range": "4-24h", "count": 40}
+        ],
+        "slowest_threads": [
+            {"thread_id": "thread1", "response_seconds": 10800, "participants": ["user1", "user2"]},
+            {"thread_id": "thread2", "response_seconds": 9600, "participants": ["user3"]}
+        ],
+        "fastest_threads": [
+            {"thread_id": "thread3", "response_seconds": 60, "participants": ["user4", "user5"]}
+        ]
+    })
+
+    # Mock get_activity_metrics method
+    mock.get_activity_metrics = AsyncMock(return_value={
+        "messages_per_hour": {"9": 10, "10": 15, "11": 12},
+        "messages_per_day": {"2026-03-12": 50, "2026-03-11": 45},
+        "messages_per_channel": {"#general": 30, "#random": 20},
+        "peak_hours": [10, 11, 14],
+        "peak_days": ["Monday", "Tuesday", "Wednesday"],
+        "activity_heatmap": [
+            {"hour": 9, "day": "Monday", "count": 10},
+            {"hour": 10, "day": "Monday", "count": 15}
+        ]
+    })
+
+    # Mock get_cross_platform_analytics method
+    mock.get_cross_platform_analytics = AsyncMock(return_value={
+        "platforms": {
+            "slack": {"message_count": 60, "sentiment": {"positive": 25, "negative": 10, "neutral": 25}, "avg_response_time": 3000},
+            "teams": {"message_count": 30, "sentiment": {"positive": 12, "negative": 7, "neutral": 11}, "avg_response_time": 3600},
+            "gmail": {"message_count": 10, "sentiment": {"positive": 3, "negative": 3, "neutral": 4}, "avg_response_time": 7200}
+        },
+        "most_active_platform": "slack",
+        "platform_comparison": [
+            {"platform": "slack", "message_count": 60, "percentage": 60},
+            {"platform": "teams", "message_count": 30, "percentage": 30},
+            {"platform": "gmail", "message_count": 10, "percentage": 10}
+        ]
+    })
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def mock_correlation_engine() -> AsyncMock:
+    """
+    Mock CrossPlatformCorrelationEngine for correlation testing.
+
+    Returns deterministic correlation data with linked conversations.
+
+    Usage:
+        def test_correlations(mock_correlation_engine):
+            mock_correlation_engine.correlate_conversations.return_value = [
+                MockLinkedConversation(conversation_id="conv1", platforms={"slack", "teams"})
+            ]
+            response = client.post("/api/analytics/correlations", json=messages)
+    """
+    from unittest.mock import AsyncMock, Mock
+    from core.cross_platform_correlation import LinkedConversation, CorrelationStrength
+
+    # Create mock linked conversation
+    mock_linked_conv = Mock(spec=LinkedConversation)
+    mock_linked_conv.conversation_id = "linked-conv-123"
+    mock_linked_conv.platforms = {"slack", "teams"}
+    mock_linked_conv.participants = {"user1@example.com", "user2@example.com"}
+    mock_linked_conv.message_count = 15
+    mock_linked_conv.correlation_strength = CorrelationStrength.HIGH
+    mock_linked_conv.unified_messages = [
+        {"id": "msg1", "platform": "slack", "content": "Test message", "sender": "user1", "timestamp": "2026-03-12T10:00:00Z", "_correlation_source": "slack"},
+        {"id": "msg2", "platform": "teams", "content": "Related message", "sender": "user2", "timestamp": "2026-03-12T10:05:00Z", "_correlation_source": "teams"}
+    ]
+
+    mock = AsyncMock()
+
+    # Mock correlate_conversations method
+    mock.correlate_conversations = AsyncMock(return_value=[mock_linked_conv])
+
+    # Mock get_unified_timeline method (returns None for non-existent conversation)
+    mock.get_unified_timeline = AsyncMock(return_value=[
+        {"id": "msg1", "platform": "slack", "content": "Test message", "sender": "user1", "timestamp": "2026-03-12T10:00:00Z", "_correlation_source": "slack"},
+        {"id": "msg2", "platform": "teams", "content": "Related message", "sender": "user2", "timestamp": "2026-03-12T10:05:00Z", "_correlation_source": "teams"}
+    ])
+
+    # Mock cross_platform_links attribute
+    mock.cross_platform_links = [
+        {"source_conv": "slack-conv-1", "target_conv": "teams-conv-2", "strength": 0.85}
+    ]
+
+    # Mock linked_conversations attribute
+    mock.linked_conversations = [mock_linked_conv]
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def mock_insights_engine() -> AsyncMock:
+    """
+    Mock PredictiveInsightsEngine for predictive insights testing.
+
+    Returns deterministic predictions with confidence levels.
+
+    Usage:
+        def test_predict_response_time(mock_insights_engine):
+            mock_prediction = Mock()
+            mock_prediction.predicted_seconds = 3600
+            mock_prediction.confidence.value = "high"
+            mock_insights_engine.predict_response_time.return_value = mock_prediction
+            response = client.get("/api/analytics/predictions/response-time")
+    """
+    from unittest.mock import AsyncMock, Mock
+    from core.predictive_insights import Prediction, ChannelRecommendation, BottleneckAlert, UserPattern, Confidence, Severity
+
+    # Create mock prediction
+    mock_prediction = Mock(spec=Prediction)
+    mock_prediction.user_id = "user123"
+    mock_prediction.predicted_seconds = 3600
+    mock_prediction.confidence = Confidence.HIGH
+    mock_prediction.factors = ["Time of day", "Historical patterns", "Platform activity"]
+
+    # Create mock channel recommendation
+    mock_recommendation = Mock(spec=ChannelRecommendation)
+    mock_recommendation.user_id = "user123"
+    mock_recommendation.recommended_platform = "slack"
+    mock_recommendation.reason = "User is most active on Slack during this time"
+    mock_recommendation.confidence = Confidence.HIGH
+    mock_recommendation.expected_response_time = 1800  # 30 minutes
+    mock_recommendation.alternatives = ["teams", "gmail"]
+
+    # Create mock bottleneck alert
+    mock_bottleneck = Mock(spec=BottleneckAlert)
+    mock_bottleneck.severity = Severity.WARNING
+    mock_bottleneck.thread_id = "thread-123"
+    mock_bottleneck.platform = "slack"
+    mock_bottleneck.description = "No response for 24 hours"
+    mock_bottleneck.affected_users = ["user1@example.com", "user2@example.com"]
+    mock_bottleneck.wait_time_seconds = 86400  # 24 hours
+    mock_bottleneck.suggested_action = "Send follow-up message or escalate"
+
+    # Create mock user pattern
+    mock_pattern = Mock(spec=UserPattern)
+    mock_pattern.user_id = "user123"
+    mock_pattern.most_active_platform = "slack"
+    mock_pattern.most_active_hours = [9, 10, 11, 14, 15]
+    mock_pattern.avg_response_time = 3600
+    mock_pattern.response_probability_by_hour = {
+        9: 0.8, 10: 0.9, 11: 0.7, 14: 0.85, 15: 0.75
+    }
+    mock_pattern.preferred_message_types = ["general", "question", "update"]
+
+    mock = AsyncMock()
+
+    # Mock predict_response_time method
+    mock.predict_response_time = AsyncMock(return_value=mock_prediction)
+
+    # Mock recommend_channel method
+    mock.recommend_channel = AsyncMock(return_value=mock_recommendation)
+
+    # Mock detect_bottlenecks method
+    mock.detect_bottlenecks = AsyncMock(return_value=[mock_bottleneck])
+
+    # Mock get_user_pattern method (returns None for non-existent user)
+    mock.get_user_pattern = AsyncMock(return_value=mock_pattern)
+
+    # Mock get_insights_summary method
+    mock.get_insights_summary = AsyncMock(return_value={
+        "users_analyzed": 50,
+        "bottlenecks_detected": 5,
+        "avg_response_time_all_users": 3600,
+        "most_active_platform": "slack",
+        "peak_hours": [10, 11, 14]
+    })
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def analytics_routes_client(mock_message_analytics, mock_correlation_engine, mock_insights_engine) -> TestClient:
+    """
+    Create TestClient with analytics routes router.
+
+    Uses per-file FastAPI app pattern to avoid SQLAlchemy metadata conflicts.
+    All analytics engines are mocked for deterministic testing.
+
+    Usage:
+        def test_analytics_summary(analytics_routes_client):
+            response = analytics_routes_client.get("/api/analytics/summary")
+            assert response.status_code == 200
+    """
+    from fastapi import FastAPI
+    from api.analytics_dashboard_routes import router
+    from unittest.mock import patch
+
+    app = FastAPI()
+    app.include_router(router)
+
+    # Patch engine getters to return mocks
+    with patch('api.analytics_dashboard_routes.get_message_analytics_engine', return_value=mock_message_analytics), \
+         patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine', return_value=mock_correlation_engine), \
+         patch('api.analytics_dashboard_routes.get_predictive_insights_engine', return_value=mock_insights_engine):
+
+        client = TestClient(app)
+        yield client
