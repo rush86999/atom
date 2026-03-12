@@ -726,3 +726,128 @@ class TestAdminSkillRoutesSecurity:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
+
+
+# ============================================================================
+# POST /api/admin/skills - Error Path Tests
+# ============================================================================
+
+class TestAdminSkillRoutesError:
+    """Tests for error handling on admin skill routes."""
+
+    def test_create_skill_validation_error(
+        self,
+        authenticated_admin_client: TestClient
+    ):
+        """Test request validation failures."""
+        response = authenticated_admin_client.post(
+            "/api/admin/skills",
+            json={
+                # Missing required fields: name, description, instructions, scripts
+                "capabilities": ["web_search"]
+            }
+        )
+
+        assert response.status_code == 422
+
+    def test_create_skill_invalid_scripts(
+        self,
+        authenticated_admin_client: TestClient
+    ):
+        """Test invalid scripts format."""
+        response = authenticated_admin_client.post(
+            "/api/admin/skills",
+            json={
+                "name": "invalid_scripts",
+                "description": "Has invalid scripts",
+                "instructions": "You are an assistant",
+                "scripts": "not_a_dict"  # Should be dict
+            }
+        )
+
+        assert response.status_code == 422
+
+    def test_create_skill_builder_fails(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_static_analyzer: MagicMock,
+        mock_skill_builder: AsyncMock
+    ):
+        """Test skill builder service failure."""
+        # Mock skill builder to return failure
+        mock_skill_builder.create_skill_package.return_value = {
+            "success": False,
+            "message": "Failed to create skill package: Invalid skill structure"
+        }
+
+        with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+            with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                response = authenticated_admin_client.post(
+                    "/api/admin/skills",
+                    json={
+                        "name": "builder_fail",
+                        "description": "Builder fails",
+                        "instructions": "You are an assistant",
+                        "scripts": {"main.py": "def main():\n    pass"}
+                    }
+                )
+
+        assert response.status_code == 422
+
+    def test_create_skill_unhandled_exception(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_static_analyzer: MagicMock
+    ):
+        """Test unhandled exception path."""
+        mock_skill_builder = AsyncMock()
+        mock_skill_builder.create_skill_package.side_effect = Exception("Unexpected error")
+
+        with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
+            with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
+                response = authenticated_admin_client.post(
+                    "/api/admin/skills",
+                    json={
+                        "name": "exception_skill",
+                        "description": "Raises exception",
+                        "instructions": "You are an assistant",
+                        "scripts": {"main.py": "def main():\n    pass"}
+                    }
+                )
+
+        assert response.status_code == 500
+
+    def test_create_skill_empty_name(
+        self,
+        authenticated_admin_client: TestClient
+    ):
+        """Test empty name validation."""
+        response = authenticated_admin_client.post(
+            "/api/admin/skills",
+            json={
+                "name": "",  # Empty name
+                "description": "Empty name",
+                "instructions": "You are an assistant",
+                "scripts": {"main.py": "def main():\n    pass"}
+            }
+        )
+
+        assert response.status_code == 422
+
+    def test_create_skill_invalid_capabilities(
+        self,
+        authenticated_admin_client: TestClient
+    ):
+        """Test invalid capabilities format."""
+        response = authenticated_admin_client.post(
+            "/api/admin/skills",
+            json={
+                "name": "invalid_caps",
+                "description": "Invalid capabilities",
+                "instructions": "You are an assistant",
+                "capabilities": "not_a_list",  # Should be list
+                "scripts": {"main.py": "def main():\n    pass"}
+            }
+        )
+
+        assert response.status_code == 422
