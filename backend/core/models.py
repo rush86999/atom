@@ -2705,6 +2705,64 @@ class BrowserSession(Base):
     agent = relationship("AgentRegistry", foreign_keys=[agent_id])
     agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
 
+class BrowserAudit(Base):
+    """
+    Browser Operations Audit Log
+
+    Tracks all browser automation operations (navigate, click, fill form, screenshot, extract text, execute script)
+    for governance and compliance. All browser actions by agents create audit entries.
+    """
+    __tablename__ = "browser_audit"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())  # Alias for timestamp
+
+    # Agent context
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
+    agent_execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    session_id = Column(String, nullable=True, index=True)  # Link to BrowserSession
+
+    # Action details
+    action = Column(String(100), nullable=False, index=True)  # navigate, click, fill_form, screenshot, etc.
+    action_type = Column(String(100), nullable=True, index=True)  # Alias for action
+    endpoint = Column(String(200), nullable=False)
+
+    # Request/Response tracking
+    request_params = Column(JSON, nullable=True)  # Input parameters
+    action_params = Column(JSON, nullable=True)  # Alias for request_params
+    response_summary = Column(JSON, nullable=True)  # Output summary
+    result_summary = Column(Text, nullable=True)  # Human-readable result
+    result_data = Column(JSON, nullable=True)  # Structured result data
+
+    # Status and governance
+    status_code = Column(Integer, nullable=True)  # HTTP-like status code
+    success = Column(Boolean, default=True, index=True)
+    error_message = Column(Text, nullable=True)
+
+    # Governance metadata
+    maturity_level = Column(String(50), nullable=True)  # INTERN, SUPERVISED, AUTONOMOUS
+    governance_allowed = Column(Boolean, default=True)
+    governance_reason = Column(Text, nullable=True)
+    governance_check_passed = Column(Boolean, nullable=True)  # Whether governance check passed
+
+    # Browser-specific metadata
+    browser_type = Column(String(50), nullable=True)  # chromium, firefox, webkit
+    headless = Column(Boolean, nullable=True)
+    current_url = Column(Text, nullable=True)  # URL after action
+    page_title = Column(Text, nullable=True)  # Page title after action
+    duration_ms = Column(Integer, nullable=True)  # Operation duration in milliseconds
+
+    # Metadata
+    metadata_json = Column(JSON, default={})
+
+    # Relationships
+    agent = relationship("AgentRegistry", foreign_keys=[agent_id])
+    agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
+    user = relationship("User", foreign_keys=[user_id])
+
 class Artifact(Base):
     """
     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
