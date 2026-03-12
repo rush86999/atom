@@ -606,3 +606,77 @@ class TestArtifactAuth:
         response = unauthenticated_client.get("/api/artifacts/some_id/versions")
 
         assert response.status_code == 401
+
+
+# ============================================================================
+# Test Artifact Error Paths
+# ============================================================================
+
+class TestArtifactErrorPaths:
+    """Test error handling for artifact endpoints."""
+
+    def test_save_missing_name(self, authenticated_client):
+        """Test POST /api/artifacts/ without name returns 422."""
+        invalid_data = {
+            "type": "code",
+            "content": "test"
+        }
+        response = authenticated_client.post("/api/artifacts/", json=invalid_data)
+
+        assert response.status_code == 422
+
+    def test_save_missing_type(self, authenticated_client):
+        """Test POST /api/artifacts/ without type returns 422."""
+        invalid_data = {
+            "name": "test",
+            "content": "test"
+        }
+        response = authenticated_client.post("/api/artifacts/", json=invalid_data)
+
+        assert response.status_code == 422
+
+    def test_update_artifact_not_found(self, authenticated_client):
+        """Test POST /api/artifacts/update with invalid ID returns 404."""
+        update_data = {
+            "id": "nonexistent_artifact_id",
+            "name": "updated"
+        }
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 404
+
+    def test_update_empty_request(self, authenticated_client, test_db, sample_artifact):
+        """Test POST /api/artifacts/update with no changes."""
+        # Original content
+        original_name = sample_artifact.name
+
+        # Send update with only ID (no actual changes)
+        update_data = {
+            "id": sample_artifact.id
+        }
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        # Should succeed (200) but not change anything
+        assert response.status_code == 200
+        artifact = test_db.query(Artifact).filter(Artifact.id == sample_artifact.id).first()
+        assert artifact.name == original_name
+
+    def test_get_versions_not_found(self, authenticated_client):
+        """Test GET /api/artifacts/{invalid_id}/versions with non-existent artifact."""
+        response = authenticated_client.get("/api/artifacts/nonexistent_id/versions")
+
+        # Returns empty list for non-existent artifact (no 404)
+        assert response.status_code == 200
+        versions = response.json()
+        assert len(versions) == 0
+
+    def test_update_invalid_id_format(self, authenticated_client):
+        """Test POST /api/artifacts/update with malformed ID."""
+        # Even malformed ID format returns 404 (artifact not found)
+        update_data = {
+            "id": "invalid_uuid_format",
+            "name": "updated"
+        }
+        response = authenticated_client.post("/api/artifacts/update", json=update_data)
+
+        assert response.status_code == 404
