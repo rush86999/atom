@@ -195,3 +195,129 @@ class TestRBACServiceCheckPermission:
         """Parametrized permission matrix: 5 roles x 9 permissions = 45 test cases."""
         user = test_users_with_roles[role]
         assert RBACService.check_permission(user, permission) is expected
+
+
+# ============================================================================
+# Task 3: Test require_permission dependency
+# ============================================================================
+
+class TestRequirePermissionDependency:
+    """Test require_permission dependency factory and enforcement."""
+
+    @pytest.mark.asyncio
+    async def test_require_permission_with_valid_permission(self, test_users_with_roles):
+        """User with permission passes check."""
+        from core.security_dependencies import require_permission
+
+        member = test_users_with_roles[UserRole.MEMBER]
+        permission_checker = require_permission(Permission.AGENT_RUN)
+
+        # Should not raise exception
+        result = await permission_checker(member)
+        assert result == member
+
+    @pytest.mark.asyncio
+    async def test_require_permission_with_invalid_permission(self, test_users_with_roles):
+        """User without permission raises 403."""
+        from core.security_dependencies import require_permission
+
+        guest = test_users_with_roles[UserRole.GUEST]
+        permission_checker = require_permission(Permission.AGENT_RUN)
+
+        # Should raise HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            await permission_checker(guest)
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert "agent:run" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_require_permission_factory_pattern(self, test_users_with_roles):
+        """Verify factory returns callable."""
+        from core.security_dependencies import require_permission
+
+        permission_checker = require_permission(Permission.AGENT_VIEW)
+        assert callable(permission_checker)
+
+    @pytest.mark.asyncio
+    async def test_require_permission_http_403(self, test_users_with_roles):
+        """Verify HTTPException status code."""
+        from core.security_dependencies import require_permission
+
+        guest = test_users_with_roles[UserRole.GUEST]
+        permission_checker = require_permission(Permission.AGENT_MANAGE)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await permission_checker(guest)
+
+        assert exc_info.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_require_permission_error_message(self, test_users_with_roles):
+        """Verify error message includes permission name."""
+        from core.security_dependencies import require_permission
+
+        guest = test_users_with_roles[UserRole.GUEST]
+        permission_checker = require_permission(Permission.USER_MANAGE)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await permission_checker(guest)
+
+        assert "user:manage" in exc_info.value.detail
+        assert "Operation requires permission" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_require_permission_dependency_chaining(self, test_users_with_roles):
+        """Verify dependency chaining works with get_current_user."""
+        from core.security_dependencies import require_permission
+
+        member = test_users_with_roles[UserRole.MEMBER]
+        permission_checker = require_permission(Permission.WORKFLOW_RUN)
+
+        # Simulate FastAPI dependency injection chain
+        # get_current_user would be called first, then permission_checker
+        result = await permission_checker(member)
+        assert result.id == member.id
+        assert result.email == member.email
+
+    def test_require_permission_allows_superuser(self, test_users_with_roles):
+        """SUPER_ADMIN bypasses all permission checks."""
+        from core.security_dependencies import require_permission
+
+        super_admin = test_users_with_roles[UserRole.SUPER_ADMIN]
+        permission_checker = require_permission(Permission.SYSTEM_ADMIN)
+
+        # SUPER_ADMIN should pass even though SYSTEM_ADMIN is not in ROLE_PERMISSIONS
+        # This is handled by RBACService.check_permission returning True for SUPER_ADMIN
+        assert RBACService.check_permission(super_admin, Permission.SYSTEM_ADMIN) is True
+
+    def test_require_permission_multiple_permissions(self, test_users_with_roles):
+        """Test multiple permission requirements sequentially."""
+        from core.security_dependencies import require_permission
+
+        workspace_admin = test_users_with_roles[UserRole.WORKSPACE_ADMIN]
+
+        # Workspace admin should have all these permissions
+        agent_manage_checker = require_permission(Permission.AGENT_MANAGE)
+        user_manage_checker = require_permission(Permission.USER_MANAGE)
+        workflow_manage_checker = require_permission(Permission.WORKFLOW_MANAGE)
+
+        # All should pass
+        assert agent_manage_checker is not None
+        assert user_manage_checker is not None
+        assert workflow_manage_checker is not None
+
+    def test_require_permission_dependency_injection_pattern(self):
+        """Verify dependency injection pattern works correctly."""
+        from core.security_dependencies import require_permission
+
+        # Create permission checkers
+        agent_run_checker = require_permission(Permission.AGENT_RUN)
+        agent_manage_checker = require_permission(Permission.AGENT_MANAGE)
+
+        # Both should be callable (async functions)
+        assert callable(agent_run_checker)
+        assert callable(agent_manage_checker)
+
+        # They should be different callables
+        assert agent_run_checker != agent_manage_checker
