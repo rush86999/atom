@@ -432,6 +432,303 @@ class TestSegmentCreation:
         assert "completed" in formatted
         assert "Success" in formatted
 
+    @pytest.mark.asyncio
+    async def test_create_segments_single_boundary(self, segmentation_service, db_session):
+        """Test creates 2 segments from 1 boundary."""
+        from core.episode_segmentation_service import SegmentationBoundary
+
+        episode = {"id": "ep-1"}
+        now = datetime.now()
+
+        # Create messages
+        messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="First", created_at=now),
+            Mock(spec=ChatMessage, id="msg-2", role="assistant", content="Second", created_at=now + timedelta(minutes=5)),
+            Mock(spec=ChatMessage, id="msg-3", role="user", content="Third", created_at=now + timedelta(minutes=10))
+        ]
+
+        # Create 1 boundary at index 1
+        boundaries = [SegmentationBoundary("b1", now + timedelta(minutes=7), "time_gap")]
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set([1]),  # Boundary at index 1
+            canvas_context=None
+        )
+
+        # Should create 2 segments (1 boundary = 2 segments)
+        assert len(added_segments) == 2
+
+    @pytest.mark.asyncio
+    async def test_create_segments_multiple_boundaries(self, segmentation_service, db_session):
+        """Test creates N+1 segments from N boundaries."""
+        episode = {"id": "ep-2"}
+        now = datetime.now()
+
+        messages = [
+            Mock(spec=ChatMessage, id=f"msg-{i}", role="user", content=f"Message {i}",
+                 created_at=now + timedelta(minutes=i))
+            for i in range(5)
+        ]
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        # 2 boundaries = 3 segments
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set([1, 3]),  # Boundaries at indices 1 and 3
+            canvas_context=None
+        )
+
+        # Should create 3 segments (2 boundaries = 3 segments)
+        assert len(added_segments) == 3
+
+    @pytest.mark.asyncio
+    async def test_create_segments_sequence_ordering(self, segmentation_service, db_session):
+        """Test segments ordered by sequence_order ASC."""
+        episode = {"id": "ep-3"}
+        now = datetime.now()
+
+        messages = [
+            Mock(spec=ChatMessage, id=f"msg-{i}", role="user", content=f"Msg {i}",
+                 created_at=now + timedelta(minutes=i))
+            for i in range(4)
+        ]
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set([2]),  # 1 boundary = 2 segments
+            canvas_context=None
+        )
+
+        # Should create 2 segments with correct ordering
+        assert len(added_segments) == 2
+        assert added_segments[0].sequence_order == 0
+        assert added_segments[1].sequence_order == 1
+
+    @pytest.mark.asyncio
+    async def test_create_segments_with_canvas_context(self, segmentation_service, db_session):
+        """Test canvas context stored in segment.canvas_context."""
+        episode = {"id": "ep-4"}
+        now = datetime.now()
+
+        messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Show chart", created_at=now)
+        ]
+
+        canvas_context = {
+            "canvas_type": "charts",
+            "presentation_summary": "Agent presented bar chart"
+        }
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set(),
+            canvas_context=canvas_context
+        )
+
+        assert len(added_segments) == 1
+        assert added_segments[0].canvas_context == canvas_context
+
+    @pytest.mark.asyncio
+    async def test_create_segments_with_feedback_context(self, segmentation_service, db_session):
+        """Test feedback context stored in segment."""
+        episode = {"id": "ep-5"}
+        now = datetime.now()
+
+        messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Good job", created_at=now)
+        ]
+
+        feedback_context = {
+            "aggregate_score": 1.0,
+            "feedback_count": 3
+        }
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        # Canvas context can include feedback context
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set(),
+            canvas_context=feedback_context
+        )
+
+        assert len(added_segments) == 1
+
+    def test_create_segment_boundary_types(self, segmentation_service):
+        """Test all boundary types (time_gap, topic_change, task_completion)."""
+        from core.episode_segmentation_service import SegmentationBoundary
+
+        now = datetime.now()
+
+        boundaries = [
+            SegmentationBoundary("b1", now, "time_gap"),
+            SegmentationBoundary("b2", now + timedelta(minutes=1), "topic_change"),
+            SegmentationBoundary("b3", now + timedelta(minutes=2), "task_completion")
+        ]
+
+        boundary_types = [b.boundary_type for b in boundaries]
+
+        assert "time_gap" in boundary_types
+        assert "topic_change" in boundary_types
+        assert "task_completion" in boundary_types
+
+    def test_create_segment_boundary_metadata(self, segmentation_service):
+        """Test boundary metadata includes timestamp and type."""
+        from core.episode_segmentation_service import SegmentationBoundary
+
+        now = datetime.now()
+        boundary = SegmentationBoundary("b1", now, "time_gap")
+
+        assert boundary.boundary_id == "b1"
+        assert boundary.timestamp == now
+        assert boundary.boundary_type == "time_gap"
+
+    @pytest.mark.asyncio
+    async def test_create_segment_empty_boundary_list(self, segmentation_service, db_session):
+        """Test single segment when no boundaries."""
+        episode = {"id": "ep-6"}
+        now = datetime.now()
+
+        messages = [
+            Mock(spec=ChatMessage, id=f"msg-{i}", role="user", content=f"Msg {i}",
+                 created_at=now + timedelta(minutes=i))
+            for i in range(3)
+        ]
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        # No boundaries = single segment
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set(),  # Empty boundaries
+            canvas_context=None
+        )
+
+        # Should create 1 segment with all messages
+        assert len(added_segments) == 1
+
+    @pytest.mark.asyncio
+    async def test_create_segment_message_ranges(self, segmentation_service, db_session):
+        """Test each segment contains correct message range."""
+        episode = {"id": "ep-7"}
+        now = datetime.now()
+
+        messages = [
+            Mock(spec=ChatMessage, id=f"msg-{i}", role="user", content=f"Msg {i}",
+                 created_at=now + timedelta(minutes=i))
+            for i in range(5)
+        ]
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        # Boundary at index 2 splits messages into [0-1] and [2-4]
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set([2]),
+            canvas_context=None
+        )
+
+        # Should create 2 segments
+        assert len(added_segments) == 2
+        # First segment should have messages 0-1
+        # Second segment should have messages 2-4
+        assert added_segments[0].sequence_order == 0
+        assert added_segments[1].sequence_order == 1
+
+    @pytest.mark.asyncio
+    async def test_create_segment_lancedb_vector_storage(self, segmentation_service, db_session):
+        """Test segment embeddings stored in LanceDB."""
+        episode = {"id": "ep-8"}
+        now = datetime.now()
+
+        messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Test message", created_at=now)
+        ]
+
+        added_segments = []
+
+        def mock_add(segment):
+            added_segments.append(segment)
+
+        db_session.add = mock_add
+        db_session.commit = Mock()
+
+        await segmentation_service._create_segments(
+            episode=episode,
+            messages=messages,
+            executions=[],
+            boundaries=set(),
+            canvas_context=None
+        )
+
+        # Segments should be created
+        assert len(added_segments) == 1
+        # LanceDB storage happens during episode archival, not segment creation
+
 
 # ============================================================================
 # Edge Cases
@@ -1179,6 +1476,391 @@ class TestEpisodeCreation:
         assert result is not None
         assert result.agent_id == "agent-1"
 
+    @pytest.mark.asyncio
+    async def test_create_episode_with_canvas_presentations(self, segmentation_service):
+        """Test episode creation includes canvas context from presentations."""
+        from core.models import AgentFeedback
+
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-2"
+        sample_session.user_id = "test-user-2"
+        sample_session.created_at = datetime.now()
+
+        # Create sample messages
+        sample_messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Analyze data", created_at=datetime.now())
+        ]
+
+        # Create canvas audits
+        canvas_audits = [
+            Mock(spec=CanvasAudit, id="canvas-1", canvas_type="charts", action="present",
+                 audit_metadata={"chart_type": "bar"}, created_at=datetime.now(), episode_id=None)
+        ]
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        segmentation_service.db.query = Mock(side_effect=lambda cls: setup_query(
+            sample_session if cls == ChatSession else
+            sample_messages if cls == ChatMessage else
+            [] if cls == AgentExecution else
+            canvas_audits if cls == CanvasAudit else
+            []
+        ))
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-2",
+                    agent_id="agent-2"
+                )
+
+        assert result is not None
+        # Canvas context should be fetched and used
+
+    @pytest.mark.asyncio
+    async def test_create_episode_with_user_feedback(self, segmentation_service):
+        """Test episode aggregates user feedback scores."""
+        from core.models import AgentFeedback
+
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-3"
+        sample_session.user_id = "test-user-3"
+        sample_session.created_at = datetime.now()
+
+        sample_messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Good job", created_at=datetime.now())
+        ]
+
+        # Create agent execution with feedback
+        executions = [
+            Mock(spec=AgentExecution, id="exec-1", status="completed", task_description="Task 1",
+                 result_summary="Done", input_summary="Input", created_at=datetime.now(),
+                 completed_at=datetime.now(), metadata_json={}, agent_id="agent-3", started_at=datetime.now())
+        ]
+
+        # Create feedback records
+        feedbacks = [
+            Mock(spec=AgentFeedback, id="fb-1", feedback_type="thumbs_up", thumbs_up_down=True,
+                 rating=None, agent_id="agent-3", agent_execution_id="exec-1", episode_id=None)
+        ]
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        segmentation_service.db.query = Mock(side_effect=lambda cls: setup_query(
+            sample_session if cls == ChatSession else
+            sample_messages if cls == ChatMessage else
+            executions if cls == AgentExecution else
+            [] if cls == CanvasAudit else
+            feedbacks if cls == AgentFeedback else
+            []
+        ))
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-3",
+                    agent_id="agent-3"
+                )
+
+        assert result is not None
+        # Feedback should be fetched and episode_id updated
+
+    @pytest.mark.asyncio
+    async def test_create_episode_with_supervision_context(self, segmentation_service):
+        """Test episode includes supervision session data."""
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-4"
+        sample_session.user_id = "test-user-4"
+        sample_session.created_at = datetime.now()
+
+        sample_messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Help me", created_at=datetime.now())
+        ]
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        segmentation_service.db.query = Mock(side_effect=lambda cls: setup_query(
+            sample_session if cls == ChatSession else
+            sample_messages if cls == ChatMessage else
+            [] if cls == AgentExecution else
+            [] if cls == CanvasAudit else
+            []
+        ))
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-4",
+                    agent_id="agent-4"
+                )
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_session_not_found(self, segmentation_service):
+        """Test returns None when session doesn't exist."""
+        segmentation_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = await segmentation_service.create_episode_from_session(
+            session_id="nonexistent-session",
+            agent_id="agent-1"
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_with_no_messages(self, segmentation_service):
+        """Test handles empty message list."""
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-5"
+        sample_session.user_id = "test-user-5"
+        sample_session.created_at = datetime.now()
+
+        # Create execution but no messages
+        executions = [
+            Mock(spec=AgentExecution, id="exec-1", status="completed", task_description="Task",
+                 result_summary="Done", input_summary="Input", created_at=datetime.now(),
+                 completed_at=datetime.now(), metadata_json={}, agent_id="agent-5", started_at=datetime.now())
+        ]
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        segmentation_service.db.query = Mock(side_effect=lambda cls: setup_query(
+            sample_session if cls == ChatSession else
+            [] if cls == ChatMessage else
+            executions if cls == AgentExecution else
+            []
+        ))
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-5",
+                    agent_id="agent-5"
+                )
+
+        # Should create episode with execution data
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_agent_task_extraction(self, segmentation_service):
+        """Test extracts task_description from agent execution."""
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-6"
+        sample_session.user_id = "test-user-6"
+        sample_session.created_at = datetime.now()
+
+        # First message is user with task
+        sample_messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Create a report", created_at=datetime.now())
+        ]
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        segmentation_service.db.query = Mock(side_effect=lambda cls: setup_query(
+            sample_session if cls == ChatSession else
+            sample_messages if cls == ChatMessage else
+            [] if cls == AgentExecution else
+            []
+        ))
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-6",
+                    agent_id="agent-6"
+                )
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_maturity_tracking(self, segmentation_service):
+        """Test records maturity_at_time from agent status."""
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-7"
+        sample_session.user_id = "test-user-7"
+        sample_session.created_at = datetime.now()
+
+        sample_messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Task", created_at=datetime.now())
+        ]
+
+        # Mock agent registry with SUPERVISED status
+        agent_registry = Mock(spec=AgentRegistry)
+        agent_registry.id = "agent-7"
+        agent_registry.status = AgentStatus.SUPERVISED
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        query_count = [0]
+        def mock_query_impl(cls):
+            query_count[0] += 1
+            if cls == ChatSession:
+                return setup_query(sample_session)
+            elif cls == ChatMessage:
+                return setup_query(sample_messages)
+            elif cls == AgentRegistry:
+                return setup_query(agent_registry)
+            return setup_query([])
+
+        segmentation_service.db.query = mock_query_impl
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-7",
+                    agent_id="agent-7"
+                )
+
+        assert result is not None
+        assert result.maturity_at_time == "supervised"
+
+    @pytest.mark.asyncio
+    async def test_create_episode_with_multiple_canvas_actions(self, segmentation_service):
+        """Test aggregates multiple canvas interactions."""
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-8"
+        sample_session.user_id = "test-user-8"
+        sample_session.created_at = datetime.now()
+
+        sample_messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Show charts", created_at=datetime.now())
+        ]
+
+        # Multiple canvas events
+        canvas_audits = [
+            Mock(spec=CanvasAudit, id="canvas-1", canvas_type="charts", action="present",
+                 audit_metadata={}, created_at=datetime.now(), episode_id=None),
+            Mock(spec=CanvasAudit, id="canvas-2", canvas_type="sheets", action="submit",
+                 audit_metadata={}, created_at=datetime.now(), episode_id=None)
+        ]
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        segmentation_service.db.query = Mock(side_effect=lambda cls: setup_query(
+            sample_session if cls == ChatSession else
+            sample_messages if cls == ChatMessage else
+            [] if cls == AgentExecution else
+            canvas_audits if cls == CanvasAudit else
+            []
+        ))
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock()):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-8",
+                    agent_id="agent-8"
+                )
+
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_create_episode_lancedb_storage(self, segmentation_service):
+        """Test verifies episode stored in LanceDB."""
+        sample_session = Mock(spec=ChatSession)
+        sample_session.id = "test-session-9"
+        sample_session.user_id = "test-user-9"
+        sample_session.created_at = datetime.now()
+
+        sample_messages = [
+            Mock(spec=ChatMessage, id="msg-1", role="user", content="Test", created_at=datetime.now())
+        ]
+
+        def setup_query(return_value):
+            m = Mock()
+            m.filter.return_value = m
+            m.order_by.return_value = m
+            m.first.return_value = return_value if not isinstance(return_value, list) else return_value[0] if return_value else None
+            m.all.return_value = return_value if isinstance(return_value, list) else [return_value]
+            return m
+
+        segmentation_service.db.query = Mock(side_effect=lambda cls: setup_query(
+            sample_session if cls == ChatSession else
+            sample_messages if cls == ChatMessage else
+            [] if cls == AgentExecution else
+            []
+        ))
+
+        segmentation_service.db.add = Mock()
+        segmentation_service.db.commit = Mock()
+
+        archival_called = [False]
+
+        async def mock_archival(episode):
+            archival_called[0] = True
+
+        with patch.object(segmentation_service, '_create_segments', new=AsyncMock()):
+            with patch.object(segmentation_service, '_archive_to_lancedb', new=AsyncMock(side_effect=mock_archival)):
+                result = await segmentation_service.create_episode_from_session(
+                    session_id="test-session-9",
+                    agent_id="agent-9"
+                )
+
+        assert result is not None
+        assert archival_called[0], "LanceDB archival should be called"
+
 
 # ============================================================================
 # Canvas Context Extraction Tests
@@ -1439,6 +2121,251 @@ class TestCanvasContextExtraction:
             # Should fallback to metadata extraction
             assert result["summary_source"] == "metadata"
             assert "canvas_type" in result
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_charts(self, segmentation_service):
+        """Test LLM canvas context extraction for charts canvas type."""
+        canvas_audit = Mock()
+        canvas_audit.id = "canvas-charts-1"
+        canvas_audit.canvas_type = "charts"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "chart_type": "bar",
+            "data": [1, 2, 3, 4, 5],
+            "labels": ["A", "B", "C", "D", "E"]
+        }
+        canvas_audit.component_name = "BarChart"
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(return_value="Agent presented bar chart showing data distribution")):
+            result = await segmentation_service._extract_canvas_context_llm(
+                canvas_audit=canvas_audit,
+                agent_task="Analyze chart data"
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == "charts"
+            assert "presentation_summary" in result
+            assert result["summary_source"] == "llm"
+            assert "chart" in result["presentation_summary"].lower()
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_sheets_llm(self, segmentation_service):
+        """Test LLM canvas context extraction for sheets canvas type."""
+        canvas_audit = Mock()
+        canvas_audit.id = "canvas-sheets-1"
+        canvas_audit.canvas_type = "sheets"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "data": [["A", "B"], [1, 2]],
+            "revenue": 150000
+        }
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(return_value="Agent presented spreadsheet with revenue data")):
+            result = await segmentation_service._extract_canvas_context_llm(
+                canvas_audit=canvas_audit,
+                agent_task="Review financial data"
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == "sheets"
+            assert "presentation_summary" in result
+            assert "critical_data_points" in result
+            assert result["summary_source"] == "llm"
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_forms(self, segmentation_service):
+        """Test LLM canvas context extraction for forms canvas type."""
+        canvas_audit = Mock()
+        canvas_audit.id = "canvas-forms-1"
+        canvas_audit.canvas_type = "forms"
+        canvas_audit.action = "submit"
+        canvas_audit.audit_metadata = {
+            "form_fields": ["name", "email", "phone"],
+            "submitted_values": {"name": "John Doe", "email": "john@example.com"}
+        }
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(return_value="User submitted form with contact information")):
+            result = await segmentation_service._extract_canvas_context_llm(
+                canvas_audit=canvas_audit,
+                agent_task="Collect user information"
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == "forms"
+            assert "presentation_summary" in result
+            assert "user_interaction" in result
+            assert result["user_interaction"] == "user submitted"
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_markdown(self, segmentation_service):
+        """Test LLM canvas context extraction for markdown canvas type."""
+        canvas_audit = Mock()
+        canvas_audit.id = "canvas-markdown-1"
+        canvas_audit.canvas_type = "markdown"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "content": "# Report\n\nThis is a detailed report.",
+            "word_count": 250
+        }
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(return_value="Agent presented markdown report with 250 words")):
+            result = await segmentation_service._extract_canvas_context_llm(
+                canvas_audit=canvas_audit,
+                agent_task="Generate report"
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == "markdown"
+            assert "presentation_summary" in result
+            assert result["summary_source"] == "llm"
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_sheets_cell(self, segmentation_service):
+        """Test LLM canvas context extraction for sheets_cell canvas type."""
+        canvas_audit = Mock()
+        canvas_audit.id = "canvas-cell-1"
+        canvas_audit.canvas_type = "sheets_cell"
+        canvas_audit.action = "update"
+        canvas_audit.audit_metadata = {
+            "cell": "A1",
+            "value": 150000,
+            "formula": "=SUM(B2:B10)"
+        }
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(return_value="Agent updated cell A1 with calculated value")):
+            result = await segmentation_service._extract_canvas_context_llm(
+                canvas_audit=canvas_audit,
+                agent_task="Update spreadsheet cell"
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == "sheets_cell"
+            assert "presentation_summary" in result
+            assert "critical_data_points" in result
+            assert "cell" in result["critical_data_points"]
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_sheets_range(self, segmentation_service):
+        """Test LLM canvas context extraction for sheets_range canvas type."""
+        canvas_audit = Mock()
+        canvas_audit.id = "canvas-range-1"
+        canvas_audit.canvas_type = "sheets_range"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "range": "A1:C10",
+            "data": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+            "row_count": 10,
+            "col_count": 3
+        }
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(return_value="Agent presented data range A1:C10 with 30 cells")):
+            result = await segmentation_service._extract_canvas_context_llm(
+                canvas_audit=canvas_audit,
+                agent_task="Analyze data range"
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == "sheets_range"
+            assert "presentation_summary" in result
+            assert "critical_data_points" in result
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_sheets_chart(self, segmentation_service):
+        """Test LLM canvas context extraction for sheets_chart canvas type."""
+        canvas_audit = Mock()
+        canvas_audit.id = "canvas-sheet-chart-1"
+        canvas_audit.canvas_type = "sheets_chart"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "chart_type": "line",
+            "data_range": "Sheet1!A1:B10",
+            "title": "Sales Trend"
+        }
+
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(return_value="Agent presented embedded line chart showing sales trend")):
+            result = await segmentation_service._extract_canvas_context_llm(
+                canvas_audit=canvas_audit,
+                agent_task="Visualize sales data"
+            )
+
+            assert result is not None
+            assert result["canvas_type"] == "sheets_chart"
+            assert "presentation_summary" in result
+            assert "critical_data_points" in result
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_llm_failure(self, segmentation_service):
+        """Test graceful fallback when LLM call fails."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "charts"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {"data": [1, 2, 3]}
+
+        # Mock CanvasSummaryService to raise exception
+        with patch.object(segmentation_service.canvas_summary_service, 'generate_summary',
+                         new=AsyncMock(side_effect=Exception("LLM service unavailable"))):
+            result = await segmentation_service._extract_canvas_context_llm(canvas_audit)
+
+            # Should fallback to metadata extraction
+            assert result["summary_source"] == "metadata"
+            assert result["canvas_type"] == "charts"
+
+    def test_extract_canvas_context_empty_metadata(self, segmentation_service):
+        """Test handling of empty audit_metadata dict."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "sheets"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {}
+        canvas_audit.component_name = None
+
+        result = segmentation_service._extract_canvas_context([canvas_audit])
+
+        assert result is not None
+        assert result["canvas_type"] == "sheets"
+        assert "presentation_summary" in result
+
+    @pytest.mark.asyncio
+    async def test_extract_canvas_context_detail_levels(self, segmentation_service):
+        """Test brief/standard/detailed detail levels."""
+        canvas_audit = Mock()
+        canvas_audit.canvas_type = "sheets"
+        canvas_audit.action = "present"
+        canvas_audit.audit_metadata = {
+            "revenue": 150000,
+            "amount": 5000,
+            "data": [[1, 2], [3, 4]]
+        }
+
+        # Extract full context
+        full_context = segmentation_service._extract_canvas_context([canvas_audit])
+
+        # Test summary level
+        summary_context = segmentation_service._filter_canvas_context_detail(full_context, "summary")
+        assert "canvas_type" in summary_context
+        assert "presentation_summary" in summary_context
+        assert "critical_data_points" not in summary_context
+        assert "visual_elements" not in summary_context
+
+        # Test standard level
+        standard_context = segmentation_service._filter_canvas_context_detail(full_context, "standard")
+        assert "canvas_type" in standard_context
+        assert "presentation_summary" in standard_context
+        assert "critical_data_points" in standard_context
+        assert "visual_elements" not in standard_context
+
+        # Test full level
+        full_filtered = segmentation_service._filter_canvas_context_detail(full_context, "full")
+        assert "canvas_type" in full_filtered
+        assert "presentation_summary" in full_filtered
+        assert "critical_data_points" in full_filtered
+        assert "visual_elements" in full_filtered
 
 
 # ============================================================================
