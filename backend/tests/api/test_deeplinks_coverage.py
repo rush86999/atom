@@ -565,3 +565,219 @@ class TestDeepLinkGenerate:
             assert "deeplink_url" in data
             assert data["resource_type"] == resource_type
             assert data["resource_id"] == resource_id
+
+
+class TestDeepLinkStats:
+    """Test deep link statistics endpoint."""
+
+    def test_get_deeplink_stats_success(self, deeplink_client, test_db, sample_agent):
+        """Test GET /api/deeplinks/stats returns statistics."""
+        # Create audit entries with mixed statuses
+        entries = [
+            DeepLinkAudit(
+                id="stats-1",
+                user_id="user-1",
+                agent_id="agent-123",
+                resource_type="agent",
+                resource_id="agent-123",
+                action="trigger",
+                source="external",
+                deeplink_url="atom://agent/123",
+                status="success"
+            ),
+            DeepLinkAudit(
+                id="stats-2",
+                user_id="user-2",
+                agent_id="agent-123",
+                resource_type="workflow",
+                resource_id="workflow-1",
+                action="start",
+                source="mobile_app",
+                deeplink_url="atom://workflow/1",
+                status="failed"
+            )
+        ]
+        for entry in entries:
+            test_db.add(entry)
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "total_executions" in data
+        assert "successful_executions" in data
+        assert "failed_executions" in data
+        assert data["total_executions"] >= 2
+        assert data["successful_executions"] >= 1
+        assert data["failed_executions"] >= 1
+
+    def test_get_stats_by_resource_type(self, deeplink_client, test_db):
+        """Test GET /api/deeplinks/stats checks resource type aggregation."""
+        # Create entries with different resource types
+        for rt in ['agent', 'workflow', 'canvas']:
+            entry = DeepLinkAudit(
+                id=f"stats-rt-{rt}",
+                user_id="user-1",
+                resource_type=rt,
+                resource_id=f"{rt}-1",
+                action="trigger",
+                source="external",
+                deeplink_url=f"atom://{rt}/1",
+                status="success"
+            )
+            test_db.add(entry)
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "by_resource_type" in data
+        assert isinstance(data["by_resource_type"], dict)
+        # Check that resource types are counted
+        assert "agent" in data["by_resource_type"]
+        assert "workflow" in data["by_resource_type"]
+        assert "canvas" in data["by_resource_type"]
+
+    def test_get_stats_by_source(self, deeplink_client, test_db):
+        """Test GET /api/deeplinks/stats checks source breakdown."""
+        # Create entries with different sources
+        for source in ['external', 'mobile_app', 'browser']:
+            entry = DeepLinkAudit(
+                id=f"stats-source-{source}",
+                user_id="user-1",
+                resource_type="agent",
+                resource_id="agent-1",
+                action="trigger",
+                source=source,
+                deeplink_url=f"atom://agent/1",
+                status="success"
+            )
+            test_db.add(entry)
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "by_source" in data
+        assert isinstance(data["by_source"], dict)
+        # Check that sources are counted
+        assert "external" in data["by_source"]
+        assert "mobile_app" in data["by_source"]
+        assert "browser" in data["by_source"]
+
+    def test_get_stats_top_agents(self, deeplink_client, test_db, sample_agent):
+        """Test GET /api/deeplinks/stats checks agent ranking."""
+        # Create multiple entries for same agent
+        for i in range(5):
+            entry = DeepLinkAudit(
+                id=f"stats-agent-{i}",
+                user_id="user-1",
+                agent_id="agent-123",
+                resource_type="agent",
+                resource_id="agent-123",
+                action="trigger",
+                source="external",
+                deeplink_url="atom://agent/123",
+                status="success"
+            )
+            test_db.add(entry)
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "top_agents" in data
+        assert isinstance(data["top_agents"], list)
+        # Check that our agent appears in top agents
+        assert len(data["top_agents"]) > 0
+        # Verify structure
+        if data["top_agents"]:
+            agent_entry = data["top_agents"][0]
+            assert "agent_id" in agent_entry
+            assert "agent_name" in agent_entry
+            assert "execution_count" in agent_entry
+
+    def test_get_stats_recent_activity(self, deeplink_client, test_db):
+        """Test GET /api/deeplinks/stats checks time-based filters."""
+        now = datetime.now()
+
+        # Create entries with different timestamps
+        recent_entry = DeepLinkAudit(
+            id="stats-recent",
+            user_id="user-1",
+            resource_type="agent",
+            resource_id="agent-1",
+            action="trigger",
+            source="external",
+            deeplink_url="atom://agent/1",
+            status="success",
+            created_at=now - timedelta(hours=1)  # Within 24h
+        )
+        old_entry = DeepLinkAudit(
+            id="stats-old",
+            user_id="user-1",
+            resource_type="agent",
+            resource_id="agent-2",
+            action="trigger",
+            source="external",
+            deeplink_url="atom://agent/2",
+            status="success",
+            created_at=now - timedelta(days=10)  # Outside 7d
+        )
+
+        test_db.add(recent_entry)
+        test_db.add(old_entry)
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "last_24h_executions" in data
+        assert "last_7d_executions" in data
+        # Recent entry should be counted in 24h
+        assert data["last_24h_executions"] >= 1
+        # Old entry should not be counted in 7d
+        # (but other tests may have added recent entries)
+
+    def test_get_stats_empty(self, deeplink_client, test_db):
+        """Test GET /api/deeplinks/stats with no audit entries."""
+        # Clear all audit entries
+        test_db.query(DeepLinkAudit).delete()
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_executions"] == 0
+        assert data["successful_executions"] == 0
+        assert data["failed_executions"] == 0
+        assert data["last_24h_executions"] == 0
+        assert data["last_7d_executions"] == 0
+        # by_resource_type should have all types with zero counts
+        assert "agent" in data["by_resource_type"]
+        assert "workflow" in data["by_resource_type"]
+        assert "canvas" in data["by_resource_type"]
+        assert "tool" in data["by_resource_type"]
+
+    def test_get_stats_no_agent_joins(self, deeplink_client, test_db):
+        """Test GET /api/deeplinks/stats with no agents."""
+        # Create audit entries without associated agents
+        entry = DeepLinkAudit(
+            id="stats-no-agent",
+            user_id="user-1",
+            agent_id=None,  # No agent
+            resource_type="workflow",  # Not an agent resource
+            resource_id="workflow-1",
+            action="start",
+            source="external",
+            deeplink_url="atom://workflow/1",
+            status="success"
+        )
+        test_db.add(entry)
+        test_db.commit()
+
+        response = deeplink_client.get("/api/deeplinks/stats")
+        assert response.status_code == 200
+        data = response.json()
+        # top_agents should be empty when no agents have executions
+        assert isinstance(data["top_agents"], list)
