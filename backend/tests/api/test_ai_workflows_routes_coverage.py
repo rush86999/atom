@@ -222,3 +222,160 @@ class TestAIWorkflowsSuccess:
         data = response.json()
         assert "completion" in data
         assert data["provider_used"] == "openai"
+
+
+class TestAIWorkflowsErrorPaths:
+    """Error path tests for AI workflows endpoints."""
+
+    def test_parse_nlu_empty_text(self, ai_workflows_client):
+        """Test NLU parse with empty text (may use fallback)."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json={
+                "text": "",
+                "provider": "deepseek"
+            }
+        )
+        # Empty text may return 422 or use fallback with 200
+        assert response.status_code in [200, 422]
+        if response.status_code == 200:
+            data = response.json()
+            assert "intent" in data
+
+    def test_complete_text_empty_prompt(self, ai_workflows_client):
+        """Test completion with empty prompt returns 422."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/complete",
+            json={
+                "prompt": "",
+                "provider": "deepseek"
+            }
+        )
+        # Empty prompt should trigger validation error
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+    def test_complete_text_invalid_max_tokens(self, ai_workflows_client):
+        """Test completion with invalid max_tokens returns 422."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/complete",
+            json={
+                "prompt": "Test prompt",
+                "provider": "deepseek",
+                "max_tokens": -100  # Invalid negative value
+            }
+        )
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+    def test_complete_text_invalid_temperature(self, ai_workflows_client):
+        """Test completion with invalid temperature returns 422."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/complete",
+            json={
+                "prompt": "Test prompt",
+                "provider": "deepseek",
+                "temperature": 2.5  # Invalid: should be 0-1
+            }
+        )
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+    def test_parse_nlu_service_error_with_fallback(self, ai_workflows_client, mock_ai_service):
+        """Test NLU parse service error triggers fallback path."""
+        # Mock service to raise exception
+        mock_ai_service.process_with_nlu.side_effect = Exception("AI service down")
+
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json={
+                "text": "Search for documents",
+                "provider": "deepseek"
+            }
+        )
+        # Should use fallback and return 200
+        assert response.status_code == 200
+        data = response.json()
+        assert data["provider_used"] == "fallback"
+        assert data["confidence"] == 0.7
+        # Fallback should detect "search" intent
+        assert data["intent"] in ["search", "general"]
+
+    def test_complete_text_service_error(self, ai_workflows_client, mock_ai_service):
+        """Test completion failure returns error response."""
+        # Mock service to raise exception
+        mock_ai_service.analyze_text.side_effect = Exception("Completion service down")
+
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/complete",
+            json={
+                "prompt": "Complete this text",
+                "provider": "deepseek"
+            }
+        )
+        # Should return 200 with error message in completion field
+        assert response.status_code == 200
+        data = response.json()
+        assert "completion" in data
+        assert data["provider_used"] == "error"
+        assert data["tokens_used"] == 0
+        assert "unavailable" in data["completion"].lower()
+
+    def test_get_providers_service_error(self, ai_workflows_client):
+        """Test provider list failure returns default providers."""
+        # Create new client without patch to simulate import error
+        from fastapi import FastAPI
+        from api.ai_workflows_routes import router
+
+        app = FastAPI()
+        app.include_router(router)
+
+        # Don't patch ai_service - will raise import error
+        client = TestClient(app)
+
+        response = client.get("/api/ai-workflows/providers")
+        # Should return 200 with default disabled providers
+        assert response.status_code == 200
+        data = response.json()
+        assert "providers" in data
+        assert data["count"] == 0
+        # All providers should be disabled
+        for provider in data["providers"]:
+            assert provider["enabled"] is False
+
+    def test_parse_nlu_long_text(self, ai_workflows_client):
+        """Test NLU parse with very long text (>1000 chars)."""
+        long_text = "This is a test. " * 100  # ~1600 characters
+
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json={
+                "text": long_text,
+                "provider": "deepseek"
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["text"] == long_text
+        assert "intent" in data
+        # Check tasks are truncated to 100 chars
+        if data["tasks"]:
+            assert len(data["tasks"][0]) <= 100
+
+    def test_complete_text_with_special_chars(self, ai_workflows_client):
+        """Test completion with special characters and unicode."""
+        special_text = "Hello 🌍! Test with émojis, spëcial çhars, and <script> tags."
+
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json={
+                "text": special_text,
+                "provider": "deepseek"
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["text"] == special_text
