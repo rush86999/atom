@@ -97,3 +97,128 @@ def completion_response_data():
         "tokens_used": 10,
         "processing_time_ms": 100.0
     }
+
+
+class TestAIWorkflowsSuccess:
+    """Happy path tests for AI workflows endpoints."""
+
+    def test_parse_nlu_success(self, ai_workflows_client, sample_nlu_request):
+        """Test NLU parse with valid text and deepseek provider."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json=sample_nlu_request
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["text"] == sample_nlu_request["text"]
+        assert data["intent"] == "scheduling"
+        assert data["confidence"] == 0.85
+        assert data["provider_used"] == "deepseek"
+        assert "request_id" in data
+        assert "processing_time_ms" in data
+
+    def test_parse_nlu_with_openai(self, ai_workflows_client):
+        """Test NLU parse with openai provider."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json={
+                "text": "Send an email to test@example.com",
+                "provider": "openai"
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["intent"] == "scheduling"
+        assert data["provider_used"] == "deepseek"  # Mock returns deepseek
+
+    def test_parse_nlu_intent_only(self, ai_workflows_client):
+        """Test NLU parse with intent_only=True flag."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json={
+                "text": "Create a new workflow",
+                "provider": "deepseek",
+                "intent_only": True
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["intent"] in ["general", "creation", "workflow_creation"]
+        assert isinstance(data["entities"], list)
+
+    def test_parse_nlu_fallback(self, ai_workflows_client, mock_ai_service):
+        """Test fallback behavior when real AI service fails."""
+        # Mock service to raise exception
+        mock_ai_service.process_with_nlu.side_effect = Exception("Service unavailable")
+
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/nlu/parse",
+            json={
+                "text": "Schedule a meeting",
+                "provider": "deepseek"
+            }
+        )
+        # Should use fallback and still return 200
+        assert response.status_code == 200
+        data = response.json()
+        assert data["provider_used"] == "fallback"
+        assert data["confidence"] == 0.7
+
+    def test_get_providers_with_keys(self, ai_workflows_client):
+        """Test get providers returns list when API keys present."""
+        response = ai_workflows_client.get("/api/ai-workflows/providers")
+        assert response.status_code == 200
+        data = response.json()
+        assert "providers" in data
+        assert "default" in data
+        assert "count" in data
+        assert data["count"] == 4  # All providers have keys in mock
+        assert len(data["providers"]) == 4
+        # Verify all providers are enabled
+        for provider in data["providers"]:
+            assert provider["enabled"] is True
+
+    def test_get_providers_no_keys(self, ai_workflows_client, mock_ai_service):
+        """Test get providers returns disabled list when no API keys."""
+        # Clear all API keys
+        mock_ai_service.openai_api_key = None
+        mock_ai_service.anthropic_api_key = None
+        mock_ai_service.deepseek_api_key = None
+        mock_ai_service.google_api_key = None
+
+        response = ai_workflows_client.get("/api/ai-workflows/providers")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 0
+        # Verify all providers are disabled
+        for provider in data["providers"]:
+            assert provider["enabled"] is False
+
+    def test_complete_text_success(self, ai_workflows_client, sample_completion_request):
+        """Test text completion with valid prompt."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/complete",
+            json=sample_completion_request
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "completion" in data
+        assert data["provider_used"] == "deepseek"
+        assert data["tokens_used"] > 0
+        assert "processing_time_ms" in data
+
+    def test_complete_text_with_custom_params(self, ai_workflows_client):
+        """Test completion with custom temperature and max_tokens."""
+        response = ai_workflows_client.post(
+            "/api/ai-workflows/complete",
+            json={
+                "prompt": "Write a short summary",
+                "provider": "openai",
+                "max_tokens": 1000,
+                "temperature": 0.9
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "completion" in data
+        assert data["provider_used"] == "openai"
