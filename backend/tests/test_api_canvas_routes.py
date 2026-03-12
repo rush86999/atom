@@ -855,6 +855,163 @@ class TestCanvasSubmitErrors:
 
 
 # ============================================================================
+# Test: Edge Cases and Branch Coverage
+# ============================================================================
+
+class TestCanvasSubmitEdgeCases:
+    """Test edge cases to increase branch coverage."""
+
+    def test_submit_with_nonexistent_agent(
+        self,
+        client_with_auth,
+        canvas_submission_request,
+        mock_ws_manager,
+        mock_canvas_governance
+    ):
+        """Test form submission with agent_id that doesn't exist in database."""
+        mock_canvas_governance.allow()
+        request = canvas_submission_request(agent_id="nonexistent-agent-id")
+
+        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+            with patch('core.service_factory.ServiceFactory.get_governance_service',
+                      return_value=mock_canvas_governance):
+                response = client_with_auth.post(
+                    "/api/canvas/submit",
+                    json=request
+                )
+
+        # Should succeed - governance check passes but agent query returns None
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+    def test_submit_with_agent_id_and_originating_execution(
+        self,
+        client_with_auth,
+        canvas_submission_request,
+        autonomous_agent,
+        originating_execution,
+        mock_ws_manager,
+        mock_canvas_governance
+    ):
+        """Test when both agent_id and originating_execution are provided."""
+        mock_canvas_governance.allow()
+        # Use different agent than originating execution's agent
+        request = canvas_submission_request(
+            agent_id=autonomous_agent.id,
+            agent_execution_id=originating_execution.id
+        )
+
+        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+            with patch('core.service_factory.ServiceFactory.get_governance_service',
+                      return_value=mock_canvas_governance):
+                response = client_with_auth.post(
+                    "/api/canvas/submit",
+                    json=request
+                )
+
+        # Should use provided agent_id, not originating execution's agent
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["agent_id"] == autonomous_agent.id
+
+    def test_submit_with_originating_execution_no_agent_id(
+        self,
+        client_with_auth,
+        canvas_submission_request,
+        autonomous_agent,
+        originating_execution,
+        mock_ws_manager,
+        mock_canvas_governance
+    ):
+        """Test agent resolution from originating execution when agent_id is None."""
+        mock_canvas_governance.allow()
+        # Don't provide agent_id - should resolve from originating_execution
+        request = canvas_submission_request(
+            agent_id=None,
+            agent_execution_id=originating_execution.id
+        )
+
+        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+            with patch('core.service_factory.ServiceFactory.get_governance_service',
+                      return_value=mock_canvas_governance):
+                response = client_with_auth.post(
+                    "/api/canvas/submit",
+                    json=request
+                )
+
+        # Should use originating execution's agent
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["agent_id"] == originating_execution.agent_id
+
+    def test_submit_empty_form_data(
+        self,
+        client_with_auth,
+        canvas_submission_request,
+        mock_ws_manager
+    ):
+        """Test form submission with empty form_data dict."""
+        request = canvas_submission_request(form_data={})
+
+        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
+
+        # Empty form_data is currently accepted
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+    def test_submit_single_field_form_data(
+        self,
+        client_with_auth,
+        canvas_submission_request,
+        mock_ws_manager
+    ):
+        """Test form submission with single field."""
+        request = canvas_submission_request(
+            form_data={"single_field": "single_value"}
+        )
+
+        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+    def test_submit_nested_form_data(
+        self,
+        client_with_auth,
+        canvas_submission_request,
+        mock_ws_manager
+    ):
+        """Test form submission with nested form data."""
+        request = canvas_submission_request(
+            form_data={
+                "user": {"name": "Test User", "email": "test@example.com"},
+                "preferences": {"notifications": True, "theme": "dark"}
+            }
+        )
+
+        with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+            response = client_with_auth.post(
+                "/api/canvas/submit",
+                json=request
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+
+# ============================================================================
 # Test: Canvas Request Fixtures Usage
 # ============================================================================
 
