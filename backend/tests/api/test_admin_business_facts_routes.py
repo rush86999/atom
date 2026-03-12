@@ -532,3 +532,270 @@ class TestBusinessFactsGet:
             fact = response.json()
             # Verify domain is extracted from metadata
             assert fact["domain"] == "custom"
+
+
+# ============================================================================
+# Test: Create Fact Endpoint
+# ============================================================================
+
+class TestBusinessFactsCreate:
+    """Tests for POST /api/admin/governance/facts"""
+
+    def test_create_fact_success(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test creating fact with valid data."""
+        fact_data = {
+            "fact": "New business rule",
+            "citations": ["policy.pdf:page1"],
+            "reason": "Test creation",
+            "domain": "general"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.post(
+                "/api/admin/governance/facts",
+                json=fact_data
+            )
+
+            assert response.status_code == status.HTTP_201_CREATED
+            fact = response.json()
+
+            # Verify response structure
+            assert "id" in fact
+            assert fact["fact"] == fact_data["fact"]
+            assert fact["citations"] == fact_data["citations"]
+            assert fact["reason"] == fact_data["reason"]
+            assert fact["domain"] == fact_data["domain"]
+            assert fact["verification_status"] == "verified"
+            assert "created_at" in fact
+
+            # Verify record_business_fact was called
+            mock_world_model_service.record_business_fact.assert_called_once()
+
+    def test_create_fact_with_citations(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test creating fact with citations."""
+        fact_data = {
+            "fact": "Fact with citations",
+            "citations": ["doc1.pdf:page1", "doc2.pdf:page5"],
+            "reason": "Test citations",
+            "domain": "accounting"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.post(
+                "/api/admin/governance/facts",
+                json=fact_data
+            )
+
+            assert response.status_code == status.HTTP_201_CREATED
+            fact = response.json()
+            assert fact["citations"] == fact_data["citations"]
+
+    def test_create_fact_with_domain(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test creating fact with custom domain."""
+        fact_data = {
+            "fact": "HR policy fact",
+            "citations": ["hr-handbook.pdf"],
+            "reason": "Test domain",
+            "domain": "hr"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.post(
+                "/api/admin/governance/facts",
+                json=fact_data
+            )
+
+            assert response.status_code == status.HTTP_201_CREATED
+            fact = response.json()
+            assert fact["domain"] == "hr"
+
+    def test_create_fact_failure(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test when record_business_fact fails."""
+        mock_world_model_service.record_business_fact.return_value = False
+
+        fact_data = {
+            "fact": "Failed fact",
+            "citations": [],
+            "reason": "Test failure"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.post(
+                "/api/admin/governance/facts",
+                json=fact_data
+            )
+
+            assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
+
+# ============================================================================
+# Test: Update Fact Endpoint
+# ============================================================================
+
+class TestBusinessFactsUpdate:
+    """Tests for PUT /api/admin/governance/facts/{fact_id}"""
+
+    def test_update_fact_all_fields(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test updating all fact fields."""
+        update_data = {
+            "fact": "Updated business rule",
+            "citations": ["updated.pdf:page1"],
+            "reason": "Updated reason",
+            "domain": "finance",
+            "verification_status": "verified"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.put(
+                f"/api/admin/governance/facts/{sample_business_fact.id}",
+                json=update_data
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            fact = response.json()
+
+            # Verify all fields updated
+            assert fact["fact"] == update_data["fact"]
+            assert fact["citations"] == update_data["citations"]
+            assert fact["reason"] == update_data["reason"]
+            assert fact["domain"] == update_data["domain"]
+            assert fact["verification_status"] == update_data["verification_status"]
+
+            # Verify update_fact_verification was called
+            mock_world_model_service.update_fact_verification.assert_called_once()
+
+    def test_update_fact_partial(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test partial update (only fact text)."""
+        update_data = {
+            "fact": "Updated fact text only"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.put(
+                f"/api/admin/governance/facts/{sample_business_fact.id}",
+                json=update_data
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            fact = response.json()
+
+            # Verify fact updated, other fields preserved
+            assert fact["fact"] == update_data["fact"]
+            assert fact["citations"] == sample_business_fact.citations
+            assert fact["reason"] == sample_business_fact.reason
+
+    def test_update_fact_verification_status(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test updating verification status."""
+        update_data = {
+            "verification_status": "outdated"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.put(
+                f"/api/admin/governance/facts/{sample_business_fact.id}",
+                json=update_data
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+
+            # Verify update_fact_verification called
+            mock_world_model_service.update_fact_verification.assert_called_once_with(
+                sample_business_fact.id,
+                "outdated"
+            )
+
+    def test_update_fact_not_found(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test updating non-existent fact."""
+        mock_world_model_service.get_fact_by_id.return_value = None
+
+        update_data = {
+            "fact": "Update non-existent"
+        }
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.put(
+                "/api/admin/governance/facts/non-existent-id",
+                json=update_data
+            )
+
+            assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+# ============================================================================
+# Test: Delete Fact Endpoint
+# ============================================================================
+
+class TestBusinessFactsDelete:
+    """Tests for DELETE /api/admin/governance/facts/{fact_id}"""
+
+    def test_delete_fact_success(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock,
+        sample_business_fact: BusinessFact
+    ):
+        """Test soft deleting a fact."""
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.delete(
+                f"/api/admin/governance/facts/{sample_business_fact.id}"
+            )
+
+            assert response.status_code == status.HTTP_200_OK
+            result = response.json()
+            assert result["status"] == "deleted"
+            assert result["id"] == sample_business_fact.id
+
+            # Verify delete_fact was called
+            mock_world_model_service.delete_fact.assert_called_once_with(
+                sample_business_fact.id
+            )
+
+    def test_delete_fact_not_found(
+        self,
+        authenticated_admin_client: TestClient,
+        mock_world_model_service: AsyncMock
+    ):
+        """Test deleting non-existent fact."""
+        mock_world_model_service.delete_fact.return_value = False
+
+        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+            response = authenticated_admin_client.delete(
+                "/api/admin/governance/facts/non-existent-id"
+            )
+
+            assert response.status_code == status.HTTP_404_NOT_FOUND
