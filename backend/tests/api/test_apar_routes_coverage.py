@@ -470,3 +470,66 @@ class TestAPARSuccess:
         # Verify the endpoint accepts custom days parameter
         assert "count" in data["data"]
         assert "invoices" in data["data"]
+
+
+# ============================================================================
+# TestARGenerate - AR Invoice Generation Tests
+# ============================================================================
+
+class TestARGenerate:
+    """
+    Happy path tests for AR invoice generation and lifecycle.
+
+    Tests AR invoice operations:
+    - Generate customer invoice
+    - Send invoice (mark as sent)
+    - Mark as paid
+    - List overdue invoices
+    """
+
+    def test_generate_ar_invoice_success(self, apar_client, sample_ar_generate_request):
+        """Test AR invoice generation with customer and amount."""
+        response = apar_client.post("/api/apar/ar/generate", json=sample_ar_generate_request)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "id" in data["data"]
+        assert data["data"]["customer"] == "Test Customer LLC"
+        assert data["data"]["amount"] == 500.0
+        assert data["message"] == "AR invoice generated successfully"
+
+    def test_send_ar_invoice_success(self, apar_client):
+        """Test sending AR invoice (mark as sent)."""
+        response = apar_client.post("/api/apar/ar/ar_1234567890/send")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["status"] == "sent"
+        assert data["data"]["id"] == "ar_1234567890"
+        assert data["message"] == "Invoice sent successfully"
+
+    def test_mark_ar_paid_success(self, apar_client):
+        """Test marking AR invoice as paid."""
+        response = apar_client.post("/api/apar/ar/ar_1234567890/paid")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["status"] == "paid"
+        assert data["data"]["id"] == "ar_1234567890"
+        assert data["message"] == "Invoice marked as paid"
+
+    def test_get_overdue_invoices_success(self, apar_client):
+        """Test retrieving overdue AR invoices."""
+        response = apar_client.get("/api/apar/ar/overdue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["count"] == 2
+        assert len(data["data"]["invoices"]) == 2
+        assert data["data"]["invoices"][0]["customer"] == "Customer A"
+        assert data["data"]["invoices"][0]["amount"] == 800.0
+        assert data["message"] == "Retrieved 2 overdue invoices"
