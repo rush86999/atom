@@ -374,7 +374,11 @@ Plans:
   2. 2FA auth routes achieve 75%+ line coverage
   3. Agent control routes achieve 75%+ line coverage
   4. Permission checks achieve 75%+ line coverage
-**Plans**: TBD (estimated 3-4 plans)
+**Plans**: 4 plans
+- [ ] 176-01-PLAN.md — Auth routes coverage (mobile login, biometric auth, token refresh, device management)
+- [ ] 176-02-PLAN.md — 2FA auth routes coverage (status, setup, enable, disable with audit logging)
+- [ ] 176-03-PLAN.md — Agent control routes coverage (start, stop, restart, status, execute)
+- [ ] 176-04-PLAN.md — Permission checks coverage (RBACService, require_permission, WebSocket auth)
 **Estimated Coverage**: 28.50%
 
 ### Phase 177: API Routes Coverage (Analytics & Reporting)
