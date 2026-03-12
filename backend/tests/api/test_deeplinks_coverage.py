@@ -198,3 +198,157 @@ def sample_agent(test_db):
     test_db.add(agent)
     test_db.commit()
     return agent
+
+
+class TestDeepLinkExecute:
+    """Test deep link execution endpoint."""
+
+    def test_execute_deeplink_agent_success(self, deeplink_client, sample_execute_request):
+        """Test POST /api/deeplinks/execute with atom://agent/{id}."""
+        response = deeplink_client.post(
+            "/api/deeplinks/execute",
+            json=sample_execute_request
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["agent_id"] == "agent-123"
+        assert data["agent_name"] == "Test Agent"
+        assert data["execution_id"] == "exec-456"
+        assert data["resource_type"] == "agent"
+        assert data["resource_id"] == "agent-123"
+        assert data["action"] == "trigger"
+        assert data["source"] == "external"
+
+    def test_execute_deeplink_workflow_success(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with atom://workflow/{id}."""
+        # Configure mock to return workflow result
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   return_value={
+                       "success": True,
+                       "resource_type": "workflow",
+                       "resource_id": "workflow-123",
+                       "action": "trigger",
+                       "source": "external"
+                   }):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://workflow/123",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["resource_type"] == "workflow"
+            assert data["resource_id"] == "workflow-123"
+
+    def test_execute_deeplink_canvas_success(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with atom://canvas/{id}."""
+        # Configure mock to return canvas result
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   return_value={
+                       "success": True,
+                       "resource_type": "canvas",
+                       "resource_id": "canvas-123",
+                       "action": "open",
+                       "source": "external"
+                   }):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://canvas/123",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["resource_type"] == "canvas"
+            assert data["resource_id"] == "canvas-123"
+            assert data["action"] == "open"
+
+    def test_execute_deeplink_with_source(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with source parameter."""
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   return_value={
+                       "success": True,
+                       "agent_id": "agent-123",
+                       "agent_name": "Test Agent",
+                       "resource_type": "agent",
+                       "resource_id": "agent-123",
+                       "action": "trigger",
+                       "source": "mobile_app"
+                   }):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://agent/123",
+                    "user_id": "user-456",
+                    "source": "mobile_app"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["source"] == "mobile_app"
+
+    def test_execute_deeplink_custom_params(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with query parameters."""
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   return_value={
+                       "success": True,
+                       "agent_id": "agent-123",
+                       "agent_name": "Test Agent",
+                       "resource_type": "agent",
+                       "resource_id": "agent-123",
+                       "action": "trigger",
+                       "source": "external"
+                   }):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://agent/123?message=hello&param=value",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+
+    @pytest.mark.parametrize("resource_type,resource_id,action", [
+        ("agent", "agent-123", "trigger"),
+        ("workflow", "workflow-456", "start"),
+        ("canvas", "canvas-789", "open"),
+        ("tool", "tool-101", "execute")
+    ])
+    def test_execute_deeplink_all_resource_types(self, deeplink_client, resource_type, resource_id, action):
+        """Parametrized test for all 4 resource types."""
+        with patch('api.deeplinks.execute_deep_link',
+                   new_callable=AsyncMock,
+                   return_value={
+                       "success": True,
+                       "resource_type": resource_type,
+                       "resource_id": resource_id,
+                       "action": action,
+                       "source": "external"
+                   }):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": f"atom://{resource_type}/{resource_id.split('-')[-1]}",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["resource_type"] == resource_type
