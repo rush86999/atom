@@ -1664,7 +1664,7 @@ def mock_workflow_analytics() -> MagicMock:
     MockSeverity = namedtuple('MockSeverity', ['value'])(['high'])
 
     from collections import namedtuple
-    Alert = namedtuple(('Alert', [
+    Alert = namedtuple('Alert', [
         'alert_id', 'name', 'description', 'severity', 'metric_name',
         'condition', 'threshold_value', 'workflow_id', 'enabled',
         'created_at', 'notification_channels'
