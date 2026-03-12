@@ -430,6 +430,50 @@ class User(Base):
             return f"{self.first_name} {self.last_name}"
         return self.first_name or self.last_name or ""
 
+class AdminRole(Base):
+    """
+    Admin Role with permissions for admin user management
+    Defines what actions admin users can perform
+    """
+    __tablename__ = "admin_roles"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), unique=True, nullable=False, index=True)
+    permissions = Column(JSON, default={}, nullable=False)  # {"users": True, "workflows": False}
+    description = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    admin_users = relationship("AdminUser", back_populates="role")
+
+    def __repr__(self):
+        return f"<AdminRole(id={self.id}, name={self.name})>"
+
+
+class AdminUser(Base):
+    """
+    Admin User for administrative access control
+    Separate from regular User model for security isolation
+    """
+    __tablename__ = "admin_users"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    password_hash = Column(String, nullable=False)
+    role_id = Column(String, ForeignKey("admin_roles.id"), nullable=False, index=True)
+    status = Column(String(50), default="active", nullable=False)  # active, inactive
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    role = relationship("AdminRole", back_populates="admin_users")
+
+    def __repr__(self):
+        return f"<AdminUser(id={self.id}, email={self.email}, role_id={self.role_id})>"
+
 class UserAccount(Base):
     """
     Links user accounts to IM platform accounts (Telegram, WhatsApp, Signal)
@@ -6961,6 +7005,178 @@ class HomeAssistantConnection(Base):
 
     # Relationships
     user = relationship("User", backref="ha_connections")
+
+# ============================================================================
+# WebSocket Management Models
+# ============================================================================
+
+class WebSocketState(Base):
+    """
+    WebSocket connection state for Atom SaaS sync.
+
+    Tracks WebSocket connection status, reconnection attempts,
+    and fallback to polling mode.
+    """
+    __tablename__ = "websocket_state"
+
+    id = Column(Integer, primary_key=True, default=1)
+
+    # Connection status
+    connected = Column(Boolean, default=False, nullable=False, index=True)
+    ws_url = Column(String, nullable=True)
+
+    # Timestamps
+    last_connected_at = Column(DateTime(timezone=True), nullable=True)
+    last_message_at = Column(DateTime(timezone=True), nullable=True)
+    disconnect_reason = Column(String, nullable=True)
+
+    # Reconnection tracking
+    reconnect_attempts = Column(Integer, default=0, nullable=False)
+    consecutive_failures = Column(Integer, default=0, nullable=False)
+    max_reconnect_attempts = Column(Integer, default=10, nullable=False)
+
+    # Fallback mode
+    fallback_to_polling = Column(Boolean, default=False, nullable=False)
+    fallback_started_at = Column(DateTime(timezone=True), nullable=True)
+    next_ws_attempt_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Rate limiting
+    rate_limit_messages_per_sec = Column(Integer, default=100, nullable=False)
+
+    # Admin control
+    websocket_enabled = Column(Boolean, default=True, nullable=False)
+
+    def __repr__(self):
+        return f"<WebSocketState(connected={self.connected}, fallback={self.fallback_to_polling})>"
+
+
+# ============================================================================
+# Rating Sync Models
+# ============================================================================
+
+class FailedRatingUpload(Base):
+    """
+    Dead letter queue for failed rating uploads to Atom SaaS.
+
+    Stores ratings that failed to upload so they can be retried later.
+    Tracks retry count and error messages for debugging.
+    """
+    __tablename__ = "failed_rating_uploads"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Rating reference
+    rating_id = Column(String, ForeignKey("skill_ratings.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Error details
+    error_message = Column(Text, nullable=False)
+
+    # Timestamps
+    failed_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    last_retry_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Retry tracking
+    retry_count = Column(Integer, default=0, nullable=False)
+    max_retries = Column(Integer, default=3, nullable=False)
+
+    # Metadata
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Relationships
+    rating = relationship("SkillRating", backref="failed_uploads")
+    tenant = relationship("Tenant", backref="failed_rating_uploads")
+
+    def __repr__(self):
+        return f"<FailedRatingUpload(rating_id={self.rating_id}, retry_count={self.retry_count})>"
+
+
+# ============================================================================
+# Conflict Resolution Models
+# ============================================================================
+
+class ConflictLog(Base):
+    """
+    Log of skill sync conflicts between local and Atom SaaS.
+
+    Tracks conflicts when skill data differs between local instance
+    and Atom SaaS. Stores local and remote data for comparison.
+    """
+    __tablename__ = "conflict_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Skill reference
+    skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Conflict details
+    conflict_type = Column(String, nullable=False, index=True)  # version_mismatch, data_conflict, deletion_conflict
+    severity = Column(String, nullable=False, index=True)  # low, medium, high, critical
+
+    # Data snapshots
+    local_data = Column(JSON, nullable=False)
+    remote_data = Column(JSON, nullable=False)
+
+    # Resolution
+    resolution_strategy = Column(String, nullable=True)  # remote_wins, local_wins, merge, manual
+    resolved_data = Column(JSON, nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_by = Column(String, nullable=True)  # User ID or system
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Metadata
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Relationships
+    skill = relationship("Skill", backref="conflicts")
+    tenant = relationship("Tenant", backref="conflicts")
+
+    def __repr__(self):
+        return f"<ConflictLog(id={self.id}, skill_id={self.skill_id}, type={self.conflict_type}, severity={self.severity})>"
+
+
+class SkillCache(Base):
+    """
+    Cache for skill data from Atom SaaS.
+
+    Stores skill data locally to reduce API calls to Atom SaaS.
+    Cached data expires daily and is refreshed on-demand.
+    """
+    __tablename__ = "skill_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    skill_id = Column(String, nullable=False, unique=True, index=True)
+
+    # Cached skill data
+    skill_data = Column(JSON, nullable=False)
+
+    # Cache expiration
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Metadata
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Cache hit tracking
+    hit_count = Column(Integer, default=0, nullable=False)
+    last_hit_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    tenant = relationship("Tenant", backref="skill_cache")
+
+    def is_expired(self) -> bool:
+        """Check if cache entry has expired."""
+        from datetime import datetime
+        return datetime.now(self.expires_at.tzinfo) > self.expires_at
+
+    def __repr__(self):
+        return f"<SkillCache(skill_id={self.skill_id}, expires_at={self.expires_at})>"
+
 
 # ============================================================================
 # GEA & Skills Models (Ported from SaaS)
