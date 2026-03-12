@@ -16,29 +16,11 @@ import tempfile
 # Set TESTING environment variable BEFORE any imports
 os.environ["TESTING"] = "1"
 
-# WORKAROUND: Prevent accounting.models import to avoid SQLAlchemy metadata conflicts
-# Phase 165 known issue: Duplicate Transaction model in core/models.py and accounting/models.py
-# This causes "Table 'accounting_transactions' is already defined" error
-import sys
-from types import ModuleType
-from unittest.mock import MagicMock
-
-# Create a mock accounting module before any imports
-mock_accounting = ModuleType('accounting')
-mock_accounting.models = MagicMock()
-mock_accounting.models.Account = MagicMock
-mock_accounting.models.Transaction = MagicMock
-mock_accounting.models.JournalEntry = MagicMock
-mock_accounting.models.Entity = MagicMock
-mock_accounting.models.Invoice = MagicMock
-mock_accounting.models.InvoiceStatus = MagicMock
-mock_accounting.models.EntityType = MagicMock
-mock_accounting.models.EntryType = MagicMock
-sys.modules['accounting'] = mock_accounting
-sys.modules['accounting.models'] = mock_accounting.models
-
+# Phase 171: SQLAlchemy conflicts resolved (duplicate models removed from core/models.py)
+# No need to mock accounting module anymore
 # Add parent directory to path for imports
 from pathlib import Path
+import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from core.llm.byok_handler import BYOKHandler
