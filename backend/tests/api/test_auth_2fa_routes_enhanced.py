@@ -304,6 +304,200 @@ class TestTwoFactorSetup:
 
 
 # ============================================================================
+# Test: 2FA Enable Endpoint
+# ============================================================================
+
+class TestTwoFactorEnable:
+    """Test POST /api/auth/2fa/enable endpoint."""
+
+    @pytest.fixture
+    def mock_user(self):
+        """Create mock user with 2FA setup but not enabled."""
+        user = Mock(spec=User)
+        user.id = "user-enable"
+        user.email = "enable@example.com"
+        user.two_factor_enabled = False
+        user.two_factor_secret = "SECRET_FOR_ENABLE"
+        user.two_factor_backup_codes = None
+        return user
+
+    @pytest.fixture
+    def mock_user_already_enabled(self):
+        """Create mock user with 2FA already enabled."""
+        user = Mock(spec=User)
+        user.id = "user-already-enabled"
+        user.email = "already-enabled@example.com"
+        user.two_factor_enabled = True
+        user.two_factor_secret = "EXISTING_SECRET"
+        user.two_factor_backup_codes = ["BACKUP-CODE"]
+        return user
+
+    @pytest.fixture
+    def mock_user_no_secret(self):
+        """Create mock user without 2FA secret."""
+        user = Mock(spec=User)
+        user.id = "user-no-secret"
+        user.email = "no-secret@example.com"
+        user.two_factor_enabled = False
+        user.two_factor_secret = None
+        user.two_factor_backup_codes = None
+        return user
+
+    @pytest.fixture
+    def mock_db(self):
+        """Create mock database session."""
+        db = Mock(spec=Session)
+        return db
+
+    @pytest.fixture
+    def client(self, mock_user, mock_db):
+        """Create test client with auth override and db mock."""
+        from core.database import get_db
+
+        app = create_test_app()
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: mock_db
+
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.fixture
+    def client_already_enabled(self, mock_user_already_enabled, mock_db):
+        """Create test client with 2FA already enabled."""
+        from core.database import get_db
+
+        app = create_test_app()
+        app.dependency_overrides[get_current_user] = lambda: mock_user_already_enabled
+        app.dependency_overrides[get_db] = lambda: mock_db
+
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.fixture
+    def client_no_secret(self, mock_user_no_secret, mock_db):
+        """Create test client without 2FA secret."""
+        from core.database import get_db
+
+        app = create_test_app()
+        app.dependency_overrides[get_current_user] = lambda: mock_user_no_secret
+        app.dependency_overrides[get_db] = lambda: mock_db
+
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.clear()
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_enable_with_valid_code(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test POST /api/auth/2fa/enable success."""
+        # Configure TOTP mock
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+
+        # Configure audit mock
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/enable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "backup_codes" in data or "success" in data
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    def test_enable_invalid_code(self, mock_totp_class, client, mock_user, mock_db):
+        """Test 400 validation error for wrong TOTP code."""
+        # Configure TOTP mock to reject code
+        mock_totp = Mock()
+        mock_totp.verify.return_value = False
+        mock_totp_class.return_value = mock_totp
+
+        response = client.post("/api/auth/2fa/enable", json={"code": "000000"})
+
+        assert response.status_code in [400, 422]
+
+    def test_enable_requires_auth(self):
+        """Test 401 without Authorization header."""
+        app = create_test_app()
+        test_client = TestClient(app)
+
+        response = test_client.post("/api/auth/2fa/enable", json={"code": "123456"})
+
+        assert response.status_code == 401
+
+    def test_enable_requires_setup(self, client_no_secret):
+        """Test 400 when two_factor_secret not set."""
+        response = client_no_secret.post("/api/auth/2fa/enable", json={"code": "123456"})
+
+        assert response.status_code in [400, 422]
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_enable_sets_enabled_flag(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify two_factor_enabled=True after success."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/enable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_user.two_factor_enabled is True
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_enable_generates_backup_codes(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify two_factor_backup_codes generated."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/enable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_user.two_factor_backup_codes is not None
+        assert isinstance(mock_user.two_factor_backup_codes, list)
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_enable_audit_log(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify audit_service.log_event called."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/enable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_audit.log_event.called
+
+        # Verify audit log parameters
+        call_kwargs = mock_audit.log_event.call_args.kwargs
+        assert call_kwargs["event_type"] == AuditEventType.UPDATE.value
+        assert call_kwargs["action"] == "2fa_enabled"
+        assert call_kwargs["security_level"] == SecurityLevel.HIGH.value
+        assert call_kwargs["user_id"] == mock_user.id
+        assert call_kwargs["user_email"] == mock_user.email
+
+    def test_enable_already_enabled(self, client_already_enabled):
+        """Test 409 conflict when already enabled."""
+        response = client_already_enabled.post("/api/auth/2fa/enable", json={"code": "123456"})
+
+        assert response.status_code == 409
+
+
+# ============================================================================
 # Run Tests
 # ============================================================================
 
