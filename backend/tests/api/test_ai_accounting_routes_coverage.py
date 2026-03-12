@@ -795,3 +795,156 @@ class TestAccountingForecasting:
         data = response.json()
         assert data["success"] is True
         assert "data" in data
+
+
+class TestAccountingDashboard:
+    """Test dashboard summary endpoint with database integration."""
+
+    def test_get_dashboard_summary_success(self, ai_accounting_client):
+        """Test dashboard summary queries IntegrationMetric for stats."""
+        response = ai_accounting_client.get("/ai-accounting/dashboard/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "total_revenue" in data["data"]
+        assert "pending_revenue" in data["data"]
+        assert data["data"]["total_revenue"] == 50000.00
+        assert data["data"]["pending_revenue"] == 5000.00
+        assert "runway_months" in data["data"]
+        assert "currency" in data["data"]
+
+    def test_get_dashboard_summary_empty(
+        self, ai_accounting_client, mock_db_for_accounting
+    ):
+        """Test dashboard returns zero values when no metrics exist."""
+        # Return empty metrics list
+        mock_filter = Mock()
+        mock_filter.all = Mock(return_value=[])
+        mock_query = Mock()
+        mock_query.filter = Mock(return_value=mock_filter)
+        mock_db_for_accounting.query = Mock(return_value=mock_query)
+
+        response = ai_accounting_client.get("/ai-accounting/dashboard/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total_revenue"] == 0.0
+        assert data["data"]["pending_revenue"] == 0.0
+
+    def test_get_dashboard_summary_multiple_metrics(
+        self, ai_accounting_client, mock_db_for_accounting
+    ):
+        """Test dashboard aggregates multiple IntegrationMetric records."""
+        # Multiple metrics for same key should aggregate
+        mock_filter = Mock()
+        mock_filter.all = Mock(return_value=[
+            Mock(metric_key="total_revenue", value="30000.00"),
+            Mock(metric_key="total_revenue", value="20000.00"),
+            Mock(metric_key="pending_revenue", value="5000.00")
+        ])
+        mock_query = Mock()
+        mock_query.filter = Mock(return_value=mock_filter)
+        mock_db_for_accounting.query = Mock(return_value=mock_query)
+
+        response = ai_accounting_client.get("/ai-accounting/dashboard/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total_revenue"] == 50000.00
+
+    def test_get_dashboard_summary_database_error(
+        self, ai_accounting_client, mock_db_for_accounting
+    ):
+        """Test dashboard handles database query errors gracefully (500)."""
+        mock_db_for_accounting.query.side_effect = Exception("Database connection failed")
+
+        response = ai_accounting_client.get("/ai-accounting/dashboard/summary")
+
+        assert response.status_code == 500
+        data = response.json()
+        assert "error" in data or "detail" in data
+
+
+class TestAccountingErrorPaths:
+    """Test error paths (validation, 404, 500)."""
+
+    def test_ingest_transaction_missing_fields(
+        self, ai_accounting_client
+    ):
+        """Test missing required fields returns 422 validation error."""
+        incomplete_request = {
+            "id": "tx_123",
+            "amount": 100.00
+            # Missing: date, description, source
+        }
+
+        response = ai_accounting_client.post(
+            "/ai-accounting/transactions",
+            json=incomplete_request
+        )
+
+        assert response.status_code == 422
+
+    def test_categorize_missing_ids(self, ai_accounting_client):
+        """Test categorize with missing transaction_id or category_id returns 422."""
+        incomplete_request = {
+            "transaction_id": "tx_123"
+            # Missing: category_id
+        }
+
+        response = ai_accounting_client.post(
+            "/ai-accounting/categorize",
+            json=incomplete_request
+        )
+
+        assert response.status_code == 422
+
+    def test_invalid_date_format(self, ai_accounting_client):
+        """Test invalid ISO date format returns 422."""
+        invalid_request = {
+            "id": "tx_123",
+            "date": "not-a-valid-date",
+            "amount": 100.00,
+            "description": "Test"
+        }
+
+        response = ai_accounting_client.post(
+            "/ai-accounting/transactions",
+            json=invalid_request
+        )
+
+        assert response.status_code == 422
+
+    def test_ai_accounting_service_error(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test AI accounting service exception returns 500 with error details."""
+        mock_ai_accounting.ingest_transaction.side_effect = Exception("Service unavailable")
+
+        request = {
+            "id": "tx_123",
+            "date": "2026-03-12T10:00:00",
+            "amount": 100.00,
+            "description": "Test",
+            "source": "bank"
+        }
+
+        response = ai_accounting_client.post(
+            "/ai-accounting/transactions",
+            json=request
+        )
+
+        assert response.status_code == 500
+
+    def test_dashboard_unexpected_error(
+        self, ai_accounting_client, mock_db_for_accounting
+    ):
+        """Test unexpected database error returns 500 internal_error response."""
+        mock_db_for_accounting.query.side_effect = RuntimeError("Unexpected error")
+
+        response = ai_accounting_client.get("/ai-accounting/dashboard/summary")
+
+        assert response.status_code == 500
+        data = response.json()
+        assert "error" in data or "detail" in data
