@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 176 Plan 02 COMPLETE - API Routes Coverage (Auth & Authz - 2FA). 38 tests created covering all 4 2FA endpoints (status, setup, enable, disable). 963 lines of test code (241% above 400-line target). 5 2FA-specific fixtures added to conftest.py. TOTP verification tested with pyotp mocking. Audit logging verified for enable/disable actions. Error paths and edge cases tested. Status: COMPLETE - comprehensive 2FA test coverage with production-ready test infrastructure.
+**Current focus**: Phase 176 Plan 03 COMPLETE - API Routes Coverage (Auth & Authz - Agent Control). 53 tests created covering all 5 agent control endpoints (start, stop, restart, status, execute). 847 lines of test code (212% above 400-line target). 5 agent control fixtures added to conftest.py. DaemonManager mocking tested for all operations. 100% line coverage achieved on agent_control_routes.py (exceeds 75% target by 25pp). Error paths tested (RuntimeError, IOError, PermissionError). Input validation tested (port range, workers range, timeout constraints). Status: COMPLETE - comprehensive agent control test coverage with production-ready test infrastructure.
 
 ## Current Position
 
 Phase: 176 of 189 (API Routes Coverage - Auth & Authz)
-Plan: 02 of 4 in current phase (COMPLETE)
+Plan: 03 of 4 in current phase (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-12 — Phase 176 Plan 02 COMPLETE: 2FA routes testing with 38 tests (37 passing, 1 skipped). 963 lines test code, 5 2FA fixtures. All 4 2FA endpoints tested (status, setup, enable, disable). TOTP verification mocked, audit logging verified. Next: Phase 176 Plan 03 - Additional auth routes coverage.
+Last activity: 2026-03-12 — Phase 176 Plan 03 COMPLETE: Agent control routes testing with 53 tests (100% passing). 847 lines test code, 5 agent control fixtures. All 5 agent control endpoints tested (start, stop, restart, status, execute). 100% line coverage on agent_control_routes.py (exceeds 75% target by 25pp). DaemonManager mocking verified, error paths tested. Next: Phase 176 Plan 04 - Additional API routes coverage.
 
-Progress: [███░░░] 50% (2/4 plans in Phase 176)
+Progress: [████░░] 75% (3/4 plans in Phase 176)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [███░░░] 50% (2/4 plans in Phase 176)
 - Trend: Fast (database layer coverage testing)
 
 *Updated after each plan completion*
+| Phase 176 P03 | 6 | 53 tests | 2 files | ~12 min | ✅ COMPLETED |
 | Phase 176 P02 | 5 | 38 tests | 2 files | ~10 min | ✅ COMPLETED |
 | Phase 175 P05 | 3 | 3 tasks | 4 files | ~15 min | ✅ COMPLETED |
 | Phase 175 | 15 | 210 tests | 7 files | ~52 min | ✅ PARTIAL SUCCESS |
