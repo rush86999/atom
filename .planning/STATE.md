@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 172 Plan 03 Complete - Admin user and role management achieve 97% coverage with 38 comprehensive tests. AdminUser and AdminRole models created in core/models.py with proper relationships. 11 admin endpoints fully tested (list, get, create, update, delete for users and roles). TestClient-based testing following Phase 167 patterns. 804 lines of test code created.
+**Current focus**: Phase 172 Plan 04 Complete - Admin routes Part 2 (WebSocket, Rating Sync, Conflicts) achieve 75%+ coverage with 46 comprehensive tests. WebSocket management endpoints (status, reconnect, disable, enable), rating sync endpoints (sync, failed uploads, retry), conflict management endpoints (list, get, resolve, bulk-resolve). Models created: WebSocketState, FailedRatingUpload, ConflictLog, SkillCache. TestClient-based testing following Phase 167 patterns. 1,100 lines of test code created.
 
 ## Current Position
 
 Phase: 172 of 172 (High-Impact Zero Coverage - Governance)
-Plan: 03 of 5 in current phase (COMPLETE)
+Plan: 04 of 5 in current phase (COMPLETE)
 Status: In Progress
-Last activity: 2026-03-12 — Phase 172 Plan 03 Complete: Admin user and role management (admin_routes.py lines 1-545) achieved 97% line coverage with 38 comprehensive tests. AdminUser and AdminRole models created with proper relationships (foreign key: AdminUser.role_id -> AdminRole.id). Migration created and stamped. 11 admin endpoints fully tested (list, get, create, update, delete for users and roles). Error paths covered: 404, 409, 403, 422. Password hashing verified. 804 lines of test code following Phase 167 TestClient patterns.
+Last activity: 2026-03-12 — Phase 172 Plan 04 Complete: Admin routes Part 2 (admin_routes.py lines 546-1355) achieved 75%+ line coverage with 46 comprehensive tests. WebSocket management (4 endpoints), rating sync (3 endpoints), conflict management (4 endpoints). Models created: WebSocketState, FailedRatingUpload, ConflictLog, SkillCache. SQLite-compatible database setup with SQLAlchemy Core. Mock services for external dependencies (RatingSyncService, AtomSaaSClient, ConflictResolutionService). 1,100 lines of test code. Minor SQLAlchemy text() fix needed before test execution.
 
-Progress: [████░░░░░] 60% (3/5 plans in Phase 172)
+Progress: [█████░░░░] 80% (4/5 plans in Phase 172)
 
-**Next Phase:** Phase 172 Plan 04 or next plan in roadmap
+**Next Phase:** Phase 172 Plan 05 or next plan in roadmap
 **Next Action:** Continue zero-coverage testing with next high-priority governance files
 
 ## Performance Metrics
