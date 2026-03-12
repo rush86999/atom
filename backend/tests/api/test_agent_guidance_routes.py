@@ -872,7 +872,17 @@ def test_present_error_success(
 
             response = client.post("/api/agent-guidance/error/present", json=error_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify present_error called with correct params
+            mock_engine_instance.present_error.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                error=error_data["error"],
+                agent_id="test_agent"
+            )
 
 
 def test_present_error_without_agent_id(
@@ -900,7 +910,82 @@ def test_present_error_without_agent_id(
 
             response = client.post("/api/agent-guidance/error/present", json=error_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify present_error called with agent_id=None
+            mock_engine_instance.present_error.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                error=error_data["error"],
+                agent_id=None
+            )
+
+
+def test_present_error_with_complex_error(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+    mock_operation: AgentOperationTracker
+):
+    """Test presenting complex error object with stack trace."""
+    error_data = {
+        "operation_id": mock_operation.operation_id,
+        "error": {
+            "type": "RuntimeError",
+            "message": "Failed to process",
+            "code": "RUN_001",
+            "stack_trace": "Traceback (most recent call last):\n  File \"app.py\", line 42\nRuntimeError"
+        },
+        "agent_id": "test_agent"
+    }
+
+    with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+        mock_auth.return_value = mock_user
+
+        with patch('api.agent_guidance_routes.get_error_guidance_engine') as mock_engine:
+            mock_engine_instance = MagicMock()
+            mock_engine.return_value = mock_engine_instance
+            mock_engine_instance.present_error = AsyncMock()
+
+            response = client.post("/api/agent-guidance/error/present", json=error_data)
+
+            assert response.status_code == 200
+
+            # Verify complex error structure passed correctly
+            mock_engine_instance.present_error.assert_called_once()
+            call_args = mock_engine_instance.present_error.call_args
+            assert call_args[1]["error"]["type"] == "RuntimeError"
+            assert call_args[1]["error"]["code"] == "RUN_001"
+            assert "stack_trace" in call_args[1]["error"]
+
+
+def test_present_error_operation_not_found(
+    client: TestClient,
+    db: Session,
+    mock_user: User
+):
+    """Test error handling when operation doesn't exist."""
+    error_data = {
+        "operation_id": str(uuid.uuid4()),
+        "error": {
+            "type": "ValueError",
+            "message": "Test error"
+        }
+    }
+
+    with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+        mock_auth.return_value = mock_user
+
+        with patch('api.agent_guidance_routes.get_error_guidance_engine') as mock_engine:
+            mock_engine_instance = MagicMock()
+            mock_engine.return_value = mock_engine_instance
+            # Simulate operation not found error
+            mock_engine_instance.present_error = AsyncMock(side_effect=Exception("Operation not found"))
+
+            response = client.post("/api/agent-guidance/error/present", json=error_data)
+
+            # Should handle error gracefully
+            assert response.status_code == 500
 
 
 # ============================================================================
@@ -932,7 +1017,19 @@ def test_track_resolution_success(
 
             response = client.post("/api/agent-guidance/error/track-resolution", json=resolution_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify track_resolution called with all parameters
+            mock_engine_instance.track_resolution.assert_called_once_with(
+                error_type="ValueError",
+                error_code="VAL_001",
+                resolution_attempted="Convert to int",
+                success=True,
+                user_feedback="Worked perfectly",
+                agent_suggested=True
+            )
 
 
 def test_track_resolution_failed(
@@ -960,7 +1057,17 @@ def test_track_resolution_failed(
 
             response = client.post("/api/agent-guidance/error/track-resolution", json=resolution_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify failure tracking
+            mock_engine_instance.track_resolution.assert_called_once_with(
+                error_type="ConnectionError",
+                error_code="CONN_001",
+                resolution_attempted="Retry connection",
+                success=False,
+                user_feedback="Still failing",
+                agent_suggested=False
+            )
 
 
 def test_track_resolution_minimal_data(
@@ -985,7 +1092,86 @@ def test_track_resolution_minimal_data(
 
             response = client.post("/api/agent-guidance/error/track-resolution", json=resolution_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify optional fields default correctly
+            mock_engine_instance.track_resolution.assert_called_once_with(
+                error_type="RuntimeError",
+                error_code=None,
+                resolution_attempted="Restart process",
+                success=True,
+                user_feedback=None,
+                agent_suggested=True
+            )
+
+
+def test_track_resolution_with_user_feedback(
+    client: TestClient,
+    db: Session,
+    mock_user: User
+):
+    """Test tracking resolution with detailed user feedback."""
+    resolution_data = {
+        "error_type": "TimeoutError",
+        "error_code": "TIMEOUT_001",
+        "resolution_attempted": "Increase timeout threshold",
+        "success": True,
+        "user_feedback": "Resolution worked, but took longer than expected. Suggest documenting timeout configuration.",
+        "agent_suggested": True
+    }
+
+    with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+        mock_auth.return_value = mock_user
+
+        with patch('api.agent_guidance_routes.get_error_guidance_engine') as mock_engine:
+            mock_engine_instance = MagicMock()
+            mock_engine.return_value = mock_engine_instance
+            mock_engine_instance.track_resolution = AsyncMock()
+
+            response = client.post("/api/agent-guidance/error/track-resolution", json=resolution_data)
+
+            assert response.status_code == 200
+
+            # Verify detailed feedback recorded in call
+            mock_engine_instance.track_resolution.assert_called_once()
+            call_args = mock_engine_instance.track_resolution.call_args
+            assert "Suggest documenting timeout configuration" in call_args[1]["user_feedback"]
+
+
+def test_track_resolution_not_agent_suggested(
+    client: TestClient,
+    db: Session,
+    mock_user: User
+):
+    """Test tracking resolution with agent_suggested=False (human-initiated)."""
+    resolution_data = {
+        "error_type": "AuthenticationError",
+        "resolution_attempted": "User manually reset credentials",
+        "success": True,
+        "agent_suggested": False
+    }
+
+    with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+        mock_auth.return_value = mock_user
+
+        with patch('api.agent_guidance_routes.get_error_guidance_engine') as mock_engine:
+            mock_engine_instance = MagicMock()
+            mock_engine.return_value = mock_engine_instance
+            mock_engine_instance.track_resolution = AsyncMock()
+
+            response = client.post("/api/agent-guidance/error/track-resolution", json=resolution_data)
+
+            assert response.status_code == 200
+
+            # Verify human-initiated resolution tracking
+            mock_engine_instance.track_resolution.assert_called_once_with(
+                error_type="AuthenticationError",
+                error_code=None,
+                resolution_attempted="User manually reset credentials",
+                success=True,
+                user_feedback=None,
+                agent_suggested=False
+            )
 
 
 # ============================================================================
