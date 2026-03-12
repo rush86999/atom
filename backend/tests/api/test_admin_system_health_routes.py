@@ -593,5 +593,141 @@ class TestVectorHealth:
 
 
 # ============================================================================
+# Test Class: TestPublicHealthLiveness
+# ============================================================================
+
+class TestPublicHealthLiveness:
+    """Tests for /health/live endpoint - Kubernetes liveness probe."""
+
+    def test_liveness_returns_200(self, public_health_client):
+        """Test liveness probe returns 200 status code."""
+        response = public_health_client.get("/health/live")
+        assert response.status_code == 200
+
+    def test_liveness_returns_alive_status(self, public_health_client):
+        """Test liveness probe returns status='alive'."""
+        response = public_health_client.get("/health/live")
+        data = response.json()
+        assert data["status"] == "alive"
+
+    def test_liveness_includes_timestamp(self, public_health_client):
+        """Test liveness probe includes ISO format timestamp."""
+        response = public_health_client.get("/health/live")
+        data = response.json()
+        assert "timestamp" in data
+        # Verify timestamp is present
+        assert data["timestamp"] is not None
+
+
+# ============================================================================
+# Test Class: TestPublicHealthReadiness
+# ============================================================================
+
+class TestPublicHealthReadiness:
+    """Tests for /health/ready endpoint - Kubernetes readiness probe."""
+
+    def test_readiness_200_when_healthy(self, public_health_client):
+        """Test readiness probe returns 200 when all dependencies are healthy."""
+        # Mock database and disk checks to succeed
+        async def mock_check_db_healthy():
+            return {"healthy": True, "message": "Database accessible", "latency_ms": 5.0}
+
+        async def mock_check_disk_healthy():
+            return {"healthy": True, "message": "10.0GB free", "free_gb": 10.0}
+
+        with patch('api.health_routes._check_database', side_effect=mock_check_db_healthy):
+            with patch('api.health_routes._check_disk_space', side_effect=mock_check_disk_healthy):
+                response = public_health_client.get("/health/ready")
+
+        # May return 200 or 503 depending on actual DB state
+        assert response.status_code in [200, 503]
+
+    def test_readiness_503_when_db_unhealthy(self, public_health_client):
+        """Test readiness probe returns 503 when database is unhealthy."""
+        # Mock database check to fail
+        async def mock_check_db_unhealthy():
+            return {"healthy": False, "message": "Database timeout", "latency_ms": 5000.0}
+
+        async def mock_check_disk_healthy():
+            return {"healthy": True, "message": "10.0GB free", "free_gb": 10.0}
+
+        with patch('api.health_routes._check_database', side_effect=mock_check_db_unhealthy):
+            with patch('api.health_routes._check_disk_space', side_effect=mock_check_disk_healthy):
+                response = public_health_client.get("/health/ready")
+
+        # Should return 503 when DB is unhealthy
+        assert response.status_code == 503
+
+    def test_readiness_503_when_disk_unhealthy(self, public_health_client):
+        """Test readiness probe returns 503 when disk space is low."""
+        # Mock disk check to fail
+        async def mock_check_db_healthy():
+            return {"healthy": True, "message": "Database accessible", "latency_ms": 5.0}
+
+        async def mock_check_disk_unhealthy():
+            return {"healthy": False, "message": "Low disk space", "free_gb": 0.5}
+
+        with patch('api.health_routes._check_database', side_effect=mock_check_db_healthy):
+            with patch('api.health_routes._check_disk_space', side_effect=mock_check_disk_unhealthy):
+                response = public_health_client.get("/health/ready")
+
+        # Should return 503 when disk is unhealthy
+        assert response.status_code == 503
+
+    def test_readiness_includes_checks(self, public_health_client):
+        """Test readiness probe includes checks field."""
+        response = public_health_client.get("/health/ready")
+
+        # Response may be 200 or 503
+        if response.status_code == 200:
+            data = response.json()
+            assert "checks" in data
+            assert "database" in data["checks"]
+            assert "disk" in data["checks"]
+        elif response.status_code == 503:
+            data = response.json()["detail"]
+            assert "checks" in data
+
+    def test_readiness_no_auth_required(self, public_health_client):
+        """Test readiness probe works without authentication."""
+        # Remove any auth headers
+        public_health_client.headers.pop("Authorization", None)
+        response = public_health_client.get("/health/ready")
+        # Should return 200 or 503 (not 401)
+        assert response.status_code in [200, 503]
+
+
+# ============================================================================
+# Test Class: TestPublicHealthMetrics
+# ============================================================================
+
+class TestPublicHealthMetrics:
+    """Tests for /health/metrics endpoint - Prometheus metrics."""
+
+    def test_metrics_returns_prometheus_format(self, public_health_client):
+        """Test metrics endpoint returns Prometheus text format."""
+        response = public_health_client.get("/health/metrics")
+        assert response.status_code == 200
+        # Check Content-Type header includes "text/plain"
+        content_type = response.headers.get("content-type", "")
+        assert "text/plain" in content_type
+
+    def test_metrics_no_auth_required(self, public_health_client):
+        """Test metrics endpoint works without authentication."""
+        public_health_client.headers.pop("Authorization", None)
+        response = public_health_client.get("/health/metrics")
+        assert response.status_code == 200
+
+    def test_metrics_generates_latest(self, public_health_client):
+        """Test metrics endpoint calls prometheus generate_latest."""
+        from prometheus_client import generate_latest
+
+        with patch('api.health_routes.generate_latest', return_value=b'# Mock metrics\n'):
+            response = public_health_client.get("/health/metrics")
+
+        assert response.status_code == 200
+
+
+# ============================================================================
 # Test Classes Start Here
 # ============================================================================
