@@ -589,3 +589,123 @@ class TestARPDFDownload:
 
         assert response.status_code == 500
         assert "reportlab" in response.json()["detail"].lower()
+
+
+# ============================================================================
+# TestARReminders - Collection Reminder Tests
+# ============================================================================
+
+class TestARReminders:
+    """
+    Collection reminder tests for AR invoices.
+
+    Tests reminder generation with different tones:
+    - Friendly reminder (first reminder)
+    - Firm reminder (second reminder)
+    - Final reminder (third+ reminder)
+    """
+
+    def test_send_reminder_success(self, apar_client):
+        """Test sending collection reminder."""
+        response = apar_client.post("/api/apar/ar/ar_1234567890/remind")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["invoice_id"] == "ar_1234567890"
+        assert data["data"]["tone"] == "friendly"
+        assert "reminder_text" in data["data"] or "message" in data["data"]
+        assert data["message"] == "Reminder generated successfully"
+
+    def test_send_reminder_friendly_tone(self, apar_client, mock_apar_engine):
+        """Test friendly reminder tone (first reminder)."""
+        # Configure mock to return friendly reminder
+        mock_apar_engine.generate_reminder.return_value = {
+            "invoice_id": "ar_1234567890",
+            "customer": "Test Customer",
+            "amount": 500.0,
+            "tone": "friendly",
+            "subject": "Friendly Reminder: Invoice Due",
+            "message": "Just a friendly reminder that invoice #ar_1234567890 for $500.00 is now due.",
+            "reminders_sent": 1
+        }
+
+        response = apar_client.post("/api/apar/ar/ar_1234567890/remind")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["tone"] == "friendly"
+        assert "friendly" in data["data"]["subject"].lower()
+        assert "friendly reminder" in data["data"]["message"].lower()
+
+    def test_send_reminder_firm_tone(self, apar_client, mock_apar_engine):
+        """Test firm reminder tone (second reminder)."""
+        # Configure mock to return firm reminder
+        mock_apar_engine.generate_reminder.return_value = {
+            "invoice_id": "ar_1234567890",
+            "customer": "Test Customer",
+            "amount": 500.0,
+            "tone": "firm",
+            "subject": "Second Notice: Payment Overdue",
+            "message": "This is a second notice regarding invoice #ar_1234567890 for $500.00. Please remit payment promptly.",
+            "reminders_sent": 2
+        }
+
+        response = apar_client.post("/api/apar/ar/ar_1234567890/remind")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["tone"] == "firm"
+        assert "second notice" in data["data"]["subject"].lower()
+        assert "promptly" in data["data"]["message"].lower()
+
+
+# ============================================================================
+# TestARSummary - Collection Summary Tests
+# ============================================================================
+
+class TestARSummary:
+    """
+    Collection summary tests for AR metrics.
+
+    Tests aggregation and summary statistics:
+    - Total outstanding amount
+    - Overdue invoice count
+    - Sent invoices count
+    - Paid invoices count
+    """
+
+    def test_get_collection_summary_success(self, apar_client):
+        """Test retrieving collection summary with metrics."""
+        response = apar_client.get("/api/apar/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "total_outstanding" in data["data"]
+        assert "overdue_count" in data["data"]
+        assert "invoices_sent" in data["data"]
+        assert "invoices_paid" in data["data"]
+        assert data["data"]["total_outstanding"] == 5000.0
+        assert data["data"]["overdue_count"] == 2
+        assert data["message"] == "Collection summary retrieved successfully"
+
+    def test_get_collection_summary_empty(self, apar_client, mock_apar_engine):
+        """Test collection summary with no data (empty summary)."""
+        # Configure mock to return empty summary
+        mock_apar_engine.get_collection_summary.return_value = {
+            "total_outstanding": 0.0,
+            "overdue_count": 0,
+            "invoices_sent": 0,
+            "invoices_paid": 0
+        }
+
+        response = apar_client.get("/api/apar/summary")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["total_outstanding"] == 0.0
+        assert data["data"]["overdue_count"] == 0
+        assert data["data"]["invoices_sent"] == 0
+        assert data["data"]["invoices_paid"] == 0
