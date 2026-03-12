@@ -1661,7 +1661,7 @@ def mock_workflow_analytics() -> MagicMock:
     # Mock get_all_alerts
     from core.workflow_analytics_engine import AlertSeverity
     # Mock severity enum
-    MockSeverity = namedtuple('MockSeverity', ['value'])(['high'])
+    MockSeverity = namedtuple('MockSeverity', ['value'])
 
     from collections import namedtuple
     Alert = namedtuple('Alert', [
