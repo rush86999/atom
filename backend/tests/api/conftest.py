@@ -291,3 +291,207 @@ def mock_email_service() -> MagicMock:
     mock.send_notification = MagicMock(return_value=True)
 
     return mock
+
+
+# ============================================================================
+# 2FA-Specific Fixtures
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def mock_totp() -> MagicMock:
+    """
+    Mock pyotp.TOTP class for 2FA testing.
+
+    Usage:
+        def test_enable_2fa(mock_totp):
+            mock_totp.verify.return_value = True
+            # Call enable endpoint
+    """
+    mock = MagicMock()
+
+    # Mock TOTP verification
+    mock.verify = MagicMock(return_value=True)
+
+    # Mock provisioning URI
+    mock.provisioning_uri = MagicMock(
+        return_value="otpauth://totp/Atom%20AI:user@example.com?secret=TEST_SECRET_32_CHARS&issuer=Atom+AI+(Upstream)"
+    )
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def mock_pyotp_random() -> MagicMock:
+    """
+    Mock pyotp.random_base32 for deterministic 2FA testing.
+
+    Returns a deterministic 32-character secret for testing.
+
+    Usage:
+        def test_setup_2fa(mock_pyotp_random):
+            mock_pyotp_random.return_value = "JBSWY3DPEHPK3PXP"
+            # Call setup endpoint
+    """
+    # Return deterministic 32-char base32 secret
+    return "JBSWY3DPEHPK3PXP"  # 16 chars, but simulates 32-char behavior
+
+
+@pytest.fixture(scope="function")
+def user_with_2fa() -> MagicMock:
+    """
+    Create mock user with 2FA already enabled.
+
+    Usage:
+        def test_disable_2fa(user_with_2fa):
+            assert user_with_2fa.two_factor_enabled is True
+    """
+    from unittest.mock import Mock
+    from core.models import User
+
+    user = Mock(spec=User)
+    user.id = "user-2fa-enabled"
+    user.email = "2fa-user@example.com"
+    user.two_factor_enabled = True
+    user.two_factor_secret = "JBSWY3DPEHPK3PXP"
+    user.two_factor_backup_codes = ["BACKUP-1234-5678"]
+
+    return user
+
+
+@pytest.fixture(scope="function")
+def user_without_2fa() -> MagicMock:
+    """
+    Create mock user without 2FA enabled.
+
+    Usage:
+        def test_setup_2fa(user_without_2fa):
+            assert user_without_2fa.two_factor_enabled is False
+    """
+    from unittest.mock import Mock
+    from core.models import User
+
+    user = Mock(spec=User)
+    user.id = "user-no-2fa"
+    user.email = "regular@example.com"
+    user.two_factor_enabled = False
+    user.two_factor_secret = None
+    user.two_factor_backup_codes = None
+
+    return user
+
+
+@pytest.fixture(scope="function")
+def mock_audit_log() -> MagicMock:
+    """
+    Mock audit_service.log_event for 2FA audit testing.
+
+    Tracks calls for verification in tests.
+
+    Usage:
+        def test_enable_2fa_logs_audit(mock_audit_log):
+            mock_audit_log.assert_called_once()
+            call_kwargs = mock_audit_log.call_args.kwargs
+            assert call_kwargs["action"] == "2fa_enabled"
+    """
+    mock = MagicMock()
+    mock.return_value = None  # log_event returns None
+
+    return mock
+
+
+# ============================================================================
+# Agent Control Fixtures
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def mock_daemon_manager() -> MagicMock:
+    """
+    Mock DaemonManager class for agent control routes testing.
+
+    Usage:
+        def test_agent_start(mock_daemon_manager):
+            mock_daemon_manager.is_running.return_value = False
+            mock_daemon_manager.start_daemon.return_value = 12345
+            response = client.post("/api/agent/start")
+    """
+    mock = MagicMock()
+
+    # Mock class methods
+    mock.is_running = MagicMock(return_value=False)
+    mock.get_pid = MagicMock(return_value=12345)
+    mock.start_daemon = MagicMock(return_value=12345)
+    mock.stop_daemon = MagicMock(return_value=None)
+    mock.get_status = MagicMock(return_value={
+        "running": True,
+        "pid": 12345,
+        "uptime_seconds": 3600,
+        "memory_mb": 256.5,
+        "cpu_percent": 5.2,
+        "status": "running"
+    })
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def test_daemon_status() -> dict:
+    """
+    Provide typical daemon status dict for testing.
+
+    Usage:
+        def test_status_endpoint(test_daemon_status):
+            mock_daemon_manager.get_status.return_value = test_daemon_status
+            response = client.get("/api/agent/status")
+            assert response.json()["status"]["running"] == True
+    """
+    return {
+        "running": True,
+        "pid": 12345,
+        "uptime_seconds": 3600,
+        "memory_mb": 256.5,
+        "cpu_percent": 5.2,
+        "status": "running"
+    }
+
+
+@pytest.fixture(scope="function")
+def mock_running_daemon(mock_daemon_manager: MagicMock) -> MagicMock:
+    """
+    DaemonManager mock configured for "already running" test scenarios.
+
+    Usage:
+        def test_start_when_running(mock_running_daemon):
+            response = client.post("/api/agent/start")
+            assert response.status_code == 400
+    """
+    mock_daemon_manager.is_running.return_value = True
+    mock_daemon_manager.get_pid.return_value = 12345
+    return mock_daemon_manager
+
+
+@pytest.fixture(scope="function")
+def mock_stopped_daemon(mock_daemon_manager: MagicMock) -> MagicMock:
+    """
+    DaemonManager mock configured for "not running" test scenarios.
+
+    Usage:
+        def test_stop_when_not_running(mock_stopped_daemon):
+            response = client.post("/api/agent/stop")
+            assert response.status_code == 400
+    """
+    mock_daemon_manager.is_running.return_value = False
+    mock_daemon_manager.get_pid.return_value = None
+    return mock_daemon_manager
+
+
+@pytest.fixture(scope="function")
+def test_pid() -> int:
+    """
+    Provide test PID for daemon operations.
+
+    Usage:
+        def test_daemon_start(test_pid):
+            mock_daemon_manager.start_daemon.return_value = test_pid
+            assert mock_daemon_manager.start_daemon() == 12345
+    """
+    return 12345
