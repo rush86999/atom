@@ -781,3 +781,56 @@ class TestDeepLinkStats:
         data = response.json()
         # top_agents should be empty when no agents have executions
         assert isinstance(data["top_agents"], list)
+
+
+class TestDeepLinkFeatureFlag:
+    """Test DEEPLINK_ENABLED feature flag behavior."""
+
+    def test_execute_deeplink_disabled(self, deeplink_client):
+        """Test POST /api/deeplinks/execute with DEEPLINK_ENABLED=false returns 503."""
+        with patch('api.deeplinks.DEEPLINK_ENABLED', False):
+            response = deeplink_client.post(
+                "/api/deeplinks/execute",
+                json={
+                    "deeplink_url": "atom://agent/123",
+                    "user_id": "user-456",
+                    "source": "external"
+                }
+            )
+            assert response.status_code == 503
+            data = response.json()
+            # Error message should mention disabled
+            assert "disabled" in str(data).lower() or "service" in str(data).lower()
+
+    def test_generate_deeplink_disabled(self, deeplink_client):
+        """Test POST /api/deeplinks/generate with DEEPLINK_ENABLED=false returns 503."""
+        with patch('api.deeplinks.DEEPLINK_ENABLED', False):
+            response = deeplink_client.post(
+                "/api/deeplinks/generate",
+                json={
+                    "resource_type": "agent",
+                    "resource_id": "123"
+                }
+            )
+            assert response.status_code == 503
+            data = response.json()
+            # Error message should mention disabled
+            assert "disabled" in str(data).lower() or "service" in str(data).lower()
+
+    def test_audit_works_when_disabled(self, deeplink_client):
+        """Test GET /api/deeplinks/audit works even when DEEPLINK_ENABLED=false."""
+        with patch('api.deeplinks.DEEPLINK_ENABLED', False):
+            response = deeplink_client.get("/api/deeplinks/audit")
+            # Audit endpoint should still work (read-only)
+            assert response.status_code == 200
+            data = response.json()
+            assert isinstance(data, list)
+
+    def test_stats_works_when_disabled(self, deeplink_client):
+        """Test GET /api/deeplinks/stats works even when DEEPLINK_ENABLED=false."""
+        with patch('api.deeplinks.DEEPLINK_ENABLED', False):
+            response = deeplink_client.get("/api/deeplinks/stats")
+            # Stats endpoint should still work (read-only)
+            assert response.status_code == 200
+            data = response.json()
+            assert "total_executions" in data
