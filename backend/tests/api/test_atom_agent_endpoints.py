@@ -153,8 +153,8 @@ def sample_chat_request():
 def mock_session_manager():
     """Mock session manager"""
     with patch('core.atom_agent_endpoints.get_chat_session_manager') as mock:
-        manager = AsyncMock()
-        manager.create_session = AsyncMock(return_value="session_test_001")
+        manager = Mock()
+        manager.create_session = Mock(return_value="session_test_001")
         manager.get_session = Mock(return_value={"session_id": "session_test_001", "user_id": "test_user_001"})
         manager.list_user_sessions = Mock(return_value=[
             {"session_id": "session_001", "user_id": "test_user_001", "last_active": "2026-02-20T10:00:00Z", "metadata": {"title": "Test Session"}}
