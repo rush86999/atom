@@ -230,3 +230,238 @@ def mock_integration_metrics():
 
 
 # ==================== TEST CLASSES ====================
+
+
+class TestAccountingTransactionIngestion:
+    """Test transaction ingestion endpoints (single and bulk bank feed)."""
+
+    def test_ingest_transaction_success(
+        self, ai_accounting_client, sample_transaction_request
+    ):
+        """Test single transaction ingestion returns success with categorization."""
+        response = ai_accounting_client.post(
+            "/ai-accounting/transactions",
+            json=sample_transaction_request
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+        assert data["data"]["id"] == "tx_123"
+        assert data["data"]["status"] == "categorized"
+        assert data["data"]["category"] == "Office Supplies"
+        assert data["data"]["confidence"] == 92.0
+        assert "reasoning" in data["data"]
+        assert data["data"]["requires_review"] is False
+
+    def test_ingest_transaction_with_merchant(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test transaction with merchant field processed correctly."""
+        request = {
+            "id": "tx_456",
+            "date": "2026-03-12T10:30:00",
+            "amount": 50.00,
+            "description": "Coffee",
+            "merchant": "Starbucks",
+            "source": "bank"
+        }
+
+        response = ai_accounting_client.post("/ai-accounting/transactions", json=request)
+
+        assert response.status_code == 200
+        assert response.json()["data"]["id"] == "tx_123"  # Mock return value
+        mock_ai_accounting.ingest_transaction.assert_called_once()
+
+    def test_ingest_transaction_all_sources(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test transaction with different source values."""
+        sources = ["bank", "manual", "import"]
+
+        for source in sources:
+            request = {
+                "id": f"tx_{source}",
+                "date": "2026-03-12T10:30:00",
+                "amount": 100.00,
+                "description": f"Transaction from {source}",
+                "source": source
+            }
+
+            response = ai_accounting_client.post("/ai-accounting/transactions", json=request)
+            assert response.status_code == 200
+
+    def test_ingest_bank_feed_success(
+        self, ai_accounting_client, sample_bank_feed_request
+    ):
+        """Test bulk bank feed ingestion returns counts."""
+        response = ai_accounting_client.post(
+            "/ai-accounting/bank-feed",
+            json=sample_bank_feed_request
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["ingested"] == 3
+        assert data["data"]["auto_categorized"] == 2  # confidence >= 0.85
+        assert data["data"]["review_required"] == 1
+
+    def test_ingest_bank_feed_empty(self, ai_accounting_client, mock_ai_accounting):
+        """Test empty bank feed returns zero counts."""
+        mock_ai_accounting.ingest_bank_feed.return_value = []
+
+        response = ai_accounting_client.post(
+            "/ai-accounting/bank-feed",
+            json={"transactions": []}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["ingested"] == 0
+        assert data["data"]["auto_categorized"] == 0
+        assert data["data"]["review_required"] == 0
+
+    def test_ingest_bank_feed_multiple(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test multiple transactions with mixed confidence levels."""
+        mock_ai_accounting.ingest_bank_feed.return_value = [
+            Mock(id="tx_1", confidence=0.95, status=Mock(value="categorized")),
+            Mock(id="tx_2", confidence=0.88, status=Mock(value="categorized")),
+            Mock(id="tx_3", confidence=0.65, status=Mock(value="review_required")),
+            Mock(id="tx_4", confidence=0.40, status=Mock(value="review_required"))
+        ]
+
+        request = {
+            "transactions": [
+                {"id": "tx_1", "date": "2026-03-12T10:00:00", "amount": 100.0, "description": "Test 1"},
+                {"id": "tx_2", "date": "2026-03-12T11:00:00", "amount": 200.0, "description": "Test 2"},
+                {"id": "tx_3", "date": "2026-03-12T12:00:00", "amount": 300.0, "description": "Test 3"},
+                {"id": "tx_4", "date": "2026-03-12T13:00:00", "amount": 400.0, "description": "Test 4"}
+            ]
+        }
+
+        response = ai_accounting_client.post("/ai-accounting/bank-feed", json=request)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["ingested"] == 4
+        assert data["data"]["auto_categorized"] == 2
+        assert data["data"]["review_required"] == 2
+
+
+class TestAccountingCategorization:
+    """Test transaction categorization and review queue endpoints."""
+
+    def test_categorize_transaction_success(
+        self, ai_accounting_client, sample_categorize_request, mock_ai_accounting
+    ):
+        """Test manual categorization teaches the system."""
+        response = ai_accounting_client.post(
+            "/ai-accounting/categorize",
+            json=sample_categorize_request
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["transaction_id"] == "tx_123"
+        mock_ai_accounting.learn_categorization.assert_called_once_with(
+            "tx_123", "cat_office_supplies", "user"
+        )
+
+    def test_get_review_queue_empty(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test review queue returns empty list when no pending transactions."""
+        mock_ai_accounting.get_pending_review.return_value = []
+
+        response = ai_accounting_client.get("/ai-accounting/review-queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["count"] == 0
+        assert data["data"]["transactions"] == []
+
+    def test_get_review_queue_with_items(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test review queue returns pending transactions with suggestions."""
+        pending_tx = Mock()
+        pending_tx.id = "tx_pending"
+        pending_tx.date = datetime.now()
+        pending_tx.amount = 150.00
+        pending_tx.description = "Uncategorized purchase"
+        pending_tx.merchant = "Amazon"
+        pending_tx.category_name = "Supplies"
+        pending_tx.confidence = 0.65
+        pending_tx.reasoning = "Low confidence, needs review"
+
+        mock_ai_accounting.get_pending_review.return_value = [pending_tx]
+
+        response = ai_accounting_client.get("/ai-accounting/review-queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["count"] == 1
+        assert len(data["data"]["transactions"]) == 1
+        tx_data = data["data"]["transactions"][0]
+        assert tx_data["id"] == "tx_pending"
+        assert tx_data["suggested_category"] == "Supplies"
+        assert tx_data["confidence"] == 65.0
+        assert "reasoning" in tx_data
+
+    def test_get_all_transactions(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test get all transactions returns categorized and pending."""
+        tx1 = Mock()
+        tx1.id = "tx_1"
+        tx1.date = datetime.now()
+        tx1.amount = 100.00
+        tx1.description = "Transaction 1"
+        tx1.merchant = "Merchant 1"
+        tx1.category_name = "Category 1"
+        tx1.confidence = 0.90
+        tx1.reasoning = "High confidence"
+        tx1.status = Mock(value="categorized")
+
+        tx2 = Mock()
+        tx2.id = "tx_2"
+        tx2.date = datetime.now()
+        tx2.amount = 200.00
+        tx2.description = "Transaction 2"
+        tx2.merchant = None
+        tx2.category_name = "Category 2"
+        tx2.confidence = 0.70
+        tx2.reasoning = "Medium confidence"
+        tx2.status = Mock(value="review_required")
+
+        mock_ai_accounting.get_all_transactions.return_value = [tx1, tx2]
+
+        response = ai_accounting_client.get("/ai-accounting/all-transactions")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["count"] == 2
+        assert len(data["data"]["transactions"]) == 2
+        assert data["data"]["transactions"][0]["status"] == "categorized"
+        assert data["data"]["transactions"][1]["status"] == "review_required"
+
+    def test_categorize_with_user_learning(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test categorization with different user_id parameters."""
+        request = {
+            "transaction_id": "tx_789",
+            "category_id": "cat_travel"
+        }
+
+        # Test with default user
+        response = ai_accounting_client.post("/ai-accounting/categorize", json=request)
+        assert response.status_code == 200
+        mock_ai_accounting.learn_categorization.assert_called_with(
+            "tx_789", "cat_travel", "user"
+        )
