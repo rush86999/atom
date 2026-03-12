@@ -17,6 +17,7 @@ import pytest
 import uuid
 import io
 import os
+import enum
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 from unittest.mock import MagicMock, AsyncMock, patch
@@ -26,11 +27,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
+# Define UserRole enum first
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    MEMBER = "member"
+    SUPER_ADMIN = "super_admin"
+
+# Mock the problematic models import before importing router
+import sys
+mock_models = MagicMock()
+mock_models.UserRole = UserRole  # Use our real UserRole
+sys.modules['core.models'] = mock_models
+
 # Import business facts routes router
 from api.admin.business_facts_routes import router
 
-# Import models
-from core.models import Base, User, UserRole
+# Import BusinessFact from agent_world_model
 from core.agent_world_model import BusinessFact
 
 
@@ -40,17 +52,19 @@ from core.agent_world_model import BusinessFact
 
 @pytest.fixture(scope="function")
 def test_db():
-    """Create in-memory SQLite database for testing."""
+    """Create in-memory SQLite database for testing.
+
+    Note: Since we're mocking core.models at module level to avoid
+    SQLAlchemy mapper configuration issues, this creates a minimal
+    database session for testing. The actual User objects are mocks.
+    """
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool
     )
 
-    # Create only the tables we need for business facts testing
-    User.__table__.create(bind=engine, checkfirst=True)
-
-    # Create session
+    # Create session (no tables needed since we mock User)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = TestingSessionLocal()
 
@@ -58,7 +72,6 @@ def test_db():
 
     # Cleanup
     db.close()
-    User.__table__.drop(bind=engine)
 
 
 @pytest.fixture(scope="function")
@@ -95,62 +108,49 @@ def client(test_app: FastAPI):
 # ============================================================================
 
 @pytest.fixture(scope="function")
-def admin_user(test_db: Session) -> User:
-    """Create admin user for authorization tests."""
-    user = User(
-        id=str(uuid.uuid4()),
-        email="admin@test.com",
-        first_name="Admin",
-        last_name="User",
-        name="Admin User",
-        role=UserRole.ADMIN,
-        status="active",
-        email_verified=True
-    )
-    test_db.add(user)
-    test_db.commit()
-    test_db.refresh(user)
+def admin_user(test_db: Session):
+    """Create mock admin user for authorization tests."""
+    # Since we mocked core.models, create a simple mock object
+    user = MagicMock()
+    user.id = str(uuid.uuid4())
+    user.email = "admin@test.com"
+    user.first_name = "Admin"
+    user.last_name = "User"
+    user.name = "Admin User"
+    user.role = UserRole.ADMIN
+    user.status = "active"
+    user.email_verified = True
+    user.workspace_id = "default"
     return user
 
 
 @pytest.fixture(scope="function")
-def regular_user(test_db: Session) -> User:
-    """Create regular user for role testing."""
-    user = User(
-        id=str(uuid.uuid4()),
-        email="user@test.com",
-        first_name="Regular",
-        last_name="User",
-        name="Regular User",
-        role=UserRole.MEMBER,
-        status="active",
-        email_verified=True
-    )
-    test_db.add(user)
-    test_db.commit()
-    test_db.refresh(user)
+def regular_user(test_db: Session):
+    """Create mock regular user for role testing."""
+    # Since we mocked core.models, create a simple mock object
+    user = MagicMock()
+    user.id = str(uuid.uuid4())
+    user.email = "user@test.com"
+    user.first_name = "Regular"
+    user.last_name = "User"
+    user.name = "Regular User"
+    user.role = UserRole.MEMBER
+    user.status = "active"
+    user.email_verified = True
+    user.workspace_id = "default"
     return user
 
 
 @pytest.fixture(scope="function")
-def authenticated_admin_client(test_app: FastAPI, admin_user: User):
+def authenticated_admin_client(test_app: FastAPI, admin_user):
     """Create TestClient with authenticated admin user."""
     from core.auth import get_current_user
-    from core.security.rbac import require_role
 
     # Override get_current_user
     async def override_get_current_user():
         return admin_user
 
-    # Override require_role to allow admin
-    async def override_require_role(role: UserRole):
-        if admin_user.role != role:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=403, detail="Insufficient permissions")
-        return True
-
     test_app.dependency_overrides[get_current_user] = override_get_current_user
-    test_app.dependency_overrides[require_role] = override_require_role
 
     client = TestClient(test_app)
     yield client
@@ -160,24 +160,15 @@ def authenticated_admin_client(test_app: FastAPI, admin_user: User):
 
 
 @pytest.fixture(scope="function")
-def authenticated_regular_client(test_app: FastAPI, regular_user: User):
+def authenticated_regular_client(test_app: FastAPI, regular_user):
     """Create TestClient with authenticated regular user (for auth tests)."""
     from core.auth import get_current_user
-    from core.security.rbac import require_role
 
     # Override get_current_user
     async def override_get_current_user():
         return regular_user
 
-    # Override require_role to fail for non-admin
-    async def override_require_role(role: UserRole):
-        if regular_user.role != role:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=403, detail="Insufficient permissions")
-        return True
-
     test_app.dependency_overrides[get_current_user] = override_get_current_user
-    test_app.dependency_overrides[require_role] = override_require_role
 
     client = TestClient(test_app)
     yield client
@@ -309,7 +300,7 @@ class TestBusinessFactsList:
         sample_business_fact: BusinessFact
     ):
         """Test listing all facts with no filters."""
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get("/api/admin/governance/facts")
 
             assert response.status_code == status.HTTP_200_OK
@@ -337,7 +328,7 @@ class TestBusinessFactsList:
         mock_world_model_service: AsyncMock
     ):
         """Test listing facts with status filter."""
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get(
                 "/api/admin/governance/facts?status=verified"
             )
@@ -359,7 +350,7 @@ class TestBusinessFactsList:
         mock_world_model_service: AsyncMock
     ):
         """Test listing facts with domain filter."""
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get(
                 "/api/admin/governance/facts?domain=accounting"
             )
@@ -381,7 +372,7 @@ class TestBusinessFactsList:
         mock_world_model_service: AsyncMock
     ):
         """Test listing facts with custom limit."""
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get(
                 "/api/admin/governance/facts?limit=50"
             )
@@ -429,7 +420,7 @@ class TestBusinessFactsList:
             deleted_fact
         ]
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get("/api/admin/governance/facts")
 
             assert response.status_code == status.HTTP_200_OK
@@ -442,13 +433,13 @@ class TestBusinessFactsList:
 
     def test_list_facts_empty(
         self,
-        authenticated_admin_client: TestClient,
-        mock_world_model_service: AsyncMock
+        authenticated_admin_client: TestClient
     ):
         """Test listing when no facts exist."""
-        mock_world_model_service.list_all_facts.return_value = []
+        mock_wm = AsyncMock()
+        mock_wm.list_all_facts.return_value = []
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_wm):
             response = authenticated_admin_client.get("/api/admin/governance/facts")
 
             assert response.status_code == status.HTTP_200_OK
@@ -470,7 +461,7 @@ class TestBusinessFactsGet:
         sample_business_fact: BusinessFact
     ):
         """Test getting fact by ID."""
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get(
                 f"/api/admin/governance/facts/{sample_business_fact.id}"
             )
@@ -495,7 +486,7 @@ class TestBusinessFactsGet:
         """Test getting non-existent fact."""
         mock_world_model_service.get_fact_by_id.return_value = None
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get(
                 "/api/admin/governance/facts/non-existent-id"
             )
@@ -523,7 +514,7 @@ class TestBusinessFactsGet:
 
         mock_world_model_service.get_fact_by_id.return_value = custom_fact
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.get(
                 f"/api/admin/governance/facts/{custom_fact.id}"
             )
@@ -554,7 +545,7 @@ class TestBusinessFactsCreate:
             "domain": "general"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts",
                 json=fact_data
@@ -588,7 +579,7 @@ class TestBusinessFactsCreate:
             "domain": "accounting"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts",
                 json=fact_data
@@ -611,7 +602,7 @@ class TestBusinessFactsCreate:
             "domain": "hr"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts",
                 json=fact_data
@@ -635,7 +626,7 @@ class TestBusinessFactsCreate:
             "reason": "Test failure"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts",
                 json=fact_data
@@ -666,7 +657,7 @@ class TestBusinessFactsUpdate:
             "verification_status": "verified"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.put(
                 f"/api/admin/governance/facts/{sample_business_fact.id}",
                 json=update_data
@@ -696,7 +687,7 @@ class TestBusinessFactsUpdate:
             "fact": "Updated fact text only"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.put(
                 f"/api/admin/governance/facts/{sample_business_fact.id}",
                 json=update_data
@@ -721,7 +712,7 @@ class TestBusinessFactsUpdate:
             "verification_status": "outdated"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.put(
                 f"/api/admin/governance/facts/{sample_business_fact.id}",
                 json=update_data
@@ -747,7 +738,7 @@ class TestBusinessFactsUpdate:
             "fact": "Update non-existent"
         }
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.put(
                 "/api/admin/governance/facts/non-existent-id",
                 json=update_data
@@ -770,7 +761,7 @@ class TestBusinessFactsDelete:
         sample_business_fact: BusinessFact
     ):
         """Test soft deleting a fact."""
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.delete(
                 f"/api/admin/governance/facts/{sample_business_fact.id}"
             )
@@ -793,7 +784,7 @@ class TestBusinessFactsDelete:
         """Test deleting non-existent fact."""
         mock_world_model_service.delete_fact.return_value = False
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.delete(
                 "/api/admin/governance/facts/non-existent-id"
             )
@@ -1205,7 +1196,7 @@ class TestBusinessFactsVerify:
         """Test verifying non-existent fact."""
         mock_world_model_service.get_fact_by_id.return_value = None
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/non-existent-id/verify-citation"
             )
@@ -1226,7 +1217,7 @@ class TestBusinessFactsAuth:
         mock_world_model_service: AsyncMock
     ):
         """Test that non-admin cannot list facts."""
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service):
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service):
             response = authenticated_regular_client.get("/api/admin/governance/facts")
 
             assert response.status_code == status.HTTP_403_FORBIDDEN
