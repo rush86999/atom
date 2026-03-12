@@ -1077,3 +1077,466 @@ class TestGapFillingBYOK:
 
             # Should return empty list or handle gracefully
             assert isinstance(result, list)
+
+
+# =============================================================================
+# TASK 173-02: COGNITIVE TIER ORCHESTRATION TESTS
+# =============================================================================
+
+class TestGenerateWithCognitiveTier:
+    """Test suite for generate_with_cognitive_tier orchestration (lines 834-1014)
+    
+    Tests the cognitive tier pipeline:
+    - Tier selection using CognitiveTierService
+    - Budget constraint checking
+    - Optimal model selection (cache-aware)
+    - Automatic escalation on quality issues
+    - Response with metadata (tier, provider, model, cost)
+    """
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_classifies_prompt(self, mock_byok_manager):
+        """Test that CognitiveClassifier.classify is called for prompt classification"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock tier service
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier = MagicMock(return_value=CognitiveTier.STANDARD)
+            mock_tier_service.calculate_request_cost = MagicMock(return_value={'cost_cents': 10})
+            mock_tier_service.check_budget_constraint = MagicMock(return_value=True)
+            mock_tier_service.get_optimal_model = MagicMock(return_value=("deepseek", "deepseek-chat"))
+            mock_tier_service.handle_escalation = MagicMock(return_value=(False, None, None))
+            
+            handler.tier_service = mock_tier_service
+            
+            # Mock generate_response
+            with patch.object(handler, 'generate_response', new_callable=AsyncMock) as mock_gen:
+                mock_gen.return_value = "Test response"
+                
+                result = await handler.generate_with_cognitive_tier("test prompt")
+                
+                # Verify tier service was called
+                mock_tier_service.select_tier.assert_called_once_with("test prompt", None, None)
+                
+                # Verify response structure
+                assert result["response"] == "Test response"
+                assert result["tier"] == "standard"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_selects_model(self, mock_byok_manager):
+        """Test that tier service selects optimal model"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock tier service
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier = MagicMock(return_value=CognitiveTier.STANDARD)
+            mock_tier_service.calculate_request_cost = MagicMock(return_value={'cost_cents': 10})
+            mock_tier_service.check_budget_constraint = MagicMock(return_value=True)
+            mock_tier_service.get_optimal_model = MagicMock(return_value=("openai", "gpt-4o-mini"))
+            mock_tier_service.handle_escalation = MagicMock(return_value=(False, None, None))
+            
+            handler.tier_service = mock_tier_service
+            
+            # Mock generate_response
+            with patch.object(handler, 'generate_response', new_callable=AsyncMock) as mock_gen:
+                mock_gen.return_value = "Response"
+                
+                result = await handler.generate_with_cognitive_tier("test")
+                
+                # Verify get_optimal_model was called
+                mock_tier_service.get_optimal_model.assert_called_once()
+                assert result["provider"] == "openai"
+                assert result["model"] == "gpt-4o-mini"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_checks_budget(self, mock_byok_manager):
+        """Test that budget constraint is checked before generation"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock tier service with budget exceeded
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier = MagicMock(return_value=CognitiveTier.HEAVY)
+            mock_tier_service.calculate_request_cost = MagicMock(return_value={'cost_cents': 9999})
+            mock_tier_service.check_budget_constraint = MagicMock(return_value=False)  # Budget exceeded
+            
+            handler.tier_service = mock_tier_service
+            
+            result = await handler.generate_with_cognitive_tier("expensive prompt")
+            
+            # Verify budget check was called
+            mock_tier_service.check_budget_constraint.assert_called_once()
+            
+            # Verify error response
+            assert "error" in result
+            assert result["error"] == "Budget exceeded"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_escalates_on_low_quality(self, mock_byok_manager):
+        """Test automatic escalation on quality threshold breach"""
+        from core.llm.cognitive_tier_system import CognitiveTier, EscalationReason
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock tier service with escalation
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier = MagicMock(return_value=CognitiveTier.STANDARD)
+            mock_tier_service.calculate_request_cost = MagicMock(return_value={'cost_cents': 10})
+            mock_tier_service.check_budget_constraint = MagicMock(return_value=True)
+            
+            # First call returns STANDARD model, escalation triggers retry with VERSATILE
+            mock_tier_service.get_optimal_model = MagicMock(side_effect=[
+                ("deepseek", "deepseek-chat"),  # First attempt
+                ("openai", "gpt-4o-mini"),       # Escalated attempt
+            ])
+            
+            # Mock escalation: first attempt returns True (escalate needed)
+            mock_tier_service.handle_escalation = MagicMock(side_effect=[
+                (True, EscalationReason.QUALITY_LOW, CognitiveTier.VERSATILE),  # Escalate
+                (False, None, None),  # Second attempt succeeds
+            ])
+            
+            handler.tier_service = mock_tier_service
+            
+            # Mock generate_response
+            with patch.object(handler, 'generate_response', new_callable=AsyncMock) as mock_gen:
+                mock_gen.return_value = "Improved response"
+                
+                result = await handler.generate_with_cognitive_tier("test")
+                
+                # Verify escalation happened
+                assert mock_tier_service.handle_escalation.call_count == 2
+                assert result["escalated"] is True
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_respects_max_escalation_limit(self, mock_byok_manager):
+        """Test that max 2 escalations are enforced"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock tier service
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier = MagicMock(return_value=CognitiveTier.STANDARD)
+            mock_tier_service.calculate_request_cost = MagicMock(return_value={'cost_cents': 10})
+            mock_tier_service.check_budget_constraint = MagicMock(return_value=True)
+            mock_tier_service.get_optimal_model = MagicMock(return_value=("deepseek", "deepseek-chat"))
+            
+            # Always request escalation (but should be limited)
+            mock_tier_service.handle_escalation = MagicMock(return_value=(True, None, CognitiveTier.VERSATILE))
+            
+            handler.tier_service = mock_tier_service
+            
+            # Mock generate_response that fails
+            with patch.object(handler, 'generate_response', new_callable=AsyncMock) as mock_gen:
+                mock_gen.side_effect = Exception("Quality too low")
+                
+                result = await handler.generate_with_cognitive_tier("test")
+                
+                # Verify escalation was attempted max 3 times (initial + 2 escalations)
+                assert mock_tier_service.handle_escalation.call_count <= 3
+                assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_returns_response_with_metadata(self, mock_byok_manager):
+        """Test that response includes tier, provider, model fields"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock tier service
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier = MagicMock(return_value=CognitiveTier.VERSATILE)
+            mock_tier_service.calculate_request_cost = MagicMock(return_value={'cost_cents': 25})
+            mock_tier_service.check_budget_constraint = MagicMock(return_value=True)
+            mock_tier_service.get_optimal_model = MagicMock(return_value=("anthropic", "claude-3-5-sonnet"))
+            mock_tier_service.handle_escalation = MagicMock(return_value=(False, None, None))
+            
+            handler.tier_service = mock_tier_service
+            
+            # Mock generate_response
+            with patch.object(handler, 'generate_response', new_callable=AsyncMock) as mock_gen:
+                mock_gen.return_value = "Response with metadata"
+                
+                result = await handler.generate_with_cognitive_tier("test")
+                
+                # Verify response structure
+                assert "response" in result
+                assert "tier" in result
+                assert "provider" in result
+                assert "model" in result
+                assert "cost_cents" in result
+                assert "escalated" in result
+                assert "request_id" in result
+                
+                # Verify values
+                assert result["response"] == "Response with metadata"
+                assert result["tier"] == "versatile"
+                assert result["provider"] == "anthropic"
+                assert result["model"] == "claude-3-5-sonnet"
+                assert result["cost_cents"] == 25
+                assert result["escalated"] is False
+
+    @pytest.mark.asyncio
+    async def test_generate_with_cognitive_tier_with_user_override(self, mock_byok_manager):
+        """Test that user_tier_override bypasses classification"""
+        from core.llm.cognitive_tier_system import CognitiveTier
+
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock tier service
+            mock_tier_service = MagicMock()
+            mock_tier_service.select_tier = MagicMock(return_value=CognitiveTier.HEAVY)  # User override
+            mock_tier_service.calculate_request_cost = MagicMock(return_value={'cost_cents': 50})
+            mock_tier_service.check_budget_constraint = MagicMock(return_value=True)
+            mock_tier_service.get_optimal_model = MagicMock(return_value=("openai", "gpt-4o"))
+            mock_tier_service.handle_escalation = MagicMock(return_value=(False, None, None))
+            
+            handler.tier_service = mock_tier_service
+            
+            # Mock generate_response
+            with patch.object(handler, 'generate_response', new_callable=AsyncMock) as mock_gen:
+                mock_gen.return_value = "High-tier response"
+                
+                result = await handler.generate_with_cognitive_tier(
+                    "simple prompt",  # Would normally be MICRO/STANDARD
+                    user_tier_override="heavy"  # User overrides to HEAVY
+                )
+                
+                # Verify select_tier was called with user override
+                mock_tier_service.select_tier.assert_called_once_with("simple prompt", None, "heavy")
+                assert result["tier"] == "heavy"
+
+
+class TestStructuredResponseGeneration:
+    """Test suite for generate_structured_response (lines 1016-1231)
+    
+    Tests structured output with instructor:
+    - JSON schema validation
+    - Response format parameter (json_mode)
+    - Parse error handling for invalid JSON
+    - Complex nested schema validation
+    - Retry logic for JSON parsing failures
+    """
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_with_json_schema(self, mock_byok_manager):
+        """Test generate_structured_response follows JSON schema"""
+        from pydantic import BaseModel
+        
+        # Define test schema
+        class TestResponse(BaseModel):
+            name: str
+            value: int
+        
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock clients
+            handler.clients = {"openai": MagicMock()}
+            
+            # Mock instructor
+            mock_instructor = MagicMock()
+            mock_instructor.from_openai = MagicMock(return_value=MagicMock())
+            
+            # Mock structured response
+            mock_result = MagicMock()
+            mock_result.name = "Test"
+            mock_result.value = 42
+            mock_result._raw_response = MagicMock()
+            mock_result._raw_response.usage = MagicMock()
+            mock_result._raw_response.usage.prompt_tokens = 10
+            mock_result._raw_response.usage.completion_tokens = 20
+            
+            mock_client = MagicMock()
+            mock_client.chat.completions.create = MagicMock(return_value=mock_result)
+            mock_instructor.from_openai.return_value = mock_client
+            
+            with patch('core.llm.byok_handler.instructor', mock_instructor):
+                # Mock pricing fetcher
+                with patch('core.dynamic_pricing_fetcher.get_pricing_fetcher') as mock_fetcher:
+                    fetcher_instance = MagicMock()
+                    fetcher_instance.estimate_cost = MagicMock(return_value=0.001)
+                    mock_fetcher.return_value = fetcher_instance
+                    
+                    result = await handler.generate_structured_response(
+                        prompt="Generate test data",
+                        system_instruction="You are helpful.",
+                        response_model=TestResponse
+                    )
+                    
+                    # Verify result follows schema
+                    assert result is not None
+                    assert hasattr(result, 'name')
+                    assert hasattr(result, 'value')
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_with_response_format(self, mock_byok_manager):
+        """Test response_format parameter is passed correctly"""
+        from pydantic import BaseModel
+        
+        class TestResponse(BaseModel):
+            field: str
+        
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock clients
+            handler.clients = {"openai": MagicMock()}
+            
+            # Mock instructor
+            mock_instructor = MagicMock()
+            mock_client = MagicMock()
+            mock_instructor.from_openai = MagicMock(return_value=mock_client)
+            
+            mock_result = MagicMock()
+            mock_result.field = "test"
+            mock_client.chat.completions.create = MagicMock(return_value=mock_result)
+            
+            with patch('core.llm.byok_handler.instructor', mock_instructor):
+                result = await handler.generate_structured_response(
+                    prompt="Test",
+                    system_instruction="You are helpful.",
+                    response_model=TestResponse,
+                    response_format="json_mode"
+                )
+                
+                # Verify create was called
+                mock_client.chat.completions.create.assert_called_once()
+                call_kwargs = mock_client.chat.completions.create.call_args[1]
+                assert "response_model" in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_parse_error_handling(self, mock_byok_manager):
+        """Test graceful handling of invalid JSON from LLM"""
+        from pydantic import BaseModel, ValidationError
+        
+        class TestResponse(BaseModel):
+            field: str
+        
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock clients
+            handler.clients = {"openai": MagicMock()}
+            
+            # Mock instructor that raises ValidationError
+            mock_instructor = MagicMock()
+            mock_client = MagicMock()
+            mock_instructor.from_openai = MagicMock(return_value=mock_client)
+            
+            mock_client.chat.completions.create = MagicMock(side_effect=ValidationError([], TestResponse))
+            
+            with patch('core.llm.byok_handler.instructor', mock_instructor):
+                result = await handler.generate_structured_response(
+                    prompt="Test",
+                    system_instruction="You are helpful.",
+                    response_model=TestResponse
+                )
+                
+                # Should handle error gracefully and return None
+                assert result is None
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_with_complex_schema(self, mock_byok_manager):
+        """Test structured response with nested object schema"""
+        from pydantic import BaseModel
+        
+        # Define complex nested schema
+        class Address(BaseModel):
+            street: str
+            city: str
+            zip_code: str
+        
+        class Person(BaseModel):
+            name: str
+            age: int
+            address: Address
+        
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock clients
+            handler.clients = {"openai": MagicMock()}
+            
+            # Mock instructor
+            mock_instructor = MagicMock()
+            mock_client = MagicMock()
+            mock_instructor.from_openai = MagicMock(return_value=mock_client)
+            
+            # Mock nested response
+            mock_result = MagicMock()
+            mock_result.name = "John Doe"
+            mock_result.age = 30
+            mock_result.address = MagicMock()
+            mock_result.address.street = "123 Main St"
+            mock_result.address.city = "San Francisco"
+            mock_result.address.zip_code = "94102"
+            
+            mock_client.chat.completions.create = MagicMock(return_value=mock_result)
+            
+            with patch('core.llm.byok_handler.instructor', mock_instructor):
+                result = await handler.generate_structured_response(
+                    prompt="Generate person data",
+                    system_instruction="You are helpful.",
+                    response_model=Person
+                )
+                
+                # Verify nested structure
+                assert result is not None
+                assert hasattr(result, 'address')
+                assert hasattr(result.address, 'street')
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_response_retry_on_parse_failure(self, mock_byok_manager):
+        """Test retry logic when JSON parsing fails"""
+        from pydantic import BaseModel
+        
+        class TestResponse(BaseModel):
+            field: str
+        
+        with patch('core.llm.byok_handler.get_byok_manager', return_value=mock_byok_manager):
+            handler = BYOKHandler()
+            
+            # Mock clients
+            handler.clients = {"openai": MagicMock(), "anthropic": MagicMock()}
+            
+            # Mock instructor
+            mock_instructor = MagicMock()
+            mock_client = MagicMock()
+            mock_instructor.from_openai = MagicMock(return_value=mock_client)
+            
+            # First call fails (OpenAI), second succeeds (Anthropic)
+            mock_result = MagicMock()
+            mock_result.field = "success"
+            
+            mock_client.chat.completions.create = MagicMock(
+                side_effect=[
+                    Exception("Parse error"),  # First attempt fails
+                    mock_result,  # Second attempt succeeds
+                ]
+            )
+            
+            with patch('core.llm.byok_handler.instructor', mock_instructor):
+                result = await handler.generate_structured_response(
+                    prompt="Test",
+                    system_instruction="You are helpful.",
+                    response_model=TestResponse
+                )
+                
+                # Verify retry happened (called twice)
+                assert mock_client.chat.completions.create.call_count == 2
+                # Should return result from second attempt
+                assert result is not None
