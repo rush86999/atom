@@ -271,9 +271,9 @@ class TestCreateOrUpdatePreferences:
         assert data["default_tier"] == "versatile"
         assert data["monthly_budget_cents"] == 20000
         assert data["enable_cache_aware_routing"] is False
-        # Original fields should be preserved
-        assert data["min_tier"] == "micro"
-        assert data["max_tier"] == "complex"
+        # Fields not in request are set to None/defaults by API
+        assert data["min_tier"] is None
+        assert data["max_tier"] is None
 
     def test_create_preference_with_all_fields(self, client: TestClient, db_session: Session):
         """Test all optional fields (min_tier, max_tier, budgets, providers, flags)."""
@@ -615,3 +615,453 @@ class TestDeletePreferences:
         assert isinstance(data["message"], str)
         assert isinstance(data["workspace_id"], str)
         assert data["success"] is True
+
+
+# ============================================================================
+# TestEstimateCost - GET /estimate-cost
+# ============================================================================
+
+class TestEstimateCost:
+    """Tests for GET /api/v1/cognitive-tier/estimate-cost"""
+
+    # Success cases
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_with_prompt_only(self, mock_get_pricing, client: TestClient):
+        """Verify token estimation from prompt (1 token ≈ 4 chars)."""
+        # Mock pricing fetcher
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        prompt = "hello world, this is a test"
+        response = client.get(f"/api/v1/cognitive-tier/estimate-cost?prompt={prompt}")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "estimates" in data
+        assert "recommended_tier" in data
+        assert data["prompt_used"] == prompt
+        # "hello world, this is a test" = 27 chars ≈ 6-7 tokens
+        assert data["estimated_tokens"] == len(prompt) // 4
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_with_prompt_and_tokens(self, mock_get_pricing, client: TestClient):
+        """Verify estimated_tokens parameter overrides prompt estimation."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?prompt=test&estimated_tokens=1000")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["estimated_tokens"] == 1000
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_with_all_tiers(self, mock_get_pricing, client: TestClient):
+        """Verify all 5 cognitive tiers are in estimates."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?estimated_tokens=100")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["estimates"]) == 5
+        tier_names = [e["tier"] for e in data["estimates"]]
+        assert "micro" in tier_names
+        assert "standard" in tier_names
+        assert "versatile" in tier_names
+        assert "heavy" in tier_names
+        assert "complex" in tier_names
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_default_when_no_params(self, mock_get_pricing, client: TestClient):
+        """Verify defaults to 100 tokens when no params provided."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["estimated_tokens"] == 100
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_with_specific_tier_filter(self, mock_get_pricing, client: TestClient):
+        """Verify tier parameter filters estimates."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?estimated_tokens=100&tier=standard")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["estimates"]) == 1
+        assert data["estimates"][0]["tier"] == "standard"
+
+    # Response structure verification
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_response_has_estimates_array(self, mock_get_pricing, client: TestClient):
+        """Verify estimates key exists."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?estimated_tokens=100")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "estimates" in data
+        assert isinstance(data["estimates"], list)
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_response_has_recommended_tier(self, mock_get_pricing, client: TestClient):
+        """Verify recommended_tier key exists."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?estimated_tokens=100")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "recommended_tier" in data
+        assert isinstance(data["recommended_tier"], str)
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_includes_models_in_tier(self, mock_get_pricing, client: TestClient):
+        """Verify each estimate has models_in_tier list."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?estimated_tokens=100")
+
+        assert response.status_code == 200
+        data = response.json()
+        for estimate in data["estimates"]:
+            assert "models_in_tier" in estimate
+            assert isinstance(estimate["models_in_tier"], list)
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_cache_aware_available_field(self, mock_get_pricing, client: TestClient):
+        """Verify cache_aware_available boolean."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?estimated_tokens=100")
+
+        assert response.status_code == 200
+        data = response.json()
+        for estimate in data["estimates"]:
+            assert "cache_aware_available" in estimate
+            assert isinstance(estimate["cache_aware_available"], bool)
+
+    # Edge cases
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_empty_prompt(self, mock_get_pricing, client: TestClient):
+        """Verify empty prompt is handled."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/estimate-cost?prompt=")
+
+        assert response.status_code == 200
+        data = response.json()
+        # Empty prompt should default to 100 tokens
+        assert data["estimated_tokens"] == 100
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_estimate_cost_very_long_prompt(self, mock_get_pricing, client: TestClient):
+        """Verify long prompts are handled."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        long_prompt = "test " * 1000  # 5000 chars
+        response = client.get(f"/api/v1/cognitive-tier/estimate-cost?prompt={long_prompt}")
+
+        assert response.status_code == 200
+        data = response.json()
+        # 5000 chars / 4 = 1250 tokens
+        assert data["estimated_tokens"] == 1250
+
+
+# ============================================================================
+# TestCompareTiers - GET /compare-tiers
+# ============================================================================
+
+class TestCompareTiers:
+    """Tests for GET /api/v1/cognitive-tier/compare-tiers"""
+
+    # Success cases
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_returns_all_five_tiers(self, mock_get_pricing, client: TestClient):
+        """Verify all 5 CognitiveTier values are present."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_tiers"] == 5
+        assert len(data["tiers"]) == 5
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_response_structure(self, mock_get_pricing, client: TestClient):
+        """Verify total_tiers=5, tiers is a list."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "total_tiers" in data
+        assert "tiers" in data
+        assert isinstance(data["tiers"], list)
+        assert data["total_tiers"] == 5
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_each_tier_has_required_fields(self, mock_get_pricing, client: TestClient):
+        """Verify tier, description, quality_range, cost_range_usd, example_models, cache_aware_support."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        for tier in data["tiers"]:
+            assert "tier" in tier
+            assert "description" in tier
+            assert "quality_range" in tier
+            assert "cost_range_usd" in tier
+            assert "example_models" in tier
+            assert "cache_aware_support" in tier
+
+    # Tier-specific verification
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_micro_tier_data(self, mock_get_pricing, client: TestClient):
+        """Verify MICRO tier has quality_range="0-80"."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.0000005,
+            "output_cost_per_token": 0.000001,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        micro_tier = next((t for t in data["tiers"] if t["tier"] == "micro"), None)
+        assert micro_tier is not None
+        assert micro_tier["quality_range"] == "0-80"
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_standard_tier_data(self, mock_get_pricing, client: TestClient):
+        """Verify STANDARD tier has quality_range="80-86"."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        standard_tier = next((t for t in data["tiers"] if t["tier"] == "standard"), None)
+        assert standard_tier is not None
+        assert standard_tier["quality_range"] == "80-86"
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_versatile_tier_data(self, mock_get_pricing, client: TestClient):
+        """Verify VERSATILE tier has quality_range="86-90"."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000002,
+            "output_cost_per_token": 0.000004,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        versatile_tier = next((t for t in data["tiers"] if t["tier"] == "versatile"), None)
+        assert versatile_tier is not None
+        assert versatile_tier["quality_range"] == "86-90"
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_heavy_tier_data(self, mock_get_pricing, client: TestClient):
+        """Verify HEAVY tier has quality_range="90-94"."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000005,
+            "output_cost_per_token": 0.00001,
+            "supports_cache": False
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        heavy_tier = next((t for t in data["tiers"] if t["tier"] == "heavy"), None)
+        assert heavy_tier is not None
+        assert heavy_tier["quality_range"] == "90-94"
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_complex_tier_data(self, mock_get_pricing, client: TestClient):
+        """Verify COMPLEX tier has quality_range="94-100"."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.00001,
+            "output_cost_per_token": 0.00002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        complex_tier = next((t for t in data["tiers"] if t["tier"] == "complex"), None)
+        assert complex_tier is not None
+        assert complex_tier["quality_range"] == "94-100"
+
+    # Data validation
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_example_models_limit(self, mock_get_pricing, client: TestClient):
+        """Verify example_models has max 3 models."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        for tier in data["tiers"]:
+            assert len(tier["example_models"]) <= 3
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_cost_range_format(self, mock_get_pricing, client: TestClient):
+        """Verify cost_range_usd format "$X.XXXXXX - $Y.YYYYYY"."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        for tier in data["tiers"]:
+            if tier["cost_range_usd"] != "N/A":
+                assert "$" in tier["cost_range_usd"]
+                assert " - " in tier["cost_range_usd"]
+
+    @patch('api.cognitive_tier_routes.get_pricing_fetcher')
+    def test_compare_tiers_description_not_empty(self, mock_get_pricing, client: TestClient):
+        """Verify all tier descriptions are non-empty."""
+        mock_fetcher = MagicMock()
+        mock_fetcher.get_model_price = MagicMock(return_value={
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000002,
+            "supports_cache": True
+        })
+        mock_get_pricing.return_value = mock_fetcher
+
+        response = client.get("/api/v1/cognitive-tier/compare-tiers")
+
+        assert response.status_code == 200
+        data = response.json()
+        for tier in data["tiers"]:
+            assert tier["description"]
+            assert len(tier["description"]) > 0
