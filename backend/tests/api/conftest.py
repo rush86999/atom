@@ -497,6 +497,40 @@ def test_pid() -> int:
     return 12345
 
 
+@pytest.fixture(scope="function")
+def mock_daemon_class():
+    """
+    Mock DaemonManager class with static method patching for agent control routes.
+
+    This fixture patches the DaemonManager class in agent_control_routes module,
+    allowing tests to control daemon behavior.
+
+    Usage:
+        def test_agent_start(mock_daemon_class):
+            mock_daemon_class.is_running.return_value = False
+            mock_daemon_class.start_daemon.return_value = 12345
+            response = client.post("/api/agent/start")
+            assert response.status_code == 200
+    """
+    from unittest.mock import patch
+
+    with patch('api.agent_control_routes.DaemonManager') as mock_class:
+        # Configure static methods
+        mock_class.is_running.return_value = False
+        mock_class.get_pid.return_value = 12345
+        mock_class.start_daemon.return_value = 12345
+        mock_class.stop_daemon.return_value = None
+        mock_class.get_status.return_value = {
+            "running": True,
+            "pid": 12345,
+            "uptime_seconds": 3600,
+            "memory_mb": 256.5,
+            "cpu_percent": 5.2,
+            "status": "running"
+        }
+        yield mock_class
+
+
 # ============================================================================
 # Auth-Specific Fixtures (Phase 176-01)
 # ============================================================================
@@ -638,3 +672,94 @@ def biometric_test_data() -> dict:
         "signature": "mock_signature_" + "B" * 200,
         "challenge": "test_challenge_" + "C" * 50
     }
+
+
+# ============================================================================
+# Permission Check Fixtures (Phase 176-04)
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def test_users_with_roles() -> dict:
+    """
+    Create mock User objects for all UserRole enum values.
+
+    Returns dict mapping UserRole to User mock objects.
+    Useful for parametrized permission tests across all roles.
+
+    Usage:
+        def test_permission_matrix(test_users_with_roles):
+            guest_user = test_users_with_roles[UserRole.GUEST]
+            admin_user = test_users_with_roles[UserRole.SUPER_ADMIN]
+            # Test permissions for each role
+    """
+    from unittest.mock import Mock
+    from core.models import UserRole
+
+    users = {}
+
+    for role in UserRole:
+        user = Mock()
+        user.id = f"user-{role.value}"
+        user.email = f"{role.value}@example.com"
+        user.role = role.value  # String value for DB compatibility
+        user.status = "active"
+        users[role] = user
+
+    return users
+
+
+@pytest.fixture(scope="function")
+def mock_rbac_check() -> MagicMock:
+    """
+    Mock RBACService.check_permission for permission verification tests.
+
+    Tracks permission checks and returns configurable True/False.
+
+    Usage:
+        def test_permission_enforcement(mock_rbac_check):
+            mock_rbac_check.return_value = True
+            # Test endpoint that checks permission
+            mock_rbac_check.assert_called_once_with(user, Permission.AGENT_RUN)
+    """
+    from core.rbac_service import RBACService
+
+    mock = MagicMock()
+    mock.check_permission = MagicMock(return_value=True)
+    mock.get_user_permissions = MagicMock(return_value=set())
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def all_permissions() -> list:
+    """
+    Return list of all Permission enum values.
+
+    Useful for parametrized tests across all permissions.
+
+    Usage:
+        @pytest.mark.parametrize("permission", all_permissions())
+        def test_all_permissions(permission):
+            # Test each permission
+    """
+    from core.rbac_service import Permission
+
+    return list(Permission)
+
+
+@pytest.fixture(scope="function")
+def role_permission_mapping() -> dict:
+    """
+    Return ROLE_PERMISSIONS mapping from RBACService.
+
+    Maps UserRole to Set[Permission] for verifying permission inheritance.
+
+    Usage:
+        def test_permission_inheritance(role_permission_mapping):
+            guest_perms = role_permission_mapping[UserRole.GUEST]
+            assert Permission.AGENT_VIEW in guest_perms
+            assert Permission.AGENT_RUN not in guest_perms
+    """
+    from core.rbac_service import ROLE_PERMISSIONS
+
+    return ROLE_PERMISSIONS
