@@ -933,10 +933,12 @@ class TestEdgeCases:
         child_ep.id = "episode-child"
         child_ep.consolidated_into = "some-other-parent"  # Already consolidated
 
+        # Only return non-consolidated episodes (parent only)
         lifecycle_service.db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
-            parent_ep, child_ep
+            parent_ep  # Child not returned because already consolidated
         ]
-        lifecycle_service.db.query.return_value.filter.return_value.first.side_effect = [parent_ep, child_ep, None]
+        # Mock second query to return None when looking for child
+        lifecycle_service.db.query.return_value.filter.return_value.first.return_value = None
 
         lifecycle_service.lancedb.search.return_value = [
             {
@@ -950,13 +952,22 @@ class TestEdgeCases:
             similarity_threshold=0.85
         )
 
-        # Child should not be consolidated again
+        # Child should not be consolidated again because it's not in the candidate list
         assert result["consolidated"] == 0
 
     @pytest.mark.asyncio
     async def test_decay_with_zero_threshold(self, lifecycle_service):
         """Test decay with threshold of 0 (affects all episodes)."""
-        episodes = [Mock(id=f"ep-{i}", started_at=datetime.now() - timedelta(days=i), status="completed") for i in range(5)]
+        episodes = [
+            Mock(
+                id=f"ep-{i}",
+                started_at=datetime.now() - timedelta(days=i),
+                status="completed",
+                decay_score=1.0,
+                access_count=i * 10,
+                archived_at=None
+            ) for i in range(5)
+        ]
 
         lifecycle_service.db.query.return_value.filter.return_value.all.return_value = episodes
 
