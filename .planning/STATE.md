@@ -5,19 +5,19 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 173 Plan 04 Complete - LLM integration workflow coverage. Created test_llm_integration.py (604 lines, 21 tests) and test_cognitive_tier_service_integration.py (450 lines, 22 tests). 43 total integration tests with 93% pass rate (40/43 passing). Provider fallback, budget enforcement, cache-aware routing, escalation workflows, cognitive tier service orchestration tested. Duration: ~27 minutes.
+**Current focus**: Phase 174 Plan 01 COMPLETE - High-Impact Zero Coverage (Episodic Memory). Added 27 tests for EpisodeSegmentationService with 1,137 lines of test code. All 7 canvas types tested with LLM context extraction (charts, sheets, forms, markdown, sheets_cell, sheets_range, sheets_chart). Episode creation with canvas/feedback integration tested. Segment creation with boundary splitting tested. Property-based tests verify segmentation invariants. Duration: ~15 minutes.
 
 ## Current Position
 
-Phase: 173 of 173 (High-Impact Zero Coverage - LLM)
-Plan: 04 of 5 in current phase (COMPLETE)
-Status: In Progress
-Last activity: 2026-03-12 — Phase 173 Plan 04 Complete: LLM integration workflow tests with 40 passing tests. Created test_llm_integration.py (604 lines, 21 tests) and test_cognitive_tier_service_integration.py (450 lines, 22 tests). 93% pass rate. Provider fallback, budget enforcement, cache-aware routing, escalation workflows, cognitive tier service orchestration tested. Duration: ~27 minutes.
+Phase: 174 of 174 (High-Impact Zero Coverage - Episodic Memory)
+Plan: 01 of 5 in current phase (COMPLETE)
+Status: Complete
+Last activity: 2026-03-12 — Phase 174 Plan 01 COMPLETE: 27 tests created for EpisodeSegmentationService. All 7 canvas types tested with LLM context extraction. Episode creation with canvas/feedback integration tested. Segment creation with boundary splitting tested. 6 property-based tests verify segmentation invariants. 1,137 lines of test code added.
 
-Progress: [████████░] 80% (4/5 plans in Phase 173)
+Progress: [█░░░░░░░░] 20% (1/5 plans in Phase 174)
 
-**Next Phase:** Phase 173 Plan 05 or next phase in roadmap
-**Next Action:** Complete Phase 173 Plan 05 (Atom agent endpoints API coverage) or continue to Phase 174 (Episodic Memory)
+**Next Phase:** Phase 174 Plan 02 - Episode Retrieval Service Coverage
+**Next Action:** Continue Phase 174 episodic memory coverage with Plan 02
 
 ## Performance Metrics
 
@@ -65,6 +65,8 @@ Progress: [████████░] 80% (4/5 plans in Phase 173)
 | Phase 173 P01 | 64 | 44 tasks | 1 files |
 | Phase 173 P05 | 75 | 6 tasks | 3 files |
 | Phase 173 P04 | 1676 | 5 tasks | 2 files |
+| Phase 174 P01 | 15 | 4 tasks | 2 files |
+| Phase 174 P04 | 665 | 4 tasks | 3 files |
 
 ## Accumulated Context
 
