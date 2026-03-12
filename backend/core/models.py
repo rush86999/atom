@@ -7424,3 +7424,38 @@ class ABTestParticipant(Base):
 
     def __repr__(self):
         return f"<ABTestParticipant(test_id={self.test_id}, user_id={self.user_id}, variant={self.assigned_variant})>"
+
+
+# ============================================================================
+# Sync State Models
+# ============================================================================
+
+class SyncState(Base):
+    """
+    Atom SaaS marketplace sync state tracking.
+
+    Tracks the status of background sync operations with Atom SaaS marketplace.
+    Used for skill synchronization, rating sync, and conflict resolution.
+    """
+    __tablename__ = "sync_state"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Sync status
+    status = Column(String(50), nullable=False, default="idle")  # idle, syncing, error
+    last_sync = Column(DateTime(timezone=True), nullable=True)
+
+    # Cache statistics
+    skills_cached = Column(Integer, nullable=False, default=0)
+    categories_cached = Column(Integer, nullable=False, default=0)
+
+    # Error tracking
+    last_error = Column(Text, nullable=True)
+    error_count = Column(Integer, nullable=False, default=0)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
+
+    def __repr__(self):
+        return f"<SyncState(id={self.id}, status={self.status}, last_sync={self.last_sync})>"
