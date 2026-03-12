@@ -65,9 +65,9 @@ def mock_ai_accounting():
     mock.post_transaction = Mock(return_value=True)
     mock.auto_post_high_confidence = Mock(return_value=0)
 
-    # Chart of accounts - use simple dict to avoid recursion
-    from core.ai_accounting_engine import Account
-    mock_account = Account(
+    # Chart of accounts - use real ChartOfAccountsEntry to avoid recursion
+    from core.ai_accounting_engine import ChartOfAccountsEntry
+    mock_account = ChartOfAccountsEntry(
         account_id="acc_1",
         name="Office Supplies",
         type="expense",
