@@ -7328,3 +7328,99 @@ class SkillCache(Base):
 # - CanvasComponent: line 2734
 
 Episode = AgentEpisode  # Alias for backward compatibility
+
+
+# ============================================================================
+# A/B Testing Models
+# ============================================================================
+
+class ABTest(Base):
+    """
+    A/B Test configuration for agent experimentation.
+
+    Supports testing different agent configurations, prompts, strategies, and tools.
+    Uses deterministic hash-based variant assignment for consistent user experience.
+    """
+    __tablename__ = "ab_tests"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Test configuration
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    test_type = Column(String(50), nullable=False)  # agent_config, prompt, strategy, tool
+    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+
+    # Variant configuration
+    traffic_percentage = Column(Float, nullable=False, default=0.5)  # Fraction to variant B
+    variant_a_name = Column(String(100), nullable=False, default="Control")
+    variant_b_name = Column(String(100), nullable=False, default="Treatment")
+    variant_a_config = Column(JSON, nullable=False)  # Control variant config
+    variant_b_config = Column(JSON, nullable=False)  # Treatment variant config
+
+    # Metrics
+    primary_metric = Column(String(50), nullable=False)  # satisfaction_rate, success_rate, response_time
+    secondary_metrics = Column(JSON, nullable=True)  # Additional metrics to track
+
+    # Sample size requirements
+    min_sample_size = Column(Integer, nullable=False, default=100)
+    confidence_level = Column(Float, nullable=False, default=0.95)  # Statistical confidence (0.0-1.0)
+
+    # Statistical results
+    variant_a_metrics = Column(JSON, nullable=True)  # Calculated metrics for variant A
+    variant_b_metrics = Column(JSON, nullable=True)  # Calculated metrics for variant B
+    statistical_significance = Column(Float, nullable=True)  # p-value
+    statistical_significance_threshold = Column(Float, nullable=False, default=0.05)
+    winner = Column(String(10), nullable=True)  # "A", "B", or "inconclusive"
+
+    # Status tracking
+    status = Column(String(20), nullable=False, default="draft", index=True)  # draft, running, paused, completed
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="ab_tests")
+    participants = relationship("ABTestParticipant", back_populates="test", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<ABTest(id={self.id}, name={self.name}, status={self.status})>"
+
+
+class ABTestParticipant(Base):
+    """
+    Participant assignment for A/B tests.
+
+    Tracks which variant each user was assigned to and their metrics.
+    Ensures consistent assignment through deterministic hashing.
+    """
+    __tablename__ = "ab_test_participants"
+
+    # Primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign keys
+    test_id = Column(String, ForeignKey("ab_tests.id"), nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+
+    # Variant assignment
+    assigned_variant = Column(String(1), nullable=False)  # "A" or "B"
+    session_id = Column(String(255), nullable=True, index=True)
+
+    # Metrics
+    success = Column(Boolean, nullable=True)  # Boolean success indicator
+    metric_value = Column(Float, nullable=True)  # Numerical metric value
+    meta_data = Column(JSON, nullable=True)  # Additional metadata
+
+    # Timestamps
+    recorded_at = Column(DateTime(timezone=True), nullable=True)  # When metric was recorded
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    test = relationship("ABTest", back_populates="participants")
+
+    def __repr__(self):
+        return f"<ABTestParticipant(test_id={self.test_id}, user_id={self.user_id}, variant={self.assigned_variant})>"
