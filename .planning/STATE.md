@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus**: Phase 176 Plan 03 COMPLETE - API Routes Coverage (Auth & Authz - Agent Control). 53 tests created covering all 5 agent control endpoints (start, stop, restart, status, execute). 847 lines of test code (212% above 400-line target). 5 agent control fixtures added to conftest.py. DaemonManager mocking tested for all operations. 100% line coverage achieved on agent_control_routes.py (exceeds 75% target by 25pp). Error paths tested (RuntimeError, IOError, PermissionError). Input validation tested (port range, workers range, timeout constraints). Status: COMPLETE - comprehensive agent control test coverage with production-ready test infrastructure.
+**Current focus**: Phase 176 Plan 04 COMPLETE - API Routes Coverage (Auth & Authz - Permission Checks). 79 tests created covering RBACService.check_permission, require_permission dependency, WebSocket authentication, security edge cases. 644 lines of test code (184% above 350-line target). 4 permission fixtures added to conftest.py. 100% line coverage achieved on rbac_service.py (39/39 lines) and security_dependencies.py (25/25 lines), exceeding 75% target by 25pp. Role-permission matrix fully tested (5 roles × 9 permissions = 45 cases). Security validation comprehensive (escalation prevention, error messages, superuser bypass). Status: COMPLETE - production-ready permission check test coverage achieved.
 
 ## Current Position
 
 Phase: 176 of 189 (API Routes Coverage - Auth & Authz)
-Plan: 03 of 4 in current phase (COMPLETE)
+Plan: 04 of 4 in current phase (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-12 — Phase 176 Plan 03 COMPLETE: Agent control routes testing with 53 tests (100% passing). 847 lines test code, 5 agent control fixtures. All 5 agent control endpoints tested (start, stop, restart, status, execute). 100% line coverage on agent_control_routes.py (exceeds 75% target by 25pp). DaemonManager mocking verified, error paths tested. Next: Phase 176 Plan 04 - Additional API routes coverage.
+Last activity: 2026-03-12 — Phase 176 Plan 04 COMPLETE: Permission check tests with 79 tests (100% passing). 644 lines test code, 4 permission fixtures. RBACService and security_dependencies 100% coverage. Role-permission matrix, WebSocket auth, security edge cases all tested. Next: Phase 176 summary or Phase 177.
 
-Progress: [████░░] 75% (3/4 plans in Phase 176)
+Progress: [████░░] 100% (4/4 plans in Phase 176)
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [████░░] 75% (3/4 plans in Phase 176)
 - Trend: Fast (database layer coverage testing)
 
 *Updated after each plan completion*
+| Phase 176 P04 | 5 | 79 tests | 2 files | ~8 min | ✅ COMPLETED |
 | Phase 176 P03 | 6 | 53 tests | 2 files | ~12 min | ✅ COMPLETED |
 | Phase 176 P02 | 5 | 38 tests | 2 files | ~10 min | ✅ COMPLETED |
 | Phase 175 P05 | 3 | 3 tasks | 4 files | ~15 min | ✅ COMPLETED |
@@ -1098,3 +1099,38 @@ Next: Phase 175 Plan 05 - Device routes coverage enhancement (if exists) or next
 - Root cause: Authentication dependency issues prevent test execution
 
 Next: Phase 176 Plan 02 - Additional auth routes coverage or admin auth endpoints
+
+## Session Update: 2026-03-12
+
+**Phase 176 Plan 04 Complete:**
+- Permission check tests comprehensive with 79 tests (100% passing)
+- 644 lines of test code (184% above 350-line target)
+- 4 permission fixtures added to conftest.py (test_users_with_roles, mock_rbac_check, all_permissions, role_permission_mapping)
+- 100% line coverage achieved on rbac_service.py (39/39 lines) and security_dependencies.py (25/25 lines)
+- Role-permission matrix fully tested (5 roles × 9 permissions = 45 parametrized cases)
+- Security edge cases tested (escalation prevention, role changes, error messages, superuser bypass)
+- WebSocket authentication tested (valid tokens, invalid tokens, missing sub, DB integration, exceptions)
+- Duration: ~8 minutes
+- Commits: ac12c5f60, e74a1bf70, 85b4c1dc7, 1a2af11c1, e89bd3c3d
+- Files created: 176-04-SUMMARY.md, backend/tests/api/test_permission_checks.py
+- Files modified: backend/tests/api/conftest.py (+125 lines)
+
+**Phase 176 Plan 04 COMPLETE:**
+- All 5 tasks executed successfully (fixtures, RBACService tests, require_permission tests, WebSocket auth, security edge cases)
+- Comprehensive test infrastructure established for permission checking
+- 4 permission-specific fixtures created
+- Test classes: TestRBACServiceCheckPermission (51), TestRequirePermissionDependency (9), TestWebSocketAuth (7), TestPermissionSecurity (5), TestPermissionEdgeCases (7)
+- Status: COMPLETE - 100% coverage on both target files (exceeds 75% target by 25 percentage points)
+
+**Coverage Achieved:**
+- rbac_service.py: 100% (39/39 lines) - Exceeds 75% target by +25pp
+- security_dependencies.py: 100% (25/25 lines) - Exceeds 75% target by +25pp
+- Combined: 100% (64/64 lines)
+
+**Phase 176 COMPLETE:**
+- All 4 plans executed successfully
+- Combined: 251 tests (38 + 53 + 81 + 79)
+- Combined: 2,652 lines of test code (571 + 847 + 590 + 644)
+- Production-ready auth & authz test coverage achieved
+
+Next: Phase 177 or next phase in roadmap
