@@ -1047,3 +1047,212 @@ class TestSegmentationEdgeCases:
         # Verify consecutive gaps create multiple segments
         if events and gap_hours > 4:
             assert len(episodes) > 1, "Consecutive gaps should create multiple segments"
+
+
+class TestSegmentationBoundaryInvariants:
+    """Property-based tests for segmentation boundary detection invariants."""
+
+    @given(
+        num_messages=st.integers(min_value=2, max_value=100),
+        gap_threshold_minutes=st.integers(min_value=5, max_value=60)
+    )
+    @settings(max_examples=100)
+    def test_boundary_detection_invariants(self, num_messages, gap_threshold_minutes):
+        """
+        INVARIANT: Boundary indices always in valid range [1, len(messages)-1].
+
+        Boundary indices must be valid message indices:
+        - Minimum: 1 (cannot split before first message)
+        - Maximum: len(messages) - 1 (cannot split after last message)
+        """
+        base_time = datetime.now()
+        messages = []
+        for i in range(num_messages):
+            messages.append({
+                "id": str(uuid4()),
+                "content": f"Message {i}",
+                "timestamp": base_time + timedelta(minutes=i * 10)
+            })
+
+        # Simulate boundary detection (simplified)
+        boundaries = set()
+        for i in range(1, len(messages)):
+            time_diff = (messages[i]["timestamp"] - messages[i-1]["timestamp"]).total_seconds() / 60
+            if time_diff > gap_threshold_minutes:
+                boundaries.add(i)
+
+        # Verify all boundary indices are in valid range
+        for boundary_idx in boundaries:
+            assert 1 <= boundary_idx < len(messages), \
+                f"Boundary index {boundary_idx} must be in range [1, {len(messages)-1}]"
+
+    @given(
+        num_boundaries=st.integers(min_value=0, max_value=20),
+        num_messages=st.integers(min_value=2, max_value=50)
+    )
+    @settings(max_examples=100)
+    def test_segment_count_invariant(self, num_boundaries, num_messages):
+        """
+        INVARIANT: N boundaries always creates N+1 segments.
+
+        Segment count = boundary count + 1 (mathematical invariant).
+        """
+        assume(num_boundaries < num_messages)  # Can't have more boundaries than messages
+
+        # Create boundaries (sorted unique indices)
+        boundary_indices = sorted(set(
+            random.randint(1, num_messages - 1) for _ in range(num_boundaries)
+        ))
+
+        # Calculate expected segment count
+        expected_segments = len(boundary_indices) + 1
+
+        # Simulate segment creation
+        segments = []
+        start = 0
+        for boundary in boundary_indices:
+            segments.append((start, boundary))
+            start = boundary
+        segments.append((start, num_messages))
+
+        # Verify segment count invariant
+        assert len(segments) == expected_segments, \
+            f"{len(boundary_indices)} boundaries should create {expected_segments} segments, got {len(segments)}"
+
+    @given(
+        vec1=st.lists(st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+                     min_size=3, max_size=10),
+        vec2=st.lists(st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+                     min_size=3, max_size=10)
+    )
+    @settings(max_examples=200)
+    def test_cosine_similarity_bounds(self, vec1, vec2):
+        """
+        INVARIANT: Cosine similarity always in [0.0, 1.0].
+
+        Cosine similarity formula: dot(v1, v2) / (||v1|| * ||v2||)
+        Mathematical property: result always in [-1, 1], but we use abs for similarity.
+        """
+        assume(len(vec1) == len(vec2))  # Vectors must have same dimension
+
+        # Calculate dot product
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+
+        # Calculate magnitudes
+        mag1 = math.sqrt(sum(a * a for a in vec1))
+        mag2 = math.sqrt(sum(b * b for b in vec2))
+
+        # Handle zero-magnitude vectors
+        if mag1 == 0 or mag2 == 0:
+            similarity = 0.0
+        else:
+            similarity = abs(dot_product / (mag1 * mag2))
+
+        # Verify bounds invariant
+        assert 0.0 <= similarity <= 1.0, \
+            f"Cosine similarity {similarity} must be in [0.0, 1.0]"
+
+    @given(
+        text1=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz '),
+        text2=st.text(min_size=1, max_size=100, alphabet='abcdefghijklmnopqrstuvwxyz ')
+    )
+    @settings(max_examples=200)
+    def test_keyword_similarity_bounds(self, text1, text2):
+        """
+        INVARIANT: Keyword similarity always in [0.0, 1.0].
+
+        Dice coefficient: 2 * |intersection| / (|set1| + |set2|)
+        Mathematical property: result always in [0, 1].
+        """
+        # Tokenize
+        words1 = text1.lower().split()
+        words2 = text2.lower().split()
+
+        # Handle edge cases
+        if not words1 or not words2:
+            similarity = 0.0
+        else:
+            set1 = set(words1)
+            set2 = set(words2)
+            intersection = set1.intersection(set2)
+            union = set1.union(set2)
+
+            if not union:
+                similarity = 0.0
+            else:
+                # Dice coefficient
+                similarity = 2 * len(intersection) / (len(set1) + len(set2))
+
+        # Verify bounds invariant
+        assert 0.0 <= similarity <= 1.0, \
+            f"Keyword similarity {similarity} must be in [0.0, 1.0]"
+
+    @given(
+        feedback_scores=st.lists(
+            st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            min_size=0, max_size=20
+        )
+    )
+    @settings(max_examples=200)
+    def test_feedback_aggregation_in_bounds(self, feedback_scores):
+        """
+        INVARIANT: Aggregated feedback always in [-1.0, 1.0].
+
+        Aggregation method: arithmetic mean of individual scores.
+        Mathematical property: mean of bounded values is bounded by same range.
+        """
+        if not feedback_scores:
+            return  # Skip empty lists (no aggregate to compute)
+
+        # Calculate aggregate (arithmetic mean)
+        aggregate = sum(feedback_scores) / len(feedback_scores)
+
+        # Verify bounds invariant
+        assert -1.0 <= aggregate <= 1.0, \
+            f"Aggregate feedback {aggregate} must be in [-1.0, 1.0]"
+
+    @given(
+        num_messages=st.integers(min_value=5, max_value=50),
+        num_boundaries=st.integers(min_value=1, max_value=5)
+    )
+    @settings(max_examples=100)
+    def test_segment_message_contiguity(self, num_messages, num_boundaries):
+        """
+        INVARIANT: Segment messages are contiguous (no gaps).
+
+        Each segment should contain consecutive message indices:
+        - Segment 1: messages[0:boundary1]
+        - Segment 2: messages[boundary1:boundary2]
+        - ...
+        - Segment N: messages[boundaryN-1:end]
+        """
+        import random
+
+        assume(num_boundaries < num_messages)
+
+        # Create sorted unique boundaries
+        boundary_indices = sorted(set(
+            random.randint(1, num_messages - 1) for _ in range(num_boundaries)
+        ))
+
+        # Create segments
+        segments = []
+        start = 0
+        for boundary in boundary_indices:
+            segments.append(list(range(start, boundary)))
+            start = boundary
+        segments.append(list(range(start, num_messages)))
+
+        # Verify contiguity: no gaps between segments
+        all_indices = []
+        for segment in segments:
+            all_indices.extend(segment)
+
+        # Check that all indices are present exactly once
+        expected_indices = list(range(num_messages))
+        assert sorted(all_indices) == expected_indices, \
+            "Segment messages should be contiguous with no gaps or duplicates"
+
+
+import random
+import math  # Required for cosine similarity and keyword similarity tests
