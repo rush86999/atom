@@ -623,3 +623,175 @@ class TestAccountingPosting:
         assert response.status_code == 200
         data = response.json()
         assert data["data"]["posted_count"] == 0
+
+
+class TestAccountingChartAndAudit:
+    """Test chart of accounts and audit log endpoints."""
+
+    def test_get_chart_of_accounts(self, ai_accounting_client):
+        """Test get chart of accounts returns accounts list."""
+        response = ai_accounting_client.get("/ai-accounting/chart-of-accounts")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "accounts" in data["data"]
+        assert len(data["data"]["accounts"]) == 1
+
+        account = data["data"]["accounts"][0]
+        assert account["id"] == "acc_1"
+        assert account["name"] == "Office Supplies"
+        assert account["type"] == "expense"
+        assert "keywords" in account
+
+    def test_get_chart_of_accounts_empty(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test chart of accounts returns empty list when none defined."""
+        mock_ai_accounting._chart_of_accounts = {}
+
+        response = ai_accounting_client.get("/ai-accounting/chart-of-accounts")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["accounts"] == []
+
+    def test_get_audit_log_all(self, ai_accounting_client):
+        """Test get audit log returns all audit entries."""
+        response = ai_accounting_client.get("/ai-accounting/audit-log")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
+
+    def test_get_audit_log_filtered(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test audit log with transaction_id filter returns filtered results."""
+        mock_audit_entries = [
+            {
+                "transaction_id": "tx_123",
+                "action": "categorized",
+                "timestamp": "2026-03-12T10:00:00Z",
+                "user": "system"
+            }
+        ]
+        mock_ai_accounting.get_audit_log.return_value = mock_audit_entries
+
+        response = ai_accounting_client.get(
+            "/ai-accounting/audit-log?transaction_id=tx_123"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"] == mock_audit_entries
+        mock_ai_accounting.get_audit_log.assert_called_with("tx_123")
+
+
+class TestAccountingExports:
+    """Test export operations (GL CSV, trial balance JSON)."""
+
+    def test_export_gl_csv(self, ai_accounting_client):
+        """Test export general ledger returns CSV with correct headers."""
+        response = ai_accounting_client.get("/ai-accounting/export/gl")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "text/csv; charset=utf-8"
+        assert "content-disposition" in response.headers
+        assert "general_ledger.csv" in response.headers["content-disposition"]
+        assert response.content == b"csv,content,here"
+
+    def test_export_trial_balance_json(
+        self, ai_accounting_client, mock_ai_accounting
+    ):
+        """Test export trial balance returns JSON data structure."""
+        mock_ai_accounting.export_trial_balance_json.return_value = {
+            "accounts": [
+                {"account": "Office Supplies", "debit": 1000, "credit": 0},
+                {"account": "Cash", "debit": 0, "credit": 1000}
+            ],
+            "total_debit": 1000,
+            "total_credit": 1000
+        }
+
+        response = ai_accounting_client.get("/ai-accounting/export/trial-balance")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "accounts" in data["data"]
+
+    def test_export_gl_empty(self, ai_accounting_client, mock_ai_accounting):
+        """Test export with no transactions returns valid empty CSV."""
+        mock_ai_accounting.export_general_ledger_csv.return_value = ""
+
+        response = ai_accounting_client.get("/ai-accounting/export/gl")
+
+        assert response.status_code == 200
+        assert response.content == b""
+
+    def test_export_trial_balance_structure(self, ai_accounting_client):
+        """Test trial balance has expected data structure."""
+        response = ai_accounting_client.get("/ai-accounting/export/trial-balance")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+        assert isinstance(data["data"], dict)
+
+
+class TestAccountingForecasting:
+    """Test forecasting and scenario analysis endpoints."""
+
+    def test_get_forecast(self, ai_accounting_client):
+        """Test get forecast returns projection data."""
+        response = ai_accounting_client.get("/ai-accounting/forecast")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "projection" in data["data"]
+        assert len(data["data"]["projection"]) == 2
+
+        week1 = data["data"]["projection"][0]
+        assert "week" in week1
+        assert "inflow" in week1
+        assert "outflow" in week1
+        assert "net" in week1
+
+    def test_run_scenario(self, ai_accounting_client):
+        """Test scenario analyzes what-if scenario."""
+        response = ai_accounting_client.post(
+            "/ai-accounting/scenario",
+            params={
+                "workspace_id": "default",
+                "scenario_description": "Increase revenue by 20%"
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "modified_projection" in data["data"]
+
+    def test_forecast_with_workspace(self, ai_accounting_client):
+        """Test forecast with different workspace_id parameter."""
+        response = ai_accounting_client.get(
+            "/ai-accounting/forecast?workspace_id=custom_workspace"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+    def test_scenario_analysis(self, ai_accounting_client):
+        """Test scenario returns modified projection based on description."""
+        response = ai_accounting_client.post(
+            "/ai-accounting/scenario?scenario_description=Reduce%20expenses"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "data" in data
