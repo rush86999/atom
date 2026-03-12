@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-03-11)
 ## Current Position
 
 Phase: 174 of 174 (High-Impact Zero Coverage - Episodic Memory)
-Plan: 01 of 5 in current phase (COMPLETE)
+Plan: 03 of 5 in current phase (COMPLETE)
 Status: Complete
-Last activity: 2026-03-12 — Phase 174 Plan 01 COMPLETE: 27 tests created for EpisodeSegmentationService. All 7 canvas types tested with LLM context extraction. Episode creation with canvas/feedback integration tested. Segment creation with boundary splitting tested. 6 property-based tests verify segmentation invariants. 1,137 lines of test code added.
+Last activity: 2026-03-12 — Phase 174 Plan 03 COMPLETE: EpisodeLifecycleService achieved 74% coverage. 62 integration tests created (decay 13, consolidation 13, archival/importance 14, edge cases 22). 8 property-based test classes added using Hypothesis. All boundary conditions tested (0, 90, 180+ days). Decay formula verified: max(0, 1 - days_old/180). Duration: ~9 minutes.
 
-Progress: [█░░░░░░░░] 20% (1/5 plans in Phase 174)
+Progress: [███░░░] 60% (3/5 plans in Phase 174)
 
-**Next Phase:** Phase 174 Plan 02 - Episode Retrieval Service Coverage
-**Next Action:** Continue Phase 174 episodic memory coverage with Plan 02
+**Next Phase:** Phase 174 Plan 04 - EpisodeSegmentationService Coverage or next plan
+**Next Action:** Continue Phase 174 episodic memory coverage with Plan 04
 
 ## Performance Metrics
 
@@ -849,3 +849,30 @@ Next: Phase 173 Plan 03 - Cognitive tier routes API coverage or next plan in Pha
 - Production-ready LLM testing infrastructure achieved
 
 Next: Phase 174 or next phase in roadmap
+
+## Session Update: 2026-03-12
+
+**Phase 174 Plan 03 Complete:**
+- EpisodeLifecycleService coverage: Unknown → 74% (127/174 lines)
+- 62 integration tests created with 574 lines of test code
+- 8 property-based test classes added using Hypothesis (214 lines)
+- Test classes: TestDecayOperations (13), TestConsolidation (13), TestArchivalAndImportance (14), TestEdgeCases (22)
+- Decay operations tested: boundary conditions (0, 90, 180+ days), formula verification, access count increment, archival trigger
+- Consolidation tested: similarity thresholds, circular references, duplicates, LanceDB search, transaction rollback
+- Archival tested: success path, not found, timestamp verification, sync method, retrieval exclusion
+- Importance scoring tested: single/batch updates, bounds enforcement [0.0, 1.0], feedback boost, access count
+- Property tests: decay bounds (200 examples), monotonic decrease (100 examples), consolidation invariants, importance bounds, archival preservation, access count
+- Coverage report: backend_phase_174_lifecycle.json (74% line coverage)
+- Duration: ~9 minutes (544 seconds)
+- Commits: f7e0ec68c, 4a22f11c2, 96954c472, 0a8c107f6, 8f2b17f4b
+- Files created: 174-03-SUMMARY.md, backend/tests/coverage_reports/metrics/backend_phase_174_lifecycle.json
+- Files modified: backend/tests/unit/episodes/test_episode_lifecycle_service.py (+574 lines), backend/tests/property_tests/episodes/test_episode_lifecycle_invariants.py (+214 lines)
+
+**Phase 174 Plan 03 COMPLETE:**
+- All 4 tasks executed successfully (decay tests, consolidation tests, archival/importance tests, property-based tests)
+- EpisodeLifecycleService test coverage increased from unknown baseline to 74% (target was 75%, nearly met)
+- 62 comprehensive integration tests covering decay, consolidation, archival, and importance scoring
+- 8 property-based test classes verifying lifecycle invariants with Hypothesis
+- Production-ready test coverage for critical episode lifecycle functionality
+
+Next: Phase 174 Plan 04 - EpisodeSegmentationService coverage testing or next plan in Phase 174
