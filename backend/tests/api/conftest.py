@@ -1036,3 +1036,708 @@ def analytics_routes_client(mock_message_analytics, mock_correlation_engine, moc
 
         client = TestClient(app)
         yield client
+
+
+# ============================================================================
+# Feedback Analytics Fixtures (Phase 177-03)
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def mock_feedback_analytics() -> AsyncMock:
+    """
+    Mock FeedbackAnalytics service for feedback analytics routes testing.
+
+    Provides deterministic mock data for all analytics methods:
+    - get_feedback_statistics() returns summary with counts, ratios, ratings
+    - get_top_performing_agents() returns list of agent dicts
+    - get_most_corrected_agents() returns list of agent dicts
+    - get_feedback_breakdown_by_type() returns breakdown dict
+    - get_feedback_trends() returns list of daily trends
+    - get_agent_feedback_summary() returns agent-specific summary
+
+    Usage:
+        def test_feedback_dashboard(mock_feedback_analytics):
+            mock_feedback_analytics.get_feedback_statistics.return_value = {
+                "total_feedback": 100,
+                "positive_count": 75,
+                "negative_count": 25,
+                "average_rating": 4.2
+            }
+            response = client.get("/api/feedback/analytics")
+    """
+    from unittest.mock import AsyncMock
+
+    mock = AsyncMock()
+
+    # Mock get_feedback_statistics
+    mock.get_feedback_statistics = AsyncMock(return_value={
+        "total_feedback": 100,
+        "positive_count": 75,
+        "negative_count": 25,
+        "thumbs_up_count": 60,
+        "thumbs_down_count": 15,
+        "average_rating": 4.2,
+        "rating_distribution": {1: 5, 2: 8, 3: 12, 4: 30, 5: 45}
+    })
+
+    # Mock get_top_performing_agents
+    mock.get_top_performing_agents = AsyncMock(return_value=[
+        {
+            "agent_id": "agent-sales-001",
+            "agent_name": "Sales Assistant",
+            "total_feedback": 50,
+            "average_rating": 4.8,
+            "positive_ratio": 0.92
+        },
+        {
+            "agent_id": "agent-support-001",
+            "agent_name": "Support Bot",
+            "total_feedback": 35,
+            "average_rating": 4.6,
+            "positive_ratio": 0.88
+        }
+    ])
+
+    # Mock get_most_corrected_agents
+    mock.get_most_corrected_agents = AsyncMock(return_value=[
+        {
+            "agent_id": "agent-data-001",
+            "agent_name": "Data Analyst",
+            "total_corrections": 15,
+            "total_feedback": 40,
+            "correction_rate": 0.375
+        },
+        {
+            "agent_id": "agent-finance-001",
+            "agent_name": "Finance Helper",
+            "total_corrections": 12,
+            "total_feedback": 30,
+            "correction_rate": 0.40
+        }
+    ])
+
+    # Mock get_feedback_breakdown_by_type
+    mock.get_feedback_breakdown_by_type = AsyncMock(return_value={
+        "thumbs_up": 60,
+        "thumbs_down": 15,
+        "rating": 20,
+        "correction": 5
+    })
+
+    # Mock get_feedback_trends
+    mock.get_feedback_trends = AsyncMock(return_value=[
+        {
+            "date": "2026-03-01",
+            "total_feedback": 10,
+            "positive_count": 8,
+            "negative_count": 2,
+            "average_rating": 4.3
+        },
+        {
+            "date": "2026-03-02",
+            "total_feedback": 12,
+            "positive_count": 10,
+            "negative_count": 2,
+            "average_rating": 4.5
+        }
+    ])
+
+    # Mock get_agent_feedback_summary
+    mock.get_agent_feedback_summary = AsyncMock(return_value={
+        "agent_id": "agent-sales-001",
+        "agent_name": "Sales Assistant",
+        "total_feedback": 50,
+        "positive_count": 46,
+        "negative_count": 4,
+        "thumbs_up_count": 38,
+        "thumbs_down_count": 4,
+        "average_rating": 4.8,
+        "rating_distribution": {1: 0, 2: 1, 3: 3, 4: 8, 5: 38},
+        "feedback_types": {"thumbs_up": 38, "thumbs_down": 4, "rating": 8}
+    })
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def mock_agent_learning() -> AsyncMock:
+    """
+    Mock AgentLearningEnhanced service for learning signal testing.
+
+    Provides deterministic mock data for learning signals:
+    - get_learning_signals() returns learning signals dict with:
+      - improvement_suggestions: list of strings
+      - common_corrections: list of strings
+      - performance_trends: dict
+
+    Handles agent_id and days parameters.
+
+    Usage:
+        def test_agent_dashboard_learning(mock_agent_learning):
+            mock_agent_learning.get_learning_signals.return_value = {
+                "improvement_suggestions": ["Improve accuracy"],
+                "common_corrections": ["Fix calculation"],
+                "performance_trends": {"accuracy": 0.85}
+            }
+            response = client.get("/api/feedback/agent/agent-001/analytics")
+    """
+    from unittest.mock import AsyncMock
+
+    mock = AsyncMock()
+
+    # Mock get_learning_signals
+    mock.get_learning_signals = AsyncMock(return_value={
+        "improvement_suggestions": [
+            "Improve response accuracy for technical queries",
+            "Add more context to product recommendations",
+            "Reduce response time for customer inquiries"
+        ],
+        "common_corrections": [
+            "Pricing calculation errors",
+            "Product availability mismatches",
+            "Shipping estimate inaccuracies"
+        ],
+        "performance_trends": {
+            "accuracy": 0.85,
+            "response_time_ms": 450,
+            "satisfaction_score": 4.2,
+            "trend": "improving"
+        }
+    })
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def feedback_analytics_client(mock_feedback_analytics: AsyncMock) -> TestClient:
+    """
+    Create TestClient with feedback analytics router.
+
+    Uses per-file FastAPI app pattern to avoid SQLAlchemy conflicts.
+    Includes feedback_analytics.py router with mocked services.
+
+    Usage:
+        def test_feedback_dashboard(feedback_analytics_client):
+            response = feedback_analytics_client.get("/api/feedback/analytics")
+            assert response.status_code == 200
+    """
+    from fastapi import FastAPI
+    from unittest.mock import patch
+
+    app = FastAPI()
+
+    # Mock the database dependency
+    async def mock_get_db():
+        from unittest.mock import MagicMock
+        mock_db = MagicMock()
+        return mock_db
+
+    # Patch FeedbackAnalytics and AgentLearningEnhanced
+    with patch('api.feedback_analytics.FeedbackAnalytics', return_value=mock_feedback_analytics):
+        with patch('api.feedback_analytics.AgentLearningEnhanced', return_value=mock_agent_learning()):
+            from api.feedback_analytics import router
+            app.include_router(router)
+
+            # Override get_db dependency
+            app.dependency_overrides[lambda: None] = mock_get_db
+
+            client = TestClient(app)
+            yield client
+
+            # Clean up dependency override
+            app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def mock_db_session_feedback() -> MagicMock:
+    """
+    Mock Session for database dependency injection in feedback analytics.
+
+    Used for get_db dependency in feedback analytics routes.
+    Returns mock database session for testing.
+
+    Usage:
+        def test_with_mock_db(mock_db_session_feedback):
+            mock_db_session_feedback.query.return_value.first.return_value = mock_agent
+            # Test endpoint that uses get_db dependency
+    """
+    from unittest.mock import MagicMock
+    from sqlalchemy.orm import Session
+
+    mock = MagicMock(spec=Session)
+
+    # Mock query chain
+    mock_query = MagicMock()
+    mock.query = MagicMock(return_value=mock_query)
+    mock_query.filter = MagicMock(return_value=mock_query)
+    mock_query.all = MagicMock(return_value=[])
+    mock_query.first = MagicMock(return_value=None)
+
+    return mock
+
+
+# ============================================================================
+# A/B Testing Fixtures (Phase 177-04)
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def mock_ab_testing_service() -> AsyncMock:
+    """
+    Mock ABTestingService for A/B testing routes testing.
+
+    Provides deterministic test data for all service methods.
+    Simulates success and error paths for comprehensive testing.
+
+    Usage:
+        def test_create_ab_test(mock_ab_testing_service):
+            mock_ab_testing_service.create_test.return_value = {
+                "test_id": "test-123",
+                "status": "draft"
+            }
+            response = client.post("/api/ab-tests/create", json={})
+    """
+    from unittest.mock import AsyncMock
+    from datetime import datetime
+
+    mock = AsyncMock()
+
+    # create_test() - Success case
+    def create_test_success(**kwargs):
+        return {
+            "test_id": "test-123",
+            "name": kwargs.get("name", "Test A"),
+            "status": "draft",
+            "test_type": kwargs.get("test_type", "prompt"),
+            "agent_id": kwargs.get("agent_id", "test-agent"),
+            "variant_a": {
+                "name": kwargs.get("variant_a_name", "Control"),
+                "config": kwargs.get("variant_a_config", {"temperature": 0.7})
+            },
+            "variant_b": {
+                "name": kwargs.get("variant_b_name", "Treatment"),
+                "config": kwargs.get("variant_b_config", {"temperature": 0.9})
+            },
+            "primary_metric": kwargs.get("primary_metric", "satisfaction_rate"),
+            "min_sample_size": kwargs.get("min_sample_size", 100),
+            "traffic_percentage": kwargs.get("traffic_percentage", 0.5)
+        }
+
+    mock.create_test = MagicMock(side_effect=create_test_success)
+
+    # start_test() - Success case
+    def start_test_success(test_id: str):
+        return {
+            "test_id": test_id,
+            "name": "Test A",
+            "status": "running",
+            "started_at": datetime.utcnow().isoformat()
+        }
+
+    mock.start_test = MagicMock(side_effect=start_test_success)
+
+    # complete_test() - Success case
+    def complete_test_success(test_id: str):
+        return {
+            "test_id": test_id,
+            "name": "Test A",
+            "status": "completed",
+            "completed_at": datetime.utcnow().isoformat(),
+            "variant_a_metrics": {
+                "count": 150,
+                "success_count": 120,
+                "success_rate": 0.80,
+                "average_metric_value": 4.2
+            },
+            "variant_b_metrics": {
+                "count": 150,
+                "success_count": 135,
+                "success_rate": 0.90,
+                "average_metric_value": 4.7
+            },
+            "p_value": 0.02,
+            "winner": "B",
+            "min_sample_size_reached": True
+        }
+
+    mock.complete_test = MagicMock(side_effect=complete_test_success)
+
+    # assign_variant() - Success case
+    def assign_variant_success(test_id: str, user_id: str, session_id: str = None):
+        # Deterministic assignment based on user_id hash
+        import hashlib
+        hash_value = int(hashlib.sha256(f"{test_id}:{user_id}".encode()).hexdigest(), 16)
+        hash_fraction = (hash_value % 10000) / 10000.0
+        variant = "B" if hash_fraction < 0.5 else "A"
+
+        return {
+            "test_id": test_id,
+            "user_id": user_id,
+            "variant": variant,
+            "variant_name": "Control" if variant == "A" else "Treatment",
+            "config": {"temperature": 0.7} if variant == "A" else {"temperature": 0.9},
+            "existing_assignment": False
+        }
+
+    mock.assign_variant = MagicMock(side_effect=assign_variant_success)
+
+    # record_metric() - Success case
+    def record_metric_success(test_id: str, user_id: str, **kwargs):
+        return {
+            "test_id": test_id,
+            "user_id": user_id,
+            "variant": "A",
+            "success": kwargs.get("success"),
+            "metric_value": kwargs.get("metric_value"),
+            "recorded_at": datetime.utcnow().isoformat()
+        }
+
+    mock.record_metric = MagicMock(side_effect=record_metric_success)
+
+    # get_test_results() - Success case
+    def get_test_results_success(test_id: str):
+        return {
+            "test_id": test_id,
+            "name": "Test A",
+            "status": "completed",
+            "test_type": "prompt",
+            "primary_metric": "satisfaction_rate",
+            "variant_a": {
+                "name": "Control",
+                "participant_count": 150,
+                "metrics": {
+                    "count": 150,
+                    "success_count": 120,
+                    "success_rate": 0.80,
+                    "average_metric_value": 4.2
+                }
+            },
+            "variant_b": {
+                "name": "Treatment",
+                "participant_count": 150,
+                "metrics": {
+                    "count": 150,
+                    "success_count": 135,
+                    "success_rate": 0.90,
+                    "average_metric_value": 4.7
+                }
+            },
+            "winner": "B",
+            "statistical_significance": 0.02,
+            "started_at": datetime.utcnow().isoformat(),
+            "completed_at": datetime.utcnow().isoformat()
+        }
+
+    mock.get_test_results = MagicMock(side_effect=get_test_results_success)
+
+    # list_tests() - Success case
+    def list_tests_success(agent_id: str = None, status: str = None, limit: int = 50):
+        tests = [
+            {
+                "test_id": "test-123",
+                "name": "Test A",
+                "status": "running",
+                "test_type": "prompt",
+                "agent_id": "agent-1",
+                "primary_metric": "satisfaction_rate",
+                "winner": None,
+                "created_at": datetime.utcnow().isoformat()
+            },
+            {
+                "test_id": "test-456",
+                "name": "Test B",
+                "status": "completed",
+                "test_type": "agent_config",
+                "agent_id": "agent-2",
+                "primary_metric": "success_rate",
+                "winner": "B",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        ]
+
+        # Filter by agent_id if provided
+        if agent_id:
+            tests = [t for t in tests if t["agent_id"] == agent_id]
+
+        # Filter by status if provided
+        if status:
+            tests = [t for t in tests if t["status"] == status]
+
+        # Apply limit
+        tests = tests[:limit]
+
+        return {
+            "total": len(tests),
+            "tests": tests
+        }
+
+    mock.list_tests = MagicMock(side_effect=list_tests_success)
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def sample_test_request() -> dict:
+    """
+    Factory for CreateTestRequest with valid default values.
+
+    Provides valid test configuration data for creating A/B tests.
+    All fields have sensible defaults that can be overridden.
+
+    Usage:
+        def test_create_test(sample_test_request):
+            data = sample_test_request.copy()
+            data["name"] = "Custom Test"
+            response = client.post("/api/ab-tests/create", json=data)
+    """
+    return {
+        "name": "Test A",
+        "test_type": "prompt",
+        "agent_id": "test-agent",
+        "variant_a_config": {"temperature": 0.7},
+        "variant_b_config": {"temperature": 0.9},
+        "primary_metric": "satisfaction_rate",
+        "traffic_percentage": 0.5,
+        "min_sample_size": 100,
+        "confidence_level": 0.95
+    }
+
+
+@pytest.fixture(scope="function")
+def ab_testing_client() -> TestClient:
+    """
+    TestClient with A/B testing router.
+
+    Creates per-file FastAPI app with ab_testing router.
+    Avoids SQLAlchemy metadata conflicts by not importing main app.
+
+    Usage:
+        def test_ab_endpoint(ab_testing_client):
+            response = ab_testing_client.get("/api/ab-tests")
+            assert response.status_code == 200
+    """
+    from fastapi import FastAPI
+    from api.ab_testing import router
+
+    app = FastAPI()
+    app.include_router(router, prefix="/api/ab-tests")
+
+    return TestClient(app)
+
+
+@pytest.fixture(scope="function")
+def mock_db_session() -> Session:
+    """
+    Mock Session for database dependency injection.
+
+    Used to override get_db dependency in API routes.
+    Provides deterministic mock database for testing.
+
+    Usage:
+        def test_with_mock_db(mock_db_session, ab_testing_client):
+            # Override get_db dependency
+            def override_get_db():
+                yield mock_db_session
+
+            app.dependency_overrides[get_db] = override_get_db
+            # Make requests...
+    """
+    from unittest.mock import MagicMock
+    from sqlalchemy.orm import Session
+
+    mock = MagicMock(spec=Session)
+
+    # Mock common session methods
+    mock.add = MagicMock()
+    mock.commit = MagicMock()
+    mock.rollback = MagicMock()
+    mock.refresh = MagicMock()
+    mock.query = MagicMock()
+    mock.flush = MagicMock()
+    mock.close = MagicMock()
+
+    return mock
+
+
+# ============================================================================
+# Workflow Analytics Dashboard Fixtures (Phase 177-01)
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def mock_workflow_analytics() -> AsyncMock:
+    """
+    AsyncMock for WorkflowAnalyticsEngine with deterministic return values.
+
+    Provides complete mock for all workflow analytics operations including:
+    - Performance metrics (executions, success rate, duration)
+    - Workflow metadata (names, IDs, execution times)
+    - Execution timeline data
+    - Error breakdown
+    - Alerts management
+    - Real-time events
+
+    Usage:
+        def test_get_dashboard_kpis(mock_workflow_analytics):
+            mock_workflow_analytics.get_performance_metrics.return_value = test_metrics
+            response = client.get("/api/analytics/dashboard/kpis")
+            assert response.status_code == 200
+    """
+    from datetime import datetime, timedelta
+    from unittest.mock import AsyncMock
+
+    mock = AsyncMock()
+
+    # Mock get_performance_metrics
+    from collections import namedtuple
+    PerformanceMetrics = namedtuple('PerformanceMetrics', [
+        'total_executions', 'successful_executions', 'failed_executions',
+        'success_rate', 'average_duration_ms', 'median_duration_ms',
+        'p95_duration_ms', 'p99_duration_ms', 'error_rate', 'unique_users',
+        'executions_by_user', 'most_common_errors', 'average_step_duration'
+    ])
+
+    mock_metrics = PerformanceMetrics(
+        total_executions=100,
+        successful_executions=95,
+        failed_executions=5,
+        success_rate=95.0,
+        average_duration_ms=1500.0,
+        median_duration_ms=1200.0,
+        p95_duration_ms=3000.0,
+        p99_duration_ms=5000.0,
+        error_rate=5.0,
+        unique_users=10,
+        executions_by_user={},
+        most_common_errors=[],
+        average_step_duration={}
+    )
+    mock.get_performance_metrics.return_value = mock_metrics
+
+    # Mock get_all_workflow_ids
+    mock.get_all_workflow_ids.return_value = [
+        "workflow-001",
+        "workflow-002",
+        "workflow-003"
+    ]
+
+    # Mock get_workflow_name
+    def get_workflow_name(workflow_id: str) -> str:
+        names = {
+            "workflow-001": "Data Import Pipeline",
+            "workflow-002": "Email Campaign",
+            "workflow-003": "Report Generation"
+        }
+        return names.get(workflow_id, workflow_id)
+
+    mock.get_workflow_name.side_effect = get_workflow_name
+
+    # Mock get_last_execution_time
+    mock.get_last_execution_time.return_value = datetime.now()
+
+    # Mock get_execution_timeline
+    from collections import namedtuple
+    ExecutionTimelineData = namedtuple('ExecutionTimelineData', [
+        'timestamp', 'count', 'success_count', 'failure_count', 'average_duration_ms'
+    ])
+
+    mock_timeline_data = [
+        ExecutionTimelineData(
+            timestamp=datetime.now() - timedelta(hours=1),
+            count=10,
+            success_count=9,
+            failure_count=1,
+            average_duration_ms=1500.0
+        )
+    ]
+    mock.get_execution_timeline.return_value = mock_timeline_data
+
+    # Mock get_error_breakdown
+    mock.get_error_breakdown.return_value = {
+        "ValidationError": 15,
+        "TimeoutError": 8,
+        "ConnectionError": 5
+    }
+
+    # Mock get_all_alerts
+    from collections import namedtuple
+    Alert = namedtuple('Alert', [
+        'alert_id', 'name', 'description', 'severity', 'metric_name',
+        'condition', 'threshold_value', 'workflow_id', 'enabled',
+        'created_at', 'notification_channels'
+    ])
+
+    mock_alerts = [
+        Alert(
+            alert_id="alert-001",
+            name="High Error Rate",
+            description="Error rate exceeds 5%",
+            severity="high",
+            metric_name="error_rate",
+            condition="error_rate > 5",
+            threshold_value=5.0,
+            workflow_id="workflow-001",
+            enabled=True,
+            created_at=datetime.now(),
+            notification_channels=[]
+        )
+    ]
+    mock.get_all_alerts.return_value = mock_alerts
+
+    # Mock get_recent_events
+    from collections import namedtuple
+    RealtimeExecutionEvent = namedtuple('RealtimeExecutionEvent', [
+        'event_id', 'workflow_id', 'workflow_name', 'execution_id',
+        'event_type', 'timestamp', 'status', 'duration_ms', 'user_id'
+    ])
+
+    mock_events = [
+        RealtimeExecutionEvent(
+            event_id="event-001",
+            workflow_id="workflow-001",
+            workflow_name="Data Import Pipeline",
+            execution_id="exec-001",
+            event_type="workflow.completed",
+            timestamp=datetime.now(),
+            status="completed",
+            duration_ms=1500,
+            user_id="user-001"
+        )
+    ]
+    mock.get_recent_events.return_value = mock_events
+
+    # Mock create_alert
+    mock.create_alert.return_value = "alert-002"
+
+    # Mock update_alert
+    mock.update_alert.return_value = True
+
+    # Mock delete_alert
+    mock.delete_alert.return_value = True
+
+    # Mock get_unique_workflow_count
+    mock.get_unique_workflow_count.return_value = 3
+
+    return mock
+
+
+@pytest.fixture(scope="function")
+def analytics_dashboard_test_client() -> TestClient:
+    """
+    TestClient with analytics dashboard router included.
+
+    Uses per-file FastAPI app pattern to avoid SQLAlchemy metadata conflicts.
+    Includes both analytics_dashboard_routes.py and analytics_dashboard_endpoints.py.
+
+    Usage:
+        def test_analytics_endpoint(analytics_dashboard_test_client):
+            response = analytics_dashboard_test_client.get("/api/analytics/dashboard/kpis")
+            assert response.status_code == 200
+    """
+    from fastapi import FastAPI
+    from api.analytics_dashboard_routes import router as message_analytics_router
+    from api.analytics_dashboard_endpoints import router as dashboard_router
+
+    app = FastAPI()
+    app.include_router(message_analytics_router)
+    app.include_router(dashboard_router)
+
+    return TestClient(app)
