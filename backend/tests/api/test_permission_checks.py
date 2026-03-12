@@ -321,3 +321,149 @@ class TestRequirePermissionDependency:
 
         # They should be different callables
         assert agent_run_checker != agent_manage_checker
+
+
+# ============================================================================
+# Task 4: Test WebSocket authentication
+# ============================================================================
+
+class TestWebSocketAuth:
+    """Test get_current_user_websocket function."""
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_websocket_valid_token(self):
+        """Valid token returns User."""
+        from core.security_dependencies import get_current_user_websocket
+        from unittest.mock import Mock
+
+        # Mock WebSocket
+        websocket = Mock()
+
+        # Mock decode_token - need to patch where it's used
+        with patch('core.security_dependencies.decode_token') as mock_decode:
+            mock_decode.return_value = {"sub": "user-123"}
+
+            # Mock database session
+            mock_db = Mock()
+            mock_user = Mock()
+            mock_user.id = "user-123"
+            mock_user.email = "test@example.com"
+            mock_user.role = "member"
+            mock_db.query.return_value.filter.return_value.first.return_value = mock_user
+
+            result = await get_current_user_websocket(websocket, "valid_token", mock_db)
+
+            assert result is not None
+            assert result.id == "user-123"
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_websocket_invalid_token(self):
+        """Invalid token returns None."""
+        from core.security_dependencies import get_current_user_websocket
+
+        # Mock WebSocket
+        websocket = Mock()
+
+        # Mock decode_token to raise exception
+        with patch('core.security_dependencies.decode_token') as mock_decode:
+            mock_decode.side_effect = Exception("Invalid token")
+
+            result = await get_current_user_websocket(websocket, "invalid_token", None)
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_websocket_missing_sub(self):
+        """Token without sub returns None."""
+        from core.security_dependencies import get_current_user_websocket
+
+        # Mock WebSocket
+        websocket = Mock()
+
+        # Mock decode_token with no sub
+        with patch('core.security_dependencies.decode_token') as mock_decode:
+            mock_decode.return_value = {"exp": 1234567890}  # No sub
+
+            result = await get_current_user_websocket(websocket, "no_sub_token", None)
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_websocket_with_db(self):
+        """Token + db session returns User from DB."""
+        from core.security_dependencies import get_current_user_websocket
+        from core.models import User
+
+        # Mock WebSocket
+        websocket = Mock()
+
+        # Mock decode_token
+        with patch('core.security_dependencies.decode_token') as mock_decode:
+            mock_decode.return_value = {"sub": "user-456"}
+
+            # Mock database session
+            mock_db = Mock()
+            mock_user = Mock(spec=User)
+            mock_user.id = "user-456"
+            mock_user.email = "dbuser@example.com"
+            mock_user.role = "admin"
+            mock_db.query.return_value.filter.return_value.first.return_value = mock_user
+
+            result = await get_current_user_websocket(websocket, "valid_token", mock_db)
+
+            assert result is not None
+            assert result.id == "user-456"
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_websocket_without_db(self):
+        """Token without db returns None."""
+        from core.security_dependencies import get_current_user_websocket
+
+        # Mock WebSocket
+        websocket = Mock()
+
+        # Mock decode_token
+        with patch('core.security_dependencies.decode_token') as mock_decode:
+            mock_decode.return_value = {"sub": "user-789"}
+
+            # No database session
+            result = await get_current_user_websocket(websocket, "valid_token", db=None)
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_websocket_user_not_found(self):
+        """Valid token but user missing returns None."""
+        from core.security_dependencies import get_current_user_websocket
+        from core.models import User
+
+        # Mock WebSocket
+        websocket = Mock()
+
+        # Mock decode_token
+        with patch('core.security_dependencies.decode_token') as mock_decode:
+            mock_decode.return_value = {"sub": "nonexistent-user"}
+
+            # Mock database session returning None
+            mock_db = Mock()
+            mock_db.query.return_value.filter.return_value.first.return_value = None
+
+            result = await get_current_user_websocket(websocket, "valid_token", mock_db)
+
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_websocket_exception_handling(self):
+        """Exception returns None."""
+        from core.security_dependencies import get_current_user_websocket
+
+        # Mock WebSocket
+        websocket = Mock()
+
+        # Mock decode_token to raise exception
+        with patch('core.security_dependencies.decode_token') as mock_decode:
+            mock_decode.side_effect = Exception("Database error")
+
+            result = await get_current_user_websocket(websocket, "token", None)
+
+            assert result is None
