@@ -294,7 +294,12 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. Agent guidance routes achieve 75%+ line coverage
   3. Admin routes achieve 75%+ line coverage
   4. Background agent routes achieve 75%+ line coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 5 plans
+- [ ] 172-01-PLAN.md — Agent governance routes coverage (13 endpoints, 30+ tests)
+- [ ] 172-02-PLAN.md — Agent guidance routes coverage (14 endpoints, 42+ tests)
+- [ ] 172-03-PLAN.md — Admin routes coverage Part 1: User/Role management (27 endpoints, 40+ tests)
+- [ ] 172-04-PLAN.md — Admin routes coverage Part 2: WebSocket/Rating sync/Conflicts (14 endpoints, 46+ tests)
+- [ ] 172-05-PLAN.md — Background agent routes coverage (7 endpoints, 20+ tests)
 **Estimated Coverage**: 12.50%
 
 ### Phase 173: High-Impact Zero Coverage (LLM)
@@ -306,7 +311,12 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
   2. BYOK handler achieves 75%+ line coverage
   3. Cognitive tier system achieves 75%+ line coverage
   4. LLM integration tests achieve 75%+ line coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 5 plans
+- [ ] 173-01-PLAN.md — Cognitive tier routes coverage (6 endpoints, 30+ tests)
+- [ ] 173-02-PLAN.md — BYOK handler missing methods (streaming, cognitive tier, structured response, vision)
+- [ ] 173-03-PLAN.md — Cognitive tier system & escalation manager (property-based tests)
+- [ ] 173-04-PLAN.md — LLM integration tests (end-to-end workflows with mocked providers)
+- [ ] 173-05-PLAN.md — Atom agent endpoints coverage (chat, sessions, streaming, intent routing)
 **Estimated Coverage**: 16.50%
 
 ### Phase 174: High-Impact Zero Coverage (Episodic Memory)
@@ -527,7 +537,7 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 169. Tools & Integrations Coverage | v5.4 | 5/5 | Complete | 2026-03-11 |
 | 170. Integration Testing (LanceDB, WebSocket, HTTP) | v5.4 | 3/3 | Complete | 2026-03-11 |
 | 171. Gap Closure & Final Push | v5.4 | 6/6 | Complete | 2026-03-11 |
-| 172. High-Impact Zero Coverage (Governance) | v5.5 | TBD | Pending | - |
+| 172. High-Impact Zero Coverage (Governance) | v5.5 | 5 | Pending | - |
 | 173. High-Impact Zero Coverage (LLM) | v5.5 | TBD | Pending | - |
 | 174. High-Impact Zero Coverage (Episodic Memory) | v5.5 | TBD | Pending | - |
 | 175. High-Impact Zero Coverage (Tools) | v5.5 | TBD | Pending | - |
