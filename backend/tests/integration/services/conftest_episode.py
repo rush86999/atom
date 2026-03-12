@@ -1,8 +1,8 @@
 """
-Episode service test fixtures with accounting module workaround.
+Episode service test fixtures.
 
-Avoids SQLAlchemy metadata conflicts by preventing accounting.models import.
-Phase 165 known issue: Duplicate Transaction model in core/models.py and accounting/models.py
+Phase 171: SQLAlchemy conflicts resolved (duplicate models removed from core/models.py)
+No accounting module workaround needed anymore.
 """
 
 import os
@@ -18,47 +18,12 @@ from uuid import uuid4
 # Set TESTING environment variable BEFORE any imports
 os.environ["TESTING"] = "1"
 
-# CRITICAL WORKAROUND: Prevent accounting.models import before any model imports
-# This prevents "Table 'accounting_transactions' is already defined" error
-import sys
-from types import ModuleType
-from unittest.mock import MagicMock
-
-# Create a mock accounting module BEFORE any imports
-class MockAccount:
-    pass
-
-class MockTransaction:
-    pass
-
-class MockJournalEntry:
-    pass
-
-class MockEntity:
-    pass
-
-class MockInvoice:
-    pass
-
-mock_accounting = ModuleType('accounting')
-mock_accounting.models = MagicMock()
-mock_accounting.models.Account = MockAccount
-mock_accounting.models.Transaction = MockTransaction
-mock_accounting.models.JournalEntry = MockJournalEntry
-mock_accounting.models.Entity = MockEntity
-mock_accounting.models.Invoice = MockInvoice
-mock_accounting.models.InvoiceStatus = MagicMock()
-mock_accounting.models.EntityType = MagicMock()
-mock_accounting.models.EntryType = MagicMock()
-
-sys.modules['accounting'] = mock_accounting
-sys.modules['accounting.models'] = mock_accounting.models
-
 # Add parent directory to path for imports
 from pathlib import Path
+import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-# NOW safe to import models
+# Import models normally (no mock needed)
 from core.database import Base
 from core.episode_segmentation_service import EpisodeSegmentationService, EpisodeBoundaryDetector
 from core.models import (

@@ -9,39 +9,10 @@ Target: 80%+ coverage for episode logic:
 - Feedback aggregation
 
 Tests mock LanceDB to focus on segmentation/retrieval algorithms.
+
+Phase 171: SQLAlchemy conflicts resolved (duplicate models removed from core/models.py)
+No accounting module workaround needed anymore.
 """
-
-# CRITICAL: Patch accounting module BEFORE any imports to avoid SQLAlchemy conflicts
-# Phase 165 known issue: Duplicate Transaction, JournalEntry, Account in core/models.py and accounting/models.py
-import sys
-from types import ModuleType
-from unittest.mock import MagicMock
-
-class MockAccount:
-    """Mock Account class for avoiding SQLAlchemy conflicts"""
-    pass
-
-class MockTransaction:
-    """Mock Transaction class for avoiding SQLAlchemy conflicts"""
-    pass
-
-class MockJournalEntry:
-    """Mock JournalEntry class for avoiding SQLAlchemy conflicts"""
-    pass
-
-# Create mock accounting module
-mock_accounting = ModuleType('accounting')
-mock_accounting.models = MagicMock()
-mock_accounting.models.Account = MockAccount
-mock_accounting.models.Transaction = MockTransaction
-mock_accounting.models.JournalEntry = MockJournalEntry
-mock_accounting.models.Entity = MagicMock()
-mock_accounting.models.Invoice = MagicMock()
-mock_accounting.models.InvoiceStatus = MagicMock()
-mock_accounting.models.EntityType = MagicMock()
-mock_accounting.models.EntryType = MagicMock()
-sys.modules['accounting'] = mock_accounting
-sys.modules['accounting.models'] = mock_accounting.models
 
 import pytest
 from datetime import datetime, timezone, timedelta
