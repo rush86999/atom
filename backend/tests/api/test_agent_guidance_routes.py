@@ -1198,11 +1198,27 @@ def test_create_permission_request_success(
         with patch('api.agent_guidance_routes.get_agent_request_manager') as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager.return_value = mock_manager_instance
-            mock_manager_instance.create_permission_request = AsyncMock(return_value=str(uuid.uuid4()))
+            test_request_id = str(uuid.uuid4())
+            mock_manager_instance.create_permission_request = AsyncMock(return_value=test_request_id)
 
             response = client.post("/api/agent-guidance/request/permission", json=request_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "data" in data
+            assert "request_id" in data["data"]
+            assert data["data"]["request_id"] == test_request_id
+
+            # Verify all parameters passed
+            mock_manager_instance.create_permission_request.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                title="File Access Permission",
+                permission="read_write",
+                context={"file_path": "/data/test.csv"},
+                urgency="medium",
+                expires_in=None
+            )
 
 
 def test_create_permission_request_with_expiration(
@@ -1226,11 +1242,56 @@ def test_create_permission_request_with_expiration(
         with patch('api.agent_guidance_routes.get_agent_request_manager') as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager.return_value = mock_manager_instance
-            mock_manager_instance.create_permission_request = AsyncMock(return_value=str(uuid.uuid4()))
+            test_request_id = str(uuid.uuid4())
+            mock_manager_instance.create_permission_request = AsyncMock(return_value=test_request_id)
 
             response = client.post("/api/agent-guidance/request/permission", json=request_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify expiration time handling
+            mock_manager_instance.create_permission_request.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                title="Urgent Permission",
+                permission="execute",
+                context={},
+                urgency="high",
+                expires_in=3600
+            )
+
+
+def test_create_permission_request_all_urgency_levels(
+    client: TestClient,
+    db: Session,
+    mock_user: User
+):
+    """Test creating permission requests with all urgency levels."""
+    for urgency in ["low", "medium", "high"]:
+        request_data = {
+            "agent_id": "test_agent",
+            "title": f"Permission Request - {urgency}",
+            "permission": "read",
+            "context": {},
+            "urgency": urgency
+        }
+
+        with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+            mock_auth.return_value = mock_user
+
+            with patch('api.agent_guidance_routes.get_agent_request_manager') as mock_manager:
+                mock_manager_instance = MagicMock()
+                mock_manager.return_value = mock_manager_instance
+                test_request_id = str(uuid.uuid4())
+                mock_manager_instance.create_permission_request = AsyncMock(return_value=test_request_id)
+
+                response = client.post("/api/agent-guidance/request/permission", json=request_data)
+
+                assert response.status_code == 200
+
+                # Verify urgency level passed correctly
+                call_args = mock_manager_instance.create_permission_request.call_args
+                assert call_args[1]["urgency"] == urgency
 
 
 # ============================================================================
@@ -1258,11 +1319,28 @@ def test_create_decision_request_success(
         with patch('api.agent_guidance_routes.get_agent_request_manager') as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager.return_value = mock_manager_instance
-            mock_manager_instance.create_decision_request = AsyncMock(return_value=str(uuid.uuid4()))
+            test_request_id = str(uuid.uuid4())
+            mock_manager_instance.create_decision_request = AsyncMock(return_value=test_request_id)
 
             response = client.post("/api/agent-guidance/request/decision", json=request_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "data" in data
+            assert "request_id" in data["data"]
+
+            # Verify options list passed
+            mock_manager_instance.create_decision_request.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                title="Choose Data Source",
+                explanation="Multiple data sources available",
+                options=["Database", "API", "File"],
+                context={},
+                urgency="low",
+                suggested_option=0,
+                expires_in=None
+            )
 
 
 def test_create_decision_request_with_suggestion(
@@ -1287,11 +1365,68 @@ def test_create_decision_request_with_suggestion(
         with patch('api.agent_guidance_routes.get_agent_request_manager') as mock_manager:
             mock_manager_instance = MagicMock()
             mock_manager.return_value = mock_manager_instance
-            mock_manager_instance.create_decision_request = AsyncMock(return_value=str(uuid.uuid4()))
+            test_request_id = str(uuid.uuid4())
+            mock_manager_instance.create_decision_request = AsyncMock(return_value=test_request_id)
 
             response = client.post("/api/agent-guidance/request/decision", json=request_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify suggestion included in call
+            mock_manager_instance.create_decision_request.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                title="Select Algorithm",
+                explanation="Choose processing algorithm",
+                options=["Algorithm A", "Algorithm B", "Algorithm C"],
+                context={},
+                urgency="medium",
+                suggested_option=1,
+                expires_in=None
+            )
+
+
+def test_create_decision_request_with_expiration(
+    client: TestClient,
+    db: Session,
+    mock_user: User
+):
+    """Test decision request with expires_in parameter."""
+    request_data = {
+        "agent_id": "test_agent",
+        "title": "Time-Sensitive Decision",
+        "explanation": "Need user input quickly",
+        "options": ["Option A", "Option B"],
+        "context": {},
+        "urgency": "high",
+        "expires_in": 1800  # 30 minutes
+    }
+
+    with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+        mock_auth.return_value = mock_user
+
+        with patch('api.agent_guidance_routes.get_agent_request_manager') as mock_manager:
+            mock_manager_instance = MagicMock()
+            mock_manager.return_value = mock_manager_instance
+            test_request_id = str(uuid.uuid4())
+            mock_manager_instance.create_decision_request = AsyncMock(return_value=test_request_id)
+
+            response = client.post("/api/agent-guidance/request/decision", json=request_data)
+
+            assert response.status_code == 200
+
+            # Verify expires_in parameter passed
+            mock_manager_instance.create_decision_request.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                title="Time-Sensitive Decision",
+                explanation="Need user input quickly",
+                options=["Option A", "Option B"],
+                context={},
+                urgency="high",
+                suggested_option=0,
+                expires_in=1800
+            )
 
 
 # ============================================================================
@@ -1306,7 +1441,6 @@ def test_respond_to_request_success(
 ):
     """Test responding to request successfully."""
     response_data = {
-        "request_id": mock_request.request_id,
         "response": {
             "approved": True,
             "comments": "Permission granted"
@@ -1326,7 +1460,16 @@ def test_respond_to_request_success(
                 json=response_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify handle_response called with response data
+            mock_manager_instance.handle_response.assert_called_once_with(
+                user_id=mock_user.id,
+                request_id=mock_request.request_id,
+                response={"approved": True, "comments": "Permission granted"}
+            )
 
 
 def test_respond_to_request_deny(
@@ -1337,7 +1480,6 @@ def test_respond_to_request_deny(
 ):
     """Test denying request."""
     response_data = {
-        "request_id": mock_request.request_id,
         "response": {
             "approved": False,
             "reason": "Not authorized"
@@ -1357,7 +1499,52 @@ def test_respond_to_request_deny(
                 json=response_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify negative response handling
+            mock_manager_instance.handle_response.assert_called_once_with(
+                user_id=mock_user.id,
+                request_id=mock_request.request_id,
+                response={"approved": False, "reason": "Not authorized"}
+            )
+
+
+def test_respond_to_request_with_custom_response(
+    client: TestClient,
+    db: Session,
+    mock_user: User,
+    mock_request: AgentRequestLog
+):
+    """Test complex response object with multiple fields."""
+    response_data = {
+        "response": {
+            "approved": True,
+            "selected_option": 2,
+            "comments": "Option 2 looks best",
+            "additional_context": {"preference": "cost", "budget": 1000}
+        }
+    }
+
+    with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+        mock_auth.return_value = mock_user
+
+        with patch('api.agent_guidance_routes.get_agent_request_manager') as mock_manager:
+            mock_manager_instance = MagicMock()
+            mock_manager.return_value = mock_manager_instance
+            mock_manager_instance.handle_response = AsyncMock()
+
+            response = client.post(
+                f"/api/agent-guidance/request/{mock_request.request_id}/respond",
+                json=response_data
+            )
+
+            assert response.status_code == 200
+
+            # Verify complex response structure passed
+            mock_manager_instance.handle_response.assert_called_once()
+            call_args = mock_manager_instance.handle_response.call_args
+            assert call_args[1]["response"]["selected_option"] == 2
+            assert "additional_context" in call_args[1]["response"]
 
 
 # ============================================================================
@@ -1376,10 +1563,21 @@ def test_get_request_success(
 
         response = client.get(f"/api/agent-guidance/request/{mock_request.request_id}")
 
-        assert response.status_code in [200, 404, 500]
-        if response.status_code == 200:
-            data = response.json()
-            assert "request" in data or "data" in data
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+        assert "request" in data["data"]
+
+        # Verify request serialization with all fields
+        request = data["data"]["request"]
+        assert request["request_id"] == mock_request.request_id
+        assert request["agent_id"] == mock_request.agent_id
+        assert request["request_type"] == mock_request.request_type
+        assert "request_data" in request
+        assert "created_at" in request
+        assert "responded_at" in request
+        assert "expires_at" in request
+        assert "revoked" in request
 
 
 def test_get_request_not_found(
@@ -1396,3 +1594,43 @@ def test_get_request_not_found(
         response = client.get(f"/api/agent-guidance/request/{fake_id}")
 
         assert response.status_code == 404
+        data = response.json()
+        assert "error" in data or "message" in data
+
+
+def test_get_request_with_response(
+    client: TestClient,
+    db: Session,
+    mock_user: User
+):
+    """Test getting request that already has user_response."""
+    request_id = str(uuid.uuid4())
+
+    # Create request with response
+    from datetime import datetime
+    test_request = AgentRequestLog(
+        request_id=request_id,
+        user_id=mock_user.id,
+        agent_id="test_agent",
+        request_type="permission",
+        request_data={"permission": "read"},
+        status="approved",
+        user_response={"approved": True},
+        created_at=datetime.utcnow(),
+        responded_at=datetime.utcnow()
+    )
+    db.add(test_request)
+    db.commit()
+
+    with patch('api.agent_guidance_routes.get_current_user') as mock_auth:
+        mock_auth.return_value = mock_user
+
+        response = client.get(f"/api/agent-guidance/request/{request_id}")
+
+        assert response.status_code == 200
+        data = response.json()
+        request = data["data"]["request"]
+
+        # Verify responded_at timestamp included
+        assert request["responded_at"] is not None
+        assert request["user_response"]["approved"] is True
