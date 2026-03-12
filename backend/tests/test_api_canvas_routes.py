@@ -1010,6 +1010,46 @@ class TestCanvasSubmitEdgeCases:
         data = response.json()
         assert data["success"] is True
 
+    def test_submission_completion_exception_handling(
+        self,
+        client_with_auth,
+        canvas_submission_request,
+        autonomous_agent,
+        mock_ws_manager,
+        mock_canvas_governance,
+        db_session
+    ):
+        """Test completion failure is logged but doesn't affect response."""
+        mock_canvas_governance.allow()
+        request = canvas_submission_request(agent_id=autonomous_agent.id)
+
+        # Mock FeatureFlags to return True for completion check
+        with patch('api.canvas_routes.FeatureFlags.should_enforce_governance', return_value=True):
+            # Mock db.commit to fail on second call (during completion)
+            original_commit = db_session.commit
+            call_count = [0]
+
+            def failing_commit():
+                call_count[0] += 1
+                # Fail on 3rd call (2 commits during execution creation, 1 during completion)
+                if call_count[0] >= 3:
+                    raise Exception("Database connection lost during completion")
+                return original_commit()
+
+            with patch('api.canvas_routes.ws_manager', mock_ws_manager):
+                with patch('core.service_factory.ServiceFactory.get_governance_service',
+                          return_value=mock_canvas_governance):
+                    with patch.object(db_session, 'commit', side_effect=failing_commit):
+                        response = client_with_auth.post(
+                            "/api/canvas/submit",
+                            json=request
+                        )
+
+            # Response should still be valid (completion exception is caught)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+
 
 # ============================================================================
 # Test: Canvas Request Fixtures Usage
