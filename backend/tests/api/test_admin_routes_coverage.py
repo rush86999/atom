@@ -49,8 +49,26 @@ def test_db():
         poolclass=StaticPool
     )
 
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    # Create only the tables we need for admin routes testing
+    # This avoids JSONB/SQLite incompatibility issues with other models
+    from core.models import (
+        AdminUser, AdminRole, User, WebSocketState,
+        FailedRatingUpload, SkillRating, ConflictLog, SkillCache,
+        CustomRole, Tenant, WorkflowTemplate
+    )
+
+    # Create tables individually using Table.create()
+    Tenant.__table__.create(bind=engine, checkfirst=True)
+    CustomRole.__table__.create(bind=engine, checkfirst=True)
+    User.__table__.create(bind=engine, checkfirst=True)
+    WorkflowTemplate.__table__.create(bind=engine, checkfirst=True)
+    AdminUser.__table__.create(bind=engine, checkfirst=True)
+    AdminRole.__table__.create(bind=engine, checkfirst=True)
+    WebSocketState.__table__.create(bind=engine, checkfirst=True)
+    FailedRatingUpload.__table__.create(bind=engine, checkfirst=True)
+    SkillRating.__table__.create(bind=engine, checkfirst=True)
+    ConflictLog.__table__.create(bind=engine, checkfirst=True)
+    SkillCache.__table__.create(bind=engine, checkfirst=True)
 
     # Create session
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -60,7 +78,18 @@ def test_db():
 
     # Cleanup
     db.close()
-    Base.metadata.drop_all(bind=engine)
+    # Drop tables individually
+    SkillCache.__table__.drop(bind=engine)
+    ConflictLog.__table__.drop(bind=engine)
+    SkillRating.__table__.drop(bind=engine)
+    FailedRatingUpload.__table__.drop(bind=engine)
+    WebSocketState.__table__.drop(bind=engine)
+    AdminUser.__table__.drop(bind=engine)
+    AdminRole.__table__.drop(bind=engine)
+    WorkflowTemplate.__table__.drop(bind=engine)
+    User.__table__.drop(bind=engine)
+    CustomRole.__table__.drop(bind=engine)
+    Tenant.__table__.drop(bind=engine)
 
 
 @pytest.fixture(scope="function")
