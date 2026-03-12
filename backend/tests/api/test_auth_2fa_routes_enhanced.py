@@ -498,6 +498,201 @@ class TestTwoFactorEnable:
 
 
 # ============================================================================
+# Test: 2FA Disable Endpoint
+# ============================================================================
+
+class TestTwoFactorDisable:
+    """Test POST /api/auth/2fa/disable endpoint."""
+
+    @pytest.fixture
+    def mock_user(self):
+        """Create mock user with 2FA enabled."""
+        user = Mock(spec=User)
+        user.id = "user-disable"
+        user.email = "disable@example.com"
+        user.two_factor_enabled = True
+        user.two_factor_secret = "SECRET_TO_DISABLE"
+        user.two_factor_backup_codes = ["BACKUP-CODE-1"]
+        return user
+
+    @pytest.fixture
+    def mock_user_not_enabled(self):
+        """Create mock user with 2FA disabled."""
+        user = Mock(spec=User)
+        user.id = "user-not-enabled"
+        user.email = "not-enabled@example.com"
+        user.two_factor_enabled = False
+        user.two_factor_secret = None
+        user.two_factor_backup_codes = None
+        return user
+
+    @pytest.fixture
+    def mock_db(self):
+        """Create mock database session."""
+        db = Mock(spec=Session)
+        return db
+
+    @pytest.fixture
+    def client(self, mock_user, mock_db):
+        """Create test client with auth override and db mock."""
+        from core.database import get_db
+
+        app = create_test_app()
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        app.dependency_overrides[get_db] = lambda: mock_db
+
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.fixture
+    def client_not_enabled(self, mock_user_not_enabled, mock_db):
+        """Create test client with 2FA not enabled."""
+        from core.database import get_db
+
+        app = create_test_app()
+        app.dependency_overrides[get_current_user] = lambda: mock_user_not_enabled
+        app.dependency_overrides[get_db] = lambda: mock_db
+
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.clear()
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_disable_with_valid_code(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test POST /api/auth/2fa/disable success."""
+        # Configure TOTP mock
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+
+        # Configure audit mock
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code == 200
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    def test_disable_invalid_code(self, mock_totp_class, client, mock_user, mock_db):
+        """Test 400 validation error for wrong TOTP code."""
+        # Configure TOTP mock to reject code
+        mock_totp = Mock()
+        mock_totp.verify.return_value = False
+        mock_totp_class.return_value = mock_totp
+
+        response = client.post("/api/auth/2fa/disable", json={"code": "000000"})
+
+        assert response.status_code in [400, 422]
+
+    def test_disable_requires_auth(self):
+        """Test 401 without Authorization header."""
+        app = create_test_app()
+        test_client = TestClient(app)
+
+        response = test_client.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code == 401
+
+    def test_disable_when_not_enabled(self, client_not_enabled):
+        """Test 400 validation error when 2FA not enabled."""
+        response = client_not_enabled.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code in [400, 422]
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_disable_clears_enabled_flag(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify two_factor_enabled=False after success."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_user.two_factor_enabled is False
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_disable_clears_secret(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify two_factor_secret=None after success."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_user.two_factor_secret is None
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_disable_clears_backup_codes(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify two_factor_backup_codes=None after success."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_user.two_factor_backup_codes is None
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_disable_audit_log(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify audit_service.log_event called."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_audit.log_event.called
+
+        # Verify audit log parameters
+        call_kwargs = mock_audit.log_event.call_args.kwargs
+        assert call_kwargs["event_type"] == AuditEventType.UPDATE.value
+        assert call_kwargs["action"] == "2fa_disabled"
+        assert call_kwargs["security_level"] == SecurityLevel.HIGH.value
+        assert call_kwargs["user_id"] == mock_user.id
+        assert call_kwargs["user_email"] == mock_user.email
+
+    @patch('api.auth_2fa_routes.pyotp.TOTP')
+    @patch('api.auth_2fa_routes.audit_service')
+    def test_disable_audit_details(self, mock_audit, mock_totp_class, client, mock_user, mock_db):
+        """Test verify action="2fa_disabled" in log."""
+        # Configure mocks
+        mock_totp = Mock()
+        mock_totp.verify.return_value = True
+        mock_totp_class.return_value = mock_totp
+        mock_audit.log_event = Mock()
+
+        response = client.post("/api/auth/2fa/disable", json={"code": "123456"})
+
+        assert response.status_code == 200
+        assert mock_audit.log_event.called
+
+        # Verify description includes user email
+        call_kwargs = mock_audit.log_event.call_args.kwargs
+        assert "2fa_disabled" in call_kwargs.get("action", "")
+        assert mock_user.email in str(call_kwargs.get("description", ""))
+
+
+# ============================================================================
 # Run Tests
 # ============================================================================
 
