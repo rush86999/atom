@@ -1,0 +1,37 @@
+{
+  "hotspots": [
+    {
+      "file": "core/agent_governance_service.py",
+      "class": "AgentGovernanceService",
+      "function": "check_agent_permission",
+      "complexity": 15,
+      "coverage": 65.5,
+      "priority": "medium"
+    },
+    {
+      "file": "core/llm/byok_handler.py",
+      "class": "BYOKHandler",
+      "function": "stream_response",
+      "complexity": 22,
+      "coverage": 55.2,
+      "priority": "high"
+    },
+    {
+      "file": "tools/browser_tool.py",
+      "class": "BrowserTool",
+      "function": "execute_cdp_command",
+      "complexity": 18,
+      "coverage": 48.8,
+      "priority": "medium"
+    }
+  ],
+  "summary": {
+    "total_hotspots": 3,
+    "high_priority": 1,
+    "medium_priority": 2,
+    "thresholds": {
+      "min_complexity": 10,
+      "max_coverage": 80
+    }
+  }
+}

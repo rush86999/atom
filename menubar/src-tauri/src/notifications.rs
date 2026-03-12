@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Listener};
+use tauri::{AppHandle, Emitter};
 use chrono::{DateTime, Utc};
 
 // ============================================================================
@@ -66,8 +66,9 @@ impl NotificationStore {
         notifications.push(notification);
 
         // Keep only last 100 notifications
-        if notifications.len() > 100 {
-            notifications.drain(0..notifications.len() - 100);
+        let len = notifications.len();
+        if len > 100 {
+            notifications.drain(0..len - 100);
         }
     }
 
@@ -196,7 +197,7 @@ impl NotificationManager {
             }
             NotificationAction::Snooze { duration_minutes } => {
                 // Snooze notification - remove from store and schedule re-delivery
-                if let Some(notification) = self.store.remove(id) {
+                if let Some(_notification) = self.store.remove(id) {
                     // In production, you'd schedule a task to re-deliver after duration
                     // For now, just log it
                     println!(
@@ -298,7 +299,7 @@ pub async fn get_unread_notifications() -> Vec<Notification> {
 }
 
 #[tauri::command]
-pub async fn mark_notification_read(id: String) -> Result<bool, String> {
+pub async fn mark_notification_read(_id: String) -> Result<bool, String> {
     // Mark notification as read
     Ok(true)
 }
@@ -310,7 +311,7 @@ pub async fn mark_all_notifications_read() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn dismiss_notification(id: String) -> Result<bool, String> {
+pub async fn dismiss_notification(_id: String) -> Result<bool, String> {
     // Dismiss notification
     Ok(true)
 }
@@ -354,7 +355,8 @@ pub async fn send_notification(
     };
 
     let manager = NotificationManager::new();
+    let notification_id = notification.id.clone();
     manager.notify(&app, notification)?;
 
-    Ok(notification.id)
+    Ok(notification_id)
 }

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Listener, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 // ============================================================================
 // Data Models
@@ -135,8 +135,8 @@ impl HotkeyManager {
         Some((key, modifiers))
     }
 
-    pub fn register_hotkeys(&self, app: &AppHandle) -> Result<(), String> {
-        let config = self.config.lock().unwrap();
+    pub fn register_hotkeys(&self, _app: &AppHandle) -> Result<(), String> {
+        let _config = self.config.lock().unwrap();
 
         // Note: Tauri 2.0 uses global shortcut plugin
         // This is a placeholder for actual global shortcut registration

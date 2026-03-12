@@ -1,0 +1,31 @@
+{
+  "platform": "backend",
+  "slow_threshold": 10.0,
+  "total_tests_updated": 2,
+  "average_execution_time": 14.05,
+  "slow_test_count": 2,
+  "slow_tests": [
+    {
+      "id": 1,
+      "test_path": "tests/test_browser.py::test_screenshot_capture",
+      "platform": "backend",
+      "total_runs": 10,
+      "failure_count": 2,
+      "flaky_rate": 0.2,
+      "avg_execution_time": 15.3,
+      "max_execution_time": 15.5,
+      "classification": "flaky"
+    },
+    {
+      "id": 2,
+      "test_path": "tests/test_integration.py::test_full_workflow",
+      "platform": "backend",
+      "total_runs": 5,
+      "failure_count": 0,
+      "flaky_rate": 0.0,
+      "avg_execution_time": 12.8,
+      "max_execution_time": 13.2,
+      "classification": "stable"
+    }
+  ]
+}

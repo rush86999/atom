@@ -1,14 +1,50 @@
 {
-  "desktop_percent": 74.0,
-  "files": {
-    "main.rs": 75.0,
-    "commands": 70.0,
-    "menu": 85.0,
-    "websocket": 60.0,
-    "device_capabilities": 80.0
+  "timestamp": "2026-03-09T14:30:00Z",
+  "platform": "desktop",
+  "note": "Tarpaulin cannot run on macOS due to known linking issues with system libraries. Coverage measurement requires Linux environment.",
+  "compilation_status": "success",
+  "compilation_errors_fixed": 20,
+  "compilation_errors_fixed_breakdown": {
+    "missing_dependencies": 4,
+    "type_mismatches": 2,
+    "missing_trait_derive": 1,
+    "deprecated_api": 1,
+    "borrowing_issues": 3,
+    "async_command_return_type": 1,
+    "missing_trait_import": 1,
+    "event_api_issues": 2,
+    "frontendDist_configuration": 1,
+    "icon_files_missing": 1,
+    "closure_thread_safety": 3
   },
-  "test_count": 108,
-  "date": "2026-02-11",
-  "workflow_run": "local",
-  "notes": "Baseline coverage calculated from manual analysis of 108 passing tests across 5 test files. Gap to 80% target is 6 percentage points."
+  "accessibility_tests_unblocked": 23,
+  "coverage_measurement": {
+    "status": "blocked",
+    "reason": "Tarpaulin has known limitations on macOS due to system library linking issues",
+    "recommendation": "Run Tarpaulin in Linux CI/CD environment (github actions ubuntu-latest) to measure actual coverage",
+    "baseline_established": false,
+    "previous_baseline": {
+      "desktop_percent": 74.0,
+      "date": "2026-02-11",
+      "test_count": 108,
+      "notes": "Previous baseline from manual analysis before compilation fixes"
+    }
+  },
+  "files_modified": [
+    "menubar/src-tauri/Cargo.toml",
+    "menubar/src-tauri/src/main.rs",
+    "menubar/src-tauri/src/menu.rs",
+    "menubar/src-tauri/src/commands.rs",
+    "menubar/src-tauri/src/websocket.rs",
+    "menubar/src-tauri/src/notifications.rs",
+    "menubar/src-tauri/src/hotkeys.rs",
+    "menubar/src-tauri/src/autolaunch.rs",
+    "menubar/src-tauri/tauri.conf.json",
+    "menubar/src-tauri/icons/*"
+  ],
+  "next_steps": [
+    "Set up Linux CI/CD job to run Tarpaulin for coverage measurement",
+    "Update cross_platform_summary.json with actual coverage when available",
+    "Run 23 accessibility tests from Phase 157 (now unblocked)"
+  ]
 }

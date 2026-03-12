@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 // ============================================================================
 // Data Models
@@ -33,14 +33,11 @@ pub struct AutoLaunchManager {
 }
 
 impl AutoLaunchManager {
-    pub fn new(app_handle: &AppHandle) -> Self {
-        let app_path = app_handle.path().app_dir().unwrap_or_else(|_| {
-            std::env::current_exe()
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_path_buf()
-        });
+    pub fn new(_app_handle: &AppHandle) -> Self {
+        let app_path = std::env::current_exe()
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
 
         Self {
             app_path,
