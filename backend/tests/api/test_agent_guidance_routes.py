@@ -122,14 +122,26 @@ def test_start_operation_success(
         with patch('api.agent_guidance_routes.get_agent_guidance_system') as mock_system:
             mock_system_instance = MagicMock()
             mock_system.return_value = mock_system_instance
-            mock_system_instance.start_operation = AsyncMock(return_value=str(uuid.uuid4()))
+            test_operation_id = str(uuid.uuid4())
+            mock_system_instance.start_operation = AsyncMock(return_value=test_operation_id)
 
             response = client.post("/api/agent-guidance/operation/start", json=operation_data)
 
-            assert response.status_code in [200, 500]
-            if response.status_code == 200:
-                data = response.json()
-                assert "operation_id" in data or "data" in data
+            assert response.status_code == 200
+            data = response.json()
+            assert "data" in data
+            assert "operation_id" in data["data"]
+            assert data["data"]["operation_id"] == test_operation_id
+
+            # Verify service call
+            mock_system_instance.start_operation.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                operation_type="data_processing",
+                context={"task": "process_data"},
+                total_steps=10,
+                metadata={"source": "test"}
+            )
 
 
 def test_start_operation_minimal_data(
@@ -150,11 +162,25 @@ def test_start_operation_minimal_data(
         with patch('api.agent_guidance_routes.get_agent_guidance_system') as mock_system:
             mock_system_instance = MagicMock()
             mock_system.return_value = mock_system_instance
-            mock_system_instance.start_operation = AsyncMock(return_value=str(uuid.uuid4()))
+            test_operation_id = str(uuid.uuid4())
+            mock_system_instance.start_operation = AsyncMock(return_value=test_operation_id)
 
             response = client.post("/api/agent-guidance/operation/start", json=operation_data)
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "data" in data
+            assert "operation_id" in data["data"]
+
+            # Verify optional fields handled correctly (None)
+            mock_system_instance.start_operation.assert_called_once_with(
+                user_id=mock_user.id,
+                agent_id="test_agent",
+                operation_type="simple_task",
+                context={},
+                total_steps=None,
+                metadata=None
+            )
 
 
 # ============================================================================
@@ -187,7 +213,21 @@ def test_update_operation_step(
                 json=update_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify update_step called with correct params
+            mock_system_instance.update_step.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                step="Step 2",
+                progress=20,
+                add_log=None
+            )
+
+            # Verify update_context not called
+            mock_system_instance.update_context.assert_not_called()
 
 
 def test_update_operation_context(
@@ -217,7 +257,21 @@ def test_update_operation_context(
                 json=update_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify update_context called with correct params
+            mock_system_instance.update_context.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                what="Updated explanation",
+                why="Updated reasoning",
+                next_steps="Updated next steps"
+            )
+
+            # Verify update_step not called
+            mock_system_instance.update_step.assert_not_called()
 
 
 def test_update_operation_add_log(
@@ -250,7 +304,18 @@ def test_update_operation_add_log(
                 json=update_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify update_step called with add_log parameter
+            mock_system_instance.update_step.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                step=None,
+                progress=None,
+                add_log=log_entry
+            )
 
 
 def test_update_operation_combined(
@@ -282,7 +347,26 @@ def test_update_operation_combined(
                 json=update_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify both update_step and update_context called
+            mock_system_instance.update_step.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                step="Step 3",
+                progress=40,
+                add_log=None
+            )
+
+            mock_system_instance.update_context.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                what="Processing",
+                why="Data transformation",
+                next_steps="Complete transformation"
+            )
 
 
 # ============================================================================
@@ -314,7 +398,17 @@ def test_complete_operation_success(
                 json=complete_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify complete_operation called with status and final_message
+            mock_system_instance.complete_operation.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                status="completed",
+                final_message="Operation completed successfully"
+            )
 
 
 def test_complete_operation_failed(
@@ -342,7 +436,17 @@ def test_complete_operation_failed(
                 json=complete_data
             )
 
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+            data = response.json()
+            assert "message" in data
+
+            # Verify failure handling
+            mock_system_instance.complete_operation.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                status="failed",
+                final_message="Operation failed: timeout"
+            )
 
 
 def test_complete_operation_default_status(
@@ -367,8 +471,15 @@ def test_complete_operation_default_status(
                 json=complete_data
             )
 
-            # Should use default status "completed"
-            assert response.status_code in [200, 500]
+            assert response.status_code == 200
+
+            # Verify default status parameter used
+            mock_system_instance.complete_operation.assert_called_once_with(
+                user_id=mock_user.id,
+                operation_id=mock_operation.operation_id,
+                status="completed",  # Default from OperationCompleteRequest
+                final_message=None
+            )
 
 
 # ============================================================================
@@ -387,10 +498,25 @@ def test_get_operation_success(
 
         response = client.get(f"/api/agent-guidance/operation/{mock_operation.operation_id}")
 
-        assert response.status_code in [200, 404, 500]
-        if response.status_code == 200:
-            data = response.json()
-            assert "operation" in data or "data" in data
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+        assert "operation" in data["data"]
+
+        # Verify operation object serialized correctly
+        operation = data["data"]["operation"]
+        assert operation["operation_id"] == mock_operation.operation_id
+        assert operation["agent_id"] == mock_operation.agent_id
+        assert operation["operation_type"] == mock_operation.operation_type
+        assert operation["status"] == mock_operation.status
+        assert operation["current_step"] == mock_operation.current_step
+        assert operation["total_steps"] == mock_operation.total_steps
+        assert operation["progress"] == mock_operation.progress
+        assert operation["metadata"] == mock_operation.metadata
+        assert "context" in operation
+        assert "logs" in operation
+        assert "started_at" in operation
+        assert "completed_at" in operation
 
 
 def test_get_operation_not_found(
