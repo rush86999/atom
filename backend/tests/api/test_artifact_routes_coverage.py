@@ -183,3 +183,155 @@ def sample_artifact(test_db, mock_user):
     test_db.commit()
     test_db.refresh(artifact)
     return artifact
+
+
+# ============================================================================
+# Test Artifact List
+# ============================================================================
+
+class TestArtifactList:
+    """Test artifact listing endpoint with various filters."""
+
+    def test_list_artifacts_success(self, authenticated_client, test_db, mock_user):
+        """Test listing all artifacts returns 200 with artifact list."""
+        # Create 3 test artifacts
+        for i in range(3):
+            artifact = Artifact(
+                id=f"artifact_{i}",
+                workspace_id="default",
+                name=f"Artifact {i}",
+                type="code",
+                content=f"content_{i}",
+                version=1,
+                author_id=mock_user.id
+            )
+            test_db.add(artifact)
+        test_db.commit()
+
+        # List artifacts
+        response = authenticated_client.get("/api/artifacts/")
+
+        assert response.status_code == 200
+        artifacts = response.json()
+        assert len(artifacts) == 3
+        assert all(a["workspace_id"] == "default" for a in artifacts)
+
+    def test_list_artifacts_filter_by_session(self, authenticated_client, test_db, mock_user):
+        """Test filtering artifacts by session_id."""
+        # Create artifacts with different session_id values
+        artifact1 = Artifact(
+            id="artifact_1",
+            workspace_id="default",
+            session_id="session_A",
+            name="Artifact A",
+            type="code",
+            content="content_A",
+            version=1,
+            author_id=mock_user.id
+        )
+        artifact2 = Artifact(
+            id="artifact_2",
+            workspace_id="default",
+            session_id="session_B",
+            name="Artifact B",
+            type="code",
+            content="content_B",
+            version=1,
+            author_id=mock_user.id
+        )
+        test_db.add_all([artifact1, artifact2])
+        test_db.commit()
+
+        # Filter by session_id
+        response = authenticated_client.get("/api/artifacts/?session_id=session_A")
+
+        assert response.status_code == 200
+        artifacts = response.json()
+        assert len(artifacts) == 1
+        assert artifacts[0]["session_id"] == "session_A"
+
+    def test_list_artifacts_filter_by_type(self, authenticated_client, test_db, mock_user):
+        """Test filtering artifacts by type."""
+        # Create artifacts with different types
+        artifact1 = Artifact(
+            id="artifact_1",
+            workspace_id="default",
+            name="Code Artifact",
+            type="code",
+            content="python code",
+            version=1,
+            author_id=mock_user.id
+        )
+        artifact2 = Artifact(
+            id="artifact_2",
+            workspace_id="default",
+            name="Markdown Artifact",
+            type="markdown",
+            content="# markdown",
+            version=1,
+            author_id=mock_user.id
+        )
+        test_db.add_all([artifact1, artifact2])
+        test_db.commit()
+
+        # Filter by type
+        response = authenticated_client.get("/api/artifacts/?type=code")
+
+        assert response.status_code == 200
+        artifacts = response.json()
+        assert len(artifacts) == 1
+        assert artifacts[0]["type"] == "code"
+
+    def test_list_artifacts_combined_filters(self, authenticated_client, test_db, mock_user):
+        """Test filtering artifacts by both session_id and type."""
+        # Create artifacts with mixed attributes
+        artifact1 = Artifact(
+            id="artifact_1",
+            workspace_id="default",
+            session_id="session_A",
+            name="Code A",
+            type="code",
+            content="code_A",
+            version=1,
+            author_id=mock_user.id
+        )
+        artifact2 = Artifact(
+            id="artifact_2",
+            workspace_id="default",
+            session_id="session_A",
+            name="Markdown A",
+            type="markdown",
+            content="md_A",
+            version=1,
+            author_id=mock_user.id
+        )
+        artifact3 = Artifact(
+            id="artifact_3",
+            workspace_id="default",
+            session_id="session_B",
+            name="Code B",
+            type="code",
+            content="code_B",
+            version=1,
+            author_id=mock_user.id
+        )
+        test_db.add_all([artifact1, artifact2, artifact3])
+        test_db.commit()
+
+        # Filter by both session_id and type
+        response = authenticated_client.get("/api/artifacts/?session_id=session_A&type=code")
+
+        assert response.status_code == 200
+        artifacts = response.json()
+        assert len(artifacts) == 1
+        assert artifacts[0]["session_id"] == "session_A"
+        assert artifacts[0]["type"] == "code"
+
+    def test_list_artifacts_empty(self, authenticated_client, test_db):
+        """Test listing artifacts when database is empty."""
+        # No artifacts in database
+        response = authenticated_client.get("/api/artifacts/")
+
+        assert response.status_code == 200
+        artifacts = response.json()
+        assert len(artifacts) == 0
