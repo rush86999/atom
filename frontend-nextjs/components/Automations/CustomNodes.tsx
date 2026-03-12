@@ -18,11 +18,40 @@ const PerformanceBadge = ({ analytics }: { analytics: { duration: number; status
         </div>
     );
 };
+// Demo run status overlay
+const DemoStatusBadge = ({ status }: { status: 'running' | 'success' | 'paused' }) => {
+    if (status === 'running') return (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-400 text-yellow-900 text-[10px] font-bold shadow animate-pulse">
+            <span className="w-3 h-3 border-2 border-yellow-900 border-t-transparent rounded-full animate-spin inline-block" />
+            Running...
+        </div>
+    );
+    if (status === 'success') return (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-bold shadow">
+            <CheckCircle2 className="w-3 h-3" /> Done
+        </div>
+    );
+    if (status === 'paused') return (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold shadow animate-pulse">
+            <PauseCircle className="w-3 h-3" /> Awaiting Approval
+        </div>
+    );
+    return null;
+};
+
+const demoRingClass = (status?: string) => {
+    if (status === 'running') return 'ring-4 ring-yellow-400 ring-offset-1 transition-all duration-300';
+    if (status === 'success') return 'ring-4 ring-green-500 ring-offset-1 transition-all duration-300';
+    if (status === 'paused') return 'ring-4 ring-amber-500 ring-offset-1 transition-all duration-300';
+    return 'transition-all duration-300';
+};
+
 
 export const TriggerNode = memo(({ data, isConnectable }: any) => {
     return (
-        <Card className="min-w-[250px] border-l-4 border-l-blue-500 shadow-md relative overflow-visible">
+        <Card className={`min-w-[250px] border-l-4 border-l-blue-500 shadow-md relative overflow-visible ${demoRingClass(data._demoStatus)}`}>
             {data._analytics && <PerformanceBadge analytics={data._analytics} />}
+            {data._demoStatus && <DemoStatusBadge status={data._demoStatus} />}
             <CardHeader className="p-3 pb-0">
                 <div className="flex items-center space-x-2">
                     <Zap className="w-4 h-4 text-blue-500 fill-blue-100" />
@@ -129,8 +158,9 @@ export const ActionNode = memo(({ data, isConnectable }: any) => {
     const branding = serviceBranding[data.service] || { color: 'border-l-green-500', bgColor: '' };
 
     return (
-        <Card className={`min-w-[220px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm relative overflow-visible`}>
+        <Card className={`min-w-[220px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm relative overflow-visible ${demoRingClass(data._demoStatus)}`}>
             {data._analytics && <PerformanceBadge analytics={data._analytics} />}
+            {data._demoStatus && <DemoStatusBadge status={data._demoStatus} />}
             <Handle
                 type="target"
                 position={Position.Top}
@@ -343,7 +373,8 @@ export const ConditionNode = memo(({ data, isConnectable }: any) => {
 
 export const AINode = memo(({ data, isConnectable }: any) => {
     return (
-        <Card className="min-w-[220px] border-l-4 border-l-purple-600 shadow-md bg-purple-50">
+        <Card className={`min-w-[220px] border-l-4 border-l-purple-600 shadow-md bg-purple-50 relative overflow-visible ${demoRingClass(data._demoStatus)}`}>
+            {data._demoStatus && <DemoStatusBadge status={data._demoStatus} />}
             <Handle
                 type="target"
                 position={Position.Top}

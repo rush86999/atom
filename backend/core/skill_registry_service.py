@@ -80,9 +80,15 @@ class SkillRegistryService:
         self.db = db
         self._parser = SkillParser()
         self._scanner = SkillSecurityScanner()
-        self._sandbox = HazardSandbox()
+        self._sandbox = None  # Lazy-initialized — requires Docker only when executing Python skills
         self._governance = AgentGovernanceService(db)
         self._segmentation_service = EpisodeSegmentationService(db)
+
+    def _get_sandbox(self) -> HazardSandbox:
+        """Lazy-initialize HazardSandbox only when needed (requires Docker)."""
+        if self._sandbox is None:
+            self._sandbox = HazardSandbox()
+        return self._sandbox
 
     def import_skill(
         self,
@@ -564,7 +570,7 @@ class SkillRegistryService:
         code = code_blocks[0]
 
         # Execute in sandbox
-        result = self._sandbox.execute_python(code, inputs)
+        result = self._get_sandbox().execute_python(code, inputs)
 
         return result
 
