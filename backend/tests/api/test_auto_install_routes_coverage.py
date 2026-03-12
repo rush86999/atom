@@ -251,3 +251,156 @@ def batch_install_response():
             }
         ]
     }
+
+
+# ============================================================================
+# TestAutoInstallSuccess - Single Install Endpoint Tests
+# ============================================================================
+
+class TestAutoInstallSuccess:
+    """
+    Happy path tests for POST /auto-install/install endpoint.
+
+    Tests successful installation scenarios:
+    - Python package installation
+    - NPM package installation
+    - Vulnerability scanning
+    - Multiple packages in single request
+    """
+
+    def test_install_dependencies_python(
+        self,
+        auto_install_client,
+        sample_install_request,
+        mock_auto_installer
+    ):
+        """Test POST /auto-install/install with python packages returns success with image_tag."""
+        response = auto_install_client.post("/auto-install/install", json=sample_install_request)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "image_tag" in data
+        assert "atom-skill:" in data["image_tag"]
+        assert data["installed_packages"] == ["numpy", "pandas"]
+        assert data["total_count"] == 2
+
+        # Verify service was called
+        mock_auto_installer.install_dependencies.assert_called_once()
+
+    def test_install_dependencies_npm(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test install with npm package_type works correctly."""
+        request_data = {
+            "skill_id": "npm-skill-123",
+            "packages": ["lodash", "axios"],
+            "package_type": "npm",
+            "agent_id": "agent-001",
+            "scan_for_vulnerabilities": True
+        }
+
+        # Configure mock for npm packages
+        mock_auto_installer.install_dependencies.return_value = {
+            "success": True,
+            "image_tag": "atom-npm-skill:npm-skill-123-v1",
+            "installed_packages": ["lodash", "axios"],
+            "total_count": 2
+        }
+
+        response = auto_install_client.post("/auto-install/install", json=request_data)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "atom-npm-skill:" in data["image_tag"]
+        assert data["installed_packages"] == ["lodash", "axios"]
+
+    def test_install_with_vulnerability_scan(
+        self,
+        auto_install_client,
+        sample_install_request,
+        mock_auto_installer
+    ):
+        """Test scan_for_vulnerabilities=True includes security scan in result."""
+        sample_install_request["scan_for_vulnerabilities"] = True
+
+        response = auto_install_client.post("/auto-install/install", json=sample_install_request)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+        # Verify install_dependencies was called with scan_for_vulnerabilities=True
+        call_args = mock_auto_installer.install_dependencies.call_args
+        assert call_args.kwargs["scan_for_vulnerabilities"] is True
+
+    def test_install_multiple_packages(
+        self,
+        auto_install_client,
+        mock_auto_installer
+    ):
+        """Test installing multiple packages in single request succeeds."""
+        request_data = {
+            "skill_id": "data-skill-456",
+            "packages": ["numpy", "pandas", "scikit-learn", "matplotlib"],
+            "package_type": "python",
+            "agent_id": "agent-002",
+            "scan_for_vulnerabilities": False
+        }
+
+        # Configure mock for multiple packages
+        mock_auto_installer.install_dependencies.return_value = {
+            "success": True,
+            "image_tag": "atom-skill:data-skill-456-v1",
+            "installed_packages": ["numpy", "pandas", "scikit-learn", "matplotlib"],
+            "total_count": 4
+        }
+
+        response = auto_install_client.post("/auto-install/install", json=request_data)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["total_count"] == 4
+        assert len(data["installed_packages"]) == 4
+
+    def test_install_missing_skill_id(
+        self,
+        auto_install_client
+    ):
+        """Test missing skill_id returns 422 validation error."""
+        request_data = {
+            "packages": ["numpy"],
+            "package_type": "python",
+            "agent_id": "agent-001",
+            "scan_for_vulnerabilities": True
+            # Missing skill_id
+        }
+
+        response = auto_install_client.post("/auto-install/install", json=request_data)
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+    def test_install_empty_packages(
+        self,
+        auto_install_client
+    ):
+        """Test empty packages list returns 422 (min_items=1 constraint)."""
+        request_data = {
+            "skill_id": "skill-123",
+            "packages": [],  # Empty list violates min_items=1
+            "package_type": "python",
+            "agent_id": "agent-001",
+            "scan_for_vulnerabilities": True
+        }
+
+        response = auto_install_client.post("/auto-install/install", json=request_data)
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
