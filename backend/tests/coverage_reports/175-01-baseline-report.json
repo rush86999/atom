@@ -1,0 +1,195 @@
+{
+  "baseline_date": "2026-03-12",
+  "phase": "175-high-impact-zero-coverage-tools",
+  "plan": "175-01",
+  "summary": {
+    "total_route_files": 3,
+    "total_lines": 1726,
+    "total_endpoints": 23,
+    "tests_collected": 85,
+    "tests_passing": 47,
+    "tests_failing": 38,
+    "test_pass_rate": 55.3
+  },
+  "route_files": {
+    "browser_routes.py": {
+      "path": "backend/api/browser_routes.py",
+      "total_lines": 788,
+      "total_endpoints": 11,
+      "tests_collected": 45,
+      "test_file": "tests/test_api_browser_routes.py",
+      "test_lines": 1391,
+      "endpoints": [
+        {"name": "create_browser_session", "path": "POST /api/browser/session/create", "coverage": "partial", "missing_lines": []},
+        {"name": "list_browser_sessions", "path": "GET /api/browser/sessions", "coverage": "partial", "missing_lines": []},
+        {"name": "get_browser_session_info", "path": "GET /api/browser/session/{session_id}", "coverage": "partial", "missing_lines": []},
+        {"name": "browser_navigate", "path": "POST /api/browser/navigate", "coverage": "partial", "missing_lines": []},
+        {"name": "browser_screenshot", "path": "POST /api/browser/screenshot", "coverage": "partial", "missing_lines": []},
+        {"name": "browser_click", "path": "POST /api/browser/click", "coverage": "partial", "missing_lines": []},
+        {"name": "browser_fill_form", "path": "POST /api/browser/fill-form", "coverage": "partial", "missing_lines": []},
+        {"name": "browser_extract_text", "path": "POST /api/browser/extract-text", "coverage": "partial", "missing_lines": []},
+        {"name": "browser_execute_script", "path": "POST /api/browser/execute-script", "coverage": "partial", "missing_lines": []},
+        {"name": "browser_close_session", "path": "POST /api/browser/session/close", "coverage": "partial", "missing_lines": []},
+        {"name": "get_browser_audit_log", "path": "GET /api/browser/audit", "coverage": "partial", "missing_lines": []}
+      ],
+      "test_classes": [
+        "TestBrowserSession",
+        "TestBrowserNavigation",
+        "TestBrowserActions",
+        "TestBrowserAudit",
+        "TestBrowserErrors",
+        "TestBrowserRoutesCoverage"
+      ],
+      "blocking_issues": [
+        "Governance service not mocked - tests call real ServiceFactory.get_governance_service()",
+        "Mocked tool functions don't create database records (sessions, audit entries)",
+        "Tests expect database state changes but mocks only return JSON"
+      ],
+      "gap_category": "governance"
+    },
+    "device_capabilities.py": {
+      "path": "backend/api/device_capabilities.py",
+      "total_lines": 710,
+      "total_endpoints": 10,
+      "tests_collected": 40,
+      "test_file": "tests/test_api_device_routes.py",
+      "test_lines": 1076,
+      "endpoints": [
+        {"name": "device_camera_snap", "path": "POST /api/devices/camera/snap", "coverage": "partial", "missing_lines": []},
+        {"name": "device_get_location", "path": "POST /api/devices/location/get", "coverage": "partial", "missing_lines": []},
+        {"name": "device_screen_record_start", "path": "POST /api/devices/screen-record/start", "coverage": "partial", "missing_lines": []},
+        {"name": "device_screen_record_stop", "path": "POST /api/devices/screen-record/stop", "coverage": "partial", "missing_lines": []},
+        {"name": "device_send_notification", "path": "POST /api/devices/notify/send", "coverage": "partial", "missing_lines": []},
+        {"name": "device_execute_command", "path": "POST /api/devices/execute", "coverage": "partial", "missing_lines": []},
+        {"name": "list_devices", "path": "GET /api/devices", "coverage": "partial", "missing_lines": []},
+        {"name": "get_device_info", "path": "GET /api/devices/{device_node_id}", "coverage": "partial", "missing_lines": []},
+        {"name": "get_device_audit_log", "path": "GET /api/devices/audit", "coverage": "partial", "missing_lines": []},
+        {"name": "get_active_device_sessions", "path": "GET /api/devices/sessions/active", "coverage": "partial", "missing_lines": []}
+      ],
+      "test_classes": [
+        "TestDeviceCamera",
+        "TestDeviceLocation",
+        "TestDeviceScreenRecord",
+        "TestDeviceNotification",
+        "TestDeviceExecute",
+        "TestDeviceList",
+        "TestDeviceAudit",
+        "TestDeviceSessions"
+      ],
+      "blocking_issues": [
+        "Governance service not mocked - tests call real ServiceFactory.get_governance_service()",
+        "Mocked tool functions don't create database records (sessions, audit entries)",
+        "Tests expect database state changes but mocks only return JSON"
+      ],
+      "gap_category": "governance"
+    },
+    "canvas_routes.py": {
+      "path": "backend/api/canvas_routes.py",
+      "total_lines": 228,
+      "total_endpoints": 2,
+      "tests_collected": 0,
+      "test_file": "tests/test_api_canvas_routes.py",
+      "test_lines": 950,
+      "endpoints": [
+        {"name": "canvas_submit", "path": "POST /api/canvas/submit", "coverage": "not_tested", "missing_lines": "all"},
+        {"name": "get_canvas_status", "path": "GET /api/canvas/{canvas_id}/status", "coverage": "not_tested", "missing_lines": "all"}
+      ],
+      "test_classes": [],
+      "blocking_issues": [
+        "SQLAlchemy duplicate WorkflowExecutionLog class in analytics/models.py prevents test collection",
+        "Import chain: test_api_canvas_routes.py → main_api_app.py → analytics/plugin.py → analytics/models.py",
+        "Temporary fix applied: commented out duplicate in analytics/models.py",
+        "Status: BLOCKED - cannot collect tests without fixing import chain"
+      ],
+      "gap_category": "no_test"
+    }
+  },
+  "uncovered_endpoints": [
+    {
+      "file": "canvas_routes.py",
+      "endpoint": "POST /api/canvas/submit",
+      "reason": "Test collection blocked by SQLAlchemy duplicate model"
+    },
+    {
+      "file": "canvas_routes.py",
+      "endpoint": "GET /api/canvas/{canvas_id}/status",
+      "reason": "Test collection blocked by SQLAlchemy duplicate model"
+    }
+  ],
+  "gap_categories": {
+    "no_test": [
+      "canvas_routes.py: POST /api/canvas/submit - blocked by import error",
+      "canvas_routes.py: GET /api/canvas/{canvas_id}/status - blocked by import error"
+    ],
+    "error_path": [
+      "browser_routes.py: All endpoints - error handlers not tested",
+      "device_capabilities.py: All endpoints - error handlers not tested"
+    ],
+    "governance": [
+      "browser_routes.py: All endpoints - governance service not mocked",
+      "device_capabilities.py: All endpoints - governance service not mocked",
+      "canvas_routes.py: All endpoints - governance integration not tested"
+    ],
+    "audit": [
+      "browser_routes.py: All endpoints - audit creation not verified",
+      "device_capabilities.py: All endpoints - audit creation not verified",
+      "canvas_routes.py: All endpoints - audit trail not tested"
+    ]
+  },
+  "technical_debt": [
+    {
+      "issue": "Missing BrowserAudit model",
+      "status": "FIXED",
+      "fix": "Created BrowserAudit model in core/models.py (58 lines)",
+      "commit": "c555b57ab"
+    },
+    {
+      "issue": "Duplicate WorkflowExecutionLog in analytics/models.py",
+      "status": "TEMPORARY_FIX",
+      "fix": "Commented out duplicate class in analytics/models.py",
+      "commit": "01ce26aa5",
+      "note": "Permanent fix requires refactoring to import from core.models.py"
+    },
+    {
+      "issue": "Governance service not mocked in tests",
+      "status": "NOT_FIXED",
+      "impact": "38 of 85 tests failing (44.7%)",
+      "recommended_fix": "Add ServiceFactory.get_governance_service mock to test fixtures"
+    },
+    {
+      "issue": "Tool function mocks don't create database records",
+      "status": "NOT_FIXED",
+      "impact": "Tests expecting database state changes fail",
+      "recommended_fix": "Create BrowserSession/DeviceSession records in mock returns or use real tool functions with test database"
+    }
+  ],
+  "phase_169_patterns": {
+    "async_mock_usage": "VERIFIED - All tool functions use AsyncMock correctly",
+    "agent_fixtures": "VERIFIED - Student, Intern, Supervised, Autonomous agents created",
+    "client_fixture": "VERIFIED - TestClient with dependency overrides working",
+    "governance_mocking": "MISSING - ServiceFactory.get_governance_service not mocked",
+    "pattern_compliance": "75% - AsyncMock and agents correct, governance mocking missing"
+  },
+  "next_steps": {
+    "immediate": [
+      "Fix canvas_routes.py import chain to enable test collection",
+      "Add governance service mocking to browser and device route tests"
+    ],
+    "short_term": [
+      "Implement proper database state management in tool function mocks",
+      "Add error path testing for all endpoints",
+      "Verify audit trail creation in all tests"
+    ],
+    "long_term": [
+      "Refactor duplicate WorkflowExecutionLog in analytics/models.py",
+      "Achieve 75%+ line coverage target for all three route files"
+    ]
+  },
+  "metrics": {
+    "test_collection_success": "96.6% (85/88 tests, 3 blocked)",
+    "test_execution_success": "55.3% (47/85 passing)",
+    "fixture_compliance": "75% (AsyncMock + agents correct, governance missing)",
+    "baseline_coverage": "Unable to measure - tests not executing fully",
+    "estimated_coverage_gap": "50-60 percentage points to 75% target"
+  }
+}
