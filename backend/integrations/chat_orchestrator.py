@@ -311,33 +311,53 @@ class ChatOrchestrator:
     ) -> Dict[str, Any]:
         """
         Process a chat message and coordinate across all ATOM features
-
-        Args:
-            user_id: User identifier
-            message: Chat message from user
-            session_id: Conversation session ID
-            context: Additional context data
-
-        Returns:
-            Response with coordinated actions across features
         """
         try:
             # Create or get session
             session_id = session_id or str(uuid.uuid4())
             session = self._get_or_create_session(user_id, session_id)
 
-            # Analyze intent using AI NLP
+            # Build conversation history for context
+            history = session.get("history", [])[-6:]  # Last 3 turns
+
+            # 1. Try Qwen AI conversational response first (real AI reply)
+            ai_message = await self._get_qwen_response(message, history)
+
+            # 2. Analyze intent using AI NLP (for routing)
             intent_analysis = await self._analyze_intent(message, session)
 
-            # Route to appropriate feature handlers
+            # 3. Route to appropriate feature handlers (for data lookups)
             feature_responses = await self._route_to_features(
                 message, intent_analysis, session, context
             )
 
-            # Generate coordinated response
-            response = self._generate_coordinated_response(
-                message, intent_analysis, feature_responses, session
-            )
+            # 4. If AI gave a real response, use it; otherwise use template
+            if ai_message:
+                main_message = ai_message
+            else:
+                main_message = self._generate_main_message(message, intent_analysis, feature_responses)
+
+            # Build combined data from feature responses
+            combined_data = {}
+            suggested_actions = []
+            for feature_type, response in feature_responses.items():
+                if response and "data" in response:
+                    combined_data[feature_type.value] = response["data"]
+                if response and "suggested_actions" in response:
+                    suggested_actions.extend(response.get("suggested_actions", []))
+
+            response = {
+                "success": True,
+                "message": main_message,
+                "session_id": session["id"],
+                "intent": intent_analysis["primary_intent"].value,
+                "confidence": intent_analysis["confidence"],
+                "data": combined_data,
+                "suggested_actions": suggested_actions[:5],
+                "requires_confirmation": False,
+                "next_steps": self._generate_next_steps(intent_analysis, feature_responses),
+                "timestamp": datetime.now().isoformat()
+            }
 
             # Update session with new context
             self._update_session(session, message, response, intent_analysis)
@@ -347,6 +367,58 @@ class ChatOrchestrator:
         except Exception as e:
             logger.error(f"Error processing chat message: {e}")
             return self._generate_error_response(str(e), session_id)
+
+    async def _get_qwen_response(self, message: str, history: list) -> Optional[str]:
+        """Get a real conversational AI response from Qwen via DashScope."""
+        try:
+            import os
+            from openai import AsyncOpenAI
+            qwen_key = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+            if not qwen_key:
+                logger.warning("No Qwen API key configured")
+                return None
+
+            client = AsyncOpenAI(
+                api_key=qwen_key,
+                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+            )
+
+            # Build messages from history
+            messages = [
+                {
+                    "role": "system",
+                    "content": """You are ATOM, an AI-powered business automation assistant. You help users:
+- Manage leads and CRM (Zoho, Salesforce, HubSpot)
+- Automate workflows and processes
+- Schedule meetings and interviews
+- Send and draft emails
+- Analyze business data and priorities
+- Coordinate tasks across Slack, Notion, Google Drive, Gmail
+
+When users ask to fetch live data (like CRM leads), acknowledge that the integration needs to be connected first and guide them on setup. Be helpful, specific, and actionable. Keep responses concise (2-4 sentences) unless detail is needed."""
+                }
+            ]
+
+            # Add conversation history
+            for h in history:
+                if h.get("message"):
+                    messages.append({"role": "user", "content": h["message"]})
+                resp_msg = h.get("response", {}).get("message", "")
+                if resp_msg:
+                    messages.append({"role": "assistant", "content": resp_msg})
+
+            messages.append({"role": "user", "content": message})
+
+            response = await client.chat.completions.create(
+                model="qwen-plus",
+                messages=messages,
+                max_tokens=500,
+                temperature=0.7
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logger.warning(f"Qwen conversational response failed: {e}")
+            return None
 
 
     async def _analyze_intent(self, message: str, session: Dict) -> Dict[str, Any]:
@@ -584,8 +656,8 @@ class ChatOrchestrator:
 
         elif intent == ChatIntent.TASK_MANAGEMENT:
             task_data = feature_responses.get(FeatureType.TASKS, {})
-            if task_data.get("data"):
-                return "I've updated your tasks across all platforms."
+            if task_data.get("success"):
+                return task_data.get("data", {}).get("message", "I've processed your task request.")
             return "I'll manage those tasks for you."
 
         elif intent == ChatIntent.WORKFLOW_CREATION:
@@ -706,7 +778,80 @@ class ChatOrchestrator:
     async def _handle_task_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]
     ) -> Dict[str, Any]:
-        return {"success": True, "data": {"message": "Task logic here"}}
+        """Handle task creation and management requests via unified endpoints."""
+        try:
+            from core.unified_task_endpoints import create_task, CreateTaskRequest, get_current_user
+            import asyncio
+            from datetime import datetime, timedelta
+            from unittest.mock import MagicMock
+            
+            # 1. Use NLP to extract title and description
+            title = message
+            description = ""
+            if "data_intelligence" in self.ai_engines and hasattr(self.ai_engines["data_intelligence"], "extract_task_details"):
+                # Hypothetical method if it exists, otherwise fallback
+                extracted = self.ai_engines["data_intelligence"].extract_task_details(message)
+                title = extracted.get("title", message)
+                description = extracted.get("description", "")
+            else:
+                import re
+                # Clean up natural language prefixes
+                clean_msg = re.sub(r'^(?:please\s+)?(?:create|make|add|schedule)\s+(?:a\s+)?(?:task|todo|reminder)(?:\s+to|\s+that|\s+for|:|-)?\s*', '', message, flags=re.IGNORECASE).strip()
+                
+                if not clean_msg:
+                    clean_msg = message.strip()
+                    
+                parts = clean_msg.split(":", 1)
+                if len(parts) > 1 and len(parts[0]) < 30:
+                    title = parts[0].strip()
+                    description = parts[1].strip()
+                else:
+                    title = clean_msg
+                    description = ""
+            
+            # Shorten title if it's too long
+            if len(title) > 50:
+                description = title
+                title = title[:47] + "..."
+            
+            # Capitalize
+            if title:
+                title = title[0].upper() + title[1:]
+                
+            # 2. Construct unified task request
+            task_req = CreateTaskRequest(
+                title=title or "New Task",
+                description=description,
+                dueDate=datetime.now() + timedelta(days=1), # Default to tomorrow
+                priority="medium",
+                platform="local", # Use local mock backend for chat orchestrator tests
+                status="todo"
+            )
+            
+            # Mock the FastAPI current_user dependency for internal calls
+            mock_user = MagicMock()
+            mock_user.id = session.get("user_id", "system")
+            
+            # 3. Call the unified API endpoint directly
+            result = await create_task(task_data=task_req, current_user=mock_user)
+            
+            if result.get("success"):
+                task_id = result.get("task").id if hasattr(result.get("task"), "id") else "unknown"
+                return {
+                    "success": True, 
+                    "data": {
+                        "task": task_req.dict(),
+                        "message": f"I've added '{task_req.title}' to your Tasks.",
+                        "task_id": task_id
+                    },
+                    "suggested_actions": ["View My Tasks", "Add a deadline", "Assign to team"]
+                }
+            else:
+                return {"success": False, "error": "Internal task creation failed."}
+                
+        except Exception as e:
+            logger.error(f"Task handler failed: {e}")
+            return {"success": False, "error": str(e), "data": {"message": f"Failed to create task: {str(e)}"}}
 
     async def _handle_workflow_request(
         self, message: str, intent_analysis: Dict, session: Dict, context: Optional[Dict]

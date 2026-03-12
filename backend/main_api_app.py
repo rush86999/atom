@@ -382,8 +382,16 @@ try:
         from api.admin.skill_routes import router as skill_router
         app.include_router(skill_router, prefix="/api/admin/skills", tags=["Skill Management"])
         logger.info("✓ Skill Builder Routes Loaded")
-    except ImportError as e:
+    except Exception as e:
         logger.warning(f"Skill routes not found: {e}")
+        
+    # Community Skills Routes
+    try:
+        from api.skill_routes import router as community_skill_router
+        app.include_router(community_skill_router)
+        logger.info("✓ Community Skills Routes Loaded")
+    except Exception as e:
+        logger.warning(f"Failed to load community skill routes: {e}")
 
     # Satellite Routes
     try:

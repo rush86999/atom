@@ -552,6 +552,43 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
     const [allPieces, setAllPieces] = useState<Piece[]>(PIECES);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Fetch Agent Skills from Atom backend
+    useEffect(() => {
+        const fetchAgentSkills = async () => {
+            try {
+                const response = await fetch('/api/skills/list');
+                if (!response.ok) throw new Error("Failed to fetch agent skills");
+
+                const result = await response.json();
+
+                if (result.data && result.data.skills) {
+                    const agentSkills: Piece[] = result.data.skills.map((s: any) => ({
+                        id: `agent_skill_${s.skill_id}`,
+                        name: s.skill_name || s.skill_id,
+                        icon: Zap, // Default icon for Agent Skills
+                        color: '#6366f1', // Indigo color for agent skills
+                        category: 'openclaw', // New category for OpenClaw/Agent Skills
+                        actions: [
+                            {
+                                id: 'execute_skill',
+                                name: 'Execute Skill',
+                                description: s.metadata?.description || `Execute ${s.skill_name}`
+                            }
+                        ],
+                        triggers: [],
+                        connected: true // Backend skills are intrinsically connected
+                    }));
+
+                    setAllPieces(prev => [...prev, ...agentSkills]);
+                }
+            } catch (err) {
+                console.error("Failed to load agent skills:", err);
+            }
+        };
+
+        fetchAgentSkills();
+    }, []);
+
     // Fetched catalog logic restored - Source from Node.js Bridge
     useEffect(() => {
         const fetchExternalPieces = async () => {
@@ -581,11 +618,9 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
                     connected: false
                 }));
 
-                setAllPieces([...PIECES, ...externalPieces]);
+                setAllPieces(prev => [...prev, ...externalPieces]);
             } catch (err) {
                 console.error("Failed to load external pieces:", err);
-                // Fallback to just local pieces
-                setAllPieces(PIECES);
             } finally {
                 setIsLoading(false);
             }

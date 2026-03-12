@@ -454,22 +454,23 @@ def register_notion_tool(tool_registry=None):
     Returns:
         Registered NotionTool instance
     """
-    from core.tool_registry import ToolRegistry
+    from tools.registry import ToolRegistry, get_tool_registry
 
     if tool_registry is None:
-        tool_registry = ToolRegistry()
+        tool_registry = get_tool_registry()
 
     notion_tool = NotionTool()
 
-    tool_registry.register_tool(
-        tool=notion_tool,
+    tool_registry.register(
+        name="notion_tool",
+        function=notion_tool.run,
+        version="1.0.0",
+        description="Notion workspace operations for AI agents. Provides searching, querying, reading, and page creation.",
         category="productivity",
-        tags=["notion", "knowledge", "database", "tasks", "notes", "workspace"],
-        requires_internet=True,
-        maturity_levels={
-            "read": "INTERN",
-            "write": "SUPERVISED"
-        }
+        complexity=3,
+        maturity_required="INTERN",
+        dependencies=["notion-client"],
+        tags=["notion", "knowledge", "database", "tasks", "notes", "workspace"]
     )
 
     logger.info("NotionTool registered with ToolRegistry")

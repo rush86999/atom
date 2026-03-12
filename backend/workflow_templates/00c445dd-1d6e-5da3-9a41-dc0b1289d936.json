@@ -1,0 +1,93 @@
+{
+  "template_id": "00c445dd-1d6e-5da3-9a41-dc0b1289d936",
+  "name": "Automated Workflow Executor",
+  "description": "Updated via Visual Editor",
+  "category": "automation",
+  "complexity": "advanced",
+  "tags": [
+    "automation",
+    "workflow",
+    "conditional",
+    "triggers"
+  ],
+  "version": "1.0.0",
+  "author": "System",
+  "created_at": "2026-03-04 17:54:41.981461",
+  "updated_at": "2026-03-04 17:54:41.991775",
+  "inputs": [
+    {
+      "name": "trigger_type",
+      "label": "Trigger Type",
+      "description": "What triggers the workflow",
+      "type": "select",
+      "required": true,
+      "default_value": null,
+      "options": [
+        "schedule",
+        "webhook",
+        "event",
+        "manual"
+      ],
+      "validation_rules": {},
+      "help_text": null,
+      "example_value": null
+    },
+    {
+      "name": "schedule",
+      "label": "Schedule",
+      "description": "Cron expression for scheduled execution",
+      "type": "string",
+      "required": true,
+      "default_value": null,
+      "options": [],
+      "validation_rules": {},
+      "help_text": null,
+      "example_value": "0 9 * * 1-5"
+    },
+    {
+      "name": "actions",
+      "label": "Actions",
+      "description": "List of actions to execute",
+      "type": "array",
+      "required": true,
+      "default_value": null,
+      "options": [],
+      "validation_rules": {},
+      "help_text": null,
+      "example_value": null
+    }
+  ],
+  "steps": [
+    {
+      "id": "validate_trigger",
+      "name": "Validate Trigger",
+      "description": "Check if trigger conditions are met",
+      "step_type": "action",
+      "parameters": [],
+      "depends_on": [],
+      "condition": null
+    },
+    {
+      "id": "execute_actions",
+      "name": "Execute Actions",
+      "description": "Execute the configured actions",
+      "step_type": "action",
+      "parameters": [],
+      "depends_on": [
+        "validate_trigger"
+      ],
+      "condition": null
+    }
+  ],
+  "output_schema": {},
+  "usage_count": 0,
+  "rating": 0.0,
+  "review_count": 0,
+  "estimated_total_duration": 120,
+  "prerequisites": [],
+  "dependencies": [],
+  "permissions": [],
+  "is_public": true,
+  "is_featured": false,
+  "license": "MIT"
+}
