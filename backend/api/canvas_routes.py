@@ -134,20 +134,18 @@ async def submit_form(
 
         audit = CanvasAudit(
             id=str(uuid.uuid4()),
-            workspace_id="default",
+            tenant_id="default",
             agent_id=agent.id if agent and hasattr(agent, 'id') else (submission.agent_id if submission.agent_id else None),
-            agent_execution_id=submission_execution.id if submission_execution else submission.agent_execution_id,
             user_id=current_user.id,
             canvas_id=submission.canvas_id,
-            component_type="form",
-            component_name=None,
-            action="submit",
-            audit_metadata={
+            action_type="submit",
+            details_json={
                 "form_data": submission.form_data,
                 "field_count": len(submission.form_data),
-                "originating_execution_id": submission.agent_execution_id
-            },
-            governance_check_passed=governance_check["allowed"] if governance_check else None
+                "originating_execution_id": submission.agent_execution_id,
+                "agent_execution_id": submission_execution.id if submission_execution else submission.agent_execution_id,
+                "governance_check_passed": governance_check["allowed"] if governance_check else None
+            }
         )
         db.add(audit)
         db.commit()
