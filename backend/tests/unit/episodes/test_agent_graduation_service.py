@@ -966,3 +966,319 @@ class TestReadinessScoring:
         assert len(result["recommendation"]) > 0
         # Ready agent recommendation
         assert "ready" in result["recommendation"].lower() or "INTERN" in result["recommendation"]
+
+
+# ============================================================================
+# Graduation Exam Execution Tests
+# ============================================================================
+
+class TestGraduationExam:
+    """Test SandboxExecutor.execute_exam() covering exam execution and scoring."""
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_agent_not_found(self, graduation_service):
+        """Test exam execution returns error when agent doesn't exist."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = await executor.execute_exam(
+            agent_id="nonexistent-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["success"] == False
+        assert "error" in result
+        assert "not found" in result["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_insufficient_episodes(self, graduation_service):
+        """Test exam execution fails with 0 episodes."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = []  # No episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["success"] == True
+        assert result["passed"] == False
+        assert result["score"] == 0.0
+        assert "insufficient_episode_count" in result["constitutional_violations"]
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_intern_pass(self, graduation_service):
+        """Test agent passes INTERN exam."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Create 10 episodes with zero intervention, good constitutional scores
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["success"] == True
+        assert result["passed"] == True
+        assert result["score"] >= 0.70
+        assert result["constitutional_compliance"] >= 0.70
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_intern_fail(self, graduation_service):
+        """Test agent fails INTERN exam."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Create episodes with high intervention rate
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 6  # 60% intervention (exceeds 50%)
+            ep.constitutional_score = 0.65
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert result["success"] == True
+        assert result["passed"] == False
+        assert result["score"] < 0.70
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_supervised_pass(self, graduation_service):
+        """Test agent passes SUPERVISED exam."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # 25 episodes with zero intervention rate (required for 0.85+ compliance)
+        episodes = []
+        for i in range(25):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 0  # Must be 0 for compliance >= 0.85
+            ep.constitutional_score = 0.90
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert result["success"] == True
+        assert result["passed"] == True
+        assert result["score"] >= 0.85
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_supervised_fail(self, graduation_service):
+        """Test agent fails SUPERVISED exam."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # Only 15 episodes (insufficient)
+        episodes = []
+        for i in range(15):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 1
+            ep.constitutional_score = 0.80
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert result["success"] == True
+        assert result["passed"] == False
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_autonomous_pass(self, graduation_service):
+        """Test agent passes AUTONOMOUS exam."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "SUPERVISED"
+        agent.status = mock_status
+
+        # Need more than 50 episodes to pass (formula uses min_episodes * 1.5 = 75)
+        # 75 episodes with zero intervention
+        episodes = []
+        for i in range(75):
+            ep = Mock()
+            ep.maturity_at_time = "SUPERVISED"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.97
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="AUTONOMOUS"
+        )
+
+        assert result["success"] == True
+        assert result["passed"] == True
+        # With 0% intervention, compliance = 1.0 - (0.0 * 2) = 1.0
+        assert result["constitutional_compliance"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_exam_execute_autonomous_fail(self, graduation_service):
+        """Test agent fails AUTONOMOUS exam."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "SUPERVISED"
+        agent.status = mock_status
+
+        # Some interventions (fails 0% requirement)
+        episodes = []
+        for i in range(50):
+            ep = Mock()
+            ep.maturity_at_time = "SUPERVISED"
+            ep.status = "completed"
+            ep.human_intervention_count = 1 if i % 10 == 0 else 0  # 5 interventions
+            ep.constitutional_score = 0.90  # Below 0.95
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="AUTONOMOUS"
+        )
+
+        assert result["success"] == True
+        assert result["passed"] == False
+
+    @pytest.mark.asyncio
+    async def test_exam_score_calculation(self, graduation_service):
+        """Test exam score is calculated from episode count, intervention, compliance."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Create episodes with known metrics
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 0  # Perfect intervention rate
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        # Score should be high with perfect metrics
+        assert result["score"] > 0.80
+        assert "constitutional_compliance" in result
+        assert 0.0 <= result["constitutional_compliance"] <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_exam_constitutional_violations(self, graduation_service):
+        """Test constitutional violations list is populated correctly."""
+        from core.agent_graduation_service import SandboxExecutor
+
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Episodes with poor performance
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 7  # 70% intervention
+            ep.constitutional_score = 0.60
+            episodes.append(ep)
+
+        executor = SandboxExecutor(graduation_service.db)
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        # Should have violations
+        assert len(result["constitutional_violations"]) > 0
+        assert "excessive_interventions" in result["constitutional_violations"] or \
+               "insufficient_performance" in result["constitutional_violations"]
