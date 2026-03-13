@@ -1,11 +1,47 @@
 ## Current Position
 
-Phase: 180 of 189 (API Routes Coverage - Advanced Features)
-Plan: 01 of 4 in current phase (COMPLETE)
+Phase: 181 of 189 (Core Services Coverage - World Model & Business Facts)
+Plan: 04 of 5 in current phase (PARTIAL SUCCESS)
 Status: IN_PROGRESS
 Last activity: 2026-03-12 — Phase 180 Plan 01 COMPLETE: APAR routes test suite with 35 comprehensive tests (985 lines, 283% of 350-line target). 74.6% line coverage achieved for apar_routes.py (241 lines, 14 endpoints). All 14 endpoints tested: AP intake/approval/pending/upcoming, AR generate/send/paid/overdue, PDF downloads (AP/AR), reminders, summary, combined invoices. 100% pass rate (35/35 tests passing). Deviations: Fixed mock patch location (core.apar_engine.apar_engine), added /api prefix to router, fixed test assertions, added InvoiceStatus import, adjusted error path expectations.
 
-Progress: [█░░░] 25% (1/4 plans in Phase 180)
+Progress: [█░░░] 20% (1/5 plans in Phase 181)
+
+## Session Update: 2026-03-13
+
+**Phase 181 Plan 04 PARTIAL SUCCESS:**
+- GraphRAG Engine test suite created with 28 tests (866 lines, 50% of 1500-line target)
+- 3 test classes: TestGraphRAGInit (4), TestLLMExtraction (10), TestPatternExtraction (15)
+- Pattern extraction tests: 11/15 passing (73% pass rate) - all 8 entity types and 3 relationship types tested
+- LLM extraction tests: Framework complete but blocked by mocking complexity (OpenAI imported inside _get_llm_client method)
+- Estimated 15-20% line coverage for graphrag_engine.py (far from 70% target)
+- Deviation 1 (Rule 4): LLM extraction blocked by architectural issue - OpenAI imported locally requires complex __import__ patch mocking. Recommended refactoring for dependency injection.
+- Deviation 2 (Rule 1): 4 pattern extraction tests fail due to regex edge cases (textual dates, Euro currency, file paths)
+- Deviation 3: Stopped after Task 2 - Tasks 3-4 (Ingestion and Search) not started due to LLM mocking dependency
+- Duration: ~35 minutes
+- Commit: ed16b1f89
+- Files created: 181-04-SUMMARY.md, backend/tests/test_graphrag_engine.py (866 lines, 28 tests)
+
+**Status:** PARTIAL SUCCESS - Test infrastructure created, pattern extraction partially tested, but far from 70% coverage target
+- ✅ 28 tests created across 3 test classes
+- ⚠️ 14/28 tests passing (50% pass rate)
+- ✅ Pattern extraction: 11/15 passing (73%) - all 8 entity types tested (email, url, phone, date, currency, file_path, ip, uuid)
+- ❌ LLM extraction: Blocked by mocking complexity (OpenAI imported inside method)
+- ❌ Ingestion operations: Not tested (Tasks 3-4 not started)
+- ❌ Search operations: Not tested (Tasks 3-4 not started)
+- ⚠️ 15-20% line coverage estimated (target was 70%)
+- Recommendation: Refactor graphrag_engine.py to support dependency injection for testability
+
+**Coverage Analysis:**
+- Pattern extraction logic: ~70% coverage (lines 151-315)
+- LLM extraction logic: ~5% coverage (lines 57-147, blocked by mocking)
+- Initialization: ~40% coverage (lines 51-83)
+- Ingestion methods: 0% coverage (lines 319-445)
+- Search methods: 0% coverage (lines 447-613)
+
+**Next Steps:** Accept partial success or refactor graphrag_engine.py for testability before completing Tasks 3-4
+
+Progress: [█░░░] 20% (1/5 plans in Phase 181)
 
 ## Session Update: 2026-03-12
 
