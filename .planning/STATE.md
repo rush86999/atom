@@ -1,13 +1,41 @@
 ## Current Position
 
 Phase: 181 of 189 (Core Services Coverage - World Model & Business Facts)
-Plan: 02 of 5 in current phase (COMPLETE)
+Plan: 03 of 5 in current phase (COMPLETE)
 Status: IN_PROGRESS
-Last activity: 2026-03-13 — Phase 181 Plan 02 COMPLETE: World Model Service test coverage expanded to 83% (exceeds 75% target). 34 new tests (1,672 lines) added covering recall_experiences orchestration, formula hot fallback, episode enrichment, and canvas insights extraction. All 34 tests passing (100% pass rate). Coverage improved from ~40% to 83% (+43 percentage points).
+Last activity: 2026-03-13 — Phase 181 Plan 03 COMPLETE: Business Facts Routes API test coverage expanded to 85% (exceeds 75% target). 42 comprehensive tests (1,252 lines) added covering all 7 endpoints (list facts, create, update, delete, upload/extract, verify citation). 100% pass rate (42/42 tests passing). Module-level mocking established for storage and policy_extractor to avoid boto3 import errors. Coverage improved from ~50% to 85% (+35 percentage points).
 
-Progress: [██░░░] 40% (2/5 plans in Phase 181)
+Progress: [███░░] 60% (3/5 plans in Phase 181)
 
 ## Session Update: 2026-03-13
+
+**Phase 181 Plan 03 COMPLETE:**
+- Business Facts Routes API test suite created with 42 comprehensive tests (1,252 lines)
+- 7 test classes: TestListFactsFilters (8), TestCreateFactValidation (6), TestUpdateFactAllFields (6), TestUploadAndExtractSuccess (10), TestUploadAndExtractFileTypes (4), TestVerifyCitationS3 (4), TestVerifyCitationLocalFallback (4)
+- 11 test fixtures: test_db, test_app, client, admin_user, authenticated_admin_client, sample_business_fact, sample_unverified_fact, sample_deleted_fact, mock_world_model_service, mock_storage_service, mock_policy_extractor
+- Module-level mocks for storage and policy_fact_extractor to prevent boto3 import error
+- All 7 business facts endpoints tested: GET /api/admin/governance/facts, GET /api/admin/governance/facts/{id}, POST /api/admin/governance/facts, PUT /api/admin/governance/facts/{id}, DELETE /api/admin/governance/facts/{id}, POST /api/admin/governance/facts/upload, POST /api/admin/governance/facts/{id}/verify-citation
+- 100% pass rate (42/42 tests passing): All filter tests, validation tests, upload tests, and citation verification tests pass
+- 85% line coverage achieved (162 statements, 24 missed, exceeds 75% target)
+- Deviation 1 (Rule 1): Fixed test_create_fact_with_empty_fact_text to expect 201 - API accepts empty strings (no Pydantic min_length)
+- Deviation 2 (Rule 3): Added module-level mocking for storage/policy_extractor - boto3 import error blocking issue
+- Deviation 3 (Rule 3): Modified mock_world_model_service fixture to patch at route level - WorldModelService imported locally in routes
+- Duration: ~45 minutes
+- Commits: 5b38bc6d0, 06149d38a
+- Files created: 181-03-SUMMARY.md, backend/tests/api/test_business_facts_routes.py
+
+**Status:** COMPLETE - 85% coverage achieved
+- ✅ 42 tests created covering all 7 endpoints
+- ✅ 100% pass rate (42/42 tests passing)
+- ✅ 85% line coverage (exceeds 75% target)
+- ✅ All filter combinations tested (status, domain, limits, deleted)
+- ✅ Upload success paths tested (8 file types, storage, extractor, bulk record, cleanup)
+- ✅ Citation verification tested (S3 and local fallback)
+- ✅ Module-level mocking patterns established
+
+**Coverage Analysis:**
+- api/admin/business_facts_routes.py: 85% coverage (162 statements, 24 missed)
+- Missing coverage: Exception handlers and error paths (lines 107-114, 179, 221-228, 247, 284-297, 323-325, 350, 376-378)
 
 **Phase 181 Plan 02 COMPLETE:**
 - World Model Service test suite expanded with 34 comprehensive tests (1,672 lines)
