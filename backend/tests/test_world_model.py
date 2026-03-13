@@ -2049,6 +2049,440 @@ class TestRecordBusinessFactErrors:
 
 
 # ============================================================================
+# TEST CLASS: Update Experience Feedback Error Paths
+# ============================================================================
+
+class TestUpdateExperienceFeedbackErrors:
+    """Error path tests for update_experience_feedback method."""
+
+    @pytest.mark.asyncio
+    async def test_update_feedback_experience_not_found(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler that returns empty results
+        WHEN update_experience_feedback() is called with non-existent experience_id
+        THEN return False
+        """
+        # Mock search to return empty list (experience not found)
+        mock_lancedb_handler.search = Mock(return_value=[])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call the method with non-existent ID
+        result = await world_model_service.update_experience_feedback(
+            experience_id="nonexistent_id",
+            feedback_score=0.5,
+            feedback_notes="Test feedback"
+        )
+
+        # Verify returns False
+        assert result is False
+        mock_lancedb_handler.search.assert_called_once()
+        mock_lancedb_handler.add_document.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_feedback_lancedb_search_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with LanceDBHandler that raises exception on search
+        WHEN update_experience_feedback() is called
+        THEN return False
+        """
+        # Mock search to raise exception
+        mock_lancedb_handler.search = Mock(side_effect=Exception("Search failed"))
+
+        # Call the method
+        result = await world_model_service.update_experience_feedback(
+            experience_id="exp_1",
+            feedback_score=0.5,
+            feedback_notes="Test feedback"
+        )
+
+        # Verify returns False
+        assert result is False
+        mock_lancedb_handler.search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_feedback_with_extreme_negative_score(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_experience_feedback() is called with -1.0 feedback_score
+        THEN verify confidence formula: new_confidence = old * 0.6 + (feedback+1)/2 * 0.4
+        """
+        # Mock search to return existing experience
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_1",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.7,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with -1.0 (worst feedback)
+        result = await world_model_service.update_experience_feedback(
+            experience_id="exp_1",
+            feedback_score=-1.0,
+            feedback_notes="Poor performance"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify confidence formula: 0.7 * 0.6 + (0.0) * 0.4 = 0.42
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_confidence = call_args[1]["metadata"]["confidence_score"]
+        expected_confidence = 0.7 * 0.6 + ((-1.0 + 1.0) / 2.0) * 0.4
+        assert abs(new_confidence - expected_confidence) < 0.001
+        assert call_args[1]["metadata"]["feedback_score"] == -1.0
+
+    @pytest.mark.asyncio
+    async def test_update_feedback_with_extreme_positive_score(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_experience_feedback() is called with 1.0 feedback_score
+        THEN verify confidence formula: new_confidence = old * 0.6 + (feedback+1)/2 * 0.4
+        """
+        # Mock search to return existing experience
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_2",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.6,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with 1.0 (best feedback)
+        result = await world_model_service.update_experience_feedback(
+            experience_id="exp_2",
+            feedback_score=1.0,
+            feedback_notes="Excellent performance"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify confidence formula: 0.6 * 0.6 + (1.0) * 0.4 = 0.76
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_confidence = call_args[1]["metadata"]["confidence_score"]
+        expected_confidence = 0.6 * 0.6 + ((1.0 + 1.0) / 2.0) * 0.4
+        assert abs(new_confidence - expected_confidence) < 0.001
+        assert call_args[1]["metadata"]["feedback_score"] == 1.0
+
+    @pytest.mark.asyncio
+    async def test_update_feedback_confidence_formula_validation(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_experience_feedback() is called with 0.0 feedback_score
+        THEN verify confidence formula: 60% old + 40% new (normalized)
+        """
+        # Mock search to return existing experience
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_3",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.5,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with 0.0 (neutral feedback)
+        result = await world_model_service.update_experience_feedback(
+            experience_id="exp_3",
+            feedback_score=0.0,
+            feedback_notes="Average performance"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify confidence formula: 0.5 * 0.6 + (0.5) * 0.4 = 0.5
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_confidence = call_args[1]["metadata"]["confidence_score"]
+        expected_confidence = 0.5 * 0.6 + ((0.0 + 1.0) / 2.0) * 0.4
+        assert abs(new_confidence - expected_confidence) < 0.001
+
+    @pytest.mark.asyncio
+    async def test_update_feedback_with_feedback_notes(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_experience_feedback() is called with feedback_notes
+        THEN verify notes are appended to text
+        """
+        # Mock search to return existing experience
+        original_text = "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test"
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_4",
+                "text": original_text,
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.7,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with feedback notes
+        feedback_notes = "User provided detailed feedback about the process"
+        result = await world_model_service.update_experience_feedback(
+            experience_id="exp_4",
+            feedback_score=0.5,
+            feedback_notes=feedback_notes
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify feedback notes appended to text
+        call_args = mock_lancedb_handler.add_document.call_args
+        enhanced_text = call_args[1]["text"]
+        assert feedback_notes in enhanced_text
+        assert "Feedback:" in enhanced_text
+
+
+# ============================================================================
+# TEST CLASS: Boost Experience Confidence Error Paths
+# ============================================================================
+
+class TestBoostExperienceConfidenceErrors:
+    """Error path tests for boost_experience_confidence method."""
+
+    @pytest.mark.asyncio
+    async def test_boost_confidence_experience_not_found(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler that returns empty results
+        WHEN boost_experience_confidence() is called with non-existent experience_id
+        THEN return False
+        """
+        # Mock search to return empty list (experience not found)
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Call the method with non-existent ID
+        result = await world_model_service.boost_experience_confidence(
+            experience_id="nonexistent_id",
+            boost_amount=0.1
+        )
+
+        # Verify returns False
+        assert result is False
+        mock_lancedb_handler.search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_boost_confidence_with_zero_boost_amount(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN boost_experience_confidence() is called with default boost_amount
+        THEN verify confidence increases by 0.1 (default)
+        """
+        # Mock search to return existing experience
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_boost_1",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.7,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with default boost_amount (0.1)
+        result = await world_model_service.boost_experience_confidence(
+            experience_id="exp_boost_1"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify confidence increased by 0.1
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_confidence = call_args[1]["metadata"]["confidence_score"]
+        assert abs(new_confidence - 0.8) < 0.001  # 0.7 + 0.1
+
+    @pytest.mark.asyncio
+    async def test_boost_confidence_with_negative_boost_amount(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN boost_experience_confidence() is called with negative boost_amount
+        THEN verify confidence decreases
+        """
+        # Mock search to return existing experience
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_boost_2",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.8,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with negative boost_amount
+        result = await world_model_service.boost_experience_confidence(
+            experience_id="exp_boost_2",
+            boost_amount=-0.2
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify confidence decreased by 0.2
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_confidence = call_args[1]["metadata"]["confidence_score"]
+        assert abs(new_confidence - 0.6) < 0.001  # 0.8 - 0.2
+
+    @pytest.mark.asyncio
+    async def test_boost_confidence_at_max_already(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN boost_experience_confidence() is called on experience with confidence=1.0
+        THEN verify confidence capped at 1.0
+        """
+        # Mock search to return existing experience with max confidence
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_boost_3",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 1.0,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with boost_amount
+        result = await world_model_service.boost_experience_confidence(
+            experience_id="exp_boost_3",
+            boost_amount=0.5
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify confidence capped at 1.0
+        call_args = mock_lancedb_handler.add_document.call_args
+        new_confidence = call_args[1]["metadata"]["confidence_score"]
+        assert new_confidence == 1.0  # Capped at max
+
+    @pytest.mark.asyncio
+    async def test_boost_confidence_boost_count_increment(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN boost_experience_confidence() is called
+        THEN verify boost_count increments on each boost
+        """
+        # Mock search to return existing experience with existing boost_count
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_boost_4",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.7,
+                    "boost_count": 3,  # Already boosted 3 times
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call boost
+        result = await world_model_service.boost_experience_confidence(
+            experience_id="exp_boost_4",
+            boost_amount=0.1
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify boost_count incremented
+        call_args = mock_lancedb_handler.add_document.call_args
+        boost_count = call_args[1]["metadata"]["boost_count"]
+        assert boost_count == 4  # 3 + 1
+
+    @pytest.mark.asyncio
+    async def test_boost_confidence_last_boosted_at_set(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN boost_experience_confidence() is called
+        THEN verify last_boosted_at timestamp is set
+        """
+        # Mock search to return existing experience
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp_boost_5",
+                "text": "Task: reconciliation\nInput: Test\nOutcome: Success\nLearnings: Test",
+                "source": "agent_123",
+                "metadata": {
+                    "confidence_score": 0.7,
+                    "agent_id": "agent_123"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call boost
+        result = await world_model_service.boost_experience_confidence(
+            experience_id="exp_boost_5",
+            boost_amount=0.1
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify last_boosted_at timestamp set
+        call_args = mock_lancedb_handler.add_document.call_args
+        last_boosted_at = call_args[1]["metadata"]["last_boosted_at"]
+        assert last_boosted_at is not None
+        # Verify it's a valid ISO format timestamp
+        from datetime import datetime
+        datetime.fromisoformat(last_boosted_at)
+
+
+# ============================================================================
 # TEST CLASS: Recall Experiences Error Handling
 # ============================================================================
 
