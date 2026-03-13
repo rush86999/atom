@@ -1507,6 +1507,327 @@ class TestWorldModelEdgeCases:
 
 
 # ============================================================================
+# TEST CLASS: Record Experience Error Paths
+# ============================================================================
+
+class TestRecordExperienceErrors:
+    """Error path tests for record_experience method."""
+
+    @pytest.mark.asyncio
+    async def test_record_experience_lancedb_connection_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with LanceDBHandler that raises exception
+        WHEN record_experience() is called
+        THEN exception propagates (no error handling in current implementation)
+        """
+        # Mock add_document to raise exception (synchronous method)
+        mock_lancedb_handler.add_document = Mock(side_effect=Exception("Connection failed"))
+
+        # Create test experience
+        experience = AgentExperience(
+            id="test_exp_1",
+            agent_id="agent_123",
+            task_type="reconciliation",
+            input_summary="Reconcile SKU-123",
+            outcome="Success",
+            learnings="Process worked correctly",
+            confidence_score=0.8,
+            agent_role="Finance",
+            timestamp=datetime.now()
+        )
+
+        # Call the method - exception propagates (no try/except in production code)
+        with pytest.raises(Exception, match="Connection failed"):
+            await world_model_service.record_experience(experience)
+
+        mock_lancedb_handler.add_document.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_record_experience_with_none_metadata(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_experience() is called with experience containing None metadata values
+        THEN verify None values are handled gracefully in metadata dict
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test experience with None metadata values
+        experience = AgentExperience(
+            id="test_exp_2",
+            agent_id="agent_456",
+            task_type="reconciliation",
+            input_summary="Reconcile SKU-456",
+            outcome="Success",
+            learnings="Handled None values",
+            confidence_score=0.7,
+            agent_role="Finance",
+            specialty=None,  # None value
+            feedback_score=None,  # None value
+            thumbs_up_down=None,  # None value
+            rating=None,  # None value
+            agent_execution_id=None,  # None value
+            feedback_type=None,  # None value
+            timestamp=datetime.now()
+        )
+
+        # Call the method
+        result = await world_model_service.record_experience(experience)
+
+        # Verify success
+        assert result is True
+        mock_lancedb_handler.add_document.assert_called_once()
+
+        # Verify metadata contains None values (graceful handling)
+        call_args = mock_lancedb_handler.add_document.call_args
+        metadata = call_args[1]["metadata"]
+        assert metadata["specialty"] is None
+        assert metadata["feedback_score"] is None
+        assert metadata["thumbs_up_down"] is None
+        assert metadata["rating"] is None
+        assert metadata["agent_execution_id"] is None
+        assert metadata["feedback_type"] is None
+
+    @pytest.mark.asyncio
+    async def test_record_experience_with_empty_task_type(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_experience() is called with empty string task_type
+        THEN verify empty task_type is stored correctly
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test experience with empty task_type
+        experience = AgentExperience(
+            id="test_exp_3",
+            agent_id="agent_789",
+            task_type="",  # Empty string
+            input_summary="No specific task",
+            outcome="Success",
+            learnings="Handled empty task_type",
+            confidence_score=0.6,
+            agent_role="Operations",
+            timestamp=datetime.now()
+        )
+
+        # Call the method
+        result = await world_model_service.record_experience(experience)
+
+        # Verify success
+        assert result is True
+
+        # Verify empty task_type is stored
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["task_type"] == ""
+
+    @pytest.mark.asyncio
+    async def test_record_experience_with_special_characters_in_text(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_experience() is called with emojis and unicode in input_summary
+        THEN verify special characters are stored correctly
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test experience with emojis and unicode
+        experience = AgentExperience(
+            id="test_exp_4",
+            agent_id="agent_unicode",
+            task_type="reconciliation",
+            input_summary="Reconcile SKU-123 🚀 ✅ with unicode: café, naïve",
+            outcome="Success",
+            learnings="Handled special characters: 🎉",
+            confidence_score=0.9,
+            agent_role="Finance",
+            timestamp=datetime.now()
+        )
+
+        # Call the method
+        result = await world_model_service.record_experience(experience)
+
+        # Verify success
+        assert result is True
+
+        # Verify special characters preserved in text
+        call_args = mock_lancedb_handler.add_document.call_args
+        text = call_args[1]["text"]
+        assert "🚀" in text
+        assert "✅" in text
+        assert "café" in text
+        assert "naïve" in text
+        assert "🎉" in text
+
+    @pytest.mark.asyncio
+    async def test_record_experience_with_thumbs_up_down_feedback(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_experience() is called with thumbs_up_down=True and False
+        THEN verify thumbs_up_down is stored in metadata
+        """
+        # Test thumbs_up_down=True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+        experience_true = AgentExperience(
+            id="test_exp_5a",
+            agent_id="agent_123",
+            task_type="reconciliation",
+            input_summary="Reconcile SKU-123",
+            outcome="Success",
+            learnings="User gave thumbs up",
+            confidence_score=0.8,
+            agent_role="Finance",
+            thumbs_up_down=True,
+            timestamp=datetime.now()
+        )
+
+        result_true = await world_model_service.record_experience(experience_true)
+        assert result_true is True
+
+        call_args_true = mock_lancedb_handler.add_document.call_args
+        assert call_args_true[1]["metadata"]["thumbs_up_down"] is True
+
+        # Test thumbs_up_down=False
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+        experience_false = AgentExperience(
+            id="test_exp_5b",
+            agent_id="agent_123",
+            task_type="reconciliation",
+            input_summary="Reconcile SKU-456",
+            outcome="Success",
+            learnings="User gave thumbs down",
+            confidence_score=0.6,
+            agent_role="Finance",
+            thumbs_up_down=False,
+            timestamp=datetime.now()
+        )
+
+        result_false = await world_model_service.record_experience(experience_false)
+        assert result_false is True  # add_document returns True
+
+        call_args_false = mock_lancedb_handler.add_document.call_args
+        assert call_args_false[1]["metadata"]["thumbs_up_down"] is False
+
+    @pytest.mark.asyncio
+    async def test_record_experience_with_star_rating(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_experience() is called with rating values 1-5
+        THEN verify rating is stored in metadata
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Test all rating values (1-5)
+        for rating_value in [1, 2, 3, 4, 5]:
+            mock_lancedb_handler.add_document.reset_mock()
+
+            experience = AgentExperience(
+                id=f"test_exp_rating_{rating_value}",
+                agent_id="agent_123",
+                task_type="reconciliation",
+                input_summary=f"Reconcile SKU-{rating_value}",
+                outcome="Success",
+                learnings=f"User gave {rating_value} star rating",
+                confidence_score=0.8,
+                agent_role="Finance",
+                rating=rating_value,
+                timestamp=datetime.now()
+            )
+
+            result = await world_model_service.record_experience(experience)
+            assert result is True
+
+            call_args = mock_lancedb_handler.add_document.call_args
+            assert call_args[1]["metadata"]["rating"] == rating_value
+
+    @pytest.mark.asyncio
+    async def test_record_experience_with_agent_execution_id(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_experience() is called with agent_execution_id
+        THEN verify agent_execution_id is stored in metadata
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test experience with agent_execution_id
+        experience = AgentExperience(
+            id="test_exp_7",
+            agent_id="agent_123",
+            task_type="reconciliation",
+            input_summary="Reconcile SKU-123",
+            outcome="Success",
+            learnings="Linked to agent execution",
+            confidence_score=0.8,
+            agent_role="Finance",
+            agent_execution_id="exec-abc-123",
+            timestamp=datetime.now()
+        )
+
+        # Call the method
+        result = await world_model_service.record_experience(experience)
+
+        # Verify success
+        assert result is True
+
+        # Verify agent_execution_id is stored
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["agent_execution_id"] == "exec-abc-123"
+
+    @pytest.mark.asyncio
+    async def test_record_experience_with_feedback_type(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_experience() is called with all feedback_type values
+        THEN verify feedback_type is stored in metadata
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Test all feedback_type values
+        feedback_types = ["correction", "rating", "approval", "comment"]
+
+        for feedback_type in feedback_types:
+            mock_lancedb_handler.add_document.reset_mock()
+
+            experience = AgentExperience(
+                id=f"test_exp_feedback_{feedback_type}",
+                agent_id="agent_123",
+                task_type="reconciliation",
+                input_summary=f"Reconcile SKU-{feedback_type}",
+                outcome="Success",
+                learnings=f"User provided {feedback_type} feedback",
+                confidence_score=0.8,
+                agent_role="Finance",
+                feedback_type=feedback_type,
+                timestamp=datetime.now()
+            )
+
+            result = await world_model_service.record_experience(experience)
+            assert result is True
+
+            call_args = mock_lancedb_handler.add_document.call_args
+            assert call_args[1]["metadata"]["feedback_type"] == feedback_type
+
+
+# ============================================================================
 # TEST CLASS: Recall Experiences Error Handling
 # ============================================================================
 
