@@ -789,3 +789,178 @@ class TestConditionalWorkflowExecution:
             assert "step3" in wf.completed_steps
             assert "step4" in wf.completed_steps
             assert "step2" not in wf.completed_steps
+
+
+class TestRetryPolicies:
+    """Test retry policy configuration and storage."""
+
+    def test_retry_policy_stored_in_step_dict(self, composition_engine):
+        """Test that retry_policy is preserved in step serialization."""
+        step = SkillStep(
+            "test_step",
+            "skill_id",
+            {},
+            [],
+            retry_policy={"max_retries": 3, "backoff": "exponential"}
+        )
+
+        step_dict = composition_engine._step_to_dict(step)
+
+        assert step_dict["retry_policy"]["max_retries"] == 3
+        assert step_dict["retry_policy"]["backoff"] == "exponential"
+
+    def test_retry_policy_attribute_accessible(self, composition_engine):
+        """Test SkillStep.retry_policy can be set and read."""
+        step = SkillStep(
+            "test_step",
+            "skill_id",
+            {},
+            [],
+            retry_policy={"max_retries": 5}
+        )
+
+        assert step.retry_policy == {"max_retries": 5}
+
+    def test_retry_max_retries_configuration(self, composition_engine):
+        """Test can set max_retries in retry_policy dict."""
+        step = SkillStep(
+            "test_step",
+            "skill_id",
+            {},
+            [],
+            retry_policy={"max_retries": 10, "backoff": "linear"}
+        )
+
+        step_dict = composition_engine._step_to_dict(step)
+
+        assert step_dict["retry_policy"]["max_retries"] == 10
+
+    def test_retry_backoff_configuration(self, composition_engine):
+        """Test can set backoff strategy in retry_policy."""
+        step = SkillStep(
+            "test_step",
+            "skill_id",
+            {},
+            [],
+            retry_policy={"max_retries": 3, "backoff": "exponential"}
+        )
+
+        step_dict = composition_engine._step_to_dict(step)
+
+        assert step_dict["retry_policy"]["backoff"] == "exponential"
+
+    def test_retry_policy_default_none(self, composition_engine):
+        """Test default retry_policy is None."""
+        step = SkillStep("test_step", "skill_id", {}, [])
+
+        assert step.retry_policy is None
+
+        step_dict = composition_engine._step_to_dict(step)
+
+        assert step_dict["retry_policy"] is None
+
+
+class TestTimeoutConfiguration:
+    """Test timeout configuration and storage."""
+
+    def test_timeout_seconds_stored_in_step_dict(self, composition_engine):
+        """Test that timeout_seconds is preserved in step serialization."""
+        step = SkillStep("test_step", "skill_id", {}, [], timeout_seconds=60)
+
+        step_dict = composition_engine._step_to_dict(step)
+
+        assert step_dict["timeout_seconds"] == 60
+
+    def test_custom_timeout_configured(self, composition_engine):
+        """Test can set custom timeout on SkillStep."""
+        step = SkillStep("test_step", "skill_id", {}, [], timeout_seconds=120)
+
+        assert step.timeout_seconds == 120
+
+    def test_default_timeout_30_seconds(self, composition_engine):
+        """Test default timeout is 30 seconds."""
+        step = SkillStep("test_step", "skill_id", {}, [])
+
+        assert step.timeout_seconds == 30
+
+    def test_zero_timeout_allowed(self, composition_engine):
+        """Test timeout can be set to 0 (no timeout)."""
+        step = SkillStep("test_step", "skill_id", {}, [], timeout_seconds=0)
+
+        assert step.timeout_seconds == 0
+
+        step_dict = composition_engine._step_to_dict(step)
+
+        assert step_dict["timeout_seconds"] == 0
+
+    def test_timeout_persistence_across_serialization(self, composition_engine):
+        """Test timeout preserved when converting to/from dict."""
+        step = SkillStep("test_step", "skill_id", {}, [], timeout_seconds=45)
+
+        step_dict = composition_engine._step_to_dict(step)
+
+        assert step_dict["timeout_seconds"] == 45
+
+
+class TestInputResolutionAdvanced:
+    """Test advanced input resolution patterns."""
+
+    def test_dict_output_merged(self, composition_engine):
+        """Test dict outputs merged into step inputs."""
+        step = SkillStep("current", "skill", {"base": 1}, ["prev"])
+        results = {
+            "prev": {"output": 100, "extra": "data"}
+        }
+
+        resolved = composition_engine._resolve_inputs(step, results)
+
+        assert resolved["base"] == 1
+        assert resolved["output"] == 100
+        assert resolved["extra"] == "data"
+
+    def test_non_dict_output_named(self, composition_engine):
+        """Test non-dict outputs get {dep_id}_output key."""
+        step = SkillStep("current", "skill", {}, ["prev"])
+        results = {
+            "prev": "string_result"  # Not a dict
+        }
+
+        resolved = composition_engine._resolve_inputs(step, results)
+
+        assert resolved["prev_output"] == "string_result"
+
+    def test_multiple_deps_merge_order(self, composition_engine):
+        """Test last dependency wins for conflicting keys."""
+        step = SkillStep("merge", "skill", {}, ["a", "b"])
+        results = {
+            "a": {"value": 1, "from_a": True},
+            "b": {"value": 2, "from_b": True}
+        }
+
+        resolved = composition_engine._resolve_inputs(step, results)
+
+        # Both deps are dicts, so their keys are merged (b's value overwrites a's)
+        assert resolved["value"] == 2  # Last dependency wins
+        assert resolved["from_a"] is True
+        assert resolved["from_b"] is True
+
+    def test_empty_inputs_preserved(self, composition_engine):
+        """Test step with no inputs doesn't lose empty dict."""
+        step = SkillStep("current", "skill", {}, [])
+        results = {}
+
+        resolved = composition_engine._resolve_inputs(step, results)
+
+        assert resolved == {}
+
+    def test_nested_dict_merge(self, composition_engine):
+        """Test nested dicts are merged correctly."""
+        step = SkillStep("current", "skill", {}, ["prev"])
+        results = {
+            "prev": {"config": {"debug": True, "level": 5}}
+        }
+
+        resolved = composition_engine._resolve_inputs(step, results)
+
+        assert resolved["config"]["debug"] is True
+        assert resolved["config"]["level"] == 5
