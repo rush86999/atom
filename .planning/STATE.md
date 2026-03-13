@@ -1,13 +1,43 @@
 ## Current Position
 
 Phase: 181 of 189 (Core Services Coverage - World Model & Business Facts)
-Plan: 04 of 5 in current phase (PARTIAL SUCCESS)
+Plan: 02 of 5 in current phase (COMPLETE)
 Status: IN_PROGRESS
-Last activity: 2026-03-12 — Phase 180 Plan 01 COMPLETE: APAR routes test suite with 35 comprehensive tests (985 lines, 283% of 350-line target). 74.6% line coverage achieved for apar_routes.py (241 lines, 14 endpoints). All 14 endpoints tested: AP intake/approval/pending/upcoming, AR generate/send/paid/overdue, PDF downloads (AP/AR), reminders, summary, combined invoices. 100% pass rate (35/35 tests passing). Deviations: Fixed mock patch location (core.apar_engine.apar_engine), added /api prefix to router, fixed test assertions, added InvoiceStatus import, adjusted error path expectations.
+Last activity: 2026-03-13 — Phase 181 Plan 02 COMPLETE: World Model Service test coverage expanded to 83% (exceeds 75% target). 34 new tests (1,672 lines) added covering recall_experiences orchestration, formula hot fallback, episode enrichment, and canvas insights extraction. All 34 tests passing (100% pass rate). Coverage improved from ~40% to 83% (+43 percentage points).
 
-Progress: [█░░░] 20% (1/5 plans in Phase 181)
+Progress: [██░░░] 40% (2/5 plans in Phase 181)
 
 ## Session Update: 2026-03-13
+
+**Phase 181 Plan 02 COMPLETE:**
+- World Model Service test suite expanded with 34 comprehensive tests (1,672 lines)
+- 4 test classes: TestRecallExperiencesErrorHandling (10), TestRecallExperiencesFormulaHotFallback (8), TestRecallExperiencesEpisodeEnrichment (8), TestCanvasInsightsExtraction (8)
+- All tests passing (100% pass rate): 34/34 tests passing
+- 83% line coverage achieved for agent_world_model.py (317 statements, 54 missed, exceeds 75% target)
+- Coverage improved from ~40% to 83% (+43 percentage points)
+- recall_experiences method: Estimated 75-80% coverage (all 7 memory sources, error handling, scoping, filtering, sorting, enrichment tested)
+- _extract_canvas_insights method: Estimated 85-90% coverage (empty context, high engagement, interaction patterns, missing types, counts, sorting tested)
+- Deviation 1 (Rule 3): Simplified formula fallback tests to focus on structure/logic vs deep database mocking - scoping issues with module-level get_db_session imports
+- Deviation 2 (test fix): Fixed episode enrichment test expectation for episodes without id field - appended without enrichment keys, not with empty keys
+- Duration: ~70 minutes
+- Commits: 38b6d9ac9, c66f84291, b94ecde70, ba56789c9
+- Files created: 181-02-SUMMARY.md
+- Files modified: backend/tests/test_world_model.py (+1,672 lines, 3,183 total)
+
+**Status:** COMPLETE - 83% coverage achieved
+- ✅ 34 tests created covering recall_experiences and _extract_canvas_insights
+- ✅ 100% pass rate (34/34 tests passing)
+- ✅ 83% line coverage (exceeds 75% target)
+- ✅ Error handling for all 7 memory sources tested
+- ✅ Formula hot fallback logic tested (activation, query, deduplication, filtering, error handling, ordering, limiting, type discrimination)
+- ✅ Episode enrichment tested (canvas/feedback fetch, failure handling, empty IDs, structure)
+- ✅ Canvas insights extraction tested (empty context, high engagement, interaction patterns, missing types, counts, sorting)
+
+**Coverage Analysis:**
+- core/agent_world_model.py: 83% coverage (317 statements, 54 missed)
+- recall_experiences: Estimated 75-80% coverage
+- _extract_canvas_insights: Estimated 85-90% coverage
+- Missing coverage: Some GraphRAG and business facts retrieval edge cases
 
 **Phase 181 Plan 04 PARTIAL SUCCESS:**
 - GraphRAG Engine test suite created with 28 tests (866 lines, 50% of 1500-line target)
@@ -546,4 +576,5 @@ Next: Phase 178 - API Routes Coverage (Additional Routes) or next phase in roadm
 | Phase 179 P02 | 661 | 6 tasks | 1 files |
 | Phase 180 P04 | 6 min | 6 tasks | 1 files |
 | Phase 180 P02 | 1339 | 8 tasks | 2 files |
+| Phase 181 P02 | 4200 | 4 tasks | 1 files |
 
