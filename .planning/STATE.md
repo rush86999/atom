@@ -1,11 +1,50 @@
 ## Current Position
 
-Phase: 181 of 189 (Core Services Coverage - World Model & Business Facts)
-Plan: 05 of 5 in current phase (COMPLETE)
+Phase: 182 of 189 (Core Services Coverage - Package Governance)
+Plan: 01 of 4 in current phase (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-13 — Phase 181 Plan 05 COMPLETE: Policy Fact Extractor and Storage Service test coverage achieved with 100% line coverage for both services. 31 comprehensive tests (714 lines) added covering stub behavior validation and S3/R2 operations. Policy Fact Extractor: 13 tests (init, extract facts, registry). Storage Service: 18 tests (init, upload, check_exists, singleton). All tests passing (100% pass rate). Coverage targets exceeded (60% and 80%).
+Last activity: 2026-03-13 — Phase 182 Plan 01 COMPLETE: npm Package Governance test coverage achieved with 95% line coverage. Created comprehensive npm test suite with 40 tests (740 lines). New test file: test_package_governance_npm.py (542 lines, 30 tests). Extended test_package_governance.py (+198 lines, 10 tests). npm cache keys validated: pkg:npm:{name}:{version}. Scoped packages tested (@babel/core, @angular/core). Version specifiers tested (^, ~). 100% pass rate (40/40 tests). Deviation 1 (Rule 3): Used raw SQL inserts for agents to avoid NoForeignKeysError on Artifact.author relationship. Deviation 2 (Rule 1): Documented production code bug where PackageRegistry.id doesn't include package_type. Duration: ~17 minutes (1009 seconds). Commits: 663c6017a, 2ee89a27c, 944310d83.
 
-Progress: [█████] 100% (5/5 plans in Phase 181)
+Progress: [█░░░] 25% (1/4 plans in Phase 182)
+
+## Session Update: 2026-03-13
+
+**Phase 182 Plan 01 COMPLETE:**
+- npm Package Governance test suite created with 40 comprehensive tests (740 lines)
+- New test file: test_package_governance_npm.py (542 lines, 30 tests)
+- Extended test_package_governance.py (+198 lines, 10 tests)
+- 6 test classes for npm: TestNpmStudentBlocking (5), TestNpmInternApproval (6), TestNpmMaturityChecks (5), TestNpmBannedPackages (4), TestNpmCacheBehavior (5), TestNpmPackageLifecycle (5)
+- 2 test classes for isolation/edge cases: TestNpmPythonIsolation (5), TestNpmEdgeCases (5)
+- 95% line coverage achieved on package_governance_service.py (119 statements, 6 missed, exceeds 95% target)
+- npm cache keys validated: pkg:npm:{name}:{version} (distinct from Python)
+- Scoped packages tested: @babel/core, @angular/core
+- npm version specifiers tested: ^4.17.0, ~1.4.0
+- All maturity levels tested for npm packages (STUDENT, INTERN, SUPERVISED, AUTONOMOUS)
+- npm lifecycle tested (approve, ban, list)
+- 100% test pass rate (40/40 tests passing)
+- Deviation 1 (Rule 3): Used raw SQL inserts for agents to avoid NoForeignKeysError on Artifact.author relationship
+- Deviation 2 (Rule 1): Documented production code bug where PackageRegistry.id doesn't include package_type, causing UNIQUE constraint violations
+- Duration: ~17 minutes (1009 seconds)
+- Commits: 663c6017a, 2ee89a27c, 944310d83
+- Files created: 182-01-SUMMARY.md, backend/tests/test_package_governance_npm.py
+- Files modified: backend/tests/test_package_governance.py
+
+**Status:** COMPLETE - 95% coverage achieved
+- ✅ 40 tests created covering all npm governance scenarios
+- ✅ 100% pass rate (40/40 tests passing)
+- ✅ 95% line coverage (exceeds 95% target)
+- ✅ npm cache keys validated (pkg:npm: prefix)
+- ✅ npm/Python isolation tested
+- ✅ Scoped packages tested (@babel/core, @angular/core)
+- ✅ Version specifiers tested (^, ~)
+- ✅ All maturity levels tested (STUDENT, INTERN, SUPERVISED, AUTONOMOUS)
+
+**Coverage Analysis:**
+- core/package_governance_service.py: 95% coverage (119 statements, 6 missed)
+- Missing lines: 182-188 (default deny for unexpected status), 220-222 (error handling)
+- Both are acceptable edge cases that don't affect core functionality
+
+**Recommendation:** Accept as complete. 95% coverage achieved on npm governance code paths. All npm functionality tested including cache behavior, maturity checks, lifecycle management, and edge cases.
 
 ## Session Update: 2026-03-13
 
@@ -640,9 +679,9 @@ Next: Phase 178 - API Routes Coverage (Additional Routes) or next phase in roadm
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 701 (v5.2 complete, v5.3 complete, v5.4 started)
+- Total plans completed: 702 (v5.2 complete, v5.3 complete, v5.4 started)
 - Average duration: 7 minutes
-- Total execution time: ~81.8 hours
+- Total execution time: ~81.9 hours
 
 **By Phase:**
 
@@ -650,19 +689,16 @@ Next: Phase 178 - API Routes Coverage (Additional Routes) or next phase in roadm
 |-------|-------|-------|----------|
 | v5.2 phases | 26 | ~18 hours | ~42 min |
 | v5.3 phases | 50 | ~5 hours | ~6 min |
-| v5.4 phases | 7 | ~37 min | ~5.3 min |
+| v5.4 phases | 8 | ~58 min | ~7.3 min |
 
 **Recent Trend:**
-- Latest v5.4 phases: ~5.3 min average
+- Latest v5.4 phases: ~7.3 min average
 - Trend: Fast (database layer coverage testing)
 
 *Updated after each plan completion*
-| Phase 177 P01 | 3 | 55 tests | 2 files | ~19 min | ✅ COMPLETED |
-| Phase 176 P04 | 5 | 79 tests | 2 files | ~8 min | ✅ COMPLETED |
-| Phase 176 P03 | 6 | 53 tests | 2 files | ~12 min | ✅ COMPLETED |
-| Phase 178-api-routes-coverage-admin-system P05 | 516s | 10 tasks | 2 files |
-| Phase 179 P03 | 14 minutes | 5 tasks | 1 files |
-| Phase 179 P02 | 661 | 6 tasks | 1 files |
+| Phase 182 P01 | 1009s | 40 tests | 2 files | ~17 min | ✅ COMPLETED |
+| Phase 181 P05 | 240s | 31 tests | 2 files | ~3 min | ✅ COMPLETED |
+| Phase 181 P02 | 4200s | 4 tasks | 1 files |
 | Phase 180 P04 | 6 min | 6 tasks | 1 files |
 | Phase 180 P02 | 1339 | 8 tasks | 2 files |
 | Phase 181 P02 | 4200 | 4 tasks | 1 files |
