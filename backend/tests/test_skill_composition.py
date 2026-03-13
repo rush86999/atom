@@ -964,3 +964,369 @@ class TestInputResolutionAdvanced:
 
         assert resolved["config"]["debug"] is True
         assert resolved["config"]["level"] == 5
+
+
+class TestErrorRecovery:
+    """Test error recovery patterns."""
+
+    @pytest.mark.asyncio
+    async def test_skill_not_found_error(self, composition_engine, db_session):
+        """Test ValueError raised when skill not found."""
+        async def mock_not_found(skill_id, inputs, agent_id):
+            raise ValueError(f"Skill not found: {skill_id}")
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_not_found):
+            steps = [SkillStep("step1", "missing_skill", {}, [])]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="error-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is False
+            assert "Skill not found" in result["error"]
+
+            # Verify database record
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "error-test"
+            ).first()
+            assert wf.status == "failed"
+            assert wf.error_message is not None
+
+    @pytest.mark.asyncio
+    async def test_skill_execution_exception_caught(self, composition_engine, db_session):
+        """Test exception during execution caught and logged."""
+        async def mock_exception(skill_id, inputs, agent_id):
+            raise RuntimeError("Skill execution failed")
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_exception):
+            steps = [SkillStep("step1", "failing_skill", {}, [])]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="exception-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is False
+            assert "Skill execution failed" in result["error"]
+
+            # Verify database record
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "exception-test"
+            ).first()
+            assert wf.status == "failed"
+
+    @pytest.mark.asyncio
+    async def test_workflow_status_failed_on_error(self, composition_engine, db_session):
+        """Test workflow marked as failed when exception occurs."""
+        async def mock_error(skill_id, inputs, agent_id):
+            raise Exception("Test error")
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_error):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="status-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify database record
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "status-test"
+            ).first()
+            assert wf.status == "failed"
+
+    @pytest.mark.asyncio
+    async def test_error_message_in_execution_record(self, composition_engine, db_session):
+        """Test error_message stored in SkillCompositionExecution."""
+        async def mock_error(skill_id, inputs, agent_id):
+            raise ValueError("Custom error message")
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_error):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="error-msg-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify error message in database
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "error-msg-test"
+            ).first()
+            assert "Custom error message" in wf.error_message
+
+    @pytest.mark.asyncio
+    async def test_completed_at_set_on_error(self, composition_engine, db_session):
+        """Test completed_at timestamp set even on failure."""
+        async def mock_error(skill_id, inputs, agent_id):
+            raise Exception("Test error")
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_error):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="timestamp-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify completed_at is set
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "timestamp-test"
+            ).first()
+            assert wf.completed_at is not None
+            assert wf.started_at is not None
+
+    @pytest.mark.asyncio
+    async def test_partial_execution_before_error(self, composition_engine, db_session):
+        """Test steps before error are in executed_steps list."""
+        execution_log = []
+
+        async def mock_with_log(skill_id, inputs, agent_id):
+            execution_log.append(skill_id)
+            if skill_id == "failing_skill":
+                raise Exception("Step failed")
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_with_log):
+            steps = [
+                SkillStep("step1", "good_skill", {}, []),
+                SkillStep("step2", "good_skill", [], []),
+                SkillStep("step3", "failing_skill", [], []),
+                SkillStep("step4", "good_skill", [], [])
+            ]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="partial-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is False
+
+            # Verify executed steps in database
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "partial-test"
+            ).first()
+            # step1 and step2 should have executed
+            assert "step1" in wf.completed_steps
+            assert "step2" in wf.completed_steps
+            # step3 failed and step4 never ran
+            assert "step3" not in wf.completed_steps
+            assert "step4" not in wf.completed_steps
+
+
+class TestWorkflowDatabaseRecords:
+    """Test workflow database record persistence."""
+
+    @pytest.mark.asyncio
+    async def test_workflow_record_created(self, composition_engine, db_session):
+        """Test SkillCompositionExecution record created."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="record-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify record created
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "record-test"
+            ).first()
+            assert wf is not None
+
+    @pytest.mark.asyncio
+    async def test_execution_id_is_uuid(self, composition_engine):
+        """Test execution_id is valid UUID format."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="uuid-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify UUID format
+            import uuid
+            try:
+                uuid.UUID(result["execution_id"])
+            except ValueError:
+                pytest.fail("execution_id is not a valid UUID")
+
+    @pytest.mark.asyncio
+    async def test_workflow_id_stored_correctly(self, composition_engine, db_session):
+        """Test workflow_id stored in database record."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="my-workflow",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify workflow_id in database
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "my-workflow"
+            ).first()
+            assert wf.workflow_id == "my-workflow"
+
+    @pytest.mark.asyncio
+    async def test_agent_id_stored_correctly(self, composition_engine, db_session):
+        """Test agent_id stored in database record."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="agent-test",
+                steps=steps,
+                agent_id="my-agent"
+            )
+
+            # Verify agent_id in database
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "agent-test"
+            ).first()
+            assert wf.agent_id == "my-agent"
+
+    @pytest.mark.asyncio
+    async def test_validation_status_persisted(self, composition_engine, db_session):
+        """Test validation_status field stored correctly."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="validation-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify validation_status in database
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "validation-test"
+            ).first()
+            assert wf.validation_status == "valid"
+
+
+class TestWorkflowRollbackDetails:
+    """Test workflow rollback details."""
+
+    @pytest.mark.asyncio
+    async def test_rollback_steps_list_in_reverse(self, composition_engine, db_session):
+        """Test rollback_steps is reversed list of executed steps."""
+        async def mock_fail(skill_id, inputs, agent_id):
+            if skill_id == "failing_skill":
+                return {"success": False, "error": "Skill failed"}
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_fail):
+            steps = [
+                SkillStep("step1", "skill1", {}, []),
+                SkillStep("step2", "skill2", [], []),
+                SkillStep("step3", "failing_skill", [], [])
+            ]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="rollback-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True  # Note: result["success"] is True even with rollback!
+            assert result.get("rolled_back") is True
+
+            # Verify rollback steps are in reverse order
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "rollback-test"
+            ).first()
+            assert wf.rollback_steps == ["step2", "step1"]  # Reversed
+
+    @pytest.mark.asyncio
+    async def test_rollback_performed_flag_set(self, composition_engine, db_session):
+        """Test rollback_performed set to True on rollback."""
+        async def mock_fail(skill_id, inputs, agent_id):
+            return {"success": False, "error": "Failed"}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_fail):
+            steps = [
+                SkillStep("step1", "skill1", {}, []),
+                SkillStep("step2", "skill2", [], ["step1"])
+            ]
+
+            await composition_engine.execute_workflow(
+                workflow_id="flag-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify rollback_performed flag
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "flag-test"
+            ).first()
+            assert wf.rollback_performed is True
+
+    @pytest.mark.asyncio
+    async def test_duration_calculated_on_rollback(self, composition_engine, db_session):
+        """Test duration_seconds calculated even after rollback."""
+        async def mock_fail(skill_id, inputs, agent_id):
+            return {"success": False, "error": "Failed"}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_fail):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="duration-rollback-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify duration calculated
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "duration-rollback-test"
+            ).first()
+            assert wf.duration_seconds is not None
+            assert wf.duration_seconds >= 0
+
+    @pytest.mark.asyncio
+    async def test_status_rolled_back(self, composition_engine, db_session):
+        """Test status set to 'rolled_back' after rollback."""
+        async def mock_fail(skill_id, inputs, agent_id):
+            return {"success": False, "error": "Failed"}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_fail):
+            steps = [SkillStep("step1", "skill1", {}, [])]
+
+            await composition_engine.execute_workflow(
+                workflow_id="status-rollback-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify status
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "status-rollback-test"
+            ).first()
+            assert wf.status == "rolled_back"
