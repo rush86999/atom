@@ -2396,6 +2396,48 @@ class SkillCompositionStep(Base):
     skill = relationship("Skill", backref="composition_steps")
 
 
+class SkillCompositionExecution(Base):
+    """
+    Execution record for skill composition workflows.
+
+    Tracks individual workflow runs with validation status, execution results,
+    and rollback information for debugging and monitoring.
+    """
+    __tablename__ = "skill_composition_executions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False, index=True)
+    agent_id = Column(String, nullable=False, index=True)
+    workspace_id = Column(String, default="default")
+
+    # Workflow definition and validation
+    workflow_definition = Column(JSON, nullable=False)  # List of steps as dicts
+    validation_status = Column(String, default="pending")  # pending, valid, invalid
+
+    # Execution status
+    status = Column(String, default="pending")  # pending, running, completed, failed, rolled_back
+    current_step = Column(String, nullable=True)
+    completed_steps = Column(JSON, nullable=False, default=list)  # List of step_ids
+
+    # Execution results
+    execution_results = Column(JSON, nullable=True)  # Step results
+    final_output = Column(JSON, nullable=True)  # Final workflow output
+
+    # Error handling
+    error_message = Column(Text, nullable=True)
+
+    # Rollback tracking
+    rollback_performed = Column(Boolean, default=False)
+    rollback_steps = Column(JSON, nullable=True)  # List of step_ids in reverse order
+
+    # Timing
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class AgentMessage(Base):
     """
     Messages passed between agents for multi-agent coordination.
