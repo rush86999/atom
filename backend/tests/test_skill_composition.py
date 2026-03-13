@@ -561,3 +561,235 @@ class TestEdgeCaseValidation:
         # NetworkX treats duplicate IDs as the same node
         assert result["valid"] is True
         assert result["node_count"] == 1  # Only one unique node
+
+
+class TestConditionalExecutionAdvanced:
+    """Test conditional execution with real step skipping."""
+
+    def test_condition_true_allows_execution(self, composition_engine):
+        """Test condition evaluating to True allows step to run."""
+        results = {"fetch": {"success": True}}
+
+        assert composition_engine._evaluate_condition("fetch.get('success') == True", results) is True
+
+    def test_condition_false_skips_step(self, composition_engine):
+        """Test condition evaluating to False skips step."""
+        results = {"fetch": {"success": False}}
+
+        assert composition_engine._evaluate_condition("fetch.get('success') == True", results) is False
+
+    def test_condition_based_on_previous_output(self, composition_engine):
+        """Test condition like 'fetch.success == True'."""
+        results = {
+            "fetch": {"success": True, "count": 10}
+        }
+
+        # Should be True
+        assert composition_engine._evaluate_condition("fetch['success'] == True", results) is True
+        assert composition_engine._evaluate_condition("fetch['count'] > 5", results) is True
+
+    def test_condition_based_on_output_value(self, composition_engine):
+        """Test condition like 'process.count > 5'."""
+        results = {
+            "process": {"count": 10}
+        }
+
+        assert composition_engine._evaluate_condition("process['count'] > 5", results) is True
+        assert composition_engine._evaluate_condition("process['count'] > 20", results) is False
+
+    def test_condition_complex_expression(self, composition_engine):
+        """Test compound condition 'fetch.success and process.count > 0'."""
+        results = {
+            "fetch": {"success": True},
+            "process": {"count": 5}
+        }
+
+        assert composition_engine._evaluate_condition("fetch.get('success') and process.get('count', 0) > 0", results) is True
+
+    def test_condition_missing_field_evaluates_false(self, composition_engine):
+        """Test accessing missing field returns False."""
+        results = {"fetch": {"success": True}}
+
+        # Accessing non-existent field should return False via .get()
+        assert composition_engine._evaluate_condition("fetch.get('missing') == True", results) is False
+
+    def test_condition_syntax_error_returns_false(self, composition_engine):
+        """Test invalid expression caught, step skipped."""
+        results = {"fetch": {"success": True}}
+
+        # Syntax error should be caught and return False
+        assert composition_engine._evaluate_condition("fetch[invalid syntax", results) is False
+
+    @pytest.mark.asyncio
+    async def test_conditional_step_not_in_completed_steps(self, composition_engine, db_session):
+        """Test skipped steps not in executed_steps list."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {"executed": skill_id}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [
+                SkillStep("step1", "skill1", {}, []),
+                SkillStep("step2", "skill2", {}, ["step1"])
+            ]
+            # Set condition that will evaluate to False
+            steps[1].condition = "step1.get('nonexistent') == True"
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="conditional-skip-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True
+            # Check database for executed steps
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "conditional-skip-test"
+            ).first()
+
+            # step2 should not be in completed_steps
+            assert "step1" in wf.completed_steps
+            assert "step2" not in wf.completed_steps
+
+
+class TestConditionalWorkflowExecution:
+    """Test conditional workflow execution patterns."""
+
+    @pytest.mark.asyncio
+    async def test_branching_workflow(self, composition_engine):
+        """Test different branches execute based on condition."""
+        execution_log = []
+
+        async def mock_with_log(skill_id, inputs, agent_id):
+            execution_log.append(skill_id)
+            return {"success": True, "result": {"branch": skill_id}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_with_log):
+            steps = [
+                SkillStep("decision", "decision_skill", {}, []),
+                SkillStep("branch_a", "skill_a", {}, ["decision"]),
+                SkillStep("branch_b", "skill_b", {}, ["decision"])
+            ]
+            # Only execute branch_a if decision returns branch='a'
+            steps[1].condition = "decision.get('result', {}).get('branch') == 'a'"
+            steps[2].condition = "decision.get('result', {}).get('branch') == 'b'"
+
+            # Mock decision to return branch='a'
+            async def mock_decision(skill_id, inputs, agent_id):
+                if skill_id == "decision_skill":
+                    execution_log.append(skill_id)
+                    return {"success": True, "result": {"branch": "a"}}
+                return {"success": True, "result": {"branch": skill_id}}
+
+            with patch.object(composition_engine.skill_registry, 'execute_skill', mock_decision):
+                result = await composition_engine.execute_workflow(
+                    workflow_id="branching-test",
+                    steps=steps,
+                    agent_id="test-agent"
+                )
+
+                assert result["success"] is True
+                # Only decision and branch_a should execute
+                assert "decision_skill" in execution_log
+                assert "skill_a" in execution_log
+                assert "skill_b" not in execution_log
+
+    @pytest.mark.asyncio
+    async def test_conditional_chain(self, composition_engine):
+        """Test chain of conditional steps where one skips affects others."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {"count": 5}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [
+                SkillStep("fetch", "fetch_skill", {}, []),
+                SkillStep("process", "process_skill", {}, ["fetch"]),
+                SkillStep("save", "save_skill", {}, ["process"])
+            ]
+            # process only runs if fetch.count > 10 (will be False)
+            steps[1].condition = "fetch.get('result', {}).get('count', 0) > 10"
+            # save only runs if process ran
+            steps[2].condition = "process is not None"
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="chain-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True
+            # Only fetch should execute
+            assert "fetch" in result["results"]
+            assert "process" not in result["results"]
+            assert "save" not in result["results"]
+
+    @pytest.mark.asyncio
+    async def test_all_steps_skipped_workflow(self, composition_engine, db_session):
+        """Test workflow where all steps are skipped."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [
+                SkillStep("step1", "skill1", {}, []),
+                SkillStep("step2", "skill2", [], [])
+            ]
+            # Both steps have conditions that evaluate to False
+            steps[0].condition = "False"
+            steps[1].condition = "0 > 1"
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="all-skipped-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True
+            assert result["results"] == {}
+
+            # Verify no steps in completed_steps
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "all-skipped-test"
+            ).first()
+
+            assert len(wf.completed_steps) == 0
+
+    @pytest.mark.asyncio
+    async def test_partial_execution_workflow(self, composition_engine, db_session):
+        """Test some steps execute, others skipped."""
+        async def mock_execute(skill_id, inputs, agent_id):
+            return {"success": True, "result": {"status": "ok"}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_execute):
+            steps = [
+                SkillStep("step1", "skill1", {}, []),
+                SkillStep("step2", "skill2", [], []),
+                SkillStep("step3", "skill3", [], []),
+                SkillStep("step4", "skill4", [], [])
+            ]
+            # step2 and step4 have conditions
+            steps[1].condition = "False"  # Skip step2
+            steps[3].condition = "True"  # Execute step4
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="partial-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True
+            # step1, step3, step4 should execute
+            assert "step1" in result["results"]
+            assert "step3" in result["results"]
+            assert "step4" in result["results"]
+            # step2 should be skipped
+            assert "step2" not in result["results"]
+
+            # Verify completed_steps in database
+            wf = db_session.query(SkillCompositionExecution).filter(
+                SkillCompositionExecution.workflow_id == "partial-test"
+            ).first()
+
+            assert "step1" in wf.completed_steps
+            assert "step3" in wf.completed_steps
+            assert "step4" in wf.completed_steps
+            assert "step2" not in wf.completed_steps
