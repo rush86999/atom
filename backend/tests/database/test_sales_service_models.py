@@ -15,7 +15,7 @@ Target: 80%+ line coverage for both sales.models and service_delivery.models
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
@@ -2096,8 +2096,9 @@ class TestAppointmentModel:
         db_session.add(customer)
         db_session.commit()
 
-        start = datetime.utcnow() + timedelta(days=1, hours=10)
-        end = datetime.utcnow() + timedelta(days=1, hours=11)
+        base_time = datetime.now(timezone.utc).replace(microsecond=0)
+        start = base_time + timedelta(days=1, hours=10)
+        end = base_time + timedelta(days=1, hours=11)
 
         appointment = AppointmentFactory(
             workspace_id=workspace.id,
