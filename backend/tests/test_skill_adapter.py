@@ -8,10 +8,15 @@ Tests cover:
 - Python skill execution with sandbox integration
 - Pydantic args_schema validation
 - Async execution delegation
+- Python package support (Phase 35)
 """
 
 import pytest
-from unittest.mock import patch, Mock
+import sys
+from unittest.mock import patch, Mock, MagicMock
+
+# Module-level mocking for PackageInstaller (Phase 182 pattern)
+sys.modules['core.package_installer'] = MagicMock()
 
 from core.skill_adapter import CommunitySkillTool, CommunitySkillInput, create_community_tool
 
@@ -294,3 +299,141 @@ class TestPydanticValidation:
         assert input_obj.query == "test"
         # Extra fields are stored in model
         assert hasattr(input_obj, 'model_extra')
+
+
+class TestPythonPackageSkills:
+    """Test Python package support (Phase 35)."""
+
+    @pytest.fixture
+    def package_skill(self):
+        """Create a Python skill with packages."""
+        return {
+            "name": "numpy_skill",
+            "description": "A skill with numpy package",
+            "skill_id": "numpy_001",
+            "skill_type": "python_code",
+            "skill_content": "def execute(query: str) -> str:\n    return f'Processed: {query}'",
+            "packages": ["numpy==1.21.0", "pandas>=1.3.0"]
+        }
+
+    def test_packages_attribute_stored(self, package_skill):
+        """Test that packages list is stored on tool creation."""
+        tool = create_community_tool(package_skill)
+
+        assert tool.packages == ["numpy==1.21.0", "pandas>=1.3.0"]
+        assert len(tool.packages) == 2
+
+    def test_packages_empty_by_default(self, prompt_only_skill):
+        """Test that packages default to empty list."""
+        tool = create_community_tool(prompt_only_skill)
+
+        assert tool.packages == []
+
+    @patch('core.package_installer.PackageInstaller')
+    def test_package_execution_workflow(self, mock_installer_class, package_skill):
+        """Test _execute_python_skill_with_packages() calls PackageInstaller."""
+        # Mock PackageInstaller instance
+        mock_installer = Mock()
+        mock_installer.install_packages.return_value = {
+            "success": True,
+            "image_tag": "atom-skill:testing-v1",
+            "vulnerabilities": []
+        }
+        mock_installer.execute_with_packages.return_value = "Execution result: Processed test query"
+        mock_installer_class.return_value = mock_installer
+
+        tool = create_community_tool(package_skill)
+
+        result = tool._run("test query")
+
+        # Verify install_packages was called
+        mock_installer.install_packages.assert_called_once()
+        call_args = mock_installer.install_packages.call_args
+        assert call_args[1]["skill_id"] == "skill-numpy_skill"
+        assert call_args[1]["requirements"] == ["numpy==1.21.0", "pandas>=1.3.0"]
+        assert call_args[1]["scan_for_vulnerabilities"] is True
+
+        # Verify execute_with_packages was called
+        mock_installer.execute_with_packages.assert_called_once()
+        assert "Execution result" in result
+
+    @patch('core.package_installer.PackageInstaller')
+    def test_package_installation_failure_handling(self, mock_installer_class, package_skill):
+        """Test error message when install_packages fails."""
+        mock_installer = Mock()
+        mock_installer.install_packages.return_value = {
+            "success": False,
+            "error": "Failed to build Docker image: disk full"
+        }
+        mock_installer_class.return_value = mock_installer
+
+        tool = create_community_tool(package_skill)
+
+        result = tool._run("test query")
+
+        assert "PACKAGE_INSTALLATION_ERROR" in result
+        assert "Failed to build Docker image: disk full" in result
+
+        # Verify execute_with_packages was not called
+        mock_installer.execute_with_packages.assert_not_called()
+
+    @patch('core.package_installer.PackageInstaller')
+    def test_vulnerability_logging(self, mock_installer_class, package_skill):
+        """Test vulnerabilities are logged but execution proceeds."""
+        mock_installer = Mock()
+        mock_installer.install_packages.return_value = {
+            "success": True,
+            "image_tag": "atom-skill:testing-v1",
+            "vulnerabilities": [
+                {"package": "numpy", "severity": "HIGH", "cve": "CVE-2021-1234"}
+            ]
+        }
+        mock_installer.execute_with_packages.return_value = "Execution result"
+        mock_installer_class.return_value = mock_installer
+
+        tool = create_community_tool(package_skill)
+
+        result = tool._run("test query")
+
+        # Should proceed despite vulnerabilities
+        assert "Execution result" in result
+        mock_installer.execute_with_packages.assert_called_once()
+
+    @patch('core.package_installer.PackageInstaller')
+    def test_code_extraction_for_packages(self, mock_installer_class, package_skill):
+        """Test _extract_function_code() adds execution wrapper."""
+        mock_installer = Mock()
+        mock_installer.install_packages.return_value = {
+            "success": True,
+            "image_tag": "atom-skill:testing-v1"
+        }
+        mock_installer.execute_with_packages.return_value = "Result"
+        mock_installer_class.return_value = mock_installer
+
+        tool = create_community_tool(package_skill)
+
+        # Execute to trigger code extraction
+        tool._run("test query")
+
+        # Verify execute_with_packages was called with wrapped code
+        call_args = mock_installer.execute_with_packages.call_args
+        code_arg = call_args[1]["code"]
+
+        # Should contain execution wrapper
+        assert "result = execute(query)" in code_arg
+        assert "print(result)" in code_arg
+
+    def test_package_skill_without_sandbox_raises(self, package_skill):
+        """Test RuntimeError when sandbox_enabled=False with packages."""
+        # Remove packages to trigger normal Python skill path
+        package_skill["packages"] = []
+        package_skill["sandbox_enabled"] = False
+
+        tool = create_community_tool(package_skill)
+
+        # Should raise RuntimeError for Python skill without sandbox
+        with pytest.raises(RuntimeError) as exc_info:
+            tool._run("test query")
+
+        assert "sandbox" in str(exc_info.value).lower()
+        assert "security" in str(exc_info.value).lower()
