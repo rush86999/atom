@@ -490,7 +490,12 @@ Plans: 4 plans
   2. Skill composition engine achieves 75%+ line coverage
   3. Skill marketplace achieves 75%+ line coverage
   4. Skill execution achieves 75%+ line coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 5 plans
+- [ ] 183-01-PLAN.md — Skill Adapter CLI & npm packages (53+ tests, NEW file)
+- [ ] 183-02-PLAN.md — Skill Composition Engine (53+ tests)
+- [ ] 183-03-PLAN.md — Skill Marketplace Service (51+ tests)
+- [ ] 183-04-PLAN.md — Skill Registry Service (67+ tests, NEW file)
+- [ ] 183-05-PLAN.md — Final verification and summary (aggregation)
 **Estimated Coverage**: 56.50%
 
 ### Phase 184: Integration Testing (Advanced)
