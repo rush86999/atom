@@ -530,8 +530,10 @@ Plans: 4 plans
   2. Sales models achieve 80%+ line coverage
   3. Service delivery models achieve 80%+ line coverage
   4. Advanced relationships achieve 80%+ line coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 1 plan
+- [ ] 185-01-PLAN.md — Fix flaky test and datetime deprecation warnings
 **Estimated Coverage**: 64.50%
+**Note**: Current coverage is 100% on all three model files. Plan focuses on fixing 1 flaky test and 448 deprecation warnings.
 
 ### Phase 186: Edge Cases & Error Handling
 **Goal**: Achieve target coverage on edge cases and error handling paths
