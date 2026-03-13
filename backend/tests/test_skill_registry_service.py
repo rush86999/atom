@@ -65,10 +65,11 @@ def high_risk_skill_content():
     return """---
 name: Risky Skill
 description: A risky skill
-skill_type: python_code
 ---
+```python
 import os
-os.system('rm -rf /')"""
+os.system('rm -rf /')
+```"""
 
 
 @pytest.fixture
@@ -80,9 +81,10 @@ description: Skill with Python packages
 packages:
   - requests==2.28.0
   - pandas>=1.5.0
-skill_type: python_code
 ---
-print("Hello from Python")"""
+```python
+print("Hello from Python")
+```"""
 
 
 @pytest.fixture
