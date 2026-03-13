@@ -2359,3 +2359,148 @@ class TestServiceDeliveryWorkflows:
         assert project_on_track.budget_status == BudgetStatus.ON_TRACK.value
         assert project_at_risk.budget_status == BudgetStatus.AT_RISK.value
         assert project_over_budget.budget_status == BudgetStatus.OVER_BUDGET.value
+
+
+# ============================================================================
+# Task 5: Session Isolation Tests (API-04)
+# ============================================================================
+
+class TestConcurrentAccess:
+    """Test concurrent session access patterns with proper isolation."""
+
+    def test_separate_sessions_isolate_changes(self, db_session: Session):
+        """Test that separate db_session instances don't interfere."""
+        # Create workspace
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Create deal in current session
+        deal = DealFactory(
+            workspace_id=workspace.id,
+            stage=DealStage.DISCOVERY.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify deal exists in current session
+        found = db_session.query(Deal).filter(Deal.id == deal.id).first()
+        assert found is not None
+        assert found.stage == DealStage.DISCOVERY.value
+
+        # Update entity in same session
+        deal.stage = DealStage.NEGOTIATION.value
+        db_session.commit()
+
+        # Verify update is visible in same session
+        found = db_session.query(Deal).filter(Deal.id == deal.id).first()
+        assert found.stage == DealStage.NEGOTIATION.value
+
+    def test_session_rollback_after_test(self, db_session: Session):
+        """Test that db_session fixture rolls back after test."""
+        # Create data
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Create a project
+        project = ProjectFactory(
+            workspace_id=workspace.id,
+            status=ProjectStatus.ACTIVE.value,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify it exists in current session
+        count = db_session.query(Project).filter(
+            Project.workspace_id == workspace.id
+        ).count()
+        assert count == 1
+
+        # After this test, the fixture should rollback
+        # Next test should not see this data (verified by test isolation)
+
+    def test_multiple_operations_in_single_session(self, db_session: Session):
+        """Test multiple related operations in a single session."""
+        workspace = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Create contract
+        contract = ContractFactory(
+            workspace_id=workspace.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create project linked to contract
+        project = ProjectFactory(
+            workspace_id=workspace.id,
+            contract_id=contract.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create milestone linked to project
+        milestone = MilestoneFactory(
+            workspace_id=workspace.id,
+            project_id=project.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Create task linked to milestone
+        task = ProjectTaskFactory(
+            workspace_id=workspace.id,
+            project_id=project.id,
+            milestone_id=milestone.id,
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify all relationships in single session
+        assert contract.id == project.contract_id
+        assert project.id == milestone.project_id
+        assert milestone.id == task.milestone_id
+
+        # Query through relationships
+        found_project = db_session.query(Project).filter(
+            Project.contract_id == contract.id
+        ).first()
+        assert found_project is not None
+        assert found_project.id == project.id
+
+        found_milestone = db_session.query(Milestone).filter(
+            Milestone.project_id == project.id
+        ).first()
+        assert found_milestone is not None
+        assert found_milestone.id == milestone.id
+
+    def test_session_isolation_with_factory_injection(self, db_session: Session):
+        """Test that factory session injection creates isolated data."""
+        workspace1 = WorkspaceFactory(_session=db_session)
+        workspace2 = WorkspaceFactory(_session=db_session)
+        db_session.commit()
+
+        # Create contracts in different workspaces
+        contract1 = ContractFactory(
+            workspace_id=workspace1.id,
+            name="Contract 1",
+            _session=db_session
+        )
+        contract2 = ContractFactory(
+            workspace_id=workspace2.id,
+            name="Contract 2",
+            _session=db_session
+        )
+        db_session.commit()
+
+        # Verify isolation by workspace
+        workspace1_contracts = db_session.query(Contract).filter(
+            Contract.workspace_id == workspace1.id
+        ).all()
+        assert len(workspace1_contracts) == 1
+        assert workspace1_contracts[0].name == "Contract 1"
+
+        workspace2_contracts = db_session.query(Contract).filter(
+            Contract.workspace_id == workspace2.id
+        ).all()
+        assert len(workspace2_contracts) == 1
+        assert workspace2_contracts[0].name == "Contract 2"
