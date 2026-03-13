@@ -1,13 +1,41 @@
 ## Current Position
 
 Phase: 181 of 189 (Core Services Coverage - World Model & Business Facts)
-Plan: 01 of 5 in current phase (COMPLETE)
-Status: IN_PROGRESS
-Last activity: 2026-03-13 — Phase 181 Plan 01 COMPLETE: World Model Service core methods test coverage expanded to 87% (exceeds 75% target). 38 comprehensive tests (3,084 lines) added covering all 8 core methods (record_experience, record_business_fact, update_experience_feedback, boost_experience_confidence, get_experience_statistics, fact verification). 100% pass rate (38/38 tests passing). Error paths and edge cases thoroughly tested (None values, empty strings, unicode, extreme scores, confidence formulas). Coverage improved from ~45% to 87% (+42 percentage points).
+Plan: 05 of 5 in current phase (COMPLETE)
+Status: COMPLETE
+Last activity: 2026-03-13 — Phase 181 Plan 05 COMPLETE: Policy Fact Extractor and Storage Service test coverage achieved with 100% line coverage for both services. 31 comprehensive tests (714 lines) added covering stub behavior validation and S3/R2 operations. Policy Fact Extractor: 13 tests (init, extract facts, registry). Storage Service: 18 tests (init, upload, check_exists, singleton). All tests passing (100% pass rate). Coverage targets exceeded (60% and 80%).
 
-Progress: [██░░░] 20% (1/5 plans in Phase 181)
+Progress: [█████] 100% (5/5 plans in Phase 181)
 
 ## Session Update: 2026-03-13
+
+**Phase 181 Plan 05 COMPLETE:**
+- Policy Fact Extractor and Storage Service test suite created with 31 comprehensive tests (714 lines)
+- 7 test classes: TestPolicyFactExtractorInit (3), TestExtractFactsFromDocument (7), TestExtractorRegistry (3), TestStorageServiceInit (3), TestUploadFile (6), TestCheckExists (6), TestGetStorageService (3)
+- 7 fixtures: clear_extractor_registry, sample_extractor, sample_pdf_path, sample_txt_path, clear_storage_singleton, mock_s3_client, sample_file_obj, sample_bytesio
+- All tests passing (100% pass rate): 31/31 tests passing
+- 100% line coverage achieved for both services (policy_fact_extractor.py: 23 stmts, 0 missed; storage.py: 41 stmts, 0 missed)
+- Coverage targets exceeded (60% for extractor, 80% for storage)
+- Policy Fact Extractor: Stub behavior validated (empty facts, logging, interface structure)
+- Storage Service: S3/R2 operations tested (upload, check_exists, credentials, error handling)
+- Deviation 1 (test infrastructure): Used -o addopts="" to bypass pytest.ini --reruns configuration issue
+- Duration: ~3 minutes (240 seconds)
+- Commits: 6e8158438, 647702978
+- Files created: 181-05-SUMMARY.md, backend/tests/test_policy_fact_extractor.py, backend/tests/test_storage_service.py
+
+**Status:** COMPLETE - 100% coverage achieved for both services
+- ✅ 31 tests created covering all public methods
+- ✅ 100% pass rate (31/31 tests passing)
+- ✅ 100% line coverage for policy_fact_extractor.py (exceeds 60% target)
+- ✅ 100% line coverage for storage.py (exceeds 80% target)
+- ✅ Registry singleton patterns tested (extractor workspace-based, storage global)
+- ✅ S3 boto3 mocking established (patch at module level)
+- ✅ Error handling validated (upload failures, ClientError, graceful degradation)
+
+**Coverage Analysis:**
+- core/policy_fact_extractor.py: 100% coverage (23 statements, 0 missed)
+- core/storage.py: 100% coverage (41 statements, 0 missed)
+- Missing coverage: None
 
 **Phase 181 Plan 01 COMPLETE:**
 - World Model Service core methods test suite expanded with 38 comprehensive tests (3,084 lines)
