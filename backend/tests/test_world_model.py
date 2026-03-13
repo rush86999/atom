@@ -2924,5 +2924,260 @@ class TestRecallExperiencesEpisodeEnrichment:
                 assert len(episode["feedback_context"]) == 1
 
 
+# ============================================================================
+# TEST CLASS: Canvas Insights Extraction
+# ============================================================================
+
+class TestCanvasInsightsExtraction:
+    """Tests for _extract_canvas_insights method."""
+
+    def test_extract_insights_with_empty_canvas_context(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing empty canvas_context
+        WHEN _extract_canvas_insights() is called
+        THEN returns zero counts for all insights
+        """
+        # Create enriched episodes with empty canvas_context
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [],
+                "feedback_context": []
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify zero counts
+        assert insights["canvas_type_counts"] == {}
+        assert insights["user_actions"] == {}
+        assert insights["high_engagement_canvases"] == []
+        assert insights["preferred_canvas_types"] == []
+
+    def test_extract_insights_with_high_engagement_canvases(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing positive feedback
+        WHEN _extract_canvas_insights() is called
+        THEN high_engagement_canvases populated with canvas_id, type, action, avg_feedback
+        """
+        # Create enriched episodes with high engagement (avg_feedback >= 4)
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [
+                    {
+                        "id": "canvas-1",
+                        "canvas_type": "chart",
+                        "action": "present"
+                    }
+                ],
+                "feedback_context": [
+                    {"rating": 5},
+                    {"rating": 4}
+                ]
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify high_engagement_canvases populated
+        assert len(insights["high_engagement_canvases"]) == 1
+        assert insights["high_engagement_canvases"][0]["canvas_id"] == "canvas-1"
+        assert insights["high_engagement_canvases"][0]["canvas_type"] == "chart"
+        assert insights["high_engagement_canvases"][0]["action"] == "present"
+        assert insights["high_engagement_canvases"][0]["avg_feedback"] == 4.5
+
+    def test_extract_insheets_interaction_patterns(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing various canvas actions
+        WHEN _extract_canvas_insights() is called
+        THEN user_actions and user_interaction_patterns tracked correctly
+        """
+        # Create enriched episodes with different actions
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [
+                    {"canvas_type": "chart", "action": "close"},
+                    {"canvas_type": "form", "action": "present"},
+                    {"canvas_type": "sheet", "action": "update"},
+                    {"canvas_type": "markdown", "action": "submit"}
+                ],
+                "feedback_context": []
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify user_actions tracked
+        assert insights["user_actions"]["close"] == 1
+        assert insights["user_actions"]["present"] == 1
+        assert insights["user_actions"]["update"] == 1
+        assert insights["user_actions"]["submit"] == 1
+
+        # Verify interaction patterns tracked
+        assert "chart" in insights["user_interaction_patterns"]["closes_quickly"]
+        assert "form" in insights["user_interaction_patterns"]["engages"]
+        assert "sheet" in insights["user_interaction_patterns"]["engages"]
+        assert "markdown" in insights["user_interaction_patterns"]["submits"]
+
+    def test_extract_insights_with_missing_canvas_types(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing canvas entries missing canvas_type
+        WHEN _extract_canvas_insights() is called
+        THEN entries with missing canvas_type are skipped gracefully
+        """
+        # Create enriched episodes with missing canvas_type
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [
+                    {"id": "canvas-1", "canvas_type": "chart", "action": "present"},
+                    {"id": "canvas-2", "action": "close"},  # Missing canvas_type
+                    {"id": "canvas-3", "canvas_type": None, "action": "update"}  # None canvas_type
+                ],
+                "feedback_context": []
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify only valid canvas_type counted
+        assert insights["canvas_type_counts"] == {"chart": 1}
+        assert insights["user_actions"]["present"] == 1
+        # close and update actions NOT counted because canvas_type is missing/None
+
+    def test_extract_insights_with_no_feedback_data(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing canvas but no feedback
+        WHEN _extract_canvas_insights() is called
+        THEN average_feedback not calculated, high_engagement_canvases empty
+        """
+        # Create enriched episodes with canvas but no feedback
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [
+                    {"id": "canvas-1", "canvas_type": "chart", "action": "present"}
+                ],
+                "feedback_context": []  # Empty feedback
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify no high engagement canvases
+        assert insights["high_engagement_canvases"] == []
+        # But canvas_type_counts still tracked
+        assert insights["canvas_type_counts"]["chart"] == 1
+
+    def test_extract_insights_canvas_type_counts(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing multiple canvas types
+        WHEN _extract_canvas_insights() is called
+        THEN canvas_type_counts dict accumulates correctly
+        """
+        # Create enriched episodes with multiple canvas types
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [
+                    {"canvas_type": "chart", "action": "present"},
+                    {"canvas_type": "chart", "action": "present"},
+                    {"canvas_type": "form", "action": "present"},
+                    {"canvas_type": "sheet", "action": "present"}
+                ],
+                "feedback_context": []
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify canvas_type_counts accumulated
+        assert insights["canvas_type_counts"]["chart"] == 2
+        assert insights["canvas_type_counts"]["form"] == 1
+        assert insights["canvas_type_counts"]["sheet"] == 1
+
+    def test_extract_insights_user_actions(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing various user actions
+        WHEN _extract_canvas_insights() is called
+        THEN user_actions dict accumulates correctly
+        """
+        # Create enriched episodes with various actions
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [
+                    {"canvas_type": "chart", "action": "present"},
+                    {"canvas_type": "chart", "action": "close"},
+                    {"canvas_type": "form", "action": "present"},
+                    {"canvas_type": "form", "action": "submit"},
+                    {"canvas_type": "form", "action": "submit"}  # Duplicate action
+                ],
+                "feedback_context": []
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify user_actions accumulated
+        assert insights["user_actions"]["present"] == 2
+        assert insights["user_actions"]["close"] == 1
+        assert insights["user_actions"]["submit"] == 2
+
+    def test_extract_insights_preferred_canvas_types(
+        self, world_model_service
+    ):
+        """
+        GIVEN WorldModelService with episodes containing various canvas types
+        WHEN _extract_canvas_insights() is called
+        THEN preferred_canvas_types sorted by count descending
+        """
+        # Create enriched episodes with various canvas types
+        enriched_episodes = [
+            {
+                "id": "episode-1",
+                "canvas_context": [
+                    {"canvas_type": "chart", "action": "present"},
+                    {"canvas_type": "chart", "action": "present"},
+                    {"canvas_type": "chart", "action": "present"},
+                    {"canvas_type": "form", "action": "present"},
+                    {"canvas_type": "form", "action": "present"},
+                    {"canvas_type": "sheet", "action": "present"}
+                ],
+                "feedback_context": []
+            }
+        ]
+
+        # Call _extract_canvas_insights
+        insights = world_model_service._extract_canvas_insights(enriched_episodes)
+
+        # Verify preferred_canvas_types sorted by count
+        assert insights["preferred_canvas_types"] == ["chart", "form", "sheet"]
+        # chart: 3, form: 2, sheet: 1
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
