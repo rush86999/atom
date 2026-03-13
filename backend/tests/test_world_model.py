@@ -1828,6 +1828,227 @@ class TestRecordExperienceErrors:
 
 
 # ============================================================================
+# TEST CLASS: Record Business Fact Error Paths
+# ============================================================================
+
+class TestRecordBusinessFactErrors:
+    """Error path tests for record_business_fact method."""
+
+    @pytest.mark.asyncio
+    async def test_record_business_fact_with_empty_citations(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_business_fact() is called with empty citations list
+        THEN verify storage succeeds with empty citations
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test fact with empty citations
+        fact = BusinessFact(
+            id="fact_empty_citations",
+            fact="Invoices > $500 need VP approval",
+            citations=[],  # Empty list
+            reason="Financial control policy",
+            source_agent_id="user:test-user",
+            created_at=datetime.now(),
+            last_verified=datetime.now(),
+            verification_status="verified",
+            metadata={"domain": "finance"}
+        )
+
+        # Call the method
+        result = await world_model_service.record_business_fact(fact)
+
+        # Verify success
+        assert result is True
+        mock_lancedb_handler.add_document.assert_called_once()
+
+        # Verify empty citations stored
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["citations"] == []
+
+    @pytest.mark.asyncio
+    async def test_record_business_fact_with_empty_fact_text(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_business_fact() is called with empty fact text
+        THEN verify storage succeeds with empty fact
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test fact with empty fact text
+        fact = BusinessFact(
+            id="fact_empty_text",
+            fact="",  # Empty string
+            citations=["policy.pdf:p4"],
+            reason="Financial control policy",
+            source_agent_id="user:test-user",
+            created_at=datetime.now(),
+            last_verified=datetime.now(),
+            verification_status="verified",
+            metadata={"domain": "finance"}
+        )
+
+        # Call the method
+        result = await world_model_service.record_business_fact(fact)
+
+        # Verify success
+        assert result is True
+
+        # Verify empty fact stored
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["fact"] == ""
+
+    @pytest.mark.asyncio
+    async def test_record_business_fact_with_malformed_metadata(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_business_fact() is called with non-serializable metadata
+        THEN verify JSON handling works (datetime objects serialize to ISO format)
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test fact with complex metadata
+        fact = BusinessFact(
+            id="fact_malformed_metadata",
+            fact="Invoices > $500 need VP approval",
+            citations=["policy.pdf:p4"],
+            reason="Financial control policy",
+            source_agent_id="user:test-user",
+            created_at=datetime.now(),
+            last_verified=datetime.now(),
+            verification_status="verified",
+            metadata={
+                "domain": "finance",
+                "nested_dict": {"key": "value"},
+                "list_value": [1, 2, 3],
+                "datetime_value": datetime.now()
+            }
+        )
+
+        # Call the method
+        result = await world_model_service.record_business_fact(fact)
+
+        # Verify success - metadata should be serialized
+        assert result is True
+
+        # Verify metadata is included in call
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["domain"] == "finance"
+        assert call_args[1]["metadata"]["nested_dict"] == {"key": "value"}
+
+    @pytest.mark.asyncio
+    async def test_record_business_fact_lancedb_add_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with LanceDBHandler that raises exception
+        WHEN record_business_fact() is called
+        THEN exception propagates (no error handling in current implementation)
+        """
+        # Mock add_document to raise exception
+        mock_lancedb_handler.add_document = Mock(side_effect=Exception("Storage failed"))
+
+        # Create test fact
+        fact = BusinessFact(
+            id="fact_fail",
+            fact="Invoices > $500 need VP approval",
+            citations=["policy.pdf:p4"],
+            reason="Financial control policy",
+            source_agent_id="user:test-user",
+            created_at=datetime.now(),
+            last_verified=datetime.now(),
+            verification_status="verified",
+            metadata={"domain": "finance"}
+        )
+
+        # Call the method - exception propagates
+        with pytest.raises(Exception, match="Storage failed"):
+            await world_model_service.record_business_fact(fact)
+
+        mock_lancedb_handler.add_document.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_record_business_fact_with_all_verification_statuses(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_business_fact() is called with all verification statuses
+        THEN verify each status is stored correctly
+        """
+        # Test all verification statuses
+        verification_statuses = ["unverified", "verified", "outdated", "deleted"]
+
+        for status in verification_statuses:
+            mock_lancedb_handler.add_document = Mock(return_value=True)
+
+            fact = BusinessFact(
+                id=f"fact_status_{status}",
+                fact=f"Fact with {status} status",
+                citations=["source.pdf"],
+                reason=f"Test {status} status",
+                source_agent_id="user:test-user",
+                created_at=datetime.now(),
+                last_verified=datetime.now(),
+                verification_status=status,
+                metadata={"domain": "test"}
+            )
+
+            result = await world_model_service.record_business_fact(fact)
+            assert result is True
+
+            call_args = mock_lancedb_handler.add_document.call_args
+            assert call_args[1]["metadata"]["verification_status"] == status
+
+    @pytest.mark.asyncio
+    async def test_record_business_fact_with_domain_metadata(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN record_business_fact() is called with domain field in metadata
+        THEN verify domain is stored in metadata
+        """
+        # Mock add_document to return True
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Create test fact with domain metadata
+        fact = BusinessFact(
+            id="fact_with_domain",
+            fact="Finance rule: Invoices > $500 need VP approval",
+            citations=["policy.pdf:p4"],
+            reason="Financial control policy",
+            source_agent_id="user:test-user",
+            created_at=datetime.now(),
+            last_verified=datetime.now(),
+            verification_status="verified",
+            metadata={"domain": "finance"}
+        )
+
+        # Call the method
+        result = await world_model_service.record_business_fact(fact)
+
+        # Verify success
+        assert result is True
+
+        # Verify domain is stored in metadata
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["domain"] == "finance"
+        # Domain is part of metadata, so it's included via **fact.metadata
+        assert "domain" in call_args[1]["metadata"]
+
+
+# ============================================================================
 # TEST CLASS: Recall Experiences Error Handling
 # ============================================================================
 
