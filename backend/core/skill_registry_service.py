@@ -245,9 +245,9 @@ class SkillRegistryService:
             query = query.filter(SkillExecution.status == status)
 
         if skill_type:
-            # Filter by skill_type in input_params
+            # Filter by skill_type in input_params (SQLAlchemy 2.x compatible)
             query = query.filter(
-                SkillExecution.input_params["skill_type"].astext == skill_type
+                SkillExecution.input_params["skill_type"].as_string() == skill_type
             )
 
         skills = query.order_by(SkillExecution.created_at.desc()).limit(limit).all()
@@ -296,6 +296,9 @@ class SkillRegistryService:
             "skill_type": skill.input_params.get("skill_type"),
             "skill_body": skill.input_params.get("skill_body"),
             "skill_metadata": skill.input_params.get("skill_metadata", {}),
+            "packages": skill.input_params.get("packages", []),
+            "node_packages": skill.input_params.get("node_packages", []),
+            "package_manager": skill.input_params.get("package_manager"),
             "status": skill.status,
             "security_scan_result": skill.security_scan_result,
             "sandbox_enabled": skill.sandbox_enabled,

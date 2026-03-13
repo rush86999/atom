@@ -391,3 +391,233 @@ class TestSkillImportSecurity:
 
         # Prompt-only skills should not need sandbox
         assert result["metadata"].get("skill_type") == "prompt_only"
+
+
+# ============================================================================
+# Test Class 4: TestSkillListing (6 tests)
+# ============================================================================
+
+class TestSkillListing:
+    """Test skill listing functionality."""
+
+    def test_list_skills_all(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """List all skills without filters."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        # Import two skills
+        service.import_skill("raw_content", low_risk_skill_content)
+        service.import_skill("raw_content", low_risk_skill_content)
+
+        skills = service.list_skills()
+
+        assert len(skills) == 2
+        assert all("skill_name" in s for s in skills)
+
+    def test_list_skills_by_status(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
+        """Filter by status (Active, Untrusted)."""
+        service = SkillRegistryService(db_session)
+
+        # Import skills with different risk levels
+        service.import_skill("raw_content", low_risk_skill_content)
+        service.import_skill("raw_content", high_risk_skill_content)
+
+        # Mock scanner appropriately for each call
+        call_count = [0]
+        def side_effect(name, body):
+            call_count[0] += 1
+            return mock_scanner_low_risk if call_count[0] % 2 == 1 else mock_scanner_high_risk
+
+        service._scanner.scan_skill = MagicMock(side_effect=side_effect)
+
+        # Re-import with proper mocking
+        db_session.query(SkillExecution).delete()
+        db_session.commit()
+        service.import_skill("raw_content", low_risk_skill_content)
+        service.import_skill("raw_content", high_risk_skill_content)
+
+        active_skills = service.list_skills(status="Active")
+        untrusted_skills = service.list_skills(status="Untrusted")
+
+        # Verify filtering works
+        assert all(s["status"] == "Active" for s in active_skills)
+        assert all(s["status"] == "Untrusted" for s in untrusted_skills)
+
+    def test_list_skills_by_type(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
+        """Filter by skill_type (prompt_only, python_code)."""
+        service = SkillRegistryService(db_session)
+        
+        call_count = [0]
+        def side_effect(name, body):
+            call_count[0] += 1
+            return mock_scanner_low_risk if call_count[0] % 2 == 1 else mock_scanner_high_risk
+
+        service._scanner.scan_skill = MagicMock(side_effect=side_effect)
+
+        service.import_skill("raw_content", low_risk_skill_content)
+        service.import_skill("raw_content", high_risk_skill_content)
+
+        prompt_skills = service.list_skills(skill_type="prompt_only")
+        python_skills = service.list_skills(skill_type="python_code")
+
+        # Verify type filtering
+        assert all(s["skill_type"] == "prompt_only" for s in prompt_skills)
+        assert all(s["skill_type"] == "python_code" for s in python_skills)
+
+    def test_list_skills_limit(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """Limit parameter respected."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        # Import three skills
+        for _ in range(3):
+            service.import_skill("raw_content", low_risk_skill_content)
+
+        skills = service.list_skills(limit=2)
+
+        assert len(skills) == 2
+
+    def test_list_skills_empty(self, db_session):
+        """Empty list when no skills match."""
+        service = SkillRegistryService(db_session)
+
+        skills = service.list_skills(status="Active")
+
+        assert skills == []
+
+
+# ============================================================================
+# Test Class 5: TestSkillRetrieval (5 tests)
+# ============================================================================
+
+class TestSkillRetrieval:
+    """Test skill retrieval functionality."""
+
+    def test_get_skill_by_id(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """Retrieve skill by ID."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill("raw_content", low_risk_skill_content)
+        skill_id = result["skill_id"]
+
+        skill = service.get_skill(skill_id)
+
+        assert skill is not None
+        assert skill["skill_id"] == skill_id
+        assert skill["skill_name"] == "Test Skill"
+
+    def test_get_skill_returns_full_metadata(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """All metadata fields returned."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill("raw_content", low_risk_skill_content)
+        skill_id = result["skill_id"]
+
+        skill = service.get_skill(skill_id)
+
+        # Top-level fields
+        assert "skill_type" in skill
+        assert "packages" in skill
+        assert "node_packages" in skill
+        # Nested in skill_metadata
+        assert "description" in skill["skill_metadata"]
+
+    def test_get_skill_nonexistent_returns_none(self, db_session):
+        """Non-existent ID returns None."""
+        service = SkillRegistryService(db_session)
+
+        skill = service.get_skill("nonexistent-id")
+
+        assert skill is None
+
+    def test_get_skill_includes_packages(self, db_session, python_packages_skill_content, mock_scanner_low_risk):
+        """packages field in result."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill("raw_content", python_packages_skill_content)
+        skill_id = result["skill_id"]
+
+        skill = service.get_skill(skill_id)
+
+        assert "packages" in skill
+        assert len(skill["packages"]) == 2
+
+    def test_get_skill_includes_node_packages(self, db_session, npm_packages_skill_content, mock_scanner_low_risk):
+        """node_packages field in result."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill("raw_content", npm_packages_skill_content)
+        skill_id = result["skill_id"]
+
+        skill = service.get_skill(skill_id)
+
+        assert "node_packages" in skill
+        assert len(skill["node_packages"]) == 2
+
+
+# ============================================================================
+# Test Class 6: TestSkillMetadataExtraction (4 tests)
+# ============================================================================
+
+class TestSkillMetadataExtraction:
+    """Test metadata extraction from skills."""
+
+    def test_skill_type_detection(self, db_session, low_risk_skill_content, high_risk_skill_content, mock_scanner_low_risk, mock_scanner_high_risk):
+        """skill_type detected correctly."""
+        service = SkillRegistryService(db_session)
+        
+        call_count = [0]
+        def side_effect(name, body):
+            call_count[0] += 1
+            return mock_scanner_low_risk if call_count[0] % 2 == 1 else mock_scanner_high_risk
+
+        service._scanner.scan_skill = MagicMock(side_effect=side_effect)
+
+        result1 = service.import_skill("raw_content", low_risk_skill_content)
+        result2 = service.import_skill("raw_content", high_risk_skill_content)
+
+        assert result1["metadata"]["skill_type"] == "prompt_only"
+        assert result2["metadata"]["skill_type"] == "python_code"
+
+    def test_skill_name_extraction(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """name extracted from frontmatter."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill("raw_content", low_risk_skill_content)
+
+        assert result["skill_name"] == "Test Skill"
+
+    def test_skill_body_extraction(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """body content extracted."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill("raw_content", low_risk_skill_content)
+        skill_id = result["skill_id"]
+
+        skill = service.get_skill(skill_id)
+
+        # Body is stored in input_params
+        record = db_session.query(SkillExecution).filter(SkillExecution.id == skill_id).first()
+        assert "This is the skill body" in record.input_params["skill_body"]
+
+    def test_skill_metadata_merge(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """Additional metadata merged correctly."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill(
+            "raw_content",
+            low_risk_skill_content,
+            metadata={"author": "test", "version": "1.0"}
+        )
+
+        # Metadata should include base fields plus additional
+        assert "description" in result["metadata"]
+        assert "skill_type" in result["metadata"]
+        assert "packages" in result["metadata"]
