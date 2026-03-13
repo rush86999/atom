@@ -532,9 +532,16 @@ Plans: 4 plans
   4. Advanced relationships achieve 80%+ line coverage
   5. Session isolation tested for complex relationships (API-04)
 **Plans**: 1 plan
-- [ ] 185-01-PLAN.md — Fix flaky test, datetime deprecation warnings, add session isolation tests (5 tasks)
-**Estimated Coverage**: 64.50%
-**Note**: Current coverage is 100% on all three model files. Plan focuses on fixing 1 flaky test, 448 deprecation warnings, and adding session isolation tests (API-04 requirement).
+- [x] 185-01-PLAN.md — Fix flaky test, datetime deprecation warnings, add session isolation tests (5 tasks)
+**Status**: Complete (2026-03-14)
+**Coverage Achieved**:
+- Accounting: 100% coverage (204 stmts, 0 missed)
+- Sales: 100% coverage (109 stmts, 0 missed)
+- Service delivery: 100% coverage (140 stmts, 0 missed)
+- Session isolation: 8 tests added (transaction rollback, cascade operations, concurrent access)
+- 169 tests passing (161 original + 8 new)
+- 448 deprecation warnings eliminated (datetime.utcnow() → datetime.now(timezone.utc))
+**Estimated Coverage**: 64.50% → Actual: 100% on all three model files
 
 ### Phase 186: Edge Cases & Error Handling
 **Goal**: Achieve target coverage on edge cases and error handling paths
