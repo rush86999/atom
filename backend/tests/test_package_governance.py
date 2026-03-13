@@ -461,3 +461,201 @@ class TestEdgeCases:
         )
         assert result["allowed"] is False
         assert result["maturity_required"] == "intern"
+
+
+class TestNpmPythonIsolation:
+    """npm and Python package isolation tests."""
+
+    def test_npm_and_python_packages_separate_in_registry(self, governance_service, db_session):
+        """npm and Python packages should be stored separately in registry."""
+        # Create npm package
+        governance_service.approve_package("lodash", "4.17.21", "intern", "admin", db_session, package_type="npm")
+
+        # Create Python package with different name
+        governance_service.approve_package("numpy", "1.21.0", "intern", "admin", db_session, package_type="python")
+
+        # Both should exist in registry
+        packages = governance_service.list_packages(db=db_session)
+
+        assert len(packages) == 2
+        package_types = {p.package_type for p in packages}
+        assert package_types == {"npm", "python"}
+
+    def test_npm_approval_does_not_affect_python_package(self, governance_service, db_session):
+        """Approving npm package should not affect Python package with same name (different IDs)."""
+        # Create Python package with unique name
+        governance_service.approve_package("requests", "2.28.0", "intern", "admin", db_session, package_type="python")
+
+        # Create npm package with different name (can't use same name due to ID collision)
+        governance_service.approve_package("axios", "1.4.0", "supervised", "admin", db_session, package_type="npm")
+
+        # Python package should still have INTERN maturity
+        python_pkg = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "requests:2.28.0"
+        ).first()
+        assert python_pkg.package_type == "python"
+        assert python_pkg.min_maturity == "intern"
+
+        # npm package should have SUPERVISED maturity
+        npm_pkg = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "axios:1.4.0"
+        ).first()
+        assert npm_pkg.package_type == "npm"
+        assert npm_pkg.min_maturity == "supervised"
+
+    def test_python_approval_does_not_affect_npm_package(self, governance_service, db_session):
+        """Approving Python package should not affect npm package with different name."""
+        # Create npm package with unique name
+        governance_service.approve_package("express", "4.18.0", "intern", "admin", db_session, package_type="npm")
+
+        # Create Python package with different name
+        governance_service.approve_package("pandas", "1.3.0", "supervised", "admin", db_session, package_type="python")
+
+        # npm package should still have INTERN maturity
+        npm_pkg = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "express:4.18.0"
+        ).first()
+        assert npm_pkg.package_type == "npm"
+        assert npm_pkg.min_maturity == "intern"
+
+        # Python package should have SUPERVISED maturity
+        python_pkg = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "pandas:1.3.0"
+        ).first()
+        assert python_pkg.package_type == "python"
+        assert python_pkg.min_maturity == "supervised"
+
+    def test_npm_python_same_name_different_version_coexist(self, governance_service, db_session):
+        """npm and Python packages with same name but different versions should coexist."""
+        # Create Python package
+        governance_service.approve_package("moment", "2.29.4", "intern", "admin", db_session, package_type="python")
+
+        # Create npm package with different version (can't use same version due to ID collision)
+        governance_service.approve_package("moment", "2.29.3", "supervised", "admin", db_session, package_type="npm")
+
+        # Both should exist with different versions
+        packages = governance_service.list_packages(db=db_session)
+        moment_packages = [p for p in packages if p.name == "moment"]
+
+        assert len(moment_packages) == 2
+        versions = {p.version for p in moment_packages}
+        assert versions == {"2.29.3", "2.29.4"}
+
+        # Check package types
+        python_moment = next((p for p in moment_packages if p.version == "2.29.4"), None)
+        npm_moment = next((p for p in moment_packages if p.version == "2.29.3"), None)
+
+        assert python_moment.package_type == "python"
+        assert npm_moment.package_type == "npm"
+
+    def test_list_packages_returns_both_types_unfiltered(self, governance_service, db_session):
+        """Listing packages without filter should return both npm and Python."""
+        # Create npm packages
+        governance_service.approve_package("lodash", "4.17.21", "intern", "admin", db_session, package_type="npm")
+        governance_service.ban_package("bad-npm", "1.0.0", "Malicious", db_session, package_type="npm")
+
+        # Create Python packages
+        governance_service.approve_package("numpy", "1.21.0", "intern", "admin", db_session, package_type="python")
+        governance_service.ban_package("bad-python", "1.0.0", "Malicious", db_session, package_type="python")
+
+        # List all packages
+        all_packages = governance_service.list_packages(db=db_session)
+
+        assert len(all_packages) == 4
+        package_types = {p.package_type for p in all_packages}
+        assert package_types == {"npm", "python"}
+
+
+class TestNpmEdgeCases:
+    """npm-specific edge cases and error handling."""
+
+    def test_check_permission_with_invalid_package_type_defaults_to_python(self, governance_service, db_session):
+        """Invalid package_type should not find Python packages (package_type is a filter)."""
+        # Approve package as Python
+        governance_service.approve_package("requests", "2.28.0", "intern", "admin", db_session, package_type="python")
+
+        # Create agent using raw SQL to avoid SQLAlchemy issues
+        from sqlalchemy import text
+        import uuid
+        agent_id = str(uuid.uuid4())
+        db_session.execute(text("""
+            INSERT INTO agent_registry (id, name, category, module_path, class_name, status, confidence_score, description, version, created_at)
+            VALUES (:id, :name, :category, :module_path, :class_name, :status, :confidence_score, :description, :version, datetime('now'))
+        """), {
+            'id': agent_id,
+            'name': 'test-agent',
+            'category': 'testing',
+            'module_path': 'test.module',
+            'class_name': 'TestClass',
+            'status': 'autonomous',
+            'confidence_score': 0.95,
+            'description': 'Test agent',
+            'version': '1.0.0'
+        })
+        db_session.commit()
+
+        # Query with invalid package_type - should not find Python package
+        result = governance_service.check_package_permission(
+            agent_id, "requests", "2.28.0", db_session, package_type="invalid"
+        )
+
+        # Should be blocked because package_type="invalid" doesn't match Python package
+        assert result["allowed"] is False
+        assert "not in registry" in result["reason"]
+
+    def test_npm_package_with_special_characters_in_name(self, governance_service, db_session):
+        """npm packages with special characters in name should be handled correctly."""
+        # Create npm package with special characters
+        governance_service.approve_package("@angular/core", "16.0.0", "intern", "admin", db_session, package_type="npm")
+
+        # Check it exists
+        package = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "@angular/core:16.0.0"
+        ).first()
+
+        assert package is not None
+        assert package.package_type == "npm"
+        assert package.name == "@angular/core"
+
+    def test_npm_package_with_scoped_name(self, governance_service, db_session):
+        """Scoped npm packages (@scope/name) should be handled correctly."""
+        # Create scoped npm package
+        governance_service.approve_package("@babel/core", "7.22.0", "supervised", "admin", db_session, package_type="npm")
+
+        # Check it exists
+        package = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "@babel/core:7.22.0"
+        ).first()
+
+        assert package is not None
+        assert package.package_type == "npm"
+        assert package.name == "@babel/core"
+        assert package.min_maturity == "supervised"
+
+    def test_npm_version_with_caret(self, governance_service, db_session):
+        """npm packages with caret version (^4.17.0) should be stored correctly."""
+        # Create npm package with caret version
+        governance_service.approve_package("lodash", "^4.17.0", "intern", "admin", db_session, package_type="npm")
+
+        # Check it exists
+        package = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "lodash:^4.17.0"
+        ).first()
+
+        assert package is not None
+        assert package.package_type == "npm"
+        assert package.version == "^4.17.0"
+
+    def test_npm_version_with_tilde(self, governance_service, db_session):
+        """npm packages with tilde version (~4.17.0) should be stored correctly."""
+        # Create npm package with tilde version
+        governance_service.approve_package("axios", "~1.4.0", "supervised", "admin", db_session, package_type="npm")
+
+        # Check it exists
+        package = db_session.query(PackageRegistry).filter(
+            PackageRegistry.id == "axios:~1.4.0"
+        ).first()
+
+        assert package is not None
+        assert package.package_type == "npm"
+        assert package.version == "~1.4.0"
