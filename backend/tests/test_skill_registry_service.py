@@ -621,3 +621,202 @@ class TestSkillMetadataExtraction:
         assert "description" in result["metadata"]
         assert "skill_type" in result["metadata"]
         assert "packages" in result["metadata"]
+
+
+# ============================================================================
+# Test Class 7: TestSkillPromotion (5 tests)
+# ============================================================================
+
+class TestSkillPromotion:
+    """Test skill promotion functionality."""
+
+    def test_promote_skill_updates_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
+        """Promote Untrusted to Active."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+
+        result = service.import_skill("raw_content", high_risk_skill_content)
+        skill_id = result["skill_id"]
+
+        # Verify initial status
+        skill = db_session.query(SkillExecution).filter(SkillExecution.id == skill_id).first()
+        assert skill.status == "Untrusted"
+
+        # Promote to Active
+        promote_result = service.promote_skill(skill_id)
+
+        assert promote_result["status"] == "Active"
+        assert promote_result["previous_status"] == "Untrusted"
+
+        # Verify in database
+        db_session.refresh(skill)
+        assert skill.status == "Active"
+
+    def test_promote_already_active_returns_message(self, db_session, low_risk_skill_content, mock_scanner_low_risk):
+        """Already Active skill returns message."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_low_risk)
+
+        result = service.import_skill("raw_content", low_risk_skill_content)
+        skill_id = result["skill_id"]
+
+        promote_result = service.promote_skill(skill_id)
+
+        assert "already" in promote_result.get("message", "").lower()
+
+    def test_promote_nonexistent_raises_error(self, db_session):
+        """Non-existent skill raises ValueError."""
+        service = SkillRegistryService(db_session)
+
+        with pytest.raises(ValueError, match="Skill not found"):
+            service.promote_skill("nonexistent-id")
+
+    def test_promote_returns_previous_status(self, db_session, high_risk_skill_content, mock_scanner_high_risk):
+        """Response includes previous_status."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+
+        result = service.import_skill("raw_content", high_risk_skill_content)
+        skill_id = result["skill_id"]
+
+        promote_result = service.promote_skill(skill_id)
+
+        assert "previous_status" in promote_result
+        assert promote_result["previous_status"] == "Untrusted"
+
+    def test_promote_logs_info(self, db_session, high_risk_skill_content, mock_scanner_high_risk, caplog):
+        """Info logging on promotion."""
+        service = SkillRegistryService(db_session)
+        service._scanner.scan_skill = MagicMock(return_value=mock_scanner_high_risk)
+
+        result = service.import_skill("raw_content", high_risk_skill_content)
+        skill_id = result["skill_id"]
+
+        with caplog.at_level("INFO"):
+            service.promote_skill(skill_id)
+
+        # Check for promotion log
+        assert any("Promoted skill" in record.message for record in caplog.records)
+
+
+# ============================================================================
+# Test Class 8: TestNpmPackageParsing (4 tests)
+# ============================================================================
+
+class TestNpmPackageParsing:
+    """Test npm package parsing functionality."""
+
+    def test_parse_npm_regular_package(self):
+        """'lodash@4.17.21' -> ('lodash', '4.17.21')."""
+        service = SkillRegistryService(None)  # No DB needed for this method
+
+        name, version = service._parse_npm_package("lodash@4.17.21")
+
+        assert name == "lodash"
+        assert version == "4.17.21"
+
+    def test_parse_npm_scoped_package(self):
+        """'@babel/core@^7.0.0' -> ('@babel/core', '^7.0.0')."""
+        service = SkillRegistryService(None)
+
+        name, version = service._parse_npm_package("@babel/core@^7.0.0")
+
+        assert name == "@babel/core"
+        assert version == "^7.0.0"
+
+    def test_parse_npm_no_version(self):
+        """'express' -> ('express', 'latest')."""
+        service = SkillRegistryService(None)
+
+        name, version = service._parse_npm_package("express")
+
+        assert name == "express"
+        assert version == "latest"
+
+    def test_parse_npm_double_at_scoped(self):
+        """'@scope/name@version' parsed correctly."""
+        service = SkillRegistryService(None)
+
+        name, version = service._parse_npm_package("@scope/name@1.2.3")
+
+        assert name == "@scope/name"
+        assert version == "1.2.3"
+
+
+# ============================================================================
+# Test Class 9: TestDetectSkillType (5 tests)
+# ============================================================================
+
+class TestDetectSkillType:
+    """Test skill type detection for npm vs python."""
+
+    def test_detect_python_with_packages(self, db_session):
+        """Detect python when packages field present."""
+        service = SkillRegistryService(db_session)
+
+        content = """---
+name: Test
+packages:
+  - requests
+---
+No code blocks."""
+
+        skill_type = service.detect_skill_type(content)
+
+        assert skill_type == "python"
+
+    def test_detect_npm_with_node_packages(self, db_session):
+        """Detect npm when node_packages field present."""
+        service = SkillRegistryService(db_session)
+
+        content = """---
+name: Test
+node_packages:
+  - lodash
+---
+No code blocks."""
+
+        skill_type = service.detect_skill_type(content)
+
+        assert skill_type == "npm"
+
+    def test_detect_python_from_extension(self, db_session):
+        """Detect python from .py file extension."""
+        service = SkillRegistryService(db_session)
+
+        content = """---
+name: Test
+---
+Code file: script.py"""
+
+        skill_type = service.detect_skill_type(content)
+
+        assert skill_type == "python"
+
+    def test_detect_npm_from_extension(self, db_session):
+        """Detect npm from .js file extension."""
+        service = SkillRegistryService(db_session)
+
+        content = """---
+name: Test
+---
+Code file: script.js"""
+
+        skill_type = service.detect_skill_type(content)
+
+        assert skill_type == "npm"
+
+    def test_detect_npm_from_code_block(self, db_session):
+        """Detect npm from ```javascript code block."""
+        service = SkillRegistryService(db_session)
+
+        content = """---
+name: Test
+---
+```javascript
+console.log('hello');
+```"""
+
+        skill_type = service.detect_skill_type(content)
+
+        assert skill_type == "npm"
