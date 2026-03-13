@@ -2420,5 +2420,509 @@ class TestRecallExperiencesFormulaHotFallback:
                 assert formula["type"] in ["formula", "formula_hot"]
 
 
+# ============================================================================
+# TEST CLASS: Recall Experiences Episode Enrichment
+# ============================================================================
+
+class TestRecallExperiencesEpisodeEnrichment:
+    """Tests for episode enrichment with canvas and feedback context."""
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_canvas_context_fetch_success(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes containing canvas_ids
+        WHEN recall_experiences() fetches canvas context successfully
+        THEN episodes enriched with canvas_context data
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Mock episode service with canvas context
+        mock_canvas_context = [
+            {
+                "id": "canvas-1",
+                "canvas_type": "chart",
+                "action": "present",
+                "title": "Sales Chart"
+            }
+        ]
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                "id": "episode-1",
+                                "canvas_ids": ["canvas-1"],
+                                "feedback_ids": []
+                            }
+                        ]
+                    }
+                )
+                mock_episode_instance._fetch_canvas_context = AsyncMock(return_value=mock_canvas_context)
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify episode enriched with canvas_context
+                assert len(result["episodes"]) == 1
+                assert result["episodes"][0]["id"] == "episode-1"
+                assert "canvas_context" in result["episodes"][0]
+                assert len(result["episodes"][0]["canvas_context"]) == 1
+                assert result["episodes"][0]["canvas_context"][0]["id"] == "canvas-1"
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_feedback_context_fetch_success(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes containing feedback_ids
+        WHEN recall_experiences() fetches feedback context successfully
+        THEN episodes enriched with feedback_context data
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Mock episode service with feedback context
+        mock_feedback_context = [
+            {
+                "id": "feedback-1",
+                "rating": 5,
+                "thumbs_up_down": "up"
+            }
+        ]
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                "id": "episode-1",
+                                "canvas_ids": [],
+                                "feedback_ids": ["feedback-1"]
+                            }
+                        ]
+                    }
+                )
+                mock_episode_instance._fetch_feedback_context = AsyncMock(return_value=mock_feedback_context)
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify episode enriched with feedback_context
+                assert len(result["episodes"]) == 1
+                assert result["episodes"][0]["id"] == "episode-1"
+                assert "feedback_context" in result["episodes"][0]
+                assert len(result["episodes"][0]["feedback_context"]) == 1
+                assert result["episodes"][0]["feedback_context"][0]["id"] == "feedback-1"
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_canvas_fetch_failure_continues(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes containing canvas_ids
+        WHEN recall_experiences() canvas context fetch raises exception
+        THEN episode still added with empty canvas_context (graceful degradation)
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                "id": "episode-1",
+                                "canvas_ids": ["canvas-1"],
+                                "feedback_ids": []
+                            }
+                        ]
+                    }
+                )
+                # Mock _fetch_canvas_context to raise exception
+                mock_episode_instance._fetch_canvas_context = AsyncMock(
+                    side_effect=Exception("Canvas context fetch failed")
+                )
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences - should not crash
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify episode still added with empty canvas_context
+                assert len(result["episodes"]) == 1
+                assert result["episodes"][0]["id"] == "episode-1"
+                assert "canvas_context" in result["episodes"][0]
+                # Empty due to exception
+                assert result["episodes"][0]["canvas_context"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_feedback_fetch_failure_continues(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes containing feedback_ids
+        WHEN recall_experiences() feedback context fetch raises exception
+        THEN episode still added with empty feedback_context (graceful degradation)
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                "id": "episode-1",
+                                "canvas_ids": [],
+                                "feedback_ids": ["feedback-1"]
+                            }
+                        ]
+                    }
+                )
+                # Mock _fetch_feedback_context to raise exception
+                mock_episode_instance._fetch_feedback_context = AsyncMock(
+                    side_effect=Exception("Feedback context fetch failed")
+                )
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences - should not crash
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify episode still added with empty feedback_context
+                assert len(result["episodes"]) == 1
+                assert result["episodes"][0]["id"] == "episode-1"
+                assert "feedback_context" in result["episodes"][0]
+                # Empty due to exception
+                assert result["episodes"][0]["feedback_context"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_with_empty_canvas_ids(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes containing empty canvas_ids list
+        WHEN recall_experiences() processes episodes
+        THEN no canvas context fetch attempted
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                "id": "episode-1",
+                                "canvas_ids": [],  # Empty list
+                                "feedback_ids": []
+                            }
+                        ]
+                    }
+                )
+                # _fetch_canvas_context should NOT be called
+                mock_episode_instance._fetch_canvas_context = AsyncMock(return_value=[])
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify _fetch_canvas_context was NOT called
+                mock_episode_instance._fetch_canvas_context.assert_not_called()
+                assert len(result["episodes"]) == 1
+                assert result["episodes"][0]["canvas_context"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_with_empty_feedback_ids(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes containing empty feedback_ids list
+        WHEN recall_experiences() processes episodes
+        THEN no feedback context fetch attempted
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                "id": "episode-1",
+                                "canvas_ids": [],
+                                "feedback_ids": []  # Empty list
+                            }
+                        ]
+                    }
+                )
+                # _fetch_feedback_context should NOT be called
+                mock_episode_instance._fetch_feedback_context = AsyncMock(return_value=[])
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify _fetch_feedback_context was NOT called
+                mock_episode_instance._fetch_feedback_context.assert_not_called()
+                assert len(result["episodes"]) == 1
+                assert result["episodes"][0]["feedback_context"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_with_no_id(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes missing id field
+        WHEN recall_experiences() enriches episodes
+        THEN episodes without id are appended without enrichment keys
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                # No "id" field
+                                "canvas_ids": [],
+                                "feedback_ids": []
+                            }
+                        ]
+                    }
+                )
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify episode returned without enrichment keys (no id field)
+                assert len(result["episodes"]) == 1
+                # Episode doesn't have enrichment keys because it has no id
+                assert "canvas_ids" in result["episodes"][0]
+                assert "feedback_ids" in result["episodes"][0]
+
+    @pytest.mark.asyncio
+    async def test_recall_episodes_enrichment_structure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with episodes containing canvas and feedback IDs
+        WHEN recall_experiences() enriches episodes
+        THEN enriched episodes have canvas_context and feedback_context keys
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        mock_canvas_context = [
+            {
+                "id": "canvas-1",
+                "canvas_type": "chart",
+                "action": "present"
+            }
+        ]
+
+        mock_feedback_context = [
+            {
+                "id": "feedback-1",
+                "rating": 5
+            }
+        ]
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(
+                    return_value={
+                        "episodes": [
+                            {
+                                "id": "episode-1",
+                                "canvas_ids": ["canvas-1"],
+                                "feedback_ids": ["feedback-1"]
+                            }
+                        ]
+                    }
+                )
+                mock_episode_instance._fetch_canvas_context = AsyncMock(return_value=mock_canvas_context)
+                mock_episode_instance._fetch_feedback_context = AsyncMock(return_value=mock_feedback_context)
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify enrichment structure
+                assert len(result["episodes"]) == 1
+                episode = result["episodes"][0]
+                assert "canvas_context" in episode
+                assert "feedback_context" in episode
+                assert isinstance(episode["canvas_context"], list)
+                assert isinstance(episode["feedback_context"], list)
+                assert len(episode["canvas_context"]) == 1
+                assert len(episode["feedback_context"]) == 1
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
