@@ -457,7 +457,12 @@ Plans: 4 plans
   2. Business facts routes achieve 75%+ line coverage
   3. JIT fact verification achieves 75%+ line coverage
   4. Knowledge graph achieves 75%+ line coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 5 plans
+- [ ] 181-01-PLAN.md — World Model core methods coverage (50+ tests)
+- [ ] 181-02-PLAN.md — World Model recall and enrichment coverage (30+ tests)
+- [ ] 181-03-PLAN.md — Business Facts Routes API coverage (40+ tests)
+- [ ] 181-04-PLAN.md — GraphRAG Engine coverage (50+ tests, NEW file)
+- [ ] 181-05-PLAN.md — Policy Extractor & Storage Service coverage (25+ tests, 2 NEW files)
 **Estimated Coverage**: 48.50%
 
 ### Phase 182: Core Services Coverage (Package Governance)
