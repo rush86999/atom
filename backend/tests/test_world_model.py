@@ -1506,5 +1506,593 @@ class TestWorldModelEdgeCases:
             assert result == 2
 
 
+# ============================================================================
+# TEST CLASS: Recall Experiences Error Handling
+# ============================================================================
+
+class TestRecallExperiencesErrorHandling:
+    """Tests for recall_experiences method error handling."""
+
+    @pytest.mark.asyncio
+    async def test_recall_with_lancedb_connection_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with LanceDB connection failure
+        WHEN recall_experiences() is called and db.search raises exception
+        THEN exception propagates (no try/except in production code for LanceDB search)
+        """
+        # Mock LanceDB search to raise exception
+        mock_lancedb_handler.search = Mock(side_effect=Exception("LanceDB connection failed"))
+
+        # Mock agent
+        from core.models import AgentRegistry
+        agent = AgentRegistry(
+            id="agent-123",
+            name="Test Agent",
+            category="Finance"
+        )
+
+        # Call recall_experiences - exception should propagate
+        with pytest.raises(Exception, match="LanceDB connection failed"):
+            await world_model_service.recall_experiences(
+                agent=agent,
+                current_task_description="Test task",
+                limit=5
+            )
+
+    @pytest.mark.asyncio
+    async def test_recall_with_graphrag_unavailable(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with GraphRAG unavailable
+        WHEN recall_experiences() is called and graphrag import raises ImportError
+        THEN continue without graph_context
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Mock GraphRAG import to raise ImportError
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(return_value={"episodes": []})
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock graphrag import to raise ImportError
+                import builtins
+                real_import = builtins.__import__
+
+                def mock_import(name, *args, **kwargs):
+                    if 'graphrag_engine' in name:
+                        raise ImportError("graphrag_engine not available")
+                    return real_import(name, *args, **kwargs)
+
+                with patch('builtins.__import__', side_effect=mock_import):
+                    # Mock agent
+                    from core.models import AgentRegistry
+                    agent = AgentRegistry(
+                        id="agent-123",
+                        name="Test Agent",
+                        category="Finance"
+                    )
+
+                    # Call recall_experiences - should not crash
+                    result = await world_model_service.recall_experiences(
+                        agent=agent,
+                        current_task_description="Test task",
+                        limit=5
+                    )
+
+                    # Verify results returned without graph_context
+                    assert "experiences" in result
+                    assert "knowledge_graph" in result
+
+    @pytest.mark.asyncio
+    async def test_recall_with_formula_manager_unavailable(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with formula manager unavailable
+        WHEN recall_experiences() is called and formula_manager import raises ImportError
+        THEN continue without formulas
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(return_value={"episodes": []})
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock formula_manager import to raise ImportError
+                import builtins
+                real_import = builtins.__import__
+
+                def mock_import(name, *args, **kwargs):
+                    if 'formula_memory' in name:
+                        raise ImportError("formula_memory not available")
+                    return real_import(name, *args, **kwargs)
+
+                with patch('builtins.__import__', side_effect=mock_import):
+                    # Mock agent
+                    from core.models import AgentRegistry
+                    agent = AgentRegistry(
+                        id="agent-123",
+                        name="Test Agent",
+                        category="Finance"
+                    )
+
+                    # Call recall_experiences - should not crash
+                    result = await world_model_service.recall_experiences(
+                        agent=agent,
+                        current_task_description="Test task",
+                        limit=5
+                    )
+
+                    # Verify results returned with empty formulas
+                    assert "formulas" in result
+                    assert result["formulas"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_with_database_session_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with database session failure
+        WHEN recall_experiences() is called and get_db_session raises exception
+        THEN return empty conversations
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Mock get_db_session to raise exception
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.side_effect = Exception("Database connection failed")
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(return_value={"episodes": []})
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences - should not crash
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify results returned with empty conversations
+                assert "conversations" in result
+                assert result["conversations"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_with_episode_service_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with EpisodeRetrievalService failure
+        WHEN recall_experiences() is called and EpisodeRetrievalService raises exception
+        THEN return empty episodes
+        """
+        # Mock LanceDB search to return empty
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Mock EpisodeRetrievalService to raise exception
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_service.side_effect = Exception("Episode service failed")
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences - should not crash
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify results returned with empty episodes
+                assert "episodes" in result
+                assert result["episodes"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_partial_failure_returns_empty_sources(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with multiple sources failing
+        WHEN recall_experiences() is called
+        THEN return partial results with empty failed sources
+        """
+        # Mock LanceDB search to return empty (instead of raising exception)
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Mock get_db_session to raise exception for conversations
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.side_effect = Exception("Database failed")
+
+            # Mock EpisodeRetrievalService to raise exception
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_service.side_effect = Exception("Episode service failed")
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences - should not crash (LanceDB works, others fail gracefully)
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify partial results returned
+                assert "experiences" in result
+                assert "knowledge" in result
+                assert "knowledge_graph" in result
+                assert "formulas" in result
+                # conversations and episodes should be empty due to exceptions
+                assert result["conversations"] == []
+                assert result["episodes"] == []
+
+    @pytest.mark.asyncio
+    async def test_recall_creator_scoped_experiences(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with experiences from multiple agents
+        WHEN recall_experiences() is called with agent.id matching creator_id
+        THEN return both creator-scoped and role-scoped experiences (is_creator OR is_role_match)
+        """
+        # Mock LanceDB search to return experiences
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-1",
+                "text": "Task: Test task\nInput: Input 1\nLearnings: Learning 1",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-123",  # Same as requesting agent (creator match)
+                    "agent_role": "Finance",
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.9
+                }
+            },
+            {
+                "id": "exp-2",
+                "text": "Task: Test task\nInput: Input 2\nLearnings: Learning 2",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-456",  # Different agent (role match)
+                    "agent_role": "Finance",  # Same role as requesting agent
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.8
+                }
+            },
+            {
+                "id": "exp-3",
+                "text": "Task: Test task\nInput: Input 3\nLearnings: Learning 3",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-789",  # Different agent
+                    "agent_role": "Sales",  # Different role
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.7
+                }
+            }
+        ])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(return_value={"episodes": []})
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify both creator-scoped and role-scoped experiences returned
+                assert len(result["experiences"]) == 2
+                experience_ids = [exp.id for exp in result["experiences"]]
+                assert "exp-1" in experience_ids  # Creator match
+                assert "exp-2" in experience_ids  # Role match
+                assert "exp-3" not in experience_ids  # No match
+
+    @pytest.mark.asyncio
+    async def test_recall_role_scoped_experiences(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with experiences from different roles
+        WHEN recall_experiences() is called with agent.category matching agent_role
+        THEN return experiences with same category/role
+        """
+        # Mock LanceDB search to return experiences
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-1",
+                "text": "Task: Test task\nInput: Input 1\nLearnings: Learning 1",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-456",
+                    "agent_role": "Finance",  # Same as agent.category
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.9
+                }
+            },
+            {
+                "id": "exp-2",
+                "text": "Task: Test task\nInput: Input 2\nLearnings: Learning 2",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-789",
+                    "agent_role": "Sales",  # Different role
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.8
+                }
+            }
+        ])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(return_value={"episodes": []})
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify only Finance role experience returned
+                assert len(result["experiences"]) == 1
+                assert result["experiences"][0].id == "exp-1"
+                assert result["experiences"][0].agent_role == "Finance"
+
+    @pytest.mark.asyncio
+    async def test_recall_filters_low_confidence_failures(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with experiences including low-confidence failures
+        WHEN recall_experiences() is called with outcome="failed" and confidence<0.8
+        THEN filter out low-confidence failures
+        """
+        # Mock LanceDB search to return experiences
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-1",
+                "text": "Task: Test task\nInput: Input 1\nLearnings: Learning 1",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-123",
+                    "agent_role": "Finance",
+                    "task_type": "reconciliation",
+                    "outcome": "failed",
+                    "confidence_score": 0.5  # Low confidence failure - should be filtered
+                }
+            },
+            {
+                "id": "exp-2",
+                "text": "Task: Test task\nInput: Input 2\nLearnings: Learning 2",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-123",
+                    "agent_role": "Finance",
+                    "task_type": "reconciliation",
+                    "outcome": "failed",
+                    "confidence_score": 0.9  # High confidence failure - should be included
+                }
+            },
+            {
+                "id": "exp-3",
+                "text": "Task: Test task\nInput: Input 3\nLearnings: Learning 3",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-123",
+                    "agent_role": "Finance",
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.7  # Success with lower confidence - should be included
+                }
+            }
+        ])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(return_value={"episodes": []})
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify low-confidence failure filtered out
+                assert len(result["experiences"]) == 2
+                experience_ids = [exp.id for exp in result["experiences"]]
+                assert "exp-1" not in experience_ids  # Low confidence failure filtered
+                assert "exp-2" in experience_ids  # High confidence failure included
+                assert "exp-3" in experience_ids  # Success included
+
+    @pytest.mark.asyncio
+    async def test_recall_sorts_by_confidence_descending(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with experiences at varying confidence levels
+        WHEN recall_experiences() is called
+        THEN experiences sorted by confidence_score descending
+        """
+        # Mock LanceDB search to return experiences in random order
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "exp-1",
+                "text": "Task: Test task\nInput: Input 1\nLearnings: Learning 1",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-123",
+                    "agent_role": "Finance",
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.7
+                }
+            },
+            {
+                "id": "exp-2",
+                "text": "Task: Test task\nInput: Input 2\nLearnings: Learning 2",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-123",
+                    "agent_role": "Finance",
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.9
+                }
+            },
+            {
+                "id": "exp-3",
+                "text": "Task: Test task\nInput: Input 3\nLearnings: Learning 3",
+                "created_at": datetime.now().isoformat(),
+                "metadata": {
+                    "agent_id": "agent-123",
+                    "agent_role": "Finance",
+                    "task_type": "reconciliation",
+                    "outcome": "success",
+                    "confidence_score": 0.8
+                }
+            }
+        ])
+
+        with patch('core.agent_world_model.get_db_session') as mock_get_db:
+            mock_get_db.return_value.__enter__ = Mock()
+            mock_get_db.return_value.__exit__ = Mock()
+            mock_get_db.return_value.query = Mock()
+            mock_get_db.return_value.close = Mock()
+
+            # Patch EpisodeRetrievalService where it's imported in the method
+            with patch('core.episode_retrieval_service.EpisodeRetrievalService') as mock_episode_service:
+                mock_episode_instance = AsyncMock()
+                mock_episode_instance.retrieve_contextual = AsyncMock(return_value={"episodes": []})
+                mock_episode_service.return_value = mock_episode_instance
+
+                # Mock agent
+                from core.models import AgentRegistry
+                agent = AgentRegistry(
+                    id="agent-123",
+                    name="Test Agent",
+                    category="Finance"
+                )
+
+                # Call recall_experiences
+                result = await world_model_service.recall_experiences(
+                    agent=agent,
+                    current_task_description="Test task",
+                    limit=5
+                )
+
+                # Verify sorted by confidence descending
+                assert len(result["experiences"]) == 3
+                assert result["experiences"][0].confidence_score == 0.9
+                assert result["experiences"][1].confidence_score == 0.8
+                assert result["experiences"][2].confidence_score == 0.7
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
