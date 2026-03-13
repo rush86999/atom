@@ -427,14 +427,14 @@ class TestDealIntelligence:
 
         deal = DealFactory(
             workspace_id=workspace.id,
-            last_followup_at=datetime.utcnow(),
+            last_followup_at=datetime.now(timezone.utc),
             followup_count=5,
             _session=db_session
         )
         db_session.commit()
 
         # Update followup tracking
-        deal.last_followup_at = datetime.utcnow()
+        deal.last_followup_at = datetime.now(timezone.utc)
         deal.followup_count = 6
         db_session.commit()
 
@@ -626,7 +626,7 @@ class TestCommissionEntryModel:
             workspace_id=workspace.id,
             deal_id=deal.id,
             amount=2000.0,
-            paid_at=datetime.utcnow(),
+            paid_at=datetime.now(timezone.utc),
             _session=db_session
         )
         db_session.commit()
@@ -920,7 +920,7 @@ class TestFollowUpTaskModel:
             workspace_id=workspace.id,
             deal_id=deal.id,
             description="Task with date",
-            suggested_date=datetime.utcnow() + timedelta(days=3),
+            suggested_date=datetime.now(timezone.utc) + timedelta(days=3),
             _session=db_session
         )
         task_no_date = FollowUpTaskFactory(
@@ -1081,8 +1081,8 @@ class TestContractModel:
         workspace = WorkspaceFactory(_session=db_session)
         db_session.commit()
 
-        start = datetime.utcnow() - timedelta(days=30)
-        end = datetime.utcnow() + timedelta(days=365)
+        start = datetime.now(timezone.utc) - timedelta(days=30)
+        end = datetime.now(timezone.utc) + timedelta(days=365)
 
         contract = ContractFactory(
             workspace_id=workspace.id,
@@ -1353,9 +1353,9 @@ class TestProjectModel:
         workspace = WorkspaceFactory(_session=db_session)
         db_session.commit()
 
-        planned_start = datetime.utcnow() - timedelta(days=15)
-        planned_end = datetime.utcnow() + timedelta(days=90)
-        actual_start = datetime.utcnow() - timedelta(days=10)
+        planned_start = datetime.now(timezone.utc) - timedelta(days=15)
+        planned_end = datetime.now(timezone.utc) + timedelta(days=90)
+        actual_start = datetime.now(timezone.utc) - timedelta(days=10)
 
         project = ProjectFactory(
             workspace_id=workspace.id,
@@ -1826,7 +1826,7 @@ class TestProjectTaskModel:
             workspace_id=workspace.id,
             project_id=project.id,
             milestone_id=milestone.id,
-            due_date=datetime.utcnow() + timedelta(days=7),
+            due_date=datetime.now(timezone.utc) + timedelta(days=7),
             _session=db_session
         )
         task_no_due = ProjectTaskFactory(
@@ -1864,7 +1864,7 @@ class TestProjectTaskModel:
             project_id=project.id,
             milestone_id=milestone.id,
             status="completed",
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(timezone.utc),
             _session=db_session
         )
         task_pending = ProjectTaskFactory(
