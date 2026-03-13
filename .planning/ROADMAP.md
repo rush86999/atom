@@ -507,7 +507,11 @@ Plans: 4 plans
   2. WebSocket debugging achieves 75%+ line coverage
   3. HTTP connection pooling achieves 75%+ line coverage
   4. Integration error paths achieve 75%+ line coverage
-**Plans**: TBD (estimated 3-4 plans)
+**Plans**: 4 plans
+- [ ] 184-01-PLAN.md — LanceDB handler initialization and connections (35+ tests, 800+ lines)
+- [ ] 184-02-PLAN.md — LanceDB vector operations and dual storage (45+ tests, 900+ lines)
+- [ ] 184-03-PLAN.md — LanceDB advanced features (35+ tests, 700+ lines)
+- [ ] 184-04-PLAN.md — WebSocket/HTTP client edge cases and error paths (40+ tests, 1400+ lines)
 **Estimated Coverage**: 60.50%
 
 ### Phase 185: Database Layer Coverage (Advanced Models)
