@@ -181,6 +181,7 @@ class SkillRegistryService:
             skill_record = SkillExecution(
                 id=skill_id,
                 agent_id="system",  # Community skills don't belong to specific agent
+                tenant_id="system",  # Community skills belong to system tenant
                 workspace_id="default",
                 skill_id=f"community_{skill_name}_{skill_id[:8]}",
                 status=status,

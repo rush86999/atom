@@ -2311,6 +2311,11 @@ class SkillExecution(Base):
     stderr = Column(Text, nullable=True)  # Captured stderr from container
     exit_code = Column(Integer, nullable=True)  # Container exit code (0=success)
 
+    # Community Skills tracking (Phase 14, Migration: 20260216_community_skills)
+    skill_source = Column(String, default='cloud', nullable=True)  # 'cloud' or 'community'
+    security_scan_result = Column(JSON, nullable=True)  # LLM security scan results
+    sandbox_enabled = Column(Boolean, default=False, nullable=True)  # Docker sandbox flag
+
     # Audit provenance tracking (Phase 45-02, SKILL-26)
     audit_metadata = Column(JSON, nullable=True)  # ShellSession-style provenance tracking
 
