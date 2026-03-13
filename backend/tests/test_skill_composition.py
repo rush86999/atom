@@ -484,11 +484,11 @@ class TestComplexDAGPatterns:
                 agent_id="test-agent"
             )
 
-            # Verify execution order: A before B and C, B/C before D
-            assert execution_log.index("a") < execution_log.index("b")
-            assert execution_log.index("a") < execution_log.index("c")
-            assert execution_log.index("b") < execution_log.index("d")
-            assert execution_log.index("c") < execution_log.index("d")
+            # Verify execution order: skill_a before skill_b and skill_c, skill_b/skill_c before skill_d
+            assert execution_log.index("skill_a") < execution_log.index("skill_b")
+            assert execution_log.index("skill_a") < execution_log.index("skill_c")
+            assert execution_log.index("skill_b") < execution_log.index("skill_d")
+            assert execution_log.index("skill_c") < execution_log.index("skill_d")
 
 
 class TestEdgeCaseValidation:
@@ -549,7 +549,8 @@ class TestEdgeCaseValidation:
 
     def test_duplicate_step_ids(self, composition_engine):
         """Test steps with duplicate IDs handled correctly."""
-        # NetworkX will create separate nodes for same step_id
+        # NetworkX only adds nodes once for duplicate step_id values
+        # This means the second SkillStep with ID "a" will overwrite the first
         steps = [
             SkillStep("a", "skill_a", {}, []),
             SkillStep("a", "skill_b", [], [])  # Duplicate ID
@@ -557,7 +558,6 @@ class TestEdgeCaseValidation:
 
         result = composition_engine.validate_workflow(steps)
 
-        # NetworkX handles duplicates by creating separate nodes
-        # The validation should still work
+        # NetworkX treats duplicate IDs as the same node
         assert result["valid"] is True
-        assert result["node_count"] == 2
+        assert result["node_count"] == 1  # Only one unique node
