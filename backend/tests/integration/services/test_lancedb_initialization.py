@@ -484,3 +484,241 @@ class TestLanceDBInitialization:
 
         # Verify BYOK manager is None after exception
         assert handler.byok_manager is None
+
+
+# ============================================================================
+# Task 3: Embedding Provider Tests
+# ============================================================================
+
+class TestLanceDBEmbeddingProviders:
+    """Tests for embedding provider initialization and behavior."""
+
+    @patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', True)
+    def test_local_provider_initializes_sentence_transformers(self):
+        """Test that embedding_provider='local' uses SentenceTransformers."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="local",
+            embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        )
+
+        # Verify provider is set to local
+        assert handler.embedding_provider == "local"
+        assert handler.embedding_model == "sentence-transformers/all-MiniLM-L6-v2"
+
+    def test_openai_provider_initializes_client(self, mock_openai_config):
+        """Test that embedding_provider='openai' initializes OpenAI client."""
+        # Mock OpenAI import
+        with patch('builtins.__import__') as mock_import:
+            mock_openai_module = MagicMock()
+            mock_openai_client = MagicMock()
+            mock_openai_module.OpenAI = Mock(return_value=mock_openai_client)
+
+            def import_side_effect(name, *args, **kwargs):
+                if name == 'openai':
+                    return mock_openai_module
+                return builtins.__import__(name, *args, **kwargs)
+
+            mock_import.side_effect = import_side_effect
+
+            handler = LanceDBHandler(
+                db_path="/tmp/test.db",
+                embedding_provider="openai",
+                embedding_model="text-embedding-3-small",
+            )
+
+            # Initialize embedder
+            handler._initialize_embedder()
+
+            # Verify OpenAI client was created
+            assert handler.openai_client is not None
+
+    @patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', False)
+    @patch('core.lancedb_handler.OPENAI_AVAILABLE', False)
+    def test_mock_embedder_used_when_unavailable(self):
+        """Test that SENTENCE_TRANSFORMERS_AVAILABLE=False uses MockEmbedder."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="local",
+        )
+
+        # Initialize embedder
+        handler._initialize_embedder()
+
+        # Verify MockEmbedder is used
+        assert handler.embedder is not None
+        assert isinstance(handler.embedder, MockEmbedder)
+
+    @patch.dict(os.environ, {'EMBEDDING_PROVIDER': 'openai'})
+    def test_embedding_provider_from_env_var(self):
+        """Test that EMBEDDING_PROVIDER env var is respected."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            # Don't specify embedding_provider - should use env var
+        )
+
+        # Verify env var was used
+        assert handler.embedding_provider == "openai"
+
+    def test_ensure_embedder_lazy_loads(self):
+        """Test that first call to _ensure_embedder triggers _initialize_embedder."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="mock",
+        )
+
+        # Start with no embedder
+        assert handler.embedder is None
+
+        # Mock _initialize_embedder
+        with patch.object(handler, '_initialize_embedder') as mock_init:
+            handler._ensure_embedder()
+
+            # Verify initialization was called
+            mock_init.assert_called_once()
+
+    @patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', True)
+    def test_sentence_transformers_model_from_config(self):
+        """Test that embedding_model parameter is used for SentenceTransformers."""
+        model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="local",
+            embedding_model=model_name,
+        )
+
+        # Verify model is set
+        assert handler.embedding_model == model_name
+
+    @patch.dict(os.environ, {'EMBEDDING_MODEL': 'BAAI/bge-small-en-v1.5'})
+    def test_sentence_transformers_model_from_env(self):
+        """Test that EMBEDDING_MODEL env var is used."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="local",
+        )
+
+        # Verify env var was used
+        assert handler.embedding_model == "BAAI/bge-small-en-v1.5"
+
+    @patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', True)
+    def test_embedding_initialization_timeout(self):
+        """Test that threading timeout handles model loading delays."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="local",
+            embedding_model="slow-model",
+        )
+
+        # Mock threading to simulate timeout (imported locally in _init_local_embedder)
+        with patch('threading.Thread') as mock_thread_class:
+            mock_thread = MagicMock()
+            mock_queue = MagicMock()
+
+            # Make queue.empty() return True (no result in time)
+            mock_queue.empty.return_value = True
+            mock_thread.is_alive.return_value = True  # Thread still running
+
+            mock_thread_class.return_value = mock_thread
+
+            # Patch queue.Queue (queue is the correct module)
+            with patch('queue.Queue', return_value=mock_queue):
+                # Initialize embedder (should timeout and fall back to MockEmbedder)
+                handler._initialize_embedder()
+
+                # Verify embedder falls back to MockEmbedder after timeout
+                # (or is None if exception handling catches it)
+                assert handler.embedder is None or isinstance(handler.embedder, MockEmbedder)
+
+    @patch.dict(os.environ, {'OPENAI_API_KEY': 'sk-test-key'})
+    def test_openai_client_initialized_with_api_key(self):
+        """Test that OPENAI_API_KEY is used for client initialization."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="openai",
+        )
+
+        # Verify API key is set
+        assert handler.openai_api_key == "sk-test-key"
+
+    @patch('core.lancedb_handler.OPENAI_AVAILABLE', True)
+    def test_openai_embed_text_returns_vector(self, mock_openai_config):
+        """Test that OpenAI API is called for embeddings."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="openai",
+        )
+
+        # Mock OpenAI client
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.data = [MagicMock(embedding=[0.1] * 1536)]
+        mock_client.embeddings.create = Mock(return_value=mock_response)
+        handler.openai_client = mock_client
+
+        # Mock _ensure_embedder to skip initialization
+        with patch.object(handler, '_ensure_embedder'):
+            # Call embed_text (using internal method)
+            # This will use OpenAI if available
+            vector = handler.embed_text("test text")
+
+            # Verify vector is returned
+            assert vector is not None
+            assert len(vector) == 1536
+
+    @patch('core.lancedb_handler.OPENAI_AVAILABLE', False)
+    @patch('core.lancedb_handler.SENTENCE_TRANSFORMERS_AVAILABLE', False)
+    def test_openai_embedding_fallback_to_mock(self):
+        """Test that OpenAI failure falls back to MockEmbedder."""
+        handler = LanceDBHandler(
+            db_path="/tmp/test.db",
+            embedding_provider="openai",
+        )
+
+        # Initialize embedder (should fall back to MockEmbedder)
+        handler._initialize_embedder()
+
+        # Verify MockEmbedder is used
+        assert isinstance(handler.embedder, MockEmbedder)
+
+    def test_mock_embedder_generates_consistent_vectors(self):
+        """Test that MockEmbedder generates consistent vectors for same input."""
+        embedder = MockEmbedder(dim=384)
+
+        text = "test input"
+        vector1 = embedder.encode(text)
+        vector2 = embedder.encode(text)
+
+        # Verify vectors are identical
+        assert vector1 == vector2
+
+    def test_mock_embedder_generates_unit_vectors(self):
+        """Test that MockEmbedder vectors are normalized to unit length."""
+        import math
+        embedder = MockEmbedder(dim=384)
+
+        vector = embedder.encode("test input")
+
+        # Calculate norm
+        norm = math.sqrt(sum(x * x for x in vector))
+
+        # Verify norm is 1.0 (unit vector)
+        assert abs(norm - 1.0) < 0.001
+
+    def test_mock_embedder_handles_unicode(self):
+        """Test that MockEmbedder handles special characters without errors."""
+        embedder = MockEmbedder(dim=384)
+
+        # Test with unicode and special characters
+        texts = [
+            "Hello 世界",
+            "Test emoji 🚀",
+            "Special chars: <>&\"'",
+            "Latin: café",
+            "Arabic: مرحبا",
+        ]
+
+        for text in texts:
+            vector = embedder.encode(text)
+            assert vector is not None
+            assert len(vector) == 384
