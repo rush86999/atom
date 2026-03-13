@@ -474,7 +474,11 @@ Plans: 4 plans
   2. Package dependency scanner achieves 75%+ line coverage
   3. Package installer achieves 75%+ line coverage
   4. Security scan integration achieves 75%+ line coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 4 plans
+- [ ] 182-01-PLAN.md — npm package governance coverage (30+ tests, 95% target)
+- [ ] 182-02-PLAN.md — Scanner edge cases coverage (35+ tests, 85% target)
+- [ ] 182-03-PLAN.md — Installer edge cases coverage (35+ tests, 90% target)
+- [ ] 182-04-PLAN.md — API Routes npm coverage (40+ tests, 75% target)
 **Estimated Coverage**: 52.50%
 
 ### Phase 183: Core Services Coverage (Skill Execution)
