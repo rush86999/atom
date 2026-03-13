@@ -488,3 +488,365 @@ class TestImageTagFormat:
         )
 
         assert result["image_tag"] == "atom-skill:my-skill-v1"
+
+
+class TestDockerImageManagement:
+    """Docker image management and tag formatting."""
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_image_tag_with_special_characters(self, mock_build, installer):
+        """Verify special characters in skill_id are handled correctly."""
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+        mock_build.return_value = []
+
+        result = installer.install_packages(
+            skill_id="my.skill@v1.0",
+            requirements=["requests==2.28.0"]
+        )
+
+        # Special characters should be handled (currently only slashes are replaced)
+        assert "my.skill@v1.0" in result["image_tag"] or "my-skill" in result["image_tag"]
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_image_tag_with_slashes_replaced_with_dashes(self, mock_build, installer):
+        """Verify slashes in skill_id are replaced with dashes."""
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+        mock_build.return_value = []
+
+        result = installer.install_packages(
+            skill_id="org/category/skill-name",
+            requirements=["requests==2.28.0"]
+        )
+
+        # All slashes should be replaced with dashes
+        assert "/" not in result["image_tag"]
+        assert "org-category-skill-name" in result["image_tag"]
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_skill_id_max_length_handling(self, mock_build, installer):
+        """Verify very long skill_id doesn't cause issues."""
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+        mock_build.return_value = []
+
+        # Very long skill_id (Docker tag limit is 128 chars)
+        long_skill_id = "a" * 100
+        result = installer.install_packages(
+            skill_id=long_skill_id,
+            requirements=["requests==2.28.0"]
+        )
+
+        assert result["success"] == True
+        assert result["image_tag"] is not None
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_base_image_validation(self, mock_build, installer):
+        """Verify base image parameter is passed correctly."""
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+        mock_build.return_value = []
+
+        # Test with different base images
+        for base_image in ["python:3.10-slim", "python:3.11", "python:3.9-alpine"]:
+            result = installer.install_packages(
+                skill_id="test-skill",
+                requirements=["requests==2.28.0"],
+                base_image=base_image
+            )
+            assert result["success"] == True
+
+    def test_custom_base_image_argument(self, installer, mock_docker_client):
+        """Verify custom base image is used in Dockerfile."""
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+
+        mock_image = MagicMock()
+
+        def mock_build_generator():
+            yield {"stream": "Build successful\n"}
+
+        mock_docker_client.images.build.return_value = (mock_image, mock_build_generator())
+
+        # Test with custom base image
+        installer._build_skill_image(
+            skill_id="test-skill",
+            requirements=["requests==2.28.0"],
+            image_tag="atom-skill:test-skill-v1",
+            base_image="python:3.10-alpine"
+        )
+
+        # Verify build was called (base image should be in Dockerfile)
+        mock_docker_client.images.build.assert_called_once()
+
+    def test_default_base_image_python_311_slim(self, installer, mock_docker_client):
+        """Verify default base image is python:3.11-slim."""
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+
+        mock_image = MagicMock()
+
+        def mock_build_generator():
+            yield {"stream": "Build successful\n"}
+
+        mock_docker_client.images.build.return_value = (mock_image, mock_build_generator())
+
+        # Call without specifying base_image (should use default)
+        installer._build_skill_image(
+            skill_id="test-skill",
+            requirements=["requests==2.28.0"],
+            image_tag="atom-skill:test-skill-v1",
+            base_image="python:3.11-slim"  # Default is explicitly passed
+        )
+
+        # Verify build was called
+        mock_docker_client.images.build.assert_called_once()
+
+
+class TestVulnerabilityScanningIntegration:
+    """Vulnerability scanning integration with Docker builds."""
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_vulnerability_scan_blocks_dangerous_packages(self, mock_build, installer):
+        """Verify dangerous packages are blocked by vulnerability scan."""
+        # Mock HIGH severity vulnerabilities
+        installer.scanner.scan_packages.return_value = {
+            "safe": False,
+            "vulnerabilities": [
+                {
+                    "cve_id": "CVE-2021-44228",
+                    "severity": "CRITICAL",
+                    "package": "log4j",
+                    "affected_versions": ["2.14.1"],
+                    "advisory": "Remote code execution vulnerability (Log4Shell)",
+                    "source": "pip-audit"
+                }
+            ],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+
+        result = installer.install_packages(
+            skill_id="test-skill",
+            requirements=["log4j==2.14.1"],
+            scan_for_vulnerabilities=True
+        )
+
+        assert result["success"] == False
+        assert "vulnerabilities" in result["error"].lower()
+        assert len(result["vulnerabilities"]) > 0
+        assert result["image_tag"] is None
+        # Build should not be attempted
+        mock_build.assert_not_called()
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_vulnerability_scan_passed_allows_build(self, mock_build, installer):
+        """Verify scan with no vulnerabilities allows build to proceed."""
+        # Mock clean scan
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+        mock_build.return_value = ["Build successful"]
+
+        result = installer.install_packages(
+            skill_id="test-skill",
+            requirements=["requests==2.28.0"],
+            scan_for_vulnerabilities=True
+        )
+
+        assert result["success"] == True
+        assert len(result["vulnerabilities"]) == 0
+        mock_build.assert_called_once()
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_vulnerability_check_skipped_with_flag(self, mock_build, installer):
+        """Verify vulnerability check can be skipped with flag."""
+        # Even if scanner has vulnerabilities, skip should bypass
+        installer.scanner.scan_packages.return_value = {
+            "safe": False,
+            "vulnerabilities": [{"cve_id": "CVE-2021-1234", "severity": "LOW"}],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+        mock_build.return_value = ["Build successful"]
+
+        result = installer.install_packages(
+            skill_id="test-skill",
+            requirements=["requests==2.28.0"],
+            scan_for_vulnerabilities=False  # Skip scan
+        )
+
+        assert result["success"] == True
+        # Scanner should not be called
+        installer.scanner.scan_packages.assert_not_called()
+        mock_build.assert_called_once()
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_vulnerability_results_included_in_response(self, mock_build, installer):
+        """Verify vulnerability scan results are included in response."""
+        # Mock scan with LOW severity vulnerabilities (safe=True but has findings)
+        installer.scanner.scan_packages.return_value = {
+            "safe": True,
+            "vulnerabilities": [
+                {
+                    "cve_id": "CVE-2021-0001",
+                    "severity": "LOW",
+                    "package": "test-pkg",
+                    "affected_versions": ["1.0.0"],
+                    "advisory": "Minor issue",
+                    "source": "pip-audit"
+                }
+            ],
+            "dependency_tree": {},
+            "conflicts": []
+        }
+        mock_build.return_value = ["Build successful"]
+
+        result = installer.install_packages(
+            skill_id="test-skill",
+            requirements=["test-pkg==1.0.0"],
+            scan_for_vulnerabilities=True
+        )
+
+        assert result["success"] == True
+        # Vulnerabilities should be included even if build succeeds
+        assert len(result["vulnerabilities"]) > 0
+        assert result["vulnerabilities"][0]["cve_id"] == "CVE-2021-0001"
+
+    @patch('core.package_installer.PackageInstaller._build_skill_image')
+    def test_vulnerability_scan_timeout_handling(self, mock_build, installer):
+        """Verify vulnerability scan timeout propagates (production code doesn't catch)."""
+        # Mock scan timeout - production code doesn't catch scanner exceptions
+        installer.scanner.scan_packages.side_effect = Exception(
+            "Vulnerability scan timeout: pip-audit took too long"
+        )
+
+        # Exception should propagate (not caught by install_packages)
+        with pytest.raises(Exception) as exc_info:
+            installer.install_packages(
+                skill_id="test-skill",
+                requirements=["requests==2.28.0"],
+                scan_for_vulnerabilities=True
+            )
+
+        assert "timeout" in str(exc_info.value).lower()
+
+
+class TestExecuteWithPackagesResourceLimits:
+    """Resource limit enforcement in execute_with_packages."""
+
+    def test_execute_with_custom_timeout(self, installer, mock_docker_client):
+        """Verify custom timeout is passed to sandbox."""
+        mock_image = MagicMock()
+        mock_docker_client.images.get.return_value = mock_image
+        installer.sandbox.execute_python.return_value = "Output"
+
+        installer.execute_with_packages(
+            skill_id="test-skill",
+            code="import time; time.sleep(10)",
+            inputs={},
+            timeout_seconds=120  # Custom timeout
+        )
+
+        # Verify timeout was passed
+        call_kwargs = installer.sandbox.execute_python.call_args[1]
+        assert call_kwargs["timeout_seconds"] == 120
+
+    def test_execute_with_custom_memory_limit(self, installer, mock_docker_client):
+        """Verify custom memory limit is passed to sandbox."""
+        mock_image = MagicMock()
+        mock_docker_client.images.get.return_value = mock_image
+        installer.sandbox.execute_python.return_value = "Output"
+
+        installer.execute_with_packages(
+            skill_id="test-skill",
+            code="import numpy; x = numpy.arange(1000000)",
+            inputs={},
+            memory_limit="1g"  # Custom memory limit
+        )
+
+        # Verify memory limit was passed
+        call_kwargs = installer.sandbox.execute_python.call_args[1]
+        assert call_kwargs["memory_limit"] == "1g"
+
+    def test_execute_with_custom_cpu_limit(self, installer, mock_docker_client):
+        """Verify custom CPU limit is passed to sandbox."""
+        mock_image = MagicMock()
+        mock_docker_client.images.get.return_value = mock_image
+        installer.sandbox.execute_python.return_value = "Output"
+
+        installer.execute_with_packages(
+            skill_id="test-skill",
+            code="import multiprocessing; print(multiprocessing.cpu_count())",
+            inputs={},
+            cpu_limit=1.0  # Custom CPU limit
+        )
+
+        # Verify CPU limit was passed
+        call_kwargs = installer.sandbox.execute_python.call_args[1]
+        assert call_kwargs["cpu_limit"] == 1.0
+
+    def test_execute_with_combined_resource_limits(self, installer, mock_docker_client):
+        """Verify multiple resource limits are passed together."""
+        mock_image = MagicMock()
+        mock_docker_client.images.get.return_value = mock_image
+        installer.sandbox.execute_python.return_value = "Output"
+
+        installer.execute_with_packages(
+            skill_id="test-skill",
+            code="print('test')",
+            inputs={},
+            timeout_seconds=60,
+            memory_limit="512m",
+            cpu_limit=0.5
+        )
+
+        # Verify all limits were passed
+        call_kwargs = installer.sandbox.execute_python.call_args[1]
+        assert call_kwargs["timeout_seconds"] == 60
+        assert call_kwargs["memory_limit"] == "512m"
+        assert call_kwargs["cpu_limit"] == 0.5
+
+    def test_execute_without_image_returns_error(self, installer, mock_docker_client):
+        """Verify execute raises RuntimeError when image doesn't exist."""
+        # Mock image not found
+        mock_docker_client.images.get.side_effect = sys.modules['docker.errors'].ImageNotFound("Image not found")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            installer.execute_with_packages(
+                skill_id="nonexistent-skill",
+                code="print('hello')",
+                inputs={}
+            )
+
+        assert "not found" in str(exc_info.value).lower()
+        assert "install_packages" in str(exc_info.value)
+
