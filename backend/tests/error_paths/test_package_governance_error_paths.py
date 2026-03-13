@@ -126,7 +126,7 @@ class TestPackageScannerErrorPaths:
             Add package name validation:
             ```python
             import re
-            package_pattern = r'^[a-zA-Z0-9_-]+(\[.*\])?$'
+            package_pattern = r'^[a-zA-Z0-9_-]+(\[.*\])?$'  # noqa: W605
             if not re.match(package_pattern, package_name):
                 raise ValueError(f"Invalid package name: {package_name}")
             ```

@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from typing import Dict, Any, List
 
 # Import FastAPI app
-from main import app
+from main_api_app import app
 
 
 @pytest.fixture
@@ -941,7 +941,7 @@ class TestCitationVerificationErrorPaths:
             Add sanitization:
             ```python
             import re
-            citation = re.sub(r'[^\w\s\-\.:/]', '', citation)
+            citation = re.sub(r'[^\\w\\s\\-\\\.:/]', '', citation)
             ```
 
         Validated: ✅ Test confirms bug exists
