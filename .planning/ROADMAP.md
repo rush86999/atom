@@ -530,10 +530,11 @@ Plans: 4 plans
   2. Sales models achieve 80%+ line coverage
   3. Service delivery models achieve 80%+ line coverage
   4. Advanced relationships achieve 80%+ line coverage
+  5. Session isolation tested for complex relationships (API-04)
 **Plans**: 1 plan
-- [ ] 185-01-PLAN.md — Fix flaky test and datetime deprecation warnings
+- [ ] 185-01-PLAN.md — Fix flaky test, datetime deprecation warnings, add session isolation tests (5 tasks)
 **Estimated Coverage**: 64.50%
-**Note**: Current coverage is 100% on all three model files. Plan focuses on fixing 1 flaky test and 448 deprecation warnings.
+**Note**: Current coverage is 100% on all three model files. Plan focuses on fixing 1 flaky test, 448 deprecation warnings, and adding session isolation tests (API-04 requirement).
 
 ### Phase 186: Edge Cases & Error Handling
 **Goal**: Achieve target coverage on edge cases and error handling paths
