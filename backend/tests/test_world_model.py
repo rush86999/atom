@@ -2483,6 +2483,442 @@ class TestBoostExperienceConfidenceErrors:
 
 
 # ============================================================================
+# TEST CLASS: Get Experience Statistics Error Paths
+# ============================================================================
+
+class TestGetExperienceStatisticsErrors:
+    """Error path tests for get_experience_statistics method."""
+
+    @pytest.mark.asyncio
+    async def test_get_statistics_lancedb_search_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with LanceDBHandler that raises exception on search
+        WHEN get_experience_statistics() is called
+        THEN return error dict
+        """
+        # Mock search to raise exception
+        mock_lancedb_handler.search = Mock(side_effect=Exception("Search failed"))
+
+        # Call the method
+        result = await world_model_service.get_experience_statistics()
+
+        # Verify returns error dict
+        assert "error" in result
+        assert result["error"] == "Search failed"
+
+    @pytest.mark.asyncio
+    async def test_get_statistics_with_empty_results(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler that returns empty results
+        WHEN get_experience_statistics() is called
+        THEN return all zeros
+        """
+        # Mock search to return empty list
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Call the method
+        result = await world_model_service.get_experience_statistics()
+
+        # Verify all zeros
+        assert result["total_experiences"] == 0
+        assert result["successes"] == 0
+        assert result["failures"] == 0
+        assert result["success_rate"] == 0
+        assert result["avg_confidence"] == 0.5  # Default value
+        assert result["feedback_coverage"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_statistics_with_malformed_metadata(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler that returns malformed metadata
+        WHEN get_experience_statistics() is called
+        THEN verify default values used for missing keys
+        """
+        # Mock search to return results with missing metadata keys
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "outcome": "Success"
+                    # Missing: confidence_score, feedback_score
+                }
+            }
+        ])
+
+        # Call the method
+        result = await world_model_service.get_experience_statistics()
+
+        # Verify defaults used
+        assert result["total_experiences"] == 1
+        assert result["successes"] == 1
+        assert result["avg_confidence"] == 0.5  # Default for missing key
+
+    @pytest.mark.asyncio
+    async def test_get_statistics_case_insensitive_role_filtering(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_experience_statistics() is called with agent_role="Finance"
+        THEN match experiences with "finance" (lowercase) agent_role
+        """
+        # Mock search to return experiences
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "agent_role": "finance",  # Lowercase
+                    "outcome": "Success",
+                    "confidence_score": 0.8
+                }
+            },
+            {
+                "metadata": {
+                    "agent_id": "agent_2",
+                    "agent_role": "operations",  # Different role
+                    "outcome": "Success",
+                    "confidence_score": 0.7
+                }
+            }
+        ])
+
+        # Call with "Finance" (capitalized)
+        result = await world_model_service.get_experience_statistics(agent_role="Finance")
+
+        # Verify only "finance" (lowercase) experiences counted
+        assert result["total_experiences"] == 1
+        assert result["agent_role"] == "Finance"
+
+    @pytest.mark.asyncio
+    async def test_get_statistics_agent_id_filtering(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_experience_statistics() is called with agent_id filter
+        THEN return only experiences matching that agent_id
+        """
+        # Mock search to return experiences from multiple agents
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "outcome": "Success",
+                    "confidence_score": 0.8
+                }
+            },
+            {
+                "metadata": {
+                    "agent_id": "agent_2",
+                    "outcome": "Success",
+                    "confidence_score": 0.7
+                }
+            },
+            {
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "outcome": "Failure",
+                    "confidence_score": 0.5
+                }
+            }
+        ])
+
+        # Call with agent_id filter
+        result = await world_model_service.get_experience_statistics(agent_id="agent_1")
+
+        # Verify only agent_1 experiences counted
+        assert result["total_experiences"] == 2
+        assert result["successes"] == 1
+        assert result["failures"] == 1
+        assert result["agent_id"] == "agent_1"
+
+    @pytest.mark.asyncio
+    async def test_get_statistics_aggregation_calculations(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_experience_statistics() is called
+        THEN verify success_rate, avg_confidence, feedback_coverage formulas
+        """
+        # Mock search to return diverse experiences
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "metadata": {
+                    "agent_id": "agent_1",
+                    "outcome": "Success",
+                    "confidence_score": 0.8,
+                    "feedback_score": 0.5
+                }
+            },
+            {
+                "metadata": {
+                    "agent_id": "agent_2",
+                    "outcome": "Success",
+                    "confidence_score": 0.6,
+                    "feedback_score": None
+                }
+            },
+            {
+                "metadata": {
+                    "agent_id": "agent_3",
+                    "outcome": "Failure",
+                    "confidence_score": 0.4,
+                    "feedback_score": -0.5
+                }
+            }
+        ])
+
+        # Call the method
+        result = await world_model_service.get_experience_statistics()
+
+        # Verify calculations
+        assert result["total_experiences"] == 3
+        assert result["successes"] == 2
+        assert result["failures"] == 1
+        assert result["success_rate"] == 2/3  # 2 successes / 3 total
+        assert abs(result["avg_confidence"] - (0.8 + 0.6 + 0.4) / 3) < 0.001
+        assert result["feedback_coverage"] == 2/3  # 2 experiences with feedback / 3 total
+
+
+# ============================================================================
+# TEST CLASS: Fact Verification Error Paths
+# ============================================================================
+
+class TestFactVerificationErrors:
+    """Error path tests for fact verification methods."""
+
+    @pytest.mark.asyncio
+    async def test_update_fact_verification_not_found(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler that returns empty results
+        WHEN update_fact_verification() is called with non-existent fact_id
+        THEN return False
+        """
+        # Mock search to return empty list (fact not found)
+        mock_lancedb_handler.search = Mock(return_value=[])
+
+        # Call the method with non-existent ID
+        result = await world_model_service.update_fact_verification(
+            fact_id="nonexistent_fact",
+            status="verified"
+        )
+
+        # Verify returns False
+        assert result is False
+        mock_lancedb_handler.search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_fact_verification_lancedb_failure(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with LanceDBHandler that raises exception on search
+        WHEN update_fact_verification() is called
+        THEN return False
+        """
+        # Mock search to raise exception
+        mock_lancedb_handler.search = Mock(side_effect=Exception("Search failed"))
+
+        # Call the method
+        result = await world_model_service.update_fact_verification(
+            fact_id="fact_1",
+            status="verified"
+        )
+
+        # Verify returns False
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_update_fact_verification_with_deleted_status(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_fact_verification() is called with status="deleted"
+        THEN verify status is updated to deleted
+        """
+        # Mock search to return existing fact
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "fact_1",
+                "text": "Fact: Test fact\nCitations: source.pdf\nReason: Test\nStatus: unverified",
+                "source": "fact_agent_user",
+                "metadata": {
+                    "id": "fact_1",
+                    "fact": "Test fact",
+                    "citations": ["source.pdf"],
+                    "verification_status": "unverified"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with deleted status
+        result = await world_model_service.update_fact_verification(
+            fact_id="fact_1",
+            status="deleted"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify status updated to deleted
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["verification_status"] == "deleted"
+
+    @pytest.mark.asyncio
+    async def test_update_fact_verification_text_replacement(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN update_fact_verification() is called
+        THEN verify metadata status is updated (note: text replacement bug in production)
+        """
+        # Mock search to return existing fact with old status
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "id": "fact_2",
+                "text": "Fact: Test fact\nCitations: source.pdf\nReason: Test\nStatus: unverified",
+                "source": "fact_agent_user",
+                "metadata": {
+                    "id": "fact_2",
+                    "fact": "Test fact",
+                    "citations": ["source.pdf"],
+                    "verification_status": "unverified"
+                }
+            }
+        ])
+        mock_lancedb_handler.add_document = Mock(return_value=True)
+
+        # Call with new status
+        result = await world_model_service.update_fact_verification(
+            fact_id="fact_2",
+            status="verified"
+        )
+
+        # Verify success
+        assert result is True
+
+        # Verify metadata status updated to verified
+        call_args = mock_lancedb_handler.add_document.call_args
+        assert call_args[1]["metadata"]["verification_status"] == "verified"
+
+        # NOTE: Text replacement has a bug in production code (line 400)
+        # It replaces "Status: {new_status}" with "Status: {new_status}" (no-op)
+        # So the text remains unchanged, but metadata is updated correctly
+
+    @pytest.mark.asyncio
+    async def test_get_fact_by_id_with_high_limit(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN get_fact_by_id() is called with limit=1000
+        THEN verify search uses limit=1000
+        """
+        # Mock search to return the fact
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "metadata": {
+                    "id": "fact_1000",
+                    "fact": "Test fact",
+                    "citations": ["source.pdf"],
+                    "reason": "Test",
+                    "source_agent_id": "user:test",
+                    "created_at": datetime.now().isoformat(),
+                    "last_verified": datetime.now().isoformat(),
+                    "verification_status": "verified"
+                }
+            }
+        ])
+
+        # Call get_fact_by_id (uses limit=1000 internally)
+        result = await world_model_service.get_fact_by_id("fact_1000")
+
+        # Verify fact found
+        assert result is not None
+        assert result.id == "fact_1000"
+
+        # Verify search called with limit=1000
+        mock_lancedb_handler.search.assert_called_once()
+        call_args = mock_lancedb_handler.search.call_args
+        assert call_args[1]["limit"] == 1000
+
+    @pytest.mark.asyncio
+    async def test_list_all_facts_with_filters(
+        self, world_model_service, mock_lancedb_handler
+    ):
+        """
+        GIVEN WorldModelService with mocked LanceDBHandler
+        WHEN list_all_facts() is called with status and domain filters
+        THEN verify filters are applied correctly
+        """
+        # Mock search to return multiple facts
+        mock_lancedb_handler.search = Mock(return_value=[
+            {
+                "metadata": {
+                    "id": "fact_1",
+                    "fact": "Finance fact",
+                    "citations": ["source.pdf"],
+                    "reason": "Test",
+                    "source_agent_id": "user:test",
+                    "created_at": datetime.now().isoformat(),
+                    "last_verified": datetime.now().isoformat(),
+                    "verification_status": "verified",
+                    "domain": "finance"
+                }
+            },
+            {
+                "metadata": {
+                    "id": "fact_2",
+                    "fact": "HR fact",
+                    "citations": ["source.pdf"],
+                    "reason": "Test",
+                    "source_agent_id": "user:test",
+                    "created_at": datetime.now().isoformat(),
+                    "last_verified": datetime.now().isoformat(),
+                    "verification_status": "unverified",
+                    "domain": "hr"
+                }
+            },
+            {
+                "metadata": {
+                    "id": "fact_3",
+                    "fact": "Another finance fact",
+                    "citations": ["source.pdf"],
+                    "reason": "Test",
+                    "source_agent_id": "user:test",
+                    "created_at": datetime.now().isoformat(),
+                    "last_verified": datetime.now().isoformat(),
+                    "verification_status": "verified",
+                    "domain": "finance"
+                }
+            }
+        ])
+
+        # Call with status and domain filters
+        result = await world_model_service.list_all_facts(
+            status="verified",
+            domain="finance"
+        )
+
+        # Verify only verified finance facts returned
+        assert len(result) == 2
+        assert all(fact.verification_status == "verified" for fact in result)
+        assert all(fact.metadata.get("domain") == "finance" for fact in result)
+
+
+# ============================================================================
 # TEST CLASS: Recall Experiences Error Handling
 # ============================================================================
 
