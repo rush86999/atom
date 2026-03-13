@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, and_
 
 from core.atom_saas_client import AtomSaaSClient
-from core.models import SkillCache, CategoryCache, SkillExecution, SkillRating
+from core.models import SkillCache, SkillExecution, SkillRating
 from core.skill_registry_service import SkillRegistryService
 
 logger = logging.getLogger(__name__)
