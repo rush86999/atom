@@ -1255,7 +1255,7 @@ class TestWorkflowRollbackDetails:
                 agent_id="test-agent"
             )
 
-            assert result["success"] is True  # Note: result["success"] is True even with rollback!
+            assert result["success"] is False  # Workflow fails when step fails
             assert result.get("rolled_back") is True
 
             # Verify rollback steps are in reverse order
