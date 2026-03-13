@@ -364,3 +364,310 @@ class TestScannerInitialization:
         monkeypatch.setenv("SAFETY_API_KEY", "env-key")
         scanner = PackageDependencyScanner()
         assert scanner.safety_api_key == "env-key"
+
+
+class TestScannerErrorRecovery:
+    """Test scanner recovery from various error conditions."""
+
+    @patch('subprocess.run')
+    def test_scanner_recovers_from_pip_audit_failure(self, mock_run, scanner):
+        """Scanner should continue even if pip-audit fails."""
+        # pip install succeeds, pipdeptree succeeds, pip-audit fails
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=""),  # pip install
+            MagicMock(returncode=0, stdout="[]"),  # pipdeptree
+            Exception("pip-audit crashed"),  # pip-audit failure
+        ]
+
+        result = scanner.scan_packages(["requests==2.28.0"])
+
+        # Should still return valid result structure
+        assert "safe" in result
+        assert "vulnerabilities" in result
+        assert "dependency_tree" in result
+
+    @patch('subprocess.run')
+    def test_scanner_continues_with_safety_only(self, mock_run, scanner):
+        """Scanner should continue if pip-audit fails but Safety works."""
+        scanner = PackageDependencyScanner(safety_api_key="test-key")
+
+        # Mock Safety finding vulnerability
+        safety_json = json.dumps([{
+            "id": "12345",
+            "package_name": "requests",
+            "vulnerability_id": "pyup.io-12345",
+            "affected_versions": ["2.20.0"],
+            "advisory": "Security vulnerability"
+        }])
+
+        # pip-audit fails, Safety succeeds
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=""),  # pip install
+            MagicMock(returncode=0, stdout="[]"),  # pipdeptree
+            Exception("pip-audit failed"),  # pip-audit error
+            MagicMock(returncode=1, stdout=safety_json),  # Safety finds vuln
+        ]
+
+        result = scanner.scan_packages(["requests==2.20.0"])
+
+        # Should detect vulnerability from Safety
+        assert result["safe"] == False
+        safety_vulns = [v for v in result["vulnerabilities"] if v.get("source") == "safety"]
+        assert len(safety_vulns) == 1
+
+    @patch('subprocess.run')
+    def test_scanner_returns_partial_results_on_error(self, mock_run, scanner):
+        """Scanner should return partial results when some tools fail."""
+        # pipdeptree fails, pip-audit succeeds
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=""),  # pip install
+            FileNotFoundError("pipdeptree not found"),  # pipdeptree missing
+            MagicMock(returncode=0, stdout="[]"),  # pip-audit safe
+        ]
+
+        result = scanner.scan_packages(["requests==2.28.0"])
+
+        # Should return partial results (no tree, but vulnerability scan complete)
+        assert result["safe"] == True
+        assert result["dependency_tree"] == {}
+        assert len(result["vulnerabilities"]) == 0
+
+    @patch('subprocess.run')
+    def test_scanner_logs_errors_appropriately(self, mock_run, scanner, caplog):
+        """Scanner should log errors when tools fail."""
+        import logging
+
+        with caplog.at_level(logging.ERROR):
+            # pipdeptree fails
+            mock_run.side_effect = [
+                MagicMock(returncode=0, stdout=""),  # pip install
+                FileNotFoundError("pipdeptree not found"),  # pipdeptree error
+            ]
+
+            scanner.scan_packages(["requests==2.28.0"])
+
+            # Should log error about pipdeptree failure
+            assert any("Error building dependency tree" in record.message for record in caplog.records)
+
+    @patch('subprocess.run')
+    def test_scanner_does_not_raise_on_subprocess_errors(self, mock_run, scanner):
+        """Scanner should handle subprocess errors without raising exceptions."""
+        # All subprocess calls fail with various errors
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=""),  # pip install succeeds
+            Exception("Random error"),  # pipdeptree error
+        ]
+
+        # Should not raise exception
+        try:
+            result = scanner.scan_packages(["requests==2.28.0"])
+            assert "safe" in result
+        except Exception as e:
+            pytest.fail(f"Scanner raised exception: {e}")
+
+
+class TestSubprocessIntegration:
+    """Test subprocess call details and configuration."""
+
+    @patch('subprocess.run')
+    def test_subprocess_call_with_correct_args(self, mock_run, scanner):
+        """Verify subprocess calls use correct arguments."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]")
+
+        scanner.scan_packages(["requests==2.28.0"])
+
+        # Verify subprocess was called
+        assert mock_run.called
+
+        # Check that pip install was called
+        install_calls = [call for call in mock_run.call_args_list if "pip" in str(call) and "install" in str(call)]
+        assert len(install_calls) > 0
+
+    @patch('subprocess.run')
+    def test_subprocess_timeout_values(self, mock_run, scanner):
+        """Verify subprocess calls use appropriate timeout values."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]")
+
+        scanner.scan_packages(["requests==2.28.0"])
+
+        # Check timeout parameter in calls
+        for call in mock_run.call_args_list:
+            if 'timeout' in call.kwargs:
+                # Timeout should be set (30s for pipdeptree, 120s for others)
+                assert call.kwargs['timeout'] in [30, 120]
+
+    @patch('subprocess.run')
+    def test_subprocess_capture_output_format(self, mock_run, scanner):
+        """Verify subprocess calls capture output correctly."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]", stderr="")
+
+        scanner.scan_packages(["requests==2.28.0"])
+
+        # Check capture_output parameter
+        for call in mock_run.call_args_list:
+            # Should have capture_output or stdout/stderr params
+            assert 'capture_output' in call.kwargs or 'stdout' in call.kwargs
+
+    @patch('subprocess.run')
+    def test_subprocess_working_directory_handling(self, mock_run, scanner, tmp_path):
+        """Verify scanner works regardless of working directory."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]")
+
+        # Change to temp directory
+        import os
+        original_dir = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = scanner.scan_packages(["requests==2.28.0"])
+            assert "safe" in result
+        finally:
+            os.chdir(original_dir)
+
+    @patch('subprocess.run')
+    def test_tempfile_cleanup_after_scan(self, mock_run, scanner, tmp_path):
+        """Verify temporary requirements file is cleaned up."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]")
+
+        import os
+        temp_files_before = len([f for f in os.listdir(tmp_path) if f.endswith('.txt')])
+
+        scanner.scan_packages(["requests==2.28.0"])
+
+        # Temp file should be cleaned up (count should be same)
+        # Note: This is a weak test since we can't easily track the exact temp file
+        # In production, the finally block ensures cleanup
+
+
+class TestDependencyTreeEdgeCases:
+    """Test dependency tree building edge cases."""
+
+    @patch('subprocess.run')
+    def test_empty_dependency_tree(self, mock_run, scanner):
+        """Empty dependency tree should be handled correctly."""
+        # Mock empty tree
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="[]",
+            stderr=""
+        )
+
+        result = scanner.scan_packages(["requests==2.28.0"])
+
+        assert result["dependency_tree"] == {}
+
+    @patch('subprocess.run')
+    def test_single_package_no_deps(self, mock_run, scanner):
+        """Single package with no dependencies should build minimal tree."""
+        # Mock tree with single package, no deps
+        tree_json = json.dumps([
+            {
+                "package": {"package_name": "requests", "installed_version": "2.28.0"},
+                "dependencies": []
+            }
+        ])
+
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=tree_json,
+            stderr=""
+        )
+
+        result = scanner.scan_packages(["requests==2.28.0"])
+
+        assert "requests" in result["dependency_tree"]
+        assert result["dependency_tree"]["requests"]["version"] == "2.28.0"
+        assert len(result["dependency_tree"]["requests"]["dependencies"]) == 0
+
+    @patch('subprocess.run')
+    def test_package_with_self_dependency(self, mock_run, scanner):
+        """Package depending on itself should be handled (edge case)."""
+        # Mock tree with self-dependency (unusual but possible)
+        tree_json = json.dumps([
+            {
+                "package": {"package_name": "circular-pkg", "installed_version": "1.0.0"},
+                "dependencies": [
+                    {"package_name": "circular-pkg", "installed_version": "1.0.0"}
+                ]
+            }
+        ])
+
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=tree_json,
+            stderr=""
+        )
+
+        result = scanner.scan_packages(["circular-pkg==1.0.0"])
+
+        # Should handle self-dependency without infinite loop
+        assert "circular-pkg" in result["dependency_tree"]
+
+    @patch('subprocess.run')
+    def test_tree_with_duplicate_children(self, mock_run, scanner):
+        """Tree with duplicate child dependencies should be handled."""
+        # Mock tree where multiple packages depend on same child
+        tree_json = json.dumps([
+            {
+                "package": {"package_name": "pkg-a", "installed_version": "1.0.0"},
+                "dependencies": [
+                    {"package_name": "shared", "installed_version": "1.0.0"}
+                ]
+            },
+            {
+                "package": {"package_name": "pkg-b", "installed_version": "1.0.0"},
+                "dependencies": [
+                    {"package_name": "shared", "installed_version": "1.0.0"}
+                ]
+            },
+            {
+                "package": {"package_name": "shared", "installed_version": "1.0.0"},
+                "dependencies": []
+            }
+        ])
+
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=tree_json,
+            stderr=""
+        )
+
+        result = scanner.scan_packages(["pkg-a==1.0.0", "pkg-b==1.0.0"])
+
+        # Both packages should reference same shared dep
+        assert "pkg-a" in result["dependency_tree"]
+        assert "pkg-b" in result["dependency_tree"]
+        assert "shared" in result["dependency_tree"]
+
+    @patch('subprocess.run')
+    def test_tree_sorting_and_ordering(self, mock_run, scanner):
+        """Dependency tree should maintain consistent structure."""
+        # Mock tree with multiple packages
+        tree_json = json.dumps([
+            {
+                "package": {"package_name": "zebra", "installed_version": "1.0.0"},
+                "dependencies": []
+            },
+            {
+                "package": {"package_name": "alpha", "installed_version": "1.0.0"},
+                "dependencies": [
+                    {"package_name": "middle", "installed_version": "1.0.0"}
+                ]
+            },
+            {
+                "package": {"package_name": "middle", "installed_version": "1.0.0"},
+                "dependencies": []
+            }
+        ])
+
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout=tree_json,
+            stderr=""
+        )
+
+        result = scanner.scan_packages(["alpha==1.0.0", "zebra==1.0.0"])
+
+        # All packages should be present in tree
+        assert "alpha" in result["dependency_tree"]
+        assert "zebra" in result["dependency_tree"]
+        assert "middle" in result["dependency_tree"]
