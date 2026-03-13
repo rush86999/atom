@@ -346,3 +346,218 @@ class TestPerformanceMetrics:
             assert wf.duration_seconds >= 0
             assert wf.started_at is not None
             assert wf.completed_at is not None
+
+
+class TestComplexDAGPatterns:
+    """Test complex DAG patterns beyond basic validation."""
+
+    def test_diamond_pattern_validation(self, composition_engine):
+        """Test diamond pattern: A->B, A->C, B->D, C->D validates correctly."""
+        steps = [
+            SkillStep("a", "skill_a", {}, []),
+            SkillStep("b", "skill_b", {}, ["a"]),
+            SkillStep("c", "skill_c", {}, ["a"]),
+            SkillStep("d", "skill_d", {}, ["b", "c"])
+        ]
+
+        result = composition_engine.validate_workflow(steps)
+
+        assert result["valid"] is True
+        assert result["node_count"] == 4
+        assert result["edge_count"] == 4
+        # Execution order: A must come first, D must come last
+        execution_order = result["execution_order"]
+        assert execution_order[0] == "a"
+        assert execution_order[-1] == "d"
+
+    @pytest.mark.asyncio
+    async def test_diamond_pattern_execution(self, composition_engine, mock_skill_execution):
+        """Test diamond pattern executes in correct topological order."""
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_skill_execution):
+            steps = [
+                SkillStep("a", "skill_a", {}, []),
+                SkillStep("b", "skill_b", {}, ["a"]),
+                SkillStep("c", "skill_c", {}, ["a"]),
+                SkillStep("d", "skill_d", {}, ["b", "c"])
+            ]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="diamond-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True
+            # All steps executed
+            assert "a" in result["results"]
+            assert "b" in result["results"]
+            assert "c" in result["results"]
+            assert "d" in result["results"]
+
+    @pytest.mark.asyncio
+    async def test_multiple_branches_execution(self, composition_engine, mock_skill_execution):
+        """Test three independent branches from same root."""
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_skill_execution):
+            steps = [
+                SkillStep("root", "skill_root", {}, []),
+                SkillStep("branch1", "skill_b1", {}, ["root"]),
+                SkillStep("branch2", "skill_b2", {}, ["root"]),
+                SkillStep("branch3", "skill_b3", {}, ["root"])
+            ]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="multi-branch-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True
+            assert len(result["results"]) == 4
+
+    @pytest.mark.asyncio
+    async def test_fan_out_fan_in(self, composition_engine, mock_skill_execution):
+        """Test single root fans out to 5 steps, merges back to single step."""
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_skill_execution):
+            steps = [
+                SkillStep("start", "skill_start", {}, []),
+                SkillStep("fan1", "skill_f1", {}, ["start"]),
+                SkillStep("fan2", "skill_f2", {}, ["start"]),
+                SkillStep("fan3", "skill_f3", {}, ["start"]),
+                SkillStep("fan4", "skill_f4", {}, ["start"]),
+                SkillStep("fan5", "skill_f5", {}, ["start"]),
+                SkillStep("merge", "skill_merge", {}, ["fan1", "fan2", "fan3", "fan4", "fan5"])
+            ]
+
+            result = await composition_engine.execute_workflow(
+                workflow_id="fan-fan-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            assert result["success"] is True
+            assert len(result["results"]) == 7
+
+    def test_complex_dag_execution_order(self, composition_engine):
+        """Verify topological sort respects all dependencies in complex graph."""
+        steps = [
+            SkillStep("a", "skill_a", {}, []),
+            SkillStep("b", "skill_b", {}, ["a"]),
+            SkillStep("c", "skill_c", {}, ["a"]),
+            SkillStep("d", "skill_d", {}, ["b", "c"]),
+            SkillStep("e", "skill_e", {}, ["d"]),
+            SkillStep("f", "skill_f", {}, ["c"])
+        ]
+
+        result = composition_engine.validate_workflow(steps)
+
+        assert result["valid"] is True
+        execution_order = result["execution_order"]
+
+        # Verify dependencies: A before B, C; B, C before D; D before E; C before F
+        assert execution_order.index("a") < execution_order.index("b")
+        assert execution_order.index("a") < execution_order.index("c")
+        assert execution_order.index("b") < execution_order.index("d")
+        assert execution_order.index("c") < execution_order.index("d")
+        assert execution_order.index("d") < execution_order.index("e")
+        assert execution_order.index("c") < execution_order.index("f")
+
+    @pytest.mark.asyncio
+    async def test_execution_order_preserved(self, composition_engine, mock_skill_execution):
+        """Test steps execute in dependency order even with complex graphs."""
+        execution_log = []
+
+        async def mock_with_log(skill_id, inputs, agent_id):
+            execution_log.append(skill_id)
+            return {"success": True, "result": {"step": skill_id}}
+
+        with patch.object(composition_engine.skill_registry, 'execute_skill', mock_with_log):
+            steps = [
+                SkillStep("a", "skill_a", {}, []),
+                SkillStep("b", "skill_b", {}, ["a"]),
+                SkillStep("c", "skill_c", {}, ["a"]),
+                SkillStep("d", "skill_d", {}, ["b", "c"])
+            ]
+
+            await composition_engine.execute_workflow(
+                workflow_id="order-test",
+                steps=steps,
+                agent_id="test-agent"
+            )
+
+            # Verify execution order: A before B and C, B/C before D
+            assert execution_log.index("a") < execution_log.index("b")
+            assert execution_log.index("a") < execution_log.index("c")
+            assert execution_log.index("b") < execution_log.index("d")
+            assert execution_log.index("c") < execution_log.index("d")
+
+
+class TestEdgeCaseValidation:
+    """Test edge cases in workflow validation."""
+
+    def test_empty_workflow(self, composition_engine):
+        """Test empty steps list returns valid with 0 nodes."""
+        steps = []
+
+        result = composition_engine.validate_workflow(steps)
+
+        assert result["valid"] is True
+        assert result["node_count"] == 0
+        assert result["edge_count"] == 0
+
+    def test_single_step_workflow(self, composition_engine):
+        """Test single step with no dependencies validates."""
+        steps = [
+            SkillStep("single", "skill_single", {}, [])
+        ]
+
+        result = composition_engine.validate_workflow(steps)
+
+        assert result["valid"] is True
+        assert result["node_count"] == 1
+        assert result["edge_count"] == 0
+
+    def test_deep_chain_validation(self, composition_engine):
+        """Test 20-step linear chain validates (stress test)."""
+        steps = []
+        prev_id = None
+        for i in range(20):
+            step_id = f"step{i}"
+            deps = [prev_id] if prev_id else []
+            steps.append(SkillStep(step_id, f"skill{i}", {}, deps))
+            prev_id = step_id
+
+        result = composition_engine.validate_workflow(steps)
+
+        assert result["valid"] is True
+        assert result["node_count"] == 20
+        assert result["edge_count"] == 19
+        # Verify linear execution order
+        execution_order = result["execution_order"]
+        for i in range(19):
+            assert execution_order[i] == f"step{i}"
+
+    def test_self_dependency_fails(self, composition_engine):
+        """Test step depending on itself fails validation."""
+        steps = [
+            SkillStep("a", "skill_a", {}, ["a"])  # Self-dependency
+        ]
+
+        result = composition_engine.validate_workflow(steps)
+
+        assert result["valid"] is False
+        assert "cycles" in result
+
+    def test_duplicate_step_ids(self, composition_engine):
+        """Test steps with duplicate IDs handled correctly."""
+        # NetworkX will create separate nodes for same step_id
+        steps = [
+            SkillStep("a", "skill_a", {}, []),
+            SkillStep("a", "skill_b", [], [])  # Duplicate ID
+        ]
+
+        result = composition_engine.validate_workflow(steps)
+
+        # NetworkX handles duplicates by creating separate nodes
+        # The validation should still work
+        assert result["valid"] is True
+        assert result["node_count"] == 2
