@@ -18,7 +18,7 @@ Provides factories for all 12 accounting models:
 
 import factory
 from factory import fuzzy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from tests.factories.base import BaseFactory
 
 # Import accounting models
@@ -70,7 +70,7 @@ class AccountFactory(BaseFactory):
         lambda: {"gaap": "1001", "ifrs": "ASSET_CASH"}
     )
     last_audit_at = factory.LazyFunction(
-        lambda: datetime.utcnow() - timedelta(days=30)
+        lambda: datetime.now(timezone.utc) - timedelta(days=30)
     )
 
 
@@ -163,7 +163,7 @@ class BillFactory(BaseFactory):
     )
     issue_date = factory.Faker('date_time_this_year')
     due_date = factory.LazyAttribute(
-        lambda o: datetime.utcnow() + timedelta(days=30)
+        lambda o: datetime.now(timezone.utc) + timedelta(days=30)
     )
     amount = fuzzy.FuzzyFloat(100.0, 10000.0)
 
@@ -192,7 +192,7 @@ class InvoiceFactory(BaseFactory):
     )
     issue_date = factory.Faker('date_time_this_year')
     due_date = factory.LazyAttribute(
-        lambda o: datetime.utcnow() + timedelta(days=30)
+        lambda o: datetime.now(timezone.utc) + timedelta(days=30)
     )
     amount = fuzzy.FuzzyFloat(100.0, 10000.0)
 
@@ -343,10 +343,10 @@ class BudgetFactory(BaseFactory):
     )
     amount = fuzzy.FuzzyFloat(1000.0, 50000.0)
     start_date = factory.LazyAttribute(
-        lambda o: datetime.utcnow().replace(day=1)
+        lambda o: datetime.now(timezone.utc).replace(day=1)
     )
     end_date = factory.LazyAttribute(
-        lambda o: (datetime.utcnow().replace(day=1) + timedelta(days=90))
+        lambda o: (datetime.now(timezone.utc).replace(day=1) + timedelta(days=90))
     )
 
     # Optional fields

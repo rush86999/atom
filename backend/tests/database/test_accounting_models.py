@@ -18,7 +18,7 @@ Tests use:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from decimal import Decimal
@@ -110,7 +110,7 @@ class TestAccountModel:
             is_active=False,
             parent_id=parent_account.id,
             standards_mapping={"gaap": "1001", "ifrs": "ASSET_CASH"},
-            last_audit_at=datetime.utcnow()
+            last_audit_at=datetime.now(timezone.utc)
         )
         db_session.add(account)
         db_session.commit()
@@ -292,7 +292,7 @@ class TestTransactionModel:
         transaction = Transaction(
             workspace_id=workspace.id,
             source="stripe",
-            transaction_date=datetime.utcnow(),
+            transaction_date=datetime.now(timezone.utc),
             category="llm_tokens"
         )
         db_session.add(transaction)
@@ -317,7 +317,7 @@ class TestTransactionModel:
         transaction = Transaction(
             workspace_id=workspace.id,
             source="manual",
-            transaction_date=datetime.utcnow()
+            transaction_date=datetime.now(timezone.utc)
             # category not provided, should default to 'other'
         )
         db_session.add(transaction)
@@ -924,8 +924,8 @@ class TestBillModel:
         bill = Bill(
             workspace_id=workspace.id,
             vendor_id=vendor.id,
-            issue_date=datetime.utcnow(),
-            due_date=datetime.utcnow() + timedelta(days=30),
+            issue_date=datetime.now(timezone.utc),
+            due_date=datetime.now(timezone.utc) + timedelta(days=30),
             amount=Decimal("1500.00")
         )
         db_session.add(bill)
@@ -1103,8 +1103,8 @@ class TestInvoiceModel:
         invoice = Invoice(
             workspace_id=workspace.id,
             customer_id=customer.id,
-            issue_date=datetime.utcnow(),
-            due_date=datetime.utcnow() + timedelta(days=30),
+            issue_date=datetime.now(timezone.utc),
+            due_date=datetime.now(timezone.utc) + timedelta(days=30),
             amount=Decimal("2500.00")
         )
         db_session.add(invoice)
@@ -1758,7 +1758,7 @@ class TestFinancialCloseModel:
         close2 = FinancialCloseFactory(
             workspace_id=workspace.id,
             is_closed=True,
-            closed_at=datetime.utcnow(),
+            closed_at=datetime.now(timezone.utc),
             _session=db_session
         )
         db_session.commit()
@@ -1935,8 +1935,8 @@ class TestBudgetModel:
         budget = Budget(
             workspace_id=workspace.id,
             amount=Decimal("10000.00"),
-            start_date=datetime.utcnow().replace(day=1),
-            end_date=datetime.utcnow().replace(day=1) + timedelta(days=90)
+            start_date=datetime.now(timezone.utc).replace(day=1),
+            end_date=datetime.now(timezone.utc).replace(day=1) + timedelta(days=90)
         )
         db_session.add(budget)
         db_session.commit()
@@ -2029,7 +2029,7 @@ class TestBudgetModel:
         workspace = WorkspaceFactory(_session=db_session)
         db_session.commit()
 
-        start = datetime.utcnow()
+        start = datetime.now(timezone.utc)
         end = start + timedelta(days=90)
 
         budget = BudgetFactory(
