@@ -87,3 +87,125 @@ class TestAgentEvolutionLoopInit:
 
         assert loop.db is db
         assert loop.reflection_svc is not None
+
+
+class TestRunEvolutionCycle:
+    """Test run_evolution_cycle method (lines 108-244)."""
+
+    @pytest.fixture
+    def loop_with_mocks(self, db_session):
+        """Create loop with mocked dependencies."""
+        from core.agent_evolution_loop import AgentEvolutionLoop
+
+        loop = AgentEvolutionLoop(db_session)
+
+        # Mock GroupReflectionService methods
+        loop.reflection_svc.gather_group_experience_pool = MagicMock(return_value={
+            "tool_patterns": [],
+            "task_log_excerpts": ["task1", "task2"],
+        })
+        loop.reflection_svc.reflect_and_generate_directives = AsyncMock(return_value=[
+            "Improve response quality",
+            "Add more context awareness"
+        ])
+
+        return loop
+
+    @pytest.mark.asyncio
+    async def test_evolution_cycle_with_empty_pool(self, loop_with_mocks):
+        """Cover lines 138-149: Returns early when no agents found."""
+        # Mock select_parent_group to return empty
+        loop_with_mocks.select_parent_group = MagicMock(return_value=[])
+
+        result = await loop_with_mocks.run_evolution_cycle("tenant-1")
+
+        assert result.parent_agent_ids == []
+        assert result.directives == []
+        assert result.evolved_agent_id is None
+        assert result.benchmark_passed is False
+
+    @pytest.mark.asyncio
+    async def test_evolution_cycle_guardrail_blocks(self, loop_with_mocks):
+        """Cover lines 179-202: Guardrail validation blocks promotion."""
+        # Create test agent
+        from core.models import AgentRegistry
+        agent = AgentRegistry(
+            id="agent-test",
+            tenant_id="tenant-1",
+            name="Test Agent",
+            status="SUPERVISED",
+            confidence_score=0.75,
+            configuration={"system_prompt": "You are helpful"},
+            enabled=True,
+            category="general",
+            module_path="core.test_agent",
+            class_name="TestAgent",
+        )
+        loop_with_mocks.db.add(agent)
+        loop_with_mocks.db.commit()
+
+        # Mock parent group
+        loop_with_mocks.select_parent_group = MagicMock(return_value=[agent])
+
+        # Mock guardrail to fail
+        loop_with_mocks._validate_via_guardrails = AsyncMock(return_value=False)
+        loop_with_mocks._record_trace = MagicMock(return_value=MagicMock(id="trace-1"))
+
+        result = await loop_with_mocks.run_evolution_cycle(
+            "tenant-1",
+            group_size=1
+        )
+
+        assert result.evolved_agent_id is None
+        assert result.benchmark_passed is False
+        assert result.trace_id == "trace-1"
+
+    @pytest.mark.asyncio
+    async def test_evolution_cycle_successful_flow(self, loop_with_mocks):
+        """Cover lines 204-244: Full successful evolution cycle."""
+        from core.models import AgentRegistry, AgentEvolutionTrace
+
+        # Create test agent
+        agent = AgentRegistry(
+            id="agent-success",
+            tenant_id="tenant-1",
+            name="Success Agent",
+            status="SUPERVISED",
+            confidence_score=0.85,
+            configuration={"system_prompt": "You are helpful"},
+            enabled=True,
+            category="general",
+            module_path="core.test_agent",
+            class_name="TestAgent",
+        )
+        loop_with_mocks.db.add(agent)
+        loop_with_mocks.db.commit()
+
+        # Mock parent group
+        loop_with_mocks.select_parent_group = MagicMock(return_value=[agent])
+
+        # Mock guardrail passes
+        loop_with_mocks._validate_via_guardrails = AsyncMock(return_value=True)
+
+        # Mock evaluation passes
+        loop_with_mocks._evaluate_evolved_config = AsyncMock(return_value=(0.85, True))
+
+        # Mock promotion
+        loop_with_mocks._promote_evolved_config = AsyncMock(return_value="agent-success")
+
+        # Mock trace recording
+        trace = MagicMock()
+        trace.id = "trace-success"
+        loop_with_mocks._record_trace = MagicMock(return_value=trace)
+
+        result = await loop_with_mocks.run_evolution_cycle(
+            "tenant-1",
+            group_size=1
+        )
+
+        assert result.parent_agent_ids == ["agent-success"]
+        assert len(result.directives) == 2
+        assert result.evolved_agent_id == "agent-success"
+        assert result.benchmark_passed is True
+        assert result.benchmark_score == 0.85
+        assert result.trace_id == "trace-success"
