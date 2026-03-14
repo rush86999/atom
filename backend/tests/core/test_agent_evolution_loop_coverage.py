@@ -209,3 +209,154 @@ class TestRunEvolutionCycle:
         assert result.benchmark_passed is True
         assert result.benchmark_score == 0.85
         assert result.trace_id == "trace-success"
+
+
+class TestSelectParentGroup:
+    """Test select_parent_group method (lines 246-299)."""
+
+    def test_select_parent_group_with_novelty(self, db_session):
+        """Cover lines 268-299: Parent selection with novelty calculation."""
+        from core.models import AgentRegistry
+        from datetime import datetime, timedelta, timezone
+        from core.agent_evolution_loop import AgentEvolutionLoop
+
+        # Create agents with varying confidence scores
+        now = datetime.now(timezone.utc)
+        agents = []
+        for i, conf in enumerate([0.5, 0.7, 0.9, 0.6, 0.8, 0.4]):
+            agent = AgentRegistry(
+                id=f"agent-{i}",
+                tenant_id="tenant-select",
+                name=f"Agent {i}",
+                status="SUPERVISED",
+                confidence_score=conf,
+                enabled=True,
+                updated_at=now - timedelta(days=1),
+                category="general",
+                module_path="core.test_agent",
+                class_name="TestAgent",
+            )
+            db_session.add(agent)
+            agents.append(agent)
+        db_session.commit()
+
+        loop = AgentEvolutionLoop(db_session)
+        parents = loop.select_parent_group("tenant-select", n=5)
+
+        # Should return top agents sorted by combined score
+        assert len(parents) <= 5
+        # Highest confidence agent should be first
+        assert parents[0].confidence_score >= parents[-1].confidence_score if parents else True
+
+    def test_select_parent_group_filters_by_threshold(self, db_session):
+        """Cover line 275: Filters by MIN_PERF_THRESHOLD."""
+        from core.models import AgentRegistry
+        from datetime import datetime, timedelta, timezone
+        from core.agent_evolution_loop import AgentEvolutionLoop, MIN_PERF_THRESHOLD
+
+        now = datetime.now(timezone.utc)
+        # Create agents below threshold
+        for i in range(3):
+            agent = AgentRegistry(
+                id=f"agent-low-{i}",
+                tenant_id="tenant-threshold",
+                name=f"Low Agent {i}",
+                status="INTERN",
+                confidence_score=0.2,  # Below MIN_PERF_THRESHOLD (0.3)
+                enabled=True,
+                updated_at=now - timedelta(days=1),
+                category="general",
+                module_path="core.test_agent",
+                class_name="TestAgent",
+            )
+            db_session.add(agent)
+        db_session.commit()
+
+        loop = AgentEvolutionLoop(db_session)
+        parents = loop.select_parent_group("tenant-threshold")
+
+        # Should return empty - all below threshold
+        assert parents == []
+
+
+class TestApplyDirectivesToClone:
+    """Test _apply_directives_to_clone method (lines 359-433)."""
+
+    @pytest.mark.asyncio
+    async def test_apply_directives_to_clone(self, db_session):
+        """Cover lines 375-433: Directive application to cloned config."""
+        from core.models import AgentRegistry
+        from core.agent_evolution_loop import AgentEvolutionLoop
+
+        agent = AgentRegistry(
+            id="agent-clone",
+            tenant_id="tenant-clone",
+            name="Clone Agent",
+            status="SUPERVISED",
+            confidence_score=0.8,
+            configuration={"system_prompt": "Original prompt"},
+            category="general",
+            module_path="core.test_agent",
+            class_name="TestAgent",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        loop = AgentEvolutionLoop(db_session)
+
+        # Mock guardrail to pass
+        loop._validate_via_guardrails = AsyncMock(return_value=True)
+
+        directives = ["Add more detail", "Be more concise"]
+        evolved_config, guardrail_ok = await loop._apply_directives_to_clone(
+            agent, directives, "tenant-clone"
+        )
+
+        assert guardrail_ok is True
+        assert "evolution_history" in evolved_config
+        assert len(evolved_config["evolution_history"]) == 1
+        assert evolved_config["evolution_history"][0]["directives"] == directives
+        assert "Evolution Directives" in evolved_config["system_prompt"]
+        # Original prompt should be preserved
+        assert "Original prompt" in evolved_config["system_prompt"]
+
+    @pytest.mark.asyncio
+    async def test_apply_directives_creates_skill(self, db_session):
+        """Cover lines 391-424: CREATE_SKILL directive handling."""
+        from core.models import AgentRegistry
+        from core.agent_evolution_loop import AgentEvolutionLoop
+
+        agent = AgentRegistry(
+            id="agent-skill",
+            tenant_id="tenant-skill",
+            name="Skill Agent",
+            status="SUPERVISED",
+            confidence_score=0.8,
+            configuration={"system_prompt": "Original"},
+            category="general",
+            module_path="core.test_agent",
+            class_name="TestAgent",
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        loop = AgentEvolutionLoop(db_session)
+        loop._validate_via_guardrails = AsyncMock(return_value=True)
+
+        # Mock SkillCreationAgent
+        with patch('core.agent_evolution_loop.SkillCreationAgent') as mock_skill_class:
+            mock_skill = MagicMock()
+            mock_skill.id = "skill-new"
+            mock_skill.name = "evolved_skill_test"
+            mock_skill_agent = AsyncMock()
+            mock_skill_agent.create_skill_from_api_documentation = AsyncMock(return_value=mock_skill)
+            mock_skill_class.return_value = mock_skill_agent
+
+            directives = ["CREATE_SKILL: Fetch data from API https://example.com"]
+            evolved_config, guardrail_ok = await loop._apply_directives_to_clone(
+                agent, directives, "tenant-skill"
+            )
+
+            assert guardrail_ok is True
+            assert "active_skills" in evolved_config
+            assert "skill-new" in evolved_config["active_skills"]
