@@ -9,6 +9,64 @@ Progress: [########--] 38.1% (8/21 plans in Phase 191)
 
 ## Session Update: 2026-03-14
 
+**PHASE 191 PLAN 06 COMPLETE: EpisodeSegmentationService Coverage**
+
+**Tasks Completed:**
+- Created test_episode_segmentation_service_coverage.py (1,053 lines, 56 tests)
+- Tests for service initialization and dependency injection
+- Tests for time gap detection (exclusive boundary, threshold tests)
+- Tests for similarity calculations (cosine with numpy/pure Python, keyword with Dice coefficient)
+- Tests for content generation (title/description/summary, duration calculation)
+- Tests for entity extraction (emails, phone numbers, URLs)
+- Tests for agent metadata (maturity, interventions, human edits)
+- Tests for task completion detection
+- Tests for canvas and feedback context (with VALIDATED_BUG documented)
+- Tests for feedback score calculation (thumbs up/down, ratings)
+- Tests for canvas context filtering (summary/standard/full levels)
+- Tests for skill metadata extraction and formatting
+
+**Coverage Achievement:**
+- Actual: 40% (236/591 statements)
+- Previous: 0%
+- Target: 70% (missed by 30%)
+- Increase: +40 percentage points
+
+**Test Results:**
+- Total tests: 56
+- Pass rate: 100% (56/56)
+- Duration: ~13 minutes
+
+**Key Features Tested:**
+- Service initialization with LanceDB and BYOK handlers
+- Time gap detection with 30-minute exclusive threshold
+- Cosine similarity calculation with numpy and pure Python fallback
+- Keyword similarity using Dice coefficient
+- Title generation with 50-character truncation
+- Entity extraction (emails, phone numbers, URLs) with limits
+- Episode importance calculation with activity-based scoring
+- Agent maturity retrieval with STUDENT fallback
+- Task completion detection (completed status + result_summary)
+- Feedback score aggregation (-1.0 to 1.0 scale)
+- Canvas context filtering by detail level
+
+**VALIDATED_BUG Found:**
+- CanvasAudit.session_id missing (HIGH severity)
+  - Service code references CanvasAudit.session_id at line 672
+  - Model doesn't have this field (only has canvas_id)
+  - Impact: AttributeError when fetching canvas context
+  - Status: Documented, workaround in tests
+
+**Deviation from Plan:**
+- 40% vs 70% target (async methods require integration testing)
+- Async methods (create_episode_from_session, _create_segments, _archive_to_lancedb) not covered
+- Supervision episode creation not tested (requires complex setup)
+- Recommendation: Phase 192 should focus on integration-style testing
+
+**Duration:** ~13 minutes
+**Commits:** 3 (test file, test fixes, additional tests)
+
+---
+
 **PHASE 191 PLAN 08 COMPLETE: EpisodeLifecycleService Coverage**
 
 **Tasks Completed:**
