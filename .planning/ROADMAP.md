@@ -572,7 +572,12 @@ Plans: 4 plans
   2. LLM invariants achieve 80%+ property test coverage
   3. Episode invariants achieve 80%+ property test coverage
   4. Database invariants achieve 80%+ property test coverage
-**Plans**: TBD (estimated 4-5 plans)
+**Plans**: 5 plans
+- [ ] 187-01-PLAN.md — Governance invariants coverage (rate limits, audit trails, concurrent maturity, trigger interceptor)
+- [ ] 187-02-PLAN.md — LLM invariants coverage (token counting, cost calculation, cache consistency, provider fallback)
+- [ ] 187-03-PLAN.md — Episode invariants coverage (segment ordering, lifecycle, consolidation, semantic search, graduation)
+- [ ] 187-04-PLAN.md — Database invariants coverage (foreign keys, unique constraints, cascade deletes, transaction isolation)
+- [ ] 187-05-PLAN.md — Verification and aggregate summary
 **Estimated Coverage**: 72.50%
 
 ### Phase 188: Coverage Gap Closure (Final Push)
