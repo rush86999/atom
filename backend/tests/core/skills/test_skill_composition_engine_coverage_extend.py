@@ -311,3 +311,227 @@ class TestSkillCompositionEngineExtended:
         # Verify naive timestamp handled correctly (code adds timezone)
         assert workflow_exec.duration_seconds >= 0
         assert workflow_exec.completed_at is not None
+
+    def test_step_to_dict_serialization(self, db_session):
+        """Cover _step_to_dict method (lines 334-344)"""
+        engine = SkillCompositionEngine(db_session)
+
+        step = SkillStep(
+            step_id="test-step",
+            skill_id="test-skill",
+            inputs={"key": "value"},
+            dependencies=["dep1", "dep2"],
+            condition="dep1.success == True",
+            retry_policy={"max_retries": 3, "backoff": "exponential"},
+            timeout_seconds=60
+        )
+
+        step_dict = engine._step_to_dict(step)
+
+        assert step_dict["step_id"] == "test-step"
+        assert step_dict["skill_id"] == "test-skill"
+        assert step_dict["inputs"] == {"key": "value"}
+        assert step_dict["dependencies"] == ["dep1", "dep2"]
+        assert step_dict["condition"] == "dep1.success == True"
+        assert step_dict["retry_policy"] == {"max_retries": 3, "backoff": "exponential"}
+        assert step_dict["timeout_seconds"] == 60
+
+    def test_step_to_dict_with_optional_fields(self, db_session):
+        """Cover _step_to_dict with None optional fields"""
+        engine = SkillCompositionEngine(db_session)
+
+        step = SkillStep(
+            step_id="minimal-step",
+            skill_id="minimal-skill",
+            inputs={},
+            dependencies=[],
+            condition=None,
+            retry_policy=None,
+            timeout_seconds=30  # default
+        )
+
+        step_dict = engine._step_to_dict(step)
+
+        assert step_dict["step_id"] == "minimal-step"
+        assert step_dict["condition"] is None
+        assert step_dict["retry_policy"] is None
+        assert step_dict["timeout_seconds"] == 30
+
+    def test_evaluate_condition_success(self, db_session):
+        """Cover _evaluate_condition method (lines 282-302)"""
+        engine = SkillCompositionEngine(db_session)
+
+        results = {
+            "step1": {"success": True, "count": 5},
+            "step2": {"success": False, "count": 10}
+        }
+
+        # Test various conditions
+        assert engine._evaluate_condition("step1.get('success') == True", results) is True
+        assert engine._evaluate_condition("step2.get('success') == False", results) is True
+        assert engine._evaluate_condition("step1.get('count', 0) > 3", results) is True
+        assert engine._evaluate_condition("step2.get('count', 0) > 5", results) is True
+
+    def test_evaluate_condition_failure_cases(self, db_session):
+        """Cover _evaluate_condition error handling"""
+        engine = SkillCompositionEngine(db_session)
+
+        results = {"step1": {"success": True}}
+
+        # Test false conditions
+        assert engine._evaluate_condition("step1.get('success') == False", results) is False
+        assert engine._evaluate_condition("step1.get('count', 0) > 100", results) is False
+
+        # Test syntax error (should return False)
+        assert engine._evaluate_condition("invalid syntax here", results) is False
+        assert engine._evaluate_condition("step1[invalid", results) is False
+
+    def test_evaluate_condition_complex_expressions(self, db_session):
+        """Cover _evaluate_condition with complex expressions"""
+        engine = SkillCompositionEngine(db_session)
+
+        results = {
+            "fetch": {"success": True, "items": [{"id": 1}, {"id": 2}]},
+            "process": {"count": 5}
+        }
+
+        # Complex conditions (without built-in functions like len)
+        assert engine._evaluate_condition("fetch.get('success', False) and process.get('count', 0) > 0", results) is True
+        assert engine._evaluate_condition("process.get('count', 0) >= 5", results) is True
+        assert engine._evaluate_condition("not process.get('error', False)", results) is True
+        assert engine._evaluate_condition("fetch.get('success', True) and process.get('count', 0) == 5", results) is True
+
+    def test_resolve_inputs_basic(self, db_session):
+        """Cover _resolve_inputs method (lines 259-280)"""
+        engine = SkillCompositionEngine(db_session)
+
+        step = SkillStep(
+            step_id="current",
+            skill_id="current-skill",
+            inputs={"base": 1, "name": "test"},
+            dependencies=["prev"]
+        )
+
+        results = {
+            "prev": {"output": 100, "extra": "data"}
+        }
+
+        resolved = engine._resolve_inputs(step, results)
+
+        # Original inputs preserved
+        assert resolved["base"] == 1
+        assert resolved["name"] == "test"
+        # Dependency output merged
+        assert resolved["output"] == 100
+        assert resolved["extra"] == "data"
+
+    def test_resolve_inputs_non_dict_output(self, db_session):
+        """Cover _resolve_inputs with non-dict dependency output"""
+        engine = SkillCompositionEngine(db_session)
+
+        step = SkillStep(
+            step_id="current",
+            skill_id="current-skill",
+            inputs={},
+            dependencies=["prev"]
+        )
+
+        results = {
+            "prev": "string_output"  # Not a dict
+        }
+
+        resolved = engine._resolve_inputs(step, results)
+
+        # Non-dict outputs get {dep_id}_output key
+        assert resolved["prev_output"] == "string_output"
+
+    def test_resolve_inputs_multiple_dependencies(self, db_session):
+        """Cover _resolve_inputs with multiple dependencies"""
+        engine = SkillCompositionEngine(db_session)
+
+        step = SkillStep(
+            step_id="merge",
+            skill_id="merge-skill",
+            inputs={},
+            dependencies=["dep1", "dep2", "dep3"]
+        )
+
+        results = {
+            "dep1": {"value": 1, "from": "dep1"},
+            "dep2": {"value": 2, "from": "dep2"},
+            "dep3": {"value": 3, "from": "dep3"}
+        }
+
+        resolved = engine._resolve_inputs(step, results)
+
+        # All dependencies merged, last wins for conflicts
+        assert resolved["value"] == 3  # dep3 overwrites dep2 and dep1
+        assert resolved["from"] == "dep3"
+        # Each dep's unique keys preserved
+        assert resolved["value"] == 3
+        assert set(resolved.keys()) >= {"value", "from"}
+
+    @pytest.mark.asyncio
+    async def test_workflow_execution_with_validation_failure(self, db_session):
+        """Cover workflow execution with validation failure (lines 158-167)"""
+        engine = SkillCompositionEngine(db_session)
+
+        # Invalid workflow (cycle)
+        steps = [
+            SkillStep("A", "skill1", {}, ["B"]),
+            SkillStep("B", "skill2", {}, ["A"])  # Cycle
+        ]
+
+        result = await engine.execute_workflow(
+            workflow_id="validation-fail-test",
+            steps=steps,
+            agent_id="test-agent"
+        )
+
+        assert result["success"] is False
+        assert "error" in result
+        assert result["workflow_id"] == "validation-fail-test"
+        assert "execution_id" in result
+
+        # Verify database record
+        wf = db_session.query(SkillCompositionExecution).filter(
+            SkillCompositionExecution.workflow_id == "validation-fail-test"
+        ).first()
+
+        assert wf is not None
+        assert wf.validation_status == "invalid"
+        assert wf.status == "failed"
+
+    @pytest.mark.asyncio
+    async def test_workflow_execution_exception_handling(self, db_session):
+        """Cover exception handling in execute_workflow (lines 245-257)"""
+        engine = SkillCompositionEngine(db_session)
+
+        # Mock skill registry to raise exception
+        async def mock_exception(skill_id, inputs, agent_id):
+            raise RuntimeError("Unexpected error")
+
+        engine.skill_registry.execute_skill = mock_exception
+
+        steps = [
+            SkillStep("A", "skill1", {}, [])
+        ]
+
+        result = await engine.execute_workflow(
+            workflow_id="exception-test",
+            steps=steps,
+            agent_id="test-agent"
+        )
+
+        assert result["success"] is False
+        assert "Unexpected error" in result["error"]
+
+        # Verify database record
+        wf = db_session.query(SkillCompositionExecution).filter(
+            SkillCompositionExecution.workflow_id == "exception-test"
+        ).first()
+
+        assert wf is not None
+        assert wf.status == "failed"
+        assert "Unexpected error" in wf.error_message
+        assert wf.completed_at is not None
