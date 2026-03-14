@@ -882,3 +882,296 @@ class TestTrialRestriction:
         is_restricted = handler._is_trial_restricted()
 
         assert is_restricted is False
+
+
+class TestCognitiveTierClassification:
+    """Test cognitive tier classification (lines 1519-1538)."""
+
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.llm.cognitive_tier_system.CognitiveClassifier')
+    @patch('core.llm.byok_handler.CacheAwareRouter')
+    @patch('core.llm.byok_handler.CognitiveTierService')
+    @patch('core.database.get_db_session')
+    def test_classify_cognitive_tier_simple_query(
+        self, mock_get_db, mock_tier_service, mock_router_class,
+        mock_classifier_class, mock_byok_manager
+    ):
+        """Cover lines 1537-1538: Classify simple query as MICRO tier"""
+        mock_byok_mgr = MagicMock()
+        mock_byok_manager.return_value = mock_byok_mgr
+
+        mock_classifier = MagicMock()
+        mock_classifier.classify.return_value = CognitiveTier.MICRO
+        mock_classifier_class.return_value = mock_classifier
+
+        mock_router = MagicMock()
+        mock_router_class.return_value = mock_router
+
+        mock_db = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_db
+
+        mock_tier_svc = MagicMock()
+        mock_tier_service.return_value = mock_tier_svc
+
+        handler = BYOKHandler()
+
+        tier = handler.classify_cognitive_tier("hello")
+
+        assert tier == CognitiveTier.MICRO
+        mock_classifier.classify.assert_called_once_with("hello", None)
+
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.llm.cognitive_tier_system.CognitiveClassifier')
+    @patch('core.llm.byok_handler.CacheAwareRouter')
+    @patch('core.llm.byok_handler.CognitiveTierService')
+    @patch('core.database.get_db_session')
+    def test_classify_cognitive_tier_with_task_type(
+        self, mock_get_db, mock_tier_service, mock_router_class,
+        mock_classifier_class, mock_byok_manager
+    ):
+        """Cover lines 1537-1538: Classify with task type hint"""
+        mock_byok_mgr = MagicMock()
+        mock_byok_manager.return_value = mock_byok_mgr
+
+        mock_classifier = MagicMock()
+        mock_classifier.classify.return_value = CognitiveTier.STANDARD
+        mock_classifier_class.return_value = mock_classifier
+
+        mock_router = MagicMock()
+        mock_router_class.return_value = mock_router
+
+        mock_db = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_db
+
+        mock_tier_svc = MagicMock()
+        mock_tier_service.return_value = mock_tier_svc
+
+        handler = BYOKHandler()
+
+        tier = handler.classify_cognitive_tier("explain code", task_type="code")
+
+        assert tier == CognitiveTier.STANDARD
+        mock_classifier.classify.assert_called_once_with("explain code", "code")
+
+
+class TestGetRoutingInfo:
+    """Test get_routing_info method (lines 1238-1272)."""
+
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.llm.cognitive_tier_system.CognitiveClassifier')
+    @patch('core.llm.byok_handler.CacheAwareRouter')
+    @patch('core.llm.byok_handler.CognitiveTierService')
+    @patch('core.database.get_db_session')
+    def test_get_routing_info_success(
+        self, mock_get_db, mock_tier_service, mock_router_class,
+        mock_classifier_class, mock_byok_manager
+    ):
+        """Cover lines 1240-1266: Get routing info successfully"""
+        mock_byok_mgr = MagicMock()
+        mock_byok_manager.return_value = mock_byok_mgr
+
+        mock_classifier = MagicMock()
+        mock_classifier_class.return_value = mock_classifier
+
+        mock_router = MagicMock()
+        mock_router_class.return_value = mock_router
+
+        mock_db = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_db
+
+        mock_tier_svc = MagicMock()
+        mock_tier_service.return_value = mock_tier_svc
+
+        handler = BYOKHandler()
+        handler.clients = {"deepseek": MagicMock()}
+
+        with patch.object(handler, 'get_optimal_provider', return_value=("deepseek", "deepseek-chat")):
+            with patch('core.llm.byok_handler.get_pricing_fetcher') as mock_fetcher:
+                mock_pricing = MagicMock()
+                mock_pricing.get_model_price.return_value = {"max_input_tokens": 16000}
+                mock_fetcher.return_value.get_model_price.return_value = mock_pricing
+                mock_fetcher.return_value.estimate_cost.return_value = 0.001
+
+                info = handler.get_routing_info("test prompt")
+
+                assert info["complexity"] == "simple"
+                assert info["selected_provider"] == "deepseek"
+                assert info["selected_model"] == "deepseek-chat"
+                assert "deepseek" in info["available_providers"]
+                assert info["estimated_cost_usd"] is not None
+
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.llm.cognitive_tier_system.CognitiveClassifier')
+    @patch('core.llm.byok_handler.CacheAwareRouter')
+    @patch('core.llm.byok_handler.CognitiveTierService')
+    @patch('core.database.get_db_session')
+    def test_get_routing_info_no_providers(
+        self, mock_get_db, mock_tier_service, mock_router_class,
+        mock_classifier_class, mock_byok_manager
+    ):
+        """Cover lines 1267-1272: Handle error when no providers available"""
+        mock_byok_mgr = MagicMock()
+        mock_byok_manager.return_value = mock_byok_mgr
+
+        mock_classifier = MagicMock()
+        mock_classifier_class.return_value = mock_classifier
+
+        mock_router = MagicMock()
+        mock_router_class.return_value = mock_router
+
+        mock_db = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_db
+
+        mock_tier_svc = MagicMock()
+        mock_tier_service.return_value = mock_tier_svc
+
+        handler = BYOKHandler()
+        handler.clients = {}
+
+        with patch.object(handler, 'get_optimal_provider', side_effect=ValueError("No providers")):
+            info = handler.get_routing_info("test prompt")
+
+            assert info["complexity"] == "simple"
+            assert "error" in info
+            assert info["available_providers"] == []
+
+
+class TestStreamingMethods:
+    """Test streaming methods (lines 1372-1518)."""
+
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.llm.cognitive_tier_system.CognitiveClassifier')
+    @patch('core.llm.byok_handler.CacheAwareRouter')
+    @patch('core.llm.byok_handler.CognitiveTierService')
+    @patch('core.database.get_db_session')
+    @pytest.mark.asyncio
+    async def test_stream_completion_no_clients(
+        self, mock_get_db, mock_tier_service, mock_router_class,
+        mock_classifier_class, mock_byok_manager
+    ):
+        """Cover lines 1399-1400: Raise error when no clients available"""
+        mock_byok_mgr = MagicMock()
+        mock_byok_manager.return_value = mock_byok_mgr
+
+        mock_classifier = MagicMock()
+        mock_classifier_class.return_value = mock_classifier
+
+        mock_router = MagicMock()
+        mock_router_class.return_value = mock_router
+
+        mock_db = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_db
+
+        mock_tier_svc = MagicMock()
+        mock_tier_service.return_value = mock_tier_svc
+
+        handler = BYOKHandler()
+        handler.clients = {}
+        handler.async_clients = {}
+
+        messages = [{"role": "user", "content": "test"}]
+
+        with pytest.raises(ValueError, match="No clients initialized"):
+            stream = handler.stream_completion(messages, "gpt-4o", "openai")
+            async for _ in stream:
+                pass
+
+    @patch('core.byok_endpoints.get_byok_manager')
+    @patch('core.llm.cognitive_tier_system.CognitiveClassifier')
+    @patch('core.llm.byok_handler.CacheAwareRouter')
+    @patch('core.llm.byok_handler.CognitiveTierService')
+    @patch('core.database.get_db_session')
+    @pytest.mark.asyncio
+    async def test_stream_completion_no_fallback_providers(
+        self, mock_get_db, mock_tier_service, mock_router_class,
+        mock_classifier_class, mock_byok_manager
+    ):
+        """Cover lines 1405-1406: Raise error when no fallback providers"""
+        mock_byok_mgr = MagicMock()
+        mock_byok_manager.return_value = mock_byok_mgr
+
+        mock_classifier = MagicMock()
+        mock_classifier_class.return_value = mock_classifier
+
+        mock_router = MagicMock()
+        mock_router_class.return_value = mock_router
+
+        mock_db = MagicMock()
+        mock_get_db.return_value.__enter__.return_value = mock_db
+
+        mock_tier_svc = MagicMock()
+        mock_tier_service.return_value = mock_tier_svc
+
+        handler = BYOKHandler()
+        handler.clients = {}
+        handler.async_clients = {}
+
+        messages = [{"role": "user", "content": "test"}]
+
+        with pytest.raises(ValueError, match="No available providers"):
+            stream = handler.stream_completion(messages, "gpt-4o", "openai")
+            async for _ in stream:
+                pass
+
+
+class TestRankingConstants:
+    """Test ranking and configuration constants (lines 22-112)."""
+
+    def test_query_complexity_enum_values(self):
+        """Cover lines 22-27: QueryComplexity enum values"""
+        assert QueryComplexity.SIMPLE.value == "simple"
+        assert QueryComplexity.MODERATE.value == "moderate"
+        assert QueryComplexity.COMPLEX.value == "complex"
+        assert QueryComplexity.ADVANCED.value == "advanced"
+
+    def test_provider_tiers_configuration(self):
+        """Cover lines 30-42: PROVIDER_TIERS configuration"""
+        assert "budget" in PROVIDER_TIERS
+        assert "mid" in PROVIDER_TIERS
+        assert "premium" in PROVIDER_TIERS
+        assert "code" in PROVIDER_TIERS
+        assert "math" in PROVIDER_TIERS
+        assert "creative" in PROVIDER_TIERS
+
+        # Verify budget tier providers
+        assert "deepseek" in PROVIDER_TIERS["budget"]
+        assert "moonshot" in PROVIDER_TIERS["budget"]
+
+    def test_cost_efficient_models_configuration(self):
+        """Cover lines 44-82: COST_EFFICIENT_MODELS configuration"""
+        assert "openai" in COST_EFFICIENT_MODELS
+        assert "anthropic" in COST_EFFICIENT_MODELS
+        assert "deepseek" in COST_EFFICIENT_MODELS
+        assert "gemini" in COST_EFFICIENT_MODELS
+
+        # Verify model mappings
+        assert QueryComplexity.SIMPLE in COST_EFFICIENT_MODELS["openai"]
+        assert QueryComplexity.ADVANCED in COST_EFFICIENT_MODELS["anthropic"]
+
+    def test_models_without_tools(self):
+        """Cover lines 85-88: MODELS_WITHOUT_TOOLS configuration"""
+        assert "deepseek-v3.2-speciale" in MODELS_WITHOUT_TOOLS
+
+    def test_min_quality_by_tier(self):
+        """Cover lines 90-97: MIN_QUALITY_BY_TIER configuration"""
+        assert CognitiveTier.MICRO in MIN_QUALITY_BY_TIER
+        assert CognitiveTier.STANDARD in MIN_QUALITY_BY_TIER
+        assert CognitiveTier.VERSATILE in MIN_QUALITY_BY_TIER
+        assert CognitiveTier.HEAVY in MIN_QUALITY_BY_TIER
+        assert CognitiveTier.COMPLEX in MIN_QUALITY_BY_TIER
+
+        # Verify quality thresholds
+        assert MIN_QUALITY_BY_TIER[CognitiveTier.MICRO] == 0
+        assert MIN_QUALITY_BY_TIER[CognitiveTier.STANDARD] == 80
+        assert MIN_QUALITY_BY_TIER[CognitiveTier.COMPLEX] == 94
+
+    def test_reasoning_models_without_vision(self):
+        """Cover lines 99-106: REASONING_MODELS_WITHOUT_VISION configuration"""
+        assert "deepseek-v3.2" in REASONING_MODELS_WITHOUT_VISION
+        assert "o3" in REASONING_MODELS_WITHOUT_VISION
+        assert "deepseek-chat" in REASONING_MODELS_WITHOUT_VISION
+
+    def test_vision_only_models(self):
+        """Cover lines 108-111: VISION_ONLY_MODELS configuration"""
+        assert "janus-pro-7b" in VISION_ONLY_MODELS
+        assert "janus-pro-1.3b" in VISION_ONLY_MODELS
