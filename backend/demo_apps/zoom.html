@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zoom - Meeting Scheduled</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #fff; margin:0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh;}
+        .container { width: 440px; padding: 40px; border: 1px solid #e1e4e8; border-radius: 8px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .logo { width: 120px; margin-bottom: 24px; }
+        .success-icon { width: 64px; height: 64px; background: #2ed573; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px; }
+        h1 { font-size: 24px; margin-bottom: 12px; color: #1a1a1a; }
+        .details { background: #f8f9fa; padding: 16px; border-radius: 4px; text-align: left; margin-top: 24px; font-size: 14px; }
+        .link { color: #007bff; text-decoration: none; word-break: break-all; font-weight: bold; }
+        .btn { display: inline-block; margin-top: 24px; background: #0b5cff; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/9/94/Zoom_Logo.svg" class="logo">
+        <div class="success-icon">✓</div>
+        <h1>Meeting Scheduled</h1>
+        <p>Awesome! Your intro call with Sarah Jenkins is confirmed.</p>
+        <div class="details">
+            <strong>Topic:</strong> ATOM x Project X Intro<br>
+            <strong>Time:</strong> Tomorrow, 10:00 AM - 10:30 AM<br><br>
+            <strong>Join Link:</strong><br>
+            <span class="link" id="zoomLink">https://zoom.us/j/4827103892?pwd=T1pUWW...</span>
+        </div>
+        <a href="#" class="btn">Add to Calendar</a>
+    </div>
+</body>
+</html>

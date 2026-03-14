@@ -1,0 +1,96 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail - Inbox</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', sans-serif; margin: 0; background: #f6f8fc; color: #202124; }
+        .header { height: 60px; background: #fff; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; }
+        .logo { color: #ea4335; font-size: 22px; font-weight: 500; display: flex; align-items: center; }
+        .logo-img { width: 30px; margin-right: 8px; }
+        .sidebar { width: 240px; float: left; padding: 16px 8px; background: #f6f8fc; height: calc(100vh - 60px); }
+        .compose { background: #c2e7ff; color: #001d35; padding: 18px 24px; border-radius: 16px; font-weight: 500; display: inline-flex; align-items: center; margin-bottom: 16px; cursor: pointer; }
+        .nav-item { padding: 4px 12px; margin: 4px 0; border-radius: 0 16px 16px 0; display: flex; justify-content: space-between; cursor: pointer; }
+        .nav-item.active { background: #d3e3fd; font-weight: 500; }
+        .main { margin-left: 240px; background: #fff; margin-top: 8px; border-radius: 16px 0 0 0; min-height: calc(100vh - 68px); box-shadow: 0 1px 2px 0 rgba(60,64,67,0.30), 0 1px 3px 1px rgba(60,64,67,0.15); }
+        .toolbar { height: 48px; border-bottom: 1px solid #f1f3f4; display: flex; align-items: center; padding: 0 16px; }
+        .email-list { list-style: none; padding: 0; margin: 0; }
+        .email-row { border-bottom: 1px solid #f1f3f4; padding: 0 16px; height: 40px; display: flex; align-items: center; cursor: pointer; transition: box-shadow 0.1s; }
+        .email-row:hover { box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15); z-index: 1; }
+        .email-row.unread { background: #fff; font-weight: 700; }
+        .sender { width: 200px; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .subject { flex: 1; font-size: 14px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .subject span { color: #202124; font-weight: 400; }
+        .unread .subject span { font-weight: 700; }
+        .date { width: 80px; text-align: right; font-size: 12px; color: #5f6368; }
+        
+        /* Modal for viewing email */
+        #emailView { display: none; padding: 24px; }
+        .email-header { margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 16px; }
+        .email-title { font-size: 22px; margin-bottom: 8px; }
+        .email-body { line-height: 1.6; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo"><img src="https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" class="logo-img"> Gmail</div>
+    </div>
+    <div class="sidebar">
+        <div class="compose">Compose</div>
+        <div class="nav-item active"><span>Inbox</span><span>1</span></div>
+        <div class="nav-item">Starred</div>
+        <div class="nav-item">Snoozed</div>
+        <div class="nav-item">Sent</div>
+        <div class="nav-item">Drafts</div>
+    </div>
+    <div class="main">
+        <div class="toolbar">
+            <input type="checkbox"> ▾ [Refresh] [More]
+        </div>
+        <div id="emailList">
+            <ul class="email-list">
+                <li class="email-row unread" id="leadEmailRow" onclick="showEmail()">
+                    <div class="sender">Sarah Jenkins</div>
+                    <div class="subject"><span>New Lead Inquiry: Project X - Budget $50,000</span> - Hi Team, I'm interested in your services...</div>
+                    <div class="date">2:14 PM</div>
+                </li>
+                <li class="email-row">
+                    <div class="sender">Google Workspace</div>
+                    <div class="subject"><span>Your weekly summary</span> - Here is what happened in your workspace...</div>
+                    <div class="date">Mar 7</div>
+                </li>
+            </ul>
+        </div>
+        <div id="emailView">
+            <div class="email-header">
+                <button onclick="showList()">← Back</button>
+                <h1 class="email-title">New Lead Inquiry: Project X - Budget $50,000</h1>
+                <div style="font-size: 14px;"><strong>Sarah Jenkins</strong> &lt;sarah.j@projectx.com&gt;</div>
+            </div>
+            <div class="email-body">
+                Hi ATOM Team,<br><br>
+                I am the founder of <strong>Project X</strong>. We are looking for an 
+                AI-powered solution to triage our B2B leads. <br><br>
+                Our budget is around <strong>$50,000</strong> for the initial setup. <br>
+                This is quite <strong>urgent</strong> for us. <br><br>
+                Looking forward to hearing from you.<br><br>
+                Best,<br>
+                Sarah Jenkins
+            </div>
+        </div>
+    </div>
+    <script>
+        function showEmail() {
+            document.getElementById('emailList').style.display = 'none';
+            document.getElementById('emailView').style.display = 'block';
+        }
+        function showList() {
+            document.getElementById('emailList').style.display = 'block';
+            document.getElementById('emailView').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

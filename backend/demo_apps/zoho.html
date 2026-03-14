@@ -1,0 +1,95 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Zoho CRM - Leads</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; margin: 0; background: #f5f7f9; color: #333; }
+        .navbar { height: 50px; background: #2f3542; color: #fff; display: flex; align-items: center; padding: 0 20px; }
+        .logo { font-weight: 700; font-size: 18px; color: #ff4757; }
+        .sub-nav { height: 45px; background: #fff; border-bottom: 1px solid #e1e4e8; display: flex; align-items: center; padding: 0 20px; }
+        .btn-create { background: #2ed573; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer; }
+        .sidebar { width: 60px; background: #2f3542; height: calc(100vh - 50px); float: left; }
+        .content { margin-left: 60px; padding: 20px; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #f1f2f6; color: #747d8c; font-size: 12px; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #f1f2f6; font-size: 14px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 13px; }
+        input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        #createForm { display: none; }
+        .success-msg { display: none; background: #d4edda; color: #155724; padding: 12px; border-radius: 4px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="navbar"><div class="logo">ZOHO</div> <span style="margin-left: 20px; font-size: 14px;">CRM</span></div>
+    <div class="sidebar"></div>
+    <div class="sub-nav">
+        <button class="btn-create" id="btnNewLead" onclick="showForm()">+ Create Lead</button>
+    </div>
+    <div class="content">
+        <div id="success" class="success-msg">Lead created successfully!</div>
+        
+        <div id="leadTable" class="card">
+            <h2>Leads</h2>
+            <table>
+                <thead>
+                    <tr><th>Lead Name</th><th>Company</th><th>Email</th><th>Lead Status</th></tr>
+                </thead>
+                <tbody id="leadBody">
+                    <tr><td>John Doe</td><td>ABC Corp</td><td>john@abc.com</td><td>Contacted</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="createForm" class="card">
+            <h2>Create New Lead</h2>
+            <div class="form-group">
+                <label>First Name</label>
+                <input type="text" id="firstName" placeholder="e.g. Sarah">
+            </div>
+            <div class="form-group">
+                <label>Last Name</label>
+                <input type="text" id="lastName" placeholder="e.g. Jenkins">
+            </div>
+            <div class="form-group">
+                <label>Company</label>
+                <input type="text" id="company" placeholder="e.g. Project X">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" placeholder="sarah.j@projectx.com">
+            </div>
+            <button class="btn-create" onclick="submitLead()" id="submitLeadBtn">Save Lead</button>
+            <button onclick="hideForm()" style="margin-left: 10px;">Cancel</button>
+        </div>
+    </div>
+    <script>
+        function showForm() {
+            document.getElementById('leadTable').style.display = 'none';
+            document.getElementById('createForm').style.display = 'block';
+        }
+        function hideForm() {
+            document.getElementById('leadTable').style.display = 'block';
+            document.getElementById('createForm').style.display = 'none';
+        }
+        function submitLead() {
+            const f = document.getElementById('firstName').value;
+            const l = document.getElementById('lastName').value;
+            const c = document.getElementById('company').value;
+            const e = document.getElementById('email').value;
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${f} ${l}</td><td>${c}</td><td>${e}</td><td>New</td>`;
+            document.getElementById('leadBody').prepend(tr);
+            
+            document.getElementById('success').style.display = 'block';
+            hideForm();
+            setTimeout(() => { document.getElementById('success').style.display = 'none'; }, 3000);
+        }
+    </script>
+</body>
+</html>
