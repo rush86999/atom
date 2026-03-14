@@ -78,20 +78,20 @@ class SkillMarketplaceService:
             q = q.filter(
                 or_(
                     SkillExecution.skill_id.like(search_pattern),
-                    SkillExecution.input_params["skill_metadata"]["description"].astext.like(search_pattern)
+                    SkillExecution.input_params["skill_metadata"]["description"].as_string().like(search_pattern)
                 )
             )
 
         # Category filter (from skill_metadata)
         if category:
             q = q.filter(
-                SkillExecution.input_params["skill_metadata"]["category"].astext == category
+                SkillExecution.input_params["skill_metadata"]["category"].as_string() == category
             )
 
         # Skill type filter (prompt_only vs python_code vs nodejs)
         if skill_type:
             q = q.filter(
-                SkillExecution.input_params["skill_type"].astext == skill_type
+                SkillExecution.input_params["skill_type"].as_string() == skill_type
             )
 
         # Sorting
@@ -162,7 +162,7 @@ class SkillMarketplaceService:
         """
         # Aggregate categories from community skills
         categories = self.db.query(
-            SkillExecution.input_params["skill_metadata"]["category"].astext.label("category"),
+            SkillExecution.input_params["skill_metadata"]["category"].as_string().label("category"),
             func.count(SkillExecution.id).label("count")
         ).filter(
             SkillExecution.skill_source == "community",
