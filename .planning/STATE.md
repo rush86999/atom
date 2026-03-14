@@ -1,13 +1,66 @@
 ## Current Position
 
 Phase: 191 of 191 (Coverage Push to 60-70%)
-Plan: 17 of 21 in current phase
+Plan: 18 of 21 in current phase
 Status: COMPLETE
-Last activity: 2026-03-14 — Phase 191 Plan 16 COMPLETE: AgentWorldModel Coverage. Created test_agent_world_model_coverage.py to 1,586 lines (54 tests) achieving 87.4% line coverage (277/317 statements). All tests passing covering experience recording, feedback, confidence boosting, business facts, session archival, experience recall, and canvas insights.
+Last activity: 2026-03-14 — Phase 191 Plan 18 COMPLETE: SkillAdapter Extended Coverage. Created test_skill_adapter_coverage_extend.py to 760 lines (30 tests) achieving 99% line coverage (228/229 statements). All tests passing covering Python skill error handling, npm package handling, Node.js skill execution, governance checks, and edge cases. Coverage improved from 61% to 99% (+38 percentage points).
 
-Progress: [##############] 80.9% (17/21 plans in Phase 191)
+Progress: [#############] 85.7% (18/21 plans in Phase 191)
 
 ## Session Update: 2026-03-14
+
+**PHASE 191 PLAN 18 COMPLETE: SkillAdapter Extended Coverage**
+
+**Tasks Completed:**
+- Created test_skill_adapter_coverage_extend.py (760 lines, 30 tests)
+- Tests for Python skill execution error handling (Docker errors, generic errors, package execution)
+- Tests for function code extraction (with/without execution wrapper)
+- Tests for Node.js skill adapter initialization and properties
+- Tests for Node.js skill execution (success, failure, exception paths)
+- Tests for npm dependency installation (governance checks, malicious scripts)
+- Tests for npm package parsing (scoped packages, versions, ranges)
+- Tests for edge cases (CLI exceptions, formatting errors, sandbox disabled)
+
+**Coverage Achievement:**
+- Actual: 99% (228/229 statements)
+- Previous: 61% (140/229 statements)
+- Target: 75%+ (exceeded by 24%)
+- Increase: +38 percentage points
+- Branch coverage: 98% (62/63 branches)
+
+**Test Results:**
+- Total tests: 30 (30 passing, 0 failing)
+- Pass rate: 100%
+- Duration: ~5 seconds
+
+**Key Features Tested:**
+- Python skill execution with Docker sandbox
+- Docker daemon error handling (user-friendly messages)
+- Generic sandbox execution error handling
+- Package execution error handling
+- Function code extraction with automatic wrapper addition
+- Node.js skill adapter initialization with all parameters
+- Lazy loading of NpmPackageInstaller and PackageGovernanceService
+- npm dependency installation with governance checks
+- Governance permission checks (allow/deny)
+- Malicious script detection (postinstall/preinstall)
+- Installation failure handling
+- Node.js code execution with pre-installed packages
+- npm package parsing (scoped, regular, with/without versions, ranges)
+- CLI skill exception handling
+- Prompt skill formatting exception handling
+- Python skill sandbox disabled error (security check)
+- Unknown skill type error
+
+**Missing Coverage:**
+- Line 298: Specific RuntimeError re-raise (very edge case)
+
+**VALIDATED_BUGs:** None (all error handling works correctly)
+
+**Duration:** ~10 minutes
+**Commits:** 1 (9aa9ad579)
+
+---
 
 **PHASE 191 PLAN 16 COMPLETE: AgentWorldModel Coverage**
 
@@ -1421,6 +1474,7 @@ Phase 185 COMPLETE: Fixed 1 flaky test, eliminated 448 datetime.utcnow() depreca
 | Phase 191 P15 | 670 | 3 tasks | 2 files |
 | Phase 191 P17 | 1773519722 | 1 tasks | 1 files |
 | Phase 191-coverage-push-60-70 P16 | 720 | 1 tasks | 1 files |
+| Phase 191-coverage-push-60-70 P18 | 652 | 3 tasks | 1 files |
 
 ## Key Decisions
 
