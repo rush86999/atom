@@ -613,8 +613,14 @@ class TestTemplateWorkflowCreation:
     ])
     def test_create_workflow_from_template(self, manager_with_template, param_values):
         """Test creating workflow from template with parameters"""
-        templates = list(manager_with_template.templates.values())
-        template = templates[0]
+        # Find our parameterized template
+        template = None
+        for t in manager_with_template.templates.values():
+            if t.name == "parameterized_template":
+                template = t
+                break
+
+        assert template is not None, "parameterized_template not found"
 
         result = manager_with_template.create_workflow_from_template(
             template_id=template.template_id,
@@ -643,8 +649,14 @@ class TestTemplateWorkflowCreation:
     ])
     def test_create_workflow_parameter_validation(self, manager_with_template, param_config, should_fail):
         """Test parameter validation in workflow creation"""
-        templates = list(manager_with_template.templates.values())
-        template = templates[0]
+        # Find our parameterized template (not built-in ones)
+        template = None
+        for t in manager_with_template.templates.values():
+            if t.name == "parameterized_template":
+                template = t
+                break
+
+        assert template is not None, "parameterized_template not found"
 
         if should_fail:
             # Should raise ValueError
@@ -799,6 +811,7 @@ class TestTemplateExportImport:
         with tempfile.TemporaryDirectory() as tmpdir:
             isolated_manager = WorkflowTemplateManager(template_dir=tmpdir)
 
+            # First import - generates ID
             template_data = {
                 "name": "duplicate_test",
                 "description": "Template with duplicate ID",
@@ -806,12 +819,14 @@ class TestTemplateExportImport:
                 "complexity": TemplateComplexity.BEGINNER
             }
 
-            # Import first time
             first = isolated_manager.import_template(template_data)
 
-            # Import again without overwrite - should fail
+            # Second import with same ID - should fail
+            template_data_with_id = template_data.copy()
+            template_data_with_id["template_id"] = first.template_id
+
             with pytest.raises(ValueError, match="already exists"):
-                isolated_manager.import_template(template_data, overwrite=False)
+                isolated_manager.import_template(template_data_with_id, overwrite=False)
 
     def test_import_template_with_overwrite(self, manager):
         """Test importing template with overwrite enabled"""
@@ -941,10 +956,16 @@ class TestEdgeCasesAndErrors:
 
     def test_empty_template_search(self, manager):
         """Test search on empty manager"""
+        # Clear built-in templates
+        manager.templates.clear()
+        manager.marketplace.templates.clear()
         results = manager.search_templates("test")
         assert len(results) == 0
 
     def test_list_all_templates_empty(self, manager):
         """Test listing all templates when manager is empty"""
+        # Clear built-in templates
+        manager.templates.clear()
+        manager.marketplace.templates.clear()
         results = manager.list_templates()
         assert len(results) == 0
