@@ -7444,6 +7444,47 @@ class SkillCache(Base):
         return f"<SkillCache(skill_id={self.skill_id}, expires_at={self.expires_at})>"
 
 
+class CategoryCache(Base):
+    """
+    Cache for category data from Atom SaaS.
+
+    Stores category data locally to reduce API calls to Atom SaaS.
+    Cached data expires daily and is refreshed on-demand.
+    """
+    __tablename__ = "category_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category_name = Column(String, nullable=False, unique=True, index=True)
+
+    # Cached category data
+    category_data = Column(JSON, nullable=False)
+
+    # Cache expiration
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Metadata
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Cache hit tracking
+    hit_count = Column(Integer, default=0, nullable=False)
+    last_hit_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    tenant = relationship("Tenant", backref="category_cache")
+
+    def is_expired(self) -> bool:
+        """Check if cache entry has expired."""
+        from datetime import datetime
+        return datetime.now(self.expires_at.tzinfo) > self.expires_at
+
+    def __repr__(self):
+        return f"<CategoryCache(category_name={self.category_name}, expires_at={self.expires_at})>"
+
+
 # ============================================================================
 # GEA & Skills Models (Ported from SaaS)
 # ============================================================================
