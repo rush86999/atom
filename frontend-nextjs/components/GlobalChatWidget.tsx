@@ -109,7 +109,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
         try {
             setIsLoading(true);
             const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-            const fetchUrl = `${baseUrl}/api/chat/history/${sid}?user_id=${userId || 'default_user'}`;
+            const fetchUrl = `/api/chat/history/${sid}?user_id=${userId || 'default_user'}`;
             const response = await fetch(fetchUrl);
 
             if (response.ok) {
@@ -158,7 +158,7 @@ export function GlobalChatWidget({ userId = "anonymous" }: GlobalChatWidgetProps
 
         try {
             const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-            const response = await fetch(`${baseUrl}/api/chat/message`, {
+            const response = await fetch(`/api/chat/message`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

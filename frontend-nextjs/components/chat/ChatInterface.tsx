@@ -37,6 +37,114 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
     const { toast } = useToast();
     const { uploadFile, isUploading } = useFileUpload();
     const [activeAttachments, setActiveAttachments] = useState<any[]>([]); // Store uploaded docs
+    const [isDemoMode, setIsDemoMode] = useState(false);
+
+    const CHAT_DEMO_SCRIPT = [
+        {
+            user: "Analyze our top 3 inbound leads from this week and tell me which one to prioritize.",
+            assistant: `**Lead Priority Analysis — Week of Mar 10, 2026**
+
+I've analyzed all 3 inbound leads based on budget, urgency, company fit, and response time signals:
+
+| Rank | Company | Budget | Urgency | Score |
+|------|---------|--------|---------|-------|
+| 🥇 1st | **VelocityTech** | $80k/yr | HIGH ⚡ | **94/100** |
+| 🥈 2nd | Nexora Labs | $35k/yr | MEDIUM | 71/100 |
+| 🥉 3rd | Brightfield Co. | $12k/yr | LOW | 48/100 |
+
+**Recommendation:** Focus on **James Chen @ VelocityTech** first — $80k budget, 200-rep team, explicit urgency, and same-day reply. Discovery call was already scheduled for Mar 10 @ 3PM.
+
+→ Nexora is warm but budget-constrained. I'd suggest a nurture sequence, not direct outreach.
+→ Brightfield is a longer-term pipeline candidate.`,
+            delay: 1800,
+        },
+        {
+            user: "Build me an automated workflow to handle VelocityTech — parse their email, update CRM, schedule the call.",
+            assistant: `**Workflow Generated: VelocityTech Intake Automation**
+
+I've built a 5-step workflow in your Automations dashboard. Here's what it does:
+
+\`\`\`
+📧 Gmail Trigger       → Email received from velocitytech.io domain
+🧠 Qwen-Plus NLP      → Extract: company, budget, urgency, intent (JSON)
+📋 Zoho CRM Update    → Create/update lead record, set stage = "Qualified"
+🎥 Zoom Meeting       → Auto-schedule discovery call, generate link
+✋ Slack HITL          → Send approval card to #sales-leads before outreach
+\`\`\`
+
+**Status:** ✅ Workflow saved · Ready to activate
+**Est. time saved:** ~45 min per inbound lead
+**Monthly ROI** (at 20 leads/mo): ~15 hours recovered
+
+Shall I activate it now, or would you like to review the steps first?`,
+            delay: 2200,
+        },
+        {
+            user: "What's our pipeline health looking like right now?",
+            assistant: `**Pipeline Health Report — March 2026**
+
+📊 **Overview**
+- Total active leads: **24**
+- Deals in progress: **8** · Total pipeline value: **$640,000**
+- Win rate (last 90d): **34%** ↑ +8% vs prior quarter
+
+⚠️ **Attention Needed**
+- 3 leads have gone cold (>7 days no response) — recommend AI follow-up sequence
+- 2 deals stalled at proposal stage — schedule review calls
+
+🏆 **Highlights**
+- Fastest close this month: Apex Solutions — 11 days (avg is 28)
+- Highest value in progress: DataCore Inc. — $120k enterprise deal
+
+**My suggestion:** Activate the automated re-engagement workflow for the 3 cold leads — based on past data, 62% respond to a personalised AI follow-up within 48 hours.`,
+            delay: 1600,
+        }
+    ];
+
+    const runChatDemo = async () => {
+        if (isDemoMode) return;
+        setIsDemoMode(true);
+        setMessages([]);
+        await new Promise(r => setTimeout(r, 300));
+
+        for (const turn of CHAT_DEMO_SCRIPT) {
+            // Add user message
+            setMessages(prev => [...prev, {
+                id: `demo_u_${Date.now()}`,
+                type: 'user' as const,
+                content: turn.user,
+                timestamp: new Date(),
+            }]);
+            setIsProcessing(true);
+            setStatusMessage('Agent is thinking...');
+            await new Promise(r => setTimeout(r, turn.delay));
+
+            // Stream AI response character by character
+            const responseId = `demo_a_${Date.now()}`;
+            const fullText = turn.assistant;
+            const chunkSize = 12;
+            let streamed = '';
+
+            setMessages(prev => [...prev, {
+                id: responseId,
+                type: 'assistant' as const,
+                content: '',
+                timestamp: new Date(),
+            }]);
+
+            for (let i = 0; i < fullText.length; i += chunkSize) {
+                streamed += fullText.slice(i, i + chunkSize);
+                const snap = streamed;
+                setMessages(prev => prev.map(m => m.id === responseId ? { ...m, content: snap } : m));
+                await new Promise(r => setTimeout(r, 28));
+            }
+
+            setIsProcessing(false);
+            await new Promise(r => setTimeout(r, 600));
+        }
+
+        setIsDemoMode(false);
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -491,6 +599,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ sessionId, onSessionCreat
             {/* Input Area */}
             <div className="p-4 border-t border-border bg-background">
                 <div className="max-w-3xl mx-auto flex flex-col gap-2">
+                    {/* Demo Mode Banner */}
+                    {!isDemoMode && messages.length === 0 && (
+                        <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg px-3 py-2 mb-1">
+                            <div className="text-xs text-purple-700">
+                                <span className="font-bold">🎬 Demo Mode</span> — See ATOM AI in action
+                            </div>
+                            <button
+                                onClick={runChatDemo}
+                                className="bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold px-3 py-1 rounded-full transition-colors flex items-center gap-1"
+                            >
+                                <span>▶</span> Run Demo
+                            </button>
+                        </div>
+                    )}
+                    {isDemoMode && (
+                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-1">
+                            <span className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin inline-block" />
+                            <span className="text-xs text-green-700 font-semibold">Demo running — showing 3 live scenarios...</span>
+                        </div>
+                    )}
                     {isUploading && (
                         <div className="flex items-center gap-2 mb-2 p-2 bg-muted rounded-md animate-in fade-in">
                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
