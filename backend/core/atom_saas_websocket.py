@@ -277,9 +277,8 @@ class AtomSaaSWebSocketClient:
                 return
 
             message_type = message["type"]
-            data = message["data"]
 
-            # Handle heartbeat messages
+            # Handle heartbeat messages (no data field required)
             if message_type == MessageType.PONG:
                 logger.debug("Received pong")
                 return
@@ -287,6 +286,9 @@ class AtomSaaSWebSocketClient:
             if message_type == MessageType.PING:
                 await self.send_message({"type": MessageType.PONG})
                 return
+
+            # Extract data for other message types
+            data = message["data"]
 
             # Validate data fields for each message type
             if not self._validate_message_data(message_type, data):
