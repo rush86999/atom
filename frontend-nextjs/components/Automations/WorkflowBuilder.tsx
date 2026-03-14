@@ -90,6 +90,38 @@ const initialEdges: Edge[] = [
     { id: 'e4-5', source: '4', target: '5', type: 'addStepEdge' },
 ];
 
+// ── Video 2: Interview Scheduler ──────────────────────────────────────────
+const interviewNodes: Node[] = [
+    {
+        id: 'i1', type: 'trigger', position: { x: 300, y: 0 },
+        data: { label: '📄 Job Application Received', integration: 'ATS / Webhook', description: 'Triggers when candidate submits application via Lever or Notion ATS' },
+    },
+    {
+        id: 'i2', type: 'ai_node', position: { x: 300, y: 160 },
+        data: { label: '🤖 AI Resume Screener (Qwen)', model: 'Qwen-Plus', prompt: 'Score resume 0-100. Extract: skills match %, years experience, red flags. Return JSON.', description: 'AI scores resume and extracts key signals' },
+    },
+    {
+        id: 'i3', type: 'action', position: { x: 300, y: 320 },
+        data: { label: '📅 Find Calendar Slot', service: 'Google Calendar', action: 'Find Availability', description: 'Queries interviewer calendars and finds first mutual 45-min slot in next 5 days' },
+    },
+    {
+        id: 'i4', type: 'action', position: { x: 300, y: 480 },
+        data: { label: '✉️ Send Interview Confirmation', service: 'Gmail', action: 'Send Email', description: 'Sends personalised calendar invite + Zoom link to candidate and interviewers' },
+    },
+    {
+        id: 'i5', type: 'action', position: { x: 300, y: 640 },
+        data: { label: '💬 Notify HR on Slack', service: 'Slack', action: 'Post Message', description: 'Posts candidate summary card to #hiring channel with one-click reschedule button' },
+    },
+];
+
+const interviewEdges: Edge[] = [
+    { id: 'ie1-2', source: 'i1', target: 'i2', type: 'addStepEdge' },
+    { id: 'ie2-3', source: 'i2', target: 'i3', type: 'addStepEdge' },
+    { id: 'ie3-4', source: 'i3', target: 'i4', type: 'addStepEdge' },
+    { id: 'ie4-5', source: 'i4', target: 'i5', type: 'addStepEdge' },
+];
+
+
 const edgeTypes = {
     addStepEdge: AddStepEdge,
 };
@@ -755,6 +787,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
     const [chatInput, setChatInput] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [isDemoRunning, setIsDemoRunning] = useState(false);
+    const [demoType, setDemoType] = useState<'lead' | 'interview'>('lead');
     const [demoLog, setDemoLog] = useState<Array<{ nodeId: string; title: string; output: React.ReactNode; status: 'running' | 'success' | 'paused' }>>([]);
     const [showDemoPanel, setShowDemoPanel] = useState(false);
     const demoApproved = React.useRef<'none' | 'approved' | 'rejected'>('none');
@@ -882,23 +915,139 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
         }
     ];
 
+    const INTERVIEW_DEMO_STEPS = [
+        {
+            title: '📄 Job Application Received',
+            duration: 1800,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <div className="bg-gray-50 border rounded p-2 font-mono text-[11px] space-y-1">
+                        <div><span className="text-gray-400">Candidate:</span> <span className="text-blue-700 font-semibold">Priya Sharma</span></div>
+                        <div><span className="text-gray-400">Role:</span> <span className="font-medium">Senior ML Engineer — Remote</span></div>
+                        <div><span className="text-gray-400">Source:</span> LinkedIn · Applied via ATS</div>
+                        <div className="mt-1 text-gray-600">"6 yrs Python/PyTorch, led 3 production ML systems, available immediately."</div>
+                    </div>
+                    <div className="text-green-600 font-semibold text-[11px]">✓ Application received · ATS webhook triggered</div>
+                </div>
+            )
+        },
+        {
+            title: '🤖 AI Resume Screener (Qwen-Plus)',
+            duration: 2400,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <pre className="bg-slate-900 text-green-400 p-2 rounded text-[10px] font-mono overflow-auto">{`{
+  "candidate": "Priya Sharma",
+  "overall_score": 91,
+  "skills_match": "94%",
+  "experience_years": 6,
+  "highlights": ["PyTorch", "MLOps", "AWS"],
+  "red_flags": [],
+  "recommendation": "PROCEED",
+  "confidence": 0.95
+}`}</pre>
+                    <div className="text-purple-600 font-semibold text-[11px]">✓ Score: 91/100 · Fast-tracked to interview</div>
+                </div>
+            )
+        },
+        {
+            title: '📅 Finding Calendar Slot',
+            duration: 1600,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <div className="bg-blue-50 border border-blue-200 rounded p-2 text-[11px] space-y-1">
+                        <div className="font-semibold text-blue-800">✓ Mutual Slot Found</div>
+                        <div className="text-gray-600"><span className="font-medium">Date:</span> Wed Mar 12, 2026 · 11:00 AM IST</div>
+                        <div className="text-gray-600"><span className="font-medium">Interviewers:</span> Priya V. + Rohan M.</div>
+                        <div className="text-gray-600"><span className="font-medium">Duration:</span> 45 min technical round</div>
+                        <div className="mt-1 p-1 bg-white border rounded font-mono text-[10px] text-blue-600 break-all">https://meet.google.com/axk-bpqr-mzt</div>
+                    </div>
+                    <div className="text-blue-600 font-semibold text-[11px]">✓ Calendar blocked · Invite ready to dispatch</div>
+                </div>
+            )
+        },
+        {
+            title: '✉️ Sending Interview Confirmation',
+            duration: 1400,
+            output: (
+                <div className="space-y-1 text-xs">
+                    <div className="bg-gray-50 border rounded p-2 font-mono text-[11px] space-y-1">
+                        <div><span className="text-gray-400">To:</span> <span className="text-blue-700">priya.sharma@gmail.com</span></div>
+                        <div><span className="text-gray-400">CC:</span> hiring@company.com</div>
+                        <div><span className="text-gray-400">Subject:</span> Technical Interview — Wed Mar 12 @ 11AM</div>
+                        <div className="mt-1 text-gray-600 text-[10px]">"Hi Priya! We reviewed your application and are excited to move forward. Your interview is confirmed for Wed March 12..."</div>
+                    </div>
+                    <div className="text-green-600 font-semibold text-[11px]">✓ Email sent · Calendar invite accepted</div>
+                </div>
+            )
+        },
+        {
+            title: '💬 HR Notified on Slack',
+            duration: 0,
+            output: (
+                <div className="space-y-2 text-xs">
+                    <div className="bg-[#4A154B] text-white rounded p-2 text-[11px] space-y-1">
+                        <div className="font-bold text-[12px]">#hiring · ATOM Bot</div>
+                        <div>✅ <span className="font-semibold">Interview Scheduled Automatically</span></div>
+                        <div className="bg-white/10 rounded p-1.5 text-[10px] space-y-0.5 mt-1">
+                            <div>👤 Priya Sharma · Senior ML Engineer</div>
+                            <div>🏆 AI Score: 91/100 · Skills Match: 94%</div>
+                            <div>📅 Wed Mar 12, 11:00 AM · 45 min</div>
+                            <div className="text-blue-300 mt-1">🔗 meet.google.com/axk-bpqr-mzt</div>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-[11px] py-1.5 rounded font-semibold">📅 Reschedule</button>
+                        <button className="flex-1 bg-green-100 hover:bg-green-200 text-green-700 text-[11px] py-1.5 rounded font-semibold">✓ Confirmed</button>
+                    </div>
+                    <div className="text-green-600 font-semibold text-[11px]">✓ Workflow complete · Zero human effort needed</div>
+                </div>
+            )
+        }
+    ];
+
+
     const runDemoAnimation = async () => {
         if (isDemoRunning) return;
         setIsDemoRunning(true);
         setDemoLog([]);
+        setDemoApprovedState('none');
         setShowDemoPanel(true);
 
-        // Reset all nodes first
-        setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, _demoStatus: undefined } })));
-        await new Promise(r => setTimeout(r, 300));
+        // --- NEW: Trigger Real Browser Agent for Lead Triage ---
+        if (demoType === 'lead') {
+            try {
+                fetch('/api/v1/demo/run', { method: 'POST' });
+                setDemoLog(prev => [...prev, {
+                    nodeId: 'browser-init',
+                    title: '🚀 Starting Live Browser Agent',
+                    output: (
+                        <div className="text-blue-600 text-[11px] bg-blue-50 p-2 rounded border border-blue-100 italic">
+                            "Initializing specialized agent... Opening actual browser window on your desktop to perform real actions."
+                        </div>
+                    ),
+                    status: 'success'
+                }]);
+            } catch (e) {
+                console.error("Failed to trigger real browser demo:", e);
+            }
+        }
 
-        const nodeIds = nodes.map(n => n.id);
+        // Load the right workflow nodes first
+        const workflowNodes = demoType === 'interview' ? interviewNodes : initialNodes;
+        const workflowEdges = demoType === 'interview' ? interviewEdges : initialEdges;
+        setNodes(workflowNodes.map(n => ({ ...n, data: { ...n.data, _demoStatus: undefined } })));
+        setEdges(workflowEdges);
+        await new Promise(r => setTimeout(r, 400));
+
+        const activeSteps = demoType === 'interview' ? INTERVIEW_DEMO_STEPS : DEMO_STEPS;
+        const nodeIds = workflowNodes.map(n => n.id);
         const lastIdx = nodeIds.length - 1;
 
         for (let i = 0; i < nodeIds.length; i++) {
             const id = nodeIds[i];
             const isLast = i === lastIdx;
-            const step = DEMO_STEPS[i] || DEMO_STEPS[DEMO_STEPS.length - 1];
+            const step = activeSteps[i] || activeSteps[activeSteps.length - 1];
 
             // Add "running" log entry
             setDemoLog(prev => [...prev, {
@@ -1042,6 +1191,18 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         {isPerformanceMode ? "Performance ON" : "Performance"}
                     </Button>
 
+                    {/* Demo Selector */}
+                    <div className="flex bg-white dark:bg-gray-900 rounded-lg border overflow-hidden mr-1">
+                        <button
+                            onClick={() => { setDemoType('lead'); setNodes(initialNodes); setEdges(initialEdges); }}
+                            className={`px-2.5 py-1 text-[11px] font-semibold transition-colors ${demoType === 'lead' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >📧 Lead Triage</button>
+                        <button
+                            onClick={() => { setDemoType('interview'); setNodes(interviewNodes); setEdges(interviewEdges); }}
+                            className={`px-2.5 py-1 text-[11px] font-semibold transition-colors border-l ${demoType === 'interview' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >📄 Interviewer</button>
+                    </div>
+
                     {/* Run Demo Button */}
                     <Button
                         size="sm"
@@ -1174,7 +1335,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                         </div>
                         <div className="overflow-y-auto p-3 space-y-3" style={{ maxHeight: '70vh' }}>
                             {demoLog.map((entry, idx) => {
-                                const isHITLStep = idx === demoLog.length - 1 && entry.title.includes('Slack HITL');
+                                const isHITLStep = idx === demoLog.length - 1 && entry.title.includes('Slack HITL') && demoType === 'lead';
                                 const cardStatus = isHITLStep && demoApprovedState !== 'none' ? 'success' : entry.status;
                                 return (
                                 <div key={idx} className={`rounded-lg border p-3 transition-all duration-300 ${

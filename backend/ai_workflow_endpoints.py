@@ -125,6 +125,7 @@ async def process_natural_language(request: Dict[str, Any]):
         tasks_generated=tasks
     )
 
+
 @router.get("/status", response_model=Dict[str, Any])
 async def get_ai_workflow_status():
     """Get AI workflow system status"""
