@@ -161,25 +161,34 @@ class AgentSocialLayer:
                 redacted_content = content  # Use original content
 
         # Step 5: Create post with redacted content
+        # Map sender_type to author_type (schema fix)
+        from core.models import AuthorType
+        author_type_enum = AuthorType.AGENT if sender_type == "agent" else AuthorType.HUMAN
+
+        # Build post_metadata with all additional fields
+        post_metadata = {
+            "sender_name": sender_name,
+            "sender_maturity": sender_maturity,
+            "sender_category": sender_category,
+            "recipient_type": recipient_type,
+            "recipient_id": recipient_id,
+            "is_public": is_public,
+            "channel_id": channel_id,
+            "channel_name": channel_name,
+            "mentioned_agent_ids": mentioned_agent_ids or [],
+            "mentioned_user_ids": mentioned_user_ids or [],
+            "mentioned_episode_ids": mentioned_episode_ids or [],
+            "mentioned_task_ids": mentioned_task_ids or [],
+            "auto_generated": auto_generated
+        }
+
         post = SocialPost(
-            sender_type=sender_type,
-            sender_id=sender_id,
-            sender_name=sender_name,
-            sender_maturity=sender_maturity,
-            sender_category=sender_category,
-            recipient_type=recipient_type,
-            recipient_id=recipient_id,
-            is_public=is_public,
-            channel_id=channel_id,
-            channel_name=channel_name,
+            tenant_id="default",  # TODO: Get from context
+            author_type=author_type_enum,
+            author_id=sender_id,
             post_type=post_type,
             content=redacted_content,  # Use redacted content
-            mentioned_agent_ids=mentioned_agent_ids or [],
-            mentioned_user_ids=mentioned_user_ids or [],
-            mentioned_episode_ids=mentioned_episode_ids or [],
-            mentioned_task_ids=mentioned_task_ids or [],
-            auto_generated=auto_generated,
-            created_at=datetime.utcnow()
+            post_metadata=post_metadata
         )
 
         if db:
@@ -187,28 +196,30 @@ class AgentSocialLayer:
             db.commit()
             db.refresh(post)
 
-        # Step 5: Broadcast to event bus
+        # Step 6: Broadcast to event bus
+        # Extract metadata for response
+        metadata = post.post_metadata or {}
         post_data = {
             "id": post.id,
-            "sender_type": post.sender_type,
-            "sender_id": post.sender_id,
-            "sender_name": post.sender_name,
-            "sender_maturity": post.sender_maturity,
-            "sender_category": post.sender_category,
-            "recipient_type": post.recipient_type,
-            "recipient_id": post.recipient_id,
-            "is_public": post.is_public,
-            "channel_id": post.channel_id,
-            "channel_name": post.channel_name,
-            "post_type": post.post_type,
+            "sender_type": post.author_type.value,  # Map author_type -> sender_type
+            "sender_id": post.author_id,  # Map author_id -> sender_id
+            "sender_name": metadata.get("sender_name"),
+            "sender_maturity": metadata.get("sender_maturity"),
+            "sender_category": metadata.get("sender_category"),
+            "recipient_type": metadata.get("recipient_type"),
+            "recipient_id": metadata.get("recipient_id"),
+            "is_public": metadata.get("is_public", True),
+            "channel_id": metadata.get("channel_id"),
+            "channel_name": metadata.get("channel_name"),
+            "post_type": post.post_type.value,
             "content": post.content,
-            "mentioned_agent_ids": post.mentioned_agent_ids,
-            "mentioned_user_ids": post.mentioned_user_ids,
-            "mentioned_episode_ids": post.mentioned_episode_ids,
-            "mentioned_task_ids": post.mentioned_task_ids,
-            "reactions": post.reactions,
-            "reply_count": post.reply_count,
-            "auto_generated": post.auto_generated,
+            "mentioned_agent_ids": metadata.get("mentioned_agent_ids", []),
+            "mentioned_user_ids": metadata.get("mentioned_user_ids", []),
+            "mentioned_episode_ids": metadata.get("mentioned_episode_ids", []),
+            "mentioned_task_ids": metadata.get("mentioned_task_ids", []),
+            "reactions": [],  # Will be loaded from PostReaction relationship
+            "reply_count": 0,  # Will be calculated from replies
+            "auto_generated": metadata.get("auto_generated", False),
             "created_at": post.created_at.isoformat()
         }
 
@@ -280,25 +291,25 @@ class AgentSocialLayer:
             "posts": [
                 {
                     "id": p.id,
-                    "sender_type": p.sender_type,
-                    "sender_id": p.sender_id,
-                    "sender_name": p.sender_name,
-                    "sender_maturity": p.sender_maturity,
-                    "sender_category": p.sender_category,
-                    "recipient_type": p.recipient_type,
-                    "recipient_id": p.recipient_id,
-                    "is_public": p.is_public,
-                    "channel_id": p.channel_id,
-                    "channel_name": p.channel_name,
-                    "post_type": p.post_type,
+                    "sender_type": p.author_type.value,  # Map author_type -> sender_type
+                    "sender_id": p.author_id,  # Map author_id -> sender_id
+                    "sender_name": p.post_metadata.get("sender_name") if p.post_metadata else None,
+                    "sender_maturity": p.post_metadata.get("sender_maturity") if p.post_metadata else None,
+                    "sender_category": p.post_metadata.get("sender_category") if p.post_metadata else None,
+                    "recipient_type": p.post_metadata.get("recipient_type") if p.post_metadata else None,
+                    "recipient_id": p.post_metadata.get("recipient_id") if p.post_metadata else None,
+                    "is_public": p.post_metadata.get("is_public", True) if p.post_metadata else True,
+                    "channel_id": p.post_metadata.get("channel_id") if p.post_metadata else None,
+                    "channel_name": p.post_metadata.get("channel_name") if p.post_metadata else None,
+                    "post_type": p.post_type.value,
                     "content": p.content,
-                    "mentioned_agent_ids": p.mentioned_agent_ids,
-                    "mentioned_user_ids": p.mentioned_user_ids,
-                    "mentioned_episode_ids": p.mentioned_episode_ids,
-                    "mentioned_task_ids": p.mentioned_task_ids,
-                    "reactions": p.reactions,
-                    "reply_count": p.reply_count,
-                    "read_at": p.read_at.isoformat() if p.read_at else None,
+                    "mentioned_agent_ids": p.post_metadata.get("mentioned_agent_ids", []) if p.post_metadata else [],
+                    "mentioned_user_ids": p.post_metadata.get("mentioned_user_ids", []) if p.post_metadata else [],
+                    "mentioned_episode_ids": p.post_metadata.get("mentioned_episode_ids", []) if p.post_metadata else [],
+                    "mentioned_task_ids": p.post_metadata.get("mentioned_task_ids", []) if p.post_metadata else [],
+                    "reactions": [],  # Will be loaded from PostReaction relationship
+                    "reply_count": 0,  # Will be calculated
+                    "read_at": None,  # Field not in current schema
                     "created_at": p.created_at.isoformat()
                 }
                 for p in posts
@@ -380,20 +391,23 @@ class AgentSocialLayer:
         topic_counts = {}
 
         for post in posts:
+            # Extract metadata
+            metadata = post.post_metadata or {}
+
             # Count agent mentions
-            for mentioned_id in post.mentioned_agent_ids:
+            for mentioned_id in metadata.get("mentioned_agent_ids", []):
                 topic_counts[f"agent:{mentioned_id}"] = topic_counts.get(f"agent:{mentioned_id}", 0) + 1
 
             # Count user mentions
-            for mentioned_id in post.mentioned_user_ids:
+            for mentioned_id in metadata.get("mentioned_user_ids", []):
                 topic_counts[f"user:{mentioned_id}"] = topic_counts.get(f"user:{mentioned_id}", 0) + 1
 
             # Count episode mentions
-            for episode_id in post.mentioned_episode_ids:
+            for episode_id in metadata.get("mentioned_episode_ids", []):
                 topic_counts[f"episode:{episode_id}"] = topic_counts.get(f"episode:{episode_id}", 0) + 1
 
             # Count task mentions
-            for task_id in post.mentioned_task_ids:
+            for task_id in metadata.get("mentioned_task_ids", []):
                 topic_counts[f"task:{task_id}"] = topic_counts.get(f"task:{task_id}", 0) + 1
 
         # Sort by count
@@ -577,27 +591,27 @@ class AgentSocialLayer:
             "posts": [
                 {
                     "id": p.id,
-                    "sender_type": p.sender_type,
-                    "sender_id": p.sender_id,
-                    "sender_name": p.sender_name,
-                    "sender_maturity": p.sender_maturity,
-                    "sender_category": p.sender_category,
-                    "recipient_type": p.recipient_type,
-                    "recipient_id": p.recipient_id,
-                    "is_public": p.is_public,
-                    "channel_id": p.channel_id,
-                    "channel_name": p.channel_name,
-                    "post_type": p.post_type,
+                    "sender_type": p.author_type.value,  # Map author_type -> sender_type
+                    "sender_id": p.author_id,  # Map author_id -> sender_id
+                    "sender_name": p.post_metadata.get("sender_name") if p.post_metadata else None,
+                    "sender_maturity": p.post_metadata.get("sender_maturity") if p.post_metadata else None,
+                    "sender_category": p.post_metadata.get("sender_category") if p.post_metadata else None,
+                    "recipient_type": p.post_metadata.get("recipient_type") if p.post_metadata else None,
+                    "recipient_id": p.post_metadata.get("recipient_id") if p.post_metadata else None,
+                    "is_public": p.post_metadata.get("is_public", True) if p.post_metadata else True,
+                    "channel_id": p.post_metadata.get("channel_id") if p.post_metadata else None,
+                    "channel_name": p.post_metadata.get("channel_name") if p.post_metadata else None,
+                    "post_type": p.post_type.value,
                     "content": p.content,
-                    "mentioned_agent_ids": p.mentioned_agent_ids,
-                    "mentioned_user_ids": p.mentioned_user_ids,
-                    "mentioned_episode_ids": p.mentioned_episode_ids,
-                    "mentioned_task_ids": p.mentioned_task_ids,
-                    "reactions": p.reactions,
-                    "reply_count": p.reply_count,
-                    "reply_to_id": p.reply_to_id,
-                    "read_at": p.read_at.isoformat() if p.read_at else None,
-                    "auto_generated": p.auto_generated,
+                    "mentioned_agent_ids": p.post_metadata.get("mentioned_agent_ids", []) if p.post_metadata else [],
+                    "mentioned_user_ids": p.post_metadata.get("mentioned_user_ids", []) if p.post_metadata else [],
+                    "mentioned_episode_ids": p.post_metadata.get("mentioned_episode_ids", []) if p.post_metadata else [],
+                    "mentioned_task_ids": p.post_metadata.get("mentioned_task_ids", []) if p.post_metadata else [],
+                    "reactions": [],  # Will be loaded from PostReaction relationship
+                    "reply_count": 0,  # Will be calculated
+                    "reply_to_id": None,  # Field not in current schema
+                    "read_at": None,  # Field not in current schema
+                    "auto_generated": p.post_metadata.get("auto_generated", False) if p.post_metadata else False,
                     "created_at": p.created_at.isoformat()
                 }
                 for p in posts
@@ -730,15 +744,15 @@ class AgentSocialLayer:
             "replies": [
                 {
                     "id": r.id,
-                    "sender_type": r.sender_type,
-                    "sender_id": r.sender_id,
-                    "sender_name": r.sender_name,
-                    "sender_maturity": r.sender_maturity,
-                    "sender_category": r.sender_category,
+                    "sender_type": r.author_type.value,  # Map author_type -> sender_type
+                    "sender_id": r.author_id,  # Map author_id -> sender_id
+                    "sender_name": r.post_metadata.get("sender_name") if r.post_metadata else None,
+                    "sender_maturity": r.post_metadata.get("sender_maturity") if r.post_metadata else None,
+                    "sender_category": r.post_metadata.get("sender_category") if r.post_metadata else None,
                     "content": r.content,
-                    "post_type": r.post_type,
+                    "post_type": r.post_type.value,
                     "created_at": r.created_at.isoformat(),
-                    "reactions": r.reactions
+                    "reactions": []  # Will be loaded from PostReaction relationship
                 }
                 for r in replies
             ],
