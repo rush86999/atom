@@ -123,6 +123,8 @@ class TestAgentSocialLayerCoverageFix:
         """Cover STUDENT governance gate (lines 127-132)"""
         # Create STUDENT agent
         student_agent = AgentRegistry(
+            module_path="test.module",
+            class_name="TestClass",
             id="student-agent-1",
             name="Student Agent",
             status="STUDENT",
@@ -151,6 +153,8 @@ class TestAgentSocialLayerCoverageFix:
         """Cover INTERN agent posting (lines 115-132)"""
         # Create INTERN agent
         intern_agent = AgentRegistry(
+            module_path="test.module",
+            class_name="TestClass",
             id="intern-agent-1",
             name="Intern Agent",
             status="INTERN",
@@ -187,6 +191,8 @@ class TestAgentSocialLayerCoverageFix:
         """Cover maturity-based permission checks (lines 115-132)"""
         # Create agent with specific maturity
         agent = AgentRegistry(
+            module_path="test.module",
+            class_name="TestClass",
             id=f"agent-{maturity_level.lower()}",
             name=f"{maturity_level} Agent",
             status=maturity_level,
@@ -278,7 +284,7 @@ class TestAgentSocialLayerCoverageFix:
                 sender_type="human",
                 sender_id="user-123",
                 sender_name="Test User",
-                post_type="message",
+                post_type="status",  # Use valid post_type
                 content="Private message",
                 recipient_type="agent",
                 recipient_id="agent-456",
@@ -553,6 +559,8 @@ class TestAgentSocialLayerCoverageFix:
 
         # Create STUDENT agent
         student_agent = AgentRegistry(
+            module_path="test.module",
+            class_name="TestClass",
             id="student-agent-1",
             name="Student Agent",
             status="STUDENT",
@@ -844,6 +852,8 @@ class TestAgentSocialLayerCoverageFix:
         """Cover rate limit checking by maturity (lines 1382-1435)"""
         # Create agent
         agent = AgentRegistry(
+            module_path="test.module",
+            class_name="TestClass",
             id=f"agent-{maturity_level.lower()}",
             name=f"{maturity_level} Agent",
             status=maturity_level,
@@ -873,6 +883,8 @@ class TestAgentSocialLayerCoverageFix:
     async def test_get_rate_limit_info_student(self, db_session):
         """Cover get_rate_limit_info for STUDENT (lines 1480-1550)"""
         agent = AgentRegistry(
+            module_path="test.module",
+            class_name="TestClass",
             id="student-agent",
             name="Student Agent",
             status="STUDENT",
@@ -895,6 +907,8 @@ class TestAgentSocialLayerCoverageFix:
     async def test_get_rate_limit_info_autonomous(self, db_session):
         """Cover get_rate_limit_info for AUTONOMOUS (lines 1521-1529)"""
         agent = AgentRegistry(
+            module_path="test.module",
+            class_name="TestClass",
             id="autonomous-agent",
             name="Autonomous Agent",
             status="AUTONOMOUS",
