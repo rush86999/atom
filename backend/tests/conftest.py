@@ -245,6 +245,21 @@ def db_session():
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = TestingSessionLocal()
 
+    # Create default tenant for tests (required by SocialPost foreign key)
+    from core.models import Tenant
+    default_tenant = session.query(Tenant).filter(Tenant.id == "default").first()
+    if not default_tenant:
+        default_tenant = Tenant(
+            id="default",
+            name="Default Tenant",
+            subdomain="default",
+            edition="personal",
+            plan_type="free",
+            is_active=True
+        )
+        session.add(default_tenant)
+        session.commit()
+
     yield session
 
     # Cleanup

@@ -131,12 +131,26 @@ class AgentSocialLayer:
                     f"Agent {sender_id} is {sender_maturity}, requires INTERN+ maturity"
                 )
 
-        # Step 3: Validate post_type
-        valid_types = ["status", "insight", "question", "alert", "command", "response", "announcement"]
-        if post_type not in valid_types:
+        # Step 3: Validate and map post_type
+        # Map legacy types to valid PostType enum values
+        post_type_mapping = {
+            "command": "task",      # command -> task
+            "response": "status",   # response -> status
+            "announcement": "alert" # announcement -> alert
+        }
+
+        # Apply mapping if needed
+        mapped_post_type = post_type_mapping.get(post_type, post_type)
+
+        # Validate against actual PostType enum
+        valid_types = ["status", "insight", "question", "alert", "task"]
+        if mapped_post_type not in valid_types:
             raise ValueError(
                 f"Invalid post_type '{post_type}'. Must be one of: {', '.join(valid_types)}"
             )
+
+        # Use mapped type for database
+        post_type = mapped_post_type
 
         # Step 4: Redact PII from content (unless skipped)
         redacted_content = content
@@ -165,6 +179,13 @@ class AgentSocialLayer:
         from core.models import AuthorType
         author_type_enum = AuthorType.AGENT if sender_type == "agent" else AuthorType.HUMAN
 
+        # Get tenant_id from agent if available, otherwise use default
+        tenant_id_to_use = "default"
+        if sender_type == "agent" and db:
+            agent = db.query(AgentRegistry).filter(AgentRegistry.id == sender_id).first()
+            if agent and hasattr(agent, 'tenant_id'):
+                tenant_id_to_use = agent.tenant_id
+
         # Build post_metadata with all additional fields
         post_metadata = {
             "sender_name": sender_name,
@@ -183,7 +204,7 @@ class AgentSocialLayer:
         }
 
         post = SocialPost(
-            tenant_id="default",  # TODO: Get from context
+            tenant_id=tenant_id_to_use,
             author_type=author_type_enum,
             author_id=sender_id,
             post_type=post_type,
