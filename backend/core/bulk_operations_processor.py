@@ -200,7 +200,7 @@ class IntegrationBulkProcessor:
             # Save job results
             await self._save_job_results(job)
 
-            logger.info(f"Completed bulk job {job_id}: {job.successful_items} success, {job.failed_items} failed")
+            logger.info(f"Completed bulk job {job.job_id}: {job.successful_items} success, {job.failed_items} failed")
 
         except Exception as e:
             logger.error(f"Bulk job {job.job_id} failed: {e}")
@@ -256,7 +256,7 @@ class IntegrationBulkProcessor:
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 })
 
-                if operation.stop_on_error:
+                if job.operation.stop_on_error:
                     job.status = OperationStatus.FAILED
                     break
 
