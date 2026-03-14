@@ -88,3 +88,55 @@ class TestCognitiveClassifierInit:
         for name, (pattern, weight) in classifier._compiled_patterns.items():
             import re
             assert hasattr(pattern, "match")  # Compiled regex has match method
+
+
+class TestTokenEstimation:
+    """Test _estimate_tokens method (lines 223-240)."""
+
+    def test_estimate_tokens_simple_text(self):
+        """Cover lines 223-240: Basic token estimation (1 token ≈ 4 chars)."""
+        classifier = CognitiveClassifier()
+
+        # Short text
+        tokens = classifier._estimate_tokens("hello world")
+        assert 2 <= tokens <= 3  # ~11 chars / 4 = ~3 tokens
+
+        # Medium text
+        tokens = classifier._estimate_tokens("This is a medium length sentence with some words.")
+        assert tokens >= 10
+
+        # Empty string
+        tokens = classifier._estimate_tokens("")
+        assert tokens == 0
+
+    def test_estimate_tokens_with_code(self):
+        """Test token estimation for code snippets."""
+        classifier = CognitiveClassifier()
+
+        code = """
+def function_name(param1, param2):
+    result = param1 + param2
+    return result
+"""
+        tokens = classifier._estimate_tokens(code)
+        assert tokens >= 20  # Code should have more tokens
+
+    def test_estimate_tokens_unicode(self):
+        """Test token estimation handles Unicode correctly."""
+        classifier = CognitiveClassifier()
+
+        # Unicode characters still count as characters
+        tokens = classifier._estimate_tokens("hello world")
+        tokens_unicode = classifier._estimate_tokens("hello world")
+        assert tokens == tokens_unicode
+
+    @pytest.mark.parametrize("text,expected_range", [
+        ("hi", (0, 5)),
+        ("hello world, how are you today?", (5, 15)),
+        ("This is a much longer text that should definitely have more tokens. " * 5, (50, 150)),
+    ])
+    def test_estimate_tokens_various_lengths(self, text, expected_range):
+        """Parametrized test for various text lengths."""
+        classifier = CognitiveClassifier()
+        tokens = classifier._estimate_tokens(text)
+        assert expected_range[0] <= tokens <= expected_range[1]
