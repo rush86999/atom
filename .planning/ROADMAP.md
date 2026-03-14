@@ -646,13 +646,37 @@ Plans: 4 plans
 - [x] 190-14-PLAN.md — Final verification and ROADMAP update ✅ COMPLETE (reports generated)
 **See:** 190-EXECUTION-SUMMARY.md, 190-FINAL-REPORT.md, 190-AGGREGATE-SUMMARY.md for details
 
-### Phase 191: Coverage Push to 60-70%
-**Goal**: Achieve 60-70% overall backend coverage
+### Phase 191: Coverage Push to 18-22% (Core Services Foundation)
+**Goal**: Achieve 18-22% overall backend coverage by covering 20 core zero-coverage files (7,105 statements) to 75%+
 **Depends on**: Phase 190
 **Requirements**: GAP-03, GAP-04, GAP-05
-**Status**: Pending
-**Plans**: TBD (estimated 20-25 plans)
-**Estimated Coverage**: 60-70%
+**Status**: Planned (Revised: 2026-03-14 - goal corrected from 60-70% to 18-22% based on actual baseline)
+**Plans**: 21 plans (191-01 through 191-21)
+**Baseline Coverage**: 7.39% (5,111/55,372 statements covered)
+**Target Coverage**: 18-22% (projected based on 7,105 statements in 20 target files at 75% coverage)
+**Notes**: This phase is part of a multi-phase roadmap to reach 60%+ coverage. Subsequent phases will target additional zero-coverage files.
+**Plan List:**
+- [ ] 191-01-PLAN.md — Agent governance service coverage (286 stmts, 0% target 75%)
+- [ ] 191-02-PLAN.md — Governance cache coverage (278 stmts, 0% target 80%)
+- [ ] 191-03-PLAN.md — Agent context resolver coverage (95 stmts, 0% target 75%)
+- [ ] 191-04-PLAN.md — BYOK handler coverage (654 stmts, 0% target 70%)
+- [ ] 191-05-PLAN.md — Cognitive tier system extended (50 stmts, 90% target 95%)
+- [ ] 191-06-PLAN.md — Cache aware router coverage (58 stmts, 0% target 75%)
+- [ ] 191-07-PLAN.md — Escalation manager coverage (98 stmts, 0% target 75%)
+- [ ] 191-08-PLAN.md — Episode segmentation service coverage (591 stmts, 0% target 70%)
+- [ ] 191-09-PLAN.md — Episode retrieval service coverage (320 stmts, 0% target 70%)
+- [ ] 191-10-PLAN.md — Episode lifecycle service coverage (174 stmts, 0% target 70%)
+- [ ] 191-11-PLAN.md — Workflow engine coverage (1,163 stmts, 0% target 60%)
+- [ ] 191-12-PLAN.md — Workflow analytics engine coverage (561 stmts, 0% target 65%)
+- [ ] 191-13-PLAN.md — Workflow template system coverage (350 stmts, 0% target 65%)
+- [ ] 191-14-PLAN.md — Atom meta agent coverage (422 stmts, 0% target 60%)
+- [ ] 191-15-PLAN.md — Agent social layer coverage (376 stmts, 0% target 70%)
+- [ ] 191-16-PLAN.md — Atom agent endpoints coverage (787 stmts, 0% target 65%)
+- [ ] 191-17-PLAN.md — Skill registry service coverage (370 stmts, 0% target 70%)
+- [ ] 191-18-PLAN.md — Skill composition engine coverage (132 stmts, 0% target 75%)
+- [ ] 191-19-PLAN.md — Agent world model coverage (317 stmts, 0% target 70%)
+- [ ] 191-20-PLAN.md — Policy fact extractor coverage (23 stmts, 0% target 75%)
+- [ ] 191-21-PLAN.md — Final verification and aggregate summary
 
 ## Progress
 
@@ -698,4 +722,5 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 187. Property-Based Testing (Comprehensive) | v5.5 | TBD | Pending | - |
 | 188. Coverage Gap Closure (Final Push) | v5.5 | TBD | Pending | - |
 | 189. Backend 80% Coverage Achievement | v5.5 | 5/5 | Complete | 2026-03-14 |
-| 190. Coverage Push to 31% (Top 30 Files) | v5.5 | 3/14 | Substantial Progress | 2026-03-14 |
+| 190. Coverage Push to 31% (Top 30 Files) | v5.5 | 13/13 | Substantial Progress | 2026-03-14 |
+| 191. Coverage Push to 60-70% | v5.5 | 0/21 | Planned | - |
