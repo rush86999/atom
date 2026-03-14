@@ -30,6 +30,7 @@ from core.atom_meta_agent import (
     get_atom_agent
 )
 from core.models import User, AgentStatus, Workspace, AgentTriggerMode
+from fastapi import HTTPException
 
 
 @pytest.fixture
@@ -223,9 +224,9 @@ class TestAtomMetaAgentExtended:
 
     @pytest.mark.parametrize("trigger_mode,expected_value", [
         (AgentTriggerMode.MANUAL, "manual"),
-        (AgentTriggerMode.AUTOMATIC, "automatic"),
+        (AgentTriggerMode.DATA_EVENT, "data_event"),
         (AgentTriggerMode.SCHEDULED, "scheduled"),
-        (AgentTriggerMode.WEBHOOK, "webhook"),
+        (AgentTriggerMode.WORKFLOW, "workflow"),
     ])
     def test_trigger_modes(self, trigger_mode, expected_value):
         """Cover AgentTriggerMode enum (line 182)"""
