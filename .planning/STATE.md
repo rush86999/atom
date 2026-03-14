@@ -1,13 +1,65 @@
 ## Current Position
 
 Phase: 191 of 191 (Coverage Push to 60-70%)
-Plan: 09 of 21 in current phase
+Plan: 08 of 21 in current phase
 Status: COMPLETE
-Last activity: 2026-03-14 — Phase 191 Plan 09 COMPLETE: WorkflowEngine Extended Coverage - BLOCKED by VALIDATED_BUG. Created 47 tests (1,112 lines) for workflow_engine.py but all skipped due to import error on line 30 (WorkflowStepExecution should be WorkflowExecutionLog). Same blocker identified in Phase 189 Plan 01. Coverage remains at 5% (79/1,163 statements). Tests ready to execute once bug is fixed.
+Last activity: 2026-03-14 — Phase 191 Plan 08 COMPLETE: EpisodeLifecycleService Coverage. Created test_episode_lifecycle_service_coverage.py (710 lines, 30 tests) achieving 85% line coverage (149/174 statements). Exceeded 70% target by 15%. Tested decay operations, episode consolidation with LanceDB semantic search, cold storage archival, importance score updates, batch access counts, lifecycle updates, and apply decay methods. All 30 tests passing (100% pass rate).
 
-Progress: [########--] 42.8% (9/21 plans in Phase 191)
+Progress: [########--] 38.1% (8/21 plans in Phase 191)
 
 ## Session Update: 2026-03-14
+
+**PHASE 191 PLAN 08 COMPLETE: EpisodeLifecycleService Coverage**
+
+**Tasks Completed:**
+- Created test_episode_lifecycle_service_coverage.py (710 lines, 30 tests)
+- Tests for service initialization (lines 25-27)
+- Tests for decay operations (basic, auto-archive, skip archived, empty results)
+- Tests for episode consolidation (basic flow, no episodes, already consolidated, LanceDB errors, metadata parsing, similarity filtering)
+- Tests for archival process (async and sync methods, error handling, not found)
+- Tests for importance score updates (success, not found, clamping to [0,1])
+- Tests for batch access count updates (multiple episodes, nonexistent handling)
+- Tests for lifecycle updates (success, missing started_at, auto-archive, error handling)
+- Tests for apply decay (single episode, list of episodes)
+- Tests for sync wrappers (agent object, agent ID string, error handling)
+
+**Coverage Achievement:**
+- Actual: 85% (149/174 statements)
+- Target: 70%+ (exceeded by 15%)
+- Branch coverage: 77% (40/52 branches, 12 partial)
+- Increase: From 0% to 85% (new test file)
+
+**Test Results:**
+- Total tests: 30 (30 passing, 0 failing)
+- Pass rate: 100% (30/30)
+- Duration: ~15 seconds
+
+**Key Features Tested:**
+- Decay operations with auto-archive (>180 days)
+- Episode consolidation using LanceDB semantic search
+- Cold storage archival (async and sync methods)
+- Importance score updates with clamping to [0, 1] range
+- Batch access count updates for multiple episodes
+- Lifecycle state updates with timezone-aware datetime handling
+- Apply decay calculation (single episode and list)
+- Sync-to-async bridge patterns in consolidate_episodes
+
+**Missing Coverage (15%, 25 lines):**
+- Lines 380-412: Complex asyncio event loop handling (get_event_loop, is_running, threading for async execution)
+- Line 301: Timezone-aware datetime edge case
+- Line 349: Edge case in apply_decay list processing
+
+**Deviations from Plan:**
+- Combined all 3 tasks into single commit for efficiency
+- Used pytest.approx for floating-point precision (Rule 1 - bug fix)
+- Patched asyncio at module level (Rule 1 - bug fix for patch targeting)
+
+**VALIDATED_BUGs:** None (all issues were test fixes)
+
+**Duration:** ~20 minutes
+**Commits:** 1 (8ffde10e9)
+
+---
 
 **PHASE 191 PLAN 09 COMPLETE: WorkflowEngine Extended Coverage - BLOCKED**
 
@@ -572,7 +624,7 @@ All 6 plans executed successfully:
 
 **Ready for Phase 188 Plan 05:** Additional coverage improvements
 
-**Stopped At:** Completed 191-01-PLAN.md: AgentGovernanceService coverage tests
+**Stopped At:** Completed 191-08-PLAN.md: EpisodeLifecycleService coverage tests (85% coverage, 30 tests)
 **Resume File:** None
 
 ---
@@ -1011,6 +1063,7 @@ Phase 185 COMPLETE: Fixed 1 flaky test, eliminated 448 datetime.utcnow() depreca
 | Phase 191 P01 | 523 | 62 tasks | 1 files |
 | Phase 191 P02 | 300 | 1 tasks | 1 files |
 | Phase 191 P09 | 1773514870 | 3 tasks | 2 files |
+| Phase 191-coverage-push-60-70 P08 | 1200 | 3 tasks | 1 files |
 
 ## Key Decisions
 
