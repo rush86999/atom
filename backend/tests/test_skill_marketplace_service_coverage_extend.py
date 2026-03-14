@@ -50,7 +50,7 @@ def sample_skills_extended(db_session: Session, default_tenant):
     # Skill with various metadata combinations for coverage
     skill1 = SkillExecution(
         agent_id="system",
-        tenant_id="default",  # Required field
+        tenant_id=default_tenant.id,  # Required field - use actual tenant UUID
         workspace_id="default",
         skill_id="community_extended_1",
         status="Active",
@@ -74,7 +74,7 @@ def sample_skills_extended(db_session: Session, default_tenant):
 
     skill2 = SkillExecution(
         agent_id="system",
-        tenant_id="default",
+        tenant_id=default_tenant.id,
         workspace_id="default",
         skill_id="community_extended_2",
         status="Active",
@@ -98,7 +98,7 @@ def sample_skills_extended(db_session: Session, default_tenant):
 
     skill3 = SkillExecution(
         agent_id="system",
-        tenant_id="default",
+        tenant_id=default_tenant.id,
         workspace_id="default",
         skill_id="community_extended_3",
         status="Active",
@@ -123,7 +123,7 @@ def sample_skills_extended(db_session: Session, default_tenant):
     # Skill with minimal metadata (testing defaults)
     skill4 = SkillExecution(
         agent_id="system",
-        tenant_id="default",
+        tenant_id=default_tenant.id,
         workspace_id="default",
         skill_id="community_minimal",
         status="Active",
@@ -139,7 +139,7 @@ def sample_skills_extended(db_session: Session, default_tenant):
     # Skill with empty input_params (testing None handling)
     skill5 = SkillExecution(
         agent_id="system",
-        tenant_id="default",
+        tenant_id=default_tenant.id,
         workspace_id="default",
         skill_id="community_empty_params",
         status="Active",
