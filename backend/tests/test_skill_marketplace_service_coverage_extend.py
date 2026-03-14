@@ -265,6 +265,7 @@ class TestSkillMarketplaceServiceExtended:
         # Create skill with underscored category
         skill = SkillExecution(
             agent_id="system",
+            tenant_id=default_tenant.id,
             workspace_id="default",
             skill_id="community_cat_display_test",
             status="Active",
@@ -434,6 +435,7 @@ class TestSkillMarketplaceServiceExtended:
         # Create skill with minimal input_params
         skill = SkillExecution(
             agent_id="system",
+            tenant_id=default_tenant.id,
             workspace_id="default",
             skill_id="community_minimal_dict_test",
             status="Active",
@@ -461,6 +463,7 @@ class TestSkillMarketplaceServiceExtended:
         """Cover _skill_to_dict with empty input_params"""
         skill = SkillExecution(
             agent_id="system",
+            tenant_id=default_tenant.id,
             workspace_id="default",
             skill_id="community_empty_dict_test",
             status="Active",
@@ -482,6 +485,7 @@ class TestSkillMarketplaceServiceExtended:
         """Cover _skill_to_dict with None input_params"""
         skill = SkillExecution(
             agent_id="system",
+            tenant_id=default_tenant.id,
             workspace_id="default",
             skill_id="community_none_dict_test",
             status="Active",
@@ -609,6 +613,7 @@ class TestSkillMarketplaceServiceExtended:
         # Create non-community skill
         skill = SkillExecution(
             agent_id="system",
+            tenant_id=default_tenant.id,
             workspace_id="default",
             skill_id="custom_skill_test",
             status="Active",
@@ -639,6 +644,7 @@ class TestSkillMarketplaceServiceExtended:
         # Create inactive skill
         skill = SkillExecution(
             agent_id="system",
+            tenant_id=default_tenant.id,
             workspace_id="default",
             skill_id="community_inactive_test",
             status="Inactive",  # Not Active
