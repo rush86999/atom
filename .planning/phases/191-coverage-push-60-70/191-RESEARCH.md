@@ -1,23 +1,27 @@
-# Phase 191: Coverage Push to 60-70% - Research
+# Phase 191: Coverage Push to 18-22% - Research
 
 **Researched:** 2026-03-14
+**Revised:** 2026-03-14 (goal corrected from 60-70% to 18-22% based on actual baseline)
 **Domain:** Test Coverage Analysis & Strategic Test Development
 **Confidence:** HIGH
 
 ## Summary
 
-Phase 191 aims to push overall backend coverage from ~31% (post-Phase 190) to 60-70%, representing a critical milestone in the 80% coverage achievement roadmap. Based on analysis from Phases 189-190, this phase requires a **systematic, high-impact approach** targeting the next tier of zero-coverage files while building upon proven testing patterns.
+Phase 191 aims to push overall backend coverage from 7.39% (actual baseline measured 2026-03-14) to 18-22% by achieving 75%+ coverage on 20 core zero-coverage files (7,105 statements). This phase represents the first major step in a multi-phase roadmap to reach 60%+ coverage.
 
-**Current baseline (post-Phase 190 expected):**
-- **Overall coverage:** ~31% (estimated from Phase 190 targeting top 30 zero-coverage files)
-- **Zero-coverage files:** ~170-180 remaining (from 354 baseline)
-- **Test infrastructure:** Mature (446 tests from Phase 189, proven patterns)
+**IMPORTANT REVISION (2026-03-14):** The original research document assumed a ~31% baseline from Phase 190. Actual coverage measurement shows 7.39% baseline. Consequently, the 60-70% goal is not achievable in a single phase. Phase 191 is now scoped to achieve 18-22% coverage, with subsequent phases continuing the push toward 60%+.
+
+**Current baseline (measured 2026-03-14):**
+- **Overall coverage:** 7.39% (5,111/55,372 statements covered)
+- **Zero-coverage files:** 354 files (48,261 uncovered statements)
+- **Test infrastructure:** Mature (proven patterns from Phases 189-190)
 - **Known blockers:** Import blockers resolved, async patterns established
 
-**Phase 191 targets:**
-- **Coverage goal:** 60-70% overall (+29-39% improvement from Phase 190)
-- **Tests needed:** ~2,200-2,600 tests (based on Phase 189 pace: 1 test ≈ 0.017% coverage)
-- **Plans estimated:** 20-25 plans (wave-based parallel execution)
+**Phase 191 targets (revised):**
+- **Coverage goal:** 18-22% overall (+10.6-14.6% improvement from 7.39% baseline)
+- **Target files:** 20 core zero-coverage files (7,105 statements total)
+- **Coverage approach:** 75% average coverage on target files = ~5,328 new statements covered
+- **Plans:** 21 plans (20 execution plans + 1 verification plan)
 - **Duration:** ~4-6 hours (based on Phase 189: 63 min for 446 tests)
 
 **Primary recommendation:** Use **wave-based execution** (3-4 waves) targeting files by **statement count priority**. Focus on **medium-complexity files** (200-500 statements) with **minimal async complexity** first, then tackle larger files. Reuse **proven patterns** from Phase 189: parametrized tests for matrix coverage, coverage-driven test naming, line-specific targeting, and mock-based testing for external dependencies.
@@ -595,20 +599,63 @@ def test_check_agent_permission_invalid_inputs(self, invalid_input, error_type):
 - **Web search rate-limited** - Unable to verify current pytest best practices beyond project documentation
 - **Industry standards** - General knowledge of pytest/coverage.py best practices, not verified with current sources
 
+## Coverage Math (Revised 2026-03-14)
+
+**Actual baseline (from coverage_actual.json):**
+- Total statements: 55,372
+- Currently covered: 5,111 (7.39%)
+- Uncovered: 50,261
+
+**Phase 191 target analysis:**
+| File | Statements | Current % | Target % | Gain |
+|------|-----------|-----------|----------|------|
+| agent_governance_service.py | 286 | 0% | 75% | +215 |
+| governance_cache.py | 278 | 0% | 80% | +222 |
+| agent_context_resolver.py | 95 | 0% | 75% | +71 |
+| byok_handler.py | 654 | 0% | 70% | +458 |
+| cognitive_tier_system.py | 50 | 0% | 95% | +48 |
+| cache_aware_router.py | 58 | 0% | 75% | +44 |
+| escalation_manager.py | 98 | 0% | 75% | +74 |
+| episode_segmentation_service.py | 591 | 0% | 70% | +414 |
+| episode_retrieval_service.py | 320 | 0% | 70% | +224 |
+| episode_lifecycle_service.py | 174 | 0% | 70% | +122 |
+| workflow_engine.py | 1,163 | 0% | 60% | +698 |
+| workflow_analytics_engine.py | 561 | 0% | 65% | +365 |
+| workflow_template_system.py | 350 | 0% | 65% | +228 |
+| atom_meta_agent.py | 422 | 0% | 60% | +253 |
+| agent_social_layer.py | 376 | 0% | 70% | +263 |
+| atom_agent_endpoints.py | 787 | 0% | 65% | +512 |
+| skill_registry_service.py | 370 | 0% | 70% | +259 |
+| skill_composition_engine.py | 132 | 0% | 75% | +99 |
+| agent_world_model.py | 317 | 0% | 70% | +222 |
+| policy_fact_extractor.py | 23 | 0% | 75% | +17 |
+| **TOTAL** | **7,105** | **0%** | **~72% avg** | **~5,328** |
+
+**Projected coverage after Phase 191:**
+- Additional covered: ~5,328 statements
+- New total covered: 10,439 / 55,372
+- Projected coverage: **18.85%**
+
+**To reach 60% coverage (future phases):**
+- Need: 33,223 / 55,372 statements covered
+- Gap: ~22,784 more statements from 18.85%
+- Estimated additional phases: 3-4 phases of similar scope
+
 ## Metadata
 
 **Confidence breakdown:**
 - Standard stack: HIGH - All versions verified in pytest.ini, proven in Phases 189-190
-- Architecture: HIGH - 446 tests from Phase 189, 1,332 tests planned for Phase 190, patterns proven
+- Architecture: HIGH - Proven patterns from Phases 189-190
 - Pitfalls: HIGH - 347 VALIDATED_BUGs from Phase 186, all pitfalls observed in project history
 - Code examples: HIGH - All examples from actual project test files, proven patterns
+- Coverage math: HIGH - Based on actual coverage_actual.json measurements
 
 **Research date:** 2026-03-14
+**Revised:** 2026-03-14 (goal corrected from 60-70% to 18-22%)
 **Valid until:** 2026-04-14 (30 days - stable domain, testing patterns evolve slowly)
-**Phase context:** Depends on Phase 190 completion (currently 3/14 plans complete)
 
-**Key assumptions:**
-- Phase 190 completes successfully, achieving ~31% overall coverage
-- Import blockers resolved (workflow_debugger models created)
-- Test infrastructure mature (pytest 9.0.2, pytest-cov 7.0.0, pytest-asyncio 1.3.0 stable)
-- 20-25 plans sufficient for 60-70% coverage (based on 1 test ≈ 0.017% coverage from Phase 189)
+**Key facts (verified):**
+- Actual baseline: 7.39% (5,111/55,372 statements) from coverage_actual.json
+- Phase 191 targets: 20 files = 7,105 statements
+- Projected coverage: 18.85% at 75% average target
+- Multi-phase approach required to reach 60%+
