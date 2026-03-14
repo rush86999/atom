@@ -140,3 +140,88 @@ def function_name(param1, param2):
         classifier = CognitiveClassifier()
         tokens = classifier._estimate_tokens(text)
         assert expected_range[0] <= tokens <= expected_range[1]
+
+
+class TestComplexityScoring:
+    """Test _calculate_complexity_score method (lines 176-221)."""
+
+    def test_complexity_simple_query(self):
+        """Cover lines 186-198: Simple queries get low complexity."""
+        classifier = CognitiveClassifier()
+
+        # Simple greetings
+        score = classifier._calculate_complexity_score("hi there")
+        assert score <= 3  # Should be low
+
+        score = classifier._calculate_complexity_score("hello, how are you?")
+        assert score <= 3
+
+    def test_complexity_moderate_query(self):
+        """Cover lines 200-207: Moderate analysis queries."""
+        classifier = CognitiveClassifier()
+
+        score = classifier._calculate_complexity_score("Analyze the data and explain the trends")
+        assert 1 <= score <= 5  # Moderate
+
+        score = classifier._calculate_complexity_score("Compare these two options in detail")
+        assert 1 <= score <= 5
+
+    def test_complexity_technical_query(self):
+        """Cover lines 208-214: Technical/mathematical queries."""
+        classifier = CognitiveClassifier()
+
+        score = classifier._calculate_complexity_score("Calculate the integral of x^2")
+        assert score >= 3  # Technical terms increase score
+
+        score = classifier._calculate_complexity_score("Solve the differential equation")
+        assert score >= 3
+
+    def test_complexity_code_query(self):
+        """Cover lines 215-221: Code-related queries."""
+        classifier = CognitiveClassifier()
+
+        score = classifier._calculate_complexity_score("Help me debug this Python function")
+        assert score >= 3  # Code keywords
+
+        score = classifier._calculate_complexity_score("Write a SQL query to join two tables")
+        assert score >= 3
+
+        score = classifier._calculate_complexity_score("Create a REST API endpoint")
+        assert score >= 3
+
+    def test_complexity_advanced_query(self):
+        """Test advanced/architecture queries get highest score."""
+        classifier = CognitiveClassifier()
+
+        score = classifier._calculate_complexity_score("Design a scalable microservices architecture")
+        assert score >= 5  # Advanced terms
+
+        score = classifier._calculate_complexity_score("Implement enterprise-grade security with OAuth")
+        assert score >= 5
+
+    def test_complexity_with_task_type(self):
+        """Cover lines 222+: Task type adjustments applied."""
+        classifier = CognitiveClassifier()
+
+        # Code task should increase score
+        base_score = classifier._calculate_complexity_score("summarize this")
+        code_score = classifier._calculate_complexity_score("summarize this", task_type="code")
+        assert code_score > base_score
+
+        # Chat task should decrease score
+        chat_score = classifier._calculate_complexity_score("explain this", task_type="chat")
+        base_score_no_task = classifier._calculate_complexity_score("explain this")
+        assert chat_score <= base_score_no_task
+
+    @pytest.mark.parametrize("pattern,expected_min_score", [
+        ("calculate the equation", 3),
+        ("debug the python code", 3),
+        ("design enterprise architecture", 5),
+        ("analyze the pros and cons", 1),
+        ("quick summary", -2),  # "summary" matches simple pattern with -2 weight
+    ])
+    def test_complexity_patterns(self, pattern, expected_min_score):
+        """Parametrized test for semantic patterns."""
+        classifier = CognitiveClassifier()
+        score = classifier._calculate_complexity_score(pattern)
+        assert score >= expected_min_score
