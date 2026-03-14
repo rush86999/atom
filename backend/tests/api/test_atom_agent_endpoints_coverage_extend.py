@@ -39,21 +39,21 @@ def client(app):
 class TestAtomAgentEndpointsExtended:
     """Extended coverage tests for atom_agent_endpoints.py"""
 
-    def test_chat_endpoint_success(self, client, mocker):
+    def test_chat_endpoint_success(self, client, monkeypatch):
         """Cover chat endpoint success path (lines 80-200)"""
         # Mock LLM handler
         mock_llm = AsyncMock()
         mock_llm.complete.return_value = "Hello! How can I help you?"
-        mocker.patch("core.atom_agent_endpoints.get_llm_handler", return_value=mock_llm)
+        monkeypatch.setattr("core.atom_agent_endpoints.get_llm_handler", lambda x: mock_llm)
 
         # Mock session manager
         mock_session_mgr = AsyncMock()
         mock_session_mgr.get_or_create_session.return_value = "test-session-123"
-        mocker.patch("core.atom_agent_endpoints.get_chat_session_manager", return_value=mock_session_mgr)
+        monkeypatch.setattr("core.atom_agent_endpoints.get_chat_session_manager", lambda x: mock_session_mgr)
 
         # Mock context manager
         mock_context_mgr = AsyncMock()
-        mocker.patch("core.atom_agent_endpoints.get_chat_context_manager", return_value=mock_context_mgr)
+        monkeypatch.setattr("core.atom_agent_endpoints.get_chat_context_manager", lambda x: mock_context_mgr)
 
         response = client.post(
             "/api/atom-agent/chat",
