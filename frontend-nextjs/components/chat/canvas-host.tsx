@@ -107,12 +107,12 @@ export function CanvasHost({ lastMessage }: CanvasHostProps) {
     if (!state || !state.visible) return null;
 
     return (
-        <div className="absolute top-4 right-4 bottom-4 w-[600px] bg-white dark:bg-[#0F172A] border shadow-2xl z-50 rounded-xl flex flex-col overflow-hidden ring-1 ring-zinc-200 dark:ring-white/10">
-            <div className="p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm">
+        <div className="flex flex-col h-full bg-white dark:bg-[#020617] relative animate-in fade-in duration-500 overflow-hidden">
+            <div className="p-3 border-b flex items-center justify-between bg-zinc-50 dark:bg-slate-900/50 backdrop-blur-sm shrink-0">
                 <div className="flex items-center gap-2">
                     <CanvasIcon component={state.component} />
                     <div className="flex flex-col">
-                        <h3 className="font-semibold text-sm truncate max-w-[250px] text-zinc-900 dark:text-zinc-100">
+                        <h3 className="font-semibold text-sm truncate max-w-[200px] text-zinc-900 dark:text-zinc-100">
                             {state.title || "Agent Artifact"}
                         </h3>
                         <div className="flex items-center gap-2">

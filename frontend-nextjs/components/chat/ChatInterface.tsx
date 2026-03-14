@@ -486,7 +486,8 @@ Shall I activate it now, or would you like to review the steps first?`,
                 isProcessing={isProcessing}
                 lastAgentMessage={messages.filter(m => m.type === 'assistant').pop()?.content || null}
             />
-            <CanvasHost lastMessage={lastMessage} />
+            {/* CanvasHost moved to AgentWorkspace for side-by-side experience */}
+            {/* <CanvasHost lastMessage={lastMessage} /> */}
             {/* Chat Header */}
             <div className="p-4 border-b border-border flex justify-between items-center bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
                 <div>

@@ -16,7 +16,7 @@ const ChatPage = () => {
         <div className="h-[calc(100vh-2rem)] w-full bg-background overflow-hidden rounded-lg border border-border shadow-sm">
             <ResizablePanelGroup direction="horizontal">
                 {/* Left Pane: Chat History */}
-                <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="bg-muted/30">
+                <ResizablePanel defaultSize={15} minSize={10} maxSize={25} className="bg-muted/30">
                     <ChatHistorySidebar
                         selectedSessionId={selectedSessionId}
                         onSelectSession={setSelectedSessionId}
@@ -37,7 +37,7 @@ const ChatPage = () => {
                 <ResizableHandle />
 
                 {/* Right Pane: Agent Workspace */}
-                <ResizablePanel defaultSize={40} minSize={30} className="bg-muted/10">
+                <ResizablePanel defaultSize={45} minSize={20} className="bg-muted/10">
                     <AgentWorkspace
                         sessionId={selectedSessionId}
                         initialAgentId={initialAgentId}
