@@ -1,402 +1,637 @@
 """
-Comprehensive coverage tests for workflow debugging service.
+Coverage-driven tests for workflow_debugger.py (0% -> 70%+ target)
 
-Target: 75%+ coverage on:
-- workflow_debugger.py (527 stmts)
+Import blocker fix: None - imports work correctly when executed from backend directory
+(application's expected working directory)
 
-Total: 527 statements → Target 395 covered statements (+0.84% overall)
-
-Created as part of Plan 190-13 - Wave 3 Coverage Push
-Import blockers fixed in Plan 190-01 enable full test coverage
+File: backend/core/workflow_debugger.py (527 statements)
+Target: 70%+ coverage (370+ statements)
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timedelta
-import uuid
+from unittest.mock import Mock, patch, MagicMock
+from sqlalchemy.orm import Session
 
-# Import database models created in Plan 190-01
-try:
-    from core.models import (
-        WorkflowBreakpoint,
-        DebugVariable,
-        ExecutionTrace,
-        WorkflowDebugSession
-    )
-    MODELS_AVAILABLE = True
-except ImportError:
-    MODELS_AVAILABLE = False
-
-# Try importing workflow debugger
-try:
-    from core.workflow_debugger import WorkflowDebugger
-    DEBUGGER_EXISTS = True
-except ImportError:
-    DEBUGGER_EXISTS = False
+from core.workflow_debugger import WorkflowDebugger
+from core.models import (
+    DebugVariable,
+    ExecutionTrace,
+    WorkflowBreakpoint,
+    WorkflowDebugSession,
+    WorkflowExecution,
+)
 
 
-class TestWorkflowDebuggerBreakpointCoverage:
-    """Coverage tests for workflow debugger breakpoint management"""
+class TestWorkflowDebuggerCoverage:
+    """Coverage-driven tests for workflow_debugger.py (0% -> 70%+ target)
 
-    @pytest.mark.skipif(not DEBUGGER_EXISTS, reason="Module not found")
-    def test_debugger_imports(self):
-        """Verify WorkflowDebugger can be imported"""
-        from core.workflow_debugger import WorkflowDebugger
-        assert WorkflowDebugger is not None
+    Import blocker fix: None - imports work correctly when executed from backend directory
+    (application's expected working directory)
+    """
 
-    @pytest.mark.skipif(not MODELS_AVAILABLE, reason="Models not available")
-    def test_models_available(self):
-        """Verify database models are available from Plan 190-01"""
-        from core.models import WorkflowBreakpoint, DebugVariable, ExecutionTrace, WorkflowDebugSession
-        assert WorkflowBreakpoint is not None
-        assert DebugVariable is not None
-        assert ExecutionTrace is not None
-        assert WorkflowDebugSession is not None
+    # ==================== Debug Session Management ====================
 
-    @pytest.mark.asyncio
-    async def test_create_breakpoint(self):
-        """Test creating a breakpoint"""
-        breakpoint_data = {
-            "step_id": "step-123",
-            "condition": None,
-            "enabled": True
+    def test_debugger_initialization(self, db_session):
+        """Cover lines 30-50: Debugger initialization"""
+        debugger = WorkflowDebugger(db_session)
+        assert debugger.db == db_session
+        assert debugger.expression_evaluator is not None
+
+    def test_create_debug_session_success(self, db_session):
+        """Cover lines 60-100: Debug session creation"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+            session_name="Test Debug Session",
+            stop_on_entry=True,
+            stop_on_exceptions=True,
+            stop_on_error=True,
+        )
+
+        assert session.id is not None
+        assert session.workflow_id == "wf-1"
+        assert session.user_id == "user-1"
+        assert session.session_name == "Test Debug Session"
+        assert session.status == "active"
+        assert session.current_step == 0
+        assert session.breakpoints == []
+        assert session.variables == {}
+        assert session.call_stack == []
+        assert session.stop_on_entry is True
+        assert session.stop_on_exceptions is True
+        assert session.stop_on_error is True
+
+    def test_create_debug_session_with_defaults(self, db_session):
+        """Cover lines 60-100: Debug session with default values"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-2",
+            user_id="user-2",
+        )
+
+        assert session.session_name.startswith("Debug ")
+        assert session.stop_on_entry is False
+        assert session.stop_on_exceptions is True  # Default
+        assert session.stop_on_error is True  # Default
+
+    def test_get_debug_session_found(self, db_session):
+        """Cover lines 100-120: Get debug session success"""
+        debugger = WorkflowDebugger(db_session)
+        created = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        retrieved = debugger.get_debug_session(created.id)
+        assert retrieved is not None
+        assert retrieved.id == created.id
+        assert retrieved.workflow_id == "wf-1"
+
+    def test_get_debug_session_not_found(self, db_session):
+        """Cover lines 100-120: Get debug session not found"""
+        debugger = WorkflowDebugger(db_session)
+        retrieved = debugger.get_debug_session("nonexistent-session-id")
+        assert retrieved is None
+
+    # ==================== Breakpoint Management ====================
+
+    def test_add_breakpoint_success(self, db_session):
+        """Cover lines 150-200: Add breakpoint success"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        bp = debugger.add_breakpoint(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-1",
+            condition="x > 5",
+        )
+
+        assert bp.id is not None
+        assert bp.workflow_id == "wf-1"
+        assert bp.node_id == "node-1"
+        assert bp.condition == "x > 5"
+        assert bp.enabled is True
+
+    def test_add_breakpoint_with_line_number(self, db_session):
+        """Cover lines 150-200: Add breakpoint with line number"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        bp = debugger.add_breakpoint(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-2",
+            line_number=42,
+            condition="result == 'success'",
+        )
+
+        assert bp.line_number == 42
+        assert bp.condition == "result == 'success'"
+
+    def test_add_breakpoint_hit_count(self, db_session):
+        """Cover lines 150-200: Add breakpoint with hit count"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        bp = debugger.add_breakpoint(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-3",
+            hit_count=5,
+        )
+
+        assert bp.hit_count == 0  # Initial hit count
+        assert bp.hit_condition == 5
+
+    def test_remove_breakpoint_success(self, db_session):
+        """Cover lines 200-250: Remove breakpoint success"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        bp = debugger.add_breakpoint(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-1",
+        )
+
+        removed = debugger.remove_breakpoint(bp.id)
+        assert removed is True
+
+        # Verify breakpoint is disabled
+        retrieved_bp = debugger.get_breakpoint(bp.id)
+        assert retrieved_bp.enabled is False
+
+    def test_remove_breakpoint_not_found(self, db_session):
+        """Cover lines 200-250: Remove breakpoint not found"""
+        debugger = WorkflowDebugger(db_session)
+        removed = debugger.remove_breakpoint("nonexistent-bp-id")
+        assert removed is False
+
+    def test_enable_disable_breakpoint(self, db_session):
+        """Cover lines 250-300: Enable/disable breakpoint"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        bp = debugger.add_breakpoint(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-1",
+        )
+
+        # Disable
+        debugger.set_breakpoint_enabled(bp.id, False)
+        retrieved = debugger.get_breakpoint(bp.id)
+        assert retrieved.enabled is False
+
+        # Enable
+        debugger.set_breakpoint_enabled(bp.id, True)
+        retrieved = debugger.get_breakpoint(bp.id)
+        assert retrieved.enabled is True
+
+    # ==================== State Machine Transitions ====================
+
+    @pytest.mark.parametrize("initial_state,action,expected_states", [
+        ("idle", "start", ["running", "paused"]),
+        ("running", "pause", ["paused"]),
+        ("paused", "continue", ["running"]),
+        ("paused", "step_over", ["paused", "running"]),
+        ("paused", "step_into", ["paused", "running"]),
+        ("paused", "stop", ["idle"]),
+        ("running", "stop", ["idle", "completed"]),
+    ])
+    def test_debugger_state_transitions(self, initial_state, action, expected_states, db_session):
+        """Cover lines 300-400: State machine transitions"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        # Set initial state
+        session.status = initial_state
+        db_session.commit()
+
+        # Execute action
+        result = debugger.execute_debug_action(session.id, action)
+
+        # Verify new state is in expected states
+        assert result.status in expected_states
+
+    def test_start_debugging_with_stop_on_entry(self, db_session):
+        """Cover lines 300-400: Start debugging with stop_on_entry"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+            stop_on_entry=True,
+        )
+
+        result = debugger.start_debugging(session.id, "exec-1")
+        assert result.status == "paused"  # Should pause on entry
+
+    def test_start_debugging_without_stop_on_entry(self, db_session):
+        """Cover lines 300-400: Start debugging without stop_on_entry"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+            stop_on_entry=False,
+        )
+
+        result = debugger.start_debugging(session.id, "exec-1")
+        assert result.status == "running"
+
+    # ==================== Variable Inspection ====================
+
+    def test_inspect_variables_empty(self, db_session):
+        """Cover lines 400-450: Variable inspection with no variables"""
+        debugger = WorkflowDebugger(db_session)
+        variables = debugger.inspect_variables(
+            session_id="session-1",
+            context={},
+        )
+
+        assert variables == {}
+
+    def test_inspect_variables_with_data(self, db_session):
+        """Cover lines 400-450: Variable inspection with data"""
+        debugger = WorkflowDebugger(db_session)
+        context = {
+            "x": 5,
+            "y": "hello",
+            "z": {"nested": True},
+            "list": [1, 2, 3],
         }
-        assert breakpoint_data["enabled"] is True
 
-    @pytest.mark.asyncio
-    async def test_create_conditional_breakpoint(self):
-        """Test creating conditional breakpoint"""
-        breakpoint_data = {
-            "step_id": "step-456",
-            "condition": "value > 100",
-            "enabled": True
-        }
-        assert breakpoint_data["condition"] == "value > 100"
+        variables = debugger.inspect_variables(
+            session_id="session-1",
+            context=context,
+        )
 
-    @pytest.mark.asyncio
-    async def test_enable_breakpoint(self):
-        """Test enabling a breakpoint"""
-        breakpoint = {"id": "bp-123", "enabled": False}
-        breakpoint["enabled"] = True
-        assert breakpoint["enabled"] is True
+        assert "x" in variables
+        assert variables["x"]["value"] == 5
+        assert variables["x"]["type"] == "int"
 
-    @pytest.mark.asyncio
-    async def test_disable_breakpoint(self):
-        """Test disabling a breakpoint"""
-        breakpoint = {"id": "bp-456", "enabled": True}
-        breakpoint["enabled"] = False
-        assert breakpoint["enabled"] is False
+        assert "y" in variables
+        assert variables["y"]["value"] == "hello"
+        assert variables["y"]["type"] == "str"
 
-    @pytest.mark.asyncio
-    async def test_list_breakpoints(self):
-        """Test listing all breakpoints"""
-        breakpoints = [
-            {"id": "bp-1", "step_id": "step-1"},
-            {"id": "bp-2", "step_id": "step-2"},
-            {"id": "bp-3", "step_id": "step-3"}
-        ]
-        assert len(breakpoints) == 3
+        assert "z" in variables
+        assert variables["z"]["value"]["nested"] is True
 
-    @pytest.mark.asyncio
-    async def test_delete_breakpoint(self):
-        """Test deleting a breakpoint"""
-        breakpoints = {"bp-123": {"step_id": "step-1"}}
-        del breakpoints["bp-123"]
-        assert "bp-123" not in breakpoints
+        assert "list" in variables
+        assert variables["list"]["value"] == [1, 2, 3]
 
-    @pytest.mark.asyncio
-    async def test_evaluate_breakpoint_condition(self):
-        """Test evaluating breakpoint condition"""
-        condition = "value > 100"
-        variables = {"value": 150}
-        result = eval(condition, {}, variables)
-        assert result is True
+    def test_update_variable_value(self, db_session):
+        """Cover lines 400-450: Update variable value"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
-    @pytest.mark.asyncio
-    async def test_breakpoint_hit_count(self):
-        """Test breakpoint hit counting"""
-        breakpoint = {"id": "bp-123", "hit_count": 0}
-        breakpoint["hit_count"] += 1
-        assert breakpoint["hit_count"] == 1
+        # Add variable to session
+        session.variables = {"x": 5, "y": 10}
+        db_session.commit()
 
-    @pytest.mark.asyncio
-    async def test_breakpoint_ignore_count(self):
-        """Test breakpoint ignore count"""
-        breakpoint = {"id": "bp-123", "ignore_count": 3}
-        # After 3 hits, should break
-        current_hit = 4
-        should_break = current_hit > breakpoint["ignore_count"]
-        assert should_break is True
+        # Update variable
+        updated = debugger.update_variable(
+            session_id=session.id,
+            variable_name="x",
+            new_value=20,
+        )
 
+        assert updated is True
+        assert session.variables["x"] == 20
 
-class TestWorkflowDebuggerExecutionTraceCoverage:
-    """Coverage tests for workflow debugger execution tracing"""
+    def test_update_variable_not_found(self, db_session):
+        """Cover lines 400-450: Update non-existent variable"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
-    @pytest.mark.asyncio
-    async def test_start_execution_trace(self):
-        """Test starting execution trace"""
-        trace = {
-            "execution_id": str(uuid.uuid4()),
-            "workflow_id": "workflow-123",
-            "started_at": datetime.now(),
-            "status": "running"
-        }
-        assert trace["status"] == "running"
+        updated = debugger.update_variable(
+            session_id=session.id,
+            variable_name="nonexistent",
+            new_value=20,
+        )
 
-    @pytest.mark.asyncio
-    async def test_record_variable(self):
-        """Test recording debug variable"""
-        variable = {
-            "id": str(uuid.uuid4()),
-            "name": "counter",
-            "value": 10,
-            "type": "integer",
-            "timestamp": datetime.now()
-        }
-        assert variable["value"] == 10
+        assert updated is False
 
-    @pytest.mark.asyncio
-    async def test_capture_stack_trace(self):
-        """Test capturing stack trace"""
-        stack_trace = {
-            "frames": [
-                {"function": "main", "line": 10},
-                {"function": "process", "line": 25},
-                {"function": "calculate", "line": 50}
-            ]
-        }
-        assert len(stack_trace["frames"]) == 3
+    # ==================== Watch Expressions ====================
 
-    @pytest.mark.asyncio
-    async def test_record_error(self):
-        """Test recording execution error"""
-        error = {
-            "type": "ValueError",
-            "message": "Invalid value",
-            "stack_trace": "line 1\nline 2",
-            "timestamp": datetime.now()
-        }
-        assert error["type"] == "ValueError"
+    def test_add_watch_expression(self, db_session):
+        """Cover lines 450-500: Add watch expression"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
-    @pytest.mark.asyncio
-    async def test_stop_execution_trace(self):
-        """Test stopping execution trace"""
-        trace = {
-            "execution_id": "exec-123",
-            "status": "running",
-            "stopped_at": None
-        }
-        trace["status"] = "completed"
-        trace["stopped_at"] = datetime.now()
-        assert trace["status"] == "completed"
+        watch = debugger.add_watch_expression(
+            session_id=session.id,
+            expression="x + y",
+        )
 
-    @pytest.mark.asyncio
-    async def test_get_trace_summary(self):
-        """Test getting trace summary"""
-        trace = {
-            "execution_id": "exec-123",
-            "duration_seconds": 5.2,
-            "steps_completed": 10,
-            "variables_captured": 25,
-            "errors_count": 1
-        }
-        assert trace["duration_seconds"] == 5.2
+        assert "x + y" in session.watch_expressions
 
-    @pytest.mark.asyncio
-    async def test_filter_traces_by_workflow(self):
-        """Test filtering traces by workflow ID"""
-        traces = [
-            {"execution_id": "exec-1", "workflow_id": "wf-1"},
-            {"execution_id": "exec-2", "workflow_id": "wf-2"},
-            {"execution_id": "exec-3", "workflow_id": "wf-1"}
-        ]
-        wf1_traces = [t for t in traces if t["workflow_id"] == "wf-1"]
-        assert len(wf1_traces) == 2
+    def test_evaluate_watch_expression(self, db_session):
+        """Cover lines 450-500: Evaluate watch expression"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
+        session.watch_expressions = ["x + y"]
+        session.variables = {"x": 5, "y": 10}
+        db_session.commit()
 
-class TestWorkflowDebuggerSessionCoverage:
-    """Coverage tests for workflow debugger session management"""
+        results = debugger.evaluate_watch_expressions(session.id)
 
-    @pytest.mark.asyncio
-    async def test_create_debug_session(self):
-        """Test creating debug session"""
-        session = {
-            "session_id": str(uuid.uuid4()),
-            "workflow_id": "workflow-123",
-            "created_at": datetime.now(),
-            "status": "active"
-        }
-        assert session["status"] == "active"
+        assert "x + y" in results
+        assert results["x + y"]["value"] == 15
+        assert results["x + y"]["error"] is None
 
-    @pytest.mark.asyncio
-    async def test_attach_to_execution(self):
-        """Test attaching to running execution"""
-        attachment = {
-            "session_id": "session-123",
-            "execution_id": "exec-456",
-            "attached_at": datetime.now()
-        }
-        assert "execution_id" in attachment
+    def test_evaluate_watch_expression_error(self, db_session):
+        """Cover lines 450-500: Evaluate watch expression with error"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
-    @pytest.mark.asyncio
-    async def test_detach_from_execution(self):
-        """Test detaching from execution"""
-        attachment = {
-            "session_id": "session-123",
-            "execution_id": "exec-456",
-            "detached_at": None
-        }
-        attachment["detached_at"] = datetime.now()
-        assert attachment["detached_at"] is not None
+        session.watch_expressions = ["undefined_var + 5"]
+        session.variables = {}
+        db_session.commit()
 
-    @pytest.mark.asyncio
-    async def test_pause_execution(self):
-        """Test pausing execution"""
-        execution = {
-            "execution_id": "exec-123",
-            "status": "running"
-        }
-        execution["status"] = "paused"
-        assert execution["status"] == "paused"
+        results = debugger.evaluate_watch_expressions(session.id)
 
-    @pytest.mark.asyncio
-    async def test_resume_execution(self):
-        """Test resuming execution"""
-        execution = {
-            "execution_id": "exec-123",
-            "status": "paused"
-        }
-        execution["status"] = "running"
-        assert execution["status"] == "running"
+        assert "undefined_var + 5" in results
+        assert results["undefined_var + 5"]["error"] is not None
+        assert "undefined_var" in results["undefined_var + 5"]["error"]
 
-    @pytest.mark.asyncio
-    async def test_step_over(self):
-        """Test stepping over"""
-        state = {
-            "current_step": 5,
-            "action": "step_over"
-        }
-        state["current_step"] += 1
-        assert state["current_step"] == 6
+    # ==================== Call Stack Management ====================
 
-    @pytest.mark.asyncio
-    async def test_step_into(self):
-        """Test stepping into function"""
-        state = {
-            "current_step": 5,
-            "call_stack": ["main", "process"],
-            "action": "step_into"
-        }
-        state["call_stack"].append("calculate")
-        assert len(state["call_stack"]) == 3
+    def test_call_stack_empty(self, db_session):
+        """Cover lines 500-550: Call stack empty on start"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
-    @pytest.mark.asyncio
-    async def test_step_out(self):
-        """Test stepping out of function"""
-        state = {
-            "current_step": 10,
-            "call_stack": ["main", "process", "calculate"],
-            "action": "step_out"
-        }
-        state["call_stack"].pop()
-        assert len(state["call_stack"]) == 2
+        stack = debugger.get_call_stack(session.id)
+        assert stack == []
 
-    @pytest.mark.asyncio
-    async def test_inspect_variables(self):
-        """Test inspecting variables at breakpoint"""
-        variables = {
-            "counter": 10,
-            "total": 100.5,
-            "name": "test",
-            "enabled": True
-        }
-        assert variables["counter"] == 10
+    def test_call_stack_push_frame(self, db_session):
+        """Cover lines 500-550: Push frame to call stack"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
-    @pytest.mark.asyncio
-    async def test_modify_variable(self):
-        """Test modifying variable value"""
-        variables = {"counter": 10}
-        variables["counter"] = 20
-        assert variables["counter"] == 20
+        debugger.push_call_frame(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-1",
+            function_name="process_data",
+        )
 
-    @pytest.mark.asyncio
-    async def test_get_call_stack(self):
-        """Test getting call stack"""
-        call_stack = [
-            {"function": "main", "line": 10, "file": "main.py"},
-            {"function": "process", "line": 25, "file": "process.py"},
-            {"function": "calculate", "line": 50, "file": "calc.py"}
-        ]
-        assert len(call_stack) == 3
+        stack = debugger.get_call_stack(session.id)
+        assert len(stack) == 1
+        assert stack[0]["workflow_id"] == "wf-1"
+        assert stack[0]["node_id"] == "node-1"
+        assert stack[0]["function_name"] == "process_data"
 
-    @pytest.mark.asyncio
-    async def test_close_debug_session(self):
-        """Test closing debug session"""
-        session = {
-            "session_id": "session-123",
-            "status": "active",
-            "closed_at": None
-        }
-        session["status"] = "closed"
-        session["closed_at"] = datetime.now()
-        assert session["status"] == "closed"
+    def test_call_stack_pop_frame(self, db_session):
+        """Cover lines 500-550: Pop frame from call stack"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
+        # Push two frames
+        debugger.push_call_frame(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-1",
+            function_name="outer",
+        )
+        debugger.push_call_frame(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-2",
+            function_name="inner",
+        )
 
-class TestWorkflowDebuggerIntegration:
-    """Integration tests for workflow debugger"""
+        # Pop one frame
+        popped = debugger.pop_call_frame(session.id)
+        assert popped["function_name"] == "inner"
 
-    @pytest.mark.asyncio
-    async def test_breakpoint_with_tracing(self):
-        """Test breakpoint triggering execution trace"""
-        breakpoint = {"step_id": "step-10", "enabled": True}
-        execution = {"current_step": "step-10", "tracing": False}
-        if execution["current_step"] == breakpoint["step_id"]:
-            execution["tracing"] = True
-        assert execution["tracing"] is True
+        stack = debugger.get_call_stack(session.id)
+        assert len(stack) == 1
+        assert stack[0]["function_name"] == "outer"
 
-    @pytest.mark.asyncio
-    async def test_debug_session_with_breakpoints(self):
-        """Test debug session managing multiple breakpoints"""
-        session = {
-            "session_id": "session-123",
-            "breakpoints": [
-                {"id": "bp-1", "step_id": "step-1"},
-                {"id": "bp-2", "step_id": "step-5"}
-            ]
-        }
-        assert len(session["breakpoints"]) == 2
+    # ==================== Execution Trace ====================
 
-    @pytest.mark.asyncio
-    async def test_execution_replay(self):
-        """Test replaying execution from trace"""
-        trace = {
-            "steps": [
-                {"step": 1, "action": "init"},
-                {"step": 2, "action": "process"},
-                {"step": 3, "action": "complete"}
-            ]
-        }
-        replay_step = trace["steps"][1]
-        assert replay_step["action"] == "process"
+    def test_record_execution_trace(self, db_session):
+        """Cover lines 550-600: Record execution trace"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
 
-    @pytest.mark.asyncio
-    async def test_conditional_breakpoint_with_variables(self):
-        """Test conditional breakpoint evaluating variables"""
-        breakpoint = {"condition": "counter > 5"}
-        variables = {"counter": 10}
-        condition_met = eval(breakpoint["condition"], {}, variables)
-        assert condition_met is True
+        trace = debugger.record_trace(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-1",
+            event_type="step",
+            data={"result": "success"},
+        )
 
-    @pytest.mark.asyncio
-    async def test_debug_session_persistence(self):
-        """Test debug session state persistence"""
-        session = {
-            "session_id": "session-123",
-            "state": {
-                "breakpoints": [],
-                "current_step": 5,
-                "variables": {}
-            }
-        }
-        saved_state = session["state"].copy()
-        assert saved_state["current_step"] == 5
+        assert trace.id is not None
+        assert trace.session_id == session.id
+        assert trace.workflow_id == "wf-1"
+        assert trace.node_id == "node-1"
+        assert trace.event_type == "step"
+        assert trace.data == {"result": "success"}
+
+    def test_get_execution_traces(self, db_session):
+        """Cover lines 550-600: Get execution traces"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        # Record multiple traces
+        debugger.record_trace(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-1",
+            event_type="step",
+        )
+        debugger.record_trace(
+            session_id=session.id,
+            workflow_id="wf-1",
+            node_id="node-2",
+            event_type="breakpoint",
+        )
+
+        traces = debugger.get_execution_traces(session.id)
+        assert len(traces) == 2
+        assert traces[0].event_type == "step"
+        assert traces[1].event_type == "breakpoint"
+
+    # ==================== Debug Session Lifecycle ====================
+
+    def test_pause_debugging(self, db_session):
+        """Cover lines 600-650: Pause debugging"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        session.status = "running"
+        db_session.commit()
+
+        result = debugger.pause_debugging(session.id)
+        assert result.status == "paused"
+
+    def test_resume_debugging(self, db_session):
+        """Cover lines 600-650: Resume debugging"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        session.status = "paused"
+        db_session.commit()
+
+        result = debugger.resume_debugging(session.id)
+        assert result.status == "running"
+
+    def test_stop_debugging(self, db_session):
+        """Cover lines 600-650: Stop debugging"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        session.status = "running"
+        db_session.commit()
+
+        result = debugger.stop_debugging(session.id)
+        assert result.status == "idle"
+        assert result.ended_at is not None
+
+    def test_delete_debug_session(self, db_session):
+        """Cover lines 600-650: Delete debug session"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        deleted = debugger.delete_debug_session(session.id)
+        assert deleted is True
+
+        # Verify session is deleted
+        retrieved = debugger.get_debug_session(session.id)
+        assert retrieved is None
+
+    # ==================== Error Handling ====================
+
+    def test_create_debug_session_error_handling(self, db_session):
+        """Cover lines 90-100: Error handling in session creation"""
+        debugger = WorkflowDebugger(db_session)
+
+        # Force an error by passing invalid data
+        with patch.object(db_session, 'commit', side_effect=Exception("Database error")):
+            with pytest.raises(Exception) as exc_info:
+                debugger.create_debug_session(
+                    workflow_id="wf-1",
+                    user_id="user-1",
+                )
+
+            assert "Database error" in str(exc_info.value)
+
+    @pytest.mark.parametrize("invalid_breakpoint,expected_error", [
+        ({"node_id": ""}, ValueError),  # Empty node_id
+        ({"workflow_id": None}, TypeError),  # None workflow_id
+    ])
+    def test_add_breakpoint_validation(self, invalid_breakpoint, expected_error, db_session):
+        """Cover lines 150-200: Breakpoint validation"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        with pytest.raises(expected_error):
+            debugger.add_breakpoint(
+                session_id=session.id,
+                workflow_id=invalid_breakpoint.get("workflow_id", "wf-1"),
+                node_id=invalid_breakpoint.get("node_id", "node-1"),
+            )
+
+    # ==================== Performance Profiling ====================
+
+    def test_start_profiling(self, db_session):
+        """Cover lines 650-700: Start performance profiling"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        result = debugger.start_profiling(session.id)
+        assert result.profiling_enabled is True
+        assert result.profiling_started_at is not None
+
+    def test_stop_profiling(self, db_session):
+        """Cover lines 650-700: Stop performance profiling"""
+        debugger = WorkflowDebugger(db_session)
+        session = debugger.create_debug_session(
+            workflow_id="wf-1",
+            user_id="user-1",
+        )
+
+        debugger.start_profiling(session.id)
+
+        # Simulate some execution time
+        import time
+        time.sleep(0.01)
+
+        result = debugger.stop_profiling(session.id)
+        assert result.profiling_enabled is False
+        assert result.profiling_ended_at is not None
+        assert result.profiling_duration_ms > 0
+
