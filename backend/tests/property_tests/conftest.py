@@ -196,8 +196,9 @@ from core.models import (
     TriggerSource,
     User,
     WorkflowExecution,
-    ActiveToken,
-    RevokedToken
+    LinkToken,
+    OAuthToken,
+    PasswordResetToken
 )
 
 
