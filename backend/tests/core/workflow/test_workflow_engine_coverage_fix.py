@@ -367,7 +367,8 @@ class TestWorkflowEngineCoverageFix:
         """Cover schema validation with valid output"""
         engine = WorkflowEngine()
         step = {
-            "schema": {
+            "id": "step1",
+            "output_schema": {
                 "type": "object",
                 "properties": {
                     "status": {"type": "string"},
@@ -383,11 +384,12 @@ class TestWorkflowEngineCoverageFix:
 
     def test_validate_output_schema_invalid_type(self):
         """Cover schema validation with invalid type"""
-        from jsonschema import ValidationError
+        from core.workflow_engine import SchemaValidationError
 
         engine = WorkflowEngine()
         step = {
-            "schema": {
+            "id": "step1",
+            "output_schema": {
                 "type": "object",
                 "properties": {
                     "status": {"type": "string"}
@@ -397,16 +399,17 @@ class TestWorkflowEngineCoverageFix:
         }
         output = {"status": 123}  # Wrong type
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(SchemaValidationError):
             engine._validate_output_schema(step, output)
 
     def test_validate_output_schema_missing_required(self):
         """Cover schema validation missing required field"""
-        from jsonschema import ValidationError
+        from core.workflow_engine import SchemaValidationError
 
         engine = WorkflowEngine()
         step = {
-            "schema": {
+            "id": "step1",
+            "output_schema": {
                 "type": "object",
                 "properties": {
                     "status": {"type": "string"}
@@ -416,13 +419,13 @@ class TestWorkflowEngineCoverageFix:
         }
         output = {"other": "value"}  # Missing required field
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(SchemaValidationError):
             engine._validate_output_schema(step, output)
 
     def test_validate_output_schema_no_schema(self):
         """Cover schema validation when no schema defined"""
         engine = WorkflowEngine()
-        step = {}  # No schema
+        step = {"id": "step1"}  # No schema
         output = {"any": "data"}
 
         # Should not raise when no schema
