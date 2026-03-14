@@ -236,6 +236,90 @@ class AgentGovernanceService:
         self.db.refresh(agent)
         return agent
 
+    def pause_agent(self, agent_id: str) -> AgentRegistry:
+        """Pause an agent's execution."""
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            raise handle_not_found("Agent", agent_id)
+        
+        agent.status = AgentStatus.PAUSED.value
+        self.db.commit()
+        self.db.refresh(agent)
+        
+        # Invalidate cache
+        cache = get_governance_cache()
+        cache.invalidate(agent_id)
+        
+        logger.info(f"Agent {agent_id} paused")
+        return agent
+
+    def resume_agent(self, agent_id: str) -> AgentRegistry:
+        """Resume a paused agent, recalculating maturity based on confidence."""
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            raise handle_not_found("Agent", agent_id)
+        
+        if agent.status != AgentStatus.PAUSED.value:
+            return agent
+            
+        # Re-calculate status from confidence score
+        score = agent.confidence_score or 0.0
+        if score >= 0.9:
+            agent.status = AgentStatus.AUTONOMOUS.value
+        elif score >= 0.7:
+            agent.status = AgentStatus.SUPERVISED.value
+        elif score >= 0.5:
+            agent.status = AgentStatus.INTERN.value
+        else:
+            agent.status = AgentStatus.STUDENT.value
+            
+        self.db.commit()
+        self.db.refresh(agent)
+        
+        # Invalidate cache
+        cache = get_governance_cache()
+        cache.invalidate(agent_id)
+        
+        logger.info(f"Agent {agent_id} resumed as {agent.status}")
+        return agent
+
+    def stop_agent(self, agent_id: str) -> AgentRegistry:
+        """Stop an agent permanently (until manually re-activated)."""
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            raise handle_not_found("Agent", agent_id)
+            
+        agent.status = AgentStatus.STOPPED.value
+        self.db.commit()
+        self.db.refresh(agent)
+        
+        # Invalidate cache
+        cache = get_governance_cache()
+        cache.invalidate(agent_id)
+        
+        logger.info(f"Agent {agent_id} stopped")
+        return agent
+
+    def delete_agent(self, agent_id: str, permanent: bool = False) -> bool:
+        """Delete an agent registry entry (soft delete by default)."""
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            raise handle_not_found("Agent", agent_id)
+            
+        if permanent:
+            self.db.delete(agent)
+        else:
+            agent.status = AgentStatus.DELETED.value
+            
+        self.db.commit()
+        
+        # Invalidate cache
+        cache = get_governance_cache()
+        cache.invalidate(agent_id)
+        
+        logger.info(f"Agent {agent_id} {'permanently ' if permanent else ''}deleted")
+        return True
+
     def list_agents(self, category: Optional[str] = None) -> List[AgentRegistry]:
         """List registered agents"""
         query = self.db.query(AgentRegistry)
@@ -343,6 +427,15 @@ class AgentGovernanceService:
             return {
                 "allowed": False,
                 "reason": "Agent not found",
+                "requires_human_approval": True
+            }
+
+        # CHECK FOR INACTIVE STATES
+        if agent.status in [AgentStatus.PAUSED.value, AgentStatus.STOPPED.value, AgentStatus.DEPRECATED.value, AgentStatus.DELETED.value]:
+            return {
+                "allowed": False,
+                "reason": f"Agent {agent.name} is {agent.status} and cannot perform actions.",
+                "agent_status": agent.status,
                 "requires_human_approval": True
             }
 

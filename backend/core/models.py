@@ -1199,7 +1199,9 @@ class AgentStatus(str, enum.Enum):
     SUPERVISED = "supervised" # Operational but monitored
     AUTONOMOUS = "autonomous" # Fully trusted
     PAUSED = "paused"
+    STOPPED = "stopped"
     DEPRECATED = "deprecated"
+    DELETED = "deleted"
 
 class AgentTriggerMode(str, enum.Enum):
     """How an agent can be triggered"""
@@ -1272,6 +1274,7 @@ class AgentRegistry(Base):
     self_healed_count = Column(Integer, default=0)  # Track self-healing recovery
     is_system_agent = Column(Boolean, default=False)  # System agents can use workspace tokens
     enabled = Column(Boolean, default=True)  # Whether agent is available for supervision tasks
+    diversity_profile = Column(JSON, default={})  # Strategy traits (e.g., risk_profile, focus)
 
     version = Column(String, default="1.0.0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -3282,6 +3285,39 @@ class AgentHandoff(Base):
     to_agent = relationship("AgentRegistry", foreign_keys=[to_agent_id], backref="received_handoffs")
     canvas = relationship("Canvas", back_populates="handoffs")
     tenant = relationship("Tenant", backref="agent_handoffs")
+
+
+class CoordinatedStrategy(Base):
+    """A strategic plan formed by multiple specialty agents."""
+    __tablename__ = "coordinated_strategies"
+
+    id = Column(String, primary_key=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    objective = Column(Text, nullable=False)
+    status = Column(String, default="draft")  # draft, negotiating, approved, executed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    contributions = relationship("StrategyContribution", back_populates="strategy", cascade="all, delete-orphan")
+
+
+class StrategyContribution(Base):
+    """A specific contribution or critique from a specialty agent in a strategy."""
+    __tablename__ = "strategy_contributions"
+
+    id = Column(String, primary_key=True)
+    strategy_id = Column(String, ForeignKey("coordinated_strategies.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    specialty = Column(String, nullable=False)
+    content = Column(JSON, nullable=False)  # The actual strategic input
+    status = Column(String, default="proposed")  # proposed, debated, final
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    strategy = relationship("CoordinatedStrategy", back_populates="contributions")
+    agent = relationship("AgentRegistry")
 
 class Workflow(Base):
     """Core workflow definition model."""
@@ -5761,6 +5797,18 @@ class AgentProposal(Base):
         {'extend_existing': True},
     )
 
+
+    @property
+    def proposed_action(self):
+        """Helper to access action data from proposal_data"""
+        if self.proposal_type == 'action':
+            return self.proposal_data
+        return {}
+
+    @property
+    def reasoning(self):
+        """Helper to access reasoning from proposal_data"""
+        return self.proposal_data.get('reasoning', '')
 
     def __repr__(self):
         return f"<AgentProposal(id={self.id}, agent_id={self.agent_id}, status={self.status})>"

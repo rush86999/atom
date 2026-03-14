@@ -374,3 +374,22 @@ class AgentLearningEnhanced:
         )
 
         return new_confidence
+
+    def update_diversity_profile(self, agent_id: str, feedback_signals: Dict[str, Any]):
+        """Update agent diversity profile based on feedback signals."""
+        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        if not agent:
+            return
+        
+        profile = agent.diversity_profile or {}
+        
+        # Adjust risk profile based on behavior patterns
+        if feedback_signals.get("positive_ratio", 0.5) > 0.8:
+            profile["risk_profile"] = "aggressive"
+        elif feedback_signals.get("positive_ratio", 0.5) < 0.3:
+            profile["risk_profile"] = "conservative"
+        else:
+            profile["risk_profile"] = "balanced"
+            
+        agent.diversity_profile = profile
+        self.db.commit()
