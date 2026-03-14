@@ -27,7 +27,7 @@ from core.exceptions import (
     ValidationError as AtomValidationError,
 )
 from core.execution_state_manager import ExecutionStateManager, get_state_manager
-from core.models import IntegrationCatalog, WorkflowStepExecution
+from core.models import IntegrationCatalog, WorkflowExecutionLog
 from core.token_storage import token_storage
 from core.websockets import get_connection_manager
 
@@ -557,16 +557,16 @@ class WorkflowEngine:
                 # Create step execution record
                 with get_db_session() as db:
                     try:
-                        step_exec = WorkflowStepExecution(
+                        step_exec = WorkflowExecutionLog(
                             execution_id=execution_id,
                             workflow_id=workflow.get("id", "unknown"),
                             step_id=step["id"],
-                            step_name=step.get("name", step["id"]),
                             step_type=step.get("type", "action"),
-                            sequence_order=step.get("sequence_order", 0),
+                            start_time=datetime.utcnow(),
+                            end_time=datetime.utcnow(),
+                            duration_ms=0,
                             status="running",
-                            started_at=datetime.utcnow(),
-                            input_data=resolved_params
+                            trigger_data=resolved_params
                         )
                         db.add(step_exec)
                         db.commit()
@@ -582,15 +582,16 @@ class WorkflowEngine:
                     # Update step execution record
                     with get_db_session() as db:
                         try:
-                            step_exec = db.query(WorkflowStepExecution).filter(
-                                WorkflowStepExecution.execution_id == execution_id,
-                                WorkflowStepExecution.step_id == step_id
+                            step_exec = db.query(WorkflowExecutionLog).filter(
+                                WorkflowExecutionLog.execution_id == execution_id,
+                                WorkflowExecutionLog.step_id == step_id
                             ).first()
                             if step_exec:
+                                end_time = datetime.utcnow()
                                 step_exec.status = "completed"
-                                step_exec.completed_at = datetime.utcnow()
-                                step_exec.duration_ms = int((datetime.utcnow() - step_exec.started_at).total_seconds() * 1000)
-                                step_exec.output_data = output
+                                step_exec.end_time = end_time
+                                step_exec.duration_ms = int((end_time - step_exec.start_time).total_seconds() * 1000)
+                                step_exec.results = output
                                 db.commit()
                         except Exception as e:
                             logger.error(f"Failed to update step execution record: {e}")
