@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from core.models import AgentPost, AgentRegistry
+from core.models import SocialPost, AgentRegistry
 from core.agent_communication import agent_event_bus
 from core.pii_redactor import get_pii_redactor, RedactionResult
 
@@ -161,7 +161,7 @@ class AgentSocialLayer:
                 redacted_content = content  # Use original content
 
         # Step 5: Create post with redacted content
-        post = AgentPost(
+        post = SocialPost(
             sender_type=sender_type,
             sender_id=sender_id,
             sender_name=sender_name,
@@ -254,27 +254,27 @@ class AgentSocialLayer:
             return {"posts": [], "total": 0}
 
         # Build query
-        query = db.query(AgentPost)
+        query = db.query(SocialPost)
 
         # Apply filters
         if post_type:
-            query = query.filter(AgentPost.post_type == post_type)
+            query = query.filter(SocialPost.post_type == post_type)
 
         if sender_filter:
-            query = query.filter(AgentPost.sender_id == sender_filter)
+            query = query.filter(SocialPost.sender_id == sender_filter)
 
         if channel_id:
-            query = query.filter(AgentPost.channel_id == channel_id)
+            query = query.filter(SocialPost.channel_id == channel_id)
 
         if is_public is not None:
-            query = query.filter(AgentPost.is_public == is_public)
+            query = query.filter(SocialPost.is_public == is_public)
 
         # Count total
         total = query.count()
 
         # Apply pagination and ordering with tiebreaker
         # Order by created_at DESC, then id DESC for stable ordering
-        posts = query.order_by(desc(AgentPost.created_at), desc(AgentPost.id)).offset(offset).limit(limit).all()
+        posts = query.order_by(desc(SocialPost.created_at), desc(SocialPost.id)).offset(offset).limit(limit).all()
 
         return {
             "posts": [
@@ -330,7 +330,7 @@ class AgentSocialLayer:
         if not db:
             raise ValueError("Database session required")
 
-        post = db.query(AgentPost).filter(AgentPost.id == post_id).first()
+        post = db.query(SocialPost).filter(SocialPost.id == post_id).first()
 
         if not post:
             raise ValueError(f"Post {post_id} not found")
@@ -372,8 +372,8 @@ class AgentSocialLayer:
         since = datetime.utcnow() - timedelta(hours=hours)
 
         # Get recent posts
-        posts = db.query(AgentPost).filter(
-            AgentPost.created_at >= since
+        posts = db.query(SocialPost).filter(
+            SocialPost.created_at >= since
         ).all()
 
         # Count mentions
@@ -442,7 +442,7 @@ class AgentSocialLayer:
         if not db:
             raise ValueError("Database session required")
 
-        parent_post = db.query(AgentPost).filter(AgentPost.id == post_id).first()
+        parent_post = db.query(SocialPost).filter(SocialPost.id == post_id).first()
         if not parent_post:
             raise ValueError(f"Post {post_id} not found")
 
@@ -475,7 +475,7 @@ class AgentSocialLayer:
         )
 
         # Link to parent post
-        reply_obj = db.query(AgentPost).filter(AgentPost.id == reply["id"]).first()
+        reply_obj = db.query(SocialPost).filter(SocialPost.id == reply["id"]).first()
         if reply_obj:
             reply_obj.reply_to_id = post_id
             db.commit()
@@ -523,17 +523,17 @@ class AgentSocialLayer:
         if not db:
             return {"posts": [], "next_cursor": None, "has_more": False}
 
-        query = db.query(AgentPost)
+        query = db.query(SocialPost)
 
         # Apply filters
         if post_type:
-            query = query.filter(AgentPost.post_type == post_type)
+            query = query.filter(SocialPost.post_type == post_type)
         if sender_filter:
-            query = query.filter(AgentPost.sender_id == sender_filter)
+            query = query.filter(SocialPost.sender_id == sender_filter)
         if channel_id:
-            query = query.filter(AgentPost.channel_id == channel_id)
+            query = query.filter(SocialPost.channel_id == channel_id)
         if is_public is not None:
-            query = query.filter(AgentPost.is_public == is_public)
+            query = query.filter(SocialPost.is_public == is_public)
 
         # Apply cursor (get posts before this timestamp AND with id less than cursor id)
         # This prevents duplicates when multiple posts have same timestamp
@@ -547,19 +547,19 @@ class AgentSocialLayer:
                     # Use < for timestamp (strictly less) and < for id (strictly less)
                     # This ensures we never return the same post twice
                     query = query.filter(
-                        (AgentPost.created_at < cursor_time) |
-                        ((AgentPost.created_at == cursor_time) & (AgentPost.id < cursor_id))
+                        (SocialPost.created_at < cursor_time) |
+                        ((SocialPost.created_at == cursor_time) & (SocialPost.id < cursor_id))
                     )
                 else:
                     # Legacy cursor format (timestamp only)
                     cursor_time = datetime.fromisoformat(cursor)
-                    query = query.filter(AgentPost.created_at < cursor_time)
+                    query = query.filter(SocialPost.created_at < cursor_time)
             except ValueError:
                 self.logger.warning(f"Invalid cursor format: {cursor}")
 
         # Order by created_at DESC, then id DESC for stable tiebreaker
         # This ensures consistent ordering when posts have same timestamp
-        query = query.order_by(desc(AgentPost.created_at), desc(AgentPost.id))
+        query = query.order_by(desc(SocialPost.created_at), desc(SocialPost.id))
 
         # Fetch one extra to check has_more
         posts = query.limit(limit + 1).all()
@@ -722,9 +722,9 @@ class AgentSocialLayer:
             return {"replies": [], "total": 0}
 
         # Query posts that reply to this post
-        replies = db.query(AgentPost).filter(
-            AgentPost.reply_to_id == post_id
-        ).order_by(AgentPost.created_at).limit(limit).all()
+        replies = db.query(SocialPost).filter(
+            SocialPost.reply_to_id == post_id
+        ).order_by(SocialPost.created_at).limit(limit).all()
 
         return {
             "replies": [
@@ -771,7 +771,7 @@ class AgentSocialLayer:
         Create social post and link to episodes.
 
         Enhanced version of create_post that:
-        - Creates AgentPost record with mentioned_episode_ids
+        - Creates SocialPost record with mentioned_episode_ids
         - Creates EpisodeSegment for social interaction
         - Retrieves relevant episodes if not provided
         - Stores episode context in post metadata
@@ -1019,7 +1019,7 @@ class AgentSocialLayer:
 
         try:
             # Get post
-            post = db.query(AgentPost).filter(AgentPost.id == post_id).first()
+            post = db.query(SocialPost).filter(SocialPost.id == post_id).first()
             if not post or post.sender_type != "agent":
                 return
 
@@ -1144,9 +1144,9 @@ class AgentSocialLayer:
 
         try:
             # Get agent's posts
-            posts = db.query(AgentPost).filter(
-                AgentPost.sender_id == agent_id,
-                AgentPost.sender_type == "agent"
+            posts = db.query(SocialPost).filter(
+                SocialPost.sender_id == agent_id,
+                SocialPost.sender_type == "agent"
             ).all()
 
             # Calculate metrics
@@ -1277,10 +1277,10 @@ class AgentSocialLayer:
         try:
             # Get posts in last 30 days
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-            posts = db.query(AgentPost).filter(
-                AgentPost.sender_id == agent_id,
-                AgentPost.sender_type == "agent",
-                AgentPost.created_at >= thirty_days_ago
+            posts = db.query(SocialPost).filter(
+                SocialPost.sender_id == agent_id,
+                SocialPost.sender_type == "agent",
+                SocialPost.created_at >= thirty_days_ago
             ).all()
 
             # Group by day and calculate score
@@ -1458,10 +1458,10 @@ class AgentSocialLayer:
         try:
             one_hour_ago = datetime.utcnow() - timedelta(hours=1)
 
-            post_count = db.query(AgentPost).filter(
-                AgentPost.sender_id == agent_id,
-                AgentPost.sender_type == "agent",
-                AgentPost.created_at >= one_hour_ago
+            post_count = db.query(SocialPost).filter(
+                SocialPost.sender_id == agent_id,
+                SocialPost.sender_type == "agent",
+                SocialPost.created_at >= one_hour_ago
             ).count()
 
             if post_count >= max_posts:
@@ -1530,10 +1530,10 @@ class AgentSocialLayer:
 
             # Count posts last hour
             one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-            posts_last_hour = db.query(AgentPost).filter(
-                AgentPost.sender_id == agent_id,
-                AgentPost.sender_type == "agent",
-                AgentPost.created_at >= one_hour_ago
+            posts_last_hour = db.query(SocialPost).filter(
+                SocialPost.sender_id == agent_id,
+                SocialPost.sender_type == "agent",
+                SocialPost.created_at >= one_hour_ago
             ).count()
 
             return {
