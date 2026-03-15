@@ -247,3 +247,193 @@ def mock_email_service():
     with patch('core.enterprise_auth_service.send_email') as mock_send:
         mock_send.return_value = True
         yield mock_send
+
+
+# ============================================================================
+# Login Endpoint Tests (POST /api/auth/login)
+# ============================================================================
+
+class TestLoginEndpoint:
+    """Tests for login endpoint."""
+
+    def test_login_success_with_valid_credentials(self, client: TestClient, test_user: User):
+        """Test successful login with valid credentials."""
+        response = client.post("/api/auth/login", json={
+            "username": test_user.email,
+            "password": "TestPassword123!"
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "access_token" in data
+        assert "refresh_token" in data
+        assert data["token_type"] == "bearer"
+        assert data["email"] == test_user.email
+        assert data["user_id"] == test_user.id
+        assert "expires_in" in data
+        assert isinstance(data["expires_in"], int)
+
+    def test_login_with_username_as_email(self, client: TestClient, test_user: User):
+        """Test login using email as username."""
+        response = client.post("/api/auth/login", json={
+            "username": test_user.email,
+            "password": "TestPassword123!"
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["email"] == test_user.email
+
+    def test_login_with_invalid_password(self, client: TestClient, test_user: User):
+        """Test login with invalid password returns 401."""
+        response = client.post("/api/auth/login", json={
+            "username": test_user.email,
+            "password": "WrongPassword123!"
+        })
+
+        assert response.status_code == 401
+        data = response.json()
+        assert "message" in data or "detail" in data
+
+    def test_login_with_nonexistent_user(self, client: TestClient):
+        """Test login with non-existent user returns 401."""
+        response = client.post("/api/auth/login", json={
+            "username": "nonexistent@example.com",
+            "password": "AnyPassword123!"
+        })
+
+        assert response.status_code == 401
+
+    def test_login_with_missing_username(self, client: TestClient):
+        """Test login with missing username returns 422."""
+        response = client.post("/api/auth/login", json={
+            "password": "TestPassword123!"
+        })
+
+        assert response.status_code == 422
+
+    def test_login_with_missing_password(self, client: TestClient):
+        """Test login with missing password returns 422."""
+        response = client.post("/api/auth/login", json={
+            "username": "test@example.com"
+        })
+
+        assert response.status_code == 422
+
+    def test_login_with_empty_credentials(self, client: TestClient):
+        """Test login with empty username and password."""
+        response = client.post("/api/auth/login", json={
+            "username": "",
+            "password": ""
+        })
+
+        # This should return 422 (validation error) or 401 (auth failed)
+        assert response.status_code in [401, 422]
+
+    def test_login_updates_last_login_timestamp(self, client: TestClient, test_user: User, test_db: Session):
+        """Test that successful login updates last_login timestamp."""
+        # Get initial last_login
+        initial_last_login = test_user.last_login
+
+        # Wait a bit to ensure timestamp difference
+        import time
+        time.sleep(0.1)
+
+        # Login
+        response = client.post("/api/auth/login", json={
+            "username": test_user.email,
+            "password": "TestPassword123!"
+        })
+
+        assert response.status_code == 200
+
+        # Refresh user from database
+        test_db.refresh(test_user)
+        assert test_user.last_login is not None
+        if initial_last_login:
+            assert test_user.last_login > initial_last_login
+
+    def test_login_with_locked_account(self, client: TestClient, locked_user: User):
+        """Test login with locked account returns 401."""
+        response = client.post("/api/auth/login", json={
+            "username": locked_user.email,
+            "password": "LockedPassword123!"
+        })
+
+        # Should fail either at credential verification or account status check
+        assert response.status_code in [401, 403]
+
+    def test_login_with_inactive_account(self, client: TestClient, inactive_user: User):
+        """Test login with inactive account returns 401."""
+        response = client.post("/api/auth/login", json={
+            "username": inactive_user.email,
+            "password": "InactivePassword123!"
+        })
+
+        # Should fail either at credential verification or account status check
+        assert response.status_code in [401, 403]
+
+    def test_login_returns_user_roles(self, client: TestClient, test_user: User):
+        """Test that login response includes user roles."""
+        response = client.post("/api/auth/login", json={
+            "username": test_user.email,
+            "password": "TestPassword123!"
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "roles" in data
+        assert isinstance(data["roles"], list)
+        assert test_user.role in data["roles"]
+
+    def test_login_returns_security_level(self, client: TestClient, test_user: User):
+        """Test that login response includes security level."""
+        response = client.post("/api/auth/login", json={
+            "username": test_user.email,
+            "password": "TestPassword123!"
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "security_level" in data
+        assert isinstance(data["security_level"], str)
+
+    @pytest.mark.parametrize("username,password,expected_status", [
+        ("valid@example.com", "correct_password", 200),
+        ("valid@example.com", "wrong_password", 401),
+        ("nonexistent@example.com", "any_password", 401),
+    ])
+    def test_login_with_various_credentials(self, client: TestClient, test_user: User, username, password, expected_status):
+        """Test login with various credential combinations."""
+        # Override with actual test user email for the valid case
+        if username == "valid@example.com":
+            username = test_user.email
+        if password == "correct_password":
+            password = "TestPassword123!"
+
+        response = client.post("/api/auth/login", json={
+            "username": username,
+            "password": password
+        })
+
+        assert response.status_code == expected_status
+
+    def test_login_with_malformed_json(self, client: TestClient):
+        """Test login with malformed JSON request."""
+        response = client.post(
+            "/api/auth/login",
+            data="invalid json",
+            headers={"Content-Type": "application/json"}
+        )
+
+        assert response.status_code == 422
+
+    def test_login_with_extra_fields(self, client: TestClient, test_user: User):
+        """Test login ignores extra fields in request."""
+        response = client.post("/api/auth/login", json={
+            "username": test_user.email,
+            "password": "TestPassword123!",
+            "extra_field": "should_be_ignored"
+        })
+
+        assert response.status_code == 200
