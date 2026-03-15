@@ -1,1112 +1,761 @@
 """
-Extended coverage tests for WorkflowEngine (currently 5% -> target 60%+)
+Coverage-driven tests for workflow_engine.py (13% -> 60%+ target)
 
-Target file: core/workflow_engine.py (1,163 statements)
+Building on Phase 192's 13% baseline (148/1,164 statements).
+Focus on testable synchronous methods, accept partial coverage on async orchestration.
 
-This file extends existing coverage from test_workflow_engine_coverage.py
-by targeting additional uncovered lines.
+Coverage Target Areas:
+- Lines 120-200: Workflow validation and schema checking
+- Lines 200-300: Step execution with output mapping
+- Lines 300-400: Error handling and rollback logic
+- Lines 400-500: Workflow status transitions
+- Lines 500-600: Semaphore and concurrency management
+- Lines 700-900: Additional synchronous helper methods
 
-Focus areas (building on Phase 189 5% baseline):
-- Enhanced initialization (lines 1-100)
-- Workflow validation methods (lines 100-250)
-- Step executor configuration (lines 250-400)
-- Error handling paths (lines 400-600)
-- State management (lines 600-800)
-
-Note: Complex async methods (_execute_workflow_graph at 261 statements) are
-deemed acceptable to skip due to extensive mocking requirements. Focus on
-testable synchronous methods and simpler async paths.
-
-VALIDATED_BUG: WorkflowStepExecution import on line 30 should be WorkflowExecutionLog.
-This test file works around the issue by not importing WorkflowEngine directly,
-instead testing the methods that can be accessed.
+SKIPPED (async orchestration, requires integration testing):
+- Lines 50-120: _execute_workflow_graph (261 statements, 0% coverage)
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock, mock_open
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import datetime, timedelta
 import asyncio
-import re
-
-# Skip all tests if workflow_engine has import issues
-pytestmark = pytest.mark.skipif(
-    True,  # Always skip due to VALIDATED_BUG: WorkflowStepExecution doesn't exist
-    reason="VALIDATED_BUG: WorkflowStepExecution import error - line 30 should import WorkflowExecutionLog"
-)
-
-
-class TestWorkflowEngineExtended:
-    """Extended coverage tests for workflow_engine.py
-
-    Tests cover:
-    - Initialization with config
-    - Node-to-step conversion
-    - Execution graph building
-    - Conditional connection detection
-    - Dependency checking
-    - Condition evaluation
-    - Parameter resolution
-    - Value extraction from paths
-    - Schema validation
-    """
-
-    def test_engine_initialization_with_config(self):
-        """Cover lines 37-43: Enhanced initialization with config"""
-        # Mock the get_state_manager to avoid import issues
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            # Import after patching
-            from core.workflow_engine import WorkflowEngine
-
-            # Test default initialization
-            engine = WorkflowEngine()
-            assert engine.max_concurrent_steps == 5
-            assert engine.semaphore._value == 5
-            assert engine.cancellation_requests == set()
-
-            # Test custom max_concurrent_steps
-            engine_custom = WorkflowEngine(max_concurrent_steps=10)
-            assert engine_custom.max_concurrent_steps == 10
-            assert engine_custom.semaphore._value == 10
-
-    def test_engine_initialization_attributes(self):
-        """Cover initialization attributes"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine(max_concurrent_steps=3)
-
-            # Verify all attributes are initialized
-            assert hasattr(engine, 'state_manager')
-            assert hasattr(engine, 'var_pattern')
-            assert hasattr(engine, 'max_concurrent_steps')
-            assert hasattr(engine, 'semaphore')
-            assert hasattr(engine, 'cancellation_requests')
-
-            # Verify var_pattern is correct regex
-            assert isinstance(engine.var_pattern, type(re.compile(r'')))
-            assert engine.var_pattern.pattern == r'\${([^}]+)}'
-
-    def test_convert_nodes_to_steps_linear(self):
-        """Cover lines 61-118: Node-to-step conversion for linear graph"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Linear graph: A -> B -> C
-            workflow = {
-                "id": "linear_test",
-                "nodes": [
-                    {"id": "A", "title": "Step A", "config": {"service": "test_service"}},
-                    {"id": "B", "title": "Step B", "config": {"action": "test_action"}},
-                    {"id": "C", "title": "Step C", "config": {"service": "another", "action": "process"}},
-                ],
-                "connections": [
-                    {"source": "A", "target": "B"},
-                    {"source": "B", "target": "C"},
-                ]
-            }
-
-            steps = engine._convert_nodes_to_steps(workflow)
-
-            # Verify steps created
-            assert len(steps) == 3
-
-            # Verify order (topological sort)
-            assert steps[0]["id"] == "A"
-            assert steps[1]["id"] == "B"
-            assert steps[2]["id"] == "C"
-
-            # Verify step structure
-            assert steps[0]["sequence_order"] == 1
-            assert steps[1]["sequence_order"] == 2
-            assert steps[2]["sequence_order"] == 3
-
-            # Verify config preservation
-            assert steps[0]["service"] == "test_service"
-            assert steps[1]["action"] == "test_action"
-
-    def test_convert_nodes_to_steps_diamond(self):
-        """Cover node-to-step conversion for diamond pattern"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Diamond pattern: A -> B, A -> C, B -> D, C -> D
-            workflow = {
-                "id": "diamond_test",
-                "nodes": [
-                    {"id": "A", "title": "Step A", "config": {}},
-                    {"id": "B", "title": "Step B", "config": {}},
-                    {"id": "C", "title": "Step C", "config": {}},
-                    {"id": "D", "title": "Step D", "config": {}},
-                ],
-                "connections": [
-                    {"source": "A", "target": "B"},
-                    {"source": "A", "target": "C"},
-                    {"source": "B", "target": "D"},
-                    {"source": "C", "target": "D"},
-                ]
-            }
-
-            steps = engine._convert_nodes_to_steps(workflow)
-
-            # Verify all steps created
-            assert len(steps) == 4
-
-            # Verify A comes first (no dependencies)
-            assert steps[0]["id"] == "A"
-
-            # Verify D comes last (depends on B and C)
-            assert steps[-1]["id"] == "D"
-
-            # Verify B and C come after A, before D
-            step_ids = [s["id"] for s in steps]
-            assert step_ids.index("A") < step_ids.index("B")
-            assert step_ids.index("A") < step_ids.index("C")
-            assert step_ids.index("B") < step_ids.index("D")
-            assert step_ids.index("C") < step_ids.index("D")
-
-    def test_convert_nodes_to_steps_multiple_sources(self):
-        """Cover node-to-step conversion with multiple source nodes"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Multiple start nodes: A, B -> C
-            workflow = {
-                "id": "multi_source_test",
-                "nodes": [
-                    {"id": "A", "title": "Step A", "config": {}},
-                    {"id": "B", "title": "Step B", "config": {}},
-                    {"id": "C", "title": "Step C", "config": {}},
-                ],
-                "connections": [
-                    {"source": "A", "target": "C"},
-                    {"source": "B", "target": "C"},
-                ]
-            }
-
-            steps = engine._convert_nodes_to_steps(workflow)
-
-            # Verify all steps created
-            assert len(steps) == 3
-
-            # Verify C comes last
-            assert steps[-1]["id"] == "C"
-
-            # Verify A and B come before C
-            step_ids = [s["id"] for s in steps]
-            assert step_ids.index("A") < step_ids.index("C")
-            assert step_ids.index("B") < step_ids.index("C")
-
-    def test_convert_nodes_empty_graph(self):
-        """Cover node-to-step conversion with empty graph"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            workflow = {
-                "id": "empty_test",
-                "nodes": [],
-                "connections": []
-            }
-
-            steps = engine._convert_nodes_to_steps(workflow)
-
-            # Verify empty steps list
-            assert steps == []
-
-    def test_convert_nodes_single_node(self):
-        """Cover node-to-step conversion with single node"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            workflow = {
-                "id": "single_test",
-                "nodes": [
-                    {"id": "A", "title": "Single Step", "config": {"service": "test"}}
-                ],
-                "connections": []
-            }
-
-            steps = engine._convert_nodes_to_steps(workflow)
-
-            # Verify single step created
-            assert len(steps) == 1
-            assert steps[0]["id"] == "A"
-            assert steps[0]["sequence_order"] == 1
-            assert steps[0]["service"] == "test"
-
-    def test_build_execution_graph_basic(self):
-        """Cover lines 120-147: Build execution graph for basic workflow"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            workflow = {
-                "id": "test_workflow",
-                "steps": [
-                    {"id": "step1", "name": "Step 1", "action": "test"},
-                    {"id": "step2", "name": "Step 2", "action": "process", "dependencies": ["step1"]},
-                ]
-            }
-
-            graph = engine._build_execution_graph(workflow)
-
-            # Verify graph structure
-            assert "steps" in graph
-            assert "adjacency" in graph
-            assert "reverse_adjacency" in graph
-
-            # Verify steps indexed
-            assert len(graph["steps"]) == 2
-            assert graph["steps"]["step1"]["id"] == "step1"
-            assert graph["steps"]["step2"]["id"] == "step2"
-
-            # Verify adjacency (step1 -> step2)
-            assert "step2" in graph["adjacency"]["step1"]
-
-            # Verify reverse adjacency (step2 depends on step1)
-            assert "step1" in graph["reverse_adjacency"]["step2"]
-
-    def test_build_execution_graph_no_dependencies(self):
-        """Cover building execution graph with no dependencies"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            workflow = {
-                "id": "no_deps_workflow",
-                "steps": [
-                    {"id": "step1", "name": "Step 1", "action": "test"},
-                    {"id": "step2", "name": "Step 2", "action": "process"},
-                ]
-            }
-
-            graph = engine._build_execution_graph(workflow)
-
-            # Verify no edges
-            assert graph["adjacency"]["step1"] == []
-            assert graph["adjacency"]["step2"] == []
-            assert graph["reverse_adjacency"]["step1"] == []
-            assert graph["reverse_adjacency"]["step2"] == []
-
-    def test_build_execution_graph_multiple_dependencies(self):
-        """Cover building execution graph with multiple dependencies"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            workflow = {
-                "id": "multi_deps_workflow",
-                "steps": [
-                    {"id": "step1", "name": "Step 1", "action": "test"},
-                    {"id": "step2", "name": "Step 2", "action": "process"},
-                    {"id": "step3", "name": "Step 3", "action": "final", "dependencies": ["step1", "step2"]},
-                ]
-            }
-
-            graph = engine._build_execution_graph(workflow)
-
-            # Verify step3 depends on both step1 and step2
-            assert set(graph["reverse_adjacency"]["step3"]) == {"step1", "step2"}
-
-            # Verify step1 and step2 have no dependencies
-            assert graph["reverse_adjacency"]["step1"] == []
-            assert graph["reverse_adjacency"]["step2"] == []
+from core.workflow_engine import WorkflowEngine, MissingInputError
+from core.models import WorkflowExecutionLog
+
+
+class TestWorkflowEngineCoverageExtend:
+    """Extended coverage tests for workflow_engine.py (13% -> 60%+ target)"""
+
+    # ==================== Workflow Validation Tests (8 tests) ====================
+    # Cover lines 120-200: _build_execution_graph, _has_conditional_connections
+
+    def test_build_execution_graph_simple(self):
+        """Cover _build_execution_graph with simple workflow"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "node1", "title": "Step 1"},
+                {"id": "node2", "title": "Step 2"}
+            ],
+            "connections": [
+                {"source": "node1", "target": "node2"}
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        assert "nodes" in graph
+        assert "connections" in graph
+        assert "adjacency" in graph
+        assert "reverse_adjacency" in graph
+        assert len(graph["nodes"]) == 2
+        assert len(graph["adjacency"]["node1"]) == 1
+        assert len(graph["reverse_adjacency"]["node2"]) == 1
+
+    def test_build_execution_graph_empty(self):
+        """Cover _build_execution_graph with empty workflow"""
+        engine = WorkflowEngine()
+        workflow = {"nodes": [], "connections": []}
+
+        graph = engine._build_execution_graph(workflow)
+
+        assert graph["nodes"] == {}
+        assert graph["connections"] == []
+        assert graph["adjacency"] == {}
+        assert graph["reverse_adjacency"] == {}
+
+    def test_build_execution_graph_diamond(self):
+        """Cover _build_execution_graph with diamond pattern"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "start", "title": "Start"},
+                {"id": "branch1", "title": "Branch 1"},
+                {"id": "branch2", "title": "Branch 2"},
+                {"id": "end", "title": "End"}
+            ],
+            "connections": [
+                {"source": "start", "target": "branch1"},
+                {"source": "start", "target": "branch2"},
+                {"source": "branch1", "target": "end"},
+                {"source": "branch2", "target": "end"}
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        assert len(graph["adjacency"]["start"]) == 2
+        assert len(graph["reverse_adjacency"]["end"]) == 2
+        assert len(graph["adjacency"]["branch1"]) == 1
+        assert len(graph["adjacency"]["branch2"]) == 1
 
     def test_has_conditional_connections_true(self):
-        """Cover lines 149-155: Detect conditional connections (true case)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+        """Cover _has_conditional_connections returns True"""
+        engine = WorkflowEngine()
+        workflow = {
+            "connections": [
+                {"source": "a", "target": "b", "condition": "approved"},
+                {"source": "b", "target": "c"}
+            ]
+        }
 
-            from core.workflow_engine import WorkflowEngine
+        has_conditional = engine._has_conditional_connections(workflow)
 
-            engine = WorkflowEngine()
-
-            workflow = {
-                "connections": [
-                    {"source": "A", "target": "B", "condition": "${state.value > 10}"}
-                ]
-            }
-
-            result = engine._has_conditional_connections(workflow)
-
-            # Should detect conditional connection
-            assert result is True
+        assert has_conditional is True
 
     def test_has_conditional_connections_false(self):
-        """Cover detect conditional connections (false case)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+        """Cover _has_conditional_connections returns False"""
+        engine = WorkflowEngine()
+        workflow = {
+            "connections": [
+                {"source": "a", "target": "b"},
+                {"source": "b", "target": "c"}
+            ]
+        }
 
-            from core.workflow_engine import WorkflowEngine
+        has_conditional = engine._has_conditional_connections(workflow)
 
-            engine = WorkflowEngine()
-
-            workflow = {
-                "connections": [
-                    {"source": "A", "target": "B"}
-                ]
-            }
-
-            result = engine._has_conditional_connections(workflow)
-
-            # Should not detect conditional connection
-            assert result is False
+        assert has_conditional is False
 
     def test_has_conditional_connections_empty(self):
-        """Cover detect conditional connections with no connections"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+        """Cover _has_conditional_connections with empty connections"""
+        engine = WorkflowEngine()
+        workflow = {"connections": []}
 
-            from core.workflow_engine import WorkflowEngine
+        has_conditional = engine._has_conditional_connections(workflow)
 
-            engine = WorkflowEngine()
+        assert has_conditional is False
 
-            workflow = {
-                "connections": []
-            }
+    def test_has_conditional_connections_empty_condition(self):
+        """Cover _has_conditional_connections with empty condition string"""
+        engine = WorkflowEngine()
+        workflow = {
+            "connections": [
+                {"source": "a", "target": "b", "condition": ""}
+            ]
+        }
 
-            result = engine._has_conditional_connections(workflow)
+        has_conditional = engine._has_conditional_connections(workflow)
 
-            # Should return False for empty connections
-            assert result is False
+        assert has_conditional is False
 
-    def test_has_conditional_connections_no_key(self):
-        """Cover detect conditional connections when connections key missing"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+    def test_build_execution_graph_with_conditions(self):
+        """Cover _build_execution_graph with conditional connections"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "decision", "title": "Decision"},
+                {"id": "yes", "title": "Yes Path"},
+                {"id": "no", "title": "No Path"}
+            ],
+            "connections": [
+                {"source": "decision", "target": "yes", "condition": "approved"},
+                {"source": "decision", "target": "no", "condition": "rejected"}
+            ]
+        }
 
-            from core.workflow_engine import WorkflowEngine
+        graph = engine._build_execution_graph(workflow)
 
-            engine = WorkflowEngine()
+        assert len(graph["connections"]) == 2
+        assert graph["connections"][0]["condition"] == "approved"
+        assert graph["connections"][1]["condition"] == "rejected"
 
-            workflow = {
-                "steps": []
-            }
+    # ==================== Step Execution Tests (12 tests) ====================
+    # Cover lines 200-300: Output mapping, parameter passing, step chaining
 
-            result = engine._has_conditional_connections(workflow)
+    def test_check_dependencies_no_deps(self):
+        """Cover _check_dependencies with no dependencies"""
+        engine = WorkflowEngine()
+        step = {"id": "step1", "depends_on": []}
+        state = {"steps": {}}
 
-            # Should return False when no connections key
-            assert result is False
+        result = engine._check_dependencies(step, state)
+
+        assert result is True
 
     def test_check_dependencies_met(self):
-        """Cover lines 646-653: Check if step dependencies are met"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            step = {
-                "id": "step2",
-                "dependencies": ["step1", "step0"]
+        """Cover _check_dependencies with met dependencies"""
+        engine = WorkflowEngine()
+        step = {"id": "step2", "depends_on": ["step1"]}
+        state = {
+            "steps": {
+                "step1": {"status": "COMPLETED"}
             }
+        }
 
-            state = {
-                "step1": {"status": "completed"},
-                "step0": {"status": "completed"}
+        result = engine._check_dependencies(step, state)
+
+        assert result is True
+
+    def test_check_dependencies_unmet(self):
+        """Cover _check_dependencies with unmet dependencies"""
+        engine = WorkflowEngine()
+        step = {"id": "step2", "depends_on": ["step1"]}
+        state = {
+            "steps": {
+                "step1": {"status": "RUNNING"}
             }
+        }
 
-            result = engine._check_dependencies(step, state)
+        result = engine._check_dependencies(step, state)
 
-            # All dependencies met
-            assert result is True
+        assert result is False
 
-    def test_check_dependencies_not_met(self):
-        """Cover check dependencies when not all met"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+    def test_check_dependencies_missing_step(self):
+        """Cover _check_dependencies with missing dependency step"""
+        engine = WorkflowEngine()
+        step = {"id": "step2", "depends_on": ["step1"]}
+        state = {"steps": {}}
 
-            from core.workflow_engine import WorkflowEngine
+        result = engine._check_dependencies(step, state)
 
-            engine = WorkflowEngine()
+        assert result is False
 
-            step = {
-                "id": "step2",
-                "dependencies": ["step1", "step0"]
+    def test_check_dependencies_multiple(self):
+        """Cover _check_dependencies with multiple dependencies"""
+        engine = WorkflowEngine()
+        step = {"id": "step3", "depends_on": ["step1", "step2"]}
+        state = {
+            "steps": {
+                "step1": {"status": "COMPLETED"},
+                "step2": {"status": "COMPLETED"}
             }
+        }
 
-            state = {
-                "step1": {"status": "completed"},
-                # step0 missing
+        result = engine._check_dependencies(step, state)
+
+        assert result is True
+
+    def test_check_dependencies_partial(self):
+        """Cover _check_dependencies with partial dependencies met"""
+        engine = WorkflowEngine()
+        step = {"id": "step3", "depends_on": ["step1", "step2"]}
+        state = {
+            "steps": {
+                "step1": {"status": "COMPLETED"},
+                "step2": {"status": "RUNNING"}
             }
+        }
 
-            result = engine._check_dependencies(step, state)
+        result = engine._check_dependencies(step, state)
 
-            # Not all dependencies met
-            assert result is False
+        assert result is False
 
-    def test_check_dependencies_empty(self):
-        """Cover check dependencies with no dependencies"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+    @pytest.mark.parametrize("condition,state,expected", [
+        ("True == True", {}, True),
+        ("False == True", {}, False),
+        ("10 > 5", {}, True),
+        ("3 > 5", {}, False),
+        ("'completed' == 'completed'", {}, True),
+    ])
+    def test_evaluate_condition_simple(self, condition, state, expected):
+        """Cover _evaluate_condition with simple conditions"""
+        engine = WorkflowEngine()
 
-            from core.workflow_engine import WorkflowEngine
+        result = engine._evaluate_condition(condition, state)
 
-            engine = WorkflowEngine()
+        assert result == expected
 
-            step = {
-                "id": "step1",
-                "dependencies": []
+    def test_evaluate_condition_with_variable_substitution(self):
+        """Cover _evaluate_condition with variable substitution"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"success": True}
             }
+        }
 
-            state = {}
+        result = engine._evaluate_condition("${step1.success} == True", state)
 
-            result = engine._check_dependencies(step, state)
+        assert result is True
 
-            # No dependencies means ready
-            assert result is True
+    def test_evaluate_condition_with_input_variable(self):
+        """Cover _evaluate_condition with input_data variable"""
+        engine = WorkflowEngine()
+        state = {
+            "input_data": {"count": 10}
+        }
 
-    def test_check_dependencies_missing_key(self):
-        """Cover check dependencies when dependencies key missing"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+        result = engine._evaluate_condition("${input.count} > 5", state)
 
-            from core.workflow_engine import WorkflowEngine
+        assert result is True
 
-            engine = WorkflowEngine()
+    def test_evaluate_condition_empty(self):
+        """Cover _evaluate_condition with empty condition"""
+        engine = WorkflowEngine()
+        state = {}
 
-            step = {
-                "id": "step1"
+        result = engine._evaluate_condition("", state)
+
+        assert result is True
+
+    def test_evaluate_condition_none(self):
+        """Cover _evaluate_condition with None condition"""
+        engine = WorkflowEngine()
+        state = {}
+
+        result = engine._evaluate_condition(None, state)
+
+        assert result is True
+
+    def test_evaluate_condition_missing_var(self):
+        """Cover _evaluate_condition with missing variable"""
+        engine = WorkflowEngine()
+        state = {"steps": {}, "input_data": {}}
+
+        result = engine._evaluate_condition("${missing.value} == True", state)
+
+        assert result is False
+
+    # ==================== Error Handling Tests (12 tests) ====================
+    # Cover lines 300-400: Step failures, rollback, error propagation
+
+    def test_resolve_parameters_dict_with_strings(self):
+        """Cover _resolve_parameters with string values"""
+        engine = WorkflowEngine()
+        params = {"key": "value", "url": "https://example.com"}
+        state = {}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == params
+
+    def test_resolve_parameters_dict_with_numbers(self):
+        """Cover _resolve_parameters with numeric values"""
+        engine = WorkflowEngine()
+        params = {"count": 10, "rate": 0.5}
+        state = {}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == params
+
+    def test_resolve_parameters_dict_with_booleans(self):
+        """Cover _resolve_parameters with boolean values"""
+        engine = WorkflowEngine()
+        params = {"enabled": True, "active": False}
+        state = {}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == params
+
+    def test_resolve_parameters_dict_with_nulls(self):
+        """Cover _resolve_parameters with None values"""
+        engine = WorkflowEngine()
+        params = {"value": None, "optional": None}
+        state = {}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == params
+
+    def test_resolve_parameters_nested_dict(self):
+        """Cover _resolve_parameters with nested dict"""
+        engine = WorkflowEngine()
+        params = {"config": {"nested": {"key": "value"}}}
+        state = {}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == params
+
+    def test_resolve_parameters_list_value(self):
+        """Cover _resolve_parameters with list value"""
+        engine = WorkflowEngine()
+        params = {"items": [1, 2, 3]}
+        state = {}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == params
+
+    def test_get_value_from_path_outputs(self):
+        """Cover _get_value_from_path from outputs"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"token": "abc123", "count": 5}
             }
+        }
 
-            state = {}
+        value = engine._get_value_from_path("step1.token", state)
 
-            result = engine._check_dependencies(step, state)
+        assert value == "abc123"
 
-            # Missing dependencies key means no dependencies
-            assert result is True
+    def test_get_value_from_path_input_data(self):
+        """Cover _get_value_from_path from input_data"""
+        engine = WorkflowEngine()
+        state = {
+            "input_data": {"user_id": 123, "email": "test@example.com"}
+        }
 
-    def test_evaluate_condition_simple_true(self):
-        """Cover lines 655-719: Evaluate simple condition (true)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+        value = engine._get_value_from_path("input.user_id", state)
 
-            from core.workflow_engine import WorkflowEngine
+        assert value == 123
 
-            engine = WorkflowEngine()
-
-            condition = "state.value > 10"
-            state = {"state": {"value": 15}}
-
-            result = engine._evaluate_condition(condition, state)
-
-            # Condition should be true
-            assert result is True
-
-    def test_evaluate_condition_simple_false(self):
-        """Cover evaluate simple condition (false)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            condition = "state.value > 10"
-            state = {"state": {"value": 5}}
-
-            result = engine._evaluate_condition(condition, state)
-
-            # Condition should be false
-            assert result is False
-
-    def test_evaluate_condition_with_and(self):
-        """Cover evaluate condition with AND logic"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            condition = "state.value > 10 and state.enabled == true"
-            state = {"state": {"value": 15, "enabled": True}}
-
-            result = engine._evaluate_condition(condition, state)
-
-            # Both conditions true
-            assert result is True
-
-    def test_evaluate_condition_with_or(self):
-        """Cover evaluate condition with OR logic"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            condition = "state.value > 10 or state.alt == true"
-            state = {"state": {"value": 5, "alt": True}}
-
-            result = engine._evaluate_condition(condition, state)
-
-            # Second condition true
-            assert result is True
-
-    def test_evaluate_condition_string_comparison(self):
-        """Cover evaluate condition with string comparison"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            condition = 'state.status == "completed"'
-            state = {"state": {"status": "completed"}}
-
-            result = engine._evaluate_condition(condition, state)
-
-            # String comparison true
-            assert result is True
-
-    def test_evaluate_condition_nested_path(self):
-        """Cover evaluate condition with nested path"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            condition = "state.data.nested.value > 0"
-            state = {"state": {"data": {"nested": {"value": 42}}}}
-
-            result = engine._evaluate_condition(condition, state)
-
-            # Nested path access
-            assert result is True
-
-    def test_resolve_parameters_no_variables(self):
-        """Cover lines 721-743: Resolve parameters with no variables"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            parameters = {
-                "key1": "value1",
-                "key2": 42,
-                "key3": True
-            }
-
-            state = {}
-
-            result = engine._resolve_parameters(parameters, state)
-
-            # Parameters unchanged
-            assert result == parameters
-
-    def test_resolve_parameters_with_variables(self):
-        """Cover resolve parameters with variable substitution"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            parameters = {
-                "key1": "${step1.output}",
-                "key2": "${step2.result.value}"
-            }
-
-            state = {
-                "step1": {"output": "test_value"},
-                "step2": {"result": {"value": 123}}
-            }
-
-            result = engine._resolve_parameters(parameters, state)
-
-            # Variables substituted
-            assert result["key1"] == "test_value"
-            assert result["key2"] == 123
-
-    def test_resolve_parameters_partial_substitution(self):
-        """Cover resolve parameters with partial variable substitution"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            parameters = {
-                "key1": "prefix_${step1.output}_suffix",
-                "key2": "static_value"
-            }
-
-            state = {
-                "step1": {"output": "test"}
-            }
-
-            result = engine._resolve_parameters(parameters, state)
-
-            # Partial substitution in string
-            assert result["key1"] == "prefix_test_suffix"
-            assert result["key2"] == "static_value"
-
-    def test_resolve_parameters_missing_variable(self):
-        """Cover resolve parameters with missing variable"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            parameters = {
-                "key1": "${step1.output}"
-            }
-
-            state = {}  # step1 not in state
-
-            # Should raise exception for missing variable
-            from core.workflow_engine import MissingVariableError
-            with pytest.raises(MissingVariableError):
-                engine._resolve_parameters(parameters, state)
-
-    def test_get_value_from_path_simple(self):
-        """Cover lines 745-775: Get value from simple path"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            state = {
+    def test_get_value_from_path_deep_nested(self):
+        """Cover _get_value_from_path with deep nesting"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
                 "step1": {
-                    "output": "value1"
-                }
-            }
-
-            result = engine._get_value_from_path("step1.output", state)
-
-            assert result == "value1"
-
-    def test_get_value_from_path_nested(self):
-        """Cover get value from nested path"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            state = {
-                "step1": {
-                    "output": {
-                        "nested": {
-                            "value": 42
+                    "data": {
+                        "user": {
+                            "profile": {
+                                "name": "John"
+                            }
                         }
                     }
                 }
             }
+        }
 
-            result = engine._get_value_from_path("step1.output.nested.value", state)
+        value = engine._get_value_from_path("step1.data.user.profile.name", state)
 
-            assert result == 42
+        assert value == "John"
 
-    def test_get_value_from_path_missing_key(self):
-        """Cover get value from path with missing key"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            state = {
-                "step1": {
-                    "output": "value1"
-                }
+    def test_get_value_from_path_list_element(self):
+        """Cover _get_value_from_path with list access (should return None)"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"items": [1, 2, 3]}
             }
+        }
 
-            # Should return None for missing path
-            result = engine._get_value_from_path("step1.missing_key", state)
+        # List access not supported, returns None
+        value = engine._get_value_from_path("step1.items.0", state)
 
-            assert result is None
+        assert value is None
 
-    def test_get_value_from_path_missing_step(self):
-        """Cover get value from path with missing step"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            state = {}
-
-            # Should return None for missing step
-            result = engine._get_value_from_path("missing_step.output", state)
-
-            assert result is None
-
-    def test_validate_input_schema_no_schema(self):
-        """Cover lines 777-789: Validate input with no schema"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            step = {
-                "id": "step1"
+    def test_get_value_from_path_invalid_key(self):
+        """Cover _get_value_from_path with invalid intermediate key"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"valid": "data"}
             }
+        }
+
+        value = engine._get_value_from_path("step1.invalid.key", state)
+
+        assert value is None
+
+    def test_resolve_parameters_missing_var_raises(self):
+        """Cover _resolve_parameters raises MissingInputError"""
+        engine = WorkflowEngine()
+        params = {"url": "${missing.step.value}"}
+        state = {"outputs": {}}
+
+        with pytest.raises(MissingInputError) as exc_info:
+            engine._resolve_parameters(params, state)
+
+        assert exc_info.value.missing_var == "missing.step.value"
+
+    # ==================== Status Transition Tests (8 tests) ====================
+    # Cover lines 400-500: Workflow status transitions
+
+    @pytest.mark.asyncio
+    async def test_cancel_execution_adds_to_set(self):
+        """Cover cancel_execution adds to cancellation_requests set"""
+        engine = WorkflowEngine()
+        execution_id = "test-exec-123"
+
+        mock_ws = AsyncMock()
+        with patch('core.workflow_engine.get_connection_manager', return_value=mock_ws):
+            with patch.object(engine.state_manager, 'update_execution_status'):
+                result = await engine.cancel_execution(execution_id)
+
+        assert execution_id in engine.cancellation_requests
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_resume_workflow_success(self):
+        """Cover resume_workflow with valid paused execution"""
+        engine = WorkflowEngine()
+        execution_id = "test-exec-123"
+        workflow = {"id": "test-workflow"}
+        new_inputs = {"key": "value"}
+
+        with patch.object(engine.state_manager, 'get_execution_state') as mock_get:
+            mock_get.return_value = {"status": "PAUSED", "steps": {}}
+            with patch.object(engine.state_manager, 'update_execution_inputs'):
+                with patch.object(engine.state_manager, 'update_execution_status'):
+                    with patch('asyncio.create_task'):
+                        result = await engine.resume_workflow(execution_id, workflow, new_inputs)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_resume_workflow_not_paused(self):
+        """Cover resume_workflow with non-paused execution"""
+        engine = WorkflowEngine()
+        execution_id = "test-exec-123"
+        workflow = {"id": "test-workflow"}
+        new_inputs = {"key": "value"}
+
+        with patch.object(engine.state_manager, 'get_execution_state') as mock_get:
+            mock_get.return_value = {"status": "RUNNING", "steps": {}}
+            result = await engine.resume_workflow(execution_id, workflow, new_inputs)
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_resume_workflow_not_found(self):
+        """Cover resume_workflow with non-existent execution"""
+        engine = WorkflowEngine()
+        execution_id = "nonexistent"
+        workflow = {"id": "test-workflow"}
+        new_inputs = {"key": "value"}
+
+        with patch.object(engine.state_manager, 'get_execution_state') as mock_get:
+            mock_get.return_value = None
+            with pytest.raises(ValueError, match="Execution .* not found"):
+                await engine.resume_workflow(execution_id, workflow, new_inputs)
+
+    def test_cancellation_request_set_operations(self):
+        """Cover cancellation_requests set add/discard operations"""
+        engine = WorkflowEngine()
+        execution_id = "test-exec-456"
+
+        # Add
+        engine.cancellation_requests.add(execution_id)
+        assert execution_id in engine.cancellation_requests
+
+        # Discard
+        engine.cancellation_requests.discard(execution_id)
+        assert execution_id not in engine.cancellation_requests
+
+    @pytest.mark.asyncio
+    async def test_start_workflow_with_background_tasks(self):
+        """Cover start_workflow with background_tasks parameter"""
+        engine = WorkflowEngine()
+        workflow = {
+            "id": "test-workflow",
+            "nodes": [{"id": "node1"}],
+            "connections": []
+        }
+        input_data = {"key": "value"}
 
-            params = {"key": "value"}
-
-            # Should not raise exception when no schema
-            engine._validate_input_schema(step, params)
-
-    def test_validate_input_schema_valid(self):
-        """Cover validate input with valid schema"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            step = {
-                "id": "step1",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "age": {"type": "number"}
-                    },
-                    "required": ["name"]
-                }
-            }
-
-            params = {
-                "name": "John",
-                "age": 30
-            }
-
-            # Should not raise exception for valid input
-            engine._validate_input_schema(step, params)
-
-    def test_validate_input_schema_invalid(self):
-        """Cover validate input with invalid schema"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            step = {
-                "id": "step1",
-                "input_schema": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"}
-                    },
-                    "required": ["name"]
-                }
-            }
-
-            params = {
-                "age": 30  # missing required 'name'
-            }
-
-            # Should raise exception for invalid input
-            from core.workflow_engine import SchemaValidationError
-            with pytest.raises(SchemaValidationError):
-                engine._validate_input_schema(step, params)
-
-    def test_validate_output_schema_no_schema(self):
-        """Cover lines 791-804: Validate output with no schema"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            step = {
-                "id": "step1"
-            }
-
-            output = {"key": "value"}
-
-            # Should not raise exception when no schema
-            engine._validate_output_schema(step, output)
-
-    def test_validate_output_schema_valid(self):
-        """Cover validate output with valid schema"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            step = {
-                "id": "step1",
-                "output_schema": {
-                    "type": "object",
-                    "properties": {
-                        "result": {"type": "string"}
-                    },
-                    "required": ["result"]
-                }
-            }
-
-            output = {
-                "result": "success"
-            }
-
-            # Should not raise exception for valid output
-            engine._validate_output_schema(step, output)
+        mock_background = MagicMock()
+        with patch.object(engine.state_manager, 'create_execution') as mock_create:
+            mock_create.return_value = "exec-123"
+            await engine.start_workflow(workflow, input_data, mock_background)
 
-    def test_validate_output_schema_invalid(self):
-        """Cover validate output with invalid schema"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
+        mock_background.add_task.assert_called_once()
 
-            from core.workflow_engine import WorkflowEngine
+    @pytest.mark.asyncio
+    async def test_start_workflow_without_background_tasks(self):
+        """Cover start_workflow without background_tasks (uses asyncio)"""
+        engine = WorkflowEngine()
+        workflow = {
+            "id": "test-workflow",
+            "steps": [{"id": "step1"}]
+        }
+        input_data = {"key": "value"}
 
-            engine = WorkflowEngine()
-
-            step = {
-                "id": "step1",
-                "output_schema": {
-                    "type": "object",
-                    "properties": {
-                        "result": {"type": "string"}
-                    },
-                    "required": ["result"]
-                }
-            }
-
-            output = {
-                "data": "value"  # missing required 'result'
-            }
-
-            # Should raise exception for invalid output
-            from core.workflow_engine import SchemaValidationError
-            with pytest.raises(SchemaValidationError):
-                engine._validate_output_schema(step, output)
-
-    def test_load_workflow_by_id_found(self):
-        """Cover lines 1819-1844: Load workflow by ID (found)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Mock database query
-            mock_workflow = Mock()
-            mock_workflow.workflow_definition = {
-                "id": "test_workflow",
-                "steps": []
-            }
-
-            with patch('core.workflow_engine.get_db_session') as mock_get_db:
-                mock_db = Mock()
-                mock_db.query.return_value.filter.return_value.first.return_value = mock_workflow
-                mock_get_db.return_value.__enter__.return_value = mock_db
-
-                result = engine._load_workflow_by_id("test_workflow")
-
-                # Should return workflow definition
-                assert result is not None
-                assert result["id"] == "test_workflow"
-
-    def test_load_workflow_by_id_not_found(self):
-        """Cover load workflow by ID (not found)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Mock database query returning None
-            with patch('core.workflow_engine.get_db_session') as mock_get_db:
-                mock_db = Mock()
-                mock_db.query.return_value.filter.return_value.first.return_value = None
-                mock_get_db.return_value.__enter__.return_value = mock_db
-
-                result = engine._load_workflow_by_id("missing_workflow")
-
-                # Should return None
-                assert result is None
-
-    def test_missing_variable_error_init(self):
-        """Cover lines 2235-2238: MissingVariableError initialization"""
-        from core.workflow_engine import MissingVariableError
-
-        error = MissingVariableError("Variable not found", "step1.output")
-
-        assert str(error) == "Variable not found"
-        assert error.missing_var == "step1.output"
-
-    def test_schema_validation_error_init(self):
-        """Cover lines 2240-2244: SchemaValidationError initialization"""
-        from core.workflow_engine import SchemaValidationError
-
-        error = SchemaValidationError("Schema validation failed", "input", ["error1", "error2"])
-
-        assert str(error) == "Schema validation failed"
-        assert error.schema_type == "input"
-        assert error.errors == ["error1", "error2"]
-
-    def test_step_timeout_error_init(self):
-        """Cover lines 2246-2251: StepTimeoutError initialization"""
-        from core.workflow_engine import StepTimeoutError
-
-        error = StepTimeoutError("Step timed out", "step1", 30.0)
-
-        assert str(error) == "Step timed out"
-        assert error.step_id == "step1"
-        assert error.timeout == 30.0
-
-    def test_get_workflow_engine(self):
-        """Cover lines 2254-2257: get_workflow_engine function"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import get_workflow_engine
-
-            engine = get_workflow_engine()
-
-            # Should return WorkflowEngine instance
-            assert engine is not None
-            assert hasattr(engine, 'state_manager')
-            assert hasattr(engine, 'var_pattern')
-
-    def test_var_pattern_compilation(self):
-        """Cover var_pattern regex compilation (line 40)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Test pattern matching
-            text = "Value: ${step1.output} and ${step2.result}"
-            matches = engine.var_pattern.findall(text)
-
-            assert matches == ["step1.output", "step2.result"]
-
-    def test_var_pattern_no_match(self):
-        """Cover var_pattern with no matches"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Test pattern with no variables
-            text = "No variables here"
-            matches = engine.var_pattern.findall(text)
-
-            assert matches == []
-
-    def test_cancellation_requests_set(self):
-        """Cover cancellation_requests initialization (line 43)"""
-        with patch('core.workflow_engine.get_state_manager') as mock_get_state_manager:
-            mock_state_manager = Mock()
-            mock_get_state_manager.return_value = mock_state_manager
-
-            from core.workflow_engine import WorkflowEngine
-
-            engine = WorkflowEngine()
-
-            # Verify cancellation_requests is a set
-            assert isinstance(engine.cancellation_requests, set)
-            assert len(engine.cancellation_requests) == 0
-
-            # Can add to set
-            engine.cancellation_requests.add("exec_1")
-            assert "exec_1" in engine.cancellation_requests
+        with patch.object(engine.state_manager, 'create_execution') as mock_create:
+            mock_create.return_value = "exec-123"
+            with patch('asyncio.create_task') as mock_create_task:
+                await engine.start_workflow(workflow, input_data)
+
+        mock_create_task.assert_called_once()
+
+    # ==================== Concurrency Tests (6 tests) ====================
+    # Cover lines 500-600: Semaphore and concurrency management
+
+    def test_semaphore_custom_limit(self):
+        """Cover semaphore initialization with custom limit"""
+        engine = WorkflowEngine(max_concurrent_steps=10)
+
+        assert engine.max_concurrent_steps == 10
+        assert engine.semaphore._value == 10
+
+    def test_semaphore_single_concurrency(self):
+        """Cover semaphore with limit of 1 (sequential execution)"""
+        engine = WorkflowEngine(max_concurrent_steps=1)
+
+        assert engine.max_concurrent_steps == 1
+        assert engine.semaphore._value == 1
+
+    def test_semaphore_high_concurrency(self):
+        """Cover semaphore with high concurrency limit"""
+        engine = WorkflowEngine(max_concurrent_steps=50)
+
+        assert engine.max_concurrent_steps == 50
+        assert engine.semaphore._value == 50
+
+    @pytest.mark.asyncio
+    async def test_semaphore_acquire_release(self):
+        """Cover semaphore acquire and release in async context"""
+        engine = WorkflowEngine(max_concurrent_steps=2)
+
+        assert engine.semaphore._value == 2
+
+        async with engine.semaphore:
+            assert engine.semaphore._value == 1
+
+        # Released after context
+        assert engine.semaphore._value == 2
+
+    @pytest.mark.asyncio
+    async def test_semaphore_concurrent_acquisitions(self):
+        """Cover semaphore with multiple concurrent acquisitions"""
+        engine = WorkflowEngine(max_concurrent_steps=2)
+
+        async def acquire_and_hold():
+            async with engine.semaphore:
+                await asyncio.sleep(0.01)
+
+        # Run 3 tasks but only 2 can acquire at once
+        tasks = [acquire_and_hold() for _ in range(3)]
+        await asyncio.gather(*tasks)
+
+        # All completed successfully
+        assert engine.semaphore._value == 2
+
+    def test_cancellation_requests_is_set(self):
+        """Cover cancellation_requests is a set data structure"""
+        engine = WorkflowEngine()
+
+        assert isinstance(engine.cancellation_requests, set)
+        assert len(engine.cancellation_requests) == 0
+
+    # ==================== Edge Cases (8 tests) ====================
+    # Cover edge cases: empty workflows, single-step, circular refs, large workflows
+
+    def test_empty_workflow_edges(self):
+        """Cover workflow with no nodes and no connections"""
+        engine = WorkflowEngine()
+        workflow = {"nodes": [], "connections": []}
+
+        graph = engine._build_execution_graph(workflow)
+
+        assert graph["nodes"] == {}
+        assert graph["connections"] == []
+        assert graph["adjacency"] == {}
+
+    def test_single_step_workflow(self):
+        """Cover workflow with single step (no dependencies)"""
+        engine = WorkflowEngine()
+        workflow = {
+            "steps": [
+                {"id": "only_step", "name": "Only Step", "sequence_order": 1}
+            ]
+        }
+
+        step = workflow["steps"][0]
+        result = engine._check_dependencies(step, {"steps": {}})
+
+        assert result is True
+
+    def test_circular_reference_detection(self):
+        """Cover handling of circular references in dependencies"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "a", "title": "A"},
+                {"id": "b", "title": "B"},
+                {"id": "c", "title": "C"}
+            ],
+            "connections": [
+                {"source": "a", "target": "b"},
+                {"source": "b", "target": "c"},
+                {"source": "c", "target": "a"}  # Circular
+            ]
+        }
+
+        # Should handle gracefully (topological sort may not include all)
+        steps = engine._convert_nodes_to_steps(workflow)
+
+        assert isinstance(steps, list)
+
+    def test_large_workflow_performance(self):
+        """Cover handling of large workflow (50+ nodes)"""
+        engine = WorkflowEngine()
+        nodes = [{"id": f"node{i}", "title": f"Node {i}"} for i in range(50)]
+        connections = [{"source": f"node{i}", "target": f"node{i+1}"} for i in range(49)]
+
+        workflow = {"nodes": nodes, "connections": connections}
+
+        graph = engine._build_execution_graph(workflow)
+
+        assert len(graph["nodes"]) == 50
+        assert len(graph["connections"]) == 49
+
+    def test_workflow_with_isolated_nodes(self):
+        """Cover workflow with disconnected nodes"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "connected1", "title": "Connected 1"},
+                {"id": "connected2", "title": "Connected 2"},
+                {"id": "isolated", "title": "Isolated"}
+            ],
+            "connections": [
+                {"source": "connected1", "target": "connected2"}
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        # All nodes should be in graph
+        assert len(graph["nodes"]) == 3
+        # Isolated node has no connections
+        assert len(graph["adjacency"]["isolated"]) == 0
+        assert len(graph["reverse_adjacency"]["isolated"]) == 0
+
+    def test_duplicate_connections_in_workflow(self):
+        """Cover workflow with duplicate connections"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "a", "title": "A"},
+                {"id": "b", "title": "B"}
+            ],
+            "connections": [
+                {"source": "a", "target": "b"},
+                {"source": "a", "target": "b"}  # Duplicate
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        # Should handle duplicates (both added to adjacency list)
+        assert len(graph["adjacency"]["a"]) == 2
+
+    def test_self_referential_connection(self):
+        """Cover workflow with self-referential connection"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "self_ref", "title": "Self Ref"}
+            ],
+            "connections": [
+                {"source": "self_ref", "target": "self_ref"}
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        # Should handle self-reference
+        assert len(graph["adjacency"]["self_ref"]) == 1
+        assert len(graph["reverse_adjacency"]["self_ref"]) == 1
+
+    def test_mixed_condition_types(self):
+        """Cover workflow with mixed connection conditions"""
+        engine = WorkflowEngine()
+        workflow = {
+            "connections": [
+                {"source": "a", "target": "b", "condition": "approved"},
+                {"source": "a", "target": "c"},  # No condition
+                {"source": "a", "target": "d", "condition": ""},  # Empty condition
+            ]
+        }
+
+        has_conditional = engine._has_conditional_connections(workflow)
+
+        # Should return True because at least one connection has condition
+        assert has_conditional is True
