@@ -806,4 +806,4 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 190. Coverage Push to 31% (Top 30 Files) | v5.5 | 13/13 | Substantial Progress | 2026-03-14 |
 | 191. Coverage Push to 18-22% (Revised) | v5.5 | 21/21 | ✅ Complete | 2026-03-14 |
 | 192. Coverage Push to 22-28% | v5.5 | 15/15 | ✅ Substantial Completion | 2026-03-14 |
-| 193. Coverage Push to 15-18% | v5.5 | 13 | 📋 Planned | - |
+| 193. Coverage Push to 13-15% | v5.5 | 13 | 📋 Planned | - |
