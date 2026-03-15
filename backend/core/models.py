@@ -3668,11 +3668,12 @@ class Artifact(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
     # Relationships
-    # Skip author/locked_by to avoid ambiguity with duplicate Artifact class
+    author = relationship("User", foreign_keys=[author_id])
+    locked_by = relationship("User", foreign_keys=[locked_by_user_id])
     tenant = relationship("Tenant", backref="artifacts")
     workspace = relationship("Workspace", backref="artifacts")
     canvas = relationship("Canvas", backref="artifacts")
-    comments = relationship("ArtifactComment", backref="artifact", cascade="all, delete-orphan")
+    comments = relationship("ArtifactComment", back_populates="artifact", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Artifact(id={self.id}, name={self.name}, type={self.type})>"
