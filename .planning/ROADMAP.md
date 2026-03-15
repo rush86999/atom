@@ -807,20 +807,28 @@ Plans: 4 plans
 **Goal**: Achieve 22-25% overall backend coverage by testing API routes (auth, analytics, admin), addressing inline import blockers, and creating integration test suite for complex orchestration
 **Depends on**: Phase 194
 **Requirements**: GAP-03, GAP-04, GAP-05
-**Status**: Pending
+**Status**: In Progress
 **Baseline Coverage**: 74.6% (Phase 194 partial execution)
-**Target Coverage**: 22-25% overall backend
-**Estimated Plans**: 10-12 plans
+**Target Coverage**: 80%+ overall backend (continued push from Phase 194)
+**Estimated Plans**: 8 plans
 **Focus Areas**:
-- Priority 1: API routes (Auth, 2FA, agent control, permissions)
-- Priority 2: Analytics (Dashboard, endpoints, feedback, A/B testing)
-- Priority 3: Admin (Skills, business facts, health, sync)
-- Priority 4: Integration test suite for complex orchestration
-- Priority 5: Inline import refactoring (BYOKHandler)
-- Priority 6: Execute remaining Phase 194 plans (canvas routes, CacheAwareRouter)
-**Estimated Tests**: 200-250 tests
+- Priority 1: API routes (Auth 2FA, agent control, analytics)
+- Priority 2: Admin routes (skills, business facts)
+- Priority 3: Integration test suite for complex orchestration
+- Priority 4: Inline import refactoring (BYOKHandler)
+**Estimated Tests**: 150-200 tests
 **Duration**: ~3-4 hours
-**Notes**: Continue coverage push with focus on API routes and integration tests. Address technical debt from Phase 194 (database schema, inline imports, incomplete plans).
+**Notes**: Continue coverage push with focus on API routes and integration tests. Address technical debt from Phase 194 (inline imports, complex orchestration).
+
+**Plans:**
+- [ ] 195-01-PLAN.md — Auth 2FA routes coverage (Wave 1)
+- [ ] 195-02-PLAN.md — Agent control routes coverage (Wave 1)
+- [ ] 195-03-PLAN.md — Analytics dashboard routes coverage (Wave 1)
+- [ ] 195-04-PLAN.md — Admin skill routes coverage (Wave 2)
+- [ ] 195-05-PLAN.md — Admin business facts routes coverage (Wave 2)
+- [ ] 195-06-PLAN.md — Integration test suite for complex orchestration (Wave 2)
+- [ ] 195-07-PLAN.md — BYOKHandler inline import refactoring (Wave 3)
+- [ ] 195-08-PLAN.md — Final verification and summary (Wave 3)
 
 ## Progress
 
