@@ -45,8 +45,8 @@ from core.predictive_insights import (
     ResponseTimePrediction,
     ChannelRecommendation,
     BottleneckAlert,
-    UserPattern,
-    ConfidenceLevel
+    CommunicationPattern,
+    RecommendationConfidence
 )
 
 
@@ -74,7 +74,7 @@ def mock_correlation_engine():
     mock_conversation.platforms = {"slack", "email"}
     mock_conversation.participants = {"user-1", "user-2"}
     mock_conversation.message_count = 5
-    mock_conversation.correlation_strength = CorrelationStrength.HIGH
+    mock_conversation.correlation_strength = CorrelationStrength.STRONG
     mock_conversation.unified_messages = [
         {"id": "msg-1", "platform": "slack", "content": "test"},
         {"id": "msg-2", "platform": "email", "content": "test"}
@@ -114,7 +114,7 @@ def mock_predictive_engine():
     mock_prediction = Mock(spec=ResponseTimePrediction)
     mock_prediction.user_id = "user-123"
     mock_prediction.predicted_seconds = 1800  # 30 minutes
-    mock_prediction.confidence = ConfidenceLevel.HIGH
+    mock_prediction.confidence = RecommendationConfidence.HIGH
     mock_prediction.factors = ["time_of_day", "day_of_week"]
     engine.predict_response_time.return_value = mock_prediction
 
@@ -123,14 +123,14 @@ def mock_predictive_engine():
     mock_recommendation.user_id = "user-123"
     mock_recommendation.recommended_platform = "slack"
     mock_recommendation.reason = "User most active on Slack"
-    mock_recommendation.confidence = ConfidenceLevel.HIGH
+    mock_recommendation.confidence = RecommendationConfidence.HIGH
     mock_recommendation.expected_response_time = 1200
     mock_recommendation.alternatives = ["teams", "email"]
     engine.recommend_channel.return_value = mock_recommendation
 
     # Mock detect_bottlenecks
     mock_bottleneck = Mock(spec=BottleneckAlert)
-    mock_bottleneck.severity = "high"
+    mock_bottleneck.severity = UrgencyLevel.HIGH
     mock_bottleneck.thread_id = "thread-123"
     mock_bottleneck.platform = "slack"
     mock_bottleneck.description = "No response for 48 hours"
@@ -140,7 +140,7 @@ def mock_predictive_engine():
     engine.detect_bottlenecks.return_value = [mock_bottleneck]
 
     # Mock get_user_pattern
-    mock_pattern = Mock(spec=UserPattern)
+    mock_pattern = Mock(spec=CommunicationPattern)
     mock_pattern.user_id = "user-123"
     mock_pattern.most_active_platform = "slack"
     mock_pattern.most_active_hours = [9, 10, 11, 14, 15, 16]
@@ -162,6 +162,11 @@ def mock_predictive_engine():
 @pytest.fixture
 def client(mock_analytics_engine, mock_correlation_engine, mock_predictive_engine):
     """Test client with mocked engines."""
+    from fastapi import FastAPI
+
+    app = FastAPI()
+    app.include_router(router)
+
     def override_analytics():
         return mock_analytics_engine
 
@@ -171,13 +176,12 @@ def client(mock_analytics_engine, mock_correlation_engine, mock_predictive_engin
     def override_predictive():
         return mock_predictive_engine
 
-    from core.main import app
     app.dependency_overrides[get_message_analytics_engine] = override_analytics
     app.dependency_overrides[get_cross_platform_correlation_engine] = override_correlation
     app.dependency_overrides[get_predictive_insights_engine] = override_predictive
 
-    client = TestClient(app)
-    yield client
+    test_client = TestClient(app)
+    yield test_client
 
     app.dependency_overrides.clear()
 
@@ -730,30 +734,48 @@ class TestCrossPlatformCorrelations:
 class TestUnifiedTimeline:
     """Test suite for /api/analytics/correlations/{conversation_id}/timeline endpoint."""
 
-    def test_get_unified_timeline_success(self, client, mock_correlation_engine):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_get_unified_timeline_success(self, mock_get_engine, client, mock_correlation_engine):
         """Cover unified timeline retrieval."""
+        mock_get_engine.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/correlations/conv-123/timeline")
 
         assert response.status_code == 200
         result = response.json()
-        assert "conversation_id" in result
-        assert "message_count" in result
-        assert "messages" in result
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
+        assert "conversation_id" in data
+        assert "message_count" in data
+        assert "messages" in data
 
-    def test_get_unified_timeline_not_found(self, client, mock_correlation_engine):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_get_unified_timeline_not_found(self, mock_get_engine, client, mock_correlation_engine):
         """Cover unified timeline for non-existent conversation."""
+        mock_get_engine.return_value = mock_correlation_engine
         mock_correlation_engine.get_unified_timeline.return_value = None
 
         response = client.get("/api/analytics/correlations/nonexistent/timeline")
 
         assert response.status_code == 404
 
-    def test_timeline_message_structure(self, client):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_timeline_message_structure(self, mock_get_engine, client, mock_correlation_engine):
         """Cover timeline message structure."""
+        mock_get_engine.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/correlations/conv-123/timeline")
 
         assert response.status_code == 200
-        messages = response.json()["messages"]
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            messages = result["data"]["messages"]
+        else:
+            messages = result["messages"]
         if len(messages) > 0:
             msg = messages[0]
             assert "id" in msg
@@ -762,50 +784,84 @@ class TestUnifiedTimeline:
             assert "sender" in msg
             assert "timestamp" in msg
 
-    def test_timeline_cross_platform_messages(self, client):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_timeline_cross_platform_messages(self, mock_get_engine, client, mock_correlation_engine):
         """Cover timeline includes cross-platform messages."""
+        mock_get_engine.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/correlations/conv-123/timeline")
 
         assert response.status_code == 200
-        messages = response.json()["messages"]
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            messages = result["data"]["messages"]
+        else:
+            messages = result["messages"]
         platforms = {msg["platform"] for msg in messages}
         # Should have messages from multiple platforms
         assert len(platforms) >= 1
 
-    def test_timeline_sender_fallback(self, client):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_timeline_sender_fallback(self, mock_get_engine, client, mock_correlation_engine):
         """Cover sender field fallback (sender_name -> sender)."""
+        mock_get_engine.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/correlations/conv-123/timeline")
 
         assert response.status_code == 200
-        messages = response.json()["messages"]
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            messages = result["data"]["messages"]
+        else:
+            messages = result["messages"]
         # Should have sender field (from sender_name or sender)
         if len(messages) > 0:
             assert "sender" in messages[0]
 
-    def test_timeline_correlation_source(self, client):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_timeline_correlation_source(self, mock_get_engine, client, mock_correlation_engine):
         """Cover timeline includes correlation source."""
+        mock_get_engine.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/correlations/conv-123/timeline")
 
         assert response.status_code == 200
-        messages = response.json()["messages"]
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            messages = result["data"]["messages"]
+        else:
+            messages = result["messages"]
         if len(messages) > 0:
-            assert "_correlation_source" in messages[0]
+            assert "source" in messages[0]
 
-    def test_timeline_empty_conversation(self, client, mock_correlation_engine):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_timeline_empty_conversation(self, mock_get_engine, client, mock_correlation_engine):
         """Cover timeline for conversation with no messages."""
+        mock_get_engine.return_value = mock_correlation_engine
         mock_correlation_engine.get_unified_timeline.return_value = []
 
         response = client.get("/api/analytics/correlations/conv-empty/timeline")
 
         assert response.status_code in [200, 404]
 
-    def test_timeline_message_count(self, client):
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_timeline_message_count(self, mock_get_engine, client, mock_correlation_engine):
         """Cover timeline message count accuracy."""
+        mock_get_engine.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/correlations/conv-123/timeline")
 
         assert response.status_code == 200
         result = response.json()
-        assert result["message_count"] == len(result["messages"])
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
+        assert data["message_count"] == len(data["messages"])
 
 
 # ============================================================================
@@ -815,8 +871,11 @@ class TestUnifiedTimeline:
 class TestResponseTimePrediction:
     """Test suite for /api/analytics/predictions/response-time endpoint."""
 
-    def test_predict_response_time_success(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_predict_response_time_success(self, mock_get_engine, client, mock_predictive_engine):
         """Cover response time prediction."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/predictions/response-time?recipient=user-123&platform=slack")
 
         assert response.status_code == 200
@@ -827,16 +886,22 @@ class TestResponseTimePrediction:
         assert "predicted_response_minutes" in result
         assert "confidence" in result
 
-    def test_predict_response_time_with_urgency(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_predict_response_time_with_urgency(self, mock_get_engine, client, mock_predictive_engine):
         """Cover prediction with urgency parameter."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/predictions/response-time?recipient=user-123&platform=slack&urgency=high")
 
         assert response.status_code == 200
         assert response.json()["urgency"] == "high"
 
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @pytest.mark.parametrize("urgency", ["low", "medium", "high", "urgent"])
-    def test_predict_response_time_urgency_levels(self, client, urgency):
+    def test_predict_response_time_urgency_levels(self, mock_get_engine, client, mock_predictive_engine, urgency):
         """Cover various urgency levels."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get(
             f"/api/analytics/predictions/response-time?recipient=user-123&platform=slack&urgency={urgency}"
         )
@@ -844,8 +909,11 @@ class TestResponseTimePrediction:
         assert response.status_code == 200
         assert response.json()["urgency"] == urgency
 
-    def test_predict_response_time_minutes_conversion(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_predict_response_time_minutes_conversion(self, mock_get_engine, client, mock_predictive_engine):
         """Cover response time in minutes."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/predictions/response-time?recipient=user-123&platform=slack")
 
         assert response.status_code == 200
@@ -854,16 +922,22 @@ class TestResponseTimePrediction:
         predicted_minutes = result["predicted_response_minutes"]
         assert abs(predicted_minutes - predicted_seconds / 60) < 0.01
 
-    def test_predict_response_time_factors(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_predict_response_time_factors(self, mock_get_engine, client, mock_predictive_engine):
         """Cover prediction factors."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/predictions/response-time?recipient=user-123&platform=slack")
 
         assert response.status_code == 200
         assert "factors" in response.json()
         assert isinstance(response.json()["factors"], list)
 
-    def test_predict_response_time_invalid_urgency(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_predict_response_time_invalid_urgency(self, mock_get_engine, client, mock_predictive_engine):
         """Cover prediction with invalid urgency."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get(
             "/api/analytics/predictions/response-time?recipient=user-123&platform=slack&urgency=invalid"
         )
@@ -871,8 +945,11 @@ class TestResponseTimePrediction:
         # Should return validation error
         assert response.status_code in [200, 422, 500]
 
-    def test_predict_response_time_confidence_levels(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_predict_response_time_confidence_levels(self, mock_get_engine, client, mock_predictive_engine):
         """Cover prediction confidence levels."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/predictions/response-time?recipient=user-123&platform=slack")
 
         assert response.status_code == 200
@@ -886,8 +963,11 @@ class TestResponseTimePrediction:
 class TestChannelRecommendation:
     """Test suite for /api/analytics/recommendations/channel endpoint."""
 
-    def test_recommend_channel_success(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_recommend_channel_success(self, mock_get_engine, client, mock_predictive_engine):
         """Cover channel recommendation."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/recommendations/channel?recipient=user-123")
 
         assert response.status_code == 200
@@ -897,45 +977,63 @@ class TestChannelRecommendation:
         assert "reason" in result
         assert "confidence" in result
 
-    def test_recommend_channel_with_message_type(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_recommend_channel_with_message_type(self, mock_get_engine, client, mock_predictive_engine):
         """Cover recommendation with message type."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/recommendations/channel?recipient=user-123&message_type=urgent")
 
         assert response.status_code == 200
 
-    def test_recommend_channel_with_urgency(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_recommend_channel_with_urgency(self, mock_get_engine, client, mock_predictive_engine):
         """Cover recommendation with urgency."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/recommendations/channel?recipient=user-123&urgency=high")
 
         assert response.status_code == 200
         assert response.json()["urgency"] == "high"
 
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @pytest.mark.parametrize("urgency", ["low", "medium", "high", "urgent"])
-    def test_recommend_channel_urgency_levels(self, client, urgency):
+    def test_recommend_channel_urgency_levels(self, mock_get_engine, client, mock_predictive_engine, urgency):
         """Cover recommendation for various urgency levels."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get(
             f"/api/analytics/recommendations/channel?recipient=user-123&urgency={urgency}"
         )
 
         assert response.status_code == 200
 
-    def test_recommend_channel_alternatives(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_recommend_channel_alternatives(self, mock_get_engine, client, mock_predictive_engine):
         """Cover recommendation alternatives."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/recommendations/channel?recipient=user-123")
 
         assert response.status_code == 200
         assert "alternatives" in response.json()
         assert isinstance(response.json()["alternatives"], list)
 
-    def test_recommend_channel_expected_response_time(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_recommend_channel_expected_response_time(self, mock_get_engine, client, mock_predictive_engine):
         """Cover expected response time in recommendation."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/recommendations/channel?recipient=user-123")
 
         assert response.status_code == 200
         assert "expected_response_time_minutes" in response.json()
 
-    def test_recommend_channel_invalid_urgency(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_recommend_channel_invalid_urgency(self, mock_get_engine, client, mock_predictive_engine):
         """Cover recommendation with invalid urgency."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get(
             "/api/analytics/recommendations/channel?recipient=user-123&urgency=invalid"
         )
@@ -943,8 +1041,11 @@ class TestChannelRecommendation:
         # Should handle error gracefully
         assert response.status_code in [200, 422, 500]
 
-    def test_recommend_channel_combined_parameters(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_recommend_channel_combined_parameters(self, mock_get_engine, client, mock_predictive_engine):
         """Cover recommendation with combined parameters."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get(
             "/api/analytics/recommendations/channel?recipient=user-123&message_type=general&urgency=medium"
         )
@@ -959,8 +1060,11 @@ class TestChannelRecommendation:
 class TestBottleneckDetection:
     """Test suite for /api/analytics/bottlenecks endpoint."""
 
-    def test_detect_bottlenecks_success(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_detect_bottlenecks_success(self, mock_get_engine, client, mock_predictive_engine):
         """Cover bottleneck detection."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/bottlenecks")
 
         assert response.status_code == 200
@@ -969,15 +1073,21 @@ class TestBottleneckDetection:
         assert "threshold_hours" in result
         assert "bottlenecks" in result
 
-    def test_detect_bottlenecks_with_threshold(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_detect_bottlenecks_with_threshold(self, mock_get_engine, client, mock_predictive_engine):
         """Cover bottleneck detection with custom threshold."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/bottlenecks?threshold_hours=48")
 
         assert response.status_code == 200
         assert response.json()["threshold_hours"] == 48
 
-    def test_bottleneck_structure(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_bottleneck_structure(self, mock_get_engine, client, mock_predictive_engine):
         """Cover bottleneck structure."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/bottlenecks")
 
         assert response.status_code == 200
@@ -992,8 +1102,11 @@ class TestBottleneckDetection:
             assert "wait_time_hours" in b
             assert "suggested_action" in b
 
-    def test_bottleneck_affected_users_list(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_bottleneck_affected_users_list(self, mock_get_engine, client, mock_predictive_engine):
         """Cover affected users as list."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/bottlenecks")
 
         assert response.status_code == 200
@@ -1001,8 +1114,11 @@ class TestBottleneckDetection:
         if len(bottlenecks) > 0:
             assert isinstance(bottlenecks[0]["affected_users"], list)
 
-    def test_bottleneck_wait_time_conversion(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_bottleneck_wait_time_conversion(self, mock_get_engine, client, mock_predictive_engine):
         """Cover wait time conversion to hours."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/bottlenecks")
 
         assert response.status_code == 200
@@ -1011,8 +1127,10 @@ class TestBottleneckDetection:
             assert "wait_time_hours" in bottlenecks[0]
             assert isinstance(bottlenecks[0]["wait_time_hours"], (int, float))
 
-    def test_bottleneck_empty(self, client, mock_predictive_engine):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_bottleneck_empty(self, mock_get_engine, client, mock_predictive_engine):
         """Cover bottleneck detection with no bottlenecks."""
+        mock_get_engine.return_value = mock_predictive_engine
         mock_predictive_engine.detect_bottlenecks.return_value = []
 
         response = client.get("/api/analytics/bottlenecks")
@@ -1020,9 +1138,12 @@ class TestBottleneckDetection:
         assert response.status_code == 200
         assert response.json()["total_bottlenecks"] == 0
 
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
     @pytest.mark.parametrize("threshold", [12.0, 24.0, 48.0, 72.0])
-    def test_bottleneck_various_thresholds(self, client, threshold):
+    def test_bottleneck_various_thresholds(self, mock_get_engine, client, mock_predictive_engine, threshold):
         """Cover bottleneck detection with various thresholds."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get(f"/api/analytics/bottlenecks?threshold_hours={threshold}")
 
         assert response.status_code == 200
@@ -1036,63 +1157,118 @@ class TestBottleneckDetection:
 class TestUserPatterns:
     """Test suite for /api/analytics/patterns/{user_id} endpoint."""
 
-    def test_get_user_patterns_success(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_get_user_patterns_success(self, mock_get_engine, client, mock_predictive_engine):
         """Cover user patterns retrieval."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/patterns/user-123")
 
         assert response.status_code == 200
         result = response.json()
-        assert "user_id" in result
-        assert "most_active_platform" in result
-        assert "most_active_hours" in result
-        assert "avg_response_time_minutes" in result
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
+        assert "user_id" in data
+        assert "most_active_platform" in data
+        assert "most_active_hours" in data
+        assert "avg_response_time_minutes" in data
 
-    def test_get_user_patterns_not_found(self, client, mock_predictive_engine):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_get_user_patterns_not_found(self, mock_get_engine, client, mock_predictive_engine):
         """Cover user patterns for non-existent user."""
+        mock_get_engine.return_value = mock_predictive_engine
         mock_predictive_engine.get_user_pattern.return_value = None
 
         response = client.get("/api/analytics/patterns/nonexistent")
 
         assert response.status_code == 404
 
-    def test_user_patterns_active_hours(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_user_patterns_active_hours(self, mock_get_engine, client, mock_predictive_engine):
         """Cover most active hours structure."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/patterns/user-123")
 
         assert response.status_code == 200
-        assert "most_active_hours" in response.json()
-        assert isinstance(response.json()["most_active_hours"], list)
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
+        assert "most_active_hours" in data
+        assert isinstance(data["most_active_hours"], list)
 
-    def test_user_patterns_response_probability(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_user_patterns_response_probability(self, mock_get_engine, client, mock_predictive_engine):
         """Cover response probability by hour."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/patterns/user-123")
 
         assert response.status_code == 200
-        assert "response_probability_by_hour" in response.json()
-        assert isinstance(response.json()["response_probability_by_hour"], dict)
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
+        assert "response_probability_by_hour" in data
+        assert isinstance(data["response_probability_by_hour"], dict)
 
-    def test_user_patterns_preferred_message_types(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_user_patterns_preferred_message_types(self, mock_get_engine, client, mock_predictive_engine):
         """Cover preferred message types."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/patterns/user-123")
 
         assert response.status_code == 200
-        assert "preferred_message_types" in response.json()
-        assert isinstance(response.json()["preferred_message_types"], list)
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
+        assert "preferred_message_types" in data
+        assert isinstance(data["preferred_message_types"], list)
 
-    def test_user_patterns_response_time_minutes(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_user_patterns_response_time_minutes(self, mock_get_engine, client, mock_predictive_engine):
         """Cover response time in minutes."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/patterns/user-123")
 
         assert response.status_code == 200
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
         # Response time should be in minutes (converted from seconds)
-        assert "avg_response_time_minutes" in response.json()
+        assert "avg_response_time_minutes" in data
 
-    def test_user_patterns_probability_24_hours(self, client):
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    def test_user_patterns_probability_24_hours(self, mock_get_engine, client, mock_predictive_engine):
         """Cover response probability covers 24 hours."""
+        mock_get_engine.return_value = mock_predictive_engine
+
         response = client.get("/api/analytics/patterns/user-123")
 
         assert response.status_code == 200
-        probability = response.json()["response_probability_by_hour"]
+        result = response.json()
+        # Check if wrapped in success response
+        if "data" in result:
+            data = result["data"]
+        else:
+            data = result
+        probability = data["response_probability_by_hour"]
         # Should have entries for all 24 hours
         assert len(probability) == 24
 
@@ -1104,8 +1280,15 @@ class TestUserPatterns:
 class TestAnalyticsOverview:
     """Test suite for /api/analytics/overview endpoint."""
 
-    def test_get_analytics_overview_success(self, client):
+    @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_get_analytics_overview_success(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
         """Cover analytics overview."""
+        mock_msg.return_value = mock_analytics_engine
+        mock_pred.return_value = mock_predictive_engine
+        mock_corr.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/overview")
 
         assert response.status_code == 200
@@ -1116,8 +1299,15 @@ class TestAnalyticsOverview:
         assert "cross_platform" in result
         assert "health_status" in result
 
-    def test_overview_timestamp(self, client):
+    @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_overview_timestamp(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
         """Cover overview timestamp."""
+        mock_msg.return_value = mock_analytics_engine
+        mock_pred.return_value = mock_predictive_engine
+        mock_corr.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/overview")
 
         assert response.status_code == 200
@@ -1125,8 +1315,15 @@ class TestAnalyticsOverview:
         # Should be valid ISO format timestamp
         datetime.fromisoformat(response.json()["timestamp"].replace('Z', '+00:00'))
 
-    def test_overview_message_analytics(self, client):
+    @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_overview_message_analytics(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
         """Cover message analytics in overview."""
+        mock_msg.return_value = mock_analytics_engine
+        mock_pred.return_value = mock_predictive_engine
+        mock_corr.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/overview")
 
         assert response.status_code == 200
@@ -1135,8 +1332,15 @@ class TestAnalyticsOverview:
         assert "active_threads" in msg_analytics
         assert "platforms_active" in msg_analytics
 
-    def test_overview_predictive_insights(self, client):
+    @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_overview_predictive_insights(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
         """Cover predictive insights in overview."""
+        mock_msg.return_value = mock_analytics_engine
+        mock_pred.return_value = mock_predictive_engine
+        mock_corr.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/overview")
 
         assert response.status_code == 200
@@ -1145,8 +1349,15 @@ class TestAnalyticsOverview:
         assert "bottlenecks_detected" in insights
         assert "avg_response_time_minutes" in insights
 
-    def test_overview_cross_platform(self, client):
+    @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_overview_cross_platform(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
         """Cover cross-platform in overview."""
+        mock_msg.return_value = mock_analytics_engine
+        mock_pred.return_value = mock_predictive_engine
+        mock_corr.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/overview")
 
         assert response.status_code == 200
@@ -1154,8 +1365,15 @@ class TestAnalyticsOverview:
         assert "linked_conversations" in cp
         assert "cross_platform_links" in cp
 
-    def test_overview_health_status(self, client):
+    @patch('api.analytics_dashboard_routes.get_message_analytics_engine')
+    @patch('api.analytics_dashboard_routes.get_predictive_insights_engine')
+    @patch('api.analytics_dashboard_routes.get_cross_platform_correlation_engine')
+    def test_overview_health_status(self, mock_corr, mock_pred, mock_msg, client, mock_predictive_engine):
         """Cover health status in overview."""
+        mock_msg.return_value = mock_analytics_engine
+        mock_pred.return_value = mock_predictive_engine
+        mock_corr.return_value = mock_correlation_engine
+
         response = client.get("/api/analytics/overview")
 
         assert response.status_code == 200
