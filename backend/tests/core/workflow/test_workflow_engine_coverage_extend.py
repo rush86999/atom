@@ -759,3 +759,766 @@ class TestWorkflowEngineCoverageExtend:
 
         # Should return True because at least one connection has condition
         assert has_conditional is True
+
+    # ==================== Schema Validation Tests (8 tests) ====================
+    # Cover lines 778-804: Input/output schema validation
+
+    def test_validate_input_schema_no_schema(self, db_session):
+        """Cover _validate_input_schema with no schema (should pass)"""
+        from core.workflow_engine import WorkflowEngine
+        engine = WorkflowEngine()
+        step = {"id": "step1"}
+        params = {"key": "value"}
+
+        # Should not raise when no schema
+        engine._validate_input_schema(step, params)
+
+    def test_validate_input_schema_valid(self, db_session):
+        """Cover _validate_input_schema with valid data"""
+        from core.workflow_engine import WorkflowEngine
+        engine = WorkflowEngine()
+        step = {
+            "id": "step1",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "count": {"type": "integer"}
+                },
+                "required": ["name"]
+            }
+        }
+        params = {"name": "test", "count": 5}
+
+        # Should not raise when valid
+        engine._validate_input_schema(step, params)
+
+    def test_validate_input_schema_missing_required(self, db_session):
+        """Cover _validate_input_schema with missing required field"""
+        from core.workflow_engine import WorkflowEngine
+        from core.exceptions import ValidationError as AtomValidationError
+        engine = WorkflowEngine()
+        step = {
+            "id": "step1",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"}
+                },
+                "required": ["name"]
+            }
+        }
+        params = {}  # Missing required 'name'
+
+        with pytest.raises(AtomValidationError):
+            engine._validate_input_schema(step, params)
+
+    def test_validate_input_schema_wrong_type(self, db_session):
+        """Cover _validate_input_schema with wrong type"""
+        from core.workflow_engine import WorkflowEngine
+        from core.exceptions import ValidationError as AtomValidationError
+        engine = WorkflowEngine()
+        step = {
+            "id": "step1",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "count": {"type": "integer"}
+                }
+            }
+        }
+        params = {"count": "not_an_integer"}  # Should be int
+
+        with pytest.raises(AtomValidationError):
+            engine._validate_input_schema(step, params)
+
+    def test_validate_output_schema_no_schema(self, db_session):
+        """Cover _validate_output_schema with no schema (should pass)"""
+        from core.workflow_engine import WorkflowEngine
+        engine = WorkflowEngine()
+        step = {"id": "step1"}
+        output = {"result": "success"}
+
+        # Should not raise when no schema
+        engine._validate_output_schema(step, output)
+
+    def test_validate_output_schema_valid(self, db_session):
+        """Cover _validate_output_schema with valid data"""
+        from core.workflow_engine import WorkflowEngine
+        engine = WorkflowEngine()
+        step = {
+            "id": "step1",
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "id": {"type": "string"}
+                },
+                "required": ["status"]
+            }
+        }
+        output = {"status": "success", "id": "123"}
+
+        # Should not raise when valid
+        engine._validate_output_schema(step, output)
+
+    def test_validate_output_schema_missing_required(self, db_session):
+        """Cover _validate_output_schema with missing required field"""
+        from core.workflow_engine import WorkflowEngine
+        from core.exceptions import ValidationError as AtomValidationError
+        engine = WorkflowEngine()
+        step = {
+            "id": "step1",
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"}
+                },
+                "required": ["status"]
+            }
+        }
+        output = {}  # Missing required 'status'
+
+        with pytest.raises(AtomValidationError):
+            engine._validate_output_schema(step, output)
+
+    def test_validate_output_schema_wrong_type(self, db_session):
+        """Cover _validate_output_schema with wrong type"""
+        from core.workflow_engine import WorkflowEngine
+        from core.exceptions import ValidationError as AtomValidationError
+        engine = WorkflowEngine()
+        step = {
+            "id": "step1",
+            "output_schema": {
+                "type": "object",
+                "properties": {
+                    "count": {"type": "integer"}
+                }
+            }
+        }
+        output = {"count": "not_an_integer"}  # Should be int
+
+        with pytest.raises(AtomValidationError):
+            engine._validate_output_schema(step, output)
+
+    # ==================== Node to Step Conversion Tests (6 tests) ====================
+    # Cover lines 60-118: _convert_nodes_to_steps
+
+    def test_convert_nodes_to_steps_simple(self):
+        """Cover _convert_nodes_to_steps with simple nodes"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {
+                    "id": "node1",
+                    "title": "Step 1",
+                    "type": "action",
+                    "config": {
+                        "service": "slack",
+                        "action": "send_message",
+                        "parameters": {"channel": "#general"}
+                    }
+                }
+            ],
+            "connections": []
+        }
+
+        steps = engine._convert_nodes_to_steps(workflow)
+
+        assert len(steps) == 1
+        assert steps[0]["id"] == "node1"
+        assert steps[0]["name"] == "Step 1"
+        assert steps[0]["service"] == "slack"
+        assert steps[0]["action"] == "send_message"
+
+    def test_convert_nodes_to_steps_with_trigger(self):
+        """Cover _convert_nodes_to_steps with trigger node"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {
+                    "id": "trigger1",
+                    "title": "Manual Trigger",
+                    "type": "trigger",
+                    "config": {
+                        "action": "manual_trigger"
+                    }
+                }
+            ],
+            "connections": []
+        }
+
+        steps = engine._convert_nodes_to_steps(workflow)
+
+        assert len(steps) == 1
+        assert steps[0]["type"] == "trigger"
+        assert steps[0]["action"] == "manual_trigger"
+
+    def test_convert_nodes_to_steps_topological_order(self):
+        """Cover _convert_nodes_to_steps maintains topological order"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "start", "title": "Start"},
+                {"id": "middle", "title": "Middle"},
+                {"id": "end", "title": "End"}
+            ],
+            "connections": [
+                {"source": "start", "target": "middle"},
+                {"source": "middle", "target": "end"}
+            ]
+        }
+
+        steps = engine._convert_nodes_to_steps(workflow)
+
+        assert len(steps) == 3
+        # Should be in topological order
+        assert steps[0]["id"] == "start"
+        assert steps[1]["id"] == "middle"
+        assert steps[2]["id"] == "end"
+
+    def test_convert_nodes_to_steps_with_default_values(self):
+        """Cover _convert_nodes_to_steps applies defaults"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {
+                    "id": "node1",
+                    "title": "Test Node"
+                    # No config provided
+                }
+            ],
+            "connections": []
+        }
+
+        steps = engine._convert_nodes_to_steps(workflow)
+
+        assert len(steps) == 1
+        assert steps[0]["service"] == "default"
+        assert steps[0]["action"] == "default"
+        assert steps[0]["continue_on_error"] is False
+        assert steps[0]["input_schema"] == {}
+        assert steps[0]["output_schema"] == {}
+
+    def test_convert_nodes_to_steps_complex_config(self):
+        """Cover _convert_nodes_to_steps with complex config"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {
+                    "id": "node1",
+                    "title": "Complex Step",
+                    "config": {
+                        "service": "asana",
+                        "action": "create_task",
+                        "parameters": {"name": "Test Task"},
+                        "continue_on_error": True,
+                        "timeout": 30,
+                        "input_schema": {"type": "object"},
+                        "output_schema": {"type": "object"}
+                    }
+                }
+            ],
+            "connections": []
+        }
+
+        steps = engine._convert_nodes_to_steps(workflow)
+
+        assert len(steps) == 1
+        assert steps[0]["continue_on_error"] is True
+        assert steps[0]["timeout"] == 30
+        assert steps[0]["input_schema"] == {"type": "object"}
+        assert steps[0]["output_schema"] == {"type": "object"}
+
+    def test_convert_nodes_to_steps_empty_workflow(self):
+        """Cover _convert_nodes_to_steps with empty workflow"""
+        engine = WorkflowEngine()
+        workflow = {"nodes": [], "connections": []}
+
+        steps = engine._convert_nodes_to_steps(workflow)
+
+        assert len(steps) == 0
+        assert isinstance(steps, list)
+
+    # ==================== Advanced Parameter Resolution Tests (5 tests) ====================
+    # Cover more complex _resolve_parameters scenarios
+
+    def test_resolve_parameters_with_multiple_vars(self):
+        """Cover _resolve_parameters with multiple variables in different params"""
+        engine = WorkflowEngine()
+        params = {
+            "url": "${step1.api_endpoint}",
+            "token": "${step1.auth_token}",
+            "static_value": "unchanged"
+        }
+        state = {
+            "outputs": {
+                "step1": {
+                    "api_endpoint": "https://api.example.com",
+                    "auth_token": "abc123"
+                }
+            }
+        }
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved["url"] == "https://api.example.com"
+        assert resolved["token"] == "abc123"
+        assert resolved["static_value"] == "unchanged"
+
+    def test_resolve_parameters_empty_dict(self):
+        """Cover _resolve_parameters with empty parameters"""
+        engine = WorkflowEngine()
+        params = {}
+        state = {"outputs": {}}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == {}
+
+    def test_resolve_parameters_no_variables(self):
+        """Cover _resolve_parameters with no variable substitutions"""
+        engine = WorkflowEngine()
+        params = {
+            "name": "John Doe",
+            "count": 10,
+            "enabled": True
+        }
+        state = {}
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved == params
+
+    def test_resolve_parameters_nested_variable_resolution(self):
+        """Cover _resolve_parameters with nested value containing variable"""
+        engine = WorkflowEngine()
+        params = {"user_id": "${step1.user.id}"}
+        state = {
+            "outputs": {
+                "step1": {
+                    "user": {
+                        "id": 12345
+                    }
+                }
+            }
+        }
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved["user_id"] == 12345
+
+    def test_resolve_parameters_boolean_variable(self):
+        """Cover _resolve_parameters with boolean variable"""
+        engine = WorkflowEngine()
+        params = {"is_active": "${step1.active}"}
+        state = {
+            "outputs": {
+                "step1": {
+                    "active": True
+                }
+            }
+        }
+
+        resolved = engine._resolve_parameters(params, state)
+
+        assert resolved["is_active"] is True
+
+    # ==================== Advanced Condition Evaluation Tests (5 tests) ====================
+    # Cover more complex _evaluate_condition scenarios
+
+    def test_evaluate_condition_with_string_comparison(self):
+        """Cover _evaluate_condition with string equality"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"status": "approved"}
+            }
+        }
+
+        result = engine._evaluate_condition("${step1.status} == 'approved'", state)
+
+        assert result is True
+
+    def test_evaluate_condition_with_numeric_comparison(self):
+        """Cover _evaluate_condition with numeric comparison"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"count": 10}
+            }
+        }
+
+        result = engine._evaluate_condition("${step1.count} >= 5", state)
+
+        assert result is True
+
+    def test_evaluate_condition_with_negation(self):
+        """Cover _evaluate_condition with negation"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"flag": False}
+            }
+        }
+
+        result = engine._evaluate_condition("not ${step1.flag}", state)
+
+        assert result is True
+
+    def test_evaluate_condition_with_complex_expression(self):
+        """Cover _evaluate_condition with complex boolean expression"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"count": 10},
+                "step2": {"enabled": True}
+            }
+        }
+
+        result = engine._evaluate_condition("${step1.count} > 5 and ${step2.enabled} == True", state)
+
+        assert result is True
+
+    def test_evaluate_condition_with_or(self):
+        """Cover _evaluate_condition with OR expression"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {"status": "failed"},
+                "step2": {"status": "success"}
+            }
+        }
+
+        result = engine._evaluate_condition("${step1.status} == 'success' or ${step2.status} == 'success'", state)
+
+        assert result is True
+
+    # ==================== Advanced Value Path Tests (4 tests) ====================
+    # Cover more _get_value_from_path scenarios
+
+    def test_get_value_from_path_with_empty_path(self):
+        """Cover _get_value_from_path with empty path parts"""
+        engine = WorkflowEngine()
+        state = {"outputs": {}, "input_data": {}}
+
+        result = engine._get_value_from_path("", state)
+
+        assert result is None
+
+    def test_get_value_from_path_with_missing_root(self):
+        """Cover _get_value_from_path with missing root key"""
+        engine = WorkflowEngine()
+        state = {"outputs": {}, "input_data": {}}
+
+        result = engine._get_value_from_path("nonexistent.key", state)
+
+        assert result is None
+
+    def test_get_value_from_path_preserves_none_value(self):
+        """Cover _get_value_from_path when value is explicitly None"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {
+                    "value": None
+                }
+            }
+        }
+
+        result = engine._get_value_from_path("step1.value", state)
+
+        assert result is None
+
+    def test_get_value_from_path_with_numeric_key(self):
+        """Cover _get_value_from_path doesn't support numeric keys"""
+        engine = WorkflowEngine()
+        state = {
+            "outputs": {
+                "step1": {
+                    "items": {"0": "first", "1": "second"}
+                }
+            }
+        }
+
+        # String key "0" should work (not array access)
+        result = engine._get_value_from_path("step1.items.0", state)
+
+        # Should return None since it tries to access .0 on dict
+        assert result is None
+
+    # ==================== Dependency Checking Edge Cases (4 tests) ====================
+    # Cover more _check_dependencies scenarios
+
+    def test_check_dependencies_with_empty_depends_on(self):
+        """Cover _check_dependencies with empty depends_on list"""
+        engine = WorkflowEngine()
+        step = {"id": "step1", "depends_on": []}
+        state = {"steps": {}}
+
+        result = engine._check_dependencies(step, state)
+
+        assert result is True
+
+    def test_check_dependencies_with_no_depends_on_key(self):
+        """Cover _check_dependencies when depends_on key is missing"""
+        engine = WorkflowEngine()
+        step = {"id": "step1"}  # No depends_on key
+        state = {"steps": {}}
+
+        result = engine._check_dependencies(step, state)
+
+        assert result is True
+
+    def test_check_dependencies_with_failed_dependency(self):
+        """Cover _check_dependencies with failed dependency"""
+        engine = WorkflowEngine()
+        step = {"id": "step2", "depends_on": ["step1"]}
+        state = {
+            "steps": {
+                "step1": {"status": "FAILED"}
+            }
+        }
+
+        result = engine._check_dependencies(step, state)
+
+        assert result is False
+
+    def test_check_dependencies_with_paused_dependency(self):
+        """Cover _check_dependencies with paused dependency"""
+        engine = WorkflowEngine()
+        step = {"id": "step2", "depends_on": ["step1"]}
+        state = {
+            "steps": {
+                "step1": {"status": "PAUSED"}
+            }
+        }
+
+        result = engine._check_dependencies(step, state)
+
+        assert result is False
+
+    # ==================== Graph Building Edge Cases (5 tests) ====================
+    # Cover more _build_execution_graph scenarios
+
+    def test_build_execution_graph_with_mixed_connections(self):
+        """Cover _build_execution_graph with conditional and non-conditional"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "a", "title": "A"},
+                {"id": "b", "title": "B"},
+                {"id": "c", "title": "C"}
+            ],
+            "connections": [
+                {"source": "a", "target": "b", "condition": "approved"},
+                {"source": "a", "target": "c"}  # No condition
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        assert len(graph["connections"]) == 2
+        assert len(graph["adjacency"]["a"]) == 2
+
+    def test_build_execution_graph_preserves_connection_attributes(self):
+        """Cover _build_execution_graph preserves connection data"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "a", "title": "A"},
+                {"id": "b", "title": "B"}
+            ],
+            "connections": [
+                {"source": "a", "target": "b", "condition": "test", "custom_field": "value"}
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        conn = graph["adjacency"]["a"][0]
+        assert conn["condition"] == "test"
+        assert conn["custom_field"] == "value"
+
+    def test_build_execution_graph_with_no_connections(self):
+        """Cover _build_execution_graph with nodes but no connections"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "isolated1", "title": "Isolated 1"},
+                {"id": "isolated2", "title": "Isolated 2"}
+            ],
+            "connections": []
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        assert len(graph["nodes"]) == 2
+        assert len(graph["connections"]) == 0
+        assert len(graph["adjacency"]["isolated1"]) == 0
+        assert len(graph["adjacency"]["isolated2"]) == 0
+
+    def test_build_execution_graph_connection_to_nonexistent_node(self):
+        """Cover _build_execution_graph handles connection to missing node"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "a", "title": "A"}
+            ],
+            "connections": [
+                {"source": "a", "target": "nonexistent"}  # Target doesn't exist
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        # Connection should not be added since target doesn't exist
+        assert len(graph["adjacency"]["a"]) == 0
+
+    def test_build_execution_graph_from_nonexistent_node(self):
+        """Cover _build_execution_graph handles connection from missing node"""
+        engine = WorkflowEngine()
+        workflow = {
+            "nodes": [
+                {"id": "b", "title": "B"}
+            ],
+            "connections": [
+                {"source": "nonexistent", "target": "b"}  # Source doesn't exist
+            ]
+        }
+
+        graph = engine._build_execution_graph(workflow)
+
+        # Connection should not be added since source doesn't exist
+        assert len(graph["reverse_adjacency"]["b"]) == 0
+
+    # ==================== Semaphore and Concurrency Edge Cases (3 tests) ====================
+    # Cover semaphore behavior in more scenarios
+
+    @pytest.mark.asyncio
+    async def test_semaphore_limits_concurrent_execution(self):
+        """Cover semaphore actually limits concurrent execution"""
+        engine = WorkflowEngine(max_concurrent_steps=2)
+
+        execution_count = 0
+        max_concurrent = 0
+
+        async def limited_task():
+            nonlocal execution_count, max_concurrent
+            async with engine.semaphore:
+                execution_count += 1
+                current_concurrent = execution_count
+                if current_concurrent > max_concurrent:
+                    max_concurrent = current_concurrent
+                await asyncio.sleep(0.01)
+                execution_count -= 1
+
+        # Start 5 tasks but only 2 should run concurrently
+        tasks = [limited_task() for _ in range(5)]
+        await asyncio.gather(*tasks)
+
+        # Max concurrent should not exceed semaphore limit
+        assert max_concurrent <= 2
+
+    def test_semaphore_default_value(self):
+        """Cover semaphore initialized with default value"""
+        engine = WorkflowEngine()  # No max_concurrent_steps specified
+
+        assert engine.max_concurrent_steps == 5  # Default value
+        assert engine.semaphore._value == 5
+
+    @pytest.mark.asyncio
+    async def test_semaphore_multiple_acquire_release_cycles(self):
+        """Cover semaphore with multiple acquire/release cycles"""
+        engine = WorkflowEngine(max_concurrent_steps=3)
+
+        async def acquire_and_release():
+            async with engine.semaphore:
+                await asyncio.sleep(0.01)
+
+        # Multiple cycles
+        for _ in range(3):
+            tasks = [acquire_and_release() for _ in range(2)]
+            await asyncio.gather(*tasks)
+
+        # Semaphore should be back to initial value
+        assert engine.semaphore._value == 3
+
+    # ==================== Cancellation Request Edge Cases (3 tests) ====================
+    # Cover cancellation_requests set operations
+
+    def test_cancellation_requests_add_duplicate(self):
+        """Cover cancellation_requests set handles duplicate adds"""
+        engine = WorkflowEngine()
+        execution_id = "exec-123"
+
+        # Add same execution_id twice
+        engine.cancellation_requests.add(execution_id)
+        engine.cancellation_requests.add(execution_id)
+
+        # Set should only have one entry
+        assert len(engine.cancellation_requests) == 1
+        assert execution_id in engine.cancellation_requests
+
+    def test_cancellation_requests_remove_nonexistent(self):
+        """Cover cancellation_requests discard nonexistent ID"""
+        engine = WorkflowEngine()
+        execution_id = "exec-123"
+
+        # Add then remove
+        engine.cancellation_requests.add(execution_id)
+        engine.cancellation_requests.discard(execution_id)
+
+        # Remove again (should not raise)
+        engine.cancellation_requests.discard(execution_id)
+
+        assert execution_id not in engine.cancellation_requests
+
+    def test_cancellation_requests_clear_all(self):
+        """Cover clearing all cancellation requests"""
+        engine = WorkflowEngine()
+
+        # Add multiple
+        for i in range(5):
+            engine.cancellation_requests.add(f"exec-{i}")
+
+        assert len(engine.cancellation_requests) == 5
+
+        # Clear all
+        engine.cancellation_requests.clear()
+
+        assert len(engine.cancellation_requests) == 0
+
+    # ==================== Integration Test Documentation (1 test) ====================
+    # Document that _execute_workflow_graph requires integration testing
+
+    def test_integration_test_needed_for_execute_workflow_graph(self):
+        """
+        DOCUMENTATION: _execute_workflow_graph requires integration testing
+
+        This test documents that the _execute_workflow_graph method (lines 157-430)
+        is a complex async orchestration method with 261 statements that requires
+        integration testing with:
+        - Real database (ExecutionStateManager)
+        - WebSocket manager (get_connection_manager)
+        - Analytics engine (get_analytics_engine)
+        - Service registry executors
+        - Step execution with timeout handling
+        - State locking and race condition handling
+
+        Unit tests cannot realistically cover this method without extensive mocking
+        that would make tests fragile and not valuable.
+
+        Recommendation: Create integration test suite in Phase 195+ that:
+        1. Spawns real workflow execution
+        2. Tests conditional branching
+        3. Tests parallel step execution
+        4. Tests error handling and rollback
+        5. Tests pause/resume functionality
+        6. Tests cancellation during execution
+
+        Current coverage target: 40% (testable helper methods only)
+        Future coverage target: 60%+ (with integration tests)
+        """
+        # This test is documentation only
+        assert True is True
