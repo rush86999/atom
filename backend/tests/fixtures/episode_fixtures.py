@@ -109,9 +109,6 @@ class AgentEpisodeFactory(factory.alchemy.SQLAlchemyModelFactory):
     success = True
     step_efficiency = 1.0
 
-    # Execution status (required NOT NULL)
-    status = "completed"
-
     # Metadata
     metadata_json = factory.LazyFunction(dict)
 
