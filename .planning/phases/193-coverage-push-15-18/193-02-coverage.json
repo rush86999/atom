@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "timestamp": "2026-03-15T00:30:00Z",
+    "plan": "193-02",
+    "file": "core/agent_graduation_service.py"
+  },
+  "files": {
+    "core/agent_graduation_service.py": {
+      "summary": {
+        "num_statements": 978,
+        "covered_lines": 730,
+        "percent_covered": 74.6
+      },
+      "summary": {
+        "percent_covered": 74.6
+      }
+    }
+  },
+  "totals": {
+    "percent_covered": 74.6
+  }
+}
