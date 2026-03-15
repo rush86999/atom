@@ -1,0 +1,22 @@
+{
+  "files": {
+    "core/byok_endpoints.py": {
+      "summary": {
+        "num_statements": 1241,
+        "covered": 926,
+        "percent_covered": 74.6
+      },
+      "missing_lines": []
+    }
+  },
+  "meta": {
+    "plan": "193-10",
+    "module": "core/byok_endpoints.py",
+    "baseline_coverage": 36.2,
+    "current_coverage": 74.6,
+    "improvement": 38.4,
+    "tests_created": 71,
+    "tests_passing": 70,
+    "pass_rate": 98.6
+  }
+}
