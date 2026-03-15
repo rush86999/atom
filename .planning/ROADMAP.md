@@ -727,36 +727,36 @@ Plans: 4 plans
 **Estimated Duration**: ~3-4 hours
 **Notes**: Focus on fixing critical import/schema blockers first (Wave 1), then execute wave-based coverage push targeting medium-complexity files. Reuse proven patterns from Phase 191: parametrized tests, coverage-driven naming, mock-based testing.
 
-### Phase 193: Coverage Push to 15-18%
-**Goal**: Achieve 15-18% overall backend coverage by focusing on zero-coverage Priority 1 files and extending partial coverage files to 75%+
+### Phase 193: Coverage Push to 13-15%
+**Goal**: Achieve 13-15% overall backend coverage by focusing on zero-coverage Priority 1 files and extending partial coverage files with quality-focused testing
 **Depends on**: Phase 192
 **Requirements**: GAP-03, GAP-04, GAP-05
 **Status**: 📋 Planned
 **Baseline Coverage**: 10.02% (8,163/81,417 statements covered)
-**Target Coverage**: 15-18% overall (+5-8 percentage points from baseline)
-**Improvement Target**: +5-8 percentage points (+50-80% relative)
+**Target Coverage**: 13-15% overall (+3-5 percentage points from baseline)
+**Improvement Target**: +3-5 percentage points (+30-50% relative)
 **Plans**: 13 plans (12 execution + 1 verification/summary)
 **Focus Areas**:
-- Priority 1: Zero-coverage high-impact files (EpisodeRetrievalService, AgentGraduationService, EpisodeLifecycleService, MetaAgentTrainingOrchestrator)
-- Priority 2: Extend partial coverage files to 40-75%+ (WorkflowEngine 11.6%→40%, BYOKHandler 19.4%→50%, AtomMetaAgent 62%→75%, LanceDBHandler 19.1%→50%)
-- Priority 3: API and governance coverage extension (BYOKEndpoints 36.2%→65%, AgentGovernanceService 9.0%→40%, EpisodeSegmentationService 31.4%→60%)
+- Priority 1: Zero-coverage high-impact files (EpisodeRetrievalService, AgentGraduationService, EpisodeLifecycleService, MetaAgentTrainingOrchestrator) - target 40-50% coverage
+- Priority 2: Extend partial coverage files realistically (WorkflowEngine 11.6%→25%, BYOKHandler 19.4%→35%, AtomMetaAgent 62%→70%, LanceDBHandler 19.1%→30%)
+- Priority 3: API and governance coverage extension (BYOKEndpoints 36.2%→50%, AgentGovernanceService 9.0%→25%, EpisodeSegmentationService 31.4%→45%)
 **Estimated Tests**: ~300-400 tests
 **Estimated Duration**: ~2-3 hours
-**Notes**: Conservative, quality-focused approach building on Phase 192 patterns. Target >80% pass rate (improve from 68.5%). Focus on test quality over quantity.
+**Notes**: Realistic target based on Phase 192 actual results (10.02% vs 22-28% goal). Quality-focused approach building on Phase 192 patterns. Target >80% pass rate (improve from 68.5%). Focus on test quality over quantity (GAP-05). Better to achieve 13-15% with stable tests than aim higher with fragile tests.
 
 **Plans:**
-- [ ] 193-01-PLAN.md — EpisodeRetrievalService coverage (0%→60%, 320 stmts)
-- [ ] 193-02-PLAN.md — AgentGraduationService coverage (0%→60%)
-- [ ] 193-03-PLAN.md — EpisodeLifecycleService coverage (0%→60%)
-- [ ] 193-04-PLAN.md — MetaAgentTrainingOrchestrator coverage (0%→60%, 142 stmts)
-- [ ] 193-05-PLAN.md — WorkflowEngine coverage extend (11.6%→40%, 1,164 stmts)
-- [ ] 193-06-PLAN.md — BYOKHandler coverage extend (19.4%→50%, 654 stmts)
-- [ ] 193-07-PLAN.md — AtomMetaAgent coverage extend (62%→75%, 422 stmts)
-- [ ] 193-08-PLAN.md — LanceDBHandler coverage extend (19.1%→50%, 709 stmts)
-- [ ] 193-09-PLAN.md — WorkflowAnalyticsEngine coverage extend (87%→95%, 561 stmts)
-- [ ] 193-10-PLAN.md — BYOKEndpoints coverage extend (36.2%→65%, 488 stmts)
-- [ ] 193-11-PLAN.md — AgentGovernanceService coverage extend (9.0%→40%, 286 stmts)
-- [ ] 193-12-PLAN.md — EpisodeSegmentationService coverage extend (31.4%→60%, 591 stmts)
+- [ ] 193-01-PLAN.md — EpisodeRetrievalService coverage (0%→45%, 320 stmts)
+- [ ] 193-02-PLAN.md — AgentGraduationService coverage (0%→45%)
+- [ ] 193-03-PLAN.md — EpisodeLifecycleService coverage (0%→45%)
+- [ ] 193-04-PLAN.md — MetaAgentTrainingOrchestrator coverage (0%→50%, 142 stmts)
+- [ ] 193-05-PLAN.md — WorkflowEngine coverage extend (11.6%→25%, 1,164 stmts)
+- [ ] 193-06-PLAN.md — BYOKHandler coverage extend (19.4%→35%, 654 stmts)
+- [ ] 193-07-PLAN.md — AtomMetaAgent coverage extend (62%→70%, 422 stmts)
+- [ ] 193-08-PLAN.md — LanceDBHandler coverage extend (19.1%→30%, 709 stmts)
+- [ ] 193-09-PLAN.md — WorkflowAnalyticsEngine coverage extend (87%→92%, 561 stmts)
+- [ ] 193-10-PLAN.md — BYOKEndpoints coverage extend (36.2%→50%, 488 stmts)
+- [ ] 193-11-PLAN.md — AgentGovernanceService coverage extend (9.0%→25%, 286 stmts)
+- [ ] 193-12-PLAN.md — EpisodeSegmentationService coverage extend (31.4%→45%, 591 stmts)
 - [ ] 193-13-PLAN.md — Aggregate coverage measurement and phase summary
 
 ## Progress
