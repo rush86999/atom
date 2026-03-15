@@ -785,7 +785,6 @@ class BYOKHandler:
                         
                         # Calculate real cost from dynamic pricing
                         try:
-                            from core.dynamic_pricing_fetcher import get_pricing_fetcher
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
                             
@@ -821,7 +820,6 @@ class BYOKHandler:
                         # --- Cache Outcome Recording (Phase 68) ---
                         # Record whether the request hit the prompt cache for future predictions
                         try:
-                            import hashlib
                             prompt_hash = hashlib.sha256(f"{self.workspace_id}:{provider_id}:{model}".encode()).hexdigest()
 
                             # Check if response usage includes caching info
@@ -1208,17 +1206,15 @@ class BYOKHandler:
                         usage = getattr(result, "_raw_response", {}).usage if hasattr(result, "_raw_response") else None
                         if not usage and hasattr(result, "usage"):
                              usage = result.usage
-                        
+
                         if usage:
                             input_tokens = usage.prompt_tokens
                             output_tokens = usage.completion_tokens
-                            
-                            from core.dynamic_pricing_fetcher import get_pricing_fetcher
+
                             fetcher = get_pricing_fetcher()
                             cost = fetcher.estimate_cost(model, input_tokens, output_tokens)
-                            
+
                             if cost and cost > 0:
-                                from core.llm_usage_tracker import llm_usage_tracker
                                 llm_usage_tracker.record(
                                     workspace_id=self.workspace_id,
                                     provider=provider_id,
@@ -1260,7 +1256,6 @@ class BYOKHandler:
             # Try to get dynamic pricing
             estimated_cost = None
             try:
-                from core.dynamic_pricing_fetcher import get_pricing_fetcher
                 fetcher = get_pricing_fetcher()
                 pricing = fetcher.get_model_price(model)
                 if pricing:
