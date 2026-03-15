@@ -20,7 +20,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta
 import asyncio
-from core.workflow_engine import WorkflowEngine, MissingInputError
+from core.workflow_engine import WorkflowEngine, MissingInputError, SchemaValidationError
 from core.models import WorkflowExecutionLog
 
 
@@ -796,7 +796,6 @@ class TestWorkflowEngineCoverageExtend:
     def test_validate_input_schema_missing_required(self, db_session):
         """Cover _validate_input_schema with missing required field"""
         from core.workflow_engine import WorkflowEngine
-        from core.exceptions import ValidationError as AtomValidationError
         engine = WorkflowEngine()
         step = {
             "id": "step1",
@@ -810,13 +809,12 @@ class TestWorkflowEngineCoverageExtend:
         }
         params = {}  # Missing required 'name'
 
-        with pytest.raises(AtomValidationError):
+        with pytest.raises(SchemaValidationError):
             engine._validate_input_schema(step, params)
 
     def test_validate_input_schema_wrong_type(self, db_session):
         """Cover _validate_input_schema with wrong type"""
         from core.workflow_engine import WorkflowEngine
-        from core.exceptions import ValidationError as AtomValidationError
         engine = WorkflowEngine()
         step = {
             "id": "step1",
@@ -829,7 +827,7 @@ class TestWorkflowEngineCoverageExtend:
         }
         params = {"count": "not_an_integer"}  # Should be int
 
-        with pytest.raises(AtomValidationError):
+        with pytest.raises(SchemaValidationError):
             engine._validate_input_schema(step, params)
 
     def test_validate_output_schema_no_schema(self, db_session):
@@ -865,7 +863,6 @@ class TestWorkflowEngineCoverageExtend:
     def test_validate_output_schema_missing_required(self, db_session):
         """Cover _validate_output_schema with missing required field"""
         from core.workflow_engine import WorkflowEngine
-        from core.exceptions import ValidationError as AtomValidationError
         engine = WorkflowEngine()
         step = {
             "id": "step1",
@@ -879,13 +876,12 @@ class TestWorkflowEngineCoverageExtend:
         }
         output = {}  # Missing required 'status'
 
-        with pytest.raises(AtomValidationError):
+        with pytest.raises(SchemaValidationError):
             engine._validate_output_schema(step, output)
 
     def test_validate_output_schema_wrong_type(self, db_session):
         """Cover _validate_output_schema with wrong type"""
         from core.workflow_engine import WorkflowEngine
-        from core.exceptions import ValidationError as AtomValidationError
         engine = WorkflowEngine()
         step = {
             "id": "step1",
@@ -898,7 +894,7 @@ class TestWorkflowEngineCoverageExtend:
         }
         output = {"count": "not_an_integer"}  # Should be int
 
-        with pytest.raises(AtomValidationError):
+        with pytest.raises(SchemaValidationError):
             engine._validate_output_schema(step, output)
 
     # ==================== Node to Step Conversion Tests (6 tests) ====================
@@ -1230,8 +1226,8 @@ class TestWorkflowEngineCoverageExtend:
 
         assert result is None
 
-    def test_get_value_from_path_with_numeric_key(self):
-        """Cover _get_value_from_path doesn't support numeric keys"""
+    def test_get_value_from_path_with_numeric_string_key(self):
+        """Cover _get_value_from_path with numeric string key"""
         engine = WorkflowEngine()
         state = {
             "outputs": {
@@ -1241,11 +1237,11 @@ class TestWorkflowEngineCoverageExtend:
             }
         }
 
-        # String key "0" should work (not array access)
+        # String key "0" should work (dictionary access)
         result = engine._get_value_from_path("step1.items.0", state)
 
-        # Should return None since it tries to access .0 on dict
-        assert result is None
+        # Returns "first" since "0" is a valid string key in the dict
+        assert result == "first"
 
     # ==================== Dependency Checking Edge Cases (4 tests) ====================
     # Cover more _check_dependencies scenarios
