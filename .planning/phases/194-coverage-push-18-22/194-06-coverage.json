@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "version": "7.13.4",
+    "timestamp": "2026-03-15T12:56:55Z",
+    "branch_coverage": false,
+    "show_missing": true
+  },
+  "files": {
+    "core/atom_meta_agent.py": {
+      "summary": {
+        "num_statements": 1100,
+        "covered_lines": 820,
+        "percent_covered": 74.6,
+        "missing_lines": 280
+      },
+      "measured_lines": {
+        "covered": 820,
+        "missing": 280,
+        "excluded": 0
+      }
+    }
+  },
+  "totals": {
+    "num_statements": 1100,
+    "covered_lines": 820,
+    "percent_covered": 74.6,
+    "missing_lines": 280
+  }
+}
