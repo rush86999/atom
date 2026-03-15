@@ -37,6 +37,18 @@ def test_app(test_db):
     from core.auth import get_current_user
     from core.database import get_db
 
+    # Mock connection service
+    mock_service = Mock()
+    mock_service.get_connections = Mock(return_value=[])
+    mock_service.get_connection_credentials = Mock(return_value=None)
+    mock_service.update_connection_name = Mock(return_value=True)
+    mock_service.delete_connection = Mock(return_value=True)
+
+    # Patch the service in the connection_routes module AFTER it's imported
+    import api.connection_routes as conn_routes_module
+    original_service = conn_routes_module.connection_service
+    conn_routes_module.connection_service = mock_service
+
     app = FastAPI()
     app.include_router(router)
 
@@ -60,32 +72,25 @@ def test_app(test_db):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    return app
+    yield app, mock_service
+
+    # Clean up
+    conn_routes_module.connection_service = original_service
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
 def client(test_app):
     """Create test client with exception handling."""
-    return TestClient(test_app, raise_server_exceptions=False)
+    app, mock_service = test_app
+    return TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.fixture
 def mock_connection_service(test_app):
-    """Mock connection service for testing."""
-    from api import connection_routes
-    original = connection_routes.connection_service
-
-    mock = Mock()
-    mock.get_connections = Mock(return_value=[])
-    mock.get_connection_credentials = Mock(return_value=None)
-    mock.update_connection_name = Mock(return_value=True)
-    mock.delete_connection = Mock(return_value=True)
-
-    connection_routes.connection_service = mock
-
-    yield mock
-
-    connection_routes.connection_service = original
+    """Get the mock connection service."""
+    app, mock_service = test_app
+    return mock_service
 
 
 # =============================================================================
@@ -192,7 +197,7 @@ def create_expired_token_data() -> Dict[str, Any]:
     }
 
 
-# Import after defining fixtures to avoid circular imports
+# Import router at top level but we'll patch the service before the routes use it
 from api.connection_routes import router
 
 
