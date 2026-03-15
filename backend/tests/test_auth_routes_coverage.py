@@ -82,7 +82,29 @@ def test_app(test_db: Session):
 
     app.dependency_overrides[get_db] = override_get_db
 
-    yield app
+    # Mock _verify_enterprise_credentials_new to use test_db
+    async def mock_verify_new(username: str, password: str):
+        """Mock credential verification using test database."""
+        from core.enterprise_auth_service import EnterpriseAuthService
+        auth_service = EnterpriseAuthService()
+
+        # Use the test database directly
+        user_creds = auth_service.verify_credentials(test_db, username, password)
+
+        if not user_creds:
+            return None
+
+        return {
+            'user_id': user_creds.user_id,
+            'username': user_creds.username,
+            'email': user_creds.email,
+            'roles': user_creds.roles,
+            'security_level': user_creds.security_level,
+            'permissions': user_creds.permissions
+        }
+
+    with patch('api.enterprise_auth_endpoints._verify_enterprise_credentials_new', side_effect=mock_verify_new):
+        yield app
 
     # Clean up overrides
     app.dependency_overrides.clear()
