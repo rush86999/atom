@@ -1,24 +1,47 @@
 import asyncio
+from datetime import datetime
 from enum import Enum
+import hashlib
 import json
 import logging
 import os
 import re
+import uuid
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-# Try imports
+# Try imports for optional dependencies
 try:
     from openai import AsyncOpenAI, OpenAI
 except ImportError:
     OpenAI = None
     AsyncOpenAI = None
 
+try:
+    import instructor
+    INSTRUCTOR_AVAILABLE = True
+except ImportError:
+    instructor = None
+    INSTRUCTOR_AVAILABLE = False
+
+# Core imports (moved from inline for better testability)
+from core.agent_governance_service import AgentGovernanceService
+from core.benchmarks import get_quality_score
 from core.byok_endpoints import get_byok_manager
-from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
-from core.llm.cache_aware_router import CacheAwareRouter
-from core.dynamic_pricing_fetcher import get_pricing_fetcher
+from core.cost_config import (
+    BYOK_ENABLED_PLANS,
+    MODEL_TIER_RESTRICTIONS,
+    get_llm_cost,
+)
 from core.database import get_db_session
+from core.dynamic_pricing_fetcher import (
+    get_pricing_fetcher,
+    refresh_pricing_cache,
+)
+from core.llm.cache_aware_router import CacheAwareRouter
 from core.llm.cognitive_tier_service import CognitiveTierService
+from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
+from core.llm_usage_tracker import llm_usage_tracker
+from core.models import AgentExecution, Tenant, Workspace
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +292,6 @@ class BYOKHandler:
         Returns a safe default if not found.
         """
         try:
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             fetcher = get_pricing_fetcher()
             pricing = fetcher.get_model_price(model_name)
             if pricing:
@@ -434,8 +456,6 @@ class BYOKHandler:
         
         # 1. Dynamic BPC Selection (Data-Driven)
         try:
-            from core.benchmarks import get_quality_score
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             fetcher = get_pricing_fetcher()
             
             # Context window requirements
@@ -487,7 +507,6 @@ class BYOKHandler:
                 # Value = (Quality^2) / Cost. We use 1e6 to make costs readable.
 
                 # Generate prompt hash for cache prediction
-                import hashlib
                 prompt_hash = hashlib.sha256(f"{workspace_id}:{model_id}".encode()).hexdigest()
                 cache_hit_prob = self.cache_router.predict_cache_hit_probability(prompt_hash, workspace_id)
 
@@ -515,7 +534,6 @@ class BYOKHandler:
             candidates.sort(key=lambda x: x["value_score"], reverse=True)
             
             # Filter by plan restrictions
-            from core.cost_config import MODEL_TIER_RESTRICTIONS
             allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"]) if is_managed_service else "*"
             
             def is_model_approved(model_id: str, allowed_list: any) -> bool:
@@ -569,7 +587,6 @@ class BYOKHandler:
                     ranked_options.append((provider_id, model))
                     continue
 
-                from core.cost_config import MODEL_TIER_RESTRICTIONS
                 allowed_models = MODEL_TIER_RESTRICTIONS.get(tenant_plan.lower(), MODEL_TIER_RESTRICTIONS["free"])
                 
                 # Check Tool/Structured Support (Phase 6.6)
@@ -614,16 +631,12 @@ class BYOKHandler:
             return "LLM Client not initialized (No API Keys configured)."
         
         # --- Budget Enforcement (Phase 56) ---
-        from core.llm_usage_tracker import llm_usage_tracker
         if llm_usage_tracker.is_budget_exceeded(self.workspace_id):
             logger.warning(f"AI Generation Blocked: Budget exceeded for workspace {self.workspace_id}")
             return "🚨 BUDGET EXCEEDED: Your AI usage has reached 100% of your limit. Please increase your budget in Settings to continue."
 
         try:
             # --- Tier & Pricing Mode Enforcement (Phase 59 Refinement) ---
-            from core.cost_config import BYOK_ENABLED_PLANS
-            from core.database import get_db_session
-            from core.models import Tenant, Workspace
             
             with get_db_session() as db:
                 try:
@@ -632,7 +645,6 @@ class BYOKHandler:
 
                     workspace = db.query(Workspace).filter(Workspace.id == "default").first()
                     if workspace and workspace.tenant_id:
-                        from core.models import Tenant
                         tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
                         if tenant:
                             # 1. Determine Plan level
@@ -783,7 +795,6 @@ class BYOKHandler:
                             
                             # Fallback to static pricing if dynamic not available
                             if cost is None:
-                                from core.cost_config import get_llm_cost
                                 cost = get_llm_cost(model, input_tokens, output_tokens)
                                 # Static reference cost fallback
                                 ref_cost_static = get_llm_cost("gpt-4o", input_tokens, output_tokens)
@@ -791,7 +802,6 @@ class BYOKHandler:
                             
                             if cost and cost > 0:
                                 # Record to LLM Usage Tracker
-                                from core.llm_usage_tracker import llm_usage_tracker
                                 llm_usage_tracker.record(
                                     workspace_id=self.workspace_id,
                                     provider=provider_id,
@@ -890,7 +900,6 @@ class BYOKHandler:
             >>> print(result["response"])
             >>> print(f"Tier: {result['tier']}, Model: {result['model']}")
         """
-        import uuid
         request_id = str(uuid.uuid4())
 
         # Phase 68-06: Step 1 - Select tier using CognitiveTierService
@@ -1063,18 +1072,12 @@ class BYOKHandler:
             return None
         
         try:
-            # Try to import instructor
-            try:
-                import instructor
-            except ImportError:
+            # Check if instructor is available
+            if not INSTRUCTOR_AVAILABLE:
                 logger.warning("Instructor not available, falling back to raw response")
                 return None
             
             # Get tenant plan and determine BYOK vs managed
-            from core.cost_config import BYOK_ENABLED_PLANS
-            from core.database import get_db_session
-            from core.models import Tenant, Workspace
-            
             with get_db_session() as db:
                 try:
                     tenant_plan = "free"
@@ -1287,7 +1290,6 @@ class BYOKHandler:
     async def refresh_pricing(self, force: bool = False) -> Dict[str, Any]:
         """Refresh dynamic pricing data from LiteLLM and OpenRouter"""
         try:
-            from core.dynamic_pricing_fetcher import refresh_pricing_cache
             pricing = await refresh_pricing_cache(force=force)
             return {"status": "success", "model_count": len(pricing)}
         except Exception as e:
@@ -1297,7 +1299,6 @@ class BYOKHandler:
     def get_provider_comparison(self) -> Dict[str, Any]:
         """Get cost comparison across all providers using dynamic pricing"""
         try:
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             fetcher = get_pricing_fetcher()
             return fetcher.compare_providers()
         except Exception as e:
@@ -1313,7 +1314,6 @@ class BYOKHandler:
     def get_cheapest_models(self, limit: int = 5) -> List[Dict[str, Any]]:
         """Get the cheapest models available"""
         try:
-            from core.dynamic_pricing_fetcher import get_pricing_fetcher
             fetcher = get_pricing_fetcher()
             return fetcher.get_cheapest_models(limit=limit)
         except Exception as e:
@@ -1440,8 +1440,6 @@ class BYOKHandler:
             try:
                 # Create execution record if agent_id provided (only on first attempt)
                 if agent_execution is None and agent_id and governance_enabled and db:
-                    from core.models import AgentExecution
-
                     agent_execution = AgentExecution(
                         agent_id=agent_id,
                         workspace_id=self.workspace_id,
@@ -1475,15 +1473,12 @@ class BYOKHandler:
                 # Record successful completion
                 if agent_execution and governance_enabled and db:
                     try:
-                        from datetime import datetime
-
                         agent_execution.status = "completed"
                         agent_execution.output_summary = f"Generated {token_count} tokens via {model} ({attempt_provider_id})"
                         agent_execution.completed_at = datetime.now()
                         db.commit()
 
                         # Record outcome for confidence scoring
-                        from core.agent_governance_service import AgentGovernanceService
                         governance = AgentGovernanceService(db)
                         await governance.record_outcome(agent_id, success=True)
 
@@ -1511,15 +1506,12 @@ class BYOKHandler:
 
         if agent_execution and governance_enabled and db:
             try:
-                from datetime import datetime
-
                 agent_execution.status = "failed"
                 agent_execution.error_message = f"All providers failed. Last: {str(last_error)}"
                 agent_execution.completed_at = datetime.now()
                 db.commit()
 
                 # Record failure for confidence scoring
-                from core.agent_governance_service import AgentGovernanceService
                 governance = AgentGovernanceService(db)
                 await governance.record_outcome(agent_id, success=False)
 
@@ -1556,9 +1548,6 @@ class BYOKHandler:
         Returns False for now (can be enhanced later).
         """
         try:
-            from core.database import get_db_session
-            from core.models import Workspace
-
             with get_db_session() as db:
                 workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
                 if workspace and hasattr(workspace, 'trial_ended') and workspace.trial_ended:
