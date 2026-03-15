@@ -159,6 +159,9 @@ class AgentEpisodeFactory(factory.alchemy.SQLAlchemyModelFactory):
     # Episode consolidation
     consolidated_into = None
 
+    # Status field (required NOT NULL, defaults to 'active')
+    status = "active"
+
 
 class EpisodeSegmentFactory(factory.alchemy.SQLAlchemyModelFactory):
     """
