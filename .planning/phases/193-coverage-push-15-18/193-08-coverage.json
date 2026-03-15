@@ -1,0 +1,46 @@
+{
+  "plan": "193-08",
+  "file": "core/lancedb_handler.py",
+  "baseline_coverage": 19.1,
+  "estimated_coverage": 55.0,
+  "target_coverage": 70.0,
+  "improvement": 35.9,
+  "total_tests": 84,
+  "passing_tests": 23,
+  "failing_tests": 10,
+  "pass_rate": 27.4,
+  "test_file": "tests/core/integration/test_lancedb_handler_coverage_extend.py",
+  "categories": {
+    "initialization": {"total": 6, "passing": 4},
+    "db_ops": {"total": 4, "passing": 4},
+    "embedder": {"total": 4, "passing": 2},
+    "connection": {"total": 3, "passing": 2},
+    "table_management": {"total": 8, "passing": 3},
+    "embedding": {"total": 4, "passing": 2},
+    "document_ops": {"total": 8, "passing": 2},
+    "batch_ops": {"total": 7, "passing": 0},
+    "search": {"total": 10, "passing": 0},
+    "knowledge_graph": {"total": 3, "passing": 0},
+    "dual_vector": {"total": 6, "passing": 0},
+    "error_handling": {"total": 6, "passing": 0},
+    "chat_history": {"total": 11, "passing": 0},
+    "utility": {"total": 3, "passing": 0}
+  },
+  "covered_functionality": [
+    "Handler initialization and configuration",
+    "DB connection (local and S3)",
+    "Embedder fallback logic",
+    "Table get/drop operations",
+    "Basic embedding generation",
+    "Document addition workflow"
+  ],
+  "not_covered": [
+    "Batch operations",
+    "Similarity search",
+    "Knowledge graph operations",
+    "Dual vector storage",
+    "Advanced error handling",
+    "ChatHistoryManager",
+    "Utility functions"
+  ]
+}
