@@ -15,6 +15,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import asyncio
 
 # Import factory_boy fixtures
@@ -37,6 +38,14 @@ def db_session():
     from core.database import get_db_session
     with get_db_session() as session:
         yield session
+        # Cleanup: delete all test data after each test
+        try:
+            session.execute(text("DELETE FROM agent_episodes WHERE agent_id LIKE 'test-agent%'"))
+            session.execute(text("DELETE FROM episode_segments WHERE 1=1"))
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            print(f"Cleanup error: {e}")
 
 
 @pytest.fixture(autouse=True)
