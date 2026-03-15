@@ -759,6 +759,33 @@ Plans: 4 plans
 - [x] 193-12-PLAN.md — EpisodeSegmentationService coverage extend (31.4%→74.6%, 591 stmts) - Complete
 - [x] 193-13-PLAN.md — Aggregate coverage measurement and phase summary - Complete
 
+### Phase 194: Coverage Push to 18-22%
+**Goal**: Achieve 18-22% overall backend coverage by fixing test data quality issues, extending partial coverage, and using realistic targets for complex orchestration
+**Depends on**: Phase 193
+**Requirements**: GAP-03, GAP-04, GAP-05
+**Status**: Pending
+**Baseline Coverage**: ~14% (12,762/81,417 statements covered)
+**Target Coverage**: 18-22% overall
+**Plans**: 9 plans (8 execution + 1 verification)
+**Focus Areas**:
+- Priority 1: Fix test data quality issues (EpisodeRetrievalService factory_boy, 0%→60%+)
+- Priority 2: Extend partial coverage with realistic targets (LanceDBHandler 55%→75%, BYOKHandler 45%→65%, WorkflowEngine 18%→40%, AtomMetaAgent 62%→70%)
+- Priority 3: Additional zero-coverage files (Canvas routes, CacheAwareRouter 98.8%→100%)
+**Estimated Tests**: 180-220 tests
+**Duration**: ~2-3 hours
+**Notes**: Focus on fixing test data quality issues from Phase 193, extending partial coverage files to 75%+, and addressing complex async orchestration blockers. Realistic targets for complex orchestration (40-50% for WorkflowEngine). Proven patterns from Phases 191-193: parametrized tests, coverage-driven naming, mock-based testing.
+
+**Plans:**
+- [ ] 194-01-PLAN.md — EpisodeRetrievalService factory_boy fix (test data quality)
+- [ ] 194-02-PLAN.md — LanceDBHandler mock simplification (27.4%→>80% pass rate)
+- [ ] 194-03-PLAN.md — WorkflowAnalyticsEngine background thread mocking (83%→>95% pass rate)
+- [ ] 194-04-PLAN.md — BYOKHandler inline import workaround (45%→65%)
+- [ ] 194-05-PLAN.md — WorkflowEngine realistic target (18%→40% for complex orchestration)
+- [ ] 194-06-PLAN.md — AtomMetaAgent realistic target (62%→70%)
+- [ ] 194-07-PLAN.md — Canvas routes API coverage (75%+ target)
+- [ ] 194-08-PLAN.md — CacheAwareRouter 100% coverage (98.8%→100%)
+- [ ] 194-09-PLAN.md — Final verification and summary
+
 ## Progress
 
 **Execution Order:**
@@ -807,3 +834,4 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 191. Coverage Push to 18-22% (Revised) | v5.5 | 21/21 | ✅ Complete | 2026-03-14 |
 | 192. Coverage Push to 22-28% | v5.5 | 15/15 | ✅ Substantial Completion | 2026-03-14 |
 | 193. Coverage Push to 13-15% | v5.5 | 13/13 | ✅ Complete | 2026-03-15 |
+| 194. Coverage Push to 18-22% | v5.5 | 9/9 | Pending | - |

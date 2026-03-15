@@ -38,8 +38,11 @@ class TenantFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     id = factory.Sequence(lambda n: f"tenant-{n}")
     name = factory.Faker('company')
-    slug = factory.Sequence(lambda n: f"tenant-{n}")
-    settings = factory.LazyFunction(lambda: {})
+    subdomain = factory.Sequence(lambda n: f"tenant-{n}")
+    plan_type = "FREE"
+    edition = "personal"
+    memory_limit_mb = 50
+    memory_used_mb = 0
 
 
 class AgentFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -56,7 +59,7 @@ class AgentFactory(factory.alchemy.SQLAlchemyModelFactory):
     maturity_level = "INTERN"
     confidence_score = 0.6
     constitutional_compliance_score = 0.8
-    tenant_id = factory.SubFactory(TenantFactory)
+    tenant_id = "default"  # Use default tenant instead of SubFactory
 
 
 class ArtifactFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -89,8 +92,8 @@ class AgentEpisodeFactory(factory.alchemy.SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "commit"
 
     id = factory.Sequence(lambda n: f"episode-{n}")
-    agent_id = factory.SubFactory(AgentFactory)
-    tenant_id = factory.SubFactory(TenantFactory)
+    agent_id = factory.Sequence(lambda n: f"test-agent-{n}")  # Simple ID, not SubFactory
+    tenant_id = "default"  # Use default tenant
 
     # Task description
     task_description = factory.Faker('text')
