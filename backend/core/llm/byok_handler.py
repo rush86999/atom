@@ -15,6 +15,10 @@ except ImportError:
 
 from core.byok_endpoints import get_byok_manager
 from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
+from core.llm.cache_aware_router import CacheAwareRouter
+from core.dynamic_pricing_fetcher import get_pricing_fetcher
+from core.database import get_db_session
+from core.llm.cognitive_tier_service import CognitiveTierService
 
 logger = logging.getLogger(__name__)
 
@@ -122,29 +126,38 @@ class BYOKHandler:
     - Quality score 88 (between gemini-2.0-flash @ 86 and deepseek-chat @ 80)
     - Native agent support, no prompt caching
     """
-    def __init__(self, workspace_id: str = "default", provider_id: str = "auto"):
+    def __init__(
+        self,
+        workspace_id: str = "default",
+        provider_id: str = "auto",
+        cognitive_classifier: Optional[CognitiveClassifier] = None,
+        cache_router: Optional[CacheAwareRouter] = None,
+        db_session=None,
+        tier_service: Optional[CognitiveTierService] = None
+    ):
         self.workspace_id = "default" # Single-tenant: always use default
         self.default_provider_id = provider_id if provider_id != "auto" else None
         self.clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()
-        self.cognitive_classifier = CognitiveClassifier()  # Phase 68: Cognitive tier system
+
+        # Use injected dependencies or create defaults
+        self.cognitive_classifier = cognitive_classifier or CognitiveClassifier()  # Phase 68: Cognitive tier system
         self._initialize_clients()
 
         # Initialize cache-aware router for cost optimization
-        from core.dynamic_pricing_fetcher import get_pricing_fetcher
-        from core.llm.cache_aware_router import CacheAwareRouter
-        self.cache_router = CacheAwareRouter(get_pricing_fetcher())
+        self.cache_router = cache_router or CacheAwareRouter(get_pricing_fetcher())
 
         # Phase 68-06: Initialize Cognitive Tier Service for orchestration
-        from core.database import get_db_session
-        try:
-            self.db_session = get_db_session().__enter__()  # Get session for service
-        except Exception as e:
-            logger.warning(f"Could not create database session for tier service: {e}")
-            self.db_session = None
+        if db_session is not None:
+            self.db_session = db_session
+        else:
+            try:
+                self.db_session = get_db_session().__enter__()  # Get session for service
+            except Exception as e:
+                logger.warning(f"Could not create database session for tier service: {e}")
+                self.db_session = None
 
-        from core.llm.cognitive_tier_service import CognitiveTierService
-        self.tier_service = CognitiveTierService(workspace_id, self.db_session)
+        self.tier_service = tier_service or CognitiveTierService(workspace_id, self.db_session)
 
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """
