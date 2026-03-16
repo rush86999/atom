@@ -1,0 +1,649 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.0, pytest-9.0.2, pluggy-1.6.0
+rootdir: /Users/rushiparikh/projects/atom/backend
+configfile: pytest.ini
+plugins: Faker-40.8.0, anyio-4.12.0, xdist-3.8.0, schemathesis-4.11.0, hypothesis-6.151.9, asyncio-1.3.0, langsmith-0.7.17, cov-7.0.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 102 items
+
+tests/test_edge_cases.py::TestStringHelpers::test_empty_string_handling 
+-------------------------------- live log setup --------------------------------
+2026-03-16 10:48:30 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_edge_cases.py::TestStringHelpers::test_unicode_characters PASSED [  1%]
+tests/test_edge_cases.py::TestStringHelpers::test_string_validation_edge_cases PASSED [  2%]
+tests/test_edge_cases.py::TestStringHelpers::test_injection_attempts PASSED [  3%]
+tests/test_edge_cases.py::TestDateTimeUtilities::test_timezone_handling PASSED [  4%]
+tests/test_edge_cases.py::TestDateTimeUtilities::test_invalid_dates PASSED [  5%]
+tests/test_edge_cases.py::TestDateTimeUtilities::test_date_boundaries PASSED [  6%]
+tests/test_edge_cases.py::TestDateTimeUtilities::test_iso_format_parsing PASSED [  7%]
+tests/test_edge_cases.py::TestFileHelpers::test_path_operations PASSED   [  8%]
+tests/test_edge_cases.py::TestFileHelpers::test_file_validation PASSED   [  9%]
+tests/test_edge_cases.py::TestFileHelpers::test_missing_file_handling PASSED [ 10%]
+tests/test_edge_cases.py::TestFileHelpers::test_file_extension_validation PASSED [ 11%]
+tests/test_edge_cases.py::TestConfigurationModules::test_environment_variable_loading PASSED [ 12%]
+tests/test_edge_cases.py::TestConfigurationModules::test_missing_required_vars PASSED [ 13%]
+tests/test_edge_cases.py::TestConfigurationModules::test_invalid_env_var_values PASSED [ 14%]
+tests/test_edge_cases.py::TestConfigurationModules::test_default_values PASSED [ 15%]
+tests/test_edge_cases.py::TestConfigurationModules::test_config_validation PASSED [ 16%]
+tests/test_edge_cases.py::TestValidationService::test_null_value_handling PASSED [ 17%]
+tests/test_edge_cases.py::TestValidationService::test_type_validation PASSED [ 18%]
+tests/test_edge_cases.py::TestValidationService::test_range_validation PASSED [ 19%]
+tests/test_edge_cases.py::TestValidationService::test_string_length_validation PASSED [ 20%]
+tests/test_edge_cases.py::TestValidationService::test_email_validation PASSED [ 21%]
+tests/test_edge_cases.py::TestErrorHandling::test_exception_propagation PASSED [ 22%]
+tests/test_edge_cases.py::TestErrorHandling::test_error_messages_user_friendly PASSED [ 23%]
+tests/test_edge_cases.py::TestErrorHandling::test_stack_trace_not_exposed PASSED [ 24%]
+tests/test_edge_cases.py::TestConcurrencyIssues::test_simulated_race_condition PASSED [ 25%]
+tests/test_edge_cases.py::TestConcurrencyIssues::test_deadlock_prevention PASSED [ 26%]
+tests/test_edge_cases.py::TestConcurrencyIssues::test_resource_exhaustion PASSED [ 27%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_integer_boundaries PASSED [ 28%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_float_boundaries PASSED [ 29%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_list_boundaries PASSED [ 30%]
+tests/test_edge_cases.py::TestBoundaryConditions::test_dict_boundaries PASSED [ 31%]
+tests/test_edge_cases.py::TestInvalidInputs::test_wrong_data_types PASSED [ 32%]
+tests/test_edge_cases.py::TestInvalidInputs::test_malformed_json PASSED  [ 33%]
+tests/test_edge_cases.py::TestInvalidInputs::test_broken_utf8 PASSED     [ 34%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_get_endpoint_with_query_params PASSED [ 35%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_post_endpoint_validation PASSED [ 36%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_put_endpoint_partial_updates PASSED [ 37%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_delete_endpoint_cascade PASSED [ 38%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_authentication_missing_token PASSED [ 39%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_authentication_invalid_credentials PASSED [ 40%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_authorization_insufficient_permissions PASSED [ 41%]
+tests/test_edge_cases.py::TestAPIEndpoints::test_rate_limiting PASSED    [ 42%]
+tests/test_edge_cases.py::TestCoreServiceModules::test_business_rule_validation PASSED [ 43%]
+tests/test_edge_cases.py::TestCoreServiceModules::test_database_connection_errors PASSED [ 44%]
+tests/test_edge_cases.py::TestCoreServiceModules::test_cache_miss_handling PASSED [ 45%]
+tests/test_edge_cases.py::TestCoreServiceModules::test_cache_ttl_expiration PASSED [ 46%]
+tests/test_edge_cases.py::TestCoreServiceModules::test_external_service_timeout PASSED [ 47%]
+tests/test_edge_cases.py::TestCoreServiceModules::test_external_service_5xx_errors PASSED [ 48%]
+tests/test_edge_cases.py::TestCoreServiceModules::test_error_propagation PASSED [ 49%]
+tests/test_edge_cases.py::TestIntegrationModules::test_connection_failure_handling PASSED [ 50%]
+tests/test_edge_cases.py::TestIntegrationModules::test_request_response_mapping PASSED [ 50%]
+tests/test_edge_cases.py::TestIntegrationModules::test_error_translation_external_to_internal PASSED [ 51%]
+tests/test_edge_cases.py::TestIntegrationModules::test_rate_limiting_external_api PASSED [ 52%]
+tests/test_edge_cases.py::TestIntegrationModules::test_authentication_token_refresh PASSED [ 53%]
+tests/test_edge_cases.py::TestIntegrationModules::test_retry_logic PASSED [ 54%]
+tests/test_edge_cases.py::TestWorkflowEngine::test_conditional_parameters PASSED [ 55%]
+tests/test_edge_cases.py::TestWorkflowEngine::test_execution_engine PASSED [ 56%]
+tests/test_edge_cases.py::TestWorkflowEngine::test_step_execution PASSED [ 57%]
+tests/test_edge_cases.py::TestWorkflowEngine::test_error_handling PASSED [ 58%]
+tests/test_edge_cases.py::TestWorkflowEngine::test_state_transitions PASSED [ 59%]
+tests/test_edge_cases.py::TestWorkflowEngine::test_multi_output_workflows PASSED [ 60%]
+tests/test_edge_cases.py::TestAgentGovernance::test_maturity_level_checks PASSED [ 61%]
+tests/test_edge_cases.py::TestAgentGovernance::test_permission_checks PASSED [ 62%]
+tests/test_edge_cases.py::TestAgentGovernance::test_action_complexity_validation PASSED [ 63%]
+tests/test_edge_cases.py::TestAgentGovernance::test_governance_cache_invalidation PASSED [ 64%]
+tests/test_edge_cases.py::TestEpisodicMemory::test_episode_creation PASSED [ 65%]
+tests/test_edge_cases.py::TestEpisodicMemory::test_episode_segmentation PASSED [ 66%]
+tests/test_edge_cases.py::TestEpisodicMemory::test_episode_retrieval PASSED [ 67%]
+tests/test_edge_cases.py::TestEpisodicMemory::test_feedback_weighting PASSED [ 68%]
+tests/test_edge_cases.py::TestLLMIntegration::test_token_counting PASSED [ 69%]
+tests/test_edge_cases.py::TestLLMIntegration::test_provider_selection PASSED [ 70%]
+tests/test_edge_cases.py::TestLLMIntegration::test_streaming_response PASSED [ 71%]
+tests/test_edge_cases.py::TestLLMIntegration::test_timeout_handling PASSED [ 72%]
+tests/test_edge_cases.py::TestLLMIntegration::test_cost_estimation PASSED [ 73%]
+tests/test_governance_performance.py::TestGovernanceCachePerformance::test_cached_lookup_latency 
+-------------------------------- live log setup --------------------------------
+2026-03-16 10:48:30 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 74%]
+tests/test_governance_performance.py::TestGovernanceCachePerformance::test_cache_write_latency 
+-------------------------------- live log setup --------------------------------
+2026-03-16 10:48:30 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 75%]
+tests/test_governance_performance.py::TestGovernanceCachePerformance::test_cache_hit_rate_under_load 
+-------------------------------- live log setup --------------------------------
+2026-03-16 10:48:30 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 76%]
+tests/test_governance_performance.py::TestGovernanceCachePerformance::test_cache_concurrent_access 
+-------------------------------- live log setup --------------------------------
+2026-03-16 10:48:30 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 77%]
+tests/test_governance_performance.py::TestGovernanceCheckPerformance::test_uncached_governance_check_latency 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:30 [    INFO] Initialized global governance cache
+2026-03-16 10:48:30 [    INFO] Governance check: Agent Test Agent (intern) can perform stream_chat (complexity 2) - Approval required: False
+PASSED                                                                   [ 78%]
+tests/test_governance_performance.py::TestGovernanceCheckPerformance::test_cached_governance_check_with_decorator PASSED [ 79%]
+tests/test_governance_performance.py::TestAgentResolutionPerformance::test_agent_resolution_with_explicit_id 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:30 [    INFO] Resolved agent via explicit agent_id: Test Agent
+PASSED                                                                   [ 80%]
+tests/test_governance_performance.py::TestAgentResolutionPerformance::test_agent_resolution_fallback_chain 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-03-16 10:48:30 [    INFO] Resolved agent via system default: Chat Assistant
+PASSED                                                                   [ 81%]
+tests/test_governance_performance.py::TestStreamingWithGovernanceOverhead::test_streaming_with_governance_overhead 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+PASSED                                                                   [ 82%]
+tests/test_governance_performance.py::TestConcurrentAgentResolution::test_concurrent_agent_resolution 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Test Agent
+PASSED                                                                   [ 83%]
+tests/test_governance_streaming.py::TestAgentContextResolver::test_resolve_agent_with_explicit_id 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Resolved agent via explicit agent_id: Intern Agent
+PASSED                                                                   [ 84%]
+tests/test_governance_streaming.py::TestAgentContextResolver::test_resolve_agent_fallback_to_session 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Resolved agent via session: Intern Agent
+PASSED                                                                   [ 85%]
+tests/test_governance_streaming.py::TestAgentContextResolver::test_resolve_agent_fallback_to_system_default 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Resolved agent via system default: Intern Agent
+PASSED                                                                   [ 86%]
+tests/test_governance_streaming.py::TestAgentGovernanceService::test_action_complexity_mappings 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Student Agent (student) lacks maturity for stream_chat. Required: intern - Approval required: True
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Student Agent (student) can perform present_chart (complexity 1) - Approval required: False
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Student Agent (student) lacks maturity for submit_form. Required: supervised - Approval required: True
+PASSED                                                                   [ 87%]
+tests/test_governance_streaming.py::TestAgentGovernanceService::test_intern_agent_permissions 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Intern Agent (intern) can perform stream_chat (complexity 2) - Approval required: False
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Intern Agent (intern) can perform present_form (complexity 2) - Approval required: False
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Intern Agent (intern) lacks maturity for submit_form. Required: supervised - Approval required: True
+PASSED                                                                   [ 88%]
+tests/test_governance_streaming.py::TestAgentGovernanceService::test_supervised_agent_permissions 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Supervised Agent (supervised) can perform submit_form (complexity 3) - Approval required: True
+2026-03-16 10:48:31 [    INFO] Governance check: Agent Supervised Agent (supervised) can perform stream_chat (complexity 2) - Approval required: False
+PASSED                                                                   [ 89%]
+tests/test_governance_streaming.py::TestGovernanceCache::test_cache_set_and_get 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 90%]
+tests/test_governance_streaming.py::TestGovernanceCache::test_cache_miss 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 91%]
+tests/test_governance_streaming.py::TestGovernanceCache::test_cache_expiration 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:31 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 92%]
+tests/test_governance_streaming.py::TestGovernanceCache::test_cache_invalidation 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:33 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 93%]
+tests/test_governance_streaming.py::TestGovernanceCache::test_cache_invalidate_all_agent_actions 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:33 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 94%]
+tests/test_governance_streaming.py::TestGovernanceCache::test_cache_stats 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:33 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 95%]
+tests/test_governance_streaming.py::TestGovernanceCache::test_cache_lru_eviction 
+-------------------------------- live log call ---------------------------------
+2026-03-16 10:48:33 [ WARNING] Could not start cleanup task: There is no current event loop in thread 'MainThread'.
+PASSED                                                                   [ 96%]
+tests/test_governance_streaming.py::TestAgentExecutionTracking::test_agent_execution_created_on_stream_start PASSED [ 97%]
+tests/test_governance_streaming.py::TestAgentExecutionTracking::test_agent_execution_marked_completed PASSED [ 98%]
+tests/test_governance_streaming.py::TestCanvasAuditTrail::test_canvas_audit_created_for_chart FAILED [ 99%]
+tests/test_governance_streaming.py::TestCanvasAuditTrail::test_canvas_audit_created_for_form_submission FAILED [100%]
+
+=================================== FAILURES ===================================
+___________ TestCanvasAuditTrail.test_canvas_audit_created_for_chart ___________
+tests/test_governance_streaming.py:370: in test_canvas_audit_created_for_chart
+    audit = CanvasAudit(
+<string>:4: in __init__
+    ???
+/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/state.py:596: in _initialize_instance
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.14/site-packages/sqlalchemy/util/langhelpers.py:224: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/state.py:594: in _initialize_instance
+    manager.original_init(*mixed[1:], **kwargs)
+/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/decl_base.py:2179: in _declarative_constructor
+    raise TypeError(
+E   TypeError: 'agent_execution_id' is an invalid keyword argument for CanvasAudit
+______ TestCanvasAuditTrail.test_canvas_audit_created_for_form_submission ______
+tests/test_governance_streaming.py:391: in test_canvas_audit_created_for_form_submission
+    audit = CanvasAudit(
+<string>:4: in __init__
+    ???
+/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/state.py:596: in _initialize_instance
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.14/site-packages/sqlalchemy/util/langhelpers.py:224: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/state.py:594: in _initialize_instance
+    manager.original_init(*mixed[1:], **kwargs)
+/usr/local/lib/python3.14/site-packages/sqlalchemy/orm/decl_base.py:2179: in _declarative_constructor
+    raise TypeError(
+E   TypeError: 'component_type' is an invalid keyword argument for CanvasAudit
+=============================== warnings summary ===============================
+tests/test_governance_performance.py: 400 warnings
+tests/test_governance_streaming.py: 3 warnings
+  /Users/rushiparikh/projects/atom/backend/core/agent_context_resolver.py:60: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "resolved_at": datetime.utcnow().isoformat()
+
+tests/test_governance_performance.py::TestStreamingWithGovernanceOverhead::test_streaming_with_governance_overhead
+  /Users/rushiparikh/projects/atom/backend/tests/test_governance_performance.py:368: SAWarning: relationship 'Machine.session' will copy column machines.id to column guacamole_sessions.machine_id, which conflicts with relationship(s): 'Machine.guacamole_sessions' (copies machines.id to guacamole_sessions.machine_id). If this is not the intention, consider if these relationships should be linked with back_populates, or if viewonly=True should be applied to one or more if they are read-only. For the less common case that foreign key constraints are partially overlapping, the orm.foreign() annotation can be used to isolate the columns that should be written towards.   To silence this warning, add the parameter 'overlaps="guacamole_sessions"' to the 'Machine.session' relationship. (Background on this warning at: https://sqlalche.me/e/20/qzyx) (This warning originated from the `configure_mappers()` process, which was invoked automatically in response to a user-initiated operation.)
+    execution = AgentExecution(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_user_management_monitoring.py: 0.054 (target: 0.15)
+  tests/test_supervision_learning_integration.py: 0.042 (target: 0.15)
+  tests/test_mcp_a2a_tools.py: 0.141 (target: 0.15)
+  tests/test_email_api_ingestion.py: 0.105 (target: 0.15)
+  tests/test_auth_routes_coverage.py: 0.091 (target: 0.15)
+=============================== Coverage: 74.6% ================================
+=========================== short test summary info ============================
+FAILED tests/test_governance_streaming.py::TestCanvasAuditTrail::test_canvas_audit_created_for_chart
+FAILED tests/test_governance_streaming.py::TestCanvasAuditTrail::test_canvas_audit_created_for_form_submission
+=========================== warnings summary (final) ===========================
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:117
+  <unknown>:117: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+<unknown>:129
+  <unknown>:129: SyntaxWarning: "\[" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\["? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 2 failed, 100 passed, 408 warnings in 8.05s ==================
