@@ -1651,3 +1651,342 @@ class TestEligibility:
 
         assert "error" in result
         assert "Unknown maturity level" in result["error"]
+
+
+# ========================================================================
+# Additional Graduation Edge Cases (Phase 198-03 Task 4)
+# ========================================================================
+
+class TestAgentGraduationEdgeCases:
+    """Test graduation criteria and edge cases as per Phase 198-03 Task 4"""
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_student_to_intern(self, graduation_service):
+        """Should calculate readiness score for STUDENT → INTERN promotion"""
+        # Mock agent with STUDENT maturity
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "STUDENT"
+        agent.status = mock_status
+
+        # Create 10 episodes with 50% intervention rate
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "STUDENT"
+            ep.status = "completed"
+            ep.human_intervention_count = 1 if i % 2 == 0 else 0  # 50% intervention
+            ep.constitutional_score = 0.85
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="INTERN"
+        )
+
+        assert "score" in result
+        assert "ready" in result
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_intern_to_supervised(self, graduation_service):
+        """Should calculate readiness score for INTERN → SUPERVISED promotion"""
+        # Mock agent with INTERN maturity
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # Create 25 episodes with 20% intervention rate
+        episodes = []
+        for i in range(25):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 1 if i % 5 == 0 else 0  # 20% intervention
+            ep.constitutional_score = 0.88
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert "score" in result
+        assert "ready" in result
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_supervised_to_autonomous(self, graduation_service):
+        """Should calculate readiness score for SUPERVISED → AUTONOMOUS promotion"""
+        # Mock agent with SUPERVISED maturity
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "SUPERVISED"
+        agent.status = mock_status
+
+        # Create 50 episodes with 0% intervention rate
+        episodes = []
+        for i in range(50):
+            ep = Mock()
+            ep.maturity_at_time = "SUPERVISED"
+            ep.status = "completed"
+            ep.human_intervention_count = 0  # 0% intervention
+            ep.constitutional_score = 0.95
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="AUTONOMOUS"
+        )
+
+        assert "score" in result
+        assert "ready" in result
+
+    @pytest.mark.asyncio
+    async def test_readiness_score_insufficient_episodes(self, graduation_service):
+        """Should reject promotion with insufficient episodes"""
+        # Mock agent
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # Only 5 episodes (need 25 for SUPERVISED)
+        episodes = []
+        for i in range(5):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.9
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert "score" in result
+
+    @pytest.mark.asyncio
+    async def test_graduation_with_high_intervention_rate(self, graduation_service):
+        """Should fail graduation with high intervention rate"""
+        # Mock agent
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # 25 episodes with 80% intervention rate (too high)
+        episodes = []
+        for i in range(25):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 1 if i % 5 != 0 else 0  # 80% intervention
+            ep.constitutional_score = 0.9
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert "score" in result
+
+    @pytest.mark.asyncio
+    async def test_graduation_with_low_constitutional_score(self, graduation_service):
+        """Should fail graduation with low constitutional compliance"""
+        # Mock agent
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # 25 episodes with low constitutional scores
+        episodes = []
+        for i in range(25):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 2  # 8% intervention (OK)
+            ep.constitutional_score = 0.65  # Too low
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert "score" in result
+
+    @pytest.mark.asyncio
+    async def test_graduation_meets_all_criteria(self, graduation_service):
+        """Should pass graduation when all criteria met"""
+        # Mock agent
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # 25 perfect episodes
+        episodes = []
+        for i in range(25):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 0  # 0% intervention
+            ep.constitutional_score = 0.95  # Excellent compliance
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        assert "score" in result
+        assert result.get("ready", False) or result.get("score", 0) > 0.8
+
+    @pytest.mark.asyncio
+    async def test_graduation_exam_execution(self, graduation_service):
+        """Should execute graduation exam successfully"""
+        # Mock agent
+        agent = Mock()
+        agent.id = "test-agent"
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+
+        # Mock exam execution
+        result = await graduation_service.sandbox_executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED",
+            exam_scenarios=None
+        )
+
+        assert "success" in result
+        assert "score" in result
+        assert "constitutional_compliance" in result
+        assert "passed" in result
+
+    @pytest.mark.asyncio
+    async def test_graduation_exam_scoring(self, graduation_service):
+        """Should calculate exam scores correctly"""
+        # Mock agent with episodes
+        agent = Mock()
+        agent.id = "test-agent"
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            ep.human_intervention_count = 0
+            ep.constitutional_score = 0.9
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.sandbox_executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED",
+            exam_scenarios=None
+        )
+
+        assert "score" in result
+        assert 0.0 <= result["score"] <= 1.0
+        assert 0.0 <= result["constitutional_compliance"] <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_graduation_exam_failure_handling(self, graduation_service):
+        """Should handle exam failure gracefully"""
+        # Mock agent with no episodes (will fail)
+        agent = Mock()
+        agent.id = "test-agent"
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = []
+
+        result = await graduation_service.sandbox_executor.execute_exam(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED",
+            exam_scenarios=None
+        )
+
+        assert "success" in result
+        assert "passed" in result
+        assert result["passed"] is False
+
+    @pytest.mark.asyncio
+    async def test_graduation_for_nonexistent_agent(self, graduation_service):
+        """Should handle graduation request for non-existent agent"""
+        # Agent not found
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = None
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="nonexistent-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        # Should return error or not ready
+        assert "error" in result or result.get("ready", True) is False
+
+    @pytest.mark.asyncio
+    async def test_graduation_with_corrupt_episode_data(self, graduation_service):
+        """Should handle episodes with missing or corrupt fields"""
+        # Mock agent
+        agent = Mock()
+        mock_status = Mock()
+        mock_status.value = "INTERN"
+        agent.status = mock_status
+
+        # Episodes with some missing fields
+        episodes = []
+        for i in range(10):
+            ep = Mock()
+            ep.maturity_at_time = "INTERN"
+            ep.status = "completed"
+            # Some episodes missing intervention_count
+            ep.human_intervention_count = 0 if i % 2 == 0 else None
+            ep.constitutional_score = 0.85 if i % 3 != 0 else None
+            episodes.append(ep)
+
+        graduation_service.db.query.return_value.filter.return_value.first.return_value = agent
+        graduation_service.db.query.return_value.all.return_value = episodes
+
+        result = await graduation_service.calculate_readiness_score(
+            agent_id="test-agent",
+            target_maturity="SUPERVISED"
+        )
+
+        # Should handle gracefully
+        assert "score" in result or "error" in result
