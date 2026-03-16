@@ -55,18 +55,17 @@ class TestCanvasMetadata:
 
     def test_canvas_context_structure(self):
         """Test canvas context has expected structure."""
+        # FIXED (199-03): Updated for current CanvasAudit schema
         canvas_audit = Mock()
         canvas_audit.id = "canvas-123"
-        canvas_audit.canvas_type = "sheets"
-        canvas_audit.component_type = "generic"
-        canvas_audit.component_name = "TestComponent"
-        canvas_audit.action = "present"
+        canvas_audit.canvas_id = "canvas-sheets-123"
+        canvas_audit.action_type = "present"
+        canvas_audit.details_json = {"component_type": "generic", "name": "TestComponent"}
         canvas_audit.created_at = datetime.now()
-        canvas_audit.audit_metadata = {}
 
         # Verify expected attributes
-        assert canvas_audit.canvas_type == "sheets"
-        assert canvas_audit.action == "present"
+        assert canvas_audit.action_type == "present"
+        assert canvas_audit.details_json["component_type"] == "generic"
 
 
 # ============================================================================
