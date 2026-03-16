@@ -123,8 +123,8 @@ def sample_workflow_dict(sample_input_parameters, sample_workflow_steps):
         "version": "1.0",
         "category": "data_processing",
         "tags": ["etl", "test"],
-        "input_schema": [p.dict() for p in sample_input_parameters],
-        "steps": [s.dict() for s in sample_workflow_steps],
+        "input_schema": [p.model_dump() for p in sample_input_parameters],
+        "steps": [s.model_dump() for s in sample_workflow_steps],
         "step_connections": [
             {"source": "validate", "target": "extract"},
             {"source": "extract", "target": "transform"}
