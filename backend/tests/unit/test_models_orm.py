@@ -36,7 +36,7 @@ from core.models import (
     # Workflow models
     WorkflowExecution,
     WorkflowExecutionStatus,
-    WorkflowStepExecution,
+    # WorkflowStepExecution removed (does not exist in current schema)
     # Episode models
     Episode,
     EpisodeSegment,
@@ -62,7 +62,7 @@ from tests.factories import (
     WorkspaceFactory,
     TeamFactory,
     WorkflowExecutionFactory,
-    WorkflowStepExecutionFactory,
+    # WorkflowStepExecutionFactory removed (does not exist in current schema)
     AgentFeedbackFactory,
     BlockedTriggerContextFactory,
     AgentProposalFactory,
