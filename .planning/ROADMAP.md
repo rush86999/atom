@@ -921,6 +921,34 @@ Plans: 4 plans
 - [x] 198-07-PLAN.md — Workflow orchestration integration (Wave 3) ✅
 - [x] 198-08-PLAN.md — Final verification and summary (Wave 4) ✅
 
+### Phase 199: Fix Test Collection Errors & Achieve 85% 🚧 PLANNED
+**Goal**: Fix collection errors to unblock 150+ tests, then target medium-impact modules to reach 85% overall coverage
+**Plans**: 12 plans
+**Baseline Coverage**: 74.6% (Phase 198)
+**Target Coverage**: 85% (gap -10.4%)
+**Focus Areas**:
+- Test infrastructure fixes (pytest --ignore patterns, Pydantic v2 migration, SQLAlchemy 2.0 migration, CanvasAudit schema)
+- Wave 1: Fix collection errors (3 plans, 30 min - 2 hours)
+- Wave 2: Coverage measurement (2 plans, 30 min)
+- Wave 3: Medium-impact module coverage (3 plans, 3-4 hours)
+- Wave 4: Integration test expansion (2 plans, 1-2 hours)
+- Wave 5: Final verification (2 plans, 30 min)
+**Depends on**: Phase 198
+**Notes**: Phase 199 RESEARCH COMPLETE. 10 collection errors catalogued (6 archive tests, 2 non-backend, 1 pytest config, 1 scripts). Root cause: Pydantic v2/SQLAlchemy 2.0 compatibility, CanvasAudit schema drift. Fix path: 5 waves, 12 plans, 5-7 hours to 85% target.
+**Plans**:
+- [ ] 199-01-PLAN.md — Fix collection errors via pytest.ini (Wave 1)
+- [ ] 199-02-PLAN.md — Pydantic v2/SQLAlchemy 2.0 migration (Wave 1)
+- [ ] 199-03-PLAN.md — CanvasAudit schema fixes (Wave 1)
+- [ ] 199-04-PLAN.md — Measure baseline coverage (Wave 2)
+- [ ] 199-05-PLAN.md — Identify high-impact targets (Wave 2)
+- [ ] 199-06-PLAN.md — Agent governance service coverage (Wave 3)
+- [ ] 199-07-PLAN.md — Trigger interceptor coverage (Wave 3)
+- [ ] 199-08-PLAN.md — Student training service coverage (Wave 3)
+- [ ] 199-09-PLAN.md — Agent execution E2E tests (Wave 4)
+- [ ] 199-10-PLAN.md — Training supervision integration (Wave 4)
+- [ ] 199-11-PLAN.md — Final coverage measurement (Wave 5)
+- [ ] 199-12-PLAN.md — Documentation and summary (Wave 5)
+
 ## Progress
 
 **Execution Order:**
