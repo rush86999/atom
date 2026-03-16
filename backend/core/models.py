@@ -5991,6 +5991,86 @@ class OAuthToken(Base):
 
 
 # ============================================================================
+# JWT Token Management Models
+# ============================================================================
+
+class ActiveToken(Base):
+    """
+    Active JWT tokens for user authentication.
+
+    Tracks currently active JWT tokens to support token management,
+    revocation, and cleanup operations.
+    """
+    __tablename__ = "active_tokens"
+
+    # JWT ID (jti) - unique identifier for the token
+    jti = Column(String, primary_key=True, nullable=False)
+
+    # Foreign key to user
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Token content (hashed for security)
+    token = Column(Text, nullable=False)
+
+    # Expiration timestamp
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Creation timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Token metadata
+    token_type = Column(String(20), default="access")  # access, refresh, etc.
+
+    # Indexes for common queries
+    __table_args__ = (
+        Index('idx_active_tokens_user_id', 'user_id'),
+        Index('idx_active_tokens_expires_at', 'expires_at'),
+        Index('idx_active_tokens_user_expires', 'user_id', 'expires_at'),
+    )
+
+    def __repr__(self):
+        return f"<ActiveToken(jti={self.jti}, user_id={self.user_id}, expires_at={self.expires_at})>"
+
+
+class RevokedToken(Base):
+    """
+    Revoked JWT tokens for blacklist functionality.
+
+    Tracks revoked tokens to prevent their reuse even if they haven't expired yet.
+    Supports token revocation due to logout, password changes, or security incidents.
+    """
+    __tablename__ = "revoked_tokens"
+
+    # JWT ID (jti) - unique identifier for the token
+    jti = Column(String, primary_key=True, nullable=False)
+
+    # Foreign key to user
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # When the token was revoked
+    revoked_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Original expiration (for cleanup)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Reason for revocation
+    reason = Column(String(100), nullable=True)  # logout, password_change, security_incident, etc.
+
+    # Token metadata
+    token_type = Column(String(20), default="access")  # access, refresh, etc.
+
+    # Indexes for common queries
+    __table_args__ = (
+        Index('idx_revoked_tokens_user_id', 'user_id'),
+        Index('idx_revoked_tokens_expires_at', 'expires_at'),
+        Index('idx_revoked_tokens_user_expires', 'user_id', 'expires_at'),
+    )
+
+    def __repr__(self):
+        return f"<RevokedToken(jti={self.jti}, user_id={self.user_id}, revoked_at={self.revoked_at})>"
+
+
+# ============================================================================
 # SDLC Agent Models
 # ============================================================================
 
