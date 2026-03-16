@@ -19,6 +19,9 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+# Configure pytest-asyncio
+pytest_plugins = ('pytest_asyncio',)
+
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -1452,6 +1455,68 @@ def _count_assertions(node: ast.AST) -> int:
                                        'assertIs', 'assertIsNone', 'assertIsNotNone'):
                     count += 1
     return count
+
+
+@pytest.fixture
+async def async_client():
+    """
+    Async test client for FastAPI applications.
+
+    Use this fixture in async tests that need to make API calls.
+    """
+    from fastapi.testclient import TestClient
+    from main import app
+
+    async with TestClient(app) as client:
+        yield client
+
+
+@pytest.fixture
+def mock_llm():
+    """
+    Mock LLM handler for testing.
+
+    Provides both sync and async mock methods.
+    """
+    mock = AsyncMock()
+    mock.generate = AsyncMock(return_value="Test response")
+    mock.agenerate = AsyncMock(return_value="Test response")
+    mock.stream_generate = AsyncMock(return_value=iter(["token1", "token2"]))
+    mock.count_tokens = Mock(return_value=10)
+    return mock
+
+
+@pytest.fixture
+async def mock_websocket():
+    """
+    Mock WebSocket connection for testing.
+
+    Provides async methods for WebSocket lifecycle.
+    """
+    ws = AsyncMock()
+    ws.accept = AsyncMock(return_value=None)
+    ws.send_json = AsyncMock(return_value=None)
+    ws.send_text = AsyncMock(return_value=None)
+    ws.receive_json = AsyncMock(return_value={"message": "test"})
+    ws.receive_text = AsyncMock(return_value="test message")
+    ws.close = AsyncMock(return_value=None)
+    return ws
+
+
+@pytest.fixture
+def mock_connection_manager():
+    """
+    Mock WebSocket connection manager for testing.
+
+    Manages multiple WebSocket connections.
+    """
+    manager = Mock()
+    manager.connect = Mock(return_value=None)
+    manager.disconnect = Mock(return_value=None)
+    manager.broadcast = Mock(return_value=None)
+    manager.send_personal_message = Mock(return_value=None)
+    manager.active_connections = []
+    return manager
 
 
 def _calculate_assertion_density(test_file: Path) -> float:
