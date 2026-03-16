@@ -14,6 +14,7 @@ Focus areas from coverage report:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import select
 
 from core.agent_graduation_service import (
     AgentGraduationService,
@@ -252,9 +253,8 @@ class TestPromoteAgent:
         assert result is True
 
         # Verify promotion recorded - query fresh from DB
-        promoted_agent = db_session.query(AgentRegistry).filter(
-            AgentRegistry.id == "agent-promote-me"
-        ).first()
+        stmt = select(AgentRegistry).where(AgentRegistry.id == "agent-promote-me")
+        promoted_agent = db_session.execute(stmt).scalar_one_or_none()
 
         assert promoted_agent.status == AgentStatus.SUPERVISED
         # Configuration update tested by production code log message
