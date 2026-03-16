@@ -1,0 +1,30 @@
+{
+  "phase": "199",
+  "plan": "11",
+  "generated_at": "2026-03-16T22:43:34Z",
+  "overall_coverage": "74.6%",
+  "phase_198_baseline": "74.6%",
+  "target": "85%",
+  "gap": "-10.4 percentage points",
+  "tests_collected": 22595,
+  "collection_errors": 73,
+  "phase_198_test_count": 5753,
+  "phase_198_errors": 150,
+  "improvement": {
+    "test_count_increase": 16842,
+    "error_reduction": 77,
+    "coverage_change": 0
+  },
+  "notes": [
+    "Coverage unchanged from Phase 198 due to remaining collection errors",
+    "Test count increased significantly (5,753 → 22,595)",
+    "Collection errors reduced significantly (150 → 73)",
+    "73 collection errors still blocking ~150-200 tests from running",
+    "Overall coverage measured from passing tests only"
+  ],
+  "next_steps": [
+    "Fix remaining 73 collection errors to unblock more tests",
+    "Target high-impact modules for coverage push",
+    "Focus on governance, episodic memory, and workflow modules"
+  ]
+}
