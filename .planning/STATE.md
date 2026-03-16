@@ -1,9 +1,59 @@
 Phase: 199 of 199 (Fix Test Collection Errors & Achieve 85%)
-Plan: 03 of 12 in current phase
+Plan: 05 of 12 in current phase
 Status: 🔄 IN PROGRESS
-Last activity: 2026-03-16 — Phase 199 Plan 03 COMPLETE: Fixed CanvasAudit schema drift in test factories and test assertions. Updated CanvasAuditFactory to use current schema (canvas_id, tenant_id, action_type, details_json, episode_id). Fixed 3 test files: test_models_orm.py (removed agent_execution_id), test_episode_retrieval_service.py (updated mock objects), test_episode_integration.py (updated canvas context). Removed non-existent WorkflowStepExecution imports. Governance streaming tests: 2/2 PASSED.
+Last activity: 2026-03-16 — Phase 199 Plan 05 COMPLETE: Created high-impact coverage targets for Wave 3. Analyzed coverage baseline and identified 3 high-impact modules using data-driven targeting (Impact Score = Lines × Coverage Gap / Effort). Created 199-05-TARGETS.md with detailed module analysis. Wave 3 targets: agent_governance_service.py (62%→85%, Impact 7.33, HIGH), trigger_interceptor.py (74%→85%, Impact 3.50, MEDIUM), agent_graduation_service.py (74%→85%, Impact 3.30, MEDIUM). Expected contribution: +3-5% overall coverage. Commit: 299ed5e60.
 
 ## Session Update: 2026-03-16 (Latest)
+
+**PHASE 199 PLAN 05 COMPLETE: High-Impact Coverage Targets for Wave 3**
+
+**Tasks Completed:**
+- Task 1: Extract Module Coverage Data ✅
+  - Analyzed coverage baseline for core/, api/, tools/ modules
+  - Identified 5 modules with 200+ lines and 40-85% coverage
+  - Filtered for high-impact targets (exclude small utilities and >85%)
+  - No commit (analysis task)
+
+- Task 2: Calculate Impact Scores for Target Modules ✅
+  - Implemented impact score formula: (Lines × Coverage Gap) / Effort
+  - Calculated scores for all 5 candidate modules
+  - Prioritized: agent_governance_service.py (7.33 HIGH), trigger_interceptor.py (3.50 MEDIUM), agent_graduation_service.py (3.30 MEDIUM)
+  - No commit (calculation task)
+
+- Task 3: Select Wave 3 Targets and Create Target Document ✅
+  - Created comprehensive 199-05-TARGETS.md (316 lines)
+  - Documented rationale for each target selection
+  - Adjusted Wave 3 scope based on actual coverage data
+  - Expected contribution: +3-5% overall coverage
+  - Commit: 299ed5e60
+
+**Technical Achievements:**
+- Phase 199 Plan 05 complete with 3 tasks executed
+- Data-driven target selection using impact score methodology
+- 3 high-impact modules identified for Wave 3 (Plans 06-08)
+- 2 integration areas identified for Wave 4 (Plans 09-10)
+- Wave 3 test counts reduced based on actual coverage (better than estimated)
+
+**Metrics:**
+- Duration: 3 minutes (195 seconds)
+- Plans executed: 3/3 tasks (100%)
+- Files created: 1 (199-05-TARGETS.md, 316 lines)
+- Commits: 1 (299ed5e60)
+- Modules analyzed: 5 (3 high-impact, 2 medium/low)
+- Expected coverage contribution: +3-5% overall
+
+**Decisions Made:**
+- Prioritize agent_governance_service.py (highest ROI: 7.33 impact score)
+- Include trigger_interceptor.py (quick win: only 10.7% gap)
+- Include agent_graduation_service.py (business value: graduation framework)
+- Defer episode_segmentation_service.py (low impact: already 83.8%)
+- Block student_training_service.py (schema drift prevents testing)
+
+**Next:** Phase 199 Plan 06 - Agent Governance Service Coverage Push (62% → 85%)
+
+Progress: [████░░░░░░░░░░░░░░░░] 42% (5/12 plans in Phase 199)
+
+**Previous Session:** Phase 199 Plan 03
 
 **PHASE 199 PLAN 03 COMPLETE: CanvasAudit Schema Drift Fixes**
 
@@ -61,7 +111,7 @@ Last activity: 2026-03-16 — Phase 199 Plan 03 COMPLETE: Fixed CanvasAudit sche
 
 **Next:** Phase 199 Plan 04 - Coverage measurement and targeting
 
-Progress: [███░░░░░░░░░░░░░░░░] 25% (3/12 plans in Phase 199)
+Progress: [████░░░░░░░░░░░░░░░░] 42% (5/12 plans in Phase 199)
 
 **Previous Session:** Phase 199 Plan 02
 
