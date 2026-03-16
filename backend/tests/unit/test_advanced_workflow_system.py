@@ -845,12 +845,12 @@ class TestStateManager:
         # Create workflows with different statuses
         for status in [WorkflowState.DRAFT, WorkflowState.RUNNING, WorkflowState.COMPLETED]:
             state = {
-                "workflow_id": f"status_test_{status}",
+                "workflow_id": f"status_test_{status.value}",
                 "name": f"Status Test {status}",
                 "state": status,
                 "steps": []
             }
-            state_manager.save_state(f"status_test_{status}", state)
+            state_manager.save_state(f"status_test_{status.value}", state)
 
         # Filter by running status
         running_workflows = state_manager.list_workflows(status=WorkflowState.RUNNING)
