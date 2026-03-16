@@ -118,15 +118,17 @@ class AdvancedWorkflowDefinition(BaseModel):
                 continue
 
             # Check if parameter is required and not provided
+            # If it has a default value, it's not missing
             if param.required and param.name not in provided_inputs:
-                missing.append({
-                    "name": param.name,
-                    "label": param.label,
-                    "description": param.description,
-                    "type": param.type.value,
-                    "default_value": param.default_value,
-                    "options": param.options
-                })
+                if param.default_value is None:
+                    missing.append({
+                        "name": param.name,
+                        "label": param.label,
+                        "description": param.description,
+                        "type": param.type.value,
+                        "default_value": param.default_value,
+                        "options": param.options
+                    })
 
         return missing
 
@@ -312,11 +314,16 @@ class StateManager:
     def _create_workflow_summary(self, workflow_id: str, state: Dict[str, Any]) -> Dict[str, Any]:
         """Create a workflow summary from state data"""
         steps = state.get("steps", [])
+        workflow_state = state.get("state", state.get("status", "unknown"))
+        # Convert WorkflowState enum to string if needed
+        if hasattr(workflow_state, "value"):
+            workflow_state = workflow_state.value
         return {
             "workflow_id": workflow_id,
             "name": state.get("name", "Unnamed Workflow"),
             "description": state.get("description", ""),
-            "status": state.get("state", state.get("status", "unknown")),
+            "state": workflow_state,
+            "status": workflow_state,
             "created_at": state.get("created_at"),
             "updated_at": state.get("updated_at"),
             "saved_at": state.get("saved_at"),
