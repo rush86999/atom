@@ -106,7 +106,7 @@ class TestAutonomousAgentEpisodeCreation:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_autonomous_agent_execution_creates_episode(self, e2e_client, e2e_db_session, execution_id):
+    def test_autonomous_agent_execution_creates_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
         """
         Test that AUTONOMOUS agent execution creates an episode in episodic memory.
 
@@ -147,7 +147,7 @@ class TestAutonomousAgentEpisodeCreation:
         execution = assert_execution_logged(e2e_db_session, execution_id, expected_status="completed")
         assert execution.agent_id == agent.id
 
-    def test_autonomous_agent_multiple_actions_creates_segments(self, e2e_client, e2e_db_session, execution_id):
+    def test_autonomous_agent_multiple_actions_creates_segments(self, e2e_client_integration, e2e_db_session_integration, execution_id):
         """
         Test that multiple AUTONOMOUS agent actions create multiple episode segments.
 
@@ -200,7 +200,7 @@ class TestSupervisedAgentEpisodeCreation:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_supervised_agent_execution_creates_monitored_episode(self, e2e_client, e2e_db_session, execution_id):
+    def test_supervised_agent_execution_creates_monitored_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
         """
         Test that SUPERVISED agent execution creates episode with supervision metadata.
 
@@ -243,7 +243,7 @@ class TestSupervisedAgentEpisodeCreation:
         if len(supervision_sessions) > 0:
             assert supervision_sessions[0].agent_id == agent.id
 
-    def test_supervised_agent_intervention_creates_episode_segment(self, e2e_client, e2e_db_session, execution_id):
+    def test_supervised_agent_intervention_creates_episode_segment(self, e2e_client_integration, e2e_db_session_integration, execution_id):
         """
         Test that SUPERVISED agent intervention creates episode segment.
 
@@ -298,7 +298,7 @@ class TestCanvasContextIntegration:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_agent_canvas_presentation_creates_canvas_episode(self, e2e_client, e2e_db_session, execution_id):
+    def test_agent_canvas_presentation_creates_canvas_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
         """
         Test that agent with canvas presentation creates episode with canvas context.
 
@@ -365,7 +365,7 @@ class TestFeedbackContextIntegration:
         self.mock_llm = mock_llm_streaming
         self.mock_ws = mock_websocket
 
-    def test_agent_with_feedback_creates_feedback_episode(self, e2e_client, e2e_db_session, execution_id):
+    def test_agent_with_feedback_creates_feedback_episode(self, e2e_client_integration, e2e_db_session_integration, execution_id):
         """
         Test that agent with feedback creates episode with feedback context.
 
