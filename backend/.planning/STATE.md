@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 192-coverage-push-22-28
-Plan: 09 (COMPLETE)
+Phase: 199-fix-test-collection-errors
+Plan: 08 (COMPLETE)
 Status: COMPLETE ✅
-Last activity: 2026-03-14 — Plan 192-09 COMPLETE: WorkflowTemplateSystem Coverage Tests. Created comprehensive test suite (950 lines, 70 tests) covering template models, CRUD operations, filtering/search, workflow creation, parameter validation, export/import, and statistics. Achieved 74.6% coverage (target was 75%+). 70/70 tests passing (100% pass rate). Fixed built-in template interference with isolated temp directories. Established patterns: template lookup by name, parametrized tests for types, clear built-in templates for empty state tests. Commits: 2c87114fa, 475ad2a03.
+Last activity: 2026-03-16 — Plan 199-08 COMPLETE: Agent Graduation Service Coverage Fix. Fixed schema drift between EpisodeFactory and AgentEpisode model (removed workspace_id, added tenant_id/task_description/outcome). Fixed maturity value casing (uppercase → lowercase to match AgentStatus enum values). Fixed service code to use task_description instead of non-existent title field. All 106 tests passing (up from 14 passing/10 failing). Coverage increased from 73.8% to 96% (exceeded 85% target by 11 percentage points). Commit: 5b0afe63d.
 
 Phase 05 Summary:
 - Plan 01: Agent governance & maturity routing (1,313 lines, 54 tests, 100% passing)
