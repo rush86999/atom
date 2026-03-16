@@ -896,19 +896,30 @@ Plans: 4 plans
 - [x] 197-07-PLAN.md — Edge case and error path testing (Wave 4) ✅ 75 comprehensive tests
 - [x] 197-08-PLAN.md — Final verification and documentation (Wave 5) ✅ Phase summary, STATE.md, ROADMAP.md
 
-### Phase 198: Coverage Push to 85% 🚧 PENDING
+### Phase 198: Coverage Push to 85% ⚠️ PARTIALLY COMPLETE
 **Goal**: Push overall coverage from 74.6% to 85% by targeting medium-impact modules and integration tests
-**Plans**: TBD
+**Plans**: 8 plans
 **Baseline Coverage**: 74.6% (Phase 197)
-**Target Coverage**: 85% overall backend
+**Final Coverage**: 74.6% (target 85% not met, gap -10.4%)
+**Improvement**: 0% overall (module-level improvements achieved but not reflected due to collection errors)
+**Tests Created**: ~206 tests (150+ not collected due to import errors)
+**Test Infrastructure**: 10+ collection errors persist
 **Focus Areas**:
-- Medium-impact modules (governance, episodic memory)
-- Integration test coverage
-- End-to-end scenario tests
-- Test infrastructure fixes (10 files with import errors)
-- CanvasAudit test updates (2 tests failing due to schema changes)
+- Test infrastructure fixes (CanvasAudit schema fixed, 10+ files with import errors remain)
+- Medium-impact modules (governance, episodic memory, training, supervision)
+- Integration test coverage (agent execution, workflow orchestration)
+- Cache and performance coverage
 **Depends on**: Phase 197
-**Notes**: Phase 198 PLANNING. Fix test infrastructure issues first. Target 10.4% coverage improvement (74.6% → 85%). Focus on medium-impact modules and integration tests. Expand end-to-end scenario coverage.
+**Notes**: Phase 198 EXECUTION COMPLETE. 8/8 plans executed. Overall target not met due to test collection errors blocking new tests. Module-level achievements: Episodic memory 84%, Supervision 78%, Cache 90%+, Monitoring 75%+. Path forward: Phase 199 should fix collection errors to unblock 150+ existing tests, then target medium-impact modules.
+**Plans**:
+- [x] 198-01-PLAN.md — Test infrastructure fixes (Wave 1) ✅
+- [x] 198-02-PLAN.md — Governance services coverage (Wave 2) ⚠️ Partial (62%/74% vs 85% target)
+- [x] 198-03-PLAN.md — Episodic memory coverage (Wave 2) ✅ Exceeded (84% vs 75-80% target)
+- [x] 198-04-PLAN.md — Training & supervision coverage (Wave 2) ⚠️ Partial (78% supervision, training blocked)
+- [x] 198-05-PLAN.md — Cache & performance coverage (Wave 2) ✅ Exceeded (90%+/75%+)
+- [x] 198-06-PLAN.md — Agent execution E2E tests (Wave 3) ✅
+- [x] 198-07-PLAN.md — Workflow orchestration integration (Wave 3) ✅
+- [x] 198-08-PLAN.md — Final verification and summary (Wave 4) ✅
 
 ## Progress
 
@@ -962,4 +973,5 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 195. Coverage Push to 22-25% | v5.5 | 8/8 | ✅ Complete | 2026-03-15 |
 | 196. Coverage Push to 77-80% | v5.5 | 9/9 | ✅ Planned | 2026-03-15 |
 | 197. Quality-First Coverage Push (74.6%) | v5.5 | 8/8 | ✅ Complete | 2026-03-16 |
-| 198. Coverage Push to 85% | v5.5 | TBD | 🚧 Pending | - |
+| 198. Coverage Push to 85% | v5.5 | 8/8 | ⚠️ Partial Success | 2026-03-16 |
+| 199. Fix Collection Errors & Achieve 85% | v5.5 | TBD | 🚧 Pending | - |
