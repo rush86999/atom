@@ -31,7 +31,9 @@ from core.auth import (
     create_mobile_token
 )
 from core.database import get_db, Base
-from core.models import User, ActiveToken, RevokedToken
+from core.models import User
+# ActiveToken and RevokedToken don't exist in core.models - removed
+# from core.models import ActiveToken, RevokedToken
 from tests.factories.user_factory import UserFactory, AdminUserFactory
 from sqlalchemy import text
 
@@ -41,7 +43,8 @@ def db_session():
     """
     Create a fresh in-memory database for security tests.
 
-    This includes ActiveToken and RevokedToken tables for token management tests.
+    Note: ActiveToken and RevokedToken models don't exist in core.models.
+    Token management tests may need to be updated.
     """
     # Use in-memory SQLite for fast, isolated tests
     engine = create_engine(
@@ -50,7 +53,7 @@ def db_session():
         echo=False
     )
 
-    # Create all tables, including ActiveToken and RevokedToken
+    # Create all tables
     # Note: There are some duplicate index issues in models.py, so we use checkfirst=True
     # to handle them gracefully
     try:
