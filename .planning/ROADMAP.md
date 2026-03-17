@@ -1081,8 +1081,26 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 201. Coverage Push to 85% | v5.5 | 9/9 | ✅ Complete | 2026-03-17 |
 | 202. Coverage Push to 60% | v5.5 | 13/13 | ✅ Complete | 2026-03-17 |
 | 203. Coverage Push to 65% | v5.5 | 11/11 | ✅ Complete | 2026-03-17 |
-| 204. Coverage Push to 75-80% | v5.5 | 7/7 | ✅ Planned | 2026-03-17 |
-| 201. Coverage Push to 85% | v5.5 | 9/9 | ✅ Complete | 2026-03-17 |
+| 204. Coverage Push to 75-80% | v5.5 | 7/7 | ✅ Complete | 2026-03-17 |
+| 205. Coverage Quality & Target Achievement | v5.5 | 4/4 | Planning | - |
+| 206. Coverage Push to 80% | v5.5 | TBD | Pending | - |
+
+### Phase 205: Coverage Quality & Target Achievement
+**Status:** Planning (2026-03-17)
+**Goal:** Fix technical blockers from Phase 204 to achieve 75% coverage target
+**Plans:** 4 plans
+**Dependencies:** Phase 204 ✅ COMPLETE
+**Requirements**:
+- COV-01: Achieve 75% overall line coverage (0.31pp gap from Phase 204)
+- COV-02: Maintain zero collection errors (reduce from current 10)
+- COV-03: Fix async service mocking patterns for FastAPI endpoints
+- COV-04: Achieve 80%+ coverage on workflow_debugger through schema alignment
+**Plans**:
+- [ ] 205-01-PLAN.md — Fix async service mocking (creative/productivity routes, 11 tests)
+- [ ] 205-02-PLAN.md — Fix schema alignment (workflow_debugger, 10 tests)
+- [ ] 205-03-PLAN.md — Fix collection errors (pytest.ini, conftest)
+- [ ] 205-04-PLAN.md — Measure coverage and create summary
+**Notes:** Focus on resolving 3 technical blockers: async mocking (11 failing tests), schema drift (10 blocked tests), collection errors (10 errors). Fixing 21 tests should unblock accurate coverage measurement and close 0.31pp gap to 75% target.
 
 ### Phase 204: Coverage Push to 75-80% ✅ COMPLETE
 **Status**: Complete (2026-03-17)
