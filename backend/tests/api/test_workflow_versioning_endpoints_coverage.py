@@ -21,7 +21,7 @@ import json
 import os
 
 # Import workflow versioning models and classes
-from backend.core.workflow_versioning_system import (
+from core.workflow_versioning_system import (
     WorkflowVersion,
     WorkflowVersioningSystem,
     WorkflowVersionManager,
@@ -30,7 +30,7 @@ from backend.core.workflow_versioning_system import (
     ChangeType,
     VersionDiff,
 )
-from backend.core.models import User
+from core.models import User
 
 
 # ============================================================================

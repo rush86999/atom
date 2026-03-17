@@ -172,7 +172,8 @@ team_members = Table(
     Column('user_id', String, ForeignKey('users.id'), primary_key=True),
     Column('team_id', String, ForeignKey('teams.id'), primary_key=True),
     Column('role', String, default="member"),
-    Column('joined_at', DateTime(timezone=True), server_default=func.now())
+    Column('joined_at', DateTime(timezone=True), server_default=func.now()),
+    extend_existing=True  # Allow redefinition during test collection
 )
 
 user_workspaces = Table(
@@ -181,7 +182,8 @@ user_workspaces = Table(
     Column('user_id', String, ForeignKey('users.id'), primary_key=True),
     Column('workspace_id', String, ForeignKey('workspaces.id'), primary_key=True),
     Column('role', String, default="member"),
-    Column('joined_at', DateTime(timezone=True), server_default=func.now())
+    Column('joined_at', DateTime(timezone=True), server_default=func.now()),
+    extend_existing=True  # Allow redefinition during test collection
 )
 
 class Workspace(Base):
@@ -3634,6 +3636,7 @@ role_permissions = Table(
     Base.metadata,
     Column("role_id", String, ForeignKey("custom_roles.id", ondelete="CASCADE"), primary_key=True),
     Column("permission_id", String, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+    extend_existing=True  # Allow redefinition during test collection
 )
 
 class Permission(Base):
