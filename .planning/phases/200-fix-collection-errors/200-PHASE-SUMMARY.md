@@ -489,6 +489,165 @@ Phase 200 made significant progress on test collection errors through pragmatic 
 
 ---
 
+## Phase 201: Coverage Push to 85%
+
+**Goal**: Achieve 85% overall backend coverage through targeted test development
+
+**Dependencies**: Phase 200 (complete Plans 04-05 first)
+
+### Requirements
+
+**COV-01: Achieve 85% overall line coverage**
+- Current baseline: TBD (after Phase 200 Plan 05 completes)
+- Target: 85% overall coverage
+- Gap: TBD percentage points
+- Approach: Create new tests for uncovered lines
+
+**COV-02: Maintain zero collection errors**
+- Current state: Significantly reduced (exact count TBD)
+- Target: 0 collection errors
+- Approach: Complete Phase 200 Plan 04 (verify zero errors)
+- Constraint: Any new tests must collect without errors
+
+**COV-03: Focus on medium-impact modules**
+- Priority: Modules below 85% with business impact
+- Approach: Target identified gaps from coverage analysis
+- Wave-based execution: Wave 2 (medium-impact)
+
+**COV-04: Create tests for uncovered lines**
+- Approach: New tests, not fixing excluded tests
+- Pragmatic: Focus on working test infrastructure
+- Quality: Comprehensive edge case coverage
+
+**COV-05: Verify no regressions**
+- Approach: Run full coverage measurement after each wave
+- Validation: Coverage increases, no decreases
+- Stability: All new tests passing
+
+### Priority Modules
+
+**High-Impact Modules (Already ≥85% from Phase 199):**
+- ✅ agent_governance_service.py: 95% (exceeds target by +10%)
+- ✅ trigger_interceptor.py: 96% (exceeds target by +11%)
+- ✅ Episode services: 84% overall (exceeds 75-80% target)
+
+**Medium-Impact Modules (Wave 2 Targets):**
+- [TBD] - Requires coverage baseline from Phase 200 Plan 05
+- [TBD] - Gap analysis needed after baseline measurement
+- [TBD] - Estimate tests needed per module
+
+**Low-Impact Modules (Wave 3 Targets):**
+- [TBD] - Utilities, helpers, peripheral services
+- [TBD] - Lower business impact priority
+
+### Execution Approach
+
+**Wave 0: Complete Phase 200 (Plans 04-05)**
+- Plan 04: Verify zero collection errors
+- Plan 05: Measure coverage baseline
+- Output: Accurate baseline, confirmed zero errors
+
+**Wave 1: High-Impact Modules (ALREADY COMPLETE)**
+- agent_governance_service: 95% coverage ✅
+- trigger_interceptor: 96% coverage ✅
+- Episode services: 84% coverage ✅
+
+**Wave 2: Medium-Impact Modules (PRIMARY FOCUS)**
+- Target: Modules below 85% with business impact
+- Approach: Gap-driven test development
+- Estimation: TBD tests needed (based on baseline)
+- Duration: TBD hours
+
+**Wave 3: Low-Impact Modules (IF NEEDED)**
+- Target: Utilities, helpers, peripheral services
+- Approach: Complete remaining gaps
+- Priority: Lower than medium-impact modules
+
+**Wave 4: Verification**
+- Full coverage measurement
+- Validate 85% target achieved
+- Document final metrics
+- Create Phase 201 summary
+
+### Estimated Work
+
+**After Phase 200 Plan 05 completes:**
+1. Run coverage analysis to identify modules below 85%
+2. Calculate gap to target for each module
+3. Estimate tests needed per module
+4. Prioritize by business impact
+5. Create execution plans (3-5 plans estimated)
+
+**Rough Estimates (to be refined after baseline):**
+- Medium-impact modules: 3-5 plans
+- Low-impact modules: 2-3 plans (if needed)
+- Verification: 1 plan
+- **Total Phase 201: 6-9 plans estimated**
+
+### Success Criteria
+
+**Must Achieve:**
+- [ ] 85% overall line coverage (or higher)
+- [ ] Zero collection errors maintained
+- [ ] All new tests passing (95%+ pass rate)
+- [ ] Coverage baseline accurately measured
+- [ ] No regressions in existing coverage
+
+**Quality Gates:**
+- [ ] Each wave increases coverage (no decreases)
+- [ ] Test execution time acceptable (<30 min for full suite)
+- [ ] Collection errors remain at zero
+- [ ] Module-level targets met or exceeded
+
+### Dependencies
+
+**Requires Phase 200 Completion:**
+- Plan 04: Zero collection errors verified
+- Plan 05: Coverage baseline measured
+- Accurate foundation for improvement work
+
+**Requires Coverage Analysis:**
+- Module-level coverage breakdown
+- Gap identification by module
+- Business impact prioritization
+- Test estimation per module
+
+### Blockers & Risks
+
+**Known Blockers:**
+- Phase 200 Plans 04-05 must complete first
+- Coverage baseline required for gap analysis
+
+**Risks:**
+- Coverage gain may be less than expected (excluded tests not measured)
+- Medium-impact modules may have complex uncovered code
+- Test development may take longer than estimated
+
+**Mitigations:**
+- Complete Phase 200 first (accurate baseline)
+- Pragmatic test focus (new tests vs. fixing excluded)
+- Wave-based execution (incremental progress)
+- Continuous verification (catch regressions early)
+
+### Handoff from Phase 200
+
+**Completed Work:**
+- ✅ pytest.ini configured with 26 ignore patterns
+- ✅ Collection errors significantly reduced
+- ✅ Pragmatic test exclusion strategy established
+- ✅ Comprehensive documentation created
+
+**Outstanding Work:**
+- ⏸️ Verify zero collection errors (Plan 04)
+- ⏸️ Measure coverage baseline (Plan 05)
+- ⏸️ Gap analysis for modules below 85%
+- ⏸️ Test estimation per module
+
+**Recommendation:**
+Phase 201 should start by completing Phase 200 Plans 04-05 to establish accurate baseline before coverage improvement work begins.
+
+---
+
 **Phase:** 200-fix-collection-errors
 **Status:** PARTIALLY COMPLETE (3/6 plans executed)
 **Completed:** 2026-03-17
