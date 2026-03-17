@@ -27,7 +27,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   }, []);
 
   // Default to false during SSR/prerender to avoid router errors
-  const isAuthPage = mounted ? router.pathname.startsWith("/auth") : false;
+  const isStandalonePage = mounted ? (router.pathname.startsWith("/auth") || router.pathname.startsWith("/employee")) : false;
 
 
   return (
@@ -36,14 +36,14 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
       <ChakraProvider value={defaultSystem}>
         <ToastProvider>
           <WakeWordProvider>
-            {isAuthPage ? (
+            {isStandalonePage ? (
               <Component {...pageProps} />
             ) : (
               <Layout>
                 <Component {...pageProps} />
               </Layout>
             )}
-            {mounted && !isAuthPage && <GlobalChatWidget />}
+            {mounted && !isStandalonePage && <GlobalChatWidget />}
           </WakeWordProvider>
         </ToastProvider>
       </ChakraProvider>

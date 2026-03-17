@@ -32,8 +32,7 @@ from core.lazy_integration_registry import (
     get_loaded_integrations,
     load_integration,
 )
-import core.models
-import core.models_registration  # Fixes circular relationship issues
+import core.models_registration  # Unified model registration
 from core.resource_guards import MemoryGuard, ResourceGuard
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
@@ -603,6 +602,12 @@ try:
         logger.info("✓ Task Monitoring Routes Loaded")
     except ImportError as e:
         logger.warning(f"Failed to load Task Monitoring routes: {e}")
+
+    try:
+        from apps.ai_employee.router import router as ai_employee_router
+        app.include_router(ai_employee_router)
+    except Exception as e:
+        logger.warning(f"Failed to load AI Employee routes: {e}")
 
     try:
         from core.workflow_endpoints import router as workflow_router
