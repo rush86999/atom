@@ -1078,3 +1078,36 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 198. Coverage Push to 85% | v5.5 | 8/8 | ⚠️ Partial Success | 2026-03-16 |
 | 199. Fix Collection Errors & Achieve 85% | v5.5 | 12/12 | ✅ Complete | 2026-03-16 |
 | 200. Fix Collection Errors | v5.5 | 6/6 | ✅ Complete | 2026-03-17 |
+| 201. Coverage Push to 85% | v5.5 | 9/9 | ✅ Complete | 2026-03-17 |
+| 202. Coverage Push to 60% | v5.5 | 0/13 | 🚧 In Progress | - |
+| 201. Coverage Push to 85% | v5.5 | 9/9 | ✅ Complete | 2026-03-17 |
+
+### Phase 202: Coverage Push to 60% 🚧 IN PROGRESS
+**Goal**: Achieve 60% overall backend coverage through systematic testing of zero-coverage files (>100 lines)
+**Plans**: 13 plans (202-01 through 202-13)
+**Baseline Coverage**: 20.13% (18,476/74,018 lines) - from Phase 201 final
+**Target Coverage**: 60.00%
+**Estimated Duration**: ~10-12 hours
+**Status**: In Progress
+**Depends on**: Phase 201 ✅ COMPLETE
+**Requirements**:
+- COV-01: Achieve 60% overall line coverage - Target: 29,510 additional lines
+- COV-02: Maintain zero collection errors (0 errors from Phase 200/201) - ✅ Maintain
+- COV-03: Focus on HIGH priority files first - Wave structure: CRITICAL → HIGH → MEDIUM → LOW
+- COV-04: Create tests for uncovered lines (not fixing excluded tests)
+- COV-05: Verify no regressions
+**Notes**: Phase 202 IN PROGRESS. Wave-based approach targeting 47 zero-coverage files >100 lines (7,559 statements). Wave structure: Wave 2 (CRITICAL core services, 8 files), Wave 3 (HIGH impact API routes, 8 files), Wave 4 (MEDIUM impact services, 9 files), Wave 5 (LOW priority utilities, 5+ files). Target: 60% coverage (+39.87 percentage points from baseline). Estimated: 600-700 tests created across 26+ files. See: 202-RESEARCH.md
+**Plan List**:
+- [ ] 202-01-PLAN.md — Baseline measurement and file categorization (Wave 1)
+- [ ] 202-02-PLAN.md — Workflow versioning and marketplace coverage (Wave 2)
+- [ ] 202-03-PLAN.md — Advanced workflow and template endpoints (Wave 2)
+- [ ] 202-04-PLAN.md — Graduation exam and reconciliation engine (Wave 2)
+- [ ] 202-05-PLAN.md — Enterprise user management and constitutional validator (Wave 2)
+- [ ] 202-06-PLAN.md — Debug routes and workflow versioning endpoints (Wave 3)
+- [ ] 202-07-PLAN.md — Smarthome, industry workflow, creative routes (Wave 3)
+- [ ] 202-08-PLAN.md — Productivity, AI optimization, BYOK endpoints (Wave 3)
+- [ ] 202-09-PLAN.md — APAR engine, BYOK optimizer, OCR service (Wave 4)
+- [ ] 202-10-PLAN.md — Debug alerting, budget enforcement, formula memory (Wave 4)
+- [ ] 202-11-PLAN.md — Communication, scheduler, logging config (Wave 4)
+- [ ] 202-12-PLAN.md — OAuth context, error middleware, secrets detector (Wave 5)
+- [ ] 202-13-PLAN.md — Agent execution, analytics engine, final measurement (Wave 5)
