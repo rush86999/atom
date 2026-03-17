@@ -182,6 +182,15 @@ def reset_agent_task_registry(request):
     # No cleanup needed - each test gets fresh state at start
 
 
+@pytest.fixture(autouse=True)
+def reset_canvas_provider():
+    """Reset canvas provider before each test for isolation."""
+    from core.canvas_context_provider import reset_canvas_provider
+    reset_canvas_provider()
+    yield
+    reset_canvas_provider()
+
+
 @pytest.fixture(scope="function")
 def unique_resource_name():
     """
