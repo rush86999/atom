@@ -7,8 +7,30 @@ Uses FastAPI TestClient for endpoint testing
 """
 import pytest
 from fastapi.testclient import TestClient
+from fastapi import FastAPI
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timezone
+
+# Import the router
+from core.byok_endpoints import router
+
+
+# =============================================================================
+# Fixtures
+# =============================================================================
+
+@pytest.fixture
+def app():
+    """Create test FastAPI app with byok router"""
+    app = FastAPI()
+    app.include_router(router)
+    return app
+
+
+@pytest.fixture
+def client(app):
+    """Create test client"""
+    return TestClient(app)
 
 
 class TestBYOKProviderManagement:
