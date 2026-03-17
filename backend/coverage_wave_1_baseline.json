@@ -26,5 +26,27 @@
   "phase_203_files": {
     "workflow_analytics_engine": {"pct": 78.17, "stmts": 567, "gap_to_80": 1.83},
     "workflow_debugger": {"pct": 71.14, "stmts": 527, "gap_to_80": 8.86}
+  },
+  "wave_2_targets": {
+    "extend_partial": [
+      {"file": "workflow_analytics_engine", "current": 78.17, "target": 80.0, "lines_needed": 10},
+      {"file": "workflow_debugger", "current": 71.14, "target": 80.0, "lines_needed": 47}
+    ],
+    "test_zero_coverage": [
+      {"file": "apar_engine", "stmts": 177, "target_pct": 75, "category": "MEDIUM", "priority": 1},
+      {"file": "byok_cost_optimizer", "stmts": 168, "target_pct": 75, "category": "MEDIUM", "priority": 2},
+      {"file": "local_ocr_service", "stmts": 164, "target_pct": 75, "category": "MEDIUM", "priority": 3},
+      {"file": "debug_alerting", "stmts": 155, "target_pct": 75, "category": "MEDIUM", "priority": 4},
+      {"file": "smarthome_routes", "stmts": 188, "target_pct": 75, "category": "HIGH", "priority": 5},
+      {"file": "creative_routes", "stmts": 157, "target_pct": 75, "category": "HIGH", "priority": 6},
+      {"file": "productivity_routes", "stmts": 156, "target_pct": 75, "category": "HIGH", "priority": 7}
+    ],
+    "summary": {
+      "total_files": 9,
+      "extend_partial_count": 2,
+      "zero_coverage_count": 7,
+      "estimated_lines_needed": 57,
+      "estimated_coverage_gain": "+5.21 percentage points (74.69% → 79.90%)"
+    }
   }
 }
