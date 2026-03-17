@@ -10,6 +10,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import tempfile
 import os
+import uuid
 
 from core.workflow_analytics_engine import (
     WorkflowAnalyticsEngine,
