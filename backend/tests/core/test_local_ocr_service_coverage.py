@@ -430,3 +430,72 @@ class TestOCREngineSpecific:
                     assert result["success"] is True
                     assert result["text"] == "First line\nSecond line\nThird line"
                     assert result["lines"] == 3
+
+    def test_surya_ocr_with_multiple_predictions(self, ocr_service):
+        """Test Surya OCR handles multiple prediction blocks."""
+        if SURYA_AVAILABLE:
+            with patch("core.local_ocr_service.Image") as mock_pil:
+                mock_pil.open.return_value = MagicMock()
+
+                with patch("core.local_ocr_service.run_ocr") as mock_run_ocr:
+                    # Mock multiple prediction blocks
+                    mock_pred1 = MagicMock()
+                    mock_pred1.text_lines = [MagicMock(text="Block 1 line 1")]
+                    mock_pred2 = MagicMock()
+                    mock_pred2.text_lines = [MagicMock(text="Block 2 line 1")]
+                    mock_run_ocr.return_value = [mock_pred1, mock_pred2]
+
+                    result = ocr_service._ocr_surya("test.png", ["en"])
+
+                    assert result["success"] is True
+                    assert "Block 1 line 1" in result["text"]
+                    assert "Block 2 line 1" in result["text"]
+
+    def test_tesseract_ocr_text_extraction(self, ocr_service):
+        """Test Tesseract OCR extracts text correctly."""
+        if TESSERACT_AVAILABLE:
+            with patch("core.local_ocr_service.pytesseract") as mock_pytes:
+                with patch("core.local_ocr_service.Image") as mock_pil:
+                    mock_pil.open.return_value = MagicMock()
+                    mock_pytes.image_to_string.return_value = "Extracted text here"
+
+                    result = ocr_service._ocr_tesseract("test.png", ["en"])
+
+                    assert result["success"] is True
+                    assert result["text"] == "Extracted text here"
+                    assert result["chars"] == len("Extracted text here")
+
+    def test_tesseract_ocr_empty_text(self, ocr_service):
+        """Test Tesseract OCR handles empty text."""
+        if TESSERACT_AVAILABLE:
+            with patch("core.local_ocr_service.pytesseract") as mock_pytes:
+                with patch("core.local_ocr_service.Image") as mock_pil:
+                    mock_pil.open.return_value = MagicMock()
+                    mock_pytes.image_to_string.return_value = ""
+
+                    result = ocr_service._ocr_tesseract("test.png", None)
+
+                    assert result["success"] is True
+                    assert result["text"] == ""
+                    assert result["chars"] == 0
+
+    def test_pdf_cleanup_error_handling(self, ocr_service, sample_pdf_path):
+        """Test PDF processing handles cleanup errors gracefully."""
+        with patch("os.path.exists", return_value=True):
+            # Mock _pdf_to_images to return fake paths
+            fake_images = ["/tmp/fake_image.png"]
+
+            with patch.object(ocr_service, "_pdf_to_images", return_value=fake_images):
+                # Mock os.unlink to raise error
+                with patch("os.unlink", side_effect=OSError("Permission denied")):
+                    with patch.object(ocr_service, "process_image") as mock_ocr:
+                        mock_ocr.return_value = {
+                            "success": True,
+                            "text": "Text",
+                        }
+
+                        # Should still succeed despite cleanup error
+                        result = ocr_service.process_pdf(sample_pdf_path)
+
+                        assert result["success"] is True
+                        assert result["page_count"] == 1
