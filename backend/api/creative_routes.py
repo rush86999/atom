@@ -12,14 +12,14 @@ All endpoints require AUTONOMOUS maturity level (file safety).
 
 import logging
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.creative.ffmpeg_service import FFmpegService
 from core.models import FFmpegJob, User
-from api.authentication import get_current_user
+from core.security_dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -402,7 +402,7 @@ async def get_job_status(
 @router.get("/jobs", response_model=JobListResponse)
 async def list_user_jobs(
     status_filter: Optional[str] = None,
-    limit: int = Field(default=50, ge=1, le=100),
+    limit: int = Query(default=50, ge=1, le=100),
     current_user: User = Depends(get_current_user)
 ):
     """
