@@ -266,7 +266,7 @@ class TestWorkflowDebuggerStepExecution:
 
         mock_session = Mock()
         mock_session.id = "session-123"
-        mock_session.current_step = "5"
+        mock_session.current_step = 5
         mock_session.current_node_id = "node-1"
         mock_session.workflow_id = "wf-1"
         mock_session.call_stack = []
@@ -290,7 +290,7 @@ class TestWorkflowDebuggerStepExecution:
 
         mock_session = Mock()
         mock_session.id = "session-123"
-        mock_session.current_step = "5"
+        mock_session.current_step = 5
         mock_session.current_node_id = "node-1"
         mock_session.workflow_id = "wf-1"
         mock_session.call_stack = []
@@ -333,10 +333,10 @@ class TestWorkflowDebuggerStepExecution:
 
         mock_session = Mock()
         mock_session.id = "session-123"
-        mock_session.current_step = "10"
+        mock_session.current_step = 10
         mock_session.current_node_id = "child-node"
         mock_session.call_stack = [
-            {"step_number": "5", "node_id": "parent-node", "workflow_id": "wf-1"}
+            {"step_number": 5, "node_id": "parent-node", "workflow_id": "wf-1"}
         ]
 
         mock_query = Mock()
@@ -459,13 +459,11 @@ class TestWorkflowDebuggerExecutionTraces:
 
         result = debugger.complete_trace(
             trace_id="trace-123",
-            status="completed",
             output_data={"result": "success"},
             variables_after={"x": 10},
         )
 
         assert result is True
-        assert mock_trace.status == "completed"
 
     def test_complete_trace_not_found(self):
         """Test completing non-existent trace returns False."""
@@ -478,7 +476,6 @@ class TestWorkflowDebuggerExecutionTraces:
 
         result = debugger.complete_trace(
             trace_id="nonexistent",
-            status="completed",
         )
 
         assert result is False
@@ -503,7 +500,7 @@ class TestWorkflowDebuggerExecutionTraces:
         ]
         mock_db.query.return_value = mock_query
 
-        traces = debugger.get_execution_traces(debug_session_id="session-123")
+        traces = debugger.get_execution_traces(execution_id="exec-123")
 
         assert len(traces) == 2
         assert traces[0].id == "trace-1"
@@ -528,10 +525,9 @@ class TestWorkflowDebuggerVariableManagement:
         mock_db.commit.return_value = None
 
         result = debugger.modify_variable(
-            trace_id="trace-123",
+            session_id="session-123",
             variable_name="x",
             new_value=20,
-            modified_by="user-1",
         )
 
         assert result is not None
@@ -548,10 +544,9 @@ class TestWorkflowDebuggerVariableManagement:
         mock_db.query.return_value = mock_query
 
         result = debugger.modify_variable(
-            trace_id="trace-123",
+            session_id="session-123",
             variable_name="nonexistent",
             new_value=20,
-            modified_by="user-1",
         )
 
         assert result is None
@@ -582,9 +577,8 @@ class TestWorkflowDebuggerVariableManagement:
         }
 
         results = debugger.bulk_modify_variables(
-            trace_id="trace-123",
+            session_id="session-123",
             modifications=modifications,
-            modified_by="user-1",
         )
 
         assert results is not None
