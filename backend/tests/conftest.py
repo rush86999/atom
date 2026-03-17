@@ -292,6 +292,38 @@ def audit_service():
     return FinancialAuditService()
 
 
+@pytest.fixture(scope="session")
+def shared_metadata():
+    """
+    Shared metadata instance for all tests to prevent SQLAlchemy conflicts.
+
+    Usage:
+        When defining test models, use this metadata:
+        Base = declarative_base(metadata=shared_metadata)
+
+    This prevents 'Table already defined for this MetaData instance' errors
+    that occur when multiple test files import the same models.
+    """
+    from core.models import Base as CoreBase
+    return CoreBase.metadata
+
+
+@pytest.fixture(scope="session")
+def extend_existing_tables():
+    """
+    Allow extending existing table definitions.
+
+    Usage in model definitions:
+        __table_args__ = {'extend_existing': True}
+
+    This is needed when test files redefine models that already exist
+    in the core schema.
+    """
+    # The actual extend_existing should be set on individual models
+    # This fixture documents the pattern for tests
+    yield
+
+
 @pytest.fixture(scope="function")
 def test_agent_student(db_session: Session):
     """Create a STUDENT maturity test agent (confidence < 0.5).
