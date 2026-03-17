@@ -583,14 +583,16 @@ Phase 200 successfully eliminated all test collection errors through pragmatic t
 - ✅ trigger_interceptor.py: 96% (exceeds target by +11%)
 - ✅ Episode services: 84% overall (exceeds 75-80% target)
 
-**Medium-Impact Modules (Wave 2 Targets):**
-- [TBD] - Requires coverage baseline from Phase 200 Plan 05
-- [TBD] - Gap analysis needed after baseline measurement
-- [TBD] - Estimate tests needed per module
+**HIGH Priority Modules (Wave 2 Targets from Phase 200 Baseline):**
+- **tools/**: 9.7% coverage (217/2,251 lines) - 75.3% gap, 18 files
+- **cli/**: 16.0% coverage (115/718 lines) - 69.0% gap, 6 files
+- **core/**: 20.3% coverage (11,329/55,809 lines) - 64.7% gap, 382 files
+- **api/**: 27.6% coverage (4,213/15,240 lines) - 57.4% gap, 141 files
 
-**Low-Impact Modules (Wave 3 Targets):**
-- [TBD] - Utilities, helpers, peripheral services
-- [TBD] - Lower business impact priority
+**MEDIUM Priority Modules (Wave 3 Targets if needed):**
+- Modules with gap 20-50% (to be identified after Wave 2)
+- Lower business impact than HIGH priority modules
+- Peripheral services and utilities
 
 ### Execution Approach
 
