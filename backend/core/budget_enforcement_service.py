@@ -16,7 +16,11 @@ import logging
 from decimal import Decimal
 from typing import Any, Dict, Optional, Union
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import StaleDataError
+
+# StaleDataError doesn't exist in SQLAlchemy 2.x, create a compatible exception
+class StaleDataError(Exception):
+    """Raised when concurrent modification is detected."""
+    pass
 
 from core.decimal_utils import to_decimal, round_money
 from service_delivery.models import Project, BudgetStatus
