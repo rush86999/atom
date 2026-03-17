@@ -1,0 +1,30 @@
+{
+  "baseline": {
+    "overall_percent": 74.69,
+    "covered_lines": 851,
+    "num_statements": 1094,
+    "missing_lines": 243
+  },
+  "targets": {
+    "pct_75_gap": 0.31,
+    "pct_80_gap": 5.31,
+    "lines_to_75_pct": 8,
+    "lines_to_80_pct": 58
+  },
+  "collection_stability": {
+    "tests_collected": 14440,
+    "collection_errors": 5,
+    "variance_from_203": 5,
+    "error_files": [
+      "tests/core/test_agent_social_layer_coverage.py",
+      "tests/core/test_skill_registry_service_coverage.py",
+      "tests/core/workflow/test_workflow_debugger_coverage.py",
+      "tests/core/workflow/test_workflow_engine_coverage.py",
+      "tests/core/workflow/test_workflow_template_system_coverage.py"
+    ]
+  },
+  "phase_203_files": {
+    "workflow_analytics_engine": {"pct": 78.17, "stmts": 567, "gap_to_80": 1.83},
+    "workflow_debugger": {"pct": 71.14, "stmts": 527, "gap_to_80": 8.86}
+  }
+}
