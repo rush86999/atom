@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 
 # Import models
-from backend.core.models import (
+from core.models import (
     DebugEvent,
     DebugInsight,
     DebugStateSnapshot,
@@ -167,18 +167,18 @@ class TestDebugRoutes:
         # Test that imports work (no ImportError)
         try:
             from backend.api import debug_routes
-            from backend.core.debug_collector import get_debug_collector
-            from backend.core.debug_insight_engine import DebugInsightEngine
-            from backend.core.debug_query import DebugQuery
-            from backend.core.debug_ai_assistant import DebugAIAssistant
-            from backend.core.debug_storage import HybridDebugStorage
+            from core.debug_collector import get_debug_collector
+            from core.debug_insight_engine import DebugInsightEngine
+            from core.debug_query import DebugQuery
+            from core.debug_ai_assistant import DebugAIAssistant
+            from core.debug_storage import HybridDebugStorage
         except ImportError as e:
             pytest.fail(f"Failed to import debug modules: {e}")
 
     def test_base_router_inheritance(self):
         """Test debug router inherits from BaseAPIRouter."""
         from backend.api.debug_routes import router
-        from backend.core.base_routes import BaseAPIRouter
+        from core.base_routes import BaseAPIRouter
 
         assert isinstance(router, BaseAPIRouter)
         assert router.prefix == "/api/debug"
