@@ -109,6 +109,28 @@ class SecurityLevel(str, enum.Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
+class DebugEventType(str, enum.Enum):
+    """Types of debug events"""
+    LOG = "log"
+    STATE_SNAPSHOT = "state_snapshot"
+    METRIC = "metric"
+    ERROR = "error"
+    SYSTEM = "system"
+
+class DebugInsightType(str, enum.Enum):
+    """Types of debug insights"""
+    ERROR = "error"
+    PERFORMANCE = "performance"
+    ANOMALY = "anomaly"
+    CONSISTENCY = "consistency"
+    FLOW = "flow"
+
+class DebugInsightSeverity(str, enum.Enum):
+    """Severity levels for debug insights"""
+    CRITICAL = "critical"
+    WARNING = "warning"
+    INFO = "info"
+
 class PostType(str, enum.Enum):
     """Types of social posts - SOCIAL-01"""
     STATUS = "status"
@@ -4724,6 +4746,62 @@ class SESComplaintList(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# DEBUG SYSTEM MODELS (Phase 203)
+# =============================================================================
+
+class DebugEvent(Base):
+    """
+    Debug event captured during agent execution.
+
+    Tracks anomalies, errors, and notable events for debugging
+    and system health monitoring.
+    """
+    __tablename__ = "debug_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_type = Column(String(50), nullable=False, index=True)  # log, state_snapshot, metric, error, system
+    component_type = Column(String(50), nullable=False, index=True)  # agent, browser, workflow, system
+    component_id = Column(String, nullable=True, index=True)  # Component identifier
+    correlation_id = Column(String, nullable=False, index=True)  # Links related events
+    parent_event_id = Column(String, nullable=True, index=True)  # For event chains
+    level = Column(String(20), nullable=True)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    message = Column(Text, nullable=True)  # Log message
+    data = Column(JSON, nullable=True)  # Full event data
+    event_metadata = Column(JSON, nullable=True)  # Tags, labels, additional context
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    def __repr__(self):
+        return f"<DebugEvent {self.id}: {self.event_type} - {self.level}>"
+
+
+class DebugInsight(Base):
+    """
+    AI-generated insight about a debug event.
+
+    Provides analysis, root cause hypotheses, and suggested actions
+    for debug events using AI-powered diagnostics.
+    """
+    __tablename__ = "debug_insights"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    insight_type = Column(String(50), nullable=False, index=True)  # error, performance, anomaly, consistency, flow
+    severity = Column(String(20), nullable=False, index=True)  # critical, warning, info
+    title = Column(String(200), nullable=True)
+    description = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)
+    evidence = Column(JSON, nullable=True)  # Evidence data
+    confidence_score = Column(Float, default=0.5)  # 0.0 to 1.0
+    suggestions = Column(JSON, nullable=True)  # List of suggestion strings
+    scope = Column(String(50), nullable=True)  # component, system, distributed
+    affected_components = Column(JSON, nullable=True)  # List of affected components
+    resolved = Column(Boolean, default=False, index=True)
+    generated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    def __repr__(self):
+        return f"<DebugInsight {self.id}: {self.insight_type} (confidence: {self.confidence_score})>"
 
 
 # =============================================================================
