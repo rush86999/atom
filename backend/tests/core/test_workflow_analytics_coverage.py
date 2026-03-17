@@ -383,20 +383,27 @@ class TestAlerts:
             db_path = os.path.join(tmpdir, "test_analytics.db")
             engine = WorkflowAnalyticsEngine(db_path=db_path)
 
-            alert = engine.create_alert(
+            # The second create_alert method overrides the first one
+            # It takes an Alert object as parameter
+            alert = Alert(
+                alert_id=str(uuid.uuid4()),
                 name="Test Alert",
                 description="Test alert description",
                 severity=AlertSeverity.HIGH,
                 condition="error_rate > 5",
                 threshold_value=5.0,
                 metric_name="error_rate",
-                workflow_id="wf-1"
+                workflow_id="wf-1",
+                enabled=True,
+                created_at=datetime.now()
             )
 
-            assert alert is not None
-            assert alert.name == "Test Alert"
-            assert alert.severity == AlertSeverity.HIGH
-            assert alert.enabled is True
+            result = engine.create_alert(alert)
+
+            assert result is not None
+            assert result.name == "Test Alert"
+            assert result.severity == AlertSeverity.HIGH
+            assert result.enabled is True
 
     def test_get_all_alerts(self):
         """Test getting all alerts."""
@@ -404,15 +411,20 @@ class TestAlerts:
             db_path = os.path.join(tmpdir, "test_analytics.db")
             engine = WorkflowAnalyticsEngine(db_path=db_path)
 
-            # Create an alert
-            engine.create_alert(
+            # Create an alert using the Alert object approach
+            alert = Alert(
+                alert_id=str(uuid.uuid4()),
                 name="Test Alert",
                 description="Test",
                 severity=AlertSeverity.MEDIUM,
                 condition="cpu > 80",
                 threshold_value=80.0,
-                metric_name="cpu_usage"
+                metric_name="cpu_usage",
+                enabled=True,
+                created_at=datetime.now()
             )
+
+            engine.create_alert(alert)
 
             alerts = engine.get_all_alerts()
             assert len(alerts) >= 1
@@ -424,15 +436,20 @@ class TestAlerts:
             engine = WorkflowAnalyticsEngine(db_path=db_path)
 
             # Create an alert
-            engine.create_alert(
+            alert = Alert(
+                alert_id=str(uuid.uuid4()),
                 name="Test Alert",
                 description="Test",
                 severity=AlertSeverity.LOW,
                 condition="memory > 100",
                 threshold_value=100.0,
                 metric_name="memory_usage",
-                workflow_id="wf-1"
+                workflow_id="wf-1",
+                enabled=True,
+                created_at=datetime.now()
             )
+
+            engine.create_alert(alert)
 
             alerts = engine.get_all_alerts(workflow_id="wf-1", enabled_only=True)
             assert isinstance(alerts, list)
@@ -444,20 +461,25 @@ class TestAlerts:
             engine = WorkflowAnalyticsEngine(db_path=db_path)
 
             # Create an alert
-            alert = engine.create_alert(
+            alert = Alert(
+                alert_id=str(uuid.uuid4()),
                 name="Test Alert",
                 description="Test",
                 severity=AlertSeverity.MEDIUM,
                 condition="cpu > 50",
                 threshold_value=50.0,
-                metric_name="cpu_usage"
+                metric_name="cpu_usage",
+                enabled=True,
+                created_at=datetime.now()
             )
 
+            created_alert = engine.create_alert(alert)
+
             # Update alert
-            engine.update_alert(alert.alert_id, enabled=False, threshold_value=75.0)
+            engine.update_alert(created_alert.alert_id, enabled=False, threshold_value=75.0)
 
             # Verify update
-            updated_alert = engine.active_alerts.get(alert.alert_id)
+            updated_alert = engine.active_alerts.get(created_alert.alert_id)
             assert updated_alert is not None
             assert updated_alert.enabled is False
             assert updated_alert.threshold_value == 75.0
@@ -469,16 +491,20 @@ class TestAlerts:
             engine = WorkflowAnalyticsEngine(db_path=db_path)
 
             # Create an alert
-            alert = engine.create_alert(
+            alert = Alert(
+                alert_id=str(uuid.uuid4()),
                 name="Test Alert",
                 description="Test",
                 severity=AlertSeverity.LOW,
                 condition="test > 0",
                 threshold_value=1.0,
-                metric_name="test_metric"
+                metric_name="test_metric",
+                enabled=True,
+                created_at=datetime.now()
             )
 
-            alert_id = alert.alert_id
+            created_alert = engine.create_alert(alert)
+            alert_id = created_alert.alert_id
 
             # Delete alert
             engine.delete_alert(alert_id)
