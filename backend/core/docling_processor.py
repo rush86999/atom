@@ -29,12 +29,8 @@ try:
     from core.byok_endpoints import get_byok_manager
     BYOK_AVAILABLE = True
 except ImportError:
-    try:
-        from backend.core.byok_endpoints import get_byok_manager
-        BYOK_AVAILABLE = True
-    except ImportError:
-        BYOK_AVAILABLE = False
-        get_byok_manager = None
+    BYOK_AVAILABLE = False
+    get_current_active_user = None
 
 
 class DoclingDocumentProcessor:

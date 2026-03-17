@@ -36,6 +36,10 @@ if not TESTING:
         import service_delivery.models
         import saas.models
         import ecommerce.models
+        try:
+            import apps.ai_employee.models
+        except Exception as e:
+            print(f"DEBUG: AI Employee models import failed: {e}")
     except ImportError:
         # Optional modules may not exist in all environments
         pass

@@ -23,32 +23,8 @@ except (ImportError, OSError, Exception) as e:
 
 logger = logging.getLogger(__name__)
 
-class RecordType(Enum):
-    """Types of records that can be ingested"""
-    COMMUNICATION = "communication"
-    CONTACT = "contact"
-    LEAD = "lead"
-    DEAL = "deal"
-    DOCUMENT = "document"
-    MEETING = "meeting"
-    TASK = "task"
-    CAMPAIGN = "campaign"
-    ORDER = "order"
-    INVENTORY = "inventory"
-    AD_PERFORMANCE = "ad_performance"
-    SPREADSHEET = "spreadsheet"
-    GENERIC = "generic"
-
-@dataclass
-class AtomRecordData:
-    """Unified record data model for ATOM memory"""
-    id: str
-    app_type: str
-    record_type: RecordType
-    content: str
-    timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    vector_embedding: Optional[List[float]] = None
+from .ingestion_models import RecordType, AtomRecordData
+ctor_embedding: Optional[List[float]] = None
 
 class AtomIngestionPipeline:
     """Central ingestion pipeline for all ATOM integrations"""
