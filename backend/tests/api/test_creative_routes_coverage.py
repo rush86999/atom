@@ -48,8 +48,7 @@ def mock_user():
     """Create mock user for authentication."""
     user = User(
         id="test-user-123",
-        email="test@example.com",
-        username="testuser"
+        email="test@example.com"
     )
     return user
 

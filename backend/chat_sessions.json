@@ -2265,5 +2265,14 @@
     "metadata": {},
     "message_count": 0,
     "history": []
+  },
+  {
+    "session_id": "dbbc9679-d43f-4896-a636-dd3b929d47f3",
+    "user_id": "test_user_e2e",
+    "created_at": "2026-03-16T22:37:41.085535",
+    "last_active": "2026-03-16T22:37:41.241870",
+    "metadata": {},
+    "message_count": 0,
+    "history": []
   }
 ]
