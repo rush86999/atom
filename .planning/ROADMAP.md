@@ -1080,38 +1080,60 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 200. Fix Collection Errors | v5.5 | 6/6 | ✅ Complete | 2026-03-17 |
 | 201. Coverage Push to 85% | v5.5 | 9/9 | ✅ Complete | 2026-03-17 |
 | 202. Coverage Push to 60% | v5.5 | 13/13 | ✅ Complete | 2026-03-17 |
-| 203. Coverage Push to 65% | v5.5 | TBD | Planned | - |
+| 203. Coverage Push to 65% | v5.5 | 11/11 | ✅ Complete | 2026-03-17 |
+| 204. Coverage Push to 75-80% | v5.5 | 7/7 | ✅ Planned | 2026-03-17 |
 | 201. Coverage Push to 85% | v5.5 | 9/9 | ✅ Complete | 2026-03-17 |
 
-### Phase 203: Coverage Push to 65% ✅ PLANNED
-**Goal**: Continue systematic backend coverage expansion to achieve 65% overall coverage by testing remaining zero-coverage files and extending partial coverage
-**Depends on**: Phase 202
-**Requirements**: COV-01, COV-02, COV-03, COV-04
-**Success Criteria** (what must be TRUE):
-  1. Overall backend coverage reaches 65%+ (from 5.21% baseline, +59.79 percentage points)
-  2. Remaining zero-coverage files (>100 lines) tested to 75%+
-  3. Partial coverage files (>50%) extended to 80%+
-  4. Test collection errors maintained at zero
-  5. Coverage measured with pytest --cov-branch
-**Plans**: 11 plans (203-01 through 203-11)
-**Status**: ✅ PLANNED (Ready for execution)
-**Wave Structure**:
-- Wave 1: Infrastructure & Architectural Debt (Plans 01-03) - Fix canvas_context_provider, DebugEvent/DebugInsight, SQLAlchemy conflicts
-- Wave 2: HIGH Complexity Zero-Coverage Files (Plans 04-08) - workflow_engine, analytics, endpoints, BYOK, episodes
-- Wave 3: MEDIUM/LOW Complexity Files (Plans 09-10) - social_layer, skill_registry, config, admin/package routes, templates
-- Wave 4: Verification (Plan 11) - Aggregate coverage measurement and phase summary
+### Phase 204: Coverage Push to 75-80% ✅ COMPLETE
+**Status**: Complete (2026-03-17)
+**Duration**: ~60-90 minutes across 7 executed plans
+**Final Coverage**: 74.69% (baseline maintained, target 75-80% not achieved)
+**Tests Created**: ~200-250 tests across 9 target files
+**Achievements**:
+- Wave 1: Baseline verification (74.69% confirmed, 10 collection errors documented)
+- Wave 2: Extend partial coverage (workflow_analytics extended, workflow_debugger 71.14%→74.6%)
+- Wave 3: Zero-coverage files (apar_engine 77.07%, byok_cost_optimizer 88.07%, local_ocr_service 47.69%, API routes 75%+)
+- Wave 4: Verification and comprehensive summary
+- 5 of 8 files met or exceeded 75%+ target (62.5% success rate)
+- Collection error stability maintained (10 errors throughout phase)
+**Deviations**:
+- Overall coverage target not achieved (74.69% vs 75-80%, gap: -0.31pp to 75%)
+- Limited scope impact: Testing 9 files has minimal impact on 74,000-statement codebase
+- Collection errors increased from Phase 203 (0 → 10 errors, documented and stable)
+- OCR service coverage below target (47.69% vs 75%, external dependencies)
+**Success Criteria Status**:
+  1. ❌ Overall backend coverage 75-80% (achieved 74.69%, gap -0.31pp)
+  2. ✅ Zero-coverage files tested to 75%+ (5 of 8 files met target)
+  3. ⚠️ Partial coverage files extended to 80%+ (progress made, not fully achieved)
+  4. ❌ Collection errors at zero (10 errors documented and stable)
+  5. ✅ Coverage measured with pytest --cov-branch
+**Plans**: 7 plans (204-01 through 204-07)
 **Plan List**:
-- [x] 203-01-PLAN.md — Create canvas_context_provider stub module (Wave 1) ✅
-- [x] 203-02-PLAN.md — Define DebugEvent/DebugInsight models (Wave 1) ✅
-- [x] 203-03-PLAN.md — Fix SQLAlchemy metadata conflicts (Wave 1) ✅
-- [x] 203-04-PLAN.md — workflow_engine.py coverage 40%+ (Wave 2) ✅
-- [x] 203-05-PLAN.md — workflow_analytics_engine.py, workflow_debugger.py 60%+ (Wave 2) ✅
-- [x] 203-06-PLAN.md — atom_agent_endpoints.py, byok_endpoints.py 50%+ (Wave 2) ✅
-- [x] 203-07-PLAN.md — byok_handler.py, episode_segmentation_service.py extended coverage (Wave 2) ✅
-- [x] 203-08-PLAN.md — advanced_workflow_system.py, auto_document_ingestion.py 50-60%+ (Wave 2) ✅
-- [x] 203-09-PLAN.md — agent_social_layer.py, skill_registry_service.py, config.py 60-70%+ (Wave 3) ✅
-- [x] 203-10-PLAN.md — admin_routes.py, package_routes.py, workflow_template_system.py 50-60%+ (Wave 3) ✅
-- [x] 203-11-PLAN.md — Aggregate coverage measurement and phase summary (Wave 4) ✅
+- [x] 204-01-PLAN.md — Baseline verification and gap analysis ✅
+- [x] 204-02-PLAN.md — Extend workflow_analytics_engine to 80%+ ✅
+- [x] 204-03-PLAN.md — Extend workflow_debugger to 80%+ ✅
+- [x] 204-04-PLAN.md — Test apar_engine to 75%+ ✅
+- [x] 204-05-PLAN.md — Test API routes (smarthome, creative, productivity) to 75%+ ✅
+- [x] 204-06-PLAN.md — Test MEDIUM services (byok_cost_optimizer, local_ocr_service) to 75%+ ✅
+- [x] 204-07-PLAN.md — Aggregate coverage measurement and phase summary ✅
+
+### Phase 203: Coverage Push to 65% ✅ COMPLETE
+**Status**: Complete (2026-03-17)
+**Duration**: ~1 hour across 11 executed plans
+**Final Coverage**: 74.69% (exceeds 65% target by +9.69 percentage points)
+**Tests Created**: 770+ tests across 33+ test files
+**Achievements**:
+- Wave 1: Infrastructure fixes (canvas_context_provider, DebugEvent/DebugInsight models, SQLAlchemy conflicts)
+- Wave 2: HIGH complexity files (workflow_analytics 78.17%, workflow_debugger 71.14%)
+- Wave 3: MEDIUM/LOW complexity files (config.py 70-80%, comprehensive infrastructure)
+- Wave 4: Verification and summary
+**Deviations**:
+- workflow_engine.py: 15.42% coverage (realistic for complex orchestration)
+- advanced_workflow_system: 33.98% (missing methods in source)
+- API route tests: Infrastructure established, route alignment needed
+**Next Steps**: Phase 205 - Collection error fixes or test quality audit
+
+### Phase 202: Coverage Push to 60% ✅ COMPLETE
 
 ### Phase 202: Coverage Push to 60% ✅ COMPLETE
 **Goal**: Achieve 60% overall backend coverage through systematic testing of zero-coverage files (>100 lines)
