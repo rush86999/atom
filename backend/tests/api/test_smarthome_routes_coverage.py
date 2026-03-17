@@ -38,9 +38,15 @@ app.include_router(smarthome_router, tags=["smarthome"])
 # ============================================================================
 
 @pytest.fixture(scope="function")
-def smarthome_test_client():
+def smarthome_test_client(mock_user):
     """Create TestClient for smarthome routes testing."""
-    return TestClient(app)
+    def get_current_user_override():
+        return mock_user
+
+    app.dependency_overrides[get_current_user] = get_current_user_override
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
@@ -48,10 +54,31 @@ def mock_user():
     """Create mock user for authentication."""
     user = User(
         id="test-user-123",
-        email="test@example.com",
-        username="testuser"
+        email="test@example.com"
     )
     return user
+
+
+@pytest.fixture(scope="function")
+def mock_db():
+    """Create mock database session."""
+    return MagicMock(spec=Session)
+
+
+@pytest.fixture(scope="function")
+def smarthome_test_client(mock_user):
+    """Create TestClient for smarthome routes testing."""
+    def get_current_user_override():
+        return mock_user
+
+    def get_db_override():
+        return MagicMock(spec=Session)
+
+    app.dependency_overrides[get_current_user] = get_current_user_override
+    app.dependency_overrides[get_db] = get_db_override
+    client = TestClient(app)
+    yield client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
