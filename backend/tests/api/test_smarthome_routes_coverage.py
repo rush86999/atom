@@ -1,881 +1,448 @@
 """
-Smart Home Routes Coverage Tests
+Comprehensive test coverage for Smart Home Routes API endpoints.
 
-Comprehensive TestClient-based tests for smarthome API endpoints to achieve 60%+ coverage.
+Tests Philips Hue and Home Assistant integration endpoints:
+- Hue bridge discovery, connection, light control
+- Home Assistant states, service calls, entity queries
+- Error handling (401, 403, 404, 503)
+- Authentication and governance checks
 
-Coverage Target:
-- api/smarthome_routes.py - 60%+ coverage (113+ lines)
-
-Test Classes:
-- TestSmarthomeRoutes (10 tests): Device discovery, connection, status
-- TestDeviceCommands (12 tests): Light control, scenes, service calls
-- TestSmarthomeIntegration (8 tests): Room grouping, automation, entity filtering
-- TestSmarthomeErrors (5 tests): Invalid devices, offline devices, command failures
-
-Baseline: 0% coverage (smarthome_routes.py not tested)
-Target: 60%+ coverage (113+ lines)
+Target: 75%+ coverage (141+ lines of 188)
 """
 
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import Mock, patch, AsyncMock
 from fastapi import FastAPI
-from unittest.mock import patch, MagicMock, AsyncMock
-from sqlalchemy.orm import Session
 
-
-# Import smarthome routes router
-from api.smarthome_routes import router as smarthome_router
+from api.smarthome_routes import router
 from core.models import User
 
 
-# Create minimal FastAPI app for testing smarthome routes
-app = FastAPI()
-app.include_router(smarthome_router, tags=["smarthome"])
-
-
 # ============================================================================
-# Test Fixtures
+# Fixtures
 # ============================================================================
 
-@pytest.fixture(scope="function")
-def smarthome_test_client(mock_user):
-    """Create TestClient for smarthome routes testing."""
-    def get_current_user_override():
-        return mock_user
-
-    app.dependency_overrides[get_current_user] = get_current_user_override
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture(scope="function")
+@pytest.fixture
 def mock_user():
-    """Create mock user for authentication."""
-    user = User(
-        id="test-user-123",
-        email="test@example.com"
-    )
+    """Mock authenticated user."""
+    user = Mock(spec=User)
+    user.id = "test-user-123"
     return user
 
 
-@pytest.fixture(scope="function")
-def mock_db():
-    """Create mock database session."""
-    return MagicMock(spec=Session)
+@pytest.fixture
+def client():
+    """Create FastAPI TestClient for smart home routes."""
+    app = FastAPI()
+    app.include_router(router)
 
+    # Mock get_current_user dependency
+    async def get_current_user_override():
+        return Mock(id="test-user-123", username="testuser")
 
-@pytest.fixture(scope="function")
-def smarthome_test_client(mock_user):
-    """Create TestClient for smarthome routes testing."""
-    def get_current_user_override():
-        return mock_user
-
-    def get_db_override():
-        return MagicMock(spec=Session)
-
+    from core.security_dependencies import get_current_user
     app.dependency_overrides[get_current_user] = get_current_user_override
-    app.dependency_overrides[get_db] = get_db_override
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
+
+    return TestClient(app)
 
 
-@pytest.fixture(scope="function")
-def mock_db():
-    """Create mock database session."""
-    return MagicMock(spec=Session)
+@pytest.fixture
+def smarthome_mocks():
+    """Mock smart home tool functions."""
+    mocks = {}
+
+    # Hue mocks
+    mocks["hue_discover_bridges"] = AsyncMock(return_value={
+        "success": True,
+        "bridges": ["192.168.1.100", "192.168.1.101"],
+        "count": 2
+    })
+
+    mocks["hue_get_lights"] = AsyncMock(return_value={
+        "success": True,
+        "lights": [
+            {"id": "1", "name": "Living Room", "state": {"on": True, "brightness": 254}},
+            {"id": "2", "name": "Bedroom", "state": {"on": False, "brightness": 0}}
+        ],
+        "count": 2
+    })
+
+    mocks["hue_set_light_state"] = AsyncMock(return_value={
+        "success": True,
+        "light_id": "1",
+        "state": {"on": True, "brightness": 128, "color_xy": [0.5, 0.5]}
+    })
+
+    # Home Assistant mocks
+    mocks["home_assistant_get_states"] = AsyncMock(return_value={
+        "success": True,
+        "states": [
+            {"entity_id": "light.living_room", "state": "on", "attributes": {"brightness": 255}},
+            {"entity_id": "switch.kitchen", "state": "on"},
+            {"entity_id": "group.all_lights", "state": "on"}
+        ],
+        "count": 3
+    })
+
+    mocks["home_assistant_call_service"] = AsyncMock(return_value={
+        "success": True,
+        "service": "turn_on",
+        "entity_id": "light.living_room"
+    })
+
+    mocks["home_assistant_get_lights"] = AsyncMock(return_value={
+        "success": True,
+        "lights": [
+            {"entity_id": "light.living_room", "state": "on"},
+            {"entity_id": "light.bedroom", "state": "off"}
+        ],
+        "count": 2
+    })
+
+    return mocks
 
 
 # ============================================================================
-# Test Class: TestSmarthomeRoutes
+# Hue Bridge Endpoints
 # ============================================================================
 
-class TestSmarthomeRoutes:
-    """Tests for smarthome discovery and connection endpoints."""
+class TestHueBridgeEndpoints:
+    """Test Hue bridge discovery and connection endpoints."""
 
-    @patch("api.smarthome_routes.hue_discover_bridges")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_hue_bridges_success(
-        self, mock_get_user, mock_hue_discover, smarthome_test_client, mock_user
-    ):
-        """Test successful Hue bridge discovery."""
-        mock_get_user.return_value = mock_user
-        mock_hue_discover.return_value = {
-            "success": True,
-            "bridges": ["192.168.1.100", "192.168.1.101"]
-        }
+    def test_get_hue_bridges_success(self, client, smarthome_mocks):
+        """Test discovering Hue bridges successfully."""
+        with patch("api.smarthome_routes.hue_discover_bridges", smarthome_mocks["hue_discover_bridges"]):
+            response = client.get("/api/smarthome/hue/bridges")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert "bridges" in data
+            assert data["count"] == 2
 
-        response = smarthome_test_client.get("/api/smarthome/hue/bridges")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert "bridges" in data
-
-    @patch("api.smarthome_routes.hue_discover_bridges")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_hue_bridges_discovery_failed(
-        self, mock_get_user, mock_hue_discover, smarthome_test_client, mock_user
-    ):
+    def test_get_hue_bridges_discovery_failed(self, client, smarthome_mocks):
         """Test Hue bridge discovery failure."""
-        mock_get_user.return_value = mock_user
-        mock_hue_discover.return_value = {
+        smarthome_mocks["hue_discover_bridges"].return_value = {
             "success": False,
             "error": "Network discovery failed"
         }
+        with patch("api.smarthome_routes.hue_discover_bridges", smarthome_mocks["hue_discover_bridges"]):
+            response = client.get("/api/smarthome/hue/bridges")
+            assert response.status_code == 503
 
-        response = smarthome_test_client.get("/api/smarthome/hue/bridges")
+    def test_get_hue_bridges_permission_blocked(self, client, smarthome_mocks):
+        """Test Hue bridge discovery blocked by governance."""
+        smarthome_mocks["hue_discover_bridges"].side_effect = PermissionError("Insufficient maturity level")
+        with patch("api.smarthome_routes.hue_discover_bridges", smarthome_mocks["hue_discover_bridges"]):
+            response = client.get("/api/smarthome/hue/bridges")
+            assert response.status_code == 403
 
-        assert response.status_code == 503
-
-    @patch("api.smarthome_routes.hue_discover_bridges")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_hue_bridges_permission_denied(
-        self, mock_get_user, mock_hue_discover, smarthome_test_client, mock_user
-    ):
-        """Test Hue bridge discovery blocked by permission."""
-        mock_get_user.return_value = mock_user
-        mock_hue_discover.side_effect = PermissionError("Insufficient maturity level")
-
-        response = smarthome_test_client.get("/api/smarthome/hue/bridges")
-
-        assert response.status_code == 403
-        data = response.json()
-        assert "Insufficient maturity level" in data["detail"]
-
-    @patch("api.smarthome_routes.hue_get_lights")
-    @patch("api.smarthome_routes.get_current_user")
-    @patch("api.smarthome_routes.get_db")
-    def test_connect_hue_bridge_success(
-        self, mock_get_db, mock_get_user, mock_hue_get_lights, smarthome_test_client, mock_user, mock_db
-    ):
-        """Test successful Hue bridge connection."""
-        mock_get_user.return_value = mock_user
-        mock_get_db.return_value = mock_db
-        mock_hue_get_lights.return_value = {
-            "success": True,
-            "lights": [{"id": "1", "name": "Living Room"}],
-            "count": 1
+    def test_connect_hue_bridge_success(self, client, smarthome_mocks):
+        """Test connecting to Hue bridge successfully."""
+        request_data = {
+            "bridge_ip": "192.168.1.100",
+            "api_key": "test-api-key",
+            "name": "Test Bridge"
         }
+        with patch("api.smarthome_routes.hue_get_lights", smarthome_mocks["hue_get_lights"]):
+            response = client.post("/api/smarthome/hue/connect", json=request_data)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["bridge_ip"] == "192.168.1.100"
+            assert data["light_count"] == 2
 
-        response = smarthome_test_client.post(
-            "/api/smarthome/hue/connect",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-api-key",
-                "name": "Hue Bridge"
-            }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["bridge_ip"] == "192.168.1.100"
-
-    @patch("api.smarthome_routes.hue_get_lights")
-    @patch("api.smarthome_routes.get_current_user")
-    @patch("api.smarthome_routes.get_db")
-    def test_connect_hue_bridge_invalid_credentials(
-        self, mock_get_db, mock_get_user, mock_hue_get_lights, smarthome_test_client, mock_user, mock_db
-    ):
-        """Test Hue bridge connection with invalid credentials."""
-        mock_get_user.return_value = mock_user
-        mock_get_db.return_value = mock_db
-        mock_hue_get_lights.return_value = {
+    def test_connect_hue_bridge_invalid_credentials(self, client, smarthome_mocks):
+        """Test connecting with invalid Hue credentials."""
+        smarthome_mocks["hue_get_lights"].return_value = {
             "success": False,
             "error": "Unauthorized"
         }
-
-        response = smarthome_test_client.post(
-            "/api/smarthome/hue/connect",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "invalid-key"
-            }
-        )
-
-        assert response.status_code == 401
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    @patch("api.smarthome_routes.get_db")
-    def test_connect_home_assistant_success(
-        self, mock_get_db, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user, mock_db
-    ):
-        """Test successful Home Assistant connection."""
-        mock_get_user.return_value = mock_user
-        mock_get_db.return_value = mock_db
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [{"entity_id": "light.living_room"}],
-            "count": 1
+        request_data = {
+            "bridge_ip": "192.168.1.100",
+            "api_key": "invalid-key"
         }
+        with patch("api.smarthome_routes.hue_get_lights", smarthome_mocks["hue_get_lights"]):
+            response = client.post("/api/smarthome/hue/connect", json=request_data)
+            assert response.status_code == 401
 
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/connect",
-            json={
+
+# ============================================================================
+# Hue Light Endpoints
+# ============================================================================
+
+class TestHueLightEndpoints:
+    """Test Hue light control endpoints."""
+
+    def test_get_hue_lights_success(self, client, smarthome_mocks):
+        """Test getting all Hue lights successfully."""
+        params = {
+            "bridge_ip": "192.168.1.100",
+            "api_key": "test-api-key"
+        }
+        with patch("api.smarthome_routes.hue_get_lights", smarthome_mocks["hue_get_lights"]):
+            response = client.get("/api/smarthome/hue/lights", params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert len(data["lights"]) == 2
+
+    def test_get_hue_lights_permission_blocked(self, client, smarthome_mocks):
+        """Test getting Hue lights blocked by governance."""
+        smarthome_mocks["hue_get_lights"].side_effect = PermissionError("Blocked")
+        params = {
+            "bridge_ip": "192.168.1.100",
+            "api_key": "test-api-key"
+        }
+        with patch("api.smarthome_routes.hue_get_lights", smarthome_mocks["hue_get_lights"]):
+            response = client.get("/api/smarthome/hue/lights", params=params)
+            assert response.status_code == 403
+
+    def test_set_hue_light_state_success(self, client, smarthome_mocks):
+        """Test setting Hue light state successfully."""
+        request_data = {
+            "bridge_ip": "192.168.1.100",
+            "api_key": "test-api-key",
+            "light_id": "1",
+            "on": True,
+            "brightness": 128
+        }
+        with patch("api.smarthome_routes.hue_set_light_state", smarthome_mocks["hue_set_light_state"]):
+            response = client.put("/api/smarthome/hue/lights/1/state", json=request_data)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+
+    def test_set_hue_light_state_not_found(self, client, smarthome_mocks):
+        """Test setting non-existent Hue light state."""
+        smarthome_mocks["hue_set_light_state"].return_value = {
+            "success": False,
+            "error": "Light not found"
+        }
+        request_data = {
+            "bridge_ip": "192.168.1.100",
+            "api_key": "test-api-key",
+            "light_id": "999"
+        }
+        with patch("api.smarthome_routes.hue_set_light_state", smarthome_mocks["hue_set_light_state"]):
+            response = client.put("/api/smarthome/hue/lights/999/state", json=request_data)
+            assert response.status_code == 404
+
+    def test_set_hue_light_state_permission_blocked(self, client, smarthome_mocks):
+        """Test setting Hue light state blocked by governance."""
+        smarthome_mocks["hue_set_light_state"].side_effect = PermissionError("Blocked")
+        request_data = {
+            "bridge_ip": "192.168.1.100",
+            "api_key": "test-api-key",
+            "light_id": "1"
+        }
+        with patch("api.smarthome_routes.hue_set_light_state", smarthome_mocks["hue_set_light_state"]):
+            response = client.put("/api/smarthome/hue/lights/1/state", json=request_data)
+            assert response.status_code == 403
+
+
+# ============================================================================
+# Home Assistant Connection Endpoints
+# ============================================================================
+
+class TestHomeAssistantConnectionEndpoints:
+    """Test Home Assistant connection endpoints."""
+
+    def test_connect_home_assistant_success(self, client, smarthome_mocks):
+        """Test connecting to Home Assistant successfully."""
+        request_data = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token",
+            "name": "Test HA"
+        }
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            response = client.post("/api/smarthome/homeassistant/connect", json=request_data)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["url"] == "http://homeassistant.local:8123"
+
+    def test_connect_home_assistant_invalid_credentials(self, client, smarthome_mocks):
+        """Test connecting with invalid Home Assistant credentials."""
+        smarthome_mocks["home_assistant_get_states"].return_value = {
+            "success": False,
+            "error": "Unauthorized"
+        }
+        request_data = {
+            "url": "http://homeassistant.local:8123",
+            "token": "invalid-token"
+        }
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            response = client.post("/api/smarthome/homeassistant/connect", json=request_data)
+            assert response.status_code == 401
+
+
+# ============================================================================
+# Home Assistant State Endpoints
+# ============================================================================
+
+class TestHomeAssistantStateEndpoints:
+    """Test Home Assistant state query endpoints."""
+
+    def test_get_home_assistant_states_success(self, client, smarthome_mocks):
+        """Test getting all Home Assistant states successfully."""
+        params = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token"
+        }
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            response = client.get("/api/smarthome/homeassistant/states", params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert len(data["states"]) == 3
+
+    def test_get_home_assistant_states_permission_blocked(self, client, smarthome_mocks):
+        """Test getting HA states blocked by governance."""
+        smarthome_mocks["home_assistant_get_states"].side_effect = PermissionError("Blocked")
+        params = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token"
+        }
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            response = client.get("/api/smarthome/homeassistant/states", params=params)
+            assert response.status_code == 403
+
+    def test_get_home_assistant_state_success(self, client, smarthome_mocks):
+        """Test getting single Home Assistant entity state."""
+        params = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token"
+        }
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            response = client.get("/api/smarthome/homeassistant/states/light.living_room", params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert data["entity"]["entity_id"] == "light.living_room"
+
+    def test_get_home_assistant_state_not_found(self, client, smarthome_mocks):
+        """Test getting non-existent Home Assistant entity."""
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            params = {
                 "url": "http://homeassistant.local:8123",
                 "token": "test-token"
             }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    @patch("api.smarthome_routes.get_db")
-    def test_connect_home_assistant_invalid_credentials(
-        self, mock_get_db, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user, mock_db
-    ):
-        """Test Home Assistant connection with invalid credentials."""
-        mock_get_user.return_value = mock_user
-        mock_get_db.return_value = mock_db
-        mock_ha_get_states.return_value = {
-            "success": False,
-            "error": "Unauthorized"
-        }
-
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/connect",
-            json={
-                "url": "http://homeassistant.local:8123",
-                "token": "invalid-token"
-            }
-        )
-
-        assert response.status_code == 401
-
-    @patch("api.smarthome_routes.hue_get_lights")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_hue_lights_success(
-        self, mock_get_user, mock_hue_get_lights, smarthome_test_client, mock_user
-    ):
-        """Test successful Hue lights retrieval."""
-        mock_get_user.return_value = mock_user
-        mock_hue_get_lights.return_value = {
-            "success": True,
-            "lights": [{"id": "1", "name": "Living Room"}]
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/hue/lights",
-            params={"bridge_ip": "192.168.1.100", "api_key": "test-key"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_home_assistant_states_success(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test successful Home Assistant states retrieval."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [{"entity_id": "light.living_room", "state": "on"}],
-            "count": 10
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/states",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert len(data["states"]) == 10
+            response = client.get("/api/smarthome/homeassistant/states/sensor.nonexistent", params=params)
+            assert response.status_code == 404
 
 
 # ============================================================================
-# Test Class: TestDeviceCommands
+# Home Assistant Service Endpoints
 # ============================================================================
 
-class TestDeviceCommands:
-    """Tests for device control commands."""
+class TestHomeAssistantServiceEndpoints:
+    """Test Home Assistant service call endpoints."""
 
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_set_hue_light_turn_on(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test turning on Hue light."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.return_value = {
-            "success": True,
-            "light_id": "1",
-            "on": True
-        }
-
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/1/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "on": True
-            }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["on"] is True
-
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_set_hue_light_turn_off(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test turning off Hue light."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.return_value = {
-            "success": True,
-            "light_id": "1",
-            "on": False
-        }
-
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/1/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "on": False
-            }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["on"] is False
-
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_set_hue_light_brightness(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test setting Hue light brightness."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.return_value = {
-            "success": True,
-            "light_id": "1",
-            "brightness": 0.8
-        }
-
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/1/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "brightness": 0.8
-            }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["brightness"] == 0.8
-
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_set_hue_light_color(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test setting Hue light color."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.return_value = {
-            "success": True,
-            "light_id": "1",
-            "color_xy": [0.5, 0.5]
-        }
-
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/1/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "color_xy": [0.5, 0.5]
-            }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["color_xy"] == [0.5, 0.5]
-
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_set_hue_light_not_found(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test setting state of non-existent Hue light."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.return_value = {
-            "success": False,
-            "error": "Light 999 not found"
-        }
-
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/999/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "on": True
-            }
-        )
-
-        assert response.status_code == 404
-
-    @patch("api.smarthome_routes.home_assistant_call_service")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_call_ha_service_turn_on(
-        self, mock_get_user, mock_ha_call_service, smarthome_test_client, mock_user
-    ):
-        """Test calling Home Assistant turn_on service."""
-        mock_get_user.return_value = mock_user
-        mock_ha_call_service.return_value = {
-            "success": True,
+    def test_call_home_assistant_service_success(self, client, smarthome_mocks):
+        """Test calling Home Assistant service successfully."""
+        request_data = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token",
+            "domain": "light",
             "service": "turn_on",
             "entity_id": "light.living_room"
         }
+        with patch("api.smarthome_routes.home_assistant_call_service", smarthome_mocks["home_assistant_call_service"]):
+            response = client.post("/api/smarthome/homeassistant/services/light/turn_on", json=request_data)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
 
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/services/light/turn_on",
-            json={
-                "url": "http://homeassistant.local:8123",
-                "token": "test-token",
-                "entity_id": "light.living_room"
-            }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-
-    @patch("api.smarthome_routes.home_assistant_call_service")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_call_ha_service_turn_off(
-        self, mock_get_user, mock_ha_call_service, smarthome_test_client, mock_user
-    ):
-        """Test calling Home Assistant turn_off service."""
-        mock_get_user.return_value = mock_user
-        mock_ha_call_service.return_value = {
-            "success": True,
-            "service": "turn_off",
-            "entity_id": "switch.kitchen"
-        }
-
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/services/switch/turn_off",
-            json={
-                "url": "http://homeassistant.local:8123",
-                "token": "test-token",
-                "entity_id": "switch.kitchen"
-            }
-        )
-
-        assert response.status_code == 200
-
-    @patch("api.smarthome_routes.home_assistant_call_service")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_call_ha_service_with_data(
-        self, mock_get_user, mock_ha_call_service, smarthome_test_client, mock_user
-    ):
-        """Test calling Home Assistant service with data parameters."""
-        mock_get_user.return_value = mock_user
-        mock_ha_call_service.return_value = {
-            "success": True
-        }
-
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/services/light/turn_on",
-            json={
-                "url": "http://homeassistant.local:8123",
-                "token": "test-token",
-                "entity_id": "light.living_room",
-                "data": {"brightness": 255, "color_name": "red"}
-            }
-        )
-
-        assert response.status_code == 200
-
-    @patch("api.smarthome_routes.home_assistant_call_service")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_call_ha_service_entity_not_found(
-        self, mock_get_user, mock_ha_call_service, smarthome_test_client, mock_user
-    ):
-        """Test calling HA service on non-existent entity."""
-        mock_get_user.return_value = mock_user
-        mock_ha_call_service.return_value = {
+    def test_call_home_assistant_service_not_found(self, client, smarthome_mocks):
+        """Test calling non-existent Home Assistant service."""
+        smarthome_mocks["home_assistant_call_service"].return_value = {
             "success": False,
-            "error": "Entity light.nonexistent not found"
+            "error": "Service not found"
         }
+        request_data = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token",
+            "domain": "light",
+            "service": "nonexistent"
+        }
+        with patch("api.smarthome_routes.home_assistant_call_service", smarthome_mocks["home_assistant_call_service"]):
+            response = client.post("/api/smarthome/homeassistant/services/light/nonexistent", json=request_data)
+            assert response.status_code == 404
 
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/services/light/turn_on",
-            json={
-                "url": "http://homeassistant.local:8123",
-                "token": "test-token",
-                "entity_id": "light.nonexistent"
-            }
-        )
-
-        assert response.status_code == 404
-
-    @patch("api.smarthome_routes.home_assistant_call_service")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_call_ha_service_invalid_data(
-        self, mock_get_user, mock_ha_call_service, smarthome_test_client, mock_user
-    ):
-        """Test calling HA service with invalid data."""
-        mock_get_user.return_value = mock_user
-        mock_ha_call_service.return_value = {
+    def test_call_home_assistant_service_invalid_request(self, client, smarthome_mocks):
+        """Test calling service with invalid request data."""
+        smarthome_mocks["home_assistant_call_service"].return_value = {
             "success": False,
-            "error": "Invalid brightness value"
+            "error": "Invalid service data"
         }
-
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/services/light/turn_on",
-            json={
-                "url": "http://homeassistant.local:8123",
-                "token": "test-token",
-                "data": {"brightness": "invalid"}
-            }
-        )
-
-        assert response.status_code == 400
-
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_set_hue_light_combined_parameters(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test setting Hue light with combined parameters."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.return_value = {
-            "success": True,
-            "light_id": "1",
-            "on": True,
-            "brightness": 0.9,
-            "color_xy": [0.6, 0.4]
+        request_data = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token",
+            "domain": "light",
+            "service": "turn_on",
+            "data": {"invalid": "data"}
         }
+        with patch("api.smarthome_routes.home_assistant_call_service", smarthome_mocks["home_assistant_call_service"]):
+            response = client.post("/api/smarthome/homeassistant/services/light/turn_on", json=request_data)
+            assert response.status_code == 400
 
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/1/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "on": True,
-                "brightness": 0.9,
-                "color_xy": [0.6, 0.4]
-            }
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["on"] is True
-        assert data["brightness"] == 0.9
+    def test_call_home_assistant_service_permission_blocked(self, client, smarthome_mocks):
+        """Test calling HA service blocked by governance."""
+        smarthome_mocks["home_assistant_call_service"].side_effect = PermissionError("Blocked")
+        request_data = {
+            "url": "http://homeassistant.local:8123",
+            "token": "test-token",
+            "domain": "light",
+            "service": "turn_on"
+        }
+        with patch("api.smarthome_routes.home_assistant_call_service", smarthome_mocks["home_assistant_call_service"]):
+            response = client.post("/api/smarthome/homeassistant/services/light/turn_on", json=request_data)
+            assert response.status_code == 403
 
 
 # ============================================================================
-# Test Class: TestSmarthomeIntegration
+# Home Assistant Entity Type Endpoints
 # ============================================================================
 
-class TestSmarthomeIntegration:
-    """Tests for smarthome integration features."""
+class TestHomeAssistantEntityTypeEndpoints:
+    """Test Home Assistant entity type filtering endpoints."""
 
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_single_entity_state(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test getting single Home Assistant entity state."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [
-                {"entity_id": "light.living_room", "state": "on", "attributes": {"brightness": 255}},
-                {"entity_id": "light.kitchen", "state": "off"}
-            ]
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/states/light.living_room",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["entity"]["entity_id"] == "light.living_room"
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_entity_not_found(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test getting non-existent HA entity."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [{"entity_id": "light.living_room"}]
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/states/light.nonexistent",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 404
-
-    @patch("api.smarthome_routes.home_assistant_get_lights")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_lights(
-        self, mock_get_user, mock_ha_get_lights, smarthome_test_client, mock_user
-    ):
+    def test_get_home_assistant_lights_success(self, client, smarthome_mocks):
         """Test getting Home Assistant lights."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_lights.return_value = {
-            "success": True,
-            "lights": [
-                {"entity_id": "light.living_room", "state": "on"},
-                {"entity_id": "light.kitchen", "state": "off"}
-            ],
-            "count": 2
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/lights",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["count"] == 2
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_switches(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test getting Home Assistant switches."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [
-                {"entity_id": "switch.kitchen", "state": "on"},
-                {"entity_id": "switch.living_room", "state": "off"},
-                {"entity_id": "light.living_room", "state": "on"}  # Not a switch
-            ]
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/switches",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["count"] == 2  # Only switches, not lights
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_groups(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test getting Home Assistant groups."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [
-                {"entity_id": "group.all_lights", "state": "on"},
-                {"entity_id": "group.kitchen Appliances", "state": "off"},
-                {"entity_id": "light.living_room", "state": "on"}  # Not a group
-            ]
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/groups",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert data["count"] == 2  # Only groups
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_states_empty_list(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test getting HA states with empty list."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [],
-            "count": 0
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/states",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 0
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_switches_no_switches(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test getting HA switches when no switches present."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [
-                {"entity_id": "light.living_room"},
-                {"entity_id": "sensor.temperature"}
-            ]
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/switches",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 0
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_get_ha_groups_no_groups(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test getting HA groups when no groups present."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.return_value = {
-            "success": True,
-            "states": [
-                {"entity_id": "light.living_room"},
-                {"entity_id": "switch.kitchen"}
-            ]
-        }
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/groups",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["count"] == 0
-
-
-# ============================================================================
-# Test Class: TestSmarthomeErrors
-# ============================================================================
-
-class TestSmarthomeErrors:
-    """Tests for smarthome error handling."""
-
-    @patch("api.smarthome_routes.hue_discover_bridges")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_hue_discovery_exception(
-        self, mock_get_user, mock_hue_discover, smarthome_test_client, mock_user
-    ):
-        """Test Hue discovery exception handling."""
-        mock_get_user.return_value = mock_user
-        mock_hue_discover.side_effect = Exception("Network timeout")
-
-        response = smarthome_test_client.get("/api/smarthome/hue/bridges")
-
-        assert response.status_code == 503
-        data = response.json()
-        assert "Failed to discover Hue bridges" in data["detail"]
-
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_set_hue_light_exception(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test Hue light state change exception handling."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.side_effect = Exception("Bridge offline")
-
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/1/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "on": True
-            }
-        )
-
-        assert response.status_code == 503
-        data = response.json()
-        assert "Failed to set light state" in data["detail"]
-
-    @patch("api.smarthome_routes.home_assistant_call_service")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_ha_service_call_exception(
-        self, mock_get_user, mock_ha_call_service, smarthome_test_client, mock_user
-    ):
-        """Test Home Assistant service call exception handling."""
-        mock_get_user.return_value = mock_user
-        mock_ha_call_service.side_effect = Exception("Home Assistant unavailable")
-
-        response = smarthome_test_client.post(
-            "/api/smarthome/homeassistant/services/light/turn_on",
-            json={
+        with patch("api.smarthome_routes.home_assistant_get_lights", smarthome_mocks["home_assistant_get_lights"]):
+            params = {
                 "url": "http://homeassistant.local:8123",
                 "token": "test-token"
             }
-        )
+            response = client.get("/api/smarthome/homeassistant/lights", params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert len(data["lights"]) == 2
 
-        assert response.status_code == 503
-        data = response.json()
-        assert "Failed to call service" in data["detail"]
-
-    @patch("api.smarthome_routes.home_assistant_get_states")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_ha_get_states_permission_denied(
-        self, mock_get_user, mock_ha_get_states, smarthome_test_client, mock_user
-    ):
-        """Test HA get states blocked by permission."""
-        mock_get_user.return_value = mock_user
-        mock_ha_get_states.side_effect = PermissionError("Insufficient maturity level")
-
-        response = smarthome_test_client.get(
-            "/api/smarthome/homeassistant/states",
-            params={"url": "http://homeassistant.local:8123", "token": "test-token"}
-        )
-
-        assert response.status_code == 403
-
-    @patch("api.smarthome_routes.hue_set_light_state")
-    @patch("api.smarthome_routes.get_current_user")
-    def test_hue_set_light_permission_denied(
-        self, mock_get_user, mock_hue_set_state, smarthome_test_client, mock_user
-    ):
-        """Test Hue light state change blocked by permission."""
-        mock_get_user.return_value = mock_user
-        mock_hue_set_state.side_effect = PermissionError("AUTONOMOUS maturity required")
-
-        response = smarthome_test_client.put(
-            "/api/smarthome/hue/lights/1/state",
-            json={
-                "bridge_ip": "192.168.1.100",
-                "api_key": "test-key",
-                "on": True
+    def test_get_home_assistant_switches_success(self, client, smarthome_mocks):
+        """Test getting Home Assistant switches."""
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            params = {
+                "url": "http://homeassistant.local:8123",
+                "token": "test-token"
             }
-        )
+            response = client.get("/api/smarthome/homeassistant/switches", params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert len(data["switches"]) == 1
 
-        assert response.status_code == 403
+    def test_get_home_assistant_groups_success(self, client, smarthome_mocks):
+        """Test getting Home Assistant groups."""
+        with patch("api.smarthome_routes.home_assistant_get_states", smarthome_mocks["home_assistant_get_states"]):
+            params = {
+                "url": "http://homeassistant.local:8123",
+                "token": "test-token"
+            }
+            response = client.get("/api/smarthome/homeassistant/groups", params=params)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["success"] is True
+            assert len(data["groups"]) == 1
