@@ -185,40 +185,31 @@ class TestOCRFormats:
     def test_process_pdf_with_pdf2image(self, ocr_service, sample_pdf_path):
         """Test PDF processing using pdf2image converter."""
         with patch("os.path.exists", return_value=True):
-            with patch("core.local_ocr_service.convert_from_path") as mock_convert:
-                # Mock converted images
-                mock_img = MagicMock()
-                mock_img.save = Mock()
-                mock_convert.return_value = [mock_img]
+            # Mock _pdf_to_images to return fake image paths
+            fake_images = ["/tmp/fake_image_0.png"]
 
-                with patch.object(ocr_service, "process_image") as mock_ocr:
-                    mock_ocr.return_value = {
-                        "success": True,
-                        "text": f"Page text",
-                    }
+            with patch.object(ocr_service, "_pdf_to_images", return_value=fake_images):
+                with patch("os.unlink"):  # Mock cleanup
+                    with patch.object(ocr_service, "process_image") as mock_ocr:
+                        mock_ocr.return_value = {
+                            "success": True,
+                            "text": "Page text",
+                        }
 
-                    result = ocr_service.process_pdf(sample_pdf_path)
+                        result = ocr_service.process_pdf(sample_pdf_path)
 
-                    assert result["success"] is True
-                    assert "pages" in result
-                    assert result["page_count"] == 1
+                        assert result["success"] is True
+                        assert "pages" in result
+                        assert result["page_count"] == 1
 
     def test_process_pdf_with_pymupdf_fallback(self, ocr_service, sample_pdf_path):
         """Test PDF processing using PyMuPDF fallback."""
         with patch("os.path.exists", return_value=True):
-            # pdf2image not available
-            with patch("core.local_ocr_service.convert_from_path", side_effect=ImportError):
-                with patch("core.local_ocr_service.fitz") as mock_fitz:
-                    # Mock PyMuPDF document
-                    mock_doc = MagicMock()
-                    mock_page = MagicMock()
-                    mock_pix = MagicMock()
-                    mock_pix.save = Mock()
+            # Mock _pdf_to_images to return fake image paths
+            fake_images = ["/tmp/fake_image_0.png", "/tmp/fake_image_1.png"]
 
-                    mock_fitz.open.return_value = mock_doc
-                    mock_doc.__iter__ = Mock(return_value=iter([mock_page]))
-                    mock_page.get_pixmap.return_value = mock_pix
-
+            with patch.object(ocr_service, "_pdf_to_images", return_value=fake_images):
+                with patch("os.unlink"):  # Mock cleanup
                     with patch.object(ocr_service, "process_image") as mock_ocr:
                         mock_ocr.return_value = {
                             "success": True,
@@ -228,39 +219,46 @@ class TestOCRFormats:
                         result = ocr_service.process_pdf(sample_pdf_path)
 
                         assert result["success"] is True
+                        assert result["page_count"] == 2
 
     def test_process_pdf_no_converter_available(self, ocr_service, sample_pdf_path):
         """Test PDF processing fails without converter."""
         with patch("os.path.exists", return_value=True):
-            with patch("core.local_ocr_service.convert_from_path", side_effect=ImportError):
-                with patch("core.local_ocr_service.fitz", side_effect=ImportError):
-                    result = ocr_service.process_pdf(sample_pdf_path)
+            # Mock _pdf_to_images to return empty list (no converter)
+            with patch.object(ocr_service, "_pdf_to_images", return_value=[]):
+                result = ocr_service.process_pdf(sample_pdf_path)
 
-                    assert result["success"] is False
+                assert result["success"] is False
+                assert "Failed to convert PDF to images" in result["error"]
 
     def test_process_pdf_page_limit(self, ocr_service, sample_pdf_path):
         """Test PDF processing respects max_pages limit."""
         with patch("os.path.exists", return_value=True):
-            with patch("core.local_ocr_service.convert_from_path") as mock_convert:
-                # Mock 10 pages
-                mock_imgs = [MagicMock() for _ in range(10)]
-                for img in mock_imgs:
-                    img.save = Mock()
-                mock_convert.return_value = mock_imgs
+            # Mock _pdf_to_images with max_pages check
+            fake_images = ["/tmp/fake_image_{}.png".format(i) for i in range(10)]
 
-                with patch.object(ocr_service, "process_image") as mock_ocr:
-                    mock_ocr.return_value = {"success": True, "text": "text"}
+            with patch.object(ocr_service, "_pdf_to_images") as mock_pdf:
+                mock_pdf.return_value = fake_images
 
-                    # Limit to 5 pages
-                    result = ocr_service.process_pdf(sample_pdf_path, max_pages=5)
+                with patch("os.unlink"):  # Mock cleanup
+                    with patch.object(ocr_service, "process_image") as mock_ocr:
+                        mock_ocr.return_value = {"success": True, "text": "text"}
 
-                    # Should only process 5 pages
-                    assert mock_convert.call_args[1]["last_page"] == 5
+                        # Limit to 5 pages
+                        result = ocr_service.process_pdf(sample_pdf_path, max_pages=5)
+
+                        # Should pass max_pages to _pdf_to_images (second positional arg)
+                        mock_pdf.assert_called_once()
+                        # Check that max_pages=5 was passed
+                        call_args = mock_pdf.call_args[0]  # Positional args
+                        assert len(call_args) == 2  # pdf_path and max_pages
+                        assert call_args[1] == 5  # max_pages parameter
 
     def test_process_pdf_exception_handling(self, ocr_service, sample_pdf_path):
         """Test handles exceptions during PDF processing."""
         with patch("os.path.exists", return_value=True):
-            with patch("core.local_ocr_service.convert_from_path", side_effect=Exception("PDF error")):
+            # Mock _pdf_to_images to raise exception
+            with patch.object(ocr_service, "_pdf_to_images", side_effect=Exception("PDF error")):
                 result = ocr_service.process_pdf(sample_pdf_path)
 
                 assert result["success"] is False
