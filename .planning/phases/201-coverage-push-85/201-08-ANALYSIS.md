@@ -117,3 +117,134 @@ Count: 47 files
 2. Focus on core/ module (23.7% → 35%)
 3. Add tests for API endpoints not yet covered
 4. Prioritize files with 100-300 lines (medium complexity)
+
+### Wave 3 High-Priority Candidates
+
+#### Zero Coverage Files (>300 lines) - HIGH IMPACT
+| File | Lines | Est. Tests | Est. Coverage Gain |
+|------|-------|-----------|-------------------|
+| core/workflow_versioning_system.py | 442 | 20-30 | +300 lines |
+| core/workflow_marketplace.py | 332 | 15-25 | +250 lines |
+| api/debug_routes.py | 296 | 10-15 | +200 lines |
+| core/advanced_workflow_endpoints.py | 265 | 12-20 | +200 lines |
+| core/workflow_template_endpoints.py | 243 | 12-18 | +180 lines |
+
+**Estimated Impact:** +1,130 lines covered (+1.5 percentage points overall)
+
+#### Zero Coverage Files (200-300 lines) - MEDIUM IMPACT
+| File | Lines | Est. Tests | Est. Coverage Gain |
+|------|-------|-----------|-------------------|
+| api/workflow_versioning_endpoints.py | 228 | 10-15 | +170 lines |
+| core/graduation_exam.py | 227 | 12-18 | +170 lines |
+| core/enterprise_user_management.py | 208 | 10-15 | +150 lines |
+| api/smarthome_routes.py | 188 | 8-12 | +140 lines |
+| core/industry_workflow_endpoints.py | 181 | 10-15 | +140 lines |
+
+**Estimated Impact:** +770 lines covered (+1.0 percentage points overall)
+
+#### Partial Coverage Files (20-50%) - HIGH ROI
+| File | Current | Target | Lines | Est. Tests | Est. Gain |
+|------|---------|--------|-------|-----------|----------|
+| core/agent_governance_service.py | 61.9% | 85% | 286 | 10-15 | +70 lines |
+| core/trigger_interceptor.py | 74.3% | 90% | 162 | 5-10 | +25 lines |
+| api/episode_routes.py | 40.5% | 75% | 222 | 15-20 | +75 lines |
+| core/episode_lifecycle_service.py | 35.2% | 70% | 196 | 12-18 | +70 lines |
+
+**Estimated Impact:** +240 lines covered (+0.3 percentage points overall)
+
+### Wave 3 Execution Plan
+
+#### Plan 201-09: Core Workflow Coverage (Estimated +2.5%)
+**Target Files:**
+- core/workflow_versioning_system.py (442 lines, 0%)
+- core/workflow_marketplace.py (332 lines, 0%)
+- core/workflow_template_endpoints.py (243 lines, 0%)
+
+**Estimated Output:** +730 lines covered, 45-60 tests
+
+**Approach:**
+1. Test workflow versioning operations (create, update, rollback)
+2. Test workflow marketplace (search, install, uninstall)
+3. Test workflow templates (CRUD operations)
+4. Test error paths and validation
+
+#### Plan 201-10: API Endpoints Coverage (Estimated +1.8%)
+**Target Files:**
+- api/debug_routes.py (296 lines, 0%)
+- api/workflow_versioning_endpoints.py (228 lines, 0%)
+- api/smarthome_routes.py (188 lines, 0%)
+
+**Estimated Output:** +510 lines covered, 30-40 tests
+
+**Approach:**
+1. Test debug endpoints (health checks, metrics)
+2. Test workflow versioning API (list, get, compare)
+3. Test smarthome integration endpoints
+
+#### Plan 201-11: Core Services Coverage (Estimated +1.5%)
+**Target Files:**
+- core/graduation_exam.py (227 lines, 0%)
+- core/enterprise_user_management.py (208 lines, 0%)
+- core/advanced_workflow_endpoints.py (265 lines, 0%)
+
+**Estimated Output:** +530 lines covered, 35-45 tests
+
+**Approach:**
+1. Test graduation exam scenarios (pass/fail edge cases)
+2. Test enterprise user management (CRUD, roles)
+3. Test advanced workflow execution (parallel, conditional)
+
+### Overall Wave 3 Projection
+
+**Total Estimated Impact:**
+- **Coverage Gain:** +5.8 percentage points (20.13% → 26%)
+- **Lines Added:** +4,280 lines covered
+- **Tests Created:** 140-190 tests
+- **Plans:** 3 additional plans (201-09, 201-10, 201-11)
+
+**Realistic vs. Optimistic:**
+- **Realistic:** 25-26% coverage (conservative test estimates)
+- **Optimistic:** 28-30% coverage (aggressive test coverage)
+
+**Gap After Wave 3:**
+- **To 75%:** 49-50 percentage points remaining
+- **To 60%:** 34-35 percentage points remaining
+
+### Alternative: Wave 3 Cancellation
+
+**Rationale for Skipping Wave 3:**
+- Current coverage (20.13%) significantly below Wave 2 target (50-60%)
+- Gap to 75% is large (54.87 percentage points)
+- Estimated Wave 3 gain (+5.8%) is modest relative to gap
+
+**Recommendation if Canceling:**
+1. **Accept current coverage as baseline** for Phase 201
+2. **Document coverage gap** as technical debt
+3. **Proceed to Phase 202** with coverage improvement as ongoing effort
+4. **Set realistic coverage target** for Phase 203 (30-35%)
+
+**Decision Criteria:**
+- **Continue Wave 3 if:** Resources available and coverage is priority
+- **Cancel Wave 3 if:** Other priorities take precedence, accept gradual improvement
+
+### Final Recommendation
+
+**PROCEED WITH WAVE 3 EXTENSION** (3 additional plans: 201-09, 201-10, 201-11)
+
+**Justification:**
+1. **Easy wins identified:** 47 zero-coverage files >100 lines
+2. **High-impact targets:** Workflow and API endpoints are business-critical
+3. **Manageable scope:** 140-190 tests across 3 focused plans
+4. **Clear path forward:** Specific files and test scenarios identified
+5. **Learning value:** Understanding workflow and API test patterns
+
+**Success Criteria for Wave 3:**
+- Achieve 25-26% overall coverage (+5-6 percentage points)
+- Create 140+ new tests with 90%+ pass rate
+- Reduce zero-coverage files >100 lines by 50% (from 47 to ~24)
+- Complete all 3 Wave 3 plans in 3-4 hours
+
+**If Wave 3 Underperforms:**
+- Re-evaluate coverage strategy after Plan 201-09
+- Consider accepting 20-25% as Phase 201 baseline
+- Document remaining gaps for Phase 202
