@@ -6,7 +6,29 @@ Focus: Admin endpoints, user management, system operations
 """
 import pytest
 from fastapi.testclient import TestClient
+from fastapi import FastAPI
 from unittest.mock import Mock, patch
+
+# Import the router
+from api.admin_routes import router
+
+
+# =============================================================================
+# Fixtures
+# =============================================================================
+
+@pytest.fixture
+def app():
+    """Create test FastAPI app with admin router"""
+    app = FastAPI()
+    app.include_router(router)
+    return app
+
+
+@pytest.fixture
+def client(app):
+    """Create test client"""
+    return TestClient(app)
 
 
 class TestAdminEndpoints:

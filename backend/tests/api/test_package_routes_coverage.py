@@ -6,7 +6,29 @@ Focus: Package installation, dependency management, security scanning
 """
 import pytest
 from fastapi.testclient import TestClient
+from fastapi import FastAPI
 from unittest.mock import Mock, patch, AsyncMock
+
+# Import the router
+from api.package_routes import router
+
+
+# =============================================================================
+# Fixtures
+# =============================================================================
+
+@pytest.fixture
+def app():
+    """Create test FastAPI app with package router"""
+    app = FastAPI()
+    app.include_router(router)
+    return app
+
+
+@pytest.fixture
+def client(app):
+    """Create test client"""
+    return TestClient(app)
 
 
 class TestPackageEndpoints:
