@@ -254,10 +254,9 @@ def sample_episode_context(db_session: Session):
     # Create ChatSession with messages
     chat_session = ChatSession(
         id=str(uuid.uuid4()),
-        agent_id="test_agent",
         user_id="test_user",
         title="Test Episode Session",
-        status="active"
+        metadata_json={"agent_id": "test_agent"}
     )
     db_session.add(chat_session)
 
