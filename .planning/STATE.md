@@ -1,7 +1,7 @@
 Phase: 207 (Coverage Quality Push)
-Plan: 04 (COMPLETE)
+Plan: 06 (COMPLETE)
 Status: IN_PROGRESS
-Last activity: 2026-03-18 — Plan 207-04 COMPLETE: Lux Config and Messaging Schemas tested with 100% coverage. 62 tests created (16 lux_config + 46 messaging_schemas). Wave 2 continues with core services.
+Last activity: 2026-03-18 — Plan 207-06 COMPLETE: Historical Learner and External Integration Service tested with 100% coverage. 48 tests created (23 historical_learner + 25 external_integration_service). Wave 2 complete.
 
 ## Phase 206 COMPLETE: Coverage Push to 80% (Partial) ⚠️
 
