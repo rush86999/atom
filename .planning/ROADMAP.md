@@ -1116,6 +1116,38 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 - [x] 205-03-PLAN.md — Fix collection errors (pytest.ini, conftest) ✅
 - [x] 205-04-PLAN.md — Measure coverage and create summary ✅
 
+### Phase 206: Coverage Push to 80% 🔄 READY_TO_START
+**Goal**: Achieve 80% overall backend coverage (5.31pp improvement from 74.69% baseline)
+**Status**: READY_TO_START (Planning complete)
+**Plans**: 7 plans (206-01 through 206-07)
+**Success Criteria**:
+  1. Overall backend coverage reaches 80%+ (5.31pp improvement)
+  2. Zero-coverage files tested to 75%+
+  3. Partial coverage files extended to 80%+
+  4. Collection errors remain at zero
+  5. Coverage measured with pytest --cov-branch
+**Strategy**: Coverage expansion - add 10-12 NEW files under test (increases both numerator and denominator)
+**Wave Structure**:
+- Wave 1 (206-01): Baseline verification and gap analysis
+- Wave 2 (206-02, 206-03): Governance and LLM coverage (4 files)
+- Wave 3 (206-04): Workflow and memory coverage (2 files)
+- Wave 4 (206-05): Retrieval and graduation coverage (2 files)
+- Wave 5 (206-06): Template and cognitive tier coverage (2 files)
+- Wave 6 (206-07): Final aggregation and verification
+**Target Files**:
+- Governance: agent_governance_service, agent_governance_cache, agent_context_resolver
+- LLM: byok_handler, cognitive_tier_system
+- Workflow: workflow_engine, workflow_template_system
+- Memory: episode_segmentation_service, episode_retrieval_service, agent_graduation_service
+**Plan List**:
+- [ ] 206-01-PLAN.md — Baseline verification and gap analysis (Wave 1)
+- [ ] 206-02-PLAN.md — Agent governance service and cache coverage (Wave 2)
+- [ ] 206-03-PLAN.md — Agent context resolver and BYOK handler coverage (Wave 2)
+- [ ] 206-04-PLAN.md — Workflow engine and episode segmentation coverage (Wave 3)
+- [ ] 206-05-PLAN.md — Episode retrieval and agent graduation coverage (Wave 4)
+- [ ] 206-06-PLAN.md — Workflow template and cognitive tier coverage (Wave 5)
+- [ ] 206-07-PLAN.md — Final aggregation and verification (Wave 6)
+
 ### Phase 204: Coverage Push to 75-80% ✅ COMPLETE
 **Status**: Complete (2026-03-17)
 **Duration**: ~60-90 minutes across 7 executed plans
