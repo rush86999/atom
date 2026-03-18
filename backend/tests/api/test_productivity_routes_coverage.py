@@ -43,7 +43,7 @@ def client():
     async def get_current_user_override():
         return Mock(id="test-user-123", username="testuser")
 
-    from core.security_dependencies import get_current_user
+    from api.oauth_routes import get_current_user
     app.dependency_overrides[get_current_user] = get_current_user_override
 
     # Mock get_db dependency
