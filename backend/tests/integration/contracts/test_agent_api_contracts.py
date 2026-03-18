@@ -36,7 +36,7 @@ class TestAgentAPIContracts:
         - Response includes array of agents
         - Query parameters conform to schema
         """
-        operation = schema["/api/agents"]["GET"]
+        operation = schema["/api/agents/"]["GET"]
         with TestClient(app) as client:
             response = client.get("/api/agents")
             operation.validate_response(response)
