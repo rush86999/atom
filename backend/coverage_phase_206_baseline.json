@@ -1,0 +1,140 @@
+{
+  "phase": 206,
+  "baseline_date": "2026-03-18",
+  "current_coverage": {
+    "overall_percent": 74.69,
+    "covered_lines": 851,
+    "num_statements": 1094,
+    "missing_lines": 243
+  },
+  "target": {
+    "percent": 80.0,
+    "gap_percentage_points": 5.31,
+    "gap_percentage_points_display": "5.31pp",
+    "lines_needed": 58
+  },
+  "strategy": {
+    "approach": "expansion",
+    "description": "Add NEW files under test to expand coverage base (increases both numerator and denominator)",
+    "rationale": "Current coverage only measures 2 files. Adding 10-15 files will expand base and hit 80%",
+    "target_file_count": 12,
+    "estimated_new_statements": 8000,
+    "estimated_coverage_impact": "+5.31pp"
+  },
+  "target_files": [
+    {
+      "file": "core/agent_governance_service.py",
+      "stmts": 807,
+      "priority": "HIGH",
+      "category": "governance"
+    },
+    {
+      "file": "core/agent_governance_cache.py",
+      "stmts": 200,
+      "priority": "HIGH",
+      "category": "governance"
+    },
+    {
+      "file": "core/agent_context_resolver.py",
+      "stmts": 350,
+      "priority": "HIGH",
+      "category": "governance"
+    },
+    {
+      "file": "core/llm/byok_handler.py",
+      "stmts": 1553,
+      "priority": "HIGH",
+      "category": "llm"
+    },
+    {
+      "file": "core/llm/cognitive_tier_system.py",
+      "stmts": 400,
+      "priority": "MEDIUM",
+      "category": "llm"
+    },
+    {
+      "file": "core/llm/cache_aware_router.py",
+      "stmts": 300,
+      "priority": "MEDIUM",
+      "category": "llm"
+    },
+    {
+      "file": "core/workflow_engine.py",
+      "stmts": 2260,
+      "priority": "HIGH",
+      "category": "workflow"
+    },
+    {
+      "file": "core/workflow_template_system.py",
+      "stmts": 1363,
+      "priority": "MEDIUM",
+      "category": "workflow"
+    },
+    {
+      "file": "core/episode_segmentation_service.py",
+      "stmts": 1536,
+      "priority": "HIGH",
+      "category": "memory"
+    },
+    {
+      "file": "core/episode_retrieval_service.py",
+      "stmts": 1076,
+      "priority": "HIGH",
+      "category": "memory"
+    },
+    {
+      "file": "core/agent_graduation_service.py",
+      "stmts": 977,
+      "priority": "MEDIUM",
+      "category": "memory"
+    },
+    {
+      "file": "api/admin_routes.py",
+      "stmts": 1354,
+      "priority": "MEDIUM",
+      "category": "api"
+    },
+    {
+      "file": "api/agent_routes.py",
+      "stmts": 766,
+      "priority": "MEDIUM",
+      "category": "api"
+    },
+    {
+      "file": "api/package_routes.py",
+      "stmts": 1226,
+      "priority": "LOW",
+      "category": "api"
+    },
+    {
+      "file": "tools/canvas_tool.py",
+      "stmts": 1359,
+      "priority": "MEDIUM",
+      "category": "tools"
+    },
+    {
+      "file": "tools/device_tool.py",
+      "stmts": 1291,
+      "priority": "LOW",
+      "category": "tools"
+    }
+  ],
+  "wave_2_targets": [
+    "agent_governance_service.py",
+    "agent_governance_cache.py",
+    "agent_context_resolver.py",
+    "byok_handler.py"
+  ],
+  "wave_3_targets": [
+    "workflow_engine.py",
+    "episode_segmentation_service.py",
+    "episode_retrieval_service.py",
+    "agent_graduation_service.py"
+  ],
+  "wave_4_targets": [
+    "workflow_template_system.py",
+    "cognitive_tier_system.py",
+    "cache_aware_router.py",
+    "admin_routes.py"
+  ]
+}
