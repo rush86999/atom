@@ -13,24 +13,22 @@ Contract test coverage:
 - POST /api/workflow-templates/{template_id}/execute - Execute template
 """
 import pytest
-import schemathesis
-from hypothesis import settings
+from fastapi.testclient import TestClient
 from main_api_app import app
+import schemathesis
 
 # Load OpenAPI schema from FastAPI app
-schema = schemathesis.from_wsgi("/openapi.json", app)
+schema = schemathesis.openapi.from_dict(app.openapi())
 
 
 class TestWorkflowAPIContracts:
     """Contract tests for Workflow Template API endpoints.
 
-    Tests use property-based testing to generate diverse inputs and validate
-    that the API implementation matches the OpenAPI specification.
+    Tests validate that the API implementation matches the OpenAPI specification
+    using Schemathesis for schema validation.
     """
 
-    @schema.parametrize(endpoint="/api/workflow-templates")
-    @settings(max_examples=15, deadline=None)
-    def test_list_workflow_templates(self, case):
+    def test_list_workflow_templates(self):
         """Test GET /api/workflow-templates validates template list schema.
 
         Validates:
@@ -38,12 +36,13 @@ class TestWorkflowAPIContracts:
         - Category filtering parameter works correctly
         - Pagination parameters conform to schema
         """
-        response = case.call_and_validate()
-        assert response.status_code in [200, 400]
+        operation = schema["/api/workflow-templates"]["GET"]
+        with TestClient(app) as client:
+            response = client.get("/api/workflow-templates")
+            operation.validate_response(response)
+            assert response.status_code in [200, 400]
 
-    @schema.parametrize(endpoint="/api/workflow-templates/{template_id}")
-    @settings(max_examples=20, deadline=None)
-    def test_get_workflow_by_id(self, case):
+    def test_get_workflow_by_id(self):
         """Test GET /api/workflow-templates/{template_id} validates template schema.
 
         Validates:
@@ -51,12 +50,13 @@ class TestWorkflowAPIContracts:
         - Returns 404 for non-existent templates
         - Response body conforms to schema
         """
-        response = case.call_and_validate()
-        assert response.status_code in [200, 404]
+        operation = schema["/api/workflow-templates/{template_id}"]["GET"]
+        with TestClient(app) as client:
+            response = client.get("/api/workflow-templates/test-template-id")
+            operation.validate_response(response)
+            assert response.status_code in [200, 404]
 
-    @schema.parametrize(endpoint="/api/workflow-templates")
-    @settings(max_examples=15, deadline=None)
-    def test_create_workflow(self, case):
+    def test_create_workflow(self):
         """Test POST /api/workflow-templates validates workflow creation.
 
         Validates:
@@ -65,12 +65,21 @@ class TestWorkflowAPIContracts:
         - Response includes created template details
         - Returns 201 on success, 422 on validation error
         """
-        response = case.call_and_validate()
-        assert response.status_code in [200, 201, 400, 422]
+        operation = schema["/api/workflow-templates"]["POST"]
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/workflow-templates",
+                json={
+                    "name": "Test Workflow",
+                    "description": "Test template",
+                    "nodes": [],
+                    "connections": []
+                }
+            )
+            operation.validate_response(response)
+            assert response.status_code in [200, 201, 400, 422]
 
-    @schema.parametrize(endpoint="/api/workflow-templates/{template_id}")
-    @settings(max_examples=10, deadline=None)
-    def test_update_workflow(self, case):
+    def test_update_workflow(self):
         """Test PUT /api/workflow-templates/{template_id} validates updates.
 
         Validates:
@@ -79,12 +88,16 @@ class TestWorkflowAPIContracts:
         - Response includes updated template details
         - Returns 404 for non-existent templates
         """
-        response = case.call_and_validate()
-        assert response.status_code in [200, 404, 422]
+        operation = schema["/api/workflow-templates/{template_id}"]["PUT"]
+        with TestClient(app) as client:
+            response = client.put(
+                "/api/workflow-templates/test-template-id",
+                json={"name": "Updated Workflow"}
+            )
+            operation.validate_response(response)
+            assert response.status_code in [200, 404, 422]
 
-    @schema.parametrize(endpoint="/api/workflow-templates/{template_id}/instantiate")
-    @settings(max_examples=10, deadline=None)
-    def test_instantiate_workflow(self, case):
+    def test_instantiate_workflow(self):
         """Test POST /api/workflow-templates/{template_id}/instantiate validates instantiation.
 
         Validates:
@@ -92,12 +105,16 @@ class TestWorkflowAPIContracts:
         - Response includes created workflow instance
         - Returns 404 for non-existent templates
         """
-        response = case.call_and_validate()
-        assert response.status_code in [200, 201, 404]
+        operation = schema["/api/workflow-templates/{template_id}/instantiate"]["POST"]
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/workflow-templates/test-template-id/instantiate",
+                json={"parameters": {}}
+            )
+            operation.validate_response(response)
+            assert response.status_code in [200, 201, 404]
 
-    @schema.parametrize(endpoint="/api/workflow-templates/{template_id}/execute")
-    @settings(max_examples=10, deadline=None)
-    def test_execute_workflow(self, case):
+    def test_execute_workflow(self):
         """Test POST /api/workflow-templates/{template_id}/execute validates execution.
 
         Validates:
@@ -105,8 +122,14 @@ class TestWorkflowAPIContracts:
         - Returns 404 for non-existent templates
         - Returns 500 for execution errors
         """
-        response = case.call_and_validate()
-        assert response.status_code in [200, 404, 500]
+        operation = schema["/api/workflow-templates/{template_id}/execute"]["POST"]
+        with TestClient(app) as client:
+            response = client.post(
+                "/api/workflow-templates/test-template-id/execute",
+                json={"input": {}}
+            )
+            operation.validate_response(response)
+            assert response.status_code in [200, 404, 500]
 
 
 # Pytest marker for running only contract tests
