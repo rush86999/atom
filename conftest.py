@@ -1,24 +1,21 @@
 """
-Backend pytest configuration file.
+Root conftest for pytest plugin registration.
 
-This file contains pytest configuration for backend tests.
-pytest_plugins moved to root conftest (pytest 7.4+ requirement).
+pytest 7.4+ requires pytest_plugins to be defined only in top-level conftest.
+See: https://docs.pytest.org/en/stable/deprecations.html#pytest-plugins-in-non-top-level-conftest-files
 """
 
 import pytest
 
 
-# ❌ OLD - causes collection error in pytest 7.4+
-# pytest_plugins = [
-#     "tests.e2e_ui.fixtures.auth_fixtures",
-#     "tests.e2e_ui.fixtures.database_fixtures",
-#     "tests.e2e_ui.fixtures.api_fixtures",
-#     "tests.e2e_ui.fixtures.test_data_factory",
-# ]
-
-# ✅ NEW - moved to root conftest at /Users/rushiparikh/projects/atom/conftest.py
-# pytest_plugins must be in top-level conftest only (pytest 7.4+ requirement)
-# See: https://docs.pytest.org/en/stable/deprecations.html#pytest-plugins-in-non-top-level-conftest-files
+# Register E2E UI fixtures as plugins
+# This must be at the root level to avoid pytest deprecation warning
+pytest_plugins = [
+    "tests.e2e_ui.fixtures.auth_fixtures",
+    "tests.e2e_ui.fixtures.database_fixtures",
+    "tests.e2e_ui.fixtures.api_fixtures",
+    "tests.e2e_ui.fixtures.test_data_factory",
+]
 
 
 def pytest_configure(config):
