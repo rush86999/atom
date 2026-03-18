@@ -9,6 +9,7 @@ Last activity: 2026-03-18 — Plan 208-01 COMPLETE: Workflow integration tests. 
 |------|----------|-------|-------|
 | 207-10 | 900s (15m) | 4 | 4 |
 | Phase 208 P02 | 1021 | 4 tasks | 4 files |
+| Phase 208-integration-performance-testing P03 | 515 | 4 tasks | 4 files |
 
 ## Phase 207 COMPLETE: Coverage Quality Push ✅
 
