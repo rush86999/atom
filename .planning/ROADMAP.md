@@ -1183,6 +1183,72 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 
 **See**: `.planning/phases/206-coverage-push-80/206-07-SUMMARY.md` for comprehensive analysis
 
+### Phase 207: Coverage Quality Push 📋 PLANNED
+**Goal**: Achieve 70% overall backend coverage with focus on testable modules (shift from Phase 206 strategy)
+**Status**: 📋 PLANNED (2026-03-18)
+**Target Coverage**: 70% overall (vs 80% in Phase 206 - more realistic)
+**Target Tests**: ~400 tests (vs 298 in Phase 206)
+**Plans**: 10 plans (207-01 through 207-10) - PLANNING COMPLETE
+
+**Strategic Shift from Phase 206**:
+- **From**: "Test important modules" (regardless of complexity)
+- **To**: "Test testable modules" (prioritize size + simplicity)
+- **Rationale**: Phase 206 proved files <500 lines achieve 75%+ cost-effectively, files >1000 lines have diminishing returns
+- **Lower Target**: 70% vs 80% (more realistic based on module complexity analysis)
+
+**Module Selection Strategy**:
+1. **Priority Tier 1**: API Routes (6 files, 10-58 lines each, HIGH testability)
+   - reports.py, websocket_routes.py, workflow_analytics_routes.py
+   - time_travel_routes.py, onboarding_routes.py, sales_routes.py
+   - Expected: ~120 tests, 85-95% coverage
+2. **Priority Tier 2**: Core Services (6 files, 30-60 lines each, GOOD testability)
+   - lux_config.py, messaging_schemas.py, billing.py
+   - llm_service.py, historical_learner.py, external_integration_service.py
+   - Expected: ~130 tests, 75-85% coverage
+3. **Priority Tier 3**: Tools (3 files, 300-600 lines, EXCELLENT testability)
+   - device_tool.py, browser_tool.py, canvas_tool.py
+   - Expected: ~100 tests, 70-90% coverage
+4. **Priority Tier 4**: Incremental Improvements (3 Phase 206 files)
+   - agent_graduation_service.py (56.25% → 70%)
+   - episode_retrieval_service.py (53.12% → 65%)
+   - byok_handler.py (25.22% → 40%)
+   - Expected: ~50 additional tests, +15-20pp coverage
+
+**New Metrics for Phase 207**:
+- **Branch Coverage**: 60%+ target (NEW - not tracked in Phase 206)
+- **File-Level Quality**: 80% of files at 75%+ (vs 44% in Phase 206)
+- **Collection Stability**: 0 collection errors (vs 3 in Phase 206)
+- **Test Pass Rate**: 95%+ target
+
+**Success Criteria**:
+1. ✅ 70% overall coverage across new files (vs 56.79% in Phase 206)
+2. ✅ 80% of files achieve 75%+ file-level coverage (vs 44% in Phase 206)
+3. ✅ ~400 tests created with 95%+ pass rate
+4. ✅ 0 collection errors (proactive verification)
+5. ✅ 60%+ branch coverage for new files
+6. ✅ Comprehensive documentation with lessons learned
+
+**Wave Structure**:
+- **Wave 1** (Plans 01-03): API Routes - 6 files, ~120 tests, 85-95% coverage
+- **Wave 2** (Plans 04-06): Core Services - 6 files, ~130 tests, 75-85% coverage
+- **Wave 3** (Plans 07-08): Tools - 3 files, ~100 tests, 70-90% coverage
+- **Wave 4** (Plan 09): Incremental Improvements - 3 files, ~50 tests, +15-20pp
+- **Wave 5** (Plan 10): Verification - Aggregation, reporting, documentation
+
+**Plan List**:
+- [ ] 207-01-PLAN.md — Reports & WebSocket Routes (Wave 1)
+- [ ] 207-02-PLAN.md — Analytics & Time Travel Routes (Wave 1)
+- [ ] 207-03-PLAN.md — Onboarding & Sales Routes (Wave 1)
+- [ ] 207-04-PLAN.md — Lux Config & Messaging Schemas (Wave 2)
+- [ ] 207-05-PLAN.md — Billing & LLM Service (Wave 2)
+- [ ] 207-06-PLAN.md — Historical Learner & External Integration (Wave 2)
+- [ ] 207-07-PLAN.md — Device & Browser Tools (Wave 3)
+- [ ] 207-08-PLAN.md — Canvas Tool (Wave 3)
+- [ ] 207-09-PLAN.md — Incremental Improvements (Wave 4)
+- [ ] 207-10-PLAN.md — Verification & Reporting (Wave 5)
+
+**See**: `.planning/phases/207-coverage-quality-push/207-PLANNING-SUMMARY.md` for complete planning details
+
 ### Phase 204: Coverage Push to 75-80% ✅ COMPLETE
 **Status**: Complete (2026-03-17)
 **Duration**: ~60-90 minutes across 7 executed plans
