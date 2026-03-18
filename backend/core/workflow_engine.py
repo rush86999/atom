@@ -171,6 +171,7 @@ class WorkflowEngine:
         step_status = {step_id: state["steps"].get(step_id, {}).get("status", "PENDING")
                       for step_id in nodes}
         # Track activated connections (condition evaluated true)
+        # Use tuple (source, target) as hashable identifier instead of dict
         activated_connections = set()
         # Lock for state updates to prevent race conditions
         state_lock = asyncio.Lock()
@@ -190,7 +191,8 @@ class WorkflowEngine:
                     current_state = await self.state_manager.get_execution_state(execution_id)
                 for conn in adjacency[step_id]:
                     if evaluate_connection_condition(conn, current_state):
-                        activated_connections.add(conn)
+                        # Use tuple (source, target) as hashable identifier
+                        activated_connections.add((conn.get("source"), conn.get("target")))
 
         # Helper to get ready steps
         def get_ready_steps():
@@ -200,7 +202,10 @@ class WorkflowEngine:
                     continue
                 incoming_conns = reverse_adjacency[step_id]
                 # If no incoming connections, or all incoming connections are activated
-                if not incoming_conns or all(conn in activated_connections for conn in incoming_conns):
+                if not incoming_conns or all(
+                    (conn.get("source"), conn.get("target")) in activated_connections
+                    for conn in incoming_conns
+                ):
                     ready.add(step_id)
             return ready
 
@@ -297,7 +302,8 @@ class WorkflowEngine:
                             new_activated = []
                             for conn in adjacency[step_id]:
                                 if evaluate_connection_condition(conn, current_state):
-                                    new_activated.append(conn)
+                                    # Use tuple (source, target) as hashable identifier
+                                    new_activated.append((conn.get("source"), conn.get("target")))
 
                             # Update activated connections
                             async with state_lock:
