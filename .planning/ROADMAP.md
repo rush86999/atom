@@ -1116,37 +1116,72 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 - [x] 205-03-PLAN.md — Fix collection errors (pytest.ini, conftest) ✅
 - [x] 205-04-PLAN.md — Measure coverage and create summary ✅
 
-### Phase 206: Coverage Push to 80% 🔄 READY_TO_START
+### Phase 206: Coverage Push to 80% ⚠️ PARTIAL
 **Goal**: Achieve 80% overall backend coverage (5.31pp improvement from 74.69% baseline)
-**Status**: READY_TO_START (Planning complete)
-**Plans**: 7 plans (206-01 through 206-07)
-**Success Criteria**:
-  1. Overall backend coverage reaches 80%+ (5.31pp improvement)
-  2. Zero-coverage files tested to 75%+
-  3. Partial coverage files extended to 80%+
-  4. Collection errors remain at zero
-  5. Coverage measured with pytest --cov-branch
-**Strategy**: Coverage expansion - add 10-12 NEW files under test (increases both numerator and denominator)
-**Wave Structure**:
-- Wave 1 (206-01): Baseline verification and gap analysis
-- Wave 2 (206-02, 206-03): Governance and LLM coverage (4 files)
-- Wave 3 (206-04): Workflow and memory coverage (2 files)
-- Wave 4 (206-05): Retrieval and graduation coverage (2 files)
-- Wave 5 (206-06): Template and cognitive tier coverage (2 files)
-- Wave 6 (206-07): Final aggregation and verification
-**Target Files**:
-- Governance: agent_governance_service, agent_governance_cache, agent_context_resolver
-- LLM: byok_handler, cognitive_tier_system
-- Workflow: workflow_engine, workflow_template_system
-- Memory: episode_segmentation_service, episode_retrieval_service, agent_graduation_service
+**Status**: ⚠️ PARTIAL (2026-03-18)
+**Duration**: ~2 hours across 7 executed plans
+**Final Coverage**: 56.79% average across 9 files (vs 80% target, -23.21pp gap)
+**Tests Created**: 298 tests across 9 core backend files
+**Pass Rate**: 100% (all tests passing)
+**Plans**: 7 plans (206-01 through 206-07) - ALL EXECUTED
+
+**Achievements**:
+- ✅ 4/9 files achieved 75%+ target (44% success rate)
+  - agent_context_resolver.py: 99.15% ✅ EXCELLENT
+  - cognitive_tier_system.py: 90.00% ✅ EXCEEDS TARGET
+  - workflow_template_system.py: 83.41% ✅ EXCEEDS TARGET
+  - agent_governance_service.py: 78.46% ✅ MEETS TARGET
+- ✅ Comprehensive test infrastructure established (298 tests, 100% pass rate)
+- ✅ All 6 waves executed successfully
+- ✅ Zero collection errors during individual test runs
+- ✅ Coverage aggregation tests created
+
+**Coverage Results**:
+- agent_governance_cache.py: 93.1% (module path issue, not in final report)
+- agent_graduation_service.py: 56.25% (complex async graduation logic)
+- episode_retrieval_service.py: 53.12% (multi-mode retrieval complexity)
+- byok_handler.py: 25.22% (multi-provider LLM abstraction)
+- episode_segmentation_service.py: 15.38% (large async module, 591 lines)
+- workflow_engine.py: 10.13% (complex orchestration, 1,164 lines)
+
+**Deviations**:
+- Overall coverage target not achieved (56.79% vs 80% target, -23.21pp gap)
+- Selected modules too complex for comprehensive unit testing (>1000 lines, async orchestration)
+- Coverage expansion strategy issue: adding lower-coverage files decreased overall percentage
+- 3 collection errors during full suite runs (memory service tests)
+- File count shortfall: 9 files covered vs 10 expected (governance_cache path issue)
+
+**Lessons Learned**:
+1. **Module testability > module importance**: Files <500 lines achievable at 75%+, files >1000 lines struggle to reach 50%
+2. **Large complex modules have diminishing returns**: workflow_engine (38 tests, 10% coverage), episode_segmentation (37 tests, 15% coverage)
+3. **File-level quality more important than overall percentage**: Focus on per-file 75%+ targets
+4. **Provider abstraction expensive to test**: byok_handler (44 tests, 25% coverage, 5+ providers)
+5. **Realistic targets enable better planning**: 70% more achievable than 80% for complex modules
+
+**Success Criteria Status**:
+  1. ❌ Overall backend coverage 80%+ (achieved 56.79%, gap -23.21pp)
+  2. ⚠️ Zero-coverage files to 75%+ (4/9 files achieved 75%+, 44% success rate)
+  3. ⚠️ Partial coverage files to 80%+ (2 files at 75-80% range)
+  4. ⚠️ Collection errors at zero (3 errors during full suite, 0 during individual runs)
+  5. ✅ Coverage measured with pytest --cov-branch
+
+**Recommendations for Phase 207**:
+1. Focus on high-testability modules (<500 lines, simple logic)
+2. Target 70% overall coverage (more realistic than 80%)
+3. Improve Phase 206 low-coverage files incrementally (workflow_engine 10%→40%, episode_segmentation 15%→50%)
+4. Fix 3 collection errors in memory service tests
+5. Prioritize API routes, tools, and smaller services for fast coverage gains
+
 **Plan List**:
-- [ ] 206-01-PLAN.md — Baseline verification and gap analysis (Wave 1)
-- [ ] 206-02-PLAN.md — Agent governance service and cache coverage (Wave 2)
-- [ ] 206-03-PLAN.md — Agent context resolver and BYOK handler coverage (Wave 2)
-- [ ] 206-04-PLAN.md — Workflow engine and episode segmentation coverage (Wave 3)
-- [ ] 206-05-PLAN.md — Episode retrieval and agent graduation coverage (Wave 4)
-- [ ] 206-06-PLAN.md — Workflow template and cognitive tier coverage (Wave 5)
-- [ ] 206-07-PLAN.md — Final aggregation and verification (Wave 6)
+- [x] 206-01-PLAN.md — Baseline verification and gap analysis (Wave 1) ✅
+- [x] 206-02-PLAN.md — Agent governance service and cache coverage (Wave 2) ✅
+- [x] 206-03-PLAN.md — Agent context resolver and BYOK handler coverage (Wave 2) ✅
+- [x] 206-04-PLAN.md — Workflow engine and episode segmentation coverage (Wave 3) ✅
+- [x] 206-05-PLAN.md — Episode retrieval and agent graduation coverage (Wave 4) ✅
+- [x] 206-06-PLAN.md — Workflow template and cognitive tier coverage (Wave 5) ✅
+- [x] 206-07-PLAN.md — Final aggregation and verification (Wave 6) ✅
+
+**See**: `.planning/phases/206-coverage-push-80/206-07-SUMMARY.md` for comprehensive analysis
 
 ### Phase 204: Coverage Push to 75-80% ✅ COMPLETE
 **Status**: Complete (2026-03-17)
