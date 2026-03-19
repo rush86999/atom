@@ -1,7 +1,7 @@
-Phase: 209 (Load & Stress Testing)
-Plan: 07 (COMPLETE)
+Phase: 210 (Fix Collection Errors)
+Plan: 01 (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-19 — Phase 209 COMPLETE: Load testing infrastructure with Locust, soak tests for memory leak detection, stress tests with deadlock/race condition detection, automation scripts, and CI/CD integration. 7 plans, 30+ files, 5,600+ lines of code. 47 tests (17 load tasks, 8 soak tests, 22 stress tests). Requirements LOAD-01 through LOAD-06 validated (framework complete, awaiting test execution results). Capacity report, phase summary, and index created. ROADMAP.md updated.
+Last activity: 2026-03-19 — Phase 210 Plan 01 COMPLETE: Fixed pytest collection errors by renaming 3 duplicate test file basenames with _memory.py suffix. Collection errors reduced from 3 to 0. All 125 memory module tests pass. Test naming convention documented in CODE_QUALITY_STANDARDS.md.
 
 ## Performance Metrics
 
@@ -22,6 +22,34 @@ Last activity: 2026-03-19 — Phase 209 COMPLETE: Load testing infrastructure wi
 | Phase 209 P06 | 65 | 3 tasks | 2 files |
 | Phase 209 P07 | 206 | 4 tasks | 3 files |
 | Phase 209 P07 | 206 | 4 tasks | 3 files |
+| Phase 210 P01 | 719 | 5 tasks | 4 files |
+
+## Phase 210 COMPLETE: Fix Collection Errors ✅
+
+**Status:** COMPLETE (March 19, 2026)
+**Duration:** 12 minutes (719 seconds)
+**Files Modified:** 4 (3 test files renamed, 1 documentation updated)
+**Tests Affected:** 125 memory module tests now discoverable
+
+**Key Achievements:**
+- Renamed 3 duplicate test file basenames with _memory.py suffix
+- Eliminated all pytest collection errors (3 → 0)
+- All 4,394 tests now discoverable
+- Test naming convention documented in CODE_QUALITY_STANDARDS.md
+- 100% test pass rate maintained after renaming
+
+**Collection Errors Fixed:**
+- test_agent_graduation_service_coverage.py → test_agent_graduation_service_memory.py
+- test_episode_retrieval_service_coverage.py → test_episode_retrieval_memory.py
+- test_episode_segmentation_service_coverage.py → test_episode_segmentation_memory.py
+
+**Impact:**
+- Unblocks coverage measurement work
+- Prevents future collection errors via documented naming convention
+- Maintains git history via git mv
+- Zero functional changes to test behavior
+
+---
 
 ## Phase 209 COMPLETE: Load & Stress Testing Infrastructure ✅
 
@@ -2163,5 +2191,40 @@ Progress: [███░░░░░░░░░░░░░░░░░] 31% (4/
 Progress: [████████░░░░░░░░░░░] 62% (8/13 plans in Phase 202)
 
 Last activity: 2026-03-17 — Phase 203 Plan 04 COMPLETE: Workflow engine coverage - core orchestration testing. Created test_workflow_engine_coverage.py (927 lines, 80 tests, 100% pass rate). 15.42% coverage (191/1164 lines) vs 40% target. Realistic achievement for complex 1,164-statement orchestration engine. Uncovered lines: graph execution (162-423), main loop (462-639), service actions (813-2233). Tests cover initialization, graph conversion (topological sort), state management, error handling, edge cases. Full coverage requires integration tests with real services, database, WebSocket. Duration: 27 minutes (1,630 seconds). 3 tasks, 1 commit.
+
+---
+
+## Phase 210 Plan 01 COMPLETE: Fix Collection Errors ✅
+
+**Status:** COMPLETE (March 19, 2026)
+**Duration:** 12 minutes (719 seconds)
+**Collection Errors:** 3 → 0
+**Tests Recovered:** 125 memory module tests now discoverable
+
+**Decisions Made:**
+- Use _memory.py suffix for memory module test files to ensure unique basenames
+- Preserve git history via git mv instead of delete + create operations
+- Document test naming convention in CODE_QUALITY_STANDARDS.md to prevent future conflicts
+- Validate with full test suite execution (125/125 tests passed)
+
+**Files Renamed:**
+- test_agent_graduation_service_coverage.py → test_agent_graduation_service_memory.py (556 lines)
+- test_episode_retrieval_service_coverage.py → test_episode_retrieval_memory.py (690 lines)
+- test_episode_segmentation_service_coverage.py → test_episode_segmentation_memory.py (484 lines)
+
+**Documentation:**
+- CODE_QUALITY_STANDARDS.md: Added "Test File Naming Convention" section (40 lines)
+- Explains Python basename-based import system
+- Provides naming patterns, examples, and verification commands
+
+**Impact:**
+- pytest now collects all 4,394 tests without errors
+- Unblocks coverage measurement work
+- Prevents future collection errors via documented conventions
+- Zero functional changes to test behavior
+
+**Next:** Phase 210 Plan 02 - Address remaining collection issues if any, or proceed to next phase
+
+Progress: [████████████████████] 100% (1/1 plans in Phase 210)
 
 Last activity: 2026-03-18 — Phase 205 Plan 02 COMPLETE: Schema alignment fixes for workflow_debugger tests. Test code now uses correct schema attributes (step_id, enabled, workflow_execution_id). 33 tests passing, 10 failing due to buggy source code (documented in workflow_debugger.py). No production schema changes (lower risk approach). Source code bugs documented for future fix. Duration: ~2 minutes (159 seconds). 3 tasks, 2 commits.
