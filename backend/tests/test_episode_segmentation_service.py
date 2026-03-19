@@ -429,7 +429,8 @@ class TestEpisodeCreation:
                 id="canvas-1",
                 canvas_id="canvas-session-1",
                 tenant_id="default",
-                action_type="present",  # Changed from action
+                session_id="session-1",
+                action_type="present",
                 agent_id="agent-1"
             )
         ]
@@ -833,9 +834,11 @@ class TestCanvasContextExtraction:
         canvas_audits = [
             CanvasAudit(
                 id="canvas-1",
+                canvas_id="canvas-1",
+                tenant_id="default",
                 session_id="session-1",
-                canvas_type="sheets",
-                action="present"
+                action_type="present",
+                details_json={"canvas_type": "sheets"}
             )
         ]
 
@@ -843,7 +846,7 @@ class TestCanvasContextExtraction:
 
         result = segmentation_service._fetch_canvas_context("session-1")
         assert len(result) == 1
-        assert result[0].canvas_type == "sheets"
+        assert result[0].details_json["canvas_type"] == "sheets"
 
     def test_fetch_canvas_context_empty(self, segmentation_service, db_session):
         """Test fetching canvas context with no audits."""
@@ -856,11 +859,15 @@ class TestCanvasContextExtraction:
         """Test extracting canvas context from audits."""
         canvas_audit = CanvasAudit(
             id="canvas-1",
+            canvas_id="canvas-1",
+            tenant_id="default",
             session_id="session-1",
-            canvas_type="sheets",
-            action="present",
-            component_name="data-table",
-            audit_metadata={"revenue": 1000000}
+            action_type="present",
+            details_json={
+                "canvas_type": "sheets",
+                "component_name": "data-table",
+                "audit_metadata": {"revenue": 1000000}
+            }
         )
 
         result = segmentation_service._extract_canvas_context([canvas_audit])

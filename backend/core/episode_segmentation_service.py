@@ -973,28 +973,32 @@ Topics: {', '.join(episode.get('topics', []))}
             # Future: aggregate multiple canvases into combined context
             audit = canvas_audits[0]
 
+            # Extract details from JSON
+            details = audit.details_json or {}
+
             # Base context structure
             context = {
-                "canvas_type": audit.canvas_type or "generic",
-                "presentation_summary": f"Agent presented {audit.component_name or 'canvas'}",
+                "canvas_type": details.get("canvas_type", "generic"),
+                "presentation_summary": f"Agent presented {details.get('component_name', 'canvas')}",
                 "visual_elements": [],
                 "user_interaction": "",
                 "critical_data_points": {}
             }
 
             # Extract from audit_metadata
-            metadata = audit.audit_metadata or {}
+            metadata = details.get("audit_metadata") or {}
 
             # Build presentation summary
-            if audit.component_name:
-                context["presentation_summary"] = f"Agent presented {audit.component_name}"
+            if details.get("component_name"):
+                context["presentation_summary"] = f"Agent presented {details['component_name']}"
 
             # Extract visual elements
-            if audit.component_name:
-                context["visual_elements"].append(audit.component_name)
+            if details.get("component_name"):
+                context["visual_elements"].append(details["component_name"])
 
-            # Extract user interaction from action
-            if audit.action:
+            # Extract user interaction from action_type
+            action = audit.action_type or details.get("action")
+            if action:
                 interaction_map = {
                     "present": "presented to user",
                     "submit": "user submitted",
@@ -1003,8 +1007,8 @@ Topics: {', '.join(episode.get('topics', []))}
                     "execute": "user executed"
                 }
                 context["user_interaction"] = interaction_map.get(
-                    audit.action,
-                    f"user performed {audit.action}"
+                    action,
+                    f"user performed {action}"
                 )
 
             # Extract critical data points from metadata

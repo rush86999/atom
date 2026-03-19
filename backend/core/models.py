@@ -2725,6 +2725,7 @@ class CanvasAudit(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     canvas_id = Column(String(255), ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
     tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(String(255), ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True, index=True)  # Link to chat session for episodic memory
 
     # Action details
     action_type = Column(String(100), nullable=False, index=True)  # "form_submit", "canvas_close", "artifact_modify", etc.
@@ -2742,11 +2743,13 @@ class CanvasAudit(Base):
 
     # Relationships
     canvas = relationship("Canvas", back_populates="audit_records")
+    session = relationship("ChatSession", foreign_keys=[session_id])
 
     __table_args__ = (
         Index('idx_canvas_audit_canvas_id', 'canvas_id'),
         Index('idx_canvas_audit_action_type', 'action_type'),
         Index('idx_canvas_audit_created_at', 'created_at'),
+        Index('idx_canvas_audit_session_id', 'session_id'),
     )
 
     def __repr__(self):
