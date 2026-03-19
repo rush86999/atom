@@ -435,21 +435,12 @@ class TestEpisodeCreation:
             )
         ]
 
-        # Mock the query chain for canvas audits
-        # The production code has a bug (tries to filter by session_id which doesn't exist)
-        # We'll mock it to return empty list to avoid the error
-        def mock_query_side_effect(*args, **kwargs):
-            result = Mock()
-            result.filter.return_value.order_by.return_value.all.return_value = []
-            return result
-
-        db_session.query.side_effect = mock_query_side_effect
-        db_session.query.return_value.filter.return_value.first.return_value = sample_session
-
         # Setup proper query chain for messages and executions
         def create_query_chain(data_list):
             query = Mock()
-            query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = data_list
+            # Handle double filter() calls
+            query.filter.return_value = query
+            query.order_by.return_value.all.return_value = data_list
             return query
 
         call_count = [0]
@@ -463,6 +454,11 @@ class TestEpisodeCreation:
                 return create_query_chain(sample_messages)
             elif model == AgentExecution:
                 return create_query_chain(sample_executions)
+            elif model == CanvasAudit:
+                # Handle canvas context queries
+                result = Mock()
+                result.filter.return_value.order_by.return_value.all.return_value = canvas_audits
+                return result
             else:
                 result = Mock()
                 result.filter.return_value.order_by.return_value.all.return_value = []
