@@ -335,7 +335,7 @@ class AgentGraduationService:
 
             results.append({
                 "episode_id": episode_id,
-                "title": episode.title,
+                "title": episode.task_description or "Untitled Episode",
                 "passed": sandbox_result.passed,
                 "interventions": sandbox_result.interventions,
                 "safety_violations": sandbox_result.safety_violations,
@@ -507,7 +507,7 @@ class AgentGraduationService:
                 by_maturity[maturity] = []
             by_maturity[maturity].append({
                 "id": ep.id,
-                "title": ep.title,
+                "title": ep.task_description or "Untitled Episode",
                 "started_at": ep.started_at.isoformat() if ep.started_at else None,
                 "human_intervention_count": ep.human_intervention_count,
                 "constitutional_score": ep.constitutional_score

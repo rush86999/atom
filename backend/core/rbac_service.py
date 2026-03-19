@@ -18,46 +18,66 @@ class Permission(str, Enum):
     # User Management
     USER_VIEW = "user:view"
     USER_MANAGE = "user:manage"
-    
+
     # System
     SYSTEM_ADMIN = "system:admin"
 
-# Mapping Roles to Permissions
-ROLE_PERMISSIONS: Dict[UserRole, Set[Permission]] = {
-    UserRole.GUEST: {
-        Permission.AGENT_VIEW,
-        Permission.WORKFLOW_VIEW
-    },
-    UserRole.MEMBER: {
-        Permission.AGENT_VIEW,
-        Permission.AGENT_RUN,
-        Permission.WORKFLOW_VIEW,
-        Permission.WORKFLOW_RUN,
-        Permission.USER_VIEW
-    },
-    UserRole.TEAM_LEAD: {
-        Permission.AGENT_VIEW,
-        Permission.AGENT_RUN,
-        Permission.WORKFLOW_VIEW,
-        Permission.WORKFLOW_RUN,
-        Permission.WORKFLOW_MANAGE,
-        Permission.USER_VIEW
-    },
-    UserRole.WORKSPACE_ADMIN: {
-        Permission.AGENT_VIEW,
-        Permission.AGENT_RUN,
-        Permission.AGENT_MANAGE,
-        Permission.WORKFLOW_VIEW,
-        Permission.WORKFLOW_RUN,
-        Permission.WORKFLOW_MANAGE,
-        Permission.USER_VIEW,
-        Permission.USER_MANAGE
-    },
-    UserRole.SUPER_ADMIN: {
-        # Super admin has all permissions implicitly
-        Permission.SYSTEM_ADMIN
+
+# Mapping Roles to Permissions (lazy initialization to avoid circular import)
+def _get_role_permissions() -> Dict[UserRole, Set[Permission]]:
+    """Get role permissions mapping (lazy initialization)."""
+    return {
+        UserRole.GUEST: {
+            Permission.AGENT_VIEW,
+            Permission.WORKFLOW_VIEW
+        },
+        UserRole.MEMBER: {
+            Permission.AGENT_VIEW,
+            Permission.AGENT_RUN,
+            Permission.WORKFLOW_VIEW,
+            Permission.WORKFLOW_RUN,
+            Permission.USER_VIEW
+        },
+        UserRole.TEAM_LEAD: {
+            Permission.AGENT_VIEW,
+            Permission.AGENT_RUN,
+            Permission.WORKFLOW_VIEW,
+            Permission.WORKFLOW_RUN,
+            Permission.WORKFLOW_MANAGE,
+            Permission.USER_VIEW
+        },
+        UserRole.WORKSPACE_ADMIN: {
+            Permission.AGENT_VIEW,
+            Permission.AGENT_RUN,
+            Permission.AGENT_MANAGE,
+            Permission.WORKFLOW_VIEW,
+            Permission.WORKFLOW_RUN,
+            Permission.WORKFLOW_MANAGE,
+            Permission.USER_VIEW,
+            Permission.USER_MANAGE
+        },
+        UserRole.SUPER_ADMIN: {
+            # Super admin has all permissions implicitly
+            Permission.SYSTEM_ADMIN
+        }
     }
-}
+
+
+# Cache for role permissions
+_ROLE_PERMISSIONS_CACHE: Dict[UserRole, Set[Permission]] = None
+
+
+def get_role_permissions() -> Dict[UserRole, Set[Permission]]:
+    """Get role permissions mapping with caching."""
+    global _ROLE_PERMISSIONS_CACHE
+    if _ROLE_PERMISSIONS_CACHE is None:
+        _ROLE_PERMISSIONS_CACHE = _get_role_permissions()
+    return _ROLE_PERMISSIONS_CACHE
+
+
+# Backwards compatibility - assign to module-level variable
+# This is set on first access to avoid circular import issues
+ROLE_PERMISSIONS: Dict[UserRole, Set[Permission]] = None
 
 class RBACService:
     @staticmethod
@@ -74,8 +94,8 @@ class RBACService:
 
         if role == UserRole.SUPER_ADMIN:
             return {p.value for p in Permission}
-            
-        permissions = ROLE_PERMISSIONS.get(role, set())
+
+        permissions = get_role_permissions().get(role, set())
         return {p.value for p in permissions}
 
     @staticmethod
@@ -91,5 +111,5 @@ class RBACService:
         if role == UserRole.SUPER_ADMIN:
             return True
 
-        user_perms = ROLE_PERMISSIONS.get(role, set())
+        user_perms = get_role_permissions().get(role, set())
         return required_permission in user_perms

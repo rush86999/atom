@@ -264,53 +264,63 @@ def pytest_runtest_makereport(item, call):
 # Pytest-HTML Report Hooks
 # ============================================================================
 
-def pytest_html_results_summary(prefix, summary, postfix):
-    """
-    Add custom content to pytest HTML report summary.
-
-    Args:
-        prefix: List of HTML elements to insert before summary
-        summary: Summary data
-        postfix: List of HTML elements to insert after summary
-    """
-    prefix.extend([
-        "<h2>Atom E2E UI Test Report</h2>",
-        "<p>Generated on: {}</p>".format(
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        ),
-    ])
+# Only register pytest-html hooks if the plugin is available
+try:
+    # Check if pytest-html is installed by importing the plugin
+    import pytest_html
+    PYTEST_HTML_AVAILABLE = True
+except ImportError:
+    PYTEST_HTML_AVAILABLE = False
 
 
-def pytest_html_results_table_row(report, cells):
-    """
-    Add screenshot link to failed test rows in HTML report.
+if PYTEST_HTML_AVAILABLE:
+    def pytest_html_results_summary(prefix, summary, postfix):
+        """
+        Add custom content to pytest HTML report summary.
 
-    Args:
-        report: Pytest test report
-        cells: List of table cells for this test row
-    """
-    if report.failed:
-        # Check if screenshot exists
-        screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
-        test_name = report.nodeid.replace("::", "_").replace("/", "_")[:100]
-
-        # Look for matching screenshot files
-        if os.path.exists(screenshot_dir):
-            for filename in sorted(os.listdir(screenshot_dir), reverse=True):
-                if test_name in filename and filename.endswith(".png"):
-                    screenshot_path = os.path.join(screenshot_dir, filename)
-                    # Add screenshot cell
-                    cells.append(
-                        f'<td><a href="{screenshot_path}">Screenshot</a></td>'
-                    )
-                    break
+        Args:
+            prefix: List of HTML elements to insert before summary
+            summary: Summary data
+            postfix: List of HTML elements to insert after summary
+        """
+        prefix.extend([
+            "<h2>Atom E2E UI Test Report</h2>",
+            "<p>Generated on: {}</p>".format(
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ),
+        ])
 
 
-def pytest_html_results_table_header(cells):
-    """
-    Add screenshot column header to HTML report.
+    def pytest_html_results_table_row(report, cells):
+        """
+        Add screenshot link to failed test rows in HTML report.
 
-    Args:
-        cells: List of table header cells
-    """
-    cells.append("<th>Screenshot</th>")
+        Args:
+            report: Pytest test report
+            cells: List of table cells for this test row
+        """
+        if report.failed:
+            # Check if screenshot exists
+            screenshot_dir = "backend/tests/e2e_ui/artifacts/screenshots"
+            test_name = report.nodeid.replace("::", "_").replace("/", "_")[:100]
+
+            # Look for matching screenshot files
+            if os.path.exists(screenshot_dir):
+                for filename in sorted(os.listdir(screenshot_dir), reverse=True):
+                    if test_name in filename and filename.endswith(".png"):
+                        screenshot_path = os.path.join(screenshot_dir, filename)
+                        # Add screenshot cell
+                        cells.append(
+                            f'<td><a href="{screenshot_path}">Screenshot</a></td>'
+                        )
+                        break
+
+
+    def pytest_html_results_table_header(cells):
+        """
+        Add screenshot column header to HTML report.
+
+        Args:
+            cells: List of table header cells
+        """
+        cells.append("<th>Screenshot</th>")

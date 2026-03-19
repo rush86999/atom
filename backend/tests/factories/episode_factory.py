@@ -10,7 +10,12 @@ from core.models import Episode, EpisodeSegment
 
 
 class EpisodeFactory(BaseFactory):
-    """Factory for creating Episode instances."""
+    """Factory for creating Episode (AgentEpisode) instances.
+
+    Matches AgentEpisode schema from core.models:
+    - Required: agent_id, tenant_id, maturity_at_time, outcome, status
+    - Optional: task_description, execution_id, metadata_json
+    """
 
     class Meta:
         model = Episode
@@ -18,40 +23,37 @@ class EpisodeFactory(BaseFactory):
     # Required fields
     id = factory.Faker('uuid4')
     agent_id = factory.Faker('uuid4')
-    workspace_id = factory.Faker('uuid4')
-    title = factory.Faker('sentence', nb_words=4)
-    summary = factory.Faker('text', max_nb_chars=500)
+    tenant_id = "default"  # Use default tenant
 
-    # Episode metadata
-    maturity_at_time = fuzzy.FuzzyChoice(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
-    status = fuzzy.FuzzyChoice(['active', 'completed', 'archived', 'consolidated'])
+    # Task description (optional)
+    task_description = factory.Faker('text', max_nb_chars=500)
+
+    # Episode metadata (required)
+    maturity_at_time = fuzzy.FuzzyChoice(['student', 'intern', 'supervised', 'autonomous'])
+    outcome = fuzzy.FuzzyChoice(['success', 'failure', 'partial'])
+    status = fuzzy.FuzzyChoice(['active', 'completed', 'failed', 'cancelled'])
 
     # Timing
     started_at = factory.Faker('date_time_this_year')
-    ended_at = factory.LazyAttribute(
+    completed_at = factory.LazyAttribute(
         lambda o: o.started_at + timedelta(hours=fuzzy.FuzzyInteger(1, 24).fuzz())
-        if o.status in ['completed', 'archived', 'consolidated'] else None
+        if o.status in ['completed', 'failed', 'cancelled'] else None
     )
 
-    # Intervention tracking (model uses human_intervention_count)
+    # Constitutional compliance metrics
     human_intervention_count = fuzzy.FuzzyInteger(0, 10)
-    intervention_count = fuzzy.FuzzyInteger(0, 10)  # Deprecated, kept for compatibility
     constitutional_score = fuzzy.FuzzyFloat(0.0, 1.0)
+    confidence_score = fuzzy.FuzzyFloat(0.0, 1.0)
 
-    # Importance and lifecycle
-    importance_score = fuzzy.FuzzyFloat(0.0, 1.0)
-    decay_score = fuzzy.FuzzyFloat(0.0, 1.0)
-    access_count = fuzzy.FuzzyInteger(0, 100)
+    # Outcome tracking
+    success = factory.LazyAttribute(lambda o: o.outcome == 'success')
+    step_efficiency = fuzzy.FuzzyFloat(0.5, 1.0)
 
-    # Canvas and Feedback linkage
-    canvas_ids = factory.LazyFunction(list)
-    canvas_action_count = fuzzy.FuzzyInteger(0, 20)
-    feedback_ids = factory.LazyFunction(list)
-    aggregate_feedback_score = fuzzy.FuzzyFloat(-1.0, 1.0)
+    # Optional foreign key
+    execution_id = None
 
-    # Topics and entities
-    topics = factory.LazyFunction(list)
-    entities = factory.LazyFunction(list)
+    # Metadata
+    metadata_json = factory.LazyFunction(dict)
 
 
 class EpisodeSegmentFactory(BaseFactory):

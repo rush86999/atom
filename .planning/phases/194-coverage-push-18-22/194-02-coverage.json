@@ -1,0 +1,20 @@
+{
+  "coverage_percent": 74.6,
+  "covered_lines": 529,
+  "total_statements": 709,
+  "missing_lines": 180,
+  "test_results": {
+    "total": 33,
+    "passed": 23,
+    "failed": 10,
+    "pass_rate": 69.7
+  },
+  "phase_193_baseline": {
+    "coverage_percent": 74.6,
+    "pass_rate": 27.4
+  },
+  "improvement": {
+    "coverage_percent": 0,
+    "pass_rate": 42.3
+  }
+}

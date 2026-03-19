@@ -1,0 +1,366 @@
+# Phase 188 Coverage Baseline
+
+**Generated:** 2026-03-13T22:33:20.708463
+
+## Summary
+
+- Total analyzed: 353 files
+- Critical gaps (<50%): 18 files
+- Zero coverage: 331 files
+- Moderate (50-75%): 2 files
+- Good (>75%): 2 files
+
+## Critical Gaps (Priority Order)
+
+- **core/openclaw_parser.py**: 7.6% (77 missing / 87 total)
+- **core/llm/byok_handler.py**: 7.8% (588 missing / 654 total)
+- **core/agents/skill_creation_agent.py**: 8.4% (191 missing / 216 total)
+- **core/llm/cognitive_tier_service.py**: 13.5% (113 missing / 139 total)
+- **core/agent_governance_service.py**: 15.4% (237 missing / 286 total)
+- **core/governance_cache.py**: 16.0% (225 missing / 278 total)
+- **core/llm/cache_aware_router.py**: 18.3% (43 missing / 58 total)
+- **core/auth.py**: 19.0% (132 missing / 170 total)
+- **core/llm/canvas_summary_service.py**: 19.1% (67 missing / 88 total)
+- **core/llm/escalation_manager.py**: 22.3% (69 missing / 98 total)
+- **core/dynamic_pricing_fetcher.py**: 23.8% (134 missing / 187 total)
+- **core/data_visibility.py**: 28.3% (27 missing / 44 total)
+- **core/llm/cognitive_tier_system.py**: 28.6% (30 missing / 50 total)
+- **core/agent_task_registry.py**: 29.4% (72 missing / 115 total)
+- **core/byok_endpoints.py**: 37.8% (286 missing / 488 total)
+- **core/rbac_service.py**: 40.4% (20 missing / 39 total)
+- **core/database.py**: 41.2% (70 missing / 128 total)
+- **core/exceptions.py**: 48.0% (114 missing / 258 total)
+
+## Zero Coverage Files
+
+- **core/ab_testing_service.py**: 0%
+- **core/accounting_validator.py**: 0%
+- **core/active_intervention_service.py**: 0%
+- **core/admin_bootstrap.py**: 0%
+- **core/advanced_workflow_endpoints.py**: 0%
+- **core/advanced_workflow_system.py**: 0%
+- **core/agent_communication.py**: 0%
+- **core/agent_context_resolver.py**: 0%
+- **core/agent_execution_service.py**: 0%
+- **core/agent_graduation_service.py**: 0%
+- **core/agent_integration_gateway.py**: 0%
+- **core/agent_learning_enhanced.py**: 0%
+- **core/agent_promotion_service.py**: 0%
+- **core/agent_request_manager.py**: 0%
+- **core/agent_social_layer.py**: 0%
+- **core/agent_utils.py**: 0%
+- **core/agent_world_model.py**: 0%
+- **core/ai_accounting_engine.py**: 0%
+- **core/ai_service.py**: 0%
+- **core/ai_trigger_coordinator.py**: 0%
+- **core/ai_workflow_optimization_endpoints.py**: 0%
+- **core/ai_workflow_optimizer.py**: 0%
+- **core/analytics_endpoints.py**: 0%
+- **core/analytics_engine.py**: 0%
+- **core/apar_engine.py**: 0%
+- **core/api_governance.py**: 0%
+- **core/api_routes.py**: 0%
+- **core/app_secrets.py**: 0%
+- **core/atom_agent_endpoints.py**: 0%
+- **core/atom_meta_agent.py**: 0%
+- **core/atom_saas_client.py**: 0%
+- **core/atom_saas_websocket.py**: 0%
+- **core/audit_service.py**: 0%
+- **core/audit_trail_validator.py**: 0%
+- **core/auth_endpoints.py**: 0%
+- **core/auth_helpers.py**: 0%
+- **core/auto_document_ingestion.py**: 0%
+- **core/auto_healing.py**: 0%
+- **core/auto_healing_endpoints.py**: 0%
+- **core/auto_installer_service.py**: 0%
+- **core/auto_invoicer.py**: 0%
+- **core/automation_insight_endpoints.py**: 0%
+- **core/automation_insight_manager.py**: 0%
+- **core/automation_settings.py**: 0%
+- **core/automation_settings_endpoints.py**: 0%
+- **core/autonomous_supervisor_service.py**: 0%
+- **core/availability_endpoints.py**: 0%
+- **core/availability_negotiator.py**: 0%
+- **core/background_agent_runner.py**: 0%
+- **core/base_routes.py**: 0%
+- **core/behavior_analyzer.py**: 0%
+- **core/billing_orchestrator.py**: 0%
+- **core/blueprint_healer.py**: 0%
+- **core/budget_enforcement_service.py**: 0%
+- **core/budget_guardrail.py**: 0%
+- **core/bulk_operations_processor.py**: 0%
+- **core/burnout_detection_engine.py**: 0%
+- **core/business_agents.py**: 0%
+- **core/business_health_service.py**: 0%
+- **core/business_intelligence.py**: 0%
+- **core/byok_competitive_endpoints.py**: 0%
+- **core/byok_cost_optimizer.py**: 0%
+- **core/cache.py**: 0%
+- **core/canvas_coding_service.py**: 0%
+- **core/canvas_collaboration_service.py**: 0%
+- **core/canvas_docs_service.py**: 0%
+- **core/canvas_email_service.py**: 0%
+- **core/canvas_orchestration_service.py**: 0%
+- **core/canvas_recording_service.py**: 0%
+- **core/canvas_sheets_service.py**: 0%
+- **core/canvas_skill_integration.py**: 0%
+- **core/canvas_terminal_service.py**: 0%
+- **core/canvas_type_registry.py**: 0%
+- **core/cash_flow_forecaster.py**: 0%
+- **core/change_order_agent.py**: 0%
+- **core/chat_context_manager.py**: 0%
+- **core/chat_process_manager.py**: 0%
+- **core/chat_session_manager.py**: 0%
+- **core/chronological_integrity.py**: 0%
+- **core/circuit_breaker.py**: 0%
+- **core/collaboration_service.py**: 0%
+- **core/collection_agent.py**: 0%
+- **core/command_whitelist.py**: 0%
+- **core/communication_intelligence.py**: 0%
+- **core/communication_service.py**: 0%
+- **core/competitive_advantage_dashboard.py**: 0%
+- **core/competitive_advantage_endpoints.py**: 0%
+- **core/condition_checkers.py**: 0%
+- **core/condition_evaluator.py**: 0%
+- **core/condition_monitoring_service.py**: 0%
+- **core/config.py**: 0%
+- **core/conflict_resolution_service.py**: 0%
+- **core/connection_service.py**: 0%
+- **core/constitutional_validator.py**: 0%
+- **core/cost_attribution_service.py**: 0%
+- **core/cost_config.py**: 0%
+- **core/creative/ffmpeg_service.py**: 0%
+- **core/crm_event_bridge.py**: 0%
+- **core/cron_parser.py**: 0%
+- **core/cross_platform_correlation.py**: 0%
+- **core/cross_system_reasoning.py**: 0%
+- **core/custom_components_service.py**: 0%
+- **core/data_ingestion_service.py**: 0%
+- **core/database_helper.py**: 0%
+- **core/database_manager.py**: 0%
+- **core/database_session_manager.py**: 0%
+- **core/debug_ai_assistant.py**: 0%
+- **core/debug_alerting.py**: 0%
+- **core/debug_cache.py**: 0%
+- **core/debug_collector.py**: 0%
+- **core/debug_insight_engine.py**: 0%
+- **core/debug_insights/consistency.py**: 0%
+- **core/debug_insights/error_causality.py**: 0%
+- **core/debug_insights/flow.py**: 0%
+- **core/debug_insights/performance.py**: 0%
+- **core/debug_monitor.py**: 0%
+- **core/debug_prediction.py**: 0%
+- **core/debug_query.py**: 0%
+- **core/debug_self_healing.py**: 0%
+- **core/debug_storage.py**: 0%
+- **core/debug_streaming.py**: 0%
+- **core/decimal_utils.py**: 0%
+- **core/deeplinks.py**: 0%
+- **core/dependency_resolver.py**: 0%
+- **core/directory_permission.py**: 0%
+- **core/docling_processor.py**: 0%
+- **core/document_learner.py**: 0%
+- **core/email_followup_engine.py**: 0%
+- **core/email_utils.py**: 0%
+- **core/embedding_service.py**: 0%
+- **core/enhanced_execution_state_manager.py**: 0%
+- **core/enterprise_auth_service.py**: 0%
+- **core/enterprise_endpoints.py**: 0%
+- **core/enterprise_security.py**: 0%
+- **core/enterprise_user_management.py**: 0%
+- **core/episode_lifecycle_service.py**: 0%
+- **core/episode_retrieval_service.py**: 0%
+- **core/episode_segmentation_service.py**: 0%
+- **core/error_guidance_engine.py**: 0%
+- **core/error_handler_decorator.py**: 0%
+- **core/error_middleware.py**: 0%
+- **core/event_sourced_architecture.py**: 0%
+- **core/execution_state_manager.py**: 0%
+- **core/expense_optimizer.py**: 0%
+- **core/expression_parser.py**: 0%
+- **core/external_integration_service.py**: 0%
+- **core/external_pm_sync.py**: 0%
+- **core/feature_flags.py**: 0%
+- **core/feedback_advanced_analytics.py**: 0%
+- **core/feedback_analytics.py**: 0%
+- **core/feedback_export_service.py**: 0%
+- **core/feedback_service.py**: 0%
+- **core/financial_audit_orchestrator.py**: 0%
+- **core/financial_audit_service.py**: 0%
+- **core/financial_forensics.py**: 0%
+- **core/financial_ops_engine.py**: 0%
+- **core/followup_service.py**: 0%
+- **core/formula_extractor.py**: 0%
+- **core/formula_memory.py**: 0%
+- **core/generic_agent.py**: 0%
+- **core/goal_engine.py**: 0%
+- **core/governance_config.py**: 0%
+- **core/governance_decorator.py**: 0%
+- **core/governance_engine.py**: 0%
+- **core/governance_helper.py**: 0%
+- **core/governance_helpers.py**: 0%
+- **core/governance_wrapper.py**: 0%
+- **core/graduation_exam.py**: 0%
+- **core/graphrag_engine.py**: 0%
+- **core/hash_chain_integrity.py**: 0%
+- **core/health_monitor.py**: 0%
+- **core/health_monitoring_service.py**: 0%
+- **core/historical_learner.py**: 0%
+- **core/host_shell_service.py**: 0%
+- **core/http_client.py**: 0%
+- **core/hybrid_data_ingestion.py**: 0%
+- **core/hybrid_retrieval_service.py**: 0%
+- **core/identity_resolver.py**: 0%
+- **core/im_governance_service.py**: 0%
+- **core/industry_workflow_endpoints.py**: 0%
+- **core/industry_workflow_templates.py**: 0%
+- **core/integration_adapter.py**: 0%
+- **core/integration_dashboard.py**: 0%
+- **core/integration_data_mapper.py**: 0%
+- **core/integration_enhancement_endpoints.py**: 0%
+- **core/integration_loader.py**: 0%
+- **core/intervention_service.py**: 0%
+- **core/jwt_verifier.py**: 0%
+- **core/knowledge_extractor.py**: 0%
+- **core/knowledge_ingestion.py**: 0%
+- **core/knowledge_query_endpoints.py**: 0%
+- **core/lancedb_config.py**: 0%
+- **core/lancedb_handler.py**: 0%
+- **core/lazy_integration_registry.py**: 0%
+- **core/lifecycle_comm_generator.py**: 0%
+- **core/llm/minimax_integration.py**: 0%
+- **core/llm_usage_tracker.py**: 0%
+- **core/local_agent_service.py**: 0%
+- **core/local_llm_secrets_detector.py**: 0%
+- **core/local_ocr_service.py**: 0%
+- **core/logging_config.py**: 0%
+- **core/marketing_agent.py**: 0%
+- **core/marketing_analytics.py**: 0%
+- **core/marketing_manager.py**: 0%
+- **core/mcp_service.py**: 0%
+- **core/media/sonos_service.py**: 0%
+- **core/media/spotify_service.py**: 0%
+- **core/message_analytics_engine.py**: 0%
+- **core/meta_agent_training_orchestrator.py**: 0%
+- **core/meta_automation.py**: 0%
+- **core/microsoft365_learner.py**: 0%
+- **core/missing_endpoints.py**: 0%
+- **core/mock_mode.py**: 0%
+- **core/monitoring.py**: 0%
+- **core/negotiation_engine.py**: 0%
+- **core/notification_manager.py**: 0%
+- **core/npm_dependency_scanner.py**: 0%
+- **core/npm_package_installer.py**: 0%
+- **core/npm_script_analyzer.py**: 0%
+- **core/oauth_handler.py**: 0%
+- **core/oauth_user_context.py**: 0%
+- **core/offline_sync_service.py**: 0%
+- **core/operation_tracker_hooks.py**: 0%
+- **core/package_dependency_scanner.py**: 0%
+- **core/package_feature_service.py**: 0%
+- **core/package_governance_service.py**: 0%
+- **core/package_installer.py**: 0%
+- **core/performance_monitor.py**: 0%
+- **core/periodic_tasks.py**: 0%
+- **core/pii_redactor.py**: 0%
+- **core/pm_engine.py**: 0%
+- **core/pm_orchestrator.py**: 0%
+- **core/pm_swarm.py**: 0%
+- **core/policy_fact_extractor.py**: 0%
+- **core/predictive_insights.py**: 0%
+- **core/privsec/audit_logger.py**: 0%
+- **core/privsec/local_only_guard.py**: 0%
+- **core/privsec/token_encryption.py**: 0%
+- **core/proactive_messaging_service.py**: 0%
+- **core/productivity/notion_service.py**: 0%
+- **core/proposal_service.py**: 0%
+- **core/push_notification_service.py**: 0%
+- **core/rating_sync_service.py**: 0%
+- **core/reasoning_chain.py**: 0%
+- **core/reconciliation_engine.py**: 0%
+- **core/recording_review_service.py**: 0%
+- **core/reputation_service.py**: 0%
+- **core/resource_guards.py**: 0%
+- **core/resource_manager.py**: 0%
+- **core/resource_reasoning.py**: 0%
+- **core/response_models.py**: 0%
+- **core/risk_forecaster.py**: 0%
+- **core/risk_prevention.py**: 0%
+- **core/sandbox_executor.py**: 0%
+- **core/satellite_service.py**: 0%
+- **core/schedule_optimizer.py**: 0%
+- **core/scheduled_messaging_service.py**: 0%
+- **core/scheduler.py**: 0%
+- **core/secret_manager.py**: 0%
+- **core/secrets_redactor.py**: 0%
+- **core/security.py**: 0%
+- **core/security_dependencies.py**: 0%
+- **core/self_evolution_service.py**: 0%
+- **core/service_factory.py**: 0%
+- **core/skill_adapter.py**: 0%
+- **core/skill_builder_service.py**: 0%
+- **core/skill_composition_engine.py**: 0%
+- **core/skill_dynamic_loader.py**: 0%
+- **core/skill_marketplace_service.py**: 0%
+- **core/skill_parser.py**: 0%
+- **core/skill_registry_service.py**: 0%
+- **core/skill_sandbox.py**: 0%
+- **core/skill_security_scanner.py**: 0%
+- **core/skill_versioning_service.py**: 0%
+- **core/small_biz_scheduler.py**: 0%
+- **core/smarthome/home_assistant_service.py**: 0%
+- **core/smarthome/hue_service.py**: 0%
+- **core/social_post_generator.py**: 0%
+- **core/staffing_advisor.py**: 0%
+- **core/stakeholder_endpoints.py**: 0%
+- **core/stakeholder_engine.py**: 0%
+- **core/storage.py**: 0%
+- **core/structured_logger.py**: 0%
+- **core/student_training_service.py**: 0%
+- **core/supervised_queue_service.py**: 0%
+- **core/supervision_service.py**: 0%
+- **core/supervisor_learning_service.py**: 0%
+- **core/supervisor_performance_service.py**: 0%
+- **core/sync_health_monitor.py**: 0%
+- **core/sync_service.py**: 0%
+- **core/system_status.py**: 0%
+- **core/task_queue.py**: 0%
+- **core/team_messaging.py**: 0%
+- **core/time_expression_parser.py**: 0%
+- **core/timeline_prediction.py**: 0%
+- **core/token_refresher.py**: 0%
+- **core/token_storage.py**: 0%
+- **core/trace_validator.py**: 0%
+- **core/training_websocket_events.py**: 0%
+- **core/trajectory.py**: 0%
+- **core/trigger_interceptor.py**: 0%
+- **core/unified_calendar_endpoints.py**: 0%
+- **core/unified_message_processor.py**: 0%
+- **core/unified_search_endpoints.py**: 0%
+- **core/unified_task_endpoints.py**: 0%
+- **core/uptime_tracker.py**: 0%
+- **core/user_activity_service.py**: 0%
+- **core/user_context_manager.py**: 0%
+- **core/user_preference_routes.py**: 0%
+- **core/user_preference_service.py**: 0%
+- **core/validation_service.py**: 0%
+- **core/view_coordinator.py**: 0%
+- **core/voice_service.py**: 0%
+- **core/webhook_handlers.py**: 0%
+- **core/websocket_manager.py**: 0%
+- **core/websockets.py**: 0%
+- **core/workflow_analytics_endpoints.py**: 0%
+- **core/workflow_analytics_engine.py**: 0%
+- **core/workflow_debugger.py**: 0%
+- **core/workflow_endpoints.py**: 0%
+- **core/workflow_engine.py**: 0%
+- **core/workflow_marketplace.py**: 0%
+- **core/workflow_metrics.py**: 0%
+- **core/workflow_notifier.py**: 0%
+- **core/workflow_parameter_validator.py**: 0%
+- **core/workflow_template_endpoints.py**: 0%
+- **core/workflow_template_manager.py**: 0%
+- **core/workflow_template_system.py**: 0%
+- **core/workflow_ui_endpoints.py**: 0%
+- **core/workflow_versioning_system.py**: 0%
+- **core/workforce_analytics.py**: 0%
