@@ -6,11 +6,23 @@ Each user class simulates realistic user behavior with authentication, wait time
 and weighted task frequencies.
 
 Reference: Phase 209 Plan 01 - Locust Load Testing Infrastructure
+Reference: Phase 209 Plan 02 - Extended Scenario Mixins
 """
 
 from locust import HttpUser, task, between, events
 import logging
 import random
+
+# Import scenario mixins for modular load testing
+import sys
+from pathlib import Path
+# Add scenarios directory to path for imports
+scenarios_dir = Path(__file__).parent / "scenarios"
+sys.path.insert(0, str(scenarios_dir))
+
+from agent_api import AgentCRUDTasks
+from workflow_api import WorkflowExecutionTasks
+from governance_api import GovernanceCheckTasks
 
 logger = logging.getLogger(__name__)
 
@@ -95,25 +107,27 @@ class AtomAPIUser(HttpUser):
                 response.failure(f"Health check failed: status {response.status_code}")
 
 
-class AgentAPIUser(HttpUser):
+class AgentAPIUser(HttpUser, AgentCRUDTasks):
     """
     Agent API load test scenario.
 
     Simulates realistic agent API usage patterns including listing agents,
-    retrieving specific agents, and creating new agents.
+    retrieving specific agents, creating, updating, and deleting agents.
 
     Behavior:
     - List agents (high frequency - every page load)
     - Get single agent (medium frequency - agent detail view)
-    - Create agent (low frequency - user action)
+    - Create/update/delete agents (low frequency - user actions)
     - Wait time: 1-3 seconds between tasks
 
-    Weights: 5:3:1 (list:get:create)
+    Weights: 5:3:1:1:1 (list:get:create:update:delete)
 
     From Phase 208 benchmarks:
     - Agent list operations: <50ms target
     - Agent get operations: <50ms target
-    - Agent creation: <100ms target
+    - Agent create/update/delete: <100ms target
+
+    Uses AgentCRUDTasks mixin for task implementations.
     """
 
     wait_time = between(1, 3)
@@ -138,86 +152,8 @@ class AgentAPIUser(HttpUser):
             self.token = None
             logger.warning("AgentAPIUser login failed, proceeding without auth")
 
-    @task(5)
-    def list_agents(self):
-        """
-        List agents (high frequency).
 
-        Simulates loading the agents list page, which is one of the
-        most common operations in the UI.
-
-        Weight: 5 (most common - every page load)
-        Endpoint: GET /api/v1/agents
-        Target: <50ms (from Phase 208 benchmarks)
-        """
-        if not self.token:
-            return
-
-        headers = {"Authorization": f"Bearer {self.token}"}
-
-        with self.client.get("/api/v1/agents", headers=headers, catch_response=True) as response:
-            if response.status_code == 200:
-                data = response.json()
-                # Validate response structure
-                if "agents" in data or isinstance(data, list):
-                    response.success()
-                else:
-                    response.failure("Invalid response structure")
-            elif response.status_code == 401:
-                # Auth errors are acceptable in load tests (token might expire)
-                response.success()
-            else:
-                response.failure(f"Unexpected status: {response.status_code}")
-
-    @task(3)
-    def get_agent(self):
-        """
-        Get specific agent (medium frequency).
-
-        Simulates viewing agent details.
-
-        Weight: 3 (medium frequency - detail views)
-        Endpoint: GET /api/v1/agents/{id}
-        Target: <50ms (from Phase 208 benchmarks)
-        """
-        if not self.token:
-            return
-
-        agent_id = f"agent_{random.randint(1, 100)}"
-        headers = {"Authorization": f"Bearer {self.token}"}
-
-        self.client.get(f"/api/v1/agents/{agent_id}", headers=headers)
-
-    @task(1)
-    def create_agent(self):
-        """
-        Create new agent (low frequency).
-
-        Simulates user creating a new agent.
-
-        Weight: 1 (low frequency - user actions)
-        Endpoint: POST /api/v1/agents
-        Target: <100ms (from Phase 208 benchmarks)
-        """
-        if not self.token:
-            return
-
-        headers = {"Authorization": f"Bearer {self.token}"}
-
-        self.client.post(
-            "/api/v1/agents",
-            json={
-                "name": f"Load Test Agent {random.randint(1, 10000)}",
-                "category": "test",
-                "module_path": "test.module",
-                "class_name": "TestClass",
-                "maturity": "AUTONOMOUS"
-            },
-            headers=headers
-        )
-
-
-class WorkflowExecutionUser(HttpUser):
+class WorkflowExecutionUser(HttpUser, WorkflowExecutionTasks):
     """
     Workflow execution load test scenario.
 
@@ -226,15 +162,21 @@ class WorkflowExecutionUser(HttpUser):
     execution duration.
 
     Behavior:
-    - Execute workflow (high frequency - primary action)
-    - List workflows (medium frequency)
+    - List workflows (medium frequency - browsing)
+    - Execute workflows (high frequency - primary action)
+    - Execute parallel workflows (low frequency - advanced users)
+    - Test error workflows (low frequency - edge case testing)
+    - Check workflow status (medium frequency - monitoring)
+    - Query workflow analytics (low frequency - reporting)
     - Wait time: 2-5 seconds (longer for workflows)
 
-    Weights: 2:1 (execute:list)
+    Weights: 3:2:1:1:1:1 (list:simple:parallel:error:status:analytics)
 
     From Phase 208 benchmarks:
     - Workflow execution: <100ms target
     - Workflow list: <50ms target
+
+    Uses WorkflowExecutionTasks mixin for task implementations.
     """
 
     wait_time = between(2, 5)
@@ -251,48 +193,8 @@ class WorkflowExecutionUser(HttpUser):
         )
         self.token = response.json().get("access_token") if response.status_code == 200 else None
 
-    @task(2)
-    def execute_workflow(self):
-        """
-        Execute workflow (primary action).
 
-        Simulates executing a workflow with test data.
-
-        Weight: 2 (high frequency - primary action)
-        Endpoint: POST /api/v1/workflows/{id}/execute
-        Target: <100ms (from Phase 208 benchmarks)
-        """
-        if not self.token:
-            return
-
-        workflow_id = f"test_workflow_{random.randint(1, 20):03d}"
-        headers = {"Authorization": f"Bearer {self.token}"}
-
-        self.client.post(
-            f"/api/v1/workflows/{workflow_id}/execute",
-            json={"input_data": {"test": "value"}},
-            headers=headers
-        )
-
-    @task(1)
-    def list_workflows(self):
-        """
-        List workflows.
-
-        Simulates browsing available workflows.
-
-        Weight: 1 (medium frequency)
-        Endpoint: GET /api/v1/workflows
-        Target: <50ms (from Phase 208 benchmarks)
-        """
-        if not self.token:
-            return
-
-        headers = {"Authorization": f"Bearer {self.token}"}
-        self.client.get("/api/v1/workflows", headers=headers)
-
-
-class GovernanceCheckUser(HttpUser):
+class GovernanceCheckUser(HttpUser, GovernanceCheckTasks):
     """
     Governance check load test scenario.
 
@@ -301,15 +203,18 @@ class GovernanceCheckUser(HttpUser):
     caching (<1ms target from Phase 208).
 
     Behavior:
-    - Check permission (high frequency - every agent action)
-    - Get cache stats (low frequency - monitoring)
+    - Check permissions for all maturity levels (high frequency)
+    - Get cache stats (medium frequency - monitoring)
+    - Invalidate cache (low frequency - admin operations)
     - Wait time: 1-3 seconds
 
-    Weights: 4:2 (check:stats)
+    Weights: 4:3:2:2:3:1 (student:intern:supervised:autonomous:stats:invalidate)
 
     From Phase 208 benchmarks:
     - Cached governance checks: <1ms target
     - Cache stats: <50ms target
+
+    Uses GovernanceCheckTasks mixin for task implementations.
     """
 
     wait_time = between(1, 3)
@@ -325,50 +230,6 @@ class GovernanceCheckUser(HttpUser):
             }
         )
         self.token = response.json().get("access_token") if response.status_code == 200 else None
-
-    @task(4)
-    def check_permission(self):
-        """
-        Check governance permission.
-
-        Simulates checking if an agent has permission to perform an action.
-        This is a high-frequency operation that should be cached.
-
-        Weight: 4 (high frequency - every agent action)
-        Endpoint: POST /api/agent-governance/check-permission
-        Target: <1ms from cache (from Phase 208 benchmarks)
-        """
-        if not self.token:
-            return
-
-        headers = {"Authorization": f"Bearer {self.token}"}
-
-        self.client.post(
-            "/api/agent-governance/check-permission",
-            json={
-                "agent_id": f"agent_{random.randint(1, 100)}",
-                "action": "test_action",
-                "action_complexity": random.randint(1, 4)
-            },
-            headers=headers
-        )
-
-    @task(2)
-    def get_cache_stats(self):
-        """
-        Get governance cache statistics.
-
-        Simulates monitoring cache performance.
-
-        Weight: 2 (low frequency - monitoring)
-        Endpoint: GET /api/agent-governance/cache-stats
-        Target: <50ms (from Phase 208 benchmarks)
-        """
-        if not self.token:
-            return
-
-        headers = {"Authorization": f"Bearer {self.token}"}
-        self.client.get("/api/agent-governance/cache-stats", headers=headers)
 
 
 class EpisodeAPIUser(HttpUser):
@@ -447,6 +308,52 @@ class EpisodeAPIUser(HttpUser):
         headers = {"Authorization": f"Bearer {self.token}"}
 
         self.client.get(f"/api/v1/episodes/{episode_id}", headers=headers)
+
+
+class ComprehensiveUser(HttpUser, AgentCRUDTasks, WorkflowExecutionTasks, GovernanceCheckTasks):
+    """
+    Comprehensive power user load test scenario.
+
+    Simulates advanced users who interact with all major API endpoints.
+    This combines all scenario mixins to test the system under realistic
+    mixed load patterns.
+
+    Behavior:
+    - Agent CRUD operations (list, get, create, update, delete)
+    - Workflow execution (simple, parallel, error handling, status, analytics)
+    - Governance checks (all 4 maturity levels, cache operations)
+    - Wait time: 1-4 seconds (mixed usage patterns)
+
+    Weights: Combined from all mixins
+    - Agent operations: 5:3:1:1:1 (list:get:create:update:delete)
+    - Workflow operations: 3:2:1:1:1:1 (list:simple:parallel:error:status:analytics)
+    - Governance operations: 4:3:2:2:3:1 (student:intern:supervised:autonomous:stats:invalidate)
+
+    Use Case:
+    - Testing overall system performance under mixed load
+    - Simulating power users who use multiple features
+    - Validating that different subsystems don't interfere with each other
+
+    From Phase 208 benchmarks:
+    - All operations should meet their individual targets
+    - No performance degradation when features are used together
+
+    Uses all three mixins (AgentCRUDTasks, WorkflowExecutionTasks, GovernanceCheckTasks).
+    """
+
+    wait_time = between(1, 4)
+    host = "http://localhost:8000"
+
+    def on_start(self):
+        """Initialize with authentication."""
+        response = self.client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "load_test@example.com",
+                "password": "test_password_123"
+            }
+        )
+        self.token = response.json().get("access_token") if response.status_code == 200 else None
 
 
 @events.test_stop.add_listener
