@@ -28,6 +28,7 @@ class ChannelType(str, enum.Enum):
 
 class MarketingChannel(Base):
     __tablename__ = "marketing_channels"
+    __table_args__ = {'extend_existing': True}
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False)

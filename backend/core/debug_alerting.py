@@ -30,8 +30,8 @@ from sqlalchemy import and_, or_, func
 from core.models import (
     DebugEvent,
     DebugInsight,
-    DebugAlert,
     DebugEventType,
+    DebugInsightType,
     DebugInsightSeverity,
 )
 from core.structured_logger import StructuredLogger

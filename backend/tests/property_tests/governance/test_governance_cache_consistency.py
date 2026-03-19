@@ -13,7 +13,7 @@ These tests protect against cache corruption and data inconsistency.
 import pytest
 import time
 from hypothesis import given, settings, example, HealthCheck
-from hypothesis.strategies import text, integers, dictionaries, booleans, floats
+from hypothesis.strategies import text, integers, dictionaries, booleans, floats, lists
 from typing import Dict, Any, Optional
 from collections import OrderedDict
 

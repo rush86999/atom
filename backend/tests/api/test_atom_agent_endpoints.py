@@ -57,12 +57,6 @@ def client(app):
 
 
 @pytest.fixture
-def db_session(db_session_factory):
-    """Create database session for tests"""
-    return db_session_factory()
-
-
-@pytest.fixture
 def mock_student_agent(db_session):
     """Create a STUDENT maturity agent"""
     agent = AgentRegistry(

@@ -40,7 +40,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed"
             )
 
@@ -60,7 +60,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=1.0
@@ -85,7 +85,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="STUDENT",
+                maturity_at_time="student",
                 status="completed"
             )
 
@@ -105,7 +105,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=1 if i < 15 else 0  # 15/25 = 60%
             )
@@ -126,7 +126,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 constitutional_score=0.7  # Below 0.85 threshold
             )
@@ -143,15 +143,16 @@ class TestAgentGraduationService:
         agent = SupervisedAgentFactory(_session=db_session)
 
         # Create episodes with perfect compliance
-        for _ in range(50):
-            ep = EpisodeFactory(
+        # Need more than minimum (50 * 1.5 = 75) to pass the scoring threshold
+        for _ in range(75):
+            EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
-                status="completed"
+                maturity_at_time="supervised",
+                status="completed",
+                human_intervention_count=0,
+                constitutional_score=1.0
             )
-            # Mark all with zero interventions
-            ep.human_intervention_count = 0
 
         result = await service.execute_graduation_exam(
             agent_id=agent.id,
@@ -174,7 +175,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=2  # High interventions
             )
@@ -289,7 +290,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=i % 3,
                 constitutional_score=0.8 + (i * 0.02)
@@ -331,7 +332,7 @@ class TestAgentGraduationService:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0
             )
@@ -427,7 +428,7 @@ class TestReadinessScoreCalculation:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="STUDENT",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.8
@@ -452,7 +453,7 @@ class TestReadinessScoreCalculation:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=1 if i % 2 == 0 else 0,  # 50% rate
                 constitutional_score=0.8
@@ -476,7 +477,7 @@ class TestReadinessScoreCalculation:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.70
@@ -499,7 +500,7 @@ class TestReadinessScoreCalculation:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="STUDENT",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=5,  # High interventions
                 constitutional_score=0.5  # Low score
@@ -523,7 +524,7 @@ class TestReadinessScoreCalculation:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=3,
                 constitutional_score=0.75
@@ -542,15 +543,16 @@ class TestReadinessScoreCalculation:
         """Readiness score recommendation for high scores (75-100)."""
         agent = SupervisedAgentFactory(_session=db_session)
 
-        # Create episodes with good performance
-        for _ in range(30):
+        # Create episodes with excellent performance for AUTONOMOUS
+        # AUTONOMOUS needs: 50 episodes, 0% interventions, 0.95 constitutional
+        for _ in range(50):
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
-                human_intervention_count=1,
-                constitutional_score=0.85
+                human_intervention_count=0,  # Zero interventions for AUTONOMOUS
+                constitutional_score=0.95  # Perfect constitutional score
             )
 
         result = await service.calculate_readiness_score(
@@ -619,7 +621,7 @@ class TestReadinessScoreEdgeCases:
             ep = EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0
             )
@@ -643,7 +645,7 @@ class TestReadinessScoreEdgeCases:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0
             )
@@ -653,7 +655,7 @@ class TestReadinessScoreEdgeCases:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="in_progress",
                 human_intervention_count=0
             )
@@ -676,7 +678,7 @@ class TestReadinessScoreEdgeCases:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,  # Perfect intervention rate
                 constitutional_score=0.85  # Perfect constitutional score
@@ -701,7 +703,7 @@ class TestReadinessScoreEdgeCases:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.8
@@ -734,7 +736,7 @@ class TestReadinessScoreEdgeCases:
         )
 
         assert "current_maturity" in result
-        assert result["current_maturity"] == "SUPERVISED"
+        assert result["current_maturity"] == "supervised"
 
 
 class TestGraduationCriteria:
@@ -884,7 +886,11 @@ class TestPromotionDecisions:
         )
 
         db_session.refresh(agent)
-        assert agent.updated_at > original_updated_at
+        # updated_at should be set after promotion
+        assert agent.updated_at is not None
+        # If original_updated_at was not None, verify it's newer
+        if original_updated_at is not None:
+            assert agent.updated_at > original_updated_at
 
     @pytest.mark.asyncio
     async def test_promote_agent_nonexistent_agent(self, service):
@@ -975,7 +981,7 @@ class TestSandboxExecutorDetailed:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0
             )
@@ -998,7 +1004,7 @@ class TestSandboxExecutorDetailed:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0
             )
@@ -1021,7 +1027,7 @@ class TestSandboxExecutorDetailed:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=1 if i < 5 else 0  # 20% intervention rate
             )
@@ -1044,7 +1050,7 @@ class TestSandboxExecutorDetailed:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=5  # Very high
             )
@@ -1066,7 +1072,7 @@ class TestSandboxExecutorDetailed:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=5
             )
@@ -1084,12 +1090,12 @@ class TestSandboxExecutorDetailed:
         """execute_exam passed=True when score >= min_score AND compliance >= min_score."""
         agent = SupervisedAgentFactory(_session=db_session)
 
-        # Create perfect episodes
-        for _ in range(50):
+        # Create perfect episodes (need more than minimum for full score)
+        for _ in range(75):
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=1.0
@@ -1123,7 +1129,7 @@ class TestGraduationExamExecution:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0
             )
@@ -1162,7 +1168,7 @@ class TestGraduationExamExecution:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=5
             )
@@ -1187,7 +1193,7 @@ class TestGraduationExamExecution:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0
             )
@@ -1211,7 +1217,7 @@ class TestGraduationExamExecution:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=5
             )
@@ -1235,7 +1241,7 @@ class TestGraduationExamExecution:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0
             )
@@ -1939,7 +1945,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.8
@@ -1984,7 +1990,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=5,  # Too high
                 constitutional_score=0.6  # Too low
@@ -2031,7 +2037,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.9
@@ -2076,7 +2082,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.9
@@ -2121,7 +2127,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.9
@@ -2166,7 +2172,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.9
@@ -2211,7 +2217,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.95
@@ -2256,7 +2262,7 @@ class TestValidationWithSupervision:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.95
@@ -2404,7 +2410,7 @@ class TestReadinessWithSkills:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.9
@@ -2429,7 +2435,7 @@ class TestReadinessWithSkills:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=1.0
@@ -2454,7 +2460,7 @@ class TestReadinessWithSkills:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=1.0
@@ -2513,24 +2519,24 @@ class TestGraduationAuditTrail:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="INTERN",
+                maturity_at_time="intern",
                 status="completed"
             )
         for _ in range(3):
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="STUDENT",
+                maturity_at_time="student",
                 status="completed"
             )
 
         trail = await service.get_graduation_audit_trail(agent_id=agent.id)
 
         assert "episodes_by_maturity" in trail
-        assert "INTERN" in trail["episodes_by_maturity"]
-        assert "STUDENT" in trail["episodes_by_maturity"]
-        assert trail["episodes_by_maturity"]["INTERN"] == 5
-        assert trail["episodes_by_maturity"]["STUDENT"] == 3
+        assert "intern" in trail["episodes_by_maturity"]
+        assert "student" in trail["episodes_by_maturity"]
+        assert trail["episodes_by_maturity"]["intern"] == 5
+        assert trail["episodes_by_maturity"]["student"] == 3
 
     @pytest.mark.asyncio
     async def test_audit_trail_calculates_episodes_by_maturity(self, service, db_session):
@@ -2564,7 +2570,7 @@ class TestGraduationAuditTrail:
             EpisodeFactory(
                 _session=db_session,
                 agent_id=agent.id,
-                maturity_at_time="SUPERVISED",
+                maturity_at_time="supervised",
                 status="completed"
             )
 

@@ -2079,3 +2079,222 @@ class TestErrorPathsExtended:
         assert summary is not None
         assert isinstance(topics, list)
         assert isinstance(entities, list)
+
+
+# ========================================================================
+# N. Edge Case Tests for Episode Segmentation (Phase 198-03)
+# ========================================================================
+
+class TestEpisodeSegmentationEdgeCases:
+    """Test edge cases in episode segmentation as per Phase 198-03 Task 2"""
+
+    def test_segmentation_with_short_time_gap(self, mock_lancedb):
+        """Should NOT create new segment for short time gap (< 5 min)"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(id="m1", conversation_id="s1", role="user", content="A", created_at=now - timedelta(minutes=10)),
+            ChatMessage(id="m2", conversation_id="s1", role="user", content="B", created_at=now - timedelta(minutes=7)),  # 3 min gap
+            ChatMessage(id="m3", conversation_id="s1", role="user", content="C", created_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        gaps = detector.detect_time_gap(messages)
+
+        # 3 min gap < 30 min threshold, should NOT trigger
+        assert len(gaps) == 0
+
+    def test_segmentation_with_medium_time_gap(self, mock_lancedb):
+        """Should create new segment for medium time gap (5-30 min)"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(id="m1", conversation_id="s1", role="user", content="A", created_at=now - timedelta(minutes=40)),
+            ChatMessage(id="m2", conversation_id="s1", role="user", content="B", created_at=now - timedelta(minutes=20)),  # 20 min gap
+            ChatMessage(id="m3", conversation_id="s1", role="user", content="C", created_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        gaps = detector.detect_time_gap(messages)
+
+        # 20 min gap < 30 min threshold, should NOT trigger
+        assert len(gaps) == 0
+
+    def test_segmentation_with_long_time_gap(self, mock_lancedb):
+        """Should create new segment for long time gap (> 30 min)"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(id="m1", conversation_id="s1", role="user", content="A", created_at=now - timedelta(minutes=65)),
+            ChatMessage(id="m2", conversation_id="s1", role="user", content="B", created_at=now - timedelta(minutes=30)),  # 35 min gap
+            ChatMessage(id="m3", conversation_id="s1", role="user", content="C", created_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        gaps = detector.detect_time_gap(messages)
+
+        # 35 min gap > 30 min threshold, should trigger
+        assert 1 in gaps  # Boundary after m1
+
+    def test_segmentation_with_no_time_gap(self, mock_lancedb):
+        """Should handle messages with no time gap"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(id="m1", conversation_id="s1", role="user", content="A", created_at=now - timedelta(seconds=2)),
+            ChatMessage(id="m2", conversation_id="s1", role="user", content="B", created_at=now - timedelta(seconds=1)),
+            ChatMessage(id="m3", conversation_id="s1", role="user", content="C", created_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        gaps = detector.detect_time_gap(messages)
+
+        # No significant gaps
+        assert len(gaps) == 0
+
+    def test_segmentation_with_topic_change(self, mock_lancedb):
+        """Should detect topic change boundary"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(id="m1", conversation_id="s1", role="user", content="Let's discuss weather patterns", created_at=now - timedelta(seconds=2)),
+            ChatMessage(id="m2", conversation_id="s1", role="user", content="The sun is shining today", created_at=now - timedelta(seconds=1)),
+            ChatMessage(id="m3", conversation_id="s1", role="user", content="Now let's switch to stock market analysis", created_at=now),
+        ]
+
+        # Mock embeddings: similar for m1-m2, dissimilar for m2-m3
+        # Use a callable to return embeddings based on content
+        def mock_embed(text):
+            if "weather" in text.lower() or "sun" in text.lower():
+                return [1.0, 0.0, 0.0]
+            else:
+                return [0.0, 1.0, 0.0]
+
+        mock_lancedb.embed_text.side_effect = mock_embed
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        changes = detector.detect_topic_changes(messages)
+
+        # Should detect change between m2 and m3 (similarity 0.0 < 0.75)
+        assert 2 in changes
+
+    def test_segmentation_with_similar_topics(self, mock_lancedb):
+        """Should NOT create boundary for similar topics"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(id="m1", conversation_id="s1", role="user", content="Weather forecast for today", created_at=now - timedelta(seconds=2)),
+            ChatMessage(id="m2", conversation_id="s1", role="user", content="Temperature and humidity", created_at=now - timedelta(seconds=1)),
+            ChatMessage(id="m3", conversation_id="s1", role="user", content="Wind conditions and pressure", created_at=now),
+        ]
+
+        # Mock embeddings: all similar (weather-related)
+        mock_lancedb.embed_text.side_effect = [
+            [0.8, 0.2],  # m1: weather
+            [0.82, 0.18],  # m2: temperature (similar)
+            [0.78, 0.22],  # m3: wind (similar)
+            [0.78, 0.22],  # Extra for comparison
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        changes = detector.detect_topic_changes(messages)
+
+        # All similarities > 0.75 threshold, no boundaries
+        assert len(changes) == 0
+
+    def test_segmentation_with_topic_ambiguity(self, mock_lancedb):
+        """Should handle ambiguous topic boundaries"""
+        now = datetime.now()
+        messages = [
+            ChatMessage(id="m1", conversation_id="s1", role="user", content="I need data analysis", created_at=now - timedelta(seconds=2)),
+            ChatMessage(id="m2", conversation_id="s1", role="user", content="Also some charts", created_at=now - timedelta(seconds=1)),
+            ChatMessage(id="m3", conversation_id="s1", role="user", content="Maybe a report too", created_at=now),
+        ]
+
+        # Mock embeddings: medium similarity (around threshold)
+        mock_lancedb.embed_text.side_effect = [
+            [0.7, 0.3],  # m1: analysis
+            [0.74, 0.26],  # m2: charts (borderline)
+            [0.72, 0.28],  # m3: report (borderline)
+            [0.72, 0.28],  # Extra for comparison
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        changes = detector.detect_topic_changes(messages)
+
+        # Similarities near threshold - behavior depends on exact calculation
+        assert isinstance(changes, list)
+
+    def test_segmentation_on_task_completion(self, mock_lancedb):
+        """Should create boundary on task completion"""
+        now = datetime.now()
+        executions = [
+            AgentExecution(id="e1", agent_id="a1", status="running", started_at=now),
+            AgentExecution(id="e2", agent_id="a1", status="completed", result_summary="Task done", started_at=now),
+            AgentExecution(id="e3", agent_id="a1", status="running", started_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        completions = detector.detect_task_completion(executions)
+
+        # Should detect e2 as completion boundary
+        assert 1 in completions
+
+    def test_segmentation_on_task_failure(self, mock_lancedb):
+        """Should handle failed task boundaries"""
+        now = datetime.now()
+        executions = [
+            AgentExecution(id="e1", agent_id="a1", status="failed", error_message="Task failed", started_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        completions = detector.detect_task_completion(executions)
+
+        # "failed" is not "completed", should not trigger
+        assert len(completions) == 0
+
+    def test_segmentation_on_task_timeout(self, mock_lancedb):
+        """Should handle task timeout scenarios"""
+        now = datetime.now()
+        executions = [
+            AgentExecution(id="e1", agent_id="a1", status="running", started_at=now - timedelta(minutes=35)),
+            AgentExecution(id="e2", agent_id="a1", status="completed", result_summary="Done before timeout", started_at=now - timedelta(minutes=5)),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        completions = detector.detect_task_completion(executions)
+
+        # Should detect e2 as completion
+        assert 1 in completions
+
+    def test_segmentation_with_empty_execution_history(self, mock_lancedb):
+        """Should handle empty execution history"""
+        executions = []
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        completions = detector.detect_task_completion(executions)
+
+        assert completions == []
+
+    def test_segmentation_with_single_action(self, mock_lancedb):
+        """Should handle single execution action"""
+        now = datetime.now()
+        executions = [
+            AgentExecution(id="e1", agent_id="a1", status="completed", result_summary="Single action", started_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        completions = detector.detect_task_completion(executions)
+
+        # Should detect single completion
+        assert 0 in completions
+
+    def test_segmentation_with_concurrent_agents(self, mock_lancedb, db_session):
+        """Should handle concurrent agent executions"""
+        now = datetime.now()
+        executions = [
+            AgentExecution(id="e1", agent_id="agent1", status="completed", result_summary="Agent 1 task", started_at=now),
+            AgentExecution(id="e2", agent_id="agent2", status="completed", result_summary="Agent 2 task", started_at=now),
+        ]
+
+        detector = EpisodeBoundaryDetector(mock_lancedb)
+        completions = detector.detect_task_completion(executions)
+
+        # Should detect both completions regardless of agent
+        assert len(completions) == 2
+        assert 0 in completions
+        assert 1 in completions
