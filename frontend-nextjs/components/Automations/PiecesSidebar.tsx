@@ -509,6 +509,7 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>
     legal: Scale,
     real_estate: Home,
     other: Package,
+    openclaw: Sparkles,
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -536,6 +537,7 @@ const CATEGORY_LABELS: Record<string, string> = {
     legal: 'Legal',
     real_estate: 'Real Estate',
     other: 'Other',
+    openclaw: 'Agent Skills',
 };
 
 
@@ -549,7 +551,59 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
     const [search, setSearch] = useState('');
     const [expandedPiece, setExpandedPiece] = useState<string | null>(null);
     const [connectedPieces, setConnectedPieces] = useState<Set<string>>(new Set());
-    const [allPieces, setAllPieces] = useState<Piece[]>(PIECES);
+    const MOCK_AGENT_SKILLS: Piece[] = [
+        {
+            id: 'skill_lead_qualifier', name: 'Lead Qualifier AI', icon: Zap, color: '#6366f1', category: 'openclaw', connected: true,
+            actions: [
+                { id: 'qualify', name: 'Qualify Lead', description: 'Score and qualify inbound leads using AI. Returns score 0-100 + recommendation.' },
+                { id: 'enrich', name: 'Enrich Lead Data', description: 'Pull company firmographics from Clearbit/Apollo and enrich the lead record.' },
+            ],
+            triggers: [{ id: 'on_new_lead', name: 'On New Lead', description: 'Fires when a new lead enters the qualifcation queue.' }],
+        },
+        {
+            id: 'skill_resume_screener', name: 'Resume Screener', icon: Cpu, color: '#8b5cf6', category: 'openclaw', connected: true,
+            actions: [
+                { id: 'screen', name: 'Screen Resume', description: 'AI-powered resume scoring against job description. Returns match %, highlights, red flags.' },
+                { id: 'rank', name: 'Rank Candidates', description: 'Rank a batch of candidates by fit score and generate a summary shortlist.' },
+            ],
+            triggers: [{ id: 'on_application', name: 'On Application', description: 'Fires when candidate submits application via ATS webhook.' }],
+        },
+        {
+            id: 'skill_crm_sync', name: 'CRM Sync Agent', icon: Database, color: '#0ea5e9', category: 'openclaw', connected: true,
+            actions: [
+                { id: 'upsert', name: 'Upsert Lead Record', description: 'Create or update a lead/contact in Zoho, HubSpot, or Salesforce from structured data.' },
+                { id: 'update_stage', name: 'Update Pipeline Stage', description: 'Move a deal to a new stage and log activity note.' },
+            ],
+            triggers: [],
+        },
+        {
+            id: 'skill_calendar_booker', name: 'Calendar Booker', icon: Calendar, color: '#10b981', category: 'openclaw', connected: true,
+            actions: [
+                { id: 'find_slot', name: 'Find Mutual Slot', description: 'Query Google Calendar / Outlook for first mutual free slot across multiple attendees.' },
+                { id: 'book', name: 'Book & Send Invite', description: 'Book the slot, create Zoom link, and send calendar invite with confirmation email.' },
+            ],
+            triggers: [{ id: 'on_reschedule', name: 'On Reschedule Request', description: 'Fires when candidate or interviewer requests a reschedule.' }],
+        },
+        {
+            id: 'skill_followup', name: 'Follow-up Composer', icon: Mail, color: '#f59e0b', category: 'openclaw', connected: true,
+            actions: [
+                { id: 'compose', name: 'Compose Follow-up', description: 'Write personalised follow-up email using CRM context + AI. Adapts tone to lead behaviour.' },
+                { id: 'sequence', name: 'Start Drip Sequence', description: 'Enrol lead in a 3-email AI-personalized outreach sequence with timing logic.' },
+            ],
+            triggers: [],
+        },
+        {
+            id: 'skill_pipeline_analyst', name: 'Pipeline Analyst', icon: BarChart, color: '#ef4444', category: 'openclaw', connected: true,
+            actions: [
+                { id: 'health_report', name: 'Generate Health Report', description: 'Analyzes all active deals, flags at-risk opportunities, and generates a priority action list.' },
+                { id: 'forecast', name: 'Forecast Revenue', description: 'AI revenue forecast for current quarter based on pipeline velocity and win rates.' },
+            ],
+            triggers: [{ id: 'weekly_report', name: 'Weekly Report', description: 'Fires every Monday morning to generate and post the weekly pipeline digest.' }],
+        },
+    ];
+
+    const [allPieces, setAllPieces] = useState<Piece[]>([...PIECES, ...MOCK_AGENT_SKILLS]);
+
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch Agent Skills from Atom backend
