@@ -44,6 +44,7 @@ def sample_marketplace_skills(db_session: Session):
         skill = SkillExecution(
             agent_id="system",
             workspace_id="default",
+            tenant_id="default",  # Add required tenant_id
             skill_id=f"community_test_skill_{i}",
             status="Active",
             input_params={
@@ -63,9 +64,9 @@ def sample_marketplace_skills(db_session: Session):
             sandbox_enabled=(i % 2 == 1)
         )
         skills.append(skill)
-        db.add(skill)
+        db_session.add(skill)
 
-    db.commit()
+    db_session.commit()
     return skills
 
 
@@ -192,7 +193,7 @@ class TestMarketplaceRatings:
             skill_id=skill_id,
             user_id="test-user",
             rating=5,
-            comment="Great skill!"
+            review="Great skill!"
         )
 
         assert result["success"] is True
@@ -207,7 +208,7 @@ class TestMarketplaceRatings:
             skill_id=skill_id,
             user_id="test-user-2",
             rating=4,
-            comment="Good skill, works well"
+            review="Good skill, works well"
         )
 
         assert result["success"] is True
@@ -226,7 +227,7 @@ class TestMarketplaceRatings:
             skill_id=skill_id,
             user_id=user_id,
             rating=5,
-            comment="Updated to 5 stars"
+            review="Updated to 5 stars"
         )
 
         assert result["action"] == "updated"
@@ -733,12 +734,12 @@ class TestRatingEdgeCases:
         user_id = "repeat_user"
 
         # First rating
-        result1 = marketplace_service.rate_skill(skill_id, user_id, 3, comment="Okay")
+        result1 = marketplace_service.rate_skill(skill_id, user_id, 3, review="Okay")
         assert result1["action"] == "created"
         assert result1["average_rating"] == 3.0
 
         # Update rating
-        result2 = marketplace_service.rate_skill(skill_id, user_id, 5, comment="Excellent!")
+        result2 = marketplace_service.rate_skill(skill_id, user_id, 5, review="Excellent!")
         assert result2["action"] == "updated"
         assert result2["average_rating"] == 5.0  # Updated to latest
 
@@ -754,7 +755,7 @@ class TestRatingEdgeCases:
             skill_id,
             user_id="user_no_comment",
             rating=4,
-            comment=None
+            review=None
         )
 
         assert result["success"] is True
@@ -771,7 +772,7 @@ class TestRatingEdgeCases:
             skill_id,
             user_id="user_long_comment",
             rating=5,
-            comment=long_comment
+            review=long_comment
         )
 
         # Should accept long comment
@@ -823,7 +824,7 @@ class TestRatingRetrieval:
                 skill_id,
                 f"user_{i}",
                 5,
-                comment=f"Comment {i}"
+                review=f"Comment {i}"
             )
 
         # Get default limit (10)
@@ -839,11 +840,11 @@ class TestRatingRetrieval:
         skill_id = sample_marketplace_skills[0].id
 
         # Add ratings with delays
-        marketplace_service.rate_skill(skill_id, "user_early", 3, comment="First")
+        marketplace_service.rate_skill(skill_id, "user_early", 3, review="First")
         time.sleep(0.01)  # Small delay
-        marketplace_service.rate_skill(skill_id, "user_late", 5, comment="Second")
+        marketplace_service.rate_skill(skill_id, "user_late", 5, review="Second")
         time.sleep(0.01)
-        marketplace_service.rate_skill(skill_id, "user_latest", 4, comment="Third")
+        marketplace_service.rate_skill(skill_id, "user_latest", 4, review="Third")
 
         # Get ratings
         skill = marketplace_service.get_skill_by_id(skill_id)
@@ -870,7 +871,7 @@ class TestRatingRetrieval:
             skill_id,
             "test_user_fields",
             5,
-            comment="Great skill!"
+            review="Great skill!"
         )
 
         skill = marketplace_service.get_skill_by_id(skill_id)
