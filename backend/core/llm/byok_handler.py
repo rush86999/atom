@@ -79,6 +79,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.COMPLEX: "minimax-m2.5",
         QueryComplexity.ADVANCED: "minimax-m2.5",
     },
+    "qwen": {
+        QueryComplexity.SIMPLE: "qwen-plus",
+        QueryComplexity.MODERATE: "qwen-plus",
+        QueryComplexity.COMPLEX: "qwen-plus",
+        QueryComplexity.ADVANCED: "qwen-max",
+    },
 }
 
 
@@ -204,6 +210,7 @@ class BYOKHandler:
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
             "minimax": {"base_url": "https://api.minimaxi.com/v1"},  # Phase 68-04: MiniMax M2.5 integration
+            "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
         }
 
         # Separate sync and async clients
@@ -531,13 +538,13 @@ class BYOKHandler:
         
         # 2. Static Fallback (if BPC logic fails or cache empty)
         if complexity == QueryComplexity.SIMPLE:
-            provider_priority = ["deepseek", "minimax", "moonshot", "gemini", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "moonshot", "gemini", "openai", "anthropic"]
         elif complexity == QueryComplexity.MODERATE:
-            provider_priority = ["deepseek", "minimax", "gemini", "moonshot", "openai", "anthropic"]
+            provider_priority = ["deepseek", "minimax", "qwen", "gemini", "moonshot", "openai", "anthropic"]
         elif complexity == QueryComplexity.COMPLEX:
-            provider_priority = ["gemini", "deepseek", "anthropic", "minimax", "openai", "moonshot"]
+            provider_priority = ["gemini", "deepseek", "anthropic", "qwen", "minimax", "openai", "moonshot"]
         else: # ADVANCED
-            provider_priority = ["openai", "deepseek", "anthropic", "gemini", "moonshot", "minimax"]
+            provider_priority = ["openai", "deepseek", "anthropic", "qwen", "gemini", "moonshot", "minimax"]
         
         for provider_id in provider_priority:
             if provider_id in self.clients:

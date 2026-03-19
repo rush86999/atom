@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.database import get_db
+from .models import EmployeeWorkspace
+from .executor import employee_executor
+import uuid
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,8 +21,31 @@ async def get_status():
     """
     return {"status": "online", "system": "AI Employee (Isolated)"}
 
-from .models import EmployeeWorkspace
-import uuid
+from pydantic import BaseModel
+from typing import Optional, Any, Dict
+
+class TaskRequest(BaseModel):
+    workspace_id: str
+    command: str
+    current_state: Dict[str, Any]
+
+@router.post("/task")
+async def execute_task(request: TaskRequest, db: Session = Depends(get_db)):
+    """
+    Execute a task for the AI Employee in a specific workspace.
+    """
+    workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.id == request.workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+        
+    # Run the task through the executor
+    result = await employee_executor.run_task(request.command, request.current_state)
+    
+    # Update workspace state in DB
+    workspace.workspace_state = result["new_state"]
+    db.commit()
+    
+    return result
 
 @router.post("/workspace/init")
 async def init_workspace(user_id: str, db: Session = Depends(get_db)):
