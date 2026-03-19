@@ -1459,3 +1459,33 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 - [x] 202-11-PLAN.md — Communication, scheduler, logging config (Wave 4) ✅
 - [x] 202-12-PLAN.md — OAuth context, error middleware, secrets detector (Wave 5) ✅
 - [x] 202-13-PLAN.md — Agent execution, analytics engine, final measurement (Wave 5) ✅
+
+### Phase 210: Fix Test Collection Errors 🚧 IN PLANNING
+**Goal**: Fix pytest collection errors caused by duplicate test file basenames, unblocking accurate coverage measurement
+**Status**: 🚧 IN PLANNING (2026-03-19)
+**Plans**: 1 plan (210-01)
+
+**Problem**: Python's import system treats files with identical basenames as the same module, causing collection errors:
+- `tests/core/memory/test_agent_graduation_service_coverage.py` conflicts with `tests/core/agents/test_agent_graduation_service_coverage.py`
+- `tests/core/memory/test_episode_retrieval_service_coverage.py` conflicts with `tests/core/episodes/test_episode_retrieval_service_coverage.py`
+- `tests/core/memory/test_episode_segmentation_service_coverage.py` conflicts with `tests/core/episodes/test_episode_segmentation_service_coverage.py`
+
+**Current State**: 3 collection errors preventing accurate coverage measurement
+
+**Solution**: Rename memory module test files with `_memory.py` suffix for unique basenames:
+- `test_agent_graduation_service_coverage.py` → `test_agent_graduation_service_memory.py`
+- `test_episode_retrieval_service_coverage.py` → `test_episode_retrieval_memory.py`
+- `test_episode_segmentation_service_coverage.py` → `test_episode_segmentation_memory.py`
+
+**Success Criteria**:
+- [ ] COLLECTION-01: Fix all pytest collection errors (target: 0 errors)
+- [ ] COLLECTION-02: Maintain test functionality (all tests must still pass after renaming)
+- [ ] COLLECTION-03: Update all imports/references to renamed files
+- [ ] COLLECTION-04: Verify coverage can be measured successfully
+- [ ] COLLECTION-05: Document the naming convention to prevent future conflicts
+
+**Plans**:
+- [ ] 210-01-PLAN.md — Rename duplicate test files and document naming convention
+
+**See**:
+- `.planning/phases/210-fix-collection-errors/210-RESEARCH.md` for detailed research
