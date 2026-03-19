@@ -31,28 +31,23 @@ class TaskRequest(BaseModel):
 
 @router.post("/task")
 async def execute_task(request: TaskRequest, db: Session = Depends(get_db)):
-    """
-    Execute a task for the AI Employee in a specific workspace.
-    """
     workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.id == request.workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
-        
-    # Run the task through the executor
+    
+    # Run the dynamic executor
     result = await employee_executor.run_task(request.command, request.current_state)
     
-    # Update workspace state in DB
+    # Persist the full state back to the DB
     workspace.workspace_state = result["new_state"]
-    db.commit()
+    # Also update the explicitly tracked deliverables list
+    workspace.deliverables = result["new_state"].get("deliverables", [])
     
+    db.commit()
     return result
 
 @router.post("/workspace/init")
 async def init_workspace(user_id: str, db: Session = Depends(get_db)):
-    """
-    Initialize or retrieve a persistent workspace for the AI Employee.
-    """
-    # Check if workspace already exists
     workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.user_id == user_id).first()
     
     if not workspace:
@@ -61,27 +56,39 @@ async def init_workspace(user_id: str, db: Session = Depends(get_db)):
             user_id=user_id,
             workspace_state={
                 "editorContent": "# Welcome to your AI Employee Workspace\n\nStart your task here.",
+                "plan": [],
+                "deliverables": [],
                 "views": []
-            }
+            },
+            deliverables=[]
         )
         db.add(workspace)
         db.commit()
-        db.refresh(workspace)
-        logger.info(f"Initialized new workspace for user {user_id}")
-    else:
-        logger.info(f"Retrieved existing workspace for user {user_id}")
         
-    return workspace
+    return {
+        "id": workspace.id,
+        "workspace_state": workspace.workspace_state,
+        "deliverables": workspace.deliverables
+    }
 
-@router.post("/workspace/save")
-async def save_workspace(workspace_id: str, state: dict, db: Session = Depends(get_db)):
-    """
-    Save the current workspace state.
-    """
+@router.post("/workspace/reset")
+async def reset_workspace(workspace_id: str, db: Session = Depends(get_db)):
     workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.id == workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
-    
+        
+    new_state = employee_executor.reset_state()
+    workspace.workspace_state = new_state
+    workspace.deliverables = []
+    db.commit()
+    return {"status": "success", "new_state": new_state}
+
+@router.post("/workspace/save")
+async def save_workspace(workspace_id: str, state: Dict[str, Any], db: Session = Depends(get_db)):
+    workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+        
     workspace.workspace_state = state
     db.commit()
-    return {"status": "saved"}
+    return {"status": "success"}
