@@ -26,7 +26,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
 from sqlalchemy.orm import Session
 
-from core.models import RevokedToken
+try:
+    from core.models import RevokedToken
+except ImportError:
+    RevokedToken = None
 
 logger = logging.getLogger(__name__)
 
@@ -288,9 +291,11 @@ class JWTVerifier:
             If db is None or 'jti' is not in payload, returns False (allows token).
             This is a security-first graceful degradation - prefer providing db.
         """
-        # Cannot check revocation without database session or JTI
-        if not db or 'jti' not in payload:
-            if 'jti' not in payload:
+        # Cannot check revocation without RevokedToken model, database session, or JTI
+        if RevokedToken is None or not db or 'jti' not in payload:
+            if RevokedToken is None:
+                logger.warning("JWT_VERIFICATION: RevokedToken model not available - cannot check revocation")
+            elif 'jti' not in payload:
                 logger.warning("JWT_VERIFICATION: Token missing 'jti' claim - cannot check revocation")
             return False
 
