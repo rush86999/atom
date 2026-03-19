@@ -621,6 +621,13 @@ try:
         # raise e # Uncomment to crash on startup if strict
 
     try:
+        from api.demo_routes import router as demo_router
+        app.include_router(demo_router)
+        logger.info("✓ Demo Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Demo routes not found: {e}")
+
+    try:
         from enhanced_ai_workflow_endpoints import router as ai_router
         app.include_router(ai_router) # Prefix defined in router
     except ImportError as e:
@@ -1407,6 +1414,13 @@ except ImportError as e:
 # USER MANAGEMENT API ROUTES (Frontend to Backend Migration)
 # ============================================================================
 try:
+    from api.demo_routes import router as demo_router
+    app.include_router(demo_router)
+    logger.info("✓ Demo Routes Loaded")
+except ImportError as e:
+    logger.warning(f"Demo routes not found: {e}")
+
+try:
     from api.user_management_routes import router as user_management_router
     app.include_router(user_management_router)
     logger.info("✓ User Management Routes Loaded")
@@ -1506,4 +1520,6 @@ if __name__ == "__main__":
         port=config.server.port,
         reload=config.server.reload
     )
-# Forced reload trigger
+# Forced reload trigger# Forced reload: 1620
+# Forced reload: 1618
+# Forced reload: 1619

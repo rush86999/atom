@@ -1,0 +1,80 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Slack - lead-triage-alerts</title>
+    <style>
+        body { margin: 0; font-family: "Slack-Lato", "Slack-FiraSans", "appleLogo", sans-serif; background: #fff; height: 100vh; display: flex; }
+        .sidebar { width: 260px; background: #3f0e40; color: #fff; padding: 20px; }
+        .main { flex: 1; display: flex; flex-direction: column; }
+        .header { height: 64px; border-bottom: 1px solid #ddd; display: flex; align-items: center; padding: 0 20px; font-weight: 900; font-size: 18px; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; }
+        .message { display: flex; margin-bottom: 20px; }
+        .avatar { width: 36px; height: 36px; background: #e0e0e0; border-radius: 4px; margin-right: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #555; }
+        .msg-content { flex: 1; }
+        .user-name { font-weight: 900; margin-bottom: 4px; margin-right: 8px; }
+        .time { font-size: 12px; color: #717274; }
+        .text { font-size: 15px; line-height: 1.5; }
+        .attachment { border-left: 4px solid #ddd; padding-left: 12px; margin-top: 8px; background: #f8f8f8; padding: 12px; border-radius: 0 4px 4px 0; }
+        .btn-approve { background: #007a5a; color: white; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-approve:hover { background: #148567; }
+        .approved-badge { display: none; color: #007a5a; font-weight: bold; margin-top: 10px; }
+        .input-area { height: 100px; border-top: 1px solid #ddd; padding: 20px; }
+        .input-box { border: 1px solid #868686; border-radius: 8px; height: 44px; display: flex; align-items: center; padding: 0 12px; color: #868686; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2 style="font-size: 18px;">ATOM Corp</h2>
+        <div style="margin-top: 20px; opacity: 0.7;"># general</div>
+        <div style="margin-top: 10px; font-weight: bold;"># lead-triage-alerts</div>
+        <div style="margin-top: 10px; opacity: 0.7;"># sales-leads</div>
+    </div>
+    <div class="main">
+        <div class="header"># lead-triage-alerts</div>
+        <div class="messages" id="msgList">
+            <div class="message">
+                <div class="avatar" style="background: #e01e5a; color: white;">A</div>
+                <div class="msg-content">
+                    <span class="user-name">ATOM Bot</span> <span class="time">10:45 AM</span>
+                    <div class="text">System initialized and monitoring Gmail...</div>
+                </div>
+            </div>
+            <!-- Dynamic lead alert here -->
+            <div class="message" id="leadAlert" style="display: none;">
+                <div class="avatar" style="background: #2eb67d; color: white;">A</div>
+                <div class="msg-content">
+                    <span class="user-name">ATOM Lead Triage</span> <span class="time">Just Now</span>
+                    <div class="text">🚀 <strong>New High-Value Lead Detected!</strong></div>
+                    <div class="attachment">
+                        <strong>Name:</strong> Sarah Jenkins<br>
+                        <strong>Company:</strong> Project X<br>
+                        <strong>Budget:</strong> $50,000<br>
+                        <strong>Urgency:</strong> High<br>
+                        <strong>Source:</strong> Gmail<br><br>
+                        <em>Outreach requested. Should I schedule an intro call?</em>
+                        <br>
+                        <button class="btn-approve" id="approveBtn" onclick="approve()">Approve & Schedule</button>
+                        <div id="approvedMsg" class="approved-badge">✅ Outreach Approved. Scheduling Zoom meeting...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-box">Send a message to #lead-triage-alerts</div>
+        </div>
+    </div>
+    <script>
+        function approve() {
+            document.getElementById('approveBtn').style.display = 'none';
+            document.getElementById('approvedMsg').style.display = 'block';
+            window.parent.postMessage('approved', '*');
+        }
+        // Expose function for Selenium to trigger
+        window.triggerAlert = function() {
+            document.getElementById('leadAlert').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>

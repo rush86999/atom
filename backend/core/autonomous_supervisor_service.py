@@ -76,7 +76,8 @@ class AutonomousSupervisorService:
     async def find_autonomous_supervisor(
         self,
         intern_agent: AgentRegistry,
-        category: Optional[str] = None
+        category: Optional[str] = None,
+        adversarial: bool = False
     ) -> Optional[AgentRegistry]:
         """
         Find autonomous agent with matching category/specialty.
@@ -99,10 +100,29 @@ class AutonomousSupervisorService:
         if target_category:
             query = query.filter(AgentRegistry.category == target_category)
 
-        # Order by confidence (highest first) and get first match
-        supervisor = query.order_by(
-            AgentRegistry.confidence_score.desc()
-        ).first()
+        # diversity-aware matching
+        supervisors = query.all()
+        
+        if not supervisors:
+            logger.warning(f"No autonomous supervisors found for {intern_agent.id}")
+            return None
+
+        if adversarial:
+            # Prioritize supervisors with different diversity profiles
+            agent_profile = intern_agent.diversity_profile or {}
+            
+            # Find one with a different trait if possible
+            traits_to_check = ["risk_profile", "latency_focus", "cost_focus"]
+            
+            for s in supervisors:
+                s_profile = s.diversity_profile or {}
+                for trait in traits_to_check:
+                    if s_profile.get(trait) and s_profile.get(trait) != agent_profile.get(trait):
+                        logger.info(f"Found adversarial supervisor: {s.id} (trait mismatch: {trait})")
+                        return s
+        
+        # Fallback to highest confidence
+        supervisor = max(supervisors, key=lambda s: s.confidence_score)
 
         if supervisor:
             logger.info(
@@ -138,12 +158,22 @@ class AutonomousSupervisorService:
         action_type = proposed_action.get("action_type", "unknown")
         reasoning = proposal.reasoning or ""
 
-        # Perform LLM-based analysis
+        # Perform LLM-based analysis with PPI-lite (context filtering)
+        # Select relevant diverse experiences to include in context
+        from core.agent_world_model import WorldModelService
+        world_model = WorldModelService()
+        
+        # Fetch diverse experiences (successes and failures) to guide cooperation
+        # Note: In upstream, get_experience_statistics is async
+        experiences = await world_model.get_experience_statistics(agent_id=proposal.agent_id)
+        relevant_context = f"Past Performance: Success Rate {experiences.get('success_rate', 0):.2f}"
+        
         analysis = await self._analyze_proposal_with_llm(
             supervisor=supervisor,
             proposal=proposal,
             action_type=action_type,
-            reasoning=reasoning
+            reasoning=reasoning,
+            extra_context=relevant_context
         )
 
         # Calculate risk level
@@ -391,7 +421,8 @@ class AutonomousSupervisorService:
         supervisor: AgentRegistry,
         proposal: AgentProposal,
         action_type: str,
-        reasoning: str
+        reasoning: str,
+        extra_context: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Perform LLM-based analysis of proposal.
@@ -428,6 +459,7 @@ class AutonomousSupervisorService:
             "risk": risk,
             "reasoning": f"Proposal analysis by {supervisor.name}. "
                         f"Action type: {action_type}, Risk level: {risk}. "
+                        f"Context: {extra_context or 'None'}. "
                         f"Original reasoning: {reasoning[:200]}...",
             "modifications": []
         }
