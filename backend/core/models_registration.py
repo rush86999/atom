@@ -35,7 +35,7 @@ if not TESTING:
         import accounting.models
         import service_delivery.models
         import saas.models
-        import ecommerce.models
+        # import ecommerce.models  # Disabled: Models consolidated to core.models
         try:
             import apps.ai_employee.models
         except Exception as e:

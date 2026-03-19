@@ -59,6 +59,10 @@ const nextConfig = {
         destination: "http://127.0.0.1:8000/api/workflow-agent/:path*",
       },
       {
+        source: "/api/v1/employee/:path*",
+        destination: "http://127.0.0.1:8000/api/v1/employee/:path*",
+      },
+      {
         source: "/api/atom-agent/:path*",
         destination: "http://127.0.0.1:8000/api/atom-agent/:path*",
       },

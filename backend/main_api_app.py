@@ -272,7 +272,7 @@ app.add_middleware(
 
 # Security Middleware (V2 Enhanced)
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=5000)
 
 # ============================================================================
 # GLOBAL EXCEPTION HANDLER

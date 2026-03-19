@@ -15,6 +15,7 @@ MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
         "deepseek-chat",
         "gemini-1.5-flash",
         "gemini-2.0-flash",
+        "qwen-plus",
     ],
     "pro": [
         "gpt-4o",
@@ -26,6 +27,8 @@ MODEL_TIER_RESTRICTIONS: Dict[str, List[str]] = {
         "gemini-1.5-pro",
         "gemini-1.5-flash",
         "gemini-2.0-flash",
+        "qwen-plus",
+        "qwen-max",
     ],
     "enterprise": "*",  # All models available
     "trial": [
