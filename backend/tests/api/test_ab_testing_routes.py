@@ -31,7 +31,7 @@ class TestCreateTest:
 
     def test_create_test_success(self, client):
         """Test creating A/B test with valid data returns 200."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
+        with patch('api.ab_testing.ABTestingService') as MockService:
             mock_service = MagicMock()
             MockService.return_value = mock_service
 
@@ -64,7 +64,7 @@ class TestCreateTest:
 
     def test_create_test_with_all_fields(self, client):
         """Test creating test with all optional fields included."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
+        with patch('api.ab_testing.ABTestingService') as MockService:
             mock_service = MagicMock()
             MockService.return_value = mock_service
 
@@ -99,7 +99,7 @@ class TestCreateTest:
 
     def test_create_test_default_values(self, client):
         """Test creating test uses correct defaults for optional fields."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
+        with patch('api.ab_testing.ABTestingService') as MockService:
             mock_service = MagicMock()
             MockService.return_value = mock_service
 
@@ -129,7 +129,7 @@ class TestCreateTest:
 
     def test_create_test_prompt_type(self, client):
         """Test creating test with test_type='prompt' validates correctly."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
+        with patch('api.ab_testing.ABTestingService') as MockService:
             mock_service = MagicMock()
             MockService.return_value = mock_service
 
@@ -160,7 +160,7 @@ class TestCreateTest:
 
     def test_create_test_agent_config_type(self, client):
         """Test creating test with test_type='agent_config' validates correctly."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
+        with patch('api.ab_testing.ABTestingService') as MockService:
             mock_service = MagicMock()
             MockService.return_value = mock_service
 
@@ -191,7 +191,7 @@ class TestCreateTest:
 
     def test_create_test_validation_error(self, client):
         """Test creating test with invalid data returns 400."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
+        with patch('api.ab_testing.ABTestingService') as MockService:
             mock_service = MagicMock()
             MockService.return_value = mock_service
 
@@ -209,52 +209,40 @@ class TestCreateTest:
             })
 
             assert response.status_code == 400
-            assert response.json()["success"] is False
+            data = response.json()
+            # HTTPException wraps response in "detail" field
+            assert "detail" in data
+            assert data["detail"]["success"] is False
 
     def test_create_test_traffic_percentage_validation(self, client):
         """Test traffic_percentage enforces ge=0.0 and le=1.0 constraints."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
-            mock_service = MagicMock()
-            MockService.return_value = mock_service
+        # Pydantic validation happens before service call, returns 422
+        response = client.post("/api/ab-tests/create", json={
+            "name": "Test",
+            "test_type": "prompt",
+            "agent_id": "agent-1",
+            "variant_a_config": {},
+            "variant_b_config": {},
+            "primary_metric": "satisfaction_rate",
+            "traffic_percentage": 1.5
+        })
 
-            mock_service.create_test.return_value = {
-                "error": "traffic_percentage must be between 0.0 and 1.0"
-            }
-
-            # Test > 1.0
-            response = client.post("/api/ab-tests/create", json={
-                "name": "Test",
-                "test_type": "prompt",
-                "agent_id": "agent-1",
-                "variant_a_config": {},
-                "variant_b_config": {},
-                "primary_metric": "satisfaction_rate",
-                "traffic_percentage": 1.5
-            })
-
-            assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_create_test_confidence_validation(self, client):
         """Test confidence_level enforces ge=0.0 and le=1.0 constraints."""
-        with patch('core.ab_testing_service.ABTestingService') as MockService:
-            mock_service = MagicMock()
-            MockService.return_value = mock_service
+        # Pydantic validation happens before service call, returns 422
+        response = client.post("/api/ab-tests/create", json={
+            "name": "Test",
+            "test_type": "prompt",
+            "agent_id": "agent-1",
+            "variant_a_config": {},
+            "variant_b_config": {},
+            "primary_metric": "satisfaction_rate",
+            "confidence_level": 1.5
+        })
 
-            mock_service.create_test.return_value = {
-                "error": "confidence_level must be between 0.0 and 1.0"
-            }
-
-            response = client.post("/api/ab-tests/create", json={
-                "name": "Test",
-                "test_type": "prompt",
-                "agent_id": "agent-1",
-                "variant_a_config": {},
-                "variant_b_config": {},
-                "primary_metric": "satisfaction_rate",
-                "confidence_level": 1.5
-            })
-
-            assert response.status_code == 400
+        assert response.status_code == 422
 
 
 # ============================================================================
