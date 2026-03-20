@@ -963,10 +963,14 @@ class TestStateTransitions:
             tenant_id="default",
             task_description="Task",
             status="active",
-            started_at=datetime.now() - timedelta(days=100)
+            started_at=datetime.now() - timedelta(days=100),
+            access_count=0
         )
 
-        db_session.query.return_value.filter.return_value.first.return_value = episode
+        # Mock query to return list of episodes (using .all())
+        mock_query = Mock()
+        mock_query.filter.return_value.all.return_value = [episode]
+        db_session.query.return_value = mock_query
 
         await lifecycle_service.decay_old_episodes(days_threshold=90)
 
@@ -984,10 +988,14 @@ class TestStateTransitions:
             tenant_id="default",
             task_description="Task",
             status="active",
-            started_at=datetime.now() - timedelta(days=200)
+            started_at=datetime.now() - timedelta(days=200),
+            access_count=0
         )
 
-        db_session.query.return_value.filter.return_value.first.return_value = episode
+        # Mock query to return list of episodes (using .all())
+        mock_query = Mock()
+        mock_query.filter.return_value.all.return_value = [episode]
+        db_session.query.return_value = mock_query
 
         await lifecycle_service.decay_old_episodes(days_threshold=90)
 
@@ -1080,3 +1088,141 @@ class TestErrorHandling:
         assert result is True
         # Should be clamped to [0, 1]
         assert 0.0 <= episode.importance_score <= 1.0
+
+
+class TestTimezoneHandling:
+    """Tests for timezone-aware datetime handling."""
+
+    def test_update_lifecycle_with_timezone_aware_episode(
+        self, lifecycle_service, db_session
+    ):
+        """Test lifecycle update with timezone-aware episode."""
+        from datetime import timezone
+
+        # Create episode with timezone-aware datetime
+        episode = Episode(
+            id="episode-1",
+            agent_id="agent-1",
+            tenant_id="default",
+            task_description="Task",
+            status="active",
+            started_at=datetime.now(timezone.utc) - timedelta(days=10)
+        )
+
+        lifecycle_service.update_lifecycle(episode)
+
+        # Should handle timezone-aware datetime correctly
+        assert episode.decay_score > 0.0
+        assert episode.decay_score < 1.0
+
+    def test_update_lifecycle_with_timezone_naive_episode(
+        self, lifecycle_service, db_session
+    ):
+        """Test lifecycle update with timezone-naive episode."""
+        # Create episode with timezone-naive datetime (default)
+        episode = Episode(
+            id="episode-1",
+            agent_id="agent-1",
+            tenant_id="default",
+            task_description="Task",
+            status="active",
+            started_at=datetime.now() - timedelta(days=10)
+        )
+
+        lifecycle_service.update_lifecycle(episode)
+
+        # Should handle timezone-naive datetime correctly
+        assert episode.decay_score > 0.0
+        assert episode.decay_score < 1.0
+
+
+class TestApplyDecayErrorHandling:
+    """Tests for error handling in apply_decay method."""
+
+    def test_apply_decay_with_list_handles_partial_failure(
+        self, lifecycle_service, db_session
+    ):
+        """Test apply_decay with list when one episode fails."""
+        episode1 = Episode(
+            id="episode-1",
+            agent_id="agent-1",
+            tenant_id="default",
+            task_description="Task 1",
+            status="active",
+            started_at=datetime.now() - timedelta(days=10)
+        )
+
+        episode2 = Episode(
+            id="episode-2",
+            agent_id="agent-1",
+            tenant_id="default",
+            task_description="Task 2",
+            status="active",
+            started_at=None  # This will cause update_lifecycle to fail
+        )
+
+        # First call succeeds, second fails
+        result = lifecycle_service.apply_decay([episode1, episode2])
+
+        # Should return False because one episode failed
+        assert result is False
+        # But episode1 should still be updated
+        assert episode1.decay_score > 0.0
+
+    def test_apply_decay_with_empty_list(
+        self, lifecycle_service
+    ):
+        """Test apply_decay with empty list."""
+        result = lifecycle_service.apply_decay([])
+        # Empty list should return True (nothing to fail)
+        assert result is True
+
+
+class TestConsolidateEpisodesWithRunningLoop:
+    """Tests for consolidate_episodes with running event loop."""
+
+    def test_consolidate_episodes_with_running_loop(
+        self, lifecycle_service, db_session
+    ):
+        """Test consolidate_episodes when event loop is running."""
+        import asyncio
+
+        # Mock async method
+        async def mock_consolidate(*args, **kwargs):
+            return {"consolidated": 5, "parent_episodes": 2}
+
+        with patch.object(
+            lifecycle_service,
+            'consolidate_similar_episodes',
+            new=mock_consolidate
+        ):
+            # This simulates running loop scenario
+            result = lifecycle_service.consolidate_episodes("agent-1")
+
+            assert result["consolidated"] == 5
+            assert result["parent_episodes"] == 2
+
+    def test_consolidate_episodes_creates_new_loop_when_none_exists(
+        self, lifecycle_service, db_session
+    ):
+        """Test consolidate_episodes creates new event loop when none exists."""
+        import asyncio
+
+        # Mock async method
+        async def mock_consolidate(*args, **kwargs):
+            return {"consolidated": 3, "parent_episodes": 1}
+
+        # Patch asyncio.get_event_loop to raise RuntimeError (no loop exists)
+        def get_event_loop():
+            raise RuntimeError("No event loop")
+
+        with patch.object(
+            lifecycle_service,
+            'consolidate_similar_episodes',
+            new=mock_consolidate
+        ):
+            with patch('asyncio.get_event_loop', side_effect=get_event_loop):
+                result = lifecycle_service.consolidate_episodes("agent-1")
+
+                assert result["consolidated"] == 3
+                assert result["parent_episodes"] == 1
