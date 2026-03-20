@@ -280,7 +280,7 @@ const AgentsDashboard = () => {
                                 </div>
                             )}
 
-                            {agents.map(agent => (
+                            {Array.isArray(agents) && agents.map(agent => (
                                 <AgentCard
                                     key={agent.id}
                                     agent={agent}

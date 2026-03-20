@@ -1219,7 +1219,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             
             return {
                 "status": "success",
-                "agent_response": result.get("final_output"),
+                "message": result.get("final_output"),
                 "actions_taken": result.get("actions_executed", []),
                 "spawned_agent": result.get("spawned_agent"),
                 "feature": "agent"
