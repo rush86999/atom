@@ -15,54 +15,108 @@ from sqlalchemy import or_
 
 logger = logging.getLogger(__name__)
 
+async def get_platform_settings(context: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Retrieves platform-wide settings and configuration for the current tenant."""
+    from core.database import SessionLocal
+    from core.models import TenantSetting
+    
+    workspace_id = context.get("workspace_id") if context else None
+    if not workspace_id:
+        return {"error": "No workspace context found."}
+        
+    try:
+        with SessionLocal() as db:
+            settings = db.query(TenantSetting).filter(TenantSetting.tenant_id == workspace_id).all()
+            return {s.setting_key: s.setting_value for s in settings}
+    except Exception as e:
+        logger.error(f"Error fetching platform settings: {e}")
+        return {"error": f"Failed to fetch settings: {str(e)}"}
+
+async def update_platform_setting(key: str, value: str, context: Dict[str, Any] = None) -> str:
+    """Updates or creates a platform-wide setting."""
+    from core.database import SessionLocal
+    from core.models import TenantSetting
+    
+    workspace_id = context.get("workspace_id") if context else None
+    if not workspace_id:
+        return "Error: No workspace context found."
+        
+    try:
+        with SessionLocal() as db:
+            setting = db.query(TenantSetting).filter(
+                TenantSetting.tenant_id == workspace_id,
+                TenantSetting.setting_key == key
+            ).first()
+            
+            if setting:
+                setting.setting_value = value
+            else:
+                setting = TenantSetting(tenant_id=workspace_id, setting_key=key, setting_value=value)
+                db.add(setting)
+            
+            db.commit()
+            return f"Setting '{key}' successfully updated to '{value}'."
+    except Exception as e:
+        logger.error(f"Error updating platform setting: {e}")
+        return f"Error: Failed to update setting: {str(e)}"
+
 async def update_tenant_profile(
-    tenant_id: str,
     name: Optional[str] = None,
     billing_email: Optional[str] = None,
     logo_url: Optional[str] = None,
     primary_color: Optional[str] = None,
-    budget_limit: Optional[float] = None
+    budget_limit_usd: Optional[float] = None,
+    context: Dict[str, Any] = None
 ) -> str:
-    """Updates the profile and settings/branding for a tenant."""
+    """Updates the tenant's profile information."""
     from core.database import SessionLocal
-    from core.models import Tenant
+    from core.models import Tenant, Workspace
     
-    db = SessionLocal()
-    try:
-        tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-        if not tenant:
-            return f"Error: Tenant {tenant_id} not found."
+    workspace_id = context.get("workspace_id") if context else None
+    if not workspace_id:
+        return "Error: No workspace context found."
         
-        updates = []
-        if name:
-            tenant.name = name
-            updates.append(f"name='{name}'")
-        if billing_email:
-            tenant.billing_email = billing_email
-            updates.append(f"billing_email='{billing_email}'")
-        if logo_url:
-            # Check if tenant has metadata or similar for branding
-            metadata = tenant.metadata_json or {}
-            metadata["logo_url"] = logo_url
-            tenant.metadata_json = metadata
-            updates.append(f"logo_url='{logo_url}'")
-        if primary_color:
-            metadata = tenant.metadata_json or {}
-            metadata["primary_color"] = primary_color
-            tenant.metadata_json = metadata
-            updates.append(f"primary_color='{primary_color}'")
-        if budget_limit is not None:
-            tenant.budget_limit_usd = budget_limit
-            updates.append(f"budget_limit_usd={budget_limit}")
+    try:
+        with SessionLocal() as db:
+            # First get tenant_id from workspace
+            ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+            if not ws:
+                return f"Error: Workspace {workspace_id} not found."
             
-        db.commit()
-        return f"Tenant {tenant_id} updated successfully: {', '.join(updates)}"
+            tenant_id = ws.tenant_id
+            tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            if not tenant:
+                return f"Error: Tenant {tenant_id} not found."
+            
+            updates = []
+            if name:
+                tenant.name = name
+                updates.append("name")
+            if billing_email:
+                tenant.billing_email = billing_email
+                updates.append("billing_email")
+            if logo_url:
+                metadata = tenant.metadata_json or {}
+                metadata["logo_url"] = logo_url
+                tenant.metadata_json = metadata
+                updates.append("logo_url")
+            if primary_color:
+                metadata = tenant.metadata_json or {}
+                metadata["primary_color"] = primary_color
+                tenant.metadata_json = metadata
+                updates.append("primary_color")
+            if budget_limit_usd is not None:
+                tenant.budget_limit_usd = budget_limit_usd
+                updates.append("budget_limit_usd")
+                
+            if not updates:
+                return "No updates provided."
+                
+            db.commit()
+            return f"Tenant profile updated successfully. Fields modified: {', '.join(updates)}."
     except Exception as e:
-        db.rollback()
         logger.error(f"Error updating tenant profile: {e}")
-        return f"Error updating tenant profile: {str(e)}"
-    finally:
-        db.close()
+        return f"Error: Failed to update tenant profile: {str(e)}"
 
 async def set_byok_api_key(
     provider: str,
