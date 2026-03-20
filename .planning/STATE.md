@@ -1,7 +1,7 @@
 Phase: 216 (Fix Business Facts Test Failures)
-Plan: 01 (COMPLETE)
+Plan: 02 (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-20 — Phase 216 Plan 01 COMPLETE: Fixed response structure assertions for error handling tests. Changed from response.json()['detail'].lower() to detail['error']['message'].lower() to match BaseAPIRouter.error_response() structured dict. Fixed status code expectation from 422 to 400 for validation errors. 2 tests fixed (test_get_fact_not_found, test_upload_invalid_file_type). 2 commits, 4 minutes execution time.
+Last activity: 2026-03-20 — Phase 216 Plan 02 COMPLETE: Fixed mock patching for WorldModelService in upload and citation verification tests. Changed patch from 'core.agent_world_model.WorldModelService' to 'api.admin.business_facts_routes.WorldModelService' and 'core.policy_fact_extractor.get_policy_fact_extractor' to 'api.admin.business_facts_routes.get_policy_fact_extractor'. Fixed mock configuration in test_upload_extracts_multiple_facts. All 10 previously failing tests now pass. 37/37 tests passing (100%). 1 commit, 12 minutes execution time.
 
 ## Performance Metrics
 
@@ -11,6 +11,7 @@ Last activity: 2026-03-20 — Phase 216 Plan 01 COMPLETE: Fixed response structu
 | 211-03 | 1080s (18m) | 3 | 2 |
 | 215-01 | 610s (10m) | 1 | 1 |
 | 216-01 | 227s (4m) | 3 | 1 |
+| 216-02 | 721s (12m) | 3 | 1 |
 | Phase 208 P02 | 1021 | 4 tasks | 4 files |
 | Phase 208-integration-performance-testing P03 | 515 | 4 tasks | 4 files |
 | Phase 208 P04 | 871 | 4 tasks | 4 files |
@@ -31,6 +32,7 @@ Last activity: 2026-03-20 — Phase 216 Plan 01 COMPLETE: Fixed response structu
 | Phase 211 P04 | 420 | 6 tasks | 2 files |
 | Phase 212 P01 | 575 | 3 tasks | 3 files |
 | Phase 213 P01 | 477 | 3 tasks | 3 files |
+| Phase 216 P02 | 721 | 3 tasks | 1 files |
 
 ## Phase 215 Plan 01 COMPLETE: Fix A/B Testing Test Failures ✅
 
