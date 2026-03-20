@@ -1,7 +1,7 @@
 Phase: 216 (Fix Business Facts Test Failures)
-Plan: 02 (COMPLETE)
+Plan: 03 (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-20 — Phase 216 Plan 02 COMPLETE: Fixed mock patching for WorldModelService in upload and citation verification tests. Changed patch from 'core.agent_world_model.WorldModelService' to 'api.admin.business_facts_routes.WorldModelService' and 'core.policy_fact_extractor.get_policy_fact_extractor' to 'api.admin.business_facts_routes.get_policy_fact_extractor'. Fixed mock configuration in test_upload_extracts_multiple_facts. All 10 previously failing tests now pass. 37/37 tests passing (100%). 1 commit, 12 minutes execution time.
+Last activity: 2026-03-20 — Phase 216 Plan 03 COMPLETE: Documented mock patching and error response assertion patterns for future tests. Created standalone 216-PATTERN-DOC.md with 6 documented patterns (mock patching, error assertions, service fixtures, configuration timing, S3/R2 mocking, PDF extraction). Updated CODE_QUALITY_STANDARDS.md with API Route Testing section. All 37 tests remain passing (100%). 2 commits, 5 minutes execution time.
 
 ## Performance Metrics
 
@@ -12,6 +12,7 @@ Last activity: 2026-03-20 — Phase 216 Plan 02 COMPLETE: Fixed mock patching fo
 | 215-01 | 610s (10m) | 1 | 1 |
 | 216-01 | 227s (4m) | 3 | 1 |
 | 216-02 | 721s (12m) | 3 | 1 |
+| 216-03 | 282s (5m) | 3 | 2 |
 | Phase 208 P02 | 1021 | 4 tasks | 4 files |
 | Phase 208-integration-performance-testing P03 | 515 | 4 tasks | 4 files |
 | Phase 208 P04 | 871 | 4 tasks | 4 files |
@@ -76,6 +77,40 @@ Tests were patching the wrong import location. The API routes import `ABTestingS
 - Tests properly isolated with mocked services
 - No database schema errors
 - Test execution time remains fast (~3 seconds)
+
+## Phase 216 Plan 03 COMPLETE: Document API Route Testing Patterns ✅
+
+**Status:** COMPLETE (March 20, 2026)
+**Duration:** 5 minutes (282 seconds)
+**Files Created:** 1 documentation file
+**Files Modified:** 1 documentation file
+
+**Key Achievements:**
+- Created standalone 216-PATTERN-DOC.md with 6 documented patterns
+- Updated CODE_QUALITY_STANDARDS.md with API Route Testing section
+- Documented mock patching pattern: patch where imported, not where defined
+- Documented error response assertion pattern for BaseAPIRouter
+- Documented service mock fixture configuration patterns
+- Included before/after examples from Phase 216 fixes
+- All 37 tests remain passing (100% pass rate maintained)
+
+**Patterns Documented:**
+1. Mock Patching - Patch services at import location in route module
+2. Error Response Assertions - Access nested message from BaseAPIRouter
+3. Service Mock Fixtures - Configure returns in fixture, use AsyncMock
+4. Mock Configuration Timing - Configure inside patch context
+5. S3/R2 Storage Mocking - Mock upload, check_exists, download
+6. PDF Extraction Mocking - Mock extract_facts_from_document
+
+**Impact:**
+- Future API route tests follow correct patterns from the start
+- Reduced debugging time for mock-related test failures
+- Consistent test patterns across the codebase
+- Better onboarding for new developers
+
+**Documentation:**
+- Standalone: `.planning/phases/216-fix-business-facts-test-failures/216-PATTERN-DOC.md`
+- Integrated: `backend/docs/CODE_QUALITY_STANDARDS.md` - API Route Testing section
 
 ## Phase 216 Plan 01 COMPLETE: Fix Business Facts Test Failures (Wave 1) ✅
 
