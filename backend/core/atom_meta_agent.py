@@ -218,9 +218,7 @@ class AtomMetaAgent:
                     logger.error(f"Workspace {self.workspace_id} not found")
                     raise HTTPException(status_code=404, detail="Workspace not found")
 
-                tenant_id = workspace.tenant_id
-                if not tenant_id:
-                    raise HTTPException(status_code=400, detail="Workspace has no associated tenant")
+                tenant_id = workspace.tenant_id or "default"
 
                 # Create persistent execution record
                 execution = AgentExecution(
