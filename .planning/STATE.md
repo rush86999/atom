@@ -1,7 +1,7 @@
-Phase: 215 (Fix Remaining A/B Test Failures)
+Phase: 216 (Fix Business Facts Test Failures)
 Plan: 01 (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-20 — Phase 215 Plan 01 COMPLETE: Fixed all A/B testing test failures by correcting service mock patch location from 'core.ab_testing_service.ABTestingService' to 'api.ab_testing.ABTestingService' and updating test assertions to match actual API response structures. All 55 tests now pass. 2 commits, 10 minutes execution time.
+Last activity: 2026-03-20 — Phase 216 Plan 01 COMPLETE: Fixed response structure assertions for error handling tests. Changed from response.json()['detail'].lower() to detail['error']['message'].lower() to match BaseAPIRouter.error_response() structured dict. Fixed status code expectation from 422 to 400 for validation errors. 2 tests fixed (test_get_fact_not_found, test_upload_invalid_file_type). 2 commits, 4 minutes execution time.
 
 ## Performance Metrics
 
@@ -10,6 +10,7 @@ Last activity: 2026-03-20 — Phase 215 Plan 01 COMPLETE: Fixed all A/B testing 
 | 207-10 | 900s (15m) | 4 | 4 |
 | 211-03 | 1080s (18m) | 3 | 2 |
 | 215-01 | 610s (10m) | 1 | 1 |
+| 216-01 | 227s (4m) | 3 | 1 |
 | Phase 208 P02 | 1021 | 4 tasks | 4 files |
 | Phase 208-integration-performance-testing P03 | 515 | 4 tasks | 4 files |
 | Phase 208 P04 | 871 | 4 tasks | 4 files |
@@ -73,6 +74,41 @@ Tests were patching the wrong import location. The API routes import `ABTestingS
 - Tests properly isolated with mocked services
 - No database schema errors
 - Test execution time remains fast (~3 seconds)
+
+## Phase 216 Plan 01 COMPLETE: Fix Business Facts Test Failures (Wave 1) ✅
+
+**Status:** COMPLETE (March 20, 2026)
+**Duration:** 4 minutes (227 seconds)
+**Files Modified:** 1 test file
+**Tests Fixed:** 2/10 business facts tests now passing (20%)
+
+**Key Achievements:**
+- Fixed test_get_fact_not_found response structure assertion
+- Fixed test_upload_invalid_file_type response structure assertion and status code
+- Established error response assertion pattern for BaseAPIRouter.error_response()
+- Documented pattern for Wave 2 mock fixes
+- 100% test pass rate for fixed tests (2/2)
+
+**Root Cause:**
+Tests assumed BaseAPIRouter.error_response() returned HTTPException with detail as a string, but it actually returns a structured error body dict containing {success: False, error: {code, message, timestamp}}.
+
+**Fixes Applied:**
+- Changed from `response.json()["detail"].lower()` to `detail["error"]["message"].lower()`
+- Fixed status code expectation from 422 to 400 for validation errors
+- Established reusable pattern: `detail = response.json()["detail"]; message = detail["error"]["message"]`
+
+**Test Results:**
+- test_get_fact_not_found: PASSED
+- test_upload_invalid_file_type: PASSED
+
+**Impact:**
+- 2/10 failing tests now pass (20% progress)
+- Error response assertion pattern established for remaining 8 tests
+- No production code changes (test-only fixes)
+
+**Remaining Work:**
+- Wave 2: 8 tests remaining (mock-related failures in Plans 216-02, 216-03)
+- Apply error response pattern from Wave 1
 
 ## Phase 211 Plan 02 COMPLETE: Message Handling Services Coverage ✅
 
