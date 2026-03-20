@@ -704,21 +704,12 @@ try:
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router
-
-        # Primary Route (New Standard)
-        app.include_router(microsoft365_router, prefix="/api/integrations/microsoft365", tags=["Microsoft 365"])
-        # Legacy Route (For backward compatibility/caching rewrites)
-        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365 (Legacy)"])
+        # Unified route
+        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365"])
     except ImportError:
         logger.warning("Microsoft 365 routes not found, skipping.")
 
-    # 5. OAuth (Critical for login)
-    try:
-        from oauth_routes import router as oauth_router
-        app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
-        logger.info("✓ OAuth Routes Loaded")
-    except ImportError:
-        logger.warning("OAuth routes not found, skipping.")
+
 
     # 5.a Mobile Authentication Routes
     try:
@@ -751,17 +742,11 @@ try:
     except ImportError as e:
         logger.warning(f"MCP routes not found: {e}")
 
-    try:
-        from api.integrations_catalog_routes import router as catalog_router
-        app.include_router(catalog_router)
-        logger.info("✓ Integrations Catalog Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Integrations catalog routes not found: {e}")
-
+    # 5. Unified OAuth Routes
     try:
         from api.oauth_routes import router as oauth_router
         app.include_router(oauth_router)
-        logger.info("✓ OAuth Routes Loaded")
+        logger.info("✓ Unified OAuth Routes Loaded")
     except ImportError as e:
         logger.warning(f"OAuth routes not found: {e}")
 
