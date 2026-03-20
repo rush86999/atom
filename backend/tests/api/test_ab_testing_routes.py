@@ -25,7 +25,7 @@ class TestCreateTest:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -268,7 +268,7 @@ class TestStartTest:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -363,7 +363,7 @@ class TestCompleteTest:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -506,7 +506,7 @@ class TestAssignVariant:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -671,7 +671,7 @@ class TestRecordMetric:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -810,7 +810,7 @@ class TestGetTestResults:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -933,7 +933,7 @@ class TestListTests:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -1074,7 +1074,7 @@ class TestRequestModels:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -1143,7 +1143,7 @@ class TestErrorResponses:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
@@ -1217,7 +1217,7 @@ class TestTestTypes:
     def client(self):
         """Create TestClient with A/B testing router."""
         app = FastAPI()
-        app.include_router(router, prefix="/api/ab-tests")
+        app.include_router(router)  # Router already has prefix
         from fastapi.testclient import TestClient
         return TestClient(app)
 
