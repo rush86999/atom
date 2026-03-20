@@ -1489,3 +1489,28 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 
 **See**:
 - `.planning/phases/210-fix-collection-errors/210-RESEARCH.md` for detailed research
+
+### Phase 214: Fix Remaining Test Failures 📋 PLANNED
+**Goal**: Fix 10 failing tests related to A/B testing API routes (404 errors), achieve stable test suite
+**Status**: 📋 PLANNED (2026-03-19)
+**Plans**: 2 plans
+
+**Problem**: 10 tests failing due to double prefix in test file:
+- `tests/api/test_ab_testing_routes.py::TestCreateTest::*` — 8 tests failing with 404 on `/api/ab-tests/create`
+- `tests/api/test_ab_testing_routes.py::TestStartTest::*` — 2 tests failing with 404 on `/api/ab-tests/{test_id}/start`
+
+**Root Cause**: Test file adds `prefix="/api/ab-tests"` when router already has that prefix, creating routes like `/api/ab-tests/api/ab-tests/create`
+
+**Current Coverage**: 74.6% (maintaining Phase 204 baseline)
+
+**Success Criteria**:
+- [ ] FAIL-01: Fix all 10 failing A/B testing route tests
+- [ ] FAIL-02: Remove duplicate prefix from test file
+- [ ] FAIL-03: Verify test suite passes with 0 failures
+- [ ] FAIL-04: Maintain or improve current coverage (74.6%+)
+- [ ] FAIL-05: Document root cause and fix in phase summary
+
+**Plans**:
+- [ ] 214-01-PLAN.md — Fix double prefix in A/B testing test file
+- [ ] 214-02-PLAN.md — Verify fix and document phase completion
+
