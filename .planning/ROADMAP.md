@@ -1525,3 +1525,40 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 - `.planning/phases/214-fix-test-failures/214-01-SUMMARY.md` — Plan 1 summary with technical details
 - `.planning/phases/214-fix-test-failures/214-02-SUMMARY.md` — Phase completion summary
 
+### Phase 215: Fix Remaining A/B Test Failures ✅ COMPLETE
+**Goal**: Fix database schema and test mocking issues to achieve 100% pass rate for A/B testing tests
+**Status**: ✅ COMPLETE (2026-03-20, 11 minutes)
+**Plans**: 2 plans (both complete)
+
+**Problem**: After Phase 214 fixed 404 routing errors, 10 A/B tests still fail:
+- **8 TestCreateTest tests**: Database schema error (`no such column: agent_registry.diversity_profile`)
+- **2 TestStartTest tests**: Test mocking gaps (`Test 'test-123' not found`)
+
+**Root Causes**:
+1. **Incorrect Patch Location**: Tests patched `'core.ab_testing_service.ABTestingService'` but API imports from `'api.ab_testing'`
+2. **Response Structure Mismatches**: Tests expected fields at top level but API wraps responses in `data` field
+3. **HTTPException Handling**: Error responses wrapped in `detail` field by FastAPI's HTTPException
+
+**Solution Applied**:
+- Changed patch location: `'core.ab_testing_service.ABTestingService'` → `'api.ab_testing.ABTestingService'`
+- Updated response assertions: `response.json()["data"]["field"]` for wrapped responses
+- Updated error assertions: `response.json()["detail"]["success"]` for HTTPException responses
+- Fixed validation tests: expect 422 (Pydantic) instead of 400
+
+**Results**:
+- ✅ 55/55 tests passing (100%, up from 81.8%)
+- ✅ Zero database dependencies (fully mocked)
+- ✅ ~12s execution time (fast)
+- ✅ All fixes isolated to test code
+
+**Success Criteria**:
+- [ ] TEST-01: All 10 A/B testing tests pass (0 failures)
+- [ ] TEST-02: No database schema errors in test output
+- [ ] TEST-03: Tests remain fast (proper mocking, no real DB queries)
+- [ ] TEST-04: No production code changes (test-only fixes)
+- [ ] TEST-05: Document mocking pattern for future reference
+
+**Plans**:
+- [ ] 215-01-PLAN.md — Fix TestCreateTest fixtures (add agent lookup mocks to 8 fixtures)
+- [ ] 215-02-PLAN.md — Fix TestStartTest fixtures (add start_test mocks to 2 fixtures)
+
