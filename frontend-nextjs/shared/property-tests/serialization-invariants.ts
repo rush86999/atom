@@ -12,7 +12,7 @@
  * @module property-tests/serialization-invariants
  */
 
-import fc from 'fast-check';
+import * as fc from 'fast-check';
 
 /**
  * Deep equality comparison helper.
@@ -99,7 +99,7 @@ export function deepEquals(a: unknown, b: unknown): boolean {
  * JSON roundtrip preserves data property.
  *
  * Tests that JSON.stringify → JSON.parse preserves arbitrary JSON data.
- * Uses fc.jsonObject() for arbitrary JSON generation.
+ * Uses fc.anything() for arbitrary JSON generation.
  *
  * @example
  * ```ts
@@ -109,7 +109,7 @@ export function deepEquals(a: unknown, b: unknown): boolean {
  * Invariant: For all JSON values, stringify → parse preserves structure
  */
 export const jsonRoundtripPreservesData = fc.property(
-  fc.jsonObject(),
+  fc.anything(),
   (data) => {
     const serialized = JSON.stringify(data);
     const deserialized = JSON.parse(serialized);
@@ -170,7 +170,7 @@ export const canvasDataRoundtrip = fc.property(
     id: fc.uuid(),
     type: fc.constantFrom('generic', 'docs', 'email', 'sheets', 'orchestration', 'terminal', 'coding' as const),
     state: fc.constantFrom('idle', 'presenting', 'submitted', 'closed', 'error' as const),
-    data: fc.jsonObject(),
+    data: fc.anything(),
     created_at: fc.date(),
     updated_at: fc.option(fc.date(), { nil: undefined }),
     metadata: fc.option(fc.record({
@@ -191,7 +191,7 @@ export const canvasDataRoundtrip = fc.property(
  * Array order preserved property.
  *
  * Tests that array order is preserved in JSON roundtrip.
- * Uses fc.array(fc.jsonObject()) for arbitrary arrays.
+ * Uses fc.array(fc.anything()) for arbitrary arrays.
  *
  * @example
  * ```ts
@@ -201,7 +201,7 @@ export const canvasDataRoundtrip = fc.property(
  * Invariant: Array element order unchanged after serialization
  */
 export const arrayOrderPreserved = fc.property(
-  fc.array(fc.jsonObject(), { minLength: 0, maxLength: 20 }),
+  fc.array(fc.anything(), { minLength: 0, maxLength: 20 }),
   (originalArray) => {
     const serialized = JSON.stringify(originalArray);
     const deserialized = JSON.parse(serialized) as unknown[];
@@ -311,7 +311,7 @@ export const dateSerialization = fc.property(
  * Invariant: Nested object structure preserved after serialization
  */
 export const nestedObjectSerialization = fc.property(
-  fc.dictionary(fc.string(), fc.jsonObject(), { maxKeys: 10 }),
+  fc.dictionary(fc.string(), fc.anything(), { maxKeys: 10 }),
   (nestedObject) => {
     const serialized = JSON.stringify(nestedObject);
     const deserialized = JSON.parse(serialized);

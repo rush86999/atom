@@ -6,7 +6,7 @@ Provides aggregated metrics and KPIs for the analytics dashboard
 from datetime import datetime, timedelta
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import Query
+from fastapi import Query, HTTPException
 from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
@@ -431,7 +431,7 @@ async def delete_alert(alert_id: str):
 
 @router.get("/api/analytics/dashboard/realtime-feed", response_model=List[RealtimeExecutionEvent])
 async def get_realtime_execution_feed(
-    limit: int = Query(default=50, ge=1, le=500),
+    limit: int = Query(default=50, ge=1),
     workflow_id: Optional[str] = Query(default=None, description="Filter by workflow ID")
 ):
     """
@@ -445,8 +445,11 @@ async def get_realtime_execution_feed(
     try:
         analytics = get_analytics_engine()
 
+        # Cap limit at 500
+        actual_limit = min(limit, 500)
+
         events = analytics.get_recent_events(
-            limit=limit,
+            limit=actual_limit,
             workflow_id=workflow_id
         )
 
@@ -498,12 +501,21 @@ async def get_metrics_summary(
         # Get timeline data
         timeline = await get_execution_timeline(time_window=time_window)
 
+        # Handle timeline data - can be list of dicts or Pydantic models
+        if timeline and isinstance(timeline, list) and len(timeline) > 0:
+            if hasattr(timeline[0], 'model_dump'):
+                timeline_data = [t.model_dump() for t in timeline]
+            else:
+                timeline_data = timeline
+        else:
+            timeline_data = []
+
         return router.success_response(
             data={
                 "kpis": kpis.model_dump(),
                 "top_workflows": [w.model_dump() for w in top_workflows],
                 "error_breakdown": error_breakdown,
-                "timeline": [t.model_dump() for t in timeline]
+                "timeline": timeline_data
             },
             message="Metrics summary retrieved successfully"
         )
@@ -563,6 +575,9 @@ async def get_workflow_performance_detail(
             message="Workflow performance retrieved successfully"
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404) as-is
+        raise
     except Exception as e:
         logger.error(f"Error getting workflow performance detail: {e}")
         raise router.internal_error(message=str(e))

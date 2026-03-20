@@ -11,7 +11,7 @@
  * @module property-tests/agent-maturity-invariants
  */
 
-import fc from 'fast-check';
+import * as fc from 'fast-check';
 import { AgentMaturityLevel, MATURITY_ORDER, MATURITY_TRANSITIONS } from './types';
 
 /**
