@@ -1,0 +1,1219 @@
+name: Deploy Atom
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: registry.example.com
+  IMAGE_NAME: atom
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: |
+          cd backend
+          pytest tests/unit -v --tb=short
+
+      - name: Run integration tests
+        run: |
+          cd backend
+          pytest tests/integration -v --tb=short
+
+      - name: Run coverage
+        run: |
+          cd backend
+          pytest tests/ --cov=core --cov=api --cov=tools --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+
+      - name: Check coverage threshold
+        run: |
+          coverage=$(cd backend && coverage report | grep TOTAL | awk '{print $4}' | sed 's/%//')
+          echo "Coverage: $coverage%"
+          if (( $(echo "$coverage < 25" | bc -l) )); then
+            echo "Coverage below 25% threshold"
+            exit 1
+          fi
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true  # Push to registry
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=gha  # Restore from GitHub Actions cache
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache  # Restore from registry
+          cache-to: |
+            type=gha,mode=max  # Save to GitHub Actions cache (all layers)
+            type=inline,mode=max  # Embed cache in image for distributed builds
+            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max  # Save to registry
+          build-args: |
+            VERSION=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            ENVIRONMENT=production
+            ENABLE_DOCLING=true
+
+      - name: Image digest
+        run: echo "Image built with digest ${{ steps.meta.outputs.digest }}"
+
+      - name: Report production build metrics
+        if: always()
+        run: |
+          echo "=== Production Build Metrics ==="
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          docker pull "$IMAGE_TAG"
+
+          echo "Image: $IMAGE_TAG"
+          docker images "$IMAGE_TAG" --format "Size: {{.Size}}"
+          docker history "$IMAGE_TAG" --no-trunc --format "table {{.CreatedBy}}\t{{.Size}}" | head -20
+
+          # Estimate cache hit rate from build output
+          # BuildKit outputs: "CACHED" for cached layers, "DONE" for new layers
+          echo "✅ Build completed - check GitHub Actions log for cache hit/miss statistics"
+
+      - name: Monitor cache size
+        run: |
+          # Check GitHub Actions cache size
+          echo "GitHub Actions cache usage:"
+          gh cache list --repo ${{ github.repository }} --json key,sizeInBytes --jq '.[] | select(.key | contains("buildx")) | "\(.key): \(.sizeInBytes / 1024 / 1024) MB"'
+
+          # Warn if cache exceeds 5GB
+          CACHE_SIZE=$(gh cache list --repo ${{ github.repository }} --json sizeInBytes --jq '[.[] | select(.key | contains("buildx")) | .sizeInBytes] | add / 1024 / 1024 / 1024')
+          if (( $(echo "$CACHE_SIZE > 5" | bc -l) )); then
+            echo "⚠️ Cache size large: $CACHE_SIZE GB (consider cleanup)"
+          fi
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.atom.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBECONFIG_STAGING }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Update deployment image
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl set image deployment/atom atom=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Verify image pull
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=5m
+          # Verify image was pulled successfully
+          POD=$(kubectl get pod -l app=atom -o jsonpath='{.items[0].metadata.name}')
+          kubectl describe pod "$POD" | grep "Image:" | grep "${{ github.sha }}"
+
+      - name: Wait for rollout
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=5m
+
+      - name: Validate Prometheus connectivity and queries
+        id: prometheus_validation
+        run: |
+          set -euo pipefail
+
+          echo "=== Validating Prometheus Configuration ==="
+
+          # Configure Prometheus URL
+          PROMETHEUS_URL="${{ secrets.PROMETHEUS_URL }}"
+
+          if [ -z "$PROMETHEUS_URL" ]; then
+            echo "⚠️ PROMETHEUS_URL not set"
+            echo "Monitoring check will be skipped (graceful degradation)"
+            echo "prometheus_reachable=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Prometheus URL: $PROMETHEUS_URL"
+
+          # Test Prometheus connectivity
+          echo "Step 1: Testing Prometheus connectivity..."
+          PROMETHEUS_START=$(date +%s)
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROMETHEUS_URL/-/healthy" || echo "000")
+
+          PROMETHEUS_DURATION=$(($(date +%s) - PROMETHEUS_START))
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Prometheus unreachable (HTTP $HTTP_CODE)"
+            echo "Monitoring check will be skipped (graceful degradation)"
+            echo "prometheus_reachable=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "✅ Prometheus reachable (${PROMETHEUS_DURATION}s)"
+
+          # Validate alerting rules
+          echo "Step 2: Validating alerting rules..."
+          if [ -f ".prometheus/alerts.yml" ]; then
+            # Install promtool if not available
+            if ! command -v promtool &> /dev/null; then
+              echo "Installing promtool..."
+              wget -q https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz
+              tar -xzf prometheus-2.45.0.linux-amd64.tar.gz
+              PATH="$PATH:$(pwd)/prometheus-2.45.0.linux-amd64"
+            fi
+
+            promtool check rules .prometheus/alerts.yml
+
+            if [ $? -eq 0 ]; then
+              echo "✅ Alerting rules valid"
+            else
+              echo "⚠️ Alerting rules have errors (non-blocking)"
+            fi
+          else
+            echo "⚠️ .prometheus/alerts.yml not found (skipping validation)"
+          fi
+
+          # Test sample query
+          echo "Step 3: Testing sample query..."
+          QUERY_START=$(date +%s)
+
+          TEST_QUERY='up{job="atom"}'
+          QUERY_RESULT=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$TEST_QUERY" \
+            --max-time 10)
+
+          QUERY_DURATION=$(($(date +%s) - QUERY_START))
+
+          if echo "$QUERY_RESULT" | jq -e '.status == "success"' > /dev/null; then
+            echo "✅ Sample query successful (${QUERY_DURATION}s)"
+          else
+            echo "⚠️ Sample query failed (non-blocking)"
+          fi
+
+          # Record Prometheus query metric
+          echo "Step 4: Recording Prometheus query metrics..."
+          METRICS_ENDPOINT="${{ secrets.METRICS_ENDPOINT }}"
+          if [ -n "$METRICS_ENDPOINT" ]; then
+            curl -s -X POST "$METRICS_ENDPOINT" \
+              -H "Content-Type: plain/text" \
+              --data "# TYPE prometheus_query_total counter\n\
+    prometheus_query_total{workflow=\"deploy-staging\",result=\"success\"} 1\n\
+    # TYPE prometheus_query_duration_seconds gauge\n\
+    prometheus_query_duration_seconds{workflow=\"deploy-staging\"} ${PROMETHEUS_DURATION}" || true
+          fi
+
+          echo "prometheus_reachable=true" >> $GITHUB_OUTPUT
+          echo "✅ Prometheus validation complete"
+
+      - name: Monitor deployment metrics
+        if: steps.prometheus_validation.outputs.prometheus_reachable == 'true'
+        run: |
+          set -euo pipefail
+
+          echo "=== Monitoring deployment metrics ==="
+
+          # Wait for metrics to be available (30 second delay)
+          echo "Waiting for Prometheus metrics to be available..."
+          sleep 30
+
+          # Configure Prometheus URL
+          PROMETHEUS_URL="${{ secrets.PROMETHEUS_URL }}"
+          if [ -z "$PROMETHEUS_URL" ]; then
+            echo "⚠️ PROMETHEUS_URL not set, skipping metrics check"
+            exit 0
+          fi
+
+          echo "Querying Prometheus at: $PROMETHEUS_URL"
+
+          # Query error rate (errors per second over last 5 minutes)
+          ERROR_RATE_QUERY='sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100'
+
+          ERROR_RATE=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$ERROR_RATE_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          echo "Error rate: $ERROR_RATE%"
+
+          # Check staging threshold (<1% error rate)
+          STAGING_THRESHOLD=1.0
+          if (( $(echo "$ERROR_RATE > $STAGING_THRESHOLD" | bc -l) )); then
+            echo "❌ Error rate too high: $ERROR_RATE% (threshold: $STAGING_THRESHOLD%)"
+
+            # Send alert to Slack
+            curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"⚠️ Staging deployment error rate high\",
+                \"blocks\": [{
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*High Error Rate Detected*\\n*Error Rate:* $ERROR_RATE%\\n*Threshold:* $STAGING_THRESHOLD%\\n*Commit:* ${{ github.sha }}\"
+                  }
+                }]
+              }"
+
+            # Don't fail deployment, just warn
+            echo "⚠️ Warning: Error rate exceeds threshold but deployment continues"
+          else
+            echo "✅ Error rate within acceptable range: $ERROR_RATE% (threshold: $STAGING_THRESHOLD%)"
+          fi
+
+          # Query latency (P95 over last 5 minutes)
+          LATENCY_QUERY='histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))'
+
+          LATENCY_P95=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$LATENCY_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          LATENCY_MS=$(echo "$LATENCY_P95 * 1000" | bc)
+
+          echo "P95 Latency: ${LATENCY_MS}ms"
+
+          # Check latency threshold (<500ms for staging)
+          LATENCY_THRESHOLD=500
+          if (( $(echo "$LATENCY_MS > $LATENCY_THRESHOLD" | bc -l) )); then
+            echo "⚠️ Latency high: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+          else
+            echo "✅ Latency within acceptable range: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+          fi
+
+          echo "=== ✅ Monitoring check complete ==="
+
+      - name: Skip monitoring (Prometheus unreachable)
+        if: steps.prometheus_validation.outputs.prometheus_reachable != 'true'
+        run: |
+          echo "⚠️ Monitoring check skipped (Prometheus unreachable)"
+          echo "Deployment continues without Prometheus monitoring"
+
+      - name: Verify deployment
+        run: |
+          # Wait for pods to be ready
+          sleep 30
+
+          # Check health endpoint
+          curl -f https://staging.atom.example.com/health/live || exit 1
+          curl -f https://staging.atom.example.com/health/ready || exit 1
+
+      - name: Run smoke tests
+        env:
+          SMOKE_TEST_USERNAME: ${{ secrets.SMOKE_TEST_USERNAME }}
+          SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "=== Waiting for rollout to complete ==="
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=5m
+
+          echo "=== Waiting for pods to be ready ==="
+          kubectl wait --for=condition=ready pod -l app=atom --timeout=300s
+
+          echo "=== Running smoke tests ==="
+
+          # Get staging URL from secret or environment variable
+          STAGING_URL="${STAGING_URL:-https://staging.atom.example.com}"
+          echo "Testing against: $STAGING_URL"
+
+          # Login and get auth token
+          echo "Step 1: Authenticate smoke test user..."
+          LOGIN_RESPONSE=$(curl -s -X POST "$STAGING_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}")
+
+          TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
+
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+            echo "❌ Smoke test authentication failed"
+            echo "Response: $LOGIN_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Authentication successful"
+
+          # Test health endpoints (no auth required)
+          echo "Step 2: Test health endpoints..."
+          curl -f "$STAGING_URL/health/live" || { echo "❌ Liveness probe failed"; exit 1; }
+          echo "✅ Liveness probe passed"
+
+          curl -f "$STAGING_URL/health/ready" || { echo "❌ Readiness probe failed"; exit 1; }
+          echo "✅ Readiness probe passed"
+
+          # Test database connectivity
+          curl -f "$STAGING_URL/health/db" || { echo "❌ Database connectivity check failed"; exit 1; }
+          echo "✅ Database connectivity verified"
+
+          # Test authenticated agent execution endpoint
+          echo "Step 3: Test authenticated API endpoints..."
+          AGENT_RESPONSE=$(curl -s -X POST "$STAGING_URL/api/agents/execute" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"agent_id": "test", "query": "hello"}')
+
+          # Check for errors in response
+          if echo "$AGENT_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Agent execution failed: $AGENT_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Agent execution endpoint passed"
+
+          # Test authenticated canvas presentation endpoint
+          CANVAS_RESPONSE=$(curl -s -X POST "$STAGING_URL/api/canvas/present" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"canvas_type": "generic", "content": "smoke test"}')
+
+          if echo "$CANVAS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Canvas presentation failed: $CANVAS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Canvas presentation endpoint passed"
+
+          # Test skills endpoint (coverage for additional API routes)
+          echo "Step 4: Test skills endpoint..."
+          SKILLS_RESPONSE=$(curl -s -X GET "$STAGING_URL/api/skills" \
+            -H "Authorization: Bearer $TOKEN")
+
+          if echo "$SKILLS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Skills endpoint failed: $SKILLS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Skills endpoint passed"
+
+          echo "=== ✅ All smoke tests passed ==="
+
+      - name: Automatic rollback on smoke test failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          export KUBECONFIG=kubeconfig
+
+          echo "=== 🚨 Smoke tests failed - initiating automatic rollback ==="
+
+          # Rollback to previous deployment
+          echo "Step 1: Rolling back deployment..."
+          kubectl rollout undo deployment/atom
+
+          # Wait for rollback to complete
+          echo "Step 2: Waiting for rollback to complete..."
+          kubectl rollout status deployment/atom --timeout=5m
+
+          # Verify rollback succeeded
+          echo "Step 3: Verifying rollback..."
+          kubectl rollout history deployment/atom --revision=0
+
+          echo "=== ✅ Rollback completed ==="
+
+      - name: Send rollback notification
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slackWebhook = '${{ secrets.SLACK_WEBHOOK_URL }}';
+
+            // Send Slack notification
+            if (slackWebhook) {
+              await fetch(slackWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: '🚨 Deployment rolled back due to smoke test failure',
+                  blocks: [
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '*Automatic Rollback Triggered*\n' +
+                              '*Commit:* `${{ github.sha }}`\n' +
+                              '*Author:* ${{ github.actor }}\n' +
+                              '*Environment:* Staging\n' +
+                              '*Reason:* Smoke test failure\n' +
+                              '*Action:* `kubectl rollout undo deployment/atom`\n' +
+                              '*Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+                      }
+                    },
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '_Please investigate the failure and fix the issue before retrying deployment._'
+                      }
+                    }
+                  ]
+                })
+              });
+            }
+
+      - name: Create GitHub issue for investigation
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Deployment Rollback - Smoke Test Failed (Staging)',
+              body: `
+              ## Automatic Rollback Triggered
+
+              **Commit:** ${{ github.sha }}
+              **Author:** ${{ github.actor }}
+              **Environment:** Staging
+              **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+              ### Rollback Details
+              - **Trigger:** Smoke test failure
+              - **Action:** \`kubectl rollout undo deployment/atom\`
+              - **Timestamp:** ${new Date().toISOString()}
+
+              ### Next Steps
+              1. Review smoke test failure logs in workflow run
+              2. Identify root cause of failure
+              3. Fix the issue in a new commit
+              4. Re-run deployment after fix verified
+
+              ### Relevant Files
+              - Workflow: \`.github/workflows/deploy.yml\`
+              - Health Routes: \`backend/api/health_routes.py\`
+              - Smoke Test User: \`backend/alembic/versions/20260220_create_smoke_test_user.py\`
+
+              /assign @${{ github.actor }}
+              /label "deployment"
+              /label "rollback"
+              /label "bug"
+              `,
+              labels: ['deployment', 'rollback', 'bug', 'staging']
+            });
+
+            console.log('Created issue:', issue.data.html_url);
+
+      - name: Update Grafana dashboards
+        if: success()
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          set -euo pipefail
+
+          echo "=== Updating Grafana Dashboards ==="
+
+          # Check if Grafana credentials provided
+          if [ -z "$GRAFANA_URL" ] || [ -z "$GRAFANA_API_KEY" ]; then
+            echo "⚠️ Grafana URL or API key not set"
+            echo "Dashboard update skipped (non-blocking)"
+            exit 0
+          fi
+
+          echo "Grafana URL: $GRAFANA_URL"
+
+          # List of dashboards to update
+          DASHBOARDS=(
+            "backend/monitoring/grafana/deployment-overview.json"
+          )
+
+          for DASHBOARD in "${DASHBOARDS[@]}"; do
+            if [ ! -f "$DASHBOARD" ]; then
+              echo "⚠️ Dashboard not found: $DASHBOARD (skipping)"
+              continue
+            fi
+
+            echo "Processing dashboard: $DASHBOARD"
+
+            # Extract dashboard UID from JSON
+            DASHBOARD_UID=$(jq -r '.uid' "$DASHBOARD")
+
+            if [ "$DASHBOARD_UID" == "null" ]; then
+              echo "❌ Dashboard missing UID field"
+              continue
+            fi
+
+            # Update dashboard via Grafana API
+            echo "Updating dashboard: $DASHBOARD_UID"
+
+            RESPONSE=$(curl -s -X POST "$GRAFANA_URL/api/dashboards/db" \
+              -H "Authorization: Bearer $GRAFANA_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"dashboard\": $(cat "$DASHBOARD"),
+                \"overwrite\": true,
+                \"message\": \"Updated via deploy.yml - Commit: ${{ github.sha }}\"
+              }")
+
+            # Check for API errors
+            if echo "$RESPONSE" | jq -e '.status == "success"' > /dev/null; then
+              echo "✅ Dashboard updated: $DASHBOARD_UID"
+            else
+              echo "❌ Dashboard update failed: $DASHBOARD_UID"
+              echo "Response: $RESPONSE"
+            fi
+          done
+
+          echo "✅ Grafana dashboard update complete"
+
+      - name: Verify Grafana dashboard version
+        if: success()
+        id: verify_dashboard
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          # Verify dashboard was updated with deployment metadata
+          DASHBOARD_UID="atom-deployment-overview"
+
+          DASHBOARD_INFO=$(curl -s -X GET "$GRAFANA_URL/api/dashboards/uid/$DASHBOARD_UID" \
+            -H "Authorization: Bearer $GRAFANA_API_KEY")
+
+          UPDATED=$(echo "$DASHBOARD_INFO" | jq -r '.dashboard.updatedAt')
+          VERSION=$(echo "$DASHBOARD_INFO" | jq -r '.dashboard.version')
+
+          echo "Dashboard: $DASHBOARD_UID"
+          echo "Updated: $UPDATED"
+          echo "Version: $VERSION"
+
+          # Store version for rollback capability
+          echo "grafana_dashboard_version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Rollback Grafana dashboard on failure
+        if: failure()
+        env:
+          GRAFANA_URL: ${{ secrets.GRAFANA_URL }}
+          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }}
+        run: |
+          # Rollback dashboard to previous version
+          DASHBOARD_UID="atom-deployment-overview"
+          PREVIOUS_VERSION=$((${{ steps.verify_dashboard.outputs.grafana_dashboard_version }} - 1))
+
+          echo "Rolling back dashboard to version: $PREVIOUS_VERSION"
+
+          curl -s -X POST "$GRAFANA_URL/api/dashboards/db/$DASHBOARD_UID/revert/$PREVIOUS_VERSION" \
+            -H "Authorization: Bearer $GRAFANA_API_KEY"
+
+          echo "✅ Dashboard rolled back"
+
+      - name: Notify success
+        if: success()
+        run: |
+          # Send Slack notification
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "✅ Atom deployed to staging successfully",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment Successful*\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*URL:* https://staging.atom.example.com"
+                  }
+                }
+              ]
+            }'
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          # Send Slack notification
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "❌ Atom staging deployment failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment Failed*\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }'
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    environment:
+      name: production
+      url: https://atom.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBECONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Create backup before deployment
+        run: |
+          # Create database backup
+          kubectl exec -it postgres-0 -- pg_dump atom > backup_$(date +%Y%m%d_%H%M%S).sql
+          # Upload to S3
+          aws s3 cp backup_*.sql s3://atom-backups/production/
+
+      - name: Run database migrations
+        run: |
+          export KUBECONFIG=kubeconfig
+          # Run migrations in a pod
+          kubectl exec -it deployment/atom -- alembic upgrade head
+
+      - name: Update deployment image
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl set image deployment/atom atom=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Wait for rollout
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=10m
+
+      - name: Verify deployment
+        run: |
+          # Wait for pods to be ready
+          sleep 60
+
+          # Check health endpoints
+          curl -f https://atom.example.com/health/live || exit 1
+          curl -f https://atom.example.com/health/ready || exit 1
+
+          # Verify all checks
+          curl -s https://atom.example.com/health/ready | jq '.status == "healthy"' || exit 1
+
+      - name: Run smoke tests
+        env:
+          SMOKE_TEST_USERNAME: ${{ secrets.SMOKE_TEST_USERNAME }}
+          SMOKE_TEST_PASSWORD: ${{ secrets.SMOKE_TEST_PASSWORD }}
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          set -euo pipefail
+
+          echo "=== Waiting for rollout to complete ==="
+          export KUBECONFIG=kubeconfig
+          kubectl rollout status deployment/atom --timeout=10m
+
+          echo "=== Waiting for pods to be ready ==="
+          kubectl wait --for=condition=ready pod -l app=atom --timeout=600s
+
+          echo "=== Running smoke tests ==="
+
+          # Get production URL from secret or environment variable
+          PRODUCTION_URL="${PRODUCTION_URL:-https://atom.example.com}"
+          echo "Testing against: $PRODUCTION_URL"
+
+          # Login and get auth token
+          echo "Step 1: Authenticate smoke test user..."
+          LOGIN_RESPONSE=$(curl -s -X POST "$PRODUCTION_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"username\":\"${SMOKE_TEST_USERNAME}\",\"password\":\"${SMOKE_TEST_PASSWORD}\"}")
+
+          TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.access_token')
+
+          if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+            echo "❌ Smoke test authentication failed"
+            echo "Response: $LOGIN_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Authentication successful"
+
+          # Test health endpoints (no auth required)
+          echo "Step 2: Test health endpoints..."
+          curl -f "$PRODUCTION_URL/health/live" || { echo "❌ Liveness probe failed"; exit 1; }
+          echo "✅ Liveness probe passed"
+
+          curl -f "$PRODUCTION_URL/health/ready" || { echo "❌ Readiness probe failed"; exit 1; }
+          echo "✅ Readiness probe passed"
+
+          # Test database connectivity
+          curl -f "$PRODUCTION_URL/health/db" || { echo "❌ Database connectivity check failed"; exit 1; }
+          echo "✅ Database connectivity verified"
+
+          # Test authenticated agent execution endpoint
+          echo "Step 3: Test authenticated API endpoints..."
+          AGENT_RESPONSE=$(curl -s -X POST "$PRODUCTION_URL/api/agents/execute" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"agent_id": "test", "query": "hello"}')
+
+          # Check for errors in response
+          if echo "$AGENT_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Agent execution failed: $AGENT_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Agent execution endpoint passed"
+
+          # Test authenticated canvas presentation endpoint
+          CANVAS_RESPONSE=$(curl -s -X POST "$PRODUCTION_URL/api/canvas/present" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"canvas_type": "generic", "content": "smoke test"}')
+
+          if echo "$CANVAS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Canvas presentation failed: $CANVAS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Canvas presentation endpoint passed"
+
+          # Test skills endpoint (coverage for additional API routes)
+          echo "Step 4: Test skills endpoint..."
+          SKILLS_RESPONSE=$(curl -s -X GET "$PRODUCTION_URL/api/skills" \
+            -H "Authorization: Bearer $TOKEN")
+
+          if echo "$SKILLS_RESPONSE" | jq -e '.error' > /dev/null; then
+            echo "❌ Skills endpoint failed: $SKILLS_RESPONSE"
+            exit 1
+          fi
+          echo "✅ Skills endpoint passed"
+
+          echo "=== ✅ All smoke tests passed ==="
+
+      - name: Automatic rollback on smoke test failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          export KUBECONFIG=kubeconfig
+
+          echo "=== 🚨 PRODUCTION SMOKE TESTS FAILED - INITIATING AUTOMATIC ROLLBACK ==="
+
+          # Rollback to previous deployment
+          echo "Step 1: Rolling back deployment..."
+          kubectl rollout undo deployment/atom
+
+          # Wait for rollback to complete
+          echo "Step 2: Waiting for rollback to complete..."
+          kubectl rollout status deployment/atom --timeout=10m
+
+          # Verify rollback succeeded
+          echo "Step 3: Verifying rollback..."
+          kubectl rollout history deployment/atom --revision=0
+
+          echo "=== ✅ PRODUCTION ROLLBACK COMPLETED ==="
+
+      - name: Send production rollback notification
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const slackWebhook = '${{ secrets.SLACK_WEBHOOK_URL }}';
+
+            // Send urgent Slack notification
+            if (slackWebhook) {
+              await fetch(slackWebhook, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: '🚨🚨 PRODUCTION ROLLBACK 🚨🚨',
+                  blocks: [
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '*PRODUCTION Rollback Triggered*\n' +
+                              '*Commit:* `${{ github.sha }}`\n' +
+                              '*Author:* ${{ github.actor }}\n' +
+                              '*Environment:* PRODUCTION\n' +
+                              '*Reason:* Smoke test failure\n' +
+                              '*Action:* `kubectl rollout undo deployment/atom`\n' +
+                              '*Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n' +
+                              '*URGENT:* Investigate immediately!'
+                      }
+                    },
+                    {
+                      type: 'section',
+                      text: {
+                        type: 'mrkdwn',
+                        text: '_Production deployment was rolled back. All hands on deck to investigate and fix._'
+                      }
+                    }
+                  ]
+                })
+              });
+            }
+
+      - name: Create production GitHub issue for investigation
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨🚨 PRODUCTION ROLLBACK - Smoke Test Failed 🚨🚨',
+              body: `
+              ## 🚨 AUTOMATIC PRODUCTION ROLLBACK TRIGGERED 🚨
+
+              **Commit:** ${{ github.sha }}
+              **Author:** ${{ github.actor }}
+              **Environment:** PRODUCTION
+              **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+              ### Rollback Details
+              - **Trigger:** Smoke test failure
+              - **Action:** \`kubectl rollout undo deployment/atom\`
+              - **Timestamp:** ${new Date().toISOString()}
+              - **URGENCY:** CRITICAL
+
+              ### Immediate Action Required
+              1. **URGENT:** Review smoke test failure logs in workflow run
+              2. **URGENT:** Identify root cause of failure
+              3. **URGENT:** Fix the issue in a hotfix commit
+              4. **URGENT:** Re-run deployment after fix verified
+              5. Monitor production metrics closely for 1 hour post-fix
+
+              ### Relevant Files
+              - Workflow: \`.github/workflows/deploy.yml\`
+              - Health Routes: \`backend/api/health_routes.py\`
+              - Smoke Test User: \`backend/alembic/versions/20260220_create_smoke_test_user.py\`
+
+              ### Database Backup Location
+              - S3: s3://atom-backups/production/backup_\$(date).sql
+              - Restored via \`kubectl apply -f backup.yaml\`
+
+              /assign @${{ github.actor }}
+              /label "deployment"
+              /label "rollback"
+              /label "bug"
+              /label "production"
+              /label "critical"
+              /priority "critical"
+              `,
+              labels: ['deployment', 'rollback', 'bug', 'production', 'critical']
+            });
+
+            console.log('Created production issue:', issue.data.html_url);
+
+      - name: Progressive canary deployment
+        if: success()
+        env:
+          CANARY_STEPS: "10,50,100"  # 10% → 50% → 100% traffic
+          CANARY_WAIT_TIME: "300"    # 5 minutes between steps
+        run: |
+          set -euo pipefail
+
+          echo "=== Progressive Canary Deployment ==="
+
+          export KUBECONFIG=kubeconfig
+
+          # Parse canary steps
+          IFS=',' read -ra STEPS <<< "$CANARY_STEPS"
+
+          DEPLOYMENT_ID="${{ github.sha }}"
+
+          for PERCENTAGE in "${STEPS[@]}"; do
+            echo "Step: Routing ${PERCENTAGE}% traffic to new deployment"
+
+            # Update canary traffic percentage metric
+            curl -s -X POST "${{ secrets.METRICS_ENDPOINT }}" \
+              -H "Content-Type: plain/text" \
+              --data "canary_traffic_percentage{environment=\"production\",deployment_id=\"$DEPLOYMENT_ID\"} $PERCENTAGE" || true
+
+            # Update Kubernetes service to route traffic
+            # Assuming blue-green deployment with two deployments: atom-blue, atom-green
+            if [ "$PERCENTAGE" -eq 100 ]; then
+              # Full traffic to new deployment
+              echo "Routing 100% traffic to new deployment"
+              kubectl patch svc atom-service -p '{"spec":{"selector":{"app":"atom","version":"'${{ github.sha }}'"}}}' || echo "⚠️ Service patch failed (may not support canary)"
+            else
+              # Split traffic between old and new deployments
+              # This requires Istio or similar service mesh for traffic splitting
+              echo "⚠️ Traffic splitting requires service mesh (Istio, Linkerd)"
+              echo "For basic canary, consider using Kubernetes deployment replicas:"
+              echo "  - Scale new deployment to $PERCENTAGE% replicas"
+              echo "  - Scale old deployment to $((100 - PERCENTAGE))% replicas"
+
+              # Example: Replica-based canary (simple approach)
+              TOTAL_REPLICAS=$(kubectl get deployment atom -o jsonpath='{.spec.replicas}' || echo "3")
+              NEW_REPLICAS=$((TOTAL_REPLICAS * PERCENTAGE / 100))
+              OLD_REPLICAS=$((TOTAL_REPLICAS - NEW_REPLICAS))
+
+              echo "New deployment replicas: $NEW_REPLICAS"
+              echo "Old deployment replicas: $OLD_REPLICAS"
+
+              # Scale deployments (requires two deployments: atom-old, atom-new)
+              # kubectl scale deployment atom-new --replicas=$NEW_REPLICAS
+              # kubectl scale deployment atom-old --replicas=$OLD_REPLICAS
+            fi
+
+            # Wait for canary period
+            if [ "$PERCENTAGE" -ne 100 ]; then
+              echo "Waiting ${CANARY_WAIT_TIME}s for canary validation..."
+              sleep "$CANARY_WAIT_TIME"
+            fi
+
+            # Check error rate during canary period
+            if [ -n "${{ secrets.PROMETHEUS_URL }}" ]; then
+              ERROR_RATE=$(curl -s -G "${{ secrets.PROMETHEUS_URL }}/api/v1/query" \
+                --data-urlencode 'query=sum(rate(http_requests_total{status=~"5..",environment="production"}[5m])) / sum(rate(http_requests_total{environment="production"}[5m])) * 100' \
+                | jq -r '.data.result[0].value[1] // "0"')
+
+              echo "Error rate during canary: $ERROR_RATE%"
+
+              # Rollback if error rate exceeds threshold
+              if (( $(echo "$ERROR_RATE > 0.1" | bc -l) )); then
+                echo "❌ Error rate too high during canary: $ERROR_RATE% (threshold: 0.1%)"
+                echo "Triggering automatic rollback..."
+
+                kubectl rollout undo deployment/atom
+                exit 1
+              fi
+            fi
+
+            echo "✅ Canary step ${PERCENTAGE}% complete"
+          done
+
+          echo "=== ✅ Canary deployment complete (100% traffic) ==="
+
+      - name: Monitor production metrics (stricter thresholds)
+        run: |
+          set -euo pipefail
+
+          echo "=== Monitoring production deployment metrics ==="
+
+          # Wait for metrics to be available (30 second delay)
+          echo "Waiting for Prometheus metrics to be available..."
+          sleep 30
+
+          # Configure Prometheus URL
+          PROMETHEUS_URL="${{ secrets.PROMETHEUS_URL }}"
+          if [ -z "$PROMETHEUS_URL" ]; then
+            echo "⚠️ PROMETHEUS_URL not set, skipping production metrics check"
+            exit 0
+          fi
+
+          echo "Querying Prometheus at: $PROMETHEUS_URL"
+
+          # Query error rate (errors per second over last 5 minutes)
+          ERROR_RATE_QUERY='sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) * 100'
+
+          ERROR_RATE=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$ERROR_RATE_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          echo "Error rate: $ERROR_RATE%"
+
+          # Check production threshold (<0.1% error rate)
+          PRODUCTION_THRESHOLD=0.1
+          if (( $(echo "$ERROR_RATE > $PRODUCTION_THRESHOLD" | bc -l) )); then
+            echo "❌ Error rate too high: $ERROR_RATE% (threshold: $PRODUCTION_THRESHOLD%)"
+
+            # Send urgent alert to Slack
+            curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"🚨 PRODUCTION deployment error rate critical\",
+                \"blocks\": [{
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*CRITICAL: High Error Rate in Production*\\n*Error Rate:* $ERROR_RATE%\\n*Threshold:* $PRODUCTION_THRESHOLD%\\n*Commit:* ${{ github.sha }}\\n*Action:* Investigate immediately\"
+                  }
+                }]
+              }"
+
+            # Fail deployment on threshold breach
+            echo "❌ Error rate exceeds production threshold - failing deployment"
+            exit 1
+          else
+            echo "✅ Error rate within acceptable range: $ERROR_RATE% (threshold: $PRODUCTION_THRESHOLD%)"
+          fi
+
+          # Query latency (P95 over last 5 minutes)
+          LATENCY_QUERY='histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))'
+
+          LATENCY_P95=$(curl -s -G "$PROMETHEUS_URL/api/v1/query" \
+            --data-urlencode "query=$LATENCY_QUERY" \
+            | jq -r '.data.result[0].value[1] // "0"')
+
+          LATENCY_MS=$(echo "$LATENCY_P95 * 1000" | bc)
+
+          echo "P95 Latency: ${LATENCY_MS}ms"
+
+          # Check latency threshold (<200ms P95 for production)
+          LATENCY_THRESHOLD=200
+          if (( $(echo "$LATENCY_MS > $LATENCY_THRESHOLD" | bc -l) )); then
+            echo "⚠️ Latency high: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+
+            # Send warning to Slack
+            curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"text\": \"⚠️ Production latency high\",
+                \"blocks\": [{
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*High Latency Detected*\\n*P95 Latency:* ${LATENCY_MS}ms\\n*Threshold:* ${LATENCY_THRESHOLD}ms\\n*Commit:* ${{ github.sha }}\"
+                  }
+                }]
+              }"
+          else
+            echo "✅ Latency within acceptable range: ${LATENCY_MS}ms (threshold: ${LATENCY_THRESHOLD}ms)"
+          fi
+
+          echo "=== ✅ Production monitoring check complete ==="
+
+      - name: Create rollback point
+        if: success()
+        run: |
+          export KUBECONFIG=kubeconfig
+          # Save current deployment as rollback point
+          kubectl rollout history deployment/atom --revision=$(kubectl rollout history deployment/atom | tail -1 | awk '{print $1}') > rollback_point.txt
+
+      - name: Notify success
+        if: success()
+        run: |
+          # Send Slack notification
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "✅ Atom deployed to production successfully",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Successful*\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*URL:* https://atom.example.com\n*Rollback:* kubectl rollout undo deployment/atom"
+                  }
+                }
+              ]
+            }'
+
+      - name: Notify failure and rollback
+        if: failure()
+        run: |
+          export KUBECONFIG=kubeconfig
+
+          # Rollback deployment
+          kubectl rollout undo deployment/atom
+
+          # Wait for rollback
+          kubectl rollout status deployment/atom --timeout=10m
+
+          # Send Slack notification
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "❌ Atom production deployment failed - Rolled back",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment Failed - Rolled Back*\n*Commit:* ${{ github.sha }}\n*Author:* ${{ github.actor }}\n*Workflow:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }'
+
+  verify:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+      - name: Check deployment status
+        run: |
+          echo "Staging: ${{ needs.deploy-staging.result }}"
+          echo "Production: ${{ needs.deploy-production.result }}"
+
+          if [ "${{ needs.deploy-staging.result }}" == "failure" ]; then
+            echo "Staging deployment failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.deploy-production.result }}" == "failure" ]; then
+            echo "Production deployment failed (but was rolled back)"
+            # Don't fail the workflow, production was rolled back
+          fi
+
+      - name: Post-deployment report
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Author:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Staging:** ${{ needs.deploy-staging.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Production:** ${{ needs.deploy-production.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Health Checks" >> $GITHUB_STEP_SUMMARY
+          echo "- Staging: https://staging.atom.example.com/health/ready" >> $GITHUB_STEP_SUMMARY
+          echo "- Production: https://atom.example.com/health/ready" >> $GITHUB_STEP_SUMMARY
