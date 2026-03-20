@@ -119,7 +119,7 @@ async def get_agent_info(agent_id: str):
         )
 
         # Save the default agent
-        data.setdefault("agents", {})[agent_id] = default_agent.dict()
+        data.setdefault("agents", {})[agent_id] = default_agent.model_dump()
         save_agent_status(data)
 
         return default_agent
@@ -194,7 +194,7 @@ async def create_task(task: AgentTask):
         task.started_at = datetime.now()
 
     # Convert to dict and save
-    task_dict = task.dict()
+    task_dict = task.model_dump()
     task_dict["started_at"] = task_dict["started_at"].isoformat() if task_dict["started_at"] else None
     task_dict["completed_at"] = task_dict["completed_at"].isoformat() if task_dict["completed_at"] else None
 

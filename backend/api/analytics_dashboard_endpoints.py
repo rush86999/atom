@@ -20,7 +20,7 @@ from core.workflow_analytics_engine import (
 
 logger = logging.getLogger(__name__)
 
-router = BaseAPIRouter(prefix="/api/analytics", tags=["Analytics Dashboard"])
+router = BaseAPIRouter(tags=["Analytics Dashboard"])
 
 # Global analytics engine instance
 _analytics_engine: Optional[WorkflowAnalyticsEngine] = None
@@ -500,10 +500,10 @@ async def get_metrics_summary(
 
         return router.success_response(
             data={
-                "kpis": kpis.dict(),
-                "top_workflows": [w.dict() for w in top_workflows],
+                "kpis": kpis.model_dump(),
+                "top_workflows": [w.model_dump() for w in top_workflows],
                 "error_breakdown": error_breakdown,
-                "timeline": [t.dict() for t in timeline]
+                "timeline": [t.model_dump() for t in timeline]
             },
             message="Metrics summary retrieved successfully"
         )
