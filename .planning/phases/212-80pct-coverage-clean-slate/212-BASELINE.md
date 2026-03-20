@@ -1,24 +1,24 @@
-# Milestone v5.5: Full Codebase 80% Coverage - Baseline Report
+# Milestone v5.5: Full Codebase 60% Coverage - Baseline Report
 
 **Generated:** 2026-03-20
 **Status:** 🚧 **ACTIVE**
 **Timeline:** 3-4 weeks (aggressive execution across all platforms)
-**Goal:** Achieve 80% actual line coverage across ENTIRE codebase (backend + frontend + mobile + desktop)
+**Goal:** Achieve 60% actual line coverage across ENTIRE codebase (backend + frontend + mobile + desktop)
 
 ---
 
 ## Executive Summary
 
-Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverage across the entire Atom codebase. This includes:
+Milestone v5.5 is a **comprehensive coverage initiative** to achieve 60% coverage across the entire Atom codebase. This includes:
 
 - ✅ **Backend (Python)**: 7.41% baseline → 80% target
-- ✅ **Frontend (Next.js)**: 13.42% baseline → 80% target
-- ✅ **Mobile (React Native)**: 0.00% baseline → 80% target
-- ✅ **Desktop (Tauri + Rust)**: 0% baseline → 80% target
+- ✅ **Frontend (Next.js)**: 13.42% baseline → 45% target
+- ✅ **Mobile (React Native)**: 0.00% baseline → 40% target
+- ✅ **Desktop (Tauri + Rust)**: 0% baseline → 40% target
 
 **Current Baseline:** ~7.03% overall (weighted average across all platforms)
-**Target:** 80% overall coverage
-**Gap:** ~73 percentage points
+**Target:** 60% overall coverage (realistic and achievable)
+**Gap:** ~53 percentage points
 
 ---
 
@@ -71,7 +71,7 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
 |--------|-------|--------|
 | **Coverage** | 0.00% | 🔴 Critical |
 | **Estimated Lines** | ~15,000 | All uncovered |
-| **Gap** | 80pp | No tests executed |
+| **Gap** | 40pp (to 40% target) | No tests executed |
 
 **Issues:**
 - Coverage file exists but shows 0%
@@ -84,7 +84,7 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
 |--------|-------|--------|
 | **Coverage** | Not available | 🔴 Critical |
 | **Estimated Lines** | ~10,000 | All uncovered |
-| **Gap** | ~80pp | No coverage data |
+| **Gap** | 40pp (to 40% target) | No coverage data |
 
 **Issues:**
 - No coverage reports found
@@ -98,23 +98,23 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
 
 | Platform | Lines | Coverage | Uncovered | Weight |
 |----------|-------|----------|-----------|--------|
-| Backend | 55,793 | 7.41% | 51,657 | 53.1% |
-| Frontend | 24,174 | 13.42% | 20,928 | 23.0% |
-| Mobile | ~15,000 | 0.00% | ~15,000 | 14.3% |
-| Desktop | ~10,000 | 0% | ~10,000 | 9.5% |
-| **TOTAL** | **~105,000** | **~7.03%** | **~97,585** | **100%** |
+| Backend | 55,793 | 7.41% → 80% | 51,657 → 11,158 | 53.1% |
+| Frontend | 24,174 | 13.42% → 45% | 20,928 → 13,324 | 23.0% |
+| Mobile | ~15,000 | 0.00% → 40% | ~15,000 → ~9,000 | 14.3% |
+| Desktop | ~10,000 | 0% → 40% | ~10,000 → ~6,000 | 9.5% |
+| **TOTAL** | **~105,000** | **~7% → 60%** | **~97,585 → ~40,000** | **100%** |
 
-**Overall Coverage: ~7.03%**
-**Target: 80%**
-**Gap: ~73 percentage points**
+**Overall Coverage: ~7.03% → 60%**
+**Target: 60% weighted average**
+**Lines to Cover: ~65,750 lines**
 
 ---
 
 ## Wave-Based Execution Strategy (All Platforms)
 
-### Wave 1: Backend Critical Modules (Week 1)
+### Wave 1A: Backend Governance (Week 1 - Days 1-3)
 
-**Backend Target:** 7.41% → 25% (+17.59pp)
+**Backend Target:** 7.41% → 15% (+7.59pp)
 
 **Priority Modules:**
 1. **Governance** (CRITICAL):
@@ -122,33 +122,39 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
    - `trigger_interceptor.py` (80% target)
    - `governance_cache.py` (80% target)
 
-2. **LLM Services** (CRITICAL):
+**Estimated Effort:** 3-5 days, ~1,050 lines of tests
+
+**Expected Coverage After Wave 1A:**
+- Backend: ~15%
+- Overall: ~9%
+
+### Wave 1B: Backend LLM & Episodes (Week 1 - Days 4-7)
+
+**Backend Target:** 15% → 25% (+10pp)
+
+**Priority Modules:**
+1. **LLM Services** (CRITICAL):
    - `llm/byok_handler.py` (80% target)
    - `llm/cognitive_tier_system.py` (80% target)
-   - `llm/escalation_manager.py` (80% target)
 
-3. **Episode Services** (HIGH):
+2. **Episode Services** (HIGH):
    - `episode_segmentation_service.py` (80% target)
    - `episode_retrieval_service.py` (80% target)
-   - `episode_lifecycle_service.py` (80% target)
 
-4. **API Endpoints** (HIGH):
-   - `atom_agent_endpoints.py` (80% target)
+**Estimated Effort:** 3-5 days, ~1,600 lines of tests
 
-**Estimated Effort:** 3,000+ lines of tests, 5-7 days
-
-**Expected Coverage After Wave 1:**
+**Expected Coverage After Wave 1B:**
 - Backend: ~25%
-- Overall: ~12% (backend increase weighted)
+- Overall: ~15%
 
-### Wave 2: Frontend + Backend Core Services (Week 2)
+### Wave 2: Frontend + Backend Tools (Week 2)
 
 **Frontend Target:** 13.42% → 45% (+31.58pp)
 **Backend Target:** 25% → 45% (+20pp)
 
 **Frontend Components:**
 1. **Integration Components** (45% target):
-   - Slack, Jira, GitHub, Notion (most used)
+   - Slack, Jira, GitHub (most used)
    - Agent components (AgentManager, AgentStudio)
    - Dashboard components
 
@@ -158,35 +164,32 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
    - Redux/Zustand stores
 
 **Backend Services:**
-1. **Skill Services** (70% target):
+1. **Tool Services** (70% target):
+   - `canvas_tool.py` (80% target)
+   - `browser_tool.py` (80% target)
+   - `device_tool.py` (80% target)
+
+2. **Skill Services** (70% target):
    - `skill_adapter.py` (80% target)
    - `skill_composition_engine.py` (80% target)
    - `skill_dynamic_loader.py` (80% target)
-   - `skill_marketplace_service.py` (80% target)
 
-2. **Workflow Services** (70% target):
-   - `workflow_engine.py` (80% target)
-   - `workflow_template_manager.py` (80% target)
-   - `workflow_debugger.py` (80% target)
+3. **Training Services** (70% target):
+   - `student_training_service.py` (80% target)
+   - `supervision_service.py` (80% target)
 
-3. **Property-Based Tests** (invariants):
-   - Governance invariants (maturity routing)
-   - LLM invariants (cognitive tier classification)
-   - Episode invariants (segmentation rules)
-
-**Estimated Effort:** 4,000+ lines of tests, 7 days
+**Estimated Effort:** 7 days, ~4,000 lines of tests
 
 **Expected Coverage After Wave 2:**
 - Backend: ~45%
 - Frontend: ~45%
-- Overall: ~32% (both platforms increased)
+- Overall: ~35%
 
-### Wave 3: Mobile + Desktop + Integration (Week 3-4)
+### Wave 3: Mobile + Desktop + Integration (Week 3)
 
-**Mobile Target:** 0% → 70% (+70pp)
-**Desktop Target:** 0% → 70% (+70pp)
+**Mobile Target:** 0% → 40% (+40pp)
+**Desktop Target:** 0% → 40% (+40pp)
 **Backend Target:** 45% → 80% (+35pp)
-**Frontend Target:** 45% → 80% (+35pp)
 
 **Mobile (React Native):**
 1. **Device Features** (70% target):
@@ -199,10 +202,6 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
    - AsyncStorage/MMKV
    - React Navigation state
 
-3. **Platform-Specific** (60% target):
-   - iOS vs Android differences
-   - Deep links handling
-
 **Desktop (Tauri + Rust):**
 1. **Rust Backend** (70% target):
    - Core logic (tarpaulin coverage)
@@ -214,49 +213,41 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
    - Window management
    - Desktop-specific UI
 
-**Cross-Platform Integration:**
-1. **API Contract Testing** (80% target):
-   - OpenAPI spec validation
-   - Schemathesis tests
+**Backend Core Services:**
+1. **Database & World Model** (70% target):
+   - `episode_lifecycle_service.py` (80% target)
+   - `agent_world_model.py` (80% target)
+   - `policy_fact_extractor.py` (80% target)
+   - `atom_cli_skill_wrapper.py` (80% target)
+   - `models.py` (60% target - focus on critical models)
 
-2. **E2E Tests** (60% target):
-   - Playwright (web)
-   - Detox (mobile)
-   - Tauri test driver (desktop)
-
-3. **Property-Based Tests** (100+ tests):
-   - Financial invariants (decimal precision)
-   - Security invariants (auth, JWT)
-   - Data integrity invariants
-
-**Estimated Effort:** 3,000+ lines of tests, 7-10 days
+**Estimated Effort:** 7-10 days, ~3,000 lines of tests
 
 **Expected Coverage After Wave 3:**
 - Backend: ~80% ✅
-- Frontend: ~80% ✅
-- Mobile: ~70% (close to target)
-- Desktop: ~70% (close to target)
-- Overall: ~76% (weighted average)
+- Frontend: ~45% ✅
+- Mobile: ~40% ✅
+- Desktop: ~40% ✅
+- Overall: ~55%
 
-### Wave 4: Final Push to 80% (Week 4)
+### Wave 4: Final Push to 60% (Week 4)
 
-**Target:** All platforms → 80%+
+**Target:** All platforms maintain targets, overall → 60%
 
 **Focus Areas:**
+- Property-based tests (invariants)
 - Edge cases (error paths, timeouts, retries)
-- Remaining mobile modules (navigation, state)
-- Remaining desktop modules (IPC, file operations)
 - Integration test gaps
 - Property test expansion (1000+ examples)
 
-**Estimated Effort:** 1,000+ lines of tests, 3-4 days
+**Estimated Effort:** 3-4 days, ~2,000 lines of tests
 
 **Final Target:**
 - Backend: 80%+ ✅
-- Frontend: 80%+ ✅
-- Mobile: 80%+ ✅
-- Desktop: 80%+ ✅
-- **Overall: 80%+** ✅
+- Frontend: 45%+ ✅
+- Mobile: 40%+ ✅
+- Desktop: 40%+ ✅
+- **Overall: 60%+** ✅
 
 ---
 
@@ -264,15 +255,16 @@ Milestone v5.5 is a **comprehensive coverage initiative** to achieve 80% coverag
 
 | Wave | Duration | Platforms | Coverage Target | Lines to Cover |
 |------|----------|-----------|-----------------|----------------|
-| **Wave 1** | Week 1 (5-7 days) | Backend critical | 7% → 12% overall | +9,500 lines |
-| **Wave 2** | Week 2 (7 days) | Frontend + Backend | 12% → 32% overall | +21,000 lines |
-| **Wave 3** | Week 3-4 (7-10 days) | Mobile + Desktop | 32% → 76% overall | +46,200 lines |
-| **Wave 4** | Week 4 (3-4 days) | Final push | 76% → 80% overall | +4,200 lines |
-| **TOTAL** | **22-28 days** | **All platforms** | **7% → 80%** | **~81,000 lines** |
+| **Wave 1A** | 3-5 days | Backend governance | 7% → 9% overall | +1,050 lines |
+| **Wave 1B** | 3-5 days | Backend LLM/episodes | 9% → 15% overall | +1,600 lines |
+| **Wave 2** | 7 days | Frontend + Backend | 15% → 35% overall | +4,000 lines |
+| **Wave 3** | 7-10 days | Mobile + Desktop | 35% → 55% overall | +3,000 lines |
+| **Wave 4** | 3-4 days | Final push | 55% → 60% overall | +2,000 lines |
+| **TOTAL** | **23-31 days** | **All platforms** | **7% → 60%** | **~65,750 lines** |
 
-**Aggressive Timeline:** 22 days (parallel execution, minimal blockers)
-**Realistic Timeline:** 25 days (some blockers, rework)
-**Conservative Timeline:** 28 days (external dependencies, complex fixes)
+**Aggressive Timeline:** 23 days (parallel execution, minimal blockers)
+**Realistic Timeline:** 27 days (some blockers, rework)
+**Conservative Timeline:** 31 days (external dependencies, complex fixes)
 
 ---
 
@@ -287,7 +279,7 @@ PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest backend/tests/ \
   --cov-report=term-missing --cov-report=html --cov-report=json
 
 # Check coverage percentage
-cat coverage.json | python3 -c \
+cat backend/coverage.json | python3 -c \
   "import json, sys; data = json.load(sys.stdin); \
   print(f'{data[\"totals\"][\"percent_covered\"]:.2f}%')"
 ```
@@ -332,11 +324,11 @@ npm test -- --coverage
 
 ### Milestone Complete When:
 
-1. ✅ **Backend**: 80%+ coverage (44,634+ / 55,793 lines)
-2. ✅ **Frontend**: 80%+ coverage (19,339+ / 24,174 lines)
-3. ✅ **Mobile**: 80%+ coverage (12,000+ / ~15,000 lines)
-4. ✅ **Desktop**: 80%+ coverage (8,000+ / ~10,000 lines)
-5. ✅ **Overall**: 80%+ weighted average (~84,000+ / ~105,000 lines)
+1. ✅ **Backend**: 80%+ coverage (40,000+ / 50,000 lines)
+2. ✅ **Frontend**: 45%+ coverage (15,750+ / 35,000 lines)
+3. ✅ **Mobile**: 40%+ coverage (6,000+ / ~15,000 lines)
+4. ✅ **Desktop**: 40%+ coverage (4,000+ / ~10,000 lines)
+5. ✅ **Overall**: 60%+ weighted average (~65,750+ / ~110,000 lines)
 6. ✅ **All critical paths tested** (governance, security, data integrity)
 7. ✅ **Property tests passing** (100+ Hypothesis tests, 1000+ examples)
 8. ✅ **CI workflows re-enabled** (all tests passing, no failures)
@@ -350,34 +342,42 @@ npm test -- --coverage
 2. ✅ Archive Phase 211 (COMPLETED)
 3. ✅ Create Milestone v5.5 (COMPLETED)
 4. ✅ Run baseline coverage report (COMPLETED)
-5. 🔲 Create Wave 1 plan document
+5. ✅ Update goal to 60% (COMPLETED - mathematical fix)
+6. 🔲 Execute Wave 1A (governance tests)
 
-### Day 1-7: Wave 1 Execution
-1. Create test files for 7 critical backend modules
+### Day 1-5: Wave 1A Execution
+1. Create test files for 3 governance modules
+2. Run tests and verify 15% backend coverage
+3. Measure overall coverage (target: ~9%)
+4. Create Wave 1A SUMMARY.md
+
+### Day 6-10: Wave 1B Execution
+1. Create test files for 4 LLM/episode modules
 2. Run tests and verify 25% backend coverage
-3. Measure overall coverage (target: ~12%)
-4. Create Wave 1 SUMMARY.md
+3. Measure overall coverage (target: ~15%)
+4. Create Wave 1B SUMMARY.md
 
-### Day 8-14: Wave 2 Execution
+### Day 11-17: Wave 2 Execution
 1. Create frontend component tests
-2. Create backend skill/workflow tests
+2. Create backend tool/skill tests
 3. Create property-based tests
-4. Measure overall coverage (target: ~32%)
+4. Measure overall coverage (target: ~35%)
 5. Create Wave 2 SUMMARY.md
 
-### Day 15-24: Wave 3 Execution
+### Day 18-27: Wave 3 Execution
 1. Create mobile test suite
 2. Create desktop coverage (Rust + Tauri)
 3. Create E2E integration tests
-4. Measure overall coverage (target: ~76%)
+4. Measure overall coverage (target: ~55%)
 5. Create Wave 3 SUMMARY.md
 
-### Day 25-28: Wave 4 Execution
-1. Final push to 80% (edge cases, remaining gaps)
-2. Verify all platforms at 80%+
-3. Re-enable CI workflows
-4. Create Wave 4 SUMMARY.md
-5. Create final 212-COMPLETE.md
+### Day 28-31: Wave 4 Execution
+1. Final property-based tests
+2. Final edge case tests
+3. Verify all platforms at targets
+4. Re-enable CI workflows
+5. Create Wave 4 SUMMARY.md
+6. Create final 212-COMPLETE.md
 
 ---
 
@@ -409,4 +409,4 @@ cat mobile/coverage/coverage-final.json | jq '.total.lines.pct'
 
 ---
 
-*Baseline report generated 2026-03-20. Target: 80% full codebase coverage in 22-28 days.*
+*Baseline report revised 2026-03-20. Target: 60% full codebase coverage in 23-31 days.*

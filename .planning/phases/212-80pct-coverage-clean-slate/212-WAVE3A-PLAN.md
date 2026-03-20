@@ -1,25 +1,15 @@
 ---
 phase: 212-80pct-coverage-clean-slate
-plan: WAVE3
+plan: WAVE3A
 type: execute
 wave: 3
-depends_on: ["212-WAVE2"]
+depends_on: ["212-WAVE2A", "212-WAVE2B", "212-WAVE2C", "212-WAVE2D"]
 files_modified:
   - backend/tests/test_episode_lifecycle_service.py
   - backend/tests/test_agent_world_model.py
   - backend/tests/test_policy_fact_extractor.py
   - backend/tests/test_atom_cli_skill_wrapper.py
   - backend/tests/test_models.py
-  - mobile/src/components/__tests__/Camera.test.tsx
-  - mobile/src/components/__tests__/Location.test.tsx
-  - mobile/src/components/__tests__/Notifications.test.tsx
-  - mobile/src/storage/__tests__/AsyncStorage.test.ts
-  - mobile/src/navigation/__tests__/Navigation.test.tsx
-  - desktop-app/src-tauri/tests/core_logic_test.rs
-  - desktop-app/src-tauri/tests/ipc_handlers_test.rs
-  - desktop-app/src/components/__tests__/WindowManager.test.tsx
-  - backend/tests/test_api_contracts.py
-  - backend/tests/test_e2e_integration.py
 autonomous: true
 
 must_haves:
@@ -28,13 +18,8 @@ must_haves:
     - "agent_world_model.py achieves 80%+ coverage"
     - "policy_fact_extractor.py achieves 80%+ coverage"
     - "atom_cli_skill_wrapper.py achieves 80%+ coverage"
-    - "models.py achieves 80%+ coverage"
-    - "Backend coverage increases from 45% to 80%+"
-    - "Mobile coverage increases from 0% to 70%+"
-    - "Desktop Rust backend achieves 70%+ coverage"
-    - "Desktop Tauri frontend achieves 70%+ coverage"
-    - "API contract tests validate OpenAPI spec"
-    - "E2E integration tests pass"
+    - "models.py achieves 60%+ coverage (focus on critical models)"
+    - "Backend coverage increases from 45% to 65%+"
   artifacts:
     - path: "backend/tests/test_episode_lifecycle_service.py"
       provides: "Unit tests for EpisodeLifecycleService"
@@ -48,13 +33,14 @@ must_haves:
       provides: "Unit tests for PolicyFactExtractor"
       min_lines: 300
       exports: ["TestPolicyFactExtractor", "TestPDFExtraction"]
-    - path: "mobile/src/components/__tests__/Camera.test.tsx"
-      provides: "React Native tests for Camera component"
-      min_lines: 200
-    - path: "desktop-app/src-tauri/tests/core_logic_test.rs"
-      provides: "Rust tests for desktop core logic"
+    - path: "backend/tests/test_atom_cli_skill_wrapper.py"
+      provides: "Unit tests for AtomCliSkillWrapper"
       min_lines: 300
-      exports: ["test_core_logic", "test_file_operations"]
+      exports: ["TestCommandExecution", "TestCommandValidation"]
+    - path: "backend/tests/test_models.py"
+      provides: "Unit tests for database models"
+      min_lines: 400
+      exports: ["TestAgentRegistry", "TestEpisode", "TestBusinessFact"]
   key_links:
     - from: "backend/tests/test_episode_lifecycle_service.py"
       to: "backend/core/episode_lifecycle_service.py"
@@ -62,17 +48,17 @@ must_haves:
     - from: "backend/tests/test_agent_world_model.py"
       to: "backend/core/agent_world_model.py"
       via: "Direct imports and mock LanceDB"
-    - from: "backend/tests/test_api_contracts.py"
-      to: "backend/api/**/*.py"
-      via: "OpenAPI spec validation (schemathesis)"
+    - from: "backend/tests/test_models.py"
+      to: "backend/core/models.py"
+      via: "Direct imports and mock database sessions"
 ---
 
 <objective>
-Complete backend coverage (45% -> 80%), establish mobile testing foundation (0% -> 70%), and establish desktop testing (0% -> 70%) with API contract and E2E integration tests.
+Increase backend coverage from 45% to 65% by testing core services (lifecycle, world model, policy, CLI, models).
 
-Purpose: This wave completes the critical mass of coverage across all platforms. Backend reaches 80% target. Mobile and desktop establish their test infrastructure. API contracts ensure integration reliability.
+Purpose: These services handle episodic memory lifecycle, business facts/JIT verification, policy extraction, CLI execution, and core database models. They are foundational to agent intelligence and system reliability.
 
-Output: 13 test files (5 backend, 4 mobile, 2 desktop, 2 integration) with 4,000+ total lines, achieving backend 80%+, mobile 70%+, desktop 70%+.
+Output: 5 test files with 1,750+ total lines, achieving backend 65%+ coverage.
 </objective>
 
 <execution_context>
@@ -88,14 +74,8 @@ Output: 13 test files (5 backend, 4 mobile, 2 desktop, 2 integration) with 4,000
 @backend/tools/atom_cli_skill_wrapper.py
 @backend/core/models.py
 
-# Mobile Testing Pattern Reference
-React Native Testing Library: @testing-library/react-native
-Mock native modules: react-native-mock-render
-Async storage mock: @react-native-async-storage/async-storage/jest/async-storage-mock
-
-# Desktop Testing Pattern Reference
-Rust: cargo test, tarpaulin for coverage
-Tauri: @tauri-apps/api mock
+# Test Pattern Reference
+From Phase 216: Use AsyncMock for async methods, patch services at import location, mock database sessions with SessionLocal fixtures.
 
 # Target Backend Files Analysis
 
@@ -133,32 +113,10 @@ Key methods:
 Key models:
 - AgentRegistry: Agent registration
 - AgentExecution: Execution tracking
-- AgentFeedback: Feedback tracking
 - Episode: Episode data
 - EpisodeSegment: Segment data
 - BusinessFact: Business facts
-- CanvasAudit: Canvas audit trail
-- 20+ other models
-
-# Mobile Target Files
-
-## Device Features
-- Camera.test.tsx: Camera component tests
-- Location.test.tsx: Location component tests
-- Notifications.test.tsx: Notification tests
-
-## State Management
-- AsyncStorage.test.ts: Storage tests
-- Navigation.test.tsx: Navigation tests
-
-# Desktop Target Files
-
-## Rust Backend
-- core_logic_test.rs: Core logic tests
-- ipc_handlers_test.rs: IPC handler tests
-
-## Tauri Frontend
-- WindowManager.test.tsx: Window management tests
+- 20+ other models (focus on critical 10)
 </context>
 
 <tasks>
@@ -409,257 +367,16 @@ Create backend/tests/test_models.py with comprehensive model tests:
    - test_audit_links_to_agent(): Links to agent
 
 8. Use pytest fixtures for database sessions, test models
+
+Note: Focus on critical models (AgentRegistry, AgentExecution, Episode, EpisodeSegment, BusinessFact, CanvasAudit, AgentFeedback, SupervisionSession, TrainingSession, CommunitySkill). Target 60%+ coverage on models.py (4,200 lines is too large for 80% in one wave).
   </action>
   <verify>
 pytest backend/tests/test_models.py -v
 pytest backend/tests/test_models.py --cov=core.models --cov-report=term-missing
-# Coverage should be 80%+
+# Coverage should be 60%+
   </verify>
   <done>
-All models tests passing, 80%+ coverage achieved
-  </done>
-</task>
-
-<task type="auto">
-  <name>Task 6: Create mobile tests for device features</name>
-  <files>mobile/src/components/__tests__/Camera.test.tsx mobile/src/components/__tests__/Location.test.tsx mobile/src/components/__tests__/Notifications.test.tsx</files>
-  <action>
-Create React Native tests for mobile device features:
-
-1. mobile/src/components/__tests__/Camera.test.tsx:
-   - test_renders_camera_view(): Renders camera component
-   - test_request_camera_permission(): Requests permission
-   - test_take_picture(): Takes picture
-   - test_handle_permission_denied(): Handles denial
-   - test_camera_error(): Handles camera errors
-
-2. mobile/src/components/__tests__/Location.test.tsx:
-   - test_renders_location_view(): Renders location component
-   - test_request_location_permission(): Requests permission
-   - test_get_current_location(): Gets current location
-   - test_watch_location(): Watches location changes
-   - test_location_error(): Handles location errors
-
-3. mobile/src/components/__tests__/Notifications.test.tsx:
-   - test_renders_notification_view(): Renders notifications
-   - test_request_notification_permission(): Requests permission
-   - test_send_local_notification(): Sends notification
-   - test_schedule_notification(): Schedules notification
-   - test_notification_error(): Handles errors
-
-Use @testing-library/react-native, react-native-mock-render
-  </action>
-  <verify>
-cd mobile && npm test -- --coverage
-# Mobile coverage should be 70%+
-  </verify>
-  <done>
-All mobile device feature tests passing, 70%+ coverage achieved
-  </done>
-</task>
-
-<task type="auto">
-  <name>Task 7: Create mobile tests for state and navigation</name>
-  <files>mobile/src/storage/__tests__/AsyncStorage.test.ts mobile/src/navigation/__tests__/Navigation.test.tsx</files>
-  <action>
-Create React Native tests for state management and navigation:
-
-1. mobile/src/storage/__tests__/AsyncStorage.test.ts:
-   - test_set_item(): Stores item
-   - test_get_item(): Retrieves item
-   - test_remove_item(): Removes item
-   - test_clear(): Clears all items
-   - test_persistence(): Survives app restart
-   - test_json_serialization(): Handles JSON data
-
-2. mobile/src/navigation/__tests__/Navigation.test.tsx:
-   - test_navigate_to_screen(): Navigates to screen
-   - test_navigate_with_params(): Passes params
-   - test_go_back(): Goes back
-   - test_navigate_replace(): Replaces screen
-   - test_deep_link(): Handles deep links
-   - test_tab_navigation(): Tests tab navigation
-
-Use @testing-library/react-native, @react-navigation/native mock
-  </action>
-  <verify>
-cd mobile && npm test -- --coverage
-# Mobile coverage should be 70%+
-  </verify>
-  <done>
-All mobile state and navigation tests passing, 70%+ coverage achieved
-  </done>
-</task>
-
-<task type="auto">
-  <name>Task 8: Create desktop tests for Rust backend</name>
-  <files>desktop-app/src-tauri/tests/core_logic_test.rs desktop-app/src-tauri/tests/ipc_handlers_test.rs</files>
-  <action>
-Create Rust tests for desktop backend:
-
-1. desktop-app/src-tauri/tests/core_logic_test.rs:
-   #[cfg(test)]
-   mod tests {
-       use super::*;
-
-       #[test]
-       fn test_core_logic_initialization() {
-           // Test core logic initialization
-       }
-
-       #[test]
-       fn test_file_operations() {
-           // Test file read/write
-       }
-
-       #[test]
-       fn test_state_management() {
-           // Test state persistence
-       }
-
-       #[test]
-       fn test_error_handling() {
-           // Test error cases
-       }
-   }
-
-2. desktop-app/src-tauri/tests/ipc_handlers_test.rs:
-   #[cfg(test)]
-   mod tests {
-       use super::*;
-
-       #[test]
-       fn test_ipc_command_registration() {
-           // Test command registration
-       }
-
-       #[test]
-       fn test_ipc_handler_execution() {
-           // Test handler execution
-       }
-
-       #[test]
-       fn test_ipc_error_handling() {
-           // Test error handling
-       }
-   }
-
-Use cargo test, tarpaulin for coverage
-  </action>
-  <verify>
-cd desktop-app/src-tauri && cargo test
-cd desktop-app/src-tauri && cargo tarpaulin --out Html
-# Rust coverage should be 70%+
-  </verify>
-  <done>
-All desktop Rust tests passing, 70%+ coverage achieved
-  </done>
-</task>
-
-<task type="auto">
-  <name>Task 9: Create desktop tests for Tauri frontend</name>
-  <files>desktop-app/src/components/__tests__/WindowManager.test.tsx</files>
-  <action>
-Create Tauri frontend tests:
-
-1. desktop-app/src/components/__tests__/WindowManager.test.tsx:
-   - test_renders_main_window(): Renders main window
-   - test_create_window(): Creates new window
-   - test_close_window(): Closes window
-   - test_minimize_window(): Minimizes window
-   - test_maximize_window(): Maximizes window
-   - test_window_focus(): Handles focus events
-
-2. Use @testing-library/react, mock @tauri-apps/api
-
-3. Mock Tauri invoke API
-  </action>
-  <verify>
-cd desktop-app && npm test -- --coverage
-# Desktop frontend coverage should be 70%+
-  </verify>
-  <done>
-All desktop Tauri tests passing, 70%+ coverage achieved
-  </done>
-</task>
-
-<task type="auto">
-  <name>Task 10: Create API contract tests</name>
-  <files>backend/tests/test_api_contracts.py</files>
-  <action>
-Create backend/tests/test_api_contracts.py for API contract validation:
-
-1. Imports: pytest, schemathesis, from fastapi.testclient import TestClient
-
-2. Load OpenAPI spec:
-   spec = load_openapi_spec("backend/openapi.json")
-
-3. Class TestAPIContractValidation:
-   - test_all_endpoints_have_schema(): All endpoints documented
-   - test_all_schemas_valid(): All schemas valid
-   - test_response_match_schema(): Responses match schema
-   - test_request_validation(): Request validation works
-
-4. Use schemathesis for property-based API testing:
-   @schema.parametrize()
-   def test_api_contracts(case):
-       response = case.call()
-       case.validate_response(response)
-
-5. Class TestCriticalEndpoints:
-   - test_agent_execution_contract(): Agent execution endpoint
-   - test_canvas_presentation_contract(): Canvas endpoint
-   - test_feedback_submission_contract(): Feedback endpoint
-   - test_health_check_contract(): Health check endpoint
-
-6. Mock external dependencies
-  </action>
-  <verify>
-pytest backend/tests/test_api_contracts.py -v
-# All contract tests should pass
-  </verify>
-  <done>
-All API contract tests passing
-  </done>
-</task>
-
-<task type="auto">
-  <name>Task 11: Create E2E integration tests</name>
-  <files>backend/tests/test_e2e_integration.py</files>
-  <action>
-Create backend/tests/test_e2e_integration.py for end-to-end testing:
-
-1. Imports: pytest, from playwright.sync_api import Page
-
-2. Fixtures:
-   - test_app(): Starts test app
-   - test_db(): Creates test database
-   - authenticated_page(): Returns authenticated page
-
-3. Class TestAgentExecutionFlow:
-   - test_create_agent(): Creates agent via UI
-   - test_execute_agent(): Executes agent
-   - test_view_results(): Views execution results
-   - test_submit_feedback(): Submits feedback
-
-4. Class TestCanvasPresentationFlow:
-   - test_create_canvas(): Creates canvas via UI
-   - test_update_canvas(): Updates canvas
-   - test_close_canvas(): Closes canvas
-
-5. Class TestIntegrationFlow:
-   - test_slack_integration(): Tests Slack integration
-   - test_github_integration(): Tests GitHub integration
-   - test_jira_integration(): Tests Jira integration
-
-6. Use Playwright for browser automation
-  </action>
-  <verify>
-pytest backend/tests/test_e2e_integration.py -v
-# All E2E tests should pass
-  </verify>
-  <done>
-All E2E integration tests passing
+All models tests passing, 60%+ coverage achieved
   </done>
 </task>
 
@@ -673,39 +390,24 @@ After completing all tasks:
           backend/tests/test_agent_world_model.py \
           backend/tests/test_policy_fact_extractor.py \
           backend/tests/test_atom_cli_skill_wrapper.py \
-          backend/tests/test_models.py \
-          backend/tests/test_api_contracts.py \
-          backend/tests/test_e2e_integration.py -v
+          backend/tests/test_models.py -v
 
-2. Verify backend coverage (target 80%+):
-   pytest backend/tests/ --cov=core --cov=api --cov=tools --cov-report=json
-   # Backend should be 80%+
+2. Verify backend coverage (target 65%+):
+   pytest backend/tests/ --cov=core --cov=tools --cov-report=json
+   # Backend should be 65%+
 
-3. Run mobile tests:
-   cd mobile && npm test -- --coverage --watchAll=false
-   # Mobile should be 70%+
-
-4. Run desktop Rust tests:
-   cd desktop-app/src-tauri && cargo tarpaulin --out Html
-   # Rust should be 70%+
-
-5. Run desktop frontend tests:
-   cd desktop-app && npm test -- --coverage
-   # Desktop frontend should be 70%+
-
-6. Verify all platforms meet targets
+3. Verify no regression in existing tests:
+   pytest backend/tests/ -v
 </verification>
 
 <success_criteria>
-1. Backend coverage >= 80%
-2. Mobile coverage >= 70%
-3. Desktop Rust coverage >= 70%
-4. Desktop frontend coverage >= 70%
-5. All API contract tests pass
-6. All E2E tests pass
-7. No regression in existing tests
+1. All 5 test files pass (100% pass rate)
+2. Episode, world model, policy, CLI services achieve 80%+ coverage
+3. Models achieve 60%+ coverage (critical models)
+4. Backend overall coverage >= 65%
+5. No regression in existing test coverage
 </success_criteria>
 
 <output>
-After completion, create `.planning/phases/212-80pct-coverage-clean-slate/212-WAVE3-SUMMARY.md`
+After completion, create `.planning/phases/212-80pct-coverage-clean-slate/212-WAVE3A-SUMMARY.md`
 </output>
