@@ -567,13 +567,15 @@ class TestMetricsSummary:
         """Test getting metrics summary returns comprehensive summary."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
             response = dashboard_client.get("/api/analytics/dashboard/metrics/summary")
-            
+
             assert response.status_code == 200
             data = response.json()
-            assert "kpis" in data
-            assert "top_workflows" in data
-            assert "error_breakdown" in data
-            assert "timeline" in data
+            assert data["success"] is True
+            assert "data" in data
+            assert "kpis" in data["data"]
+            assert "top_workflows" in data["data"]
+            assert "error_breakdown" in data["data"]
+            assert "timeline" in data["data"]
 
     def test_get_metrics_summary_with_time_window(self, dashboard_client, mock_workflow_analytics):
         """Test getting metrics summary respects time_window."""
@@ -586,11 +588,13 @@ class TestMetricsSummary:
         """Test getting metrics summary includes KPIs in response."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
             response = dashboard_client.get("/api/analytics/dashboard/metrics/summary")
-            
+
             assert response.status_code == 200
             data = response.json()
-            assert "kpis" in data
-            kpis = data["kpis"]
+            assert data["success"] is True
+            assert "data" in data
+            assert "kpis" in data["data"]
+            kpis = data["data"]["kpis"]
             assert "total_executions" in kpis
             assert "success_rate" in kpis
 
@@ -598,11 +602,13 @@ class TestMetricsSummary:
         """Test getting metrics summary includes top workflows in response."""
         with patch('api.analytics_dashboard_endpoints.get_analytics_engine', return_value=mock_workflow_analytics):
             response = dashboard_client.get("/api/analytics/dashboard/metrics/summary")
-            
+
             assert response.status_code == 200
             data = response.json()
-            assert "top_workflows" in data
-            assert isinstance(data["top_workflows"], list)
+            assert data["success"] is True
+            assert "data" in data
+            assert "top_workflows" in data["data"]
+            assert isinstance(data["data"]["top_workflows"], list)
 
     def test_get_metrics_summary_error_handling(self, dashboard_client, mock_workflow_analytics):
         """Test getting metrics summary handles service errors."""

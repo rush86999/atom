@@ -13,7 +13,7 @@
  * mobile/src/__tests__/property/queueInvariants.test.ts
  */
 
-import fc from 'fast-check';
+import * as fc from 'fast-check';
 import { OfflineAction, SyncPriority, ConflictResolution } from '../../services/offlineSyncService';
 
 // Sync constants from offlineSyncService

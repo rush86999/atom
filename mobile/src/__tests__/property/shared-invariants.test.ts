@@ -12,7 +12,7 @@
  * @module tests/property/shared-invariants
  */
 
-import fc from 'fast-check';
+import * as fc from 'fast-check';
 import { describe, it, expect } from '@jest/globals';
 import {
   // Canvas state machine properties
