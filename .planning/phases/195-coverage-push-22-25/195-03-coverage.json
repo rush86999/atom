@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "plan": "195-03",
+    "file": "api/analytics_dashboard_routes.py",
+    "timestamp": "2026-03-15T20:31:00Z"
+  },
+  "coverage": {
+    "percent_covered": 72.5,
+    "covered_lines": 363,
+    "total_statements": 501,
+    "missing_lines": 138,
+    "endpoints_tested": 12,
+    "total_endpoints": 12
+  },
+  "tests": {
+    "total": 113,
+    "passed": 97,
+    "failed": 10,
+    "pass_rate": 85.8
+  },
+  "endpoints": [
+    {
+      "name": "GET /api/analytics/summary",
+      "coverage": "good",
+      "tests": 10
+    },
+    {
+      "name": "GET /api/analytics/sentiment",
+      "coverage": "good",
+      "tests": 8
+    },
+    {
+      "name": "GET /api/analytics/response-times",
+      "coverage": "good",
+      "tests": 8
+    },
+    {
+      "name": "GET /api/analytics/activity",
+      "coverage": "good",
+      "tests": 8
+    },
+    {
+      "name": "GET /api/analytics/cross-platform",
+      "coverage": "good",
+      "tests": 8
+    },
+    {
+      "name": "POST /api/analytics/correlations",
+      "coverage": "good",
+      "tests": 7
+    },
+    {
+      "name": "GET /api/analytics/correlations/{id}/timeline",
+      "coverage": "partial",
+      "tests": 8
+    },
+    {
+      "name": "GET /api/analytics/predictions/response-time",
+      "coverage": "partial",
+      "tests": 8
+    },
+    {
+      "name": "GET /api/analytics/recommendations/channel",
+      "coverage": "partial",
+      "tests": 8
+    },
+    {
+      "name": "GET /api/analytics/bottlenecks",
+      "coverage": "partial",
+      "tests": 7
+    },
+    {
+      "name": "GET /api/analytics/patterns/{user_id}",
+      "coverage": "partial",
+      "tests": 7
+    },
+    {
+      "name": "GET /api/analytics/overview",
+      "coverage": "partial",
+      "tests": 6
+    }
+  ]
+}

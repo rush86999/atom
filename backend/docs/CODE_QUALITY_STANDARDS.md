@@ -288,6 +288,46 @@ def test_agent_promotion_when_confidence_exceeds_threshold(db_session: Session):
 - **Business logic:** 80%+ coverage
 - **Overall:** 70%+ coverage
 
+### Test File Naming Convention
+
+**Critical Rule:** Test filenames must be unique across the entire test suite, regardless of directory.
+
+Python's import system is basename-based, not path-based. Files with identical basenames in different directories cause collection errors.
+
+**Naming Patterns:**
+- Primary service tests: `test_<service>_coverage.py` (e.g., `test_agent_governance_service_coverage.py`)
+- Module-specific tests: `test_<service>_<module>.py` (e.g., `test_agent_graduation_service_memory.py`)
+- Extended coverage: `test_<service>_coverage_extend.py` (e.g., `test_cognitive_tier_system_coverage_extend.py`)
+
+**Examples:**
+```
+tests/core/agents/test_agent_graduation_service_coverage.py      # Primary coverage
+tests/core/memory/test_agent_graduation_service_memory.py         # Memory module tests
+tests/core/episodes/test_episode_retrieval_service_coverage.py    # Primary coverage
+tests/core/memory/test_episode_retrieval_memory.py                # Memory module tests
+tests/core/llm/test_cognitive_tier_system_coverage.py            # Primary coverage
+tests/core/llm/test_cognitive_tier_system_coverage_extend.py      # Extended coverage
+```
+
+**Anti-Patterns to Avoid:**
+- DO NOT use same basename in different directories: `tests/core/agents/test_foo.py` and `tests/core/memory/test_foo.py`
+- DO NOT rely on directory structure for uniqueness (Python ignores directories in module resolution)
+- DO NOT ignore collection errors (they mask missing tests and inflate coverage gaps)
+
+**Verifying Uniqueness:**
+```bash
+# Check for duplicate test basenames
+find tests/ -name "test_*.py" -type f | xargs -n1 basename | sort | uniq -d
+# Expected: No output (no duplicates)
+```
+
+**Collection Error Detection:**
+```bash
+# Check for collection errors before committing
+pytest --collect-only -q 2>&1 | grep -c "ERROR collecting"
+# Expected: 0
+```
+
 ### Security Testing Patterns
 
 Security tests validate defense-in-depth protections against real-world attacks. Use these patterns when testing sandbox execution, package installation, or external code execution.

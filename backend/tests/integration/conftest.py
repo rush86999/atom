@@ -250,3 +250,114 @@ def admin_headers(admin_token: str):
     Returns a dictionary with Authorization header set to admin Bearer token.
     """
     return {"Authorization": f"Bearer {admin_token}"}
+
+
+# ============================================================================
+# E2E Test Fixtures for Agent Execution Workflow
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def e2e_db_session(db_session: Session):
+    """
+    E2E database session with aggressive cleanup.
+
+    Cleans up all E2E test data after each test to prevent cross-test contamination.
+    """
+    yield db_session
+
+    # Aggressive cleanup for E2E tests
+    try:
+        # Clean up in order of dependencies
+        from sqlalchemy import text
+        db_session.execute(text("DELETE FROM episode_segments WHERE 1=1"))
+        db_session.execute(text("DELETE FROM agent_episodes WHERE agent_id LIKE 'test-agent%'"))
+        db_session.execute(text("DELETE FROM agent_executions WHERE agent_id LIKE 'test-agent%'"))
+        db_session.execute(text("DELETE FROM agent_registry WHERE id LIKE 'test-agent%'"))
+        db_session.commit()
+    except Exception as e:
+        db_session.rollback()
+        print(f"E2E cleanup error: {e}")
+
+
+@pytest.fixture(scope="function")
+def mock_llm_streaming():
+    """
+    Mock LLM streaming response for E2E tests.
+
+    Returns an async generator that yields streaming chunks.
+    """
+    async def stream_completion(*args, **kwargs):
+        """Mock streaming completion with test response."""
+        chunks = [
+            "Test ",
+            "response ",
+            "chunk 1",
+            "Test ",
+            "response ",
+            "chunk 2",
+            "Test ",
+            "response ",
+            "chunk 3"
+        ]
+        for chunk in chunks:
+            yield {
+                "choices": [{
+                    "delta": {"content": chunk},
+                    "finish_reason": None
+                }],
+                "usage": None
+            }
+        # Final chunk with finish_reason
+        yield {
+            "choices": [{
+                "delta": {},
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 20,
+                "total_tokens": 30
+            }
+        }
+
+    return stream_completion
+
+
+@pytest.fixture(scope="function")
+def mock_llm_streaming_error():
+    """
+    Mock LLM streaming error for E2E error path tests.
+    """
+    async def stream_completion_error(*args, **kwargs):
+        """Mock streaming completion with error."""
+        yield {
+            "choices": [{
+                "delta": {"content": "Initial chunk"},
+                "finish_reason": None
+            }],
+            "usage": None
+        }
+        # Simulate LLM API error
+        raise Exception("LLM API error: rate limit exceeded")
+
+    return stream_completion_error
+
+
+@pytest.fixture(scope="function")
+def e2e_client(client, e2e_db_session, mock_websocket):
+    """
+    E2E test client with all necessary mocks.
+
+    Combines TestClient with database session, WebSocket mocks,
+    and authentication bypass for comprehensive E2E testing.
+    """
+    yield client
+
+
+@pytest.fixture(scope="function")
+def execution_id():
+    """
+    Generate unique execution ID for E2E tests.
+    """
+    import uuid
+    return str(uuid.uuid4())

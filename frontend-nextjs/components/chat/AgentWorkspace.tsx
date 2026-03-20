@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, ListTodo, Globe, AlertTriangle, Trash2 } from "lucide-react";
+import { Brain, ListTodo, Globe, AlertTriangle, Trash2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { ArtifactSidebar } from "./ArtifactSidebar";
+import { CanvasHost } from "./canvas-host";
 
 interface AgentStep {
     step: number;
@@ -28,6 +29,8 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgent
     const [steps, setSteps] = useState<AgentStep[]>([]);
     const [agentStatus, setAgentStatus] = useState<string>("idle");
     const [activeAgentId, setActiveAgentId] = useState<string | null>(initialAgentId || null);
+    const [activeTab, setActiveTab] = useState<string>("tasks");
+    const [isMaximized, setIsMaximized] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Update active agent if initial changes (e.g. navigation)
@@ -69,6 +72,12 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgent
             if (agentId) setActiveAgentId(agentId);
         }
 
+        // Auto-switch to artifacts tab when a canvas presentation occurs
+        if (lastMessage.type === "canvas:update" || lastMessage.type === "canvas:present") {
+            if (lastMessage.data?.action !== "close") {
+                setActiveTab("artifacts");
+            }
+        }
     }, [lastMessage]);
 
     // Auto-scroll to bottom of steps
@@ -85,21 +94,31 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgent
     };
 
     return (
-        <div className="h-full flex flex-col border-l border-slate-800 bg-[#0F172A]">
+        <div className={`h-full flex flex-col border-l border-slate-800 bg-[#0F172A] transition-all duration-300 ${isMaximized ? 'fixed inset-0 z-[60] bg-[#020617]' : 'relative overflow-hidden'}`}>
             <div className="p-4 border-b border-slate-800 flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2 text-slate-100">
                     <Brain className="h-4 w-4 text-indigo-400" />
                     Agent Workspace
                     {isConnected && <Badge variant="outline" className="text-green-400 border-green-400 text-[10px]">Live</Badge>}
                 </h2>
-                {steps.length > 0 && (
-                    <Button variant="ghost" size="sm" onClick={handleClear} className="text-slate-400 hover:text-slate-200">
-                        <Trash2 className="h-4 w-4" />
+                <div className="flex items-center gap-2">
+                    {steps.length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={handleClear} className="text-slate-400 hover:text-slate-200">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-slate-500 hover:text-white"
+                        onClick={() => setIsMaximized(!isMaximized)}
+                    >
+                        {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                     </Button>
-                )}
+                </div>
             </div>
 
-            <Tabs defaultValue="tasks" className="flex-1 flex flex-col">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
                 <div className="px-4 pt-2">
                     <TabsList className="w-full grid grid-cols-3 bg-slate-800">
                         <TabsTrigger value="tasks" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white uppercase text-[10px] font-bold">Tasks</TabsTrigger>
@@ -157,13 +176,20 @@ const AgentWorkspace: React.FC<AgentWorkspaceProps> = ({ sessionId, initialAgent
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="artifacts" className="flex-1 p-0 overflow-hidden">
-                    <ArtifactSidebar
-                        sessionId={sessionId}
-                        onSelectArtifact={(id: string) => {
-                            console.log("Selected artifact:", id);
-                        }}
-                    />
+                <TabsContent value="artifacts" className="flex-1 p-0 overflow-hidden relative">
+                    <div className="flex flex-col h-full">
+                        <div className="flex-1 overflow-hidden">
+                            <CanvasHost lastMessage={lastMessage} />
+                        </div>
+                        <div className="h-1/3 border-t border-slate-800 shrink-0">
+                            <ArtifactSidebar
+                                sessionId={sessionId}
+                                onSelectArtifact={(id: string) => {
+                                    console.log("Selected artifact:", id);
+                                }}
+                            />
+                        </div>
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="browser" className="flex-1 p-4 h-full">

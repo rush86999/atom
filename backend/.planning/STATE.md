@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 30-coverage-expansion
-Plan: 02 (SUBSTANTIAL COMPLETION)
-Status: SUBSTANTIAL COMPLETION ✅
-Last activity: 2026-02-19 — Plan 30-02 SUBSTANTIAL COMPLETION: Atom Agent Endpoints API Contracts. Created comprehensive API contract tests (2,294 lines, 124 tests) covering all major endpoints, governance integration, error handling, and intent classification. Achieved 33.04% coverage (514/774 lines, +252 lines improvement, 67% of 50% target). 114/124 tests passing (92% pass rate). All 4 governance maturity levels tested (STUDENT, INTERN, SUPERVISED, AUTONOMOUS). 31 error handling tests, 30 intent classification tests. Commit: 6364e2a1.
+Phase: 199-fix-test-collection-errors
+Plan: 08 (COMPLETE)
+Status: COMPLETE ✅
+Last activity: 2026-03-16 — Plan 199-08 COMPLETE: Agent Graduation Service Coverage Fix. Fixed schema drift between EpisodeFactory and AgentEpisode model (removed workspace_id, added tenant_id/task_description/outcome). Fixed maturity value casing (uppercase → lowercase to match AgentStatus enum values). Fixed service code to use task_description instead of non-existent title field. All 106 tests passing (up from 14 passing/10 failing). Coverage increased from 73.8% to 96% (exceeded 85% target by 11 percentage points). Commit: 5b0afe63d.
 
 Phase 05 Summary:
 - Plan 01: Agent governance & maturity routing (1,313 lines, 54 tests, 100% passing)

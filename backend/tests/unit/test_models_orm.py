@@ -36,7 +36,7 @@ from core.models import (
     # Workflow models
     WorkflowExecution,
     WorkflowExecutionStatus,
-    WorkflowStepExecution,
+    # WorkflowStepExecution removed (does not exist in current schema)
     # Episode models
     Episode,
     EpisodeSegment,
@@ -62,7 +62,7 @@ from tests.factories import (
     WorkspaceFactory,
     TeamFactory,
     WorkflowExecutionFactory,
-    WorkflowStepExecutionFactory,
+    # WorkflowStepExecutionFactory removed (does not exist in current schema)
     AgentFeedbackFactory,
     BlockedTriggerContextFactory,
     AgentProposalFactory,
@@ -758,36 +758,33 @@ class TestCanvasAuditModel:
 
     def test_canvas_creation(self, db: Session):
         """Test canvas audit creation."""
-        # FIXED (GAP-01): Use CanvasAuditFactory instead of manual constructor
+        # FIXED (GAP-01, 199-03): Use CanvasAuditFactory with current schema
         agent = AgentFactory(_session=db)
-        execution = AgentExecutionFactory(_session=db, agent_id=agent.id)
 
         canvas = CanvasAuditFactory(
             _session=db,
             agent_id=agent.id,
-            agent_execution_id=execution.id,
-            canvas_type="chart"
+            action_type="form_submit"
         )
 
         assert canvas.id is not None
         assert canvas.agent_id == agent.id
-        assert canvas.agent_execution_id == execution.id
+        assert canvas.action_type == "form_submit"
 
-    def test_canvas_execution_relationship(self, db: Session):
-        """Test CanvasAudit -> Execution foreign key."""
-        # FIXED (GAP-01): Use factories with _session=db
+    def test_canvas_action_type(self, db: Session):
+        """Test CanvasAudit action_type field."""
+        # FIXED (199-03): Test action_type instead of removed agent_execution_id
         agent = AgentFactory(_session=db)
-        execution = AgentExecutionFactory(_session=db, agent_id=agent.id)
 
         canvas = CanvasAuditFactory(
             _session=db,
             agent_id=agent.id,
-            agent_execution_id=execution.id,
-            canvas_type="chart"
+            action_type="canvas_close"
         )
 
         loaded = db.query(CanvasAudit).filter_by(id=canvas.id).first()
-        assert loaded.agent_execution_id == execution.id
+        assert loaded.action_type == "canvas_close"
+        assert loaded.agent_id == agent.id
 
 
 class TestBlockedTriggerContextModel:
