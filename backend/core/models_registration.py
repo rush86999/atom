@@ -35,7 +35,11 @@ if not TESTING:
         import accounting.models
         import service_delivery.models
         import saas.models
-        import ecommerce.models
+        # import ecommerce.models  # Disabled: Models consolidated to core.models
+        try:
+            import apps.ai_employee.models
+        except Exception as e:
+            print(f"DEBUG: AI Employee models import failed: {e}")
     except ImportError:
         # Optional modules may not exist in all environments
         pass

@@ -15,7 +15,7 @@ const nextConfig = {
     unoptimized: true,
   },
   transpilePackages: ["@chakra-ui/react", "@chakra-ui/icons", "@ark-ui/react"],
-  // outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingRoot: path.resolve(__dirname),
 
   experimental: {
     externalDir: true,
@@ -57,6 +57,10 @@ const nextConfig = {
       {
         source: "/api/workflow-agent/:path*",
         destination: "http://127.0.0.1:8000/api/workflow-agent/:path*",
+      },
+      {
+        source: "/api/v1/employee/:path*",
+        destination: "http://127.0.0.1:8000/api/v1/employee/:path*",
       },
       {
         source: "/api/atom-agent/:path*",

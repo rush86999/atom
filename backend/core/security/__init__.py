@@ -24,6 +24,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.request_counts = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next):
+        # Allow OPTIONS requests through without rate limiting to avoid CORS preflight issues
+        if request.method == "OPTIONS":
+            return await call_next(request)
+            
         # Identify client by IP
         client_ip = request.client.host
         
@@ -55,7 +59,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net fonts.googleapis.com fonts.gstatic.com; img-src 'self' data: https:;"
+        response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net fonts.googleapis.com fonts.gstatic.com; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; img-src 'self' data: https:;"
         
         return response
 

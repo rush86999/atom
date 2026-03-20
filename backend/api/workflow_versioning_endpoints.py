@@ -19,7 +19,7 @@ from fastapi import Depends, Path, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from backend.core.workflow_versioning_system import (
+from core.workflow_versioning_system import (
     Branch,
     ChangeType,
     VersionDiff,
