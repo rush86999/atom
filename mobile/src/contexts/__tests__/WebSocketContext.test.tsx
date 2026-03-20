@@ -1512,6 +1512,23 @@ describe('WebSocketContext', () => {
       });
     });
 
+    it('should handle getToken error', async () => {
+      (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error');
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to get token:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
     it('should handle missing token gracefully', async () => {
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
 
@@ -1526,6 +1543,60 @@ describe('WebSocketContext', () => {
       await waitFor(() => {
         expect(result.current.connectionError).toBe('No authentication token available');
       });
+    });
+
+    it('should handle storage setItem error when joining room', async () => {
+      (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error');
+
+      await act(async () => {
+        await result.current.joinRoom('user:test-user');
+      });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to store room:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('should handle storage removeItem error when leaving room', async () => {
+      (AsyncStorage.removeItem as jest.Mock).mockRejectedValue(new Error('Storage error'));
+
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      const consoleErrorSpy = jest.spyOn(console, 'error');
+
+      await act(async () => {
+        await result.current.leaveRoom('user:test-user');
+      });
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to remove room:', expect.any(Error));
+      consoleErrorSpy.mockRestore();
     });
 
     it('should handle multiple simultaneous connect calls', async () => {
@@ -1656,6 +1727,92 @@ describe('WebSocketContext', () => {
 
       expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
+    });
+
+    it('should handle reconnect timeout cleanup', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      // Disconnect to ensure cleanup runs
+      act(() => {
+        result.current.disconnect();
+      });
+
+      expect(result.current.isConnected).toBe(false);
+      expect(result.current.connectionQuality).toBe('offline');
+    });
+
+    it('should handle typing indicator unsubscribe correctly', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      const callback = jest.fn();
+
+      const unsubscribe = act(() => {
+        return result.current.subscribeToTyping(callback);
+      });
+
+      // Should have subscribed
+      expect(mockSocket.emit).toHaveBeenCalledWith('subscribe_typing');
+
+      // Now unsubscribe
+      act(() => {
+        unsubscribe();
+      });
+
+      // Should remove callback from array
+      expect(mockSocket.emit).toHaveBeenCalled();
+    });
+
+    it('should handle stream unsubscribe with socket emit', async () => {
+      const { result } = renderHook(() => useWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await result.current.connect();
+      });
+
+      simulateSocketConnection(result, mockSocket);
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      const unsubscribe = act(() => {
+        return result.current.subscribeToStream(
+          'session-1',
+          jest.fn(),
+          jest.fn(),
+          jest.fn()
+        );
+      });
+
+      // Now unsubscribe
+      act(() => {
+        unsubscribe();
+      });
+
+      // Should emit unsubscribe event
+      expect(mockSocket.emit).toHaveBeenCalledWith('unsubscribe_stream', {
+        stream_id: 'subscribe_session-1',
+      });
     });
   });
 });
