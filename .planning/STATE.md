@@ -1,7 +1,50 @@
 Phase: 216 (Fix Business Facts Test Failures)
-Plan: 03 (COMPLETE)
-Status: COMPLETE
-Last activity: 2026-03-20 — Phase 216 Plan 03 COMPLETE: Documented mock patching and error response assertion patterns for future tests. Created standalone 216-PATTERN-DOC.md with 6 documented patterns (mock patching, error assertions, service fixtures, configuration timing, S3/R2 mocking, PDF extraction). Updated CODE_QUALITY_STANDARDS.md with API Route Testing section. All 37 tests remain passing (100%). 2 commits, 5 minutes execution time.
+Status: COMPLETE ✅
+Completed: 2026-03-20
+
+## Phase 216 COMPLETE: Fix Business Facts Test Failures ✅
+
+**Status:** COMPLETE (March 20, 2026)
+**Duration:** ~25 minutes across 3 plans
+**Tests Fixed:** 10/10 failing tests now passing (100% success rate)
+**Final Test Results:** 37/37 tests passing (100% pass rate)
+
+**Key Achievements:**
+- Fixed all 10 business facts test failures
+- Established error response assertion pattern for BaseAPIRouter
+- Established mock patching pattern: patch where imported, not where defined
+- Created comprehensive pattern documentation (216-PATTERN-DOC.md, 431 lines)
+- Updated CODE_QUALITY_STANDARDS.md with API Route Testing section (+184 lines)
+- 100% test pass rate achieved and maintained
+
+**Root Causes Fixed:**
+1. **Response Structure Mismatch**: Tests expected string in detail field but BaseAPIRouter returns structured dict
+   - Fix: Changed from `response.json()["detail"].lower()` to `detail["error"]["message"].lower()`
+2. **Mock Patching Wrong Location**: Tests patched where service defined, not where imported
+   - Fix: Changed from `patch('core.agent_world_model.WorldModelService')` to `patch('api.admin.business_facts_routes.WorldModelService')`
+
+**Test Results:**
+- Before Phase 216: 27/37 tests passing (73% pass rate, 10 failures)
+- After Phase 216: 37/37 tests passing (100% pass rate, 0 failures)
+- Execution time: 18.08 seconds (fast, no real S3/R2 calls)
+
+**Documentation Delivered:**
+- 216-PATTERN-DOC.md: 6 documented patterns with before/after examples
+- CODE_QUALITY_STANDARDS.md: API Route Testing section added
+- 216-VERIFICATION.md: Complete verification report
+
+**Impact:**
+- All business facts admin API tests now passing
+- Reusable patterns established for future API route tests
+- Reduced debugging time for mock-related test failures
+- Consistent test patterns across the codebase
+
+**Plans Completed:**
+- Plan 216-01: Fix error response assertions (2 tests fixed, 227 seconds)
+- Plan 216-02: Fix mock patching locations (8 tests fixed, 721 seconds)
+- Plan 216-03: Document testing patterns (2 documentation files, 282 seconds)
+
+---
 
 ## Performance Metrics
 
