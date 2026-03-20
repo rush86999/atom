@@ -1,7 +1,7 @@
-Phase: 211 (Coverage Push to 80%)
-Plan: 03 (COMPLETE)
+Phase: 215 (Fix Remaining A/B Test Failures)
+Plan: 01 (COMPLETE)
 Status: COMPLETE
-Last activity: 2026-03-19 — Phase 211 Plan 03 COMPLETE: Skill execution system test coverage with 86.49% average coverage across 4 modules. skill_adapter: 81.44% (44 tests), skill_composition_engine: 95.88% (68 tests), skill_dynamic_loader: 83.44% (40 tests created), skill_security_scanner: 90.11% (14 tests). All modules exceeded 70% target. 2 commits, 18 minutes execution time.
+Last activity: 2026-03-20 — Phase 215 Plan 01 COMPLETE: Fixed all A/B testing test failures by correcting service mock patch location from 'core.ab_testing_service.ABTestingService' to 'api.ab_testing.ABTestingService' and updating test assertions to match actual API response structures. All 55 tests now pass. 2 commits, 10 minutes execution time.
 
 ## Performance Metrics
 
@@ -9,6 +9,7 @@ Last activity: 2026-03-19 — Phase 211 Plan 03 COMPLETE: Skill execution system
 |------|----------|-------|-------|
 | 207-10 | 900s (15m) | 4 | 4 |
 | 211-03 | 1080s (18m) | 3 | 2 |
+| 215-01 | 610s (10m) | 1 | 1 |
 | Phase 208 P02 | 1021 | 4 tasks | 4 files |
 | Phase 208-integration-performance-testing P03 | 515 | 4 tasks | 4 files |
 | Phase 208 P04 | 871 | 4 tasks | 4 files |
@@ -29,6 +30,49 @@ Last activity: 2026-03-19 — Phase 211 Plan 03 COMPLETE: Skill execution system
 | Phase 211 P04 | 420 | 6 tasks | 2 files |
 | Phase 212 P01 | 575 | 3 tasks | 3 files |
 | Phase 213 P01 | 477 | 3 tasks | 3 files |
+
+## Phase 215 Plan 01 COMPLETE: Fix A/B Testing Test Failures ✅
+
+**Status:** COMPLETE (March 20, 2026)
+**Duration:** 10 minutes (610 seconds)
+**Files Modified:** 1 test file
+**Tests Fixed:** 55 A/B testing tests now passing (100%)
+
+**Key Achievements:**
+- Fixed all 8 TestCreateTest fixtures by correcting service mock patch location
+- Changed patch from `'core.ab_testing_service.ABTestingService'` to `'api.ab_testing.ABTestingService'`
+- Updated test assertions to match actual API response structures (data wrapping, HTTPException detail field)
+- Fixed exception handling tests to return error dicts instead of raising exceptions
+- Fixed validation tests to expect 422 instead of 400 for Pydantic validation errors
+- 100% test pass rate achieved (55/55 tests passing)
+
+**Root Cause:**
+Tests were patching the wrong import location. The API routes import `ABTestingService` from `api.ab_testing`, but tests were patching `core.ab_testing_service.ABTestingService`, so the mock wasn't intercepting service instantiation.
+
+**Fixes Applied:**
+- Global replacement of patch location throughout test file
+- Updated response structure assertions (data["data"]["field"] for wrapped responses)
+- Updated error response assertions (data["detail"]["success"] for HTTPException)
+- Updated validation error code expectations (422 for Pydantic, 400 for service)
+- Updated exception handling tests to use error dict returns
+
+**Test Results:**
+- 8/8 TestCreateTest tests passing
+- 5/5 TestStartTest tests passing
+- 6/6 TestCompleteTest tests passing
+- 7/7 TestAssignVariant tests passing
+- 6/6 TestRecordMetric tests passing
+- 5/5 TestGetTestResults tests passing
+- 6/6 TestListTests tests passing
+- 4/4 TestRequestModels tests passing
+- 4/4 TestErrorResponses tests passing
+- 4/4 TestTestTypes tests passing
+
+**Impact:**
+- All A/B testing tests now pass without database dependencies
+- Tests properly isolated with mocked services
+- No database schema errors
+- Test execution time remains fast (~3 seconds)
 
 ## Phase 211 Plan 02 COMPLETE: Message Handling Services Coverage ✅
 
