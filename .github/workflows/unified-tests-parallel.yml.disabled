@@ -1,0 +1,784 @@
+name: Unified Tests (Parallel Matrix)
+
+# See backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md for complete parallel execution documentation
+# Target: <15 minute total test suite execution time across 4 platforms
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
+  EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+
+# Emergency Bypass Process:
+# 1. Set EMERGENCY_COVERAGE_BYPASS=true in repository variables
+# 2. Open PR with [EMERGENCY BYPASS] in title
+# 3. Obtain 2 maintainer approvals
+# 4. Document bypass reason in PR description
+# 5. Add follow-up issue for test coverage improvement
+# See: backend/docs/COVERAGE_ENFORCEMENT.md
+
+# Parallel test execution across 4 platforms using matrix strategy
+# Reduces total test time from 30+ minutes (sequential) to <15 minutes (parallel)
+# Each platform runs in separate job with platform-specific test command and configuration
+
+jobs:
+  test-platform:
+    name: Test ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout }}
+
+    strategy:
+      # fail-fast: false - Collect all platform results even if one fails
+      # This ensures we get complete visibility into which platforms failed
+      # If set to true, one failing platform would cancel all other jobs
+      fail-fast: false
+
+      # max-parallel: 4 - Limit concurrent jobs to avoid resource exhaustion
+      # GitHub Actions has limits on concurrent jobs per account
+      # Setting to 4 ensures we don't exceed runner availability or API rate limits
+      max-parallel: 4
+
+      matrix:
+        include:
+          # Backend: Python pytest with parallel workers
+          # Timeout: 30 minutes (includes dependency installation + test execution)
+          # Current timing: ~8-10 minutes (within target)
+          - platform: backend
+            runner: ubuntu-latest
+            timeout: 30
+            test-command: |
+              cd backend && pytest tests/ -v -n auto \
+                --json-report --json-report-file=pytest_report.json \
+                --durations=10 \
+                --cov=core --cov=api --cov=tools \
+                --cov-report=json:tests/coverage_reports/metrics/coverage.json \
+                | tee tests/coverage_reports/metrics/test_durations.txt
+            artifact-name: backend-test-results
+            artifact-path: backend/pytest_report.json
+            coverage-name: backend-coverage
+            coverage-path: backend/tests/coverage_reports/metrics/coverage.json
+
+          # Frontend: Jest with parallel workers
+          - platform: frontend
+            runner: ubuntu-latest
+            timeout: 20
+            test-command: |
+              cd frontend-nextjs && npm run test:ci -- --coverage --watchAll=false --maxWorkers=2
+            artifact-name: frontend-test-results
+            artifact-path: frontend-nextjs/test-results.json
+            coverage-name: frontend-coverage
+            coverage-path: frontend-nextjs/coverage/coverage-final.json
+
+          # Mobile: jest-expo with parallel workers
+          - platform: mobile
+            runner: ubuntu-latest
+            timeout: 20
+            test-command: |
+              cd mobile && npm run test:ci -- --coverage --watchAll=false --maxWorkers=2
+            artifact-name: mobile-test-results
+            artifact-path: mobile/test-results.json
+            coverage-name: mobile-coverage
+            coverage-path: mobile/coverage/coverage-final.json
+
+          # Desktop: Tauri cargo test with coverage enforcement
+          # Use ubuntu-latest runner for tarpaulin (macOS has linking issues)
+          - platform: desktop
+            runner: ubuntu-latest
+            timeout: 20
+            test-command: |
+              if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+                echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+                exit 0
+              fi
+
+              cd frontend-nextjs/src-tauri
+              bash scripts/run-coverage.sh
+            artifact-name: desktop-coverage
+            artifact-path: frontend-nextjs/src-tauri/coverage/coverage.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Platform-specific setup (Python, Node.js, Rust)
+      - name: Setup Python (backend)
+        if: matrix.platform == 'backend'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js (frontend/mobile)
+        if: matrix.platform == 'frontend' || matrix.platform == 'mobile'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust (desktop)
+        if: matrix.platform == 'desktop'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install cargo-tarpaulin (desktop)
+        if: matrix.platform == 'desktop'
+        run: |
+          cargo install cargo-tarpaulin
+
+      # Platform-specific dependency caching
+      - name: Cache pip packages (backend)
+        if: matrix.platform == 'backend'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache npm packages (frontend)
+        if: matrix.platform == 'frontend'
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/node_modules
+          key: ${{ runner.os }}-npm-frontend-${{ hashFiles('frontend-nextjs/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-frontend-
+
+      - name: Cache npm packages (mobile)
+        if: matrix.platform == 'mobile'
+        uses: actions/cache@v4
+        with:
+          path: mobile/node_modules
+          key: ${{ runner.os }}-npm-mobile-${{ hashFiles('mobile/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-mobile-
+
+      - name: Cache cargo registry (desktop)
+        if: matrix.platform == 'desktop'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index (desktop)
+        if: matrix.platform == 'desktop'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build (desktop)
+        if: matrix.platform == 'desktop'
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      # Platform-specific dependency installation
+      - name: Install backend dependencies
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          pip install pytest-asyncio httpx pytest-json-report diff-cover
+
+      - name: Install frontend dependencies
+        if: matrix.platform == 'frontend'
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Install mobile dependencies
+        if: matrix.platform == 'mobile'
+        working-directory: ./mobile
+        run: npm ci --legacy-peer-deps
+
+      # Run platform-specific tests
+      - name: Run ${{ matrix.platform }} tests
+        run: ${{ matrix.test-command }}
+        env:
+          DATABASE_URL: sqlite:///:memory:
+          BYOK_ENCRYPTION_KEY: test_key_for_ci_only
+          ENVIRONMENT: test
+          ATOM_DISABLE_LANCEDB: true
+          ATOM_MOCK_DATABASE: true
+          CI: true
+          COVERAGE_PHASE: ${{ env.COVERAGE_PHASE }}
+
+      # Check Jest coverage (Frontend/Mobile)
+      # Jest automatically exits with code 1 if coverage below threshold
+      # No additional enforcement script needed
+      - name: Check Jest coverage (Frontend/Mobile)
+        if: matrix.platform == 'frontend' || matrix.platform == 'mobile'
+        run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
+          if [ "${{ matrix.platform }}" == "frontend" ]; then
+            cd frontend-nextjs
+          else
+            cd mobile
+          fi
+
+          # Verify coverage report exists
+          if [ -f "coverage/coverage-final.json" ]; then
+            echo "✅ ${{ matrix.platform }} coverage report generated"
+            echo "📊 Coverage phase: $COVERAGE_PHASE"
+
+            # Display coverage summary if jq is available
+            if command -v jq &> /dev/null; then
+              echo "Coverage summary:"
+              jq '.total' coverage/coverage-summary.json 2>/dev/null || echo "Summary not available"
+            fi
+          else
+            echo "❌ ${{ matrix.platform }} coverage report not found"
+            exit 1
+          fi
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+          COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
+
+      # Check desktop coverage report generation
+      - name: Check desktop coverage
+        if: matrix.platform == 'desktop'
+        run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
+          cd frontend-nextjs/src-tauri
+          if [ -f coverage/coverage.json ]; then
+            echo "✅ Desktop coverage report generated"
+            # Display coverage summary if jq is available
+            if command -v jq &> /dev/null; then
+              echo "Coverage report available at coverage/coverage.json"
+            fi
+          else
+            echo "❌ Desktop coverage report not found"
+            exit 1
+          fi
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+
+      # Upload test results artifact
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform != 'desktop'
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-path }}
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Upload coverage artifact (desktop only)
+      - name: Upload desktop coverage
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'desktop'
+        with:
+          name: desktop-coverage
+          path: frontend-nextjs/src-tauri/coverage/coverage.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Upload coverage artifact (non-desktop)
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform != 'desktop'
+        with:
+          name: ${{ matrix.coverage-name }}
+          path: ${{ matrix.coverage-path }}
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Check emergency bypass status (all platforms)
+      - name: Check emergency bypass status
+        if: matrix.platform == 'backend'
+        run: |
+          cd backend
+          python3 tests/scripts/emergency_coverage_bypass.py
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+          GITHUB_PR_URL: ${{ github.event.pull_request.html_url }}
+          BYPASS_REASON: ${{ github.event.pull_request.title }}
+          GITHUB_APPROVERS: ${{ toJson(github.event.pull_request.requested_reviewers.*login) }}
+          ENVIRONMENT: ${{ github.ref_name }}
+
+      # Enforce diff coverage (Backend)
+      - name: Enforce diff coverage (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
+          python3 tests/scripts/progressive_coverage_gate.py --strict --format text
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+          COVERAGE_PHASE: ${{ vars.COVERAGE_PHASE || 'phase_1' }}
+        continue-on-error: false
+
+      # Enforce new code coverage (Backend)
+      - name: Enforce new code coverage (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          if [ "$EMERGENCY_COVERAGE_BYPASS" == "true" ]; then
+            echo "⚠️  COVERAGE GATE BYPASSED (emergency mode)"
+            exit 0
+          fi
+
+          python3 tests/scripts/new_code_coverage_gate.py \
+            --coverage-file tests/coverage_reports/metrics/coverage.json
+        env:
+          EMERGENCY_COVERAGE_BYPASS: ${{ vars.EMERGENCY_COVERAGE_BYPASS || 'false' }}
+        continue-on-error: false
+
+      # Run flaky detection after test execution (continues even if tests fail)
+      - name: Run flaky detection (backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/flaky_test_detector.py \
+            --platform backend \
+            --runs 3 \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --output tests/coverage_reports/metrics/backend_flaky_tests.json
+        continue-on-error: true
+
+      - name: Run flaky detection (frontend)
+        if: matrix.platform == 'frontend'
+        working-directory: ./frontend-nextjs
+        run: |
+          node scripts/jest-retry-wrapper.js \
+            --platform frontend \
+            --runs 3 \
+            --output coverage/frontend_flaky_tests.json
+        continue-on-error: true
+
+      - name: Run flaky detection (mobile)
+        if: matrix.platform == 'mobile'
+        working-directory: ./mobile
+        run: |
+          node scripts/jest-retry-wrapper.js \
+            --platform mobile \
+            --runs 3 \
+            --output test-results/mobile_flaky_tests.json
+        continue-on-error: true
+
+      # Track assert-to-test ratio (Backend)
+      # Detect coverage gaming: high coverage % + low assert count = tests execute code but don't validate behavior
+      - name: Track assert-to-test ratio (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/assert_test_ratio_tracker.py \
+            tests/ \
+            --min-ratio 2.0 \
+            --format json \
+            --output tests/coverage_reports/metrics/assert_ratio_report.json
+        continue-on-error: false
+
+      # Analyze code complexity (Backend)
+      # Track cyclomatic complexity to identify complex, untested code (technical debt hotspots)
+      - name: Analyze code complexity (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          # Analyze only changed files (git diff) for performance
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD | grep '\.py$' || echo "")
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "Analyzing changed files for complexity..."
+            radon cc $CHANGED_FILES -a --json > tests/coverage_reports/metrics/complexity.json
+          else
+            # Fallback: analyze core modules
+            echo "No changed files found, analyzing core modules..."
+            radon cc core -a --json > tests/coverage_reports/metrics/complexity.json
+          fi
+        continue-on-error: true
+
+      # Identify complexity hotspots (Backend)
+      # Merge complexity data with coverage to flag high-complexity, low-coverage functions
+      - name: Identify complexity hotspots (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/merge_complexity_coverage.py \
+            --complexity tests/coverage_reports/metrics/complexity.json \
+            --coverage tests/coverage_reports/metrics/coverage.json \
+            --output tests/coverage_reports/metrics/complexity_hotspots.json \
+            --min-complexity 10 \
+            --max-coverage 80
+        continue-on-error: true
+
+      # Track execution times (Backend)
+      # Parse pytest --durations output and update flaky test tracker with execution time metrics
+      - name: Track execution times (Backend)
+        if: matrix.platform == 'backend'
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/track_execution_times.py \
+            --durations-file tests/coverage_reports/metrics/test_durations.txt \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --platform backend \
+            --slow-threshold 10.0 \
+            --output tests/coverage_reports/metrics/slow_tests.json
+        continue-on-error: true
+
+      # Upload flaky test reports
+      - name: Upload flaky test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.artifact-name }}-flaky
+          path: |
+            backend/tests/coverage_reports/metrics/*_flaky_tests.json
+            frontend-nextjs/coverage/*_flaky_tests.json
+            mobile/test-results/*_flaky_tests.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Upload assert ratio report (Backend)
+      - name: Upload assert ratio report
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: assert-ratio-report-backend
+          path: backend/tests/coverage_reports/metrics/assert_ratio_report.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Upload complexity analysis reports (Backend)
+      - name: Upload complexity reports
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: complexity-analysis-backend
+          path: |
+            backend/tests/coverage_reports/metrics/complexity.json
+            backend/tests/coverage_reports/metrics/complexity_hotspots.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Upload execution time reports (Backend)
+      - name: Upload execution time reports
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: execution-times-backend
+          path: |
+            backend/tests/coverage_reports/metrics/test_durations.txt
+            backend/tests/coverage_reports/metrics/slow_tests.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Upload bypass log (if emergency bypass was activated)
+      - name: Upload bypass log
+        uses: actions/upload-artifact@v4
+        if: always() && matrix.platform == 'backend'
+        with:
+          name: bypass-log
+          path: backend/tests/coverage_reports/metrics/bypass_log.json
+          retention-days: 90
+          if-no-files-found: ignore
+
+  # Aggregation job - combines results from all platforms into unified report
+  # Purpose: Aggregate test results and coverage from all 4 platform jobs
+  # Runs: Always (even if platform jobs fail) to provide partial results
+  aggregate-status:
+    name: Aggregate CI Status
+    needs: [test-platform]
+    runs-on: ubuntu-latest
+    if: always()
+    # if: always() ensures aggregation runs even if platform jobs fail
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Download all test result artifacts
+      # Pattern: Download artifact by name, extract to platform-specific directory
+      # continue-on-error: true - Allow aggregation to proceed if platform job failed
+      - name: Download backend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-results
+          path: results/backend/
+        continue-on-error: true
+        # continue-on-error: Allow aggregation to proceed if backend job failed
+
+      - name: Download frontend test results
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-test-results
+          path: results/frontend/
+        continue-on-error: true
+
+      - name: Download mobile test results
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-test-results
+          path: results/mobile/
+        continue-on-error: true
+
+      - name: Download desktop test results
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-test-results
+          path: results/desktop/
+        continue-on-error: true
+
+      # Download all coverage artifacts
+      # Pattern: Download coverage JSON files for later aggregation
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage/backend/
+        continue-on-error: true
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: coverage/frontend/
+        continue-on-error: true
+
+      - name: Download mobile coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-coverage
+          path: coverage/mobile/
+        continue-on-error: true
+
+      - name: Download desktop coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-coverage
+          path: coverage/desktop/
+        continue-on-error: true
+
+      # Download flaky test reports from all platforms
+      - name: Download backend flaky tests
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-results-flaky
+          path: flaky-reports/backend/
+        continue-on-error: true
+
+      - name: Download frontend flaky tests
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-test-results-flaky
+          path: flaky-reports/frontend/
+        continue-on-error: true
+
+      - name: Download mobile flaky tests
+        uses: actions/download-artifact@v4
+        with:
+          name: mobile-test-results-flaky
+          path: flaky-reports/mobile/
+        continue-on-error: true
+
+      # Check if any results were downloaded
+      - name: Check if results directory exists
+        id: check-results
+        run: |
+          if [ -d "results" ] && [ -n "$(ls -A results 2>/dev/null)" ]; then
+            echo "has_results=true" >> $GITHUB_OUTPUT
+            echo "Found $(find results -name '*.json' 2>/dev/null | wc -l) result files"
+          else
+            echo "has_results=false" >> $GITHUB_OUTPUT
+            echo "No result files found"
+          fi
+
+      # Run CI status aggregator (conditional on results existing)
+      - name: Run CI status aggregator
+        if: steps.check-results.outputs.has_results == 'true'
+        working-directory: ./backend
+        run: |
+          python tests/scripts/ci_status_aggregator.py \
+            --backend ../results/backend/pytest_report.json \
+            --frontend ../results/frontend/test-results.json \
+            --mobile ../results/mobile/test-results.json \
+            --desktop ../results/desktop/cargo_test_results.json \
+            --output ../results/ci_status.json \
+            --summary ../results/ci_summary.md
+        continue-on-error: true
+
+      # Upload unified CI status artifact
+      - name: Upload unified CI status
+        if: steps.check-results.outputs.has_results == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-status-unified
+          path: results/
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Calculate reliability scores from flaky test reports
+      - name: Calculate reliability scores
+        if: always()
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/reliability_scorer.py \
+            --backend-flaky ../flaky-reports/backend/backend_flaky_tests.json \
+            --frontend-flaky ../flaky-reports/frontend/frontend_flaky_tests.json \
+            --mobile-flaky ../flaky-reports/mobile/mobile_flaky_tests.json \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --output ../results/reliability_score.json
+        continue-on-error: true
+
+      # Upload flaky test reports and reliability scores
+      - name: Upload flaky test reports and reliability scores
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flaky-test-reports
+          path: |
+            backend/tests/coverage_reports/metrics/*_flaky_tests.json
+            backend/tests/coverage_reports/metrics/flaky_tests.db
+            results/reliability_score.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      # Comment reliability score on PR
+      - name: Comment reliability score on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reliabilityPath = 'backend/tests/coverage_reports/metrics/reliability_score.json';
+            if (!fs.existsSync(reliabilityPath)) {
+              console.log('No reliability score found, skipping comment');
+              return;
+            }
+            const reliability = JSON.parse(fs.readFileSync(reliabilityPath, 'utf8'));
+            const score = (reliability.overall_score * 100).toFixed(1);
+            const delta = reliability.score_change || '';
+            const icon = score >= 90 ? '🟢' : score >= 80 ? '🟡' : '🔴';
+            const comment = `## Test Reliability Report
+
+            ${icon} **Overall Score:** ${score}% ${delta}
+
+            ### Platform Breakdown
+            - **Backend:** ${(reliability.platform_scores.backend * 100).toFixed(1)}%
+            - **Frontend:** ${(reliability.platform_scores.frontend * 100).toFixed(1)}%
+            - **Mobile:** ${(reliability.platform_scores.mobile * 100).toFixed(1)}%
+            - **Desktop:** ${(reliability.platform_scores.desktop * 100).toFixed(1)}%
+
+            ${reliability.least_reliable_tests && reliability.least_reliable_tests.length > 0 ? `
+            ### Least Reliable Tests
+            ${reliability.least_reliable_tests.slice(0, 5).map(t => `- \`${t.test_path}\`: ${(t.flaky_rate * 100).toFixed(1)}% flaky`).join('\n')}
+            ` : ''}
+
+            [Full Report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.issue,
+              per_page: 100
+            });
+            const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('Test Reliability Report'));
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                ...context.issue,
+                body: comment
+              });
+            }
+
+      # Download complexity analysis reports (Backend)
+      - name: Download complexity reports
+        uses: actions/download-artifact@v4
+        with:
+          name: complexity-analysis-backend
+          path: backend/tests/coverage_reports/metrics/
+        continue-on-error: true
+
+      # Download execution time reports (Backend)
+      - name: Download execution time reports
+        uses: actions/download-artifact@v4
+        with:
+          name: execution-times-backend
+          path: backend/tests/coverage_reports/metrics/
+        continue-on-error: true
+
+      # Generate comprehensive quality metrics report
+      - name: Generate quality metrics report
+        if: always()
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/generate_quality_report.py \
+            --trending-file tests/coverage_reports/metrics/cross_platform_trend.json \
+            --quarantine-db tests/coverage_reports/metrics/flaky_tests.db \
+            --complexity-file tests/coverage_reports/metrics/complexity_hotspots.json \
+            --durations-file tests/coverage_reports/metrics/slow_tests.json \
+            --platform backend \
+            --output tests/coverage_reports/metrics/quality_metrics_report.md
+        continue-on-error: true
+
+      # Post quality metrics report to PR
+      - name: Post quality metrics PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'backend/tests/coverage_reports/metrics/quality_metrics_report.md';
+
+            if (!fs.existsSync(reportPath)) {
+              console.log('Quality metrics report not found, skipping comment');
+              return;
+            }
+
+            const report = fs.readFileSync(reportPath, 'utf8');
+
+            // Find existing bot comment
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.issue,
+              per_page: 100
+            });
+            const botComment = comments.find(c => c.user.type === 'Bot' && c.body.includes('Test Quality Metrics Report'));
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+              console.log('Updated existing quality metrics comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                ...context.issue,
+                body: report
+              });
+              console.log('Created new quality metrics comment');
+            }
+        continue-on-error: true
+
