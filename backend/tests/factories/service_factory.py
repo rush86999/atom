@@ -11,7 +11,7 @@ Provides factories for:
 
 import factory
 from factory import fuzzy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from tests.factories.base import BaseFactory
 from tests.factories.workspace_factory import WorkspaceFactory
 from service_delivery.models import (
@@ -45,8 +45,8 @@ class ContractFactory(BaseFactory):
     currency = "USD"
 
     # Date range
-    start_date = factory.LazyAttribute(lambda o: datetime.utcnow() - timedelta(days=30))
-    end_date = factory.LazyAttribute(lambda o: datetime.utcnow() + timedelta(days=365))
+    start_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) - timedelta(days=30))
+    end_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) + timedelta(days=365))
 
     # Metadata
     metadata_json = factory.LazyFunction(dict)
@@ -89,10 +89,10 @@ class ProjectFactory(BaseFactory):
     project_type = factory.Iterator(['general', 'development', 'consulting', 'support'])
 
     # Dates
-    planned_start_date = factory.LazyAttribute(lambda o: datetime.utcnow() - timedelta(days=15))
-    planned_end_date = factory.LazyAttribute(lambda o: datetime.utcnow() + timedelta(days=90))
-    actual_start_date = factory.LazyAttribute(lambda o: datetime.utcnow() - timedelta(days=10))
-    actual_end_date = factory.LazyAttribute(lambda o: datetime.utcnow() + timedelta(days=80))
+    planned_start_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) - timedelta(days=15))
+    planned_end_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) + timedelta(days=90))
+    actual_start_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) - timedelta(days=10))
+    actual_end_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) + timedelta(days=80))
 
     # Risk assessment
     risk_level = factory.Iterator(['low', 'medium', 'high'])
@@ -130,8 +130,8 @@ class MilestoneFactory(BaseFactory):
     budget_status = fuzzy.FuzzyChoice([s.value for s in BudgetStatus])
 
     # Dates
-    planned_start_date = factory.LazyAttribute(lambda o: datetime.utcnow() - timedelta(days=10))
-    due_date = factory.LazyAttribute(lambda o: datetime.utcnow() + timedelta(days=30))
+    planned_start_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) - timedelta(days=10))
+    due_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) + timedelta(days=30))
     completed_at = factory.Faker('date_time_this_year')
 
     # Invoice link
@@ -162,7 +162,7 @@ class ProjectTaskFactory(BaseFactory):
     assigned_to = factory.Faker('uuid4')  # Links to User
 
     # Dates
-    due_date = factory.LazyAttribute(lambda o: datetime.utcnow() + timedelta(days=7))
+    due_date = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) + timedelta(days=7))
     completed_at = factory.Faker('date_time_this_year')
 
     # Time tracking
@@ -182,8 +182,8 @@ class AppointmentFactory(BaseFactory):
     id = factory.Faker('uuid4')
     workspace_id = factory.Faker('uuid4')  # Override in tests with WorkspaceFactory
     customer_id = factory.Faker('uuid4')  # Links to accounting.Entity
-    start_time = factory.LazyAttribute(lambda o: datetime.utcnow() + timedelta(days=1, hours=10))
-    end_time = factory.LazyAttribute(lambda o: datetime.utcnow() + timedelta(days=1, hours=11))
+    start_time = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) + timedelta(days=1, hours=10))
+    end_time = factory.LazyAttribute(lambda o: datetime.now(timezone.utc) + timedelta(days=1, hours=11))
 
     # Optional service link (from core.models.BusinessProductService)
     service_id = factory.Faker('uuid4')

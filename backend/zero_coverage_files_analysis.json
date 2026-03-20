@@ -1,0 +1,237 @@
+[
+  {
+    "file": "core/workflow_versioning_system.py",
+    "lines": 442,
+    "missing": 442
+  },
+  {
+    "file": "core/workflow_marketplace.py",
+    "lines": 332,
+    "missing": 332
+  },
+  {
+    "file": "api/debug_routes.py",
+    "lines": 296,
+    "missing": 296
+  },
+  {
+    "file": "core/advanced_workflow_endpoints.py",
+    "lines": 265,
+    "missing": 265
+  },
+  {
+    "file": "core/workflow_template_endpoints.py",
+    "lines": 243,
+    "missing": 243
+  },
+  {
+    "file": "api/workflow_versioning_endpoints.py",
+    "lines": 228,
+    "missing": 228
+  },
+  {
+    "file": "core/graduation_exam.py",
+    "lines": 227,
+    "missing": 227
+  },
+  {
+    "file": "core/enterprise_user_management.py",
+    "lines": 208,
+    "missing": 208
+  },
+  {
+    "file": "api/smarthome_routes.py",
+    "lines": 188,
+    "missing": 188
+  },
+  {
+    "file": "core/industry_workflow_endpoints.py",
+    "lines": 181,
+    "missing": 181
+  },
+  {
+    "file": "core/apar_engine.py",
+    "lines": 177,
+    "missing": 177
+  },
+  {
+    "file": "core/byok_cost_optimizer.py",
+    "lines": 168,
+    "missing": 168
+  },
+  {
+    "file": "core/local_ocr_service.py",
+    "lines": 164,
+    "missing": 164
+  },
+  {
+    "file": "core/reconciliation_engine.py",
+    "lines": 164,
+    "missing": 164
+  },
+  {
+    "file": "api/creative_routes.py",
+    "lines": 157,
+    "missing": 157
+  },
+  {
+    "file": "core/constitutional_validator.py",
+    "lines": 157,
+    "missing": 157
+  },
+  {
+    "file": "api/productivity_routes.py",
+    "lines": 156,
+    "missing": 156
+  },
+  {
+    "file": "core/debug_alerting.py",
+    "lines": 155,
+    "missing": 155
+  },
+  {
+    "file": "core/budget_enforcement_service.py",
+    "lines": 151,
+    "missing": 151
+  },
+  {
+    "file": "core/logging_config.py",
+    "lines": 148,
+    "missing": 148
+  },
+  {
+    "file": "core/formula_memory.py",
+    "lines": 147,
+    "missing": 147
+  },
+  {
+    "file": "core/communication_service.py",
+    "lines": 145,
+    "missing": 145
+  },
+  {
+    "file": "core/scheduler.py",
+    "lines": 144,
+    "missing": 144
+  },
+  {
+    "file": "core/oauth_user_context.py",
+    "lines": 142,
+    "missing": 142
+  },
+  {
+    "file": "core/ai_workflow_optimization_endpoints.py",
+    "lines": 137,
+    "missing": 137
+  },
+  {
+    "file": "core/byok_competitive_endpoints.py",
+    "lines": 137,
+    "missing": 137
+  },
+  {
+    "file": "core/error_middleware.py",
+    "lines": 137,
+    "missing": 137
+  },
+  {
+    "file": "core/local_llm_secrets_detector.py",
+    "lines": 137,
+    "missing": 137
+  },
+  {
+    "file": "core/agent_execution_service.py",
+    "lines": 134,
+    "missing": 134
+  },
+  {
+    "file": "core/analytics_engine.py",
+    "lines": 130,
+    "missing": 130
+  },
+  {
+    "file": "core/governance_helper.py",
+    "lines": 130,
+    "missing": 130
+  },
+  {
+    "file": "core/competitive_advantage_dashboard.py",
+    "lines": 123,
+    "missing": 123
+  },
+  {
+    "file": "core/debug_streaming.py",
+    "lines": 123,
+    "missing": 123
+  },
+  {
+    "file": "tools/calendar_tool.py",
+    "lines": 123,
+    "missing": 123
+  },
+  {
+    "file": "core/mcp_service.py",
+    "lines": 122,
+    "missing": 122
+  },
+  {
+    "file": "core/background_agent_runner.py",
+    "lines": 121,
+    "missing": 121
+  },
+  {
+    "file": "core/chronological_integrity.py",
+    "lines": 120,
+    "missing": 120
+  },
+  {
+    "file": "core/analytics_endpoints.py",
+    "lines": 119,
+    "missing": 119
+  },
+  {
+    "file": "core/package_governance_service.py",
+    "lines": 119,
+    "missing": 119
+  },
+  {
+    "file": "core/health_monitor.py",
+    "lines": 113,
+    "missing": 113
+  },
+  {
+    "file": "core/active_intervention_service.py",
+    "lines": 112,
+    "missing": 112
+  },
+  {
+    "file": "core/financial_audit_orchestrator.py",
+    "lines": 112,
+    "missing": 112
+  },
+  {
+    "file": "core/governance_wrapper.py",
+    "lines": 111,
+    "missing": 111
+  },
+  {
+    "file": "core/token_refresher.py",
+    "lines": 107,
+    "missing": 107
+  },
+  {
+    "file": "core/uptime_tracker.py",
+    "lines": 103,
+    "missing": 103
+  },
+  {
+    "file": "core/database_helper.py",
+    "lines": 102,
+    "missing": 102
+  },
+  {
+    "file": "core/user_context_manager.py",
+    "lines": 102,
+    "missing": 102
+  }
+]

@@ -27,7 +27,7 @@ from core.exceptions import (
     ValidationError as AtomValidationError,
 )
 from core.execution_state_manager import ExecutionStateManager, get_state_manager
-from core.models import IntegrationCatalog, WorkflowStepExecution
+from core.models import IntegrationCatalog, WorkflowExecutionLog
 from core.token_storage import token_storage
 from core.websockets import get_connection_manager
 
@@ -171,6 +171,7 @@ class WorkflowEngine:
         step_status = {step_id: state["steps"].get(step_id, {}).get("status", "PENDING")
                       for step_id in nodes}
         # Track activated connections (condition evaluated true)
+        # Use tuple (source, target) as hashable identifier instead of dict
         activated_connections = set()
         # Lock for state updates to prevent race conditions
         state_lock = asyncio.Lock()
@@ -190,7 +191,8 @@ class WorkflowEngine:
                     current_state = await self.state_manager.get_execution_state(execution_id)
                 for conn in adjacency[step_id]:
                     if evaluate_connection_condition(conn, current_state):
-                        activated_connections.add(conn)
+                        # Use tuple (source, target) as hashable identifier
+                        activated_connections.add((conn.get("source"), conn.get("target")))
 
         # Helper to get ready steps
         def get_ready_steps():
@@ -200,7 +202,10 @@ class WorkflowEngine:
                     continue
                 incoming_conns = reverse_adjacency[step_id]
                 # If no incoming connections, or all incoming connections are activated
-                if not incoming_conns or all(conn in activated_connections for conn in incoming_conns):
+                if not incoming_conns or all(
+                    (conn.get("source"), conn.get("target")) in activated_connections
+                    for conn in incoming_conns
+                ):
                     ready.add(step_id)
             return ready
 
@@ -297,7 +302,8 @@ class WorkflowEngine:
                             new_activated = []
                             for conn in adjacency[step_id]:
                                 if evaluate_connection_condition(conn, current_state):
-                                    new_activated.append(conn)
+                                    # Use tuple (source, target) as hashable identifier
+                                    new_activated.append((conn.get("source"), conn.get("target")))
 
                             # Update activated connections
                             async with state_lock:
@@ -557,16 +563,16 @@ class WorkflowEngine:
                 # Create step execution record
                 with get_db_session() as db:
                     try:
-                        step_exec = WorkflowStepExecution(
+                        step_exec = WorkflowExecutionLog(
                             execution_id=execution_id,
                             workflow_id=workflow.get("id", "unknown"),
                             step_id=step["id"],
-                            step_name=step.get("name", step["id"]),
                             step_type=step.get("type", "action"),
-                            sequence_order=step.get("sequence_order", 0),
+                            start_time=datetime.utcnow(),
+                            end_time=datetime.utcnow(),
+                            duration_ms=0,
                             status="running",
-                            started_at=datetime.utcnow(),
-                            input_data=resolved_params
+                            trigger_data=resolved_params
                         )
                         db.add(step_exec)
                         db.commit()
@@ -582,15 +588,16 @@ class WorkflowEngine:
                     # Update step execution record
                     with get_db_session() as db:
                         try:
-                            step_exec = db.query(WorkflowStepExecution).filter(
-                                WorkflowStepExecution.execution_id == execution_id,
-                                WorkflowStepExecution.step_id == step_id
+                            step_exec = db.query(WorkflowExecutionLog).filter(
+                                WorkflowExecutionLog.execution_id == execution_id,
+                                WorkflowExecutionLog.step_id == step_id
                             ).first()
                             if step_exec:
+                                end_time = datetime.utcnow()
                                 step_exec.status = "completed"
-                                step_exec.completed_at = datetime.utcnow()
-                                step_exec.duration_ms = int((datetime.utcnow() - step_exec.started_at).total_seconds() * 1000)
-                                step_exec.output_data = output
+                                step_exec.end_time = end_time
+                                step_exec.duration_ms = int((end_time - step_exec.start_time).total_seconds() * 1000)
+                                step_exec.results = output
                                 db.commit()
                         except Exception as e:
                             logger.error(f"Failed to update step execution record: {e}")

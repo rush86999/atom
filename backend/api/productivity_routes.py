@@ -32,8 +32,9 @@ from tools.productivity_tool import NotionTool
 
 from api.oauth_routes import get_current_user
 from core.models import User
+from core.structured_logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Create router
 router = APIRouter(prefix="/productivity", tags=["productivity", "integrations", "notion"])
@@ -369,7 +370,7 @@ async def get_notion_database_schema(
         return DatabaseSchemaResponse(
             success=True,
             database_id=database_id,
-            schema_data=schema
+            schema=schema
         )
 
     except HTTPException as e:

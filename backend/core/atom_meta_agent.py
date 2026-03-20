@@ -162,7 +162,13 @@ class AtomMetaAgent:
         "get_system_health",
         "list_integrations",
         "call_integration",  # Fallback
-        "canvas_tool"
+        "canvas_tool",
+        "update_tenant_profile",
+        "set_byok_api_key",
+        "list_tenant_members",
+        "manage_tenant_member",
+        "manage_workspace",
+        "manage_team"
     ]
 
     def __init__(self, workspace_id: str = "default", user: Optional[User] = None):

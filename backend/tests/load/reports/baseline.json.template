@@ -1,0 +1,73 @@
+{
+  "metadata": {
+    "timestamp": "BASELINE_TEMPLATE",
+    "locust_version": "2.15.0",
+    "test_duration_seconds": 300,
+    "users": 100,
+    "spawn_rate": 10
+  },
+  "stats": {
+    "total_requests": 0,
+    "requests_per_second": 0,
+    "failure_rate": 0,
+    "avg_response_time_ms": 0
+  },
+  "endpoints": [
+    {
+      "name": "/health/live",
+      "request_count": 0,
+      "failure_count": 0,
+      "response_times": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "requests_per_second": 0
+    },
+    {
+      "name": "/api/v1/agents",
+      "request_count": 0,
+      "failure_count": 0,
+      "response_times": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "requests_per_second": 0
+    },
+    {
+      "name": "/api/v1/workflows/{id}/execute",
+      "request_count": 0,
+      "failure_count": 0,
+      "response_times": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "requests_per_second": 0
+    },
+    {
+      "name": "/api/agent-governance/check-permission",
+      "request_count": 0,
+      "failure_count": 0,
+      "response_times": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "requests_per_second": 0
+    },
+    {
+      "name": "/api/v1/episodes",
+      "request_count": 0,
+      "failure_count": 0,
+      "response_times": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "requests_per_second": 0
+    }
+  ],
+  "_comment": "This is a template. Replace with actual baseline from first load test run. First load test run will create the real baseline.json. This template ensures file exists for comparison script. Update baseline only after verified improvements."
+}

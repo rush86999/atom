@@ -1019,14 +1019,13 @@ class TestHelperMethods:
     @pytest.mark.asyncio
     async def test_fetch_canvas_context_single(self, retrieval_service):
         """Test fetching single canvas context."""
+        # FIXED (199-03): Updated for current CanvasAudit schema
         canvas = Mock(spec=CanvasAudit)
         canvas.id = "canvas-1"
-        canvas.canvas_type = "sheets"
-        canvas.component_type = "table"
-        canvas.component_name = "Data Table"
-        canvas.action = "present"
+        canvas.canvas_id = "canvas-sheets-1"
+        canvas.action_type = "present"
+        canvas.details_json = {"component_type": "table", "rows": 10}
         canvas.created_at = datetime.now()
-        canvas.audit_metadata = {"rows": 10}
 
         retrieval_service.db.query.return_value.filter.return_value.all.return_value = [canvas]
 
@@ -1034,20 +1033,19 @@ class TestHelperMethods:
 
         assert len(result) == 1
         assert result[0]["id"] == "canvas-1"
-        assert result[0]["canvas_type"] == "sheets"
+        assert result[0]["action_type"] == "present"
 
     @pytest.mark.asyncio
     async def test_fetch_canvas_context_multiple(self, retrieval_service):
         """Test fetching multiple canvas contexts."""
+        # FIXED (199-03): Updated for current CanvasAudit schema
         canvases = [Mock(spec=CanvasAudit) for _ in range(3)]
         for i, c in enumerate(canvases):
             c.id = f"canvas-{i}"
-            c.canvas_type = "sheets"
-            c.component_type = "table"
-            c.component_name = f"Table {i}"
-            c.action = "present"
+            c.canvas_id = f"canvas-sheets-{i}"
+            c.action_type = "present"
+            c.details_json = {"component_type": "table", "rows": i * 10}
             c.created_at = datetime.now()
-            c.audit_metadata = {}
 
         retrieval_service.db.query.return_value.filter.return_value.all.return_value = canvases
 

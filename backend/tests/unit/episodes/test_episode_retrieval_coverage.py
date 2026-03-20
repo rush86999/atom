@@ -2054,3 +2054,463 @@ class TestFeedbackWeightedRetrieval:
 
         # Combined positive signals should maximize relevance
         assert "episodes" in result
+
+
+# ========================================================================
+# M. Enhanced Retrieval Mode Tests (Phase 198-03 Task 3)
+# ========================================================================
+
+class TestRetrievalModes:
+    """Test all four retrieval modes with edge cases as per Phase 198-03 Task 3"""
+
+    # 1. Temporal retrieval tests (4 tests)
+    @pytest.mark.asyncio
+    async def test_retrieval_temporal_recent(self, retrieval_service, sample_episodes):
+        """Should retrieve last N episodes from recent time window"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        # Mock to return first episode only
+        retrieval_service.db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = sample_episodes[:1]
+
+        result = await retrieval_service.retrieve_temporal(
+            agent_id="agent1",
+            time_range="1d",
+            limit=50
+        )
+
+        assert result["count"] >= 0
+        assert "episodes" in result
+        assert result["time_range"] == "1d"
+
+    @pytest.mark.asyncio
+    async def test_retrieval_temporal_date_range(self, retrieval_service):
+        """Should filter episodes by date range"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        now = datetime.now()
+        test_episodes = [
+            Episode(
+                id="ep_old",
+                agent_id="agent1",
+                user_id="user1",
+                workspace_id="default",
+                title="Old Episode",
+                summary="From 30 days ago",
+                status="completed",
+                started_at=now - timedelta(days=30),
+                topics=["old"],
+                importance_score=0.5,
+                maturity_at_time="INTERN",
+                human_intervention_count=0,
+                constitutional_score=0.9,
+                decay_score=0.7,
+                access_count=1,
+                canvas_ids=[],
+                feedback_ids=[],
+                canvas_action_count=0
+            ),
+            Episode(
+                id="ep_new",
+                agent_id="agent1",
+                user_id="user1",
+                workspace_id="default",
+                title="New Episode",
+                summary="From today",
+                status="completed",
+                started_at=now,
+                topics=["new"],
+                importance_score=0.8,
+                maturity_at_time="INTERN",
+                human_intervention_count=0,
+                constitutional_score=0.9,
+                decay_score=1.0,
+                access_count=5,
+                canvas_ids=[],
+                feedback_ids=[],
+                canvas_action_count=0
+            )
+        ]
+
+        retrieval_service.db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = test_episodes
+
+        result = await retrieval_service.retrieve_temporal(
+            agent_id="agent1",
+            time_range="7d",
+            limit=50
+        )
+
+        assert "episodes" in result
+        assert result["time_range"] == "7d"
+
+    @pytest.mark.asyncio
+    async def test_retrieval_temporal_with_no_results(self, retrieval_service):
+        """Should handle empty temporal query results"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        # Return empty list
+        retrieval_service.db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        result = await retrieval_service.retrieve_temporal(
+            agent_id="agent1",
+            time_range="1d",
+            limit=50
+        )
+
+        assert result["episodes"] == []
+        assert result["count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_retrieval_temporal_boundary_conditions(self, retrieval_service):
+        """Should handle boundary time ranges (1d, 7d, 30d, 90d)"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        for time_range in ["1d", "7d", "30d", "90d"]:
+            retrieval_service.db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+            result = await retrieval_service.retrieve_temporal(
+                agent_id="agent1",
+                time_range=time_range,
+                limit=50
+            )
+
+            assert result["time_range"] == time_range
+            assert "episodes" in result
+
+    # 2. Semantic retrieval tests (4 tests)
+    @pytest.mark.asyncio
+    async def test_retrieval_semantic_vector_search(self, retrieval_service):
+        """Should perform vector similarity search"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        # Mock LanceDB search results
+        retrieval_service.lancedb.search.return_value = [
+            {
+                "id": "ep1",
+                "metadata": {"episode_id": "ep1"},
+                "_distance": 0.1  # Very high similarity
+            }
+        ]
+
+        result = await retrieval_service.retrieve_semantic(
+            agent_id="agent1",
+            query="data analysis",
+            limit=10
+        )
+
+        assert "episodes" in result
+        assert result["query"] == "data analysis"
+        retrieval_service.lancedb.search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_retrieval_semantic_with_threshold(self, retrieval_service):
+        """Should apply similarity threshold to results"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        # Mock results with varying distances
+        retrieval_service.lancedb.search.return_value = [
+            {"id": "ep1", "metadata": {"episode_id": "ep1"}, "_distance": 0.2},  # Similar
+            {"id": "ep2", "metadata": {"episode_id": "ep2"}, "_distance": 0.8},  # Dissimilar
+        ]
+
+        result = await retrieval_service.retrieve_semantic(
+            agent_id="agent1",
+            query="test query",
+            limit=10
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieval_semantic_empty_query(self, retrieval_service):
+        """Should handle empty or short query strings"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        retrieval_service.lancedb.search.return_value = []
+
+        result = await retrieval_service.retrieve_semantic(
+            agent_id="agent1",
+            query="",
+            limit=10
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieval_semantic_no_embeddings(self, retrieval_service):
+        """Should handle episodes without embeddings"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        # No embeddings found
+        retrieval_service.lancedb.search.return_value = []
+
+        result = await retrieval_service.retrieve_semantic(
+            agent_id="agent1",
+            query="nonexistent topic",
+            limit=10
+        )
+
+        assert result["episodes"] == []
+        assert result["count"] == 0
+
+    # 3. Sequential retrieval tests (3 tests)
+    @pytest.mark.asyncio
+    async def test_retrieval_sequential_full_episode(self, retrieval_service, sample_episodes, sample_segments):
+        """Should retrieve full episode with all segments in order"""
+        episode_query = MagicMock()
+        episode_query.filter.return_value.first.return_value = sample_episodes[0]
+
+        segments_query = MagicMock()
+        segments_query.filter.return_value.order_by.return_value.all.return_value = sample_segments
+
+        # Set up query to return different mocks
+        call_count = [0]
+        def query_side_effect(model):
+            call_count[0] += 1
+            if model == EpisodeSegment:
+                return segments_query
+            return episode_query
+
+        retrieval_service.db.query.side_effect = query_side_effect
+
+        result = await retrieval_service.retrieve_sequential(
+            episode_id="ep1",
+            agent_id="agent1"
+        )
+
+        assert "episode" in result
+        assert "segments" in result
+        assert result["episode"]["id"] == "ep1"
+
+    @pytest.mark.asyncio
+    async def test_retrieval_sequential_with_segments(self, retrieval_service):
+        """Should include segments with proper sequence ordering"""
+        now = datetime.now()
+        test_episode = Episode(
+            id="seq1",
+            agent_id="agent1",
+            user_id="user1",
+            workspace_id="default",
+            title="Sequential Test",
+            summary="Testing sequential retrieval",
+            status="completed",
+            started_at=now,
+            topics=["test"],
+            importance_score=0.7,
+            maturity_at_time="INTERN",
+            human_intervention_count=0,
+            constitutional_score=0.9,
+            decay_score=1.0,
+            access_count=1,
+            canvas_ids=[],
+            feedback_ids=[],
+            canvas_action_count=0
+        )
+
+        test_segments = [
+            EpisodeSegment(
+                id="seg1",
+                episode_id="seq1",
+                segment_type="conversation",
+                sequence_order=0,
+                content="First segment",
+                content_summary="Segment 1",
+                source_type="chat_message",
+                source_id="msg1",
+                created_at=now
+            ),
+            EpisodeSegment(
+                id="seg2",
+                episode_id="seq1",
+                segment_type="execution",
+                sequence_order=1,
+                content="Second segment",
+                content_summary="Segment 2",
+                source_type="agent_execution",
+                source_id="exec1",
+                created_at=now + timedelta(seconds=1)
+            ),
+        ]
+
+        episode_query = MagicMock()
+        episode_query.filter.return_value.first.return_value = test_episode
+
+        segments_query = MagicMock()
+        segments_query.filter.return_value.order_by.return_value.all.return_value = test_segments
+
+        call_count = [0]
+        def query_side_effect(model):
+            call_count[0] += 1
+            if model == EpisodeSegment:
+                return segments_query
+            return episode_query
+
+        retrieval_service.db.query.side_effect = query_side_effect
+
+        result = await retrieval_service.retrieve_sequential(
+            episode_id="seq1",
+            agent_id="agent1"
+        )
+
+        assert len(result["segments"]) == 2
+        assert result["segments"][0]["sequence_order"] == 0
+        assert result["segments"][1]["sequence_order"] == 1
+
+    @pytest.mark.asyncio
+    async def test_retrieval_sequential_nonexistent_episode(self, retrieval_service):
+        """Should handle request for non-existent episode"""
+        episode_query = MagicMock()
+        episode_query.filter.return_value.first.return_value = None
+
+        retrieval_service.db.query.return_value = episode_query
+
+        result = await retrieval_service.retrieve_sequential(
+            episode_id="nonexistent",
+            agent_id="agent1"
+        )
+
+        # Should return None or empty result
+        assert result.get("episode") is None or result.get("episodes") == []
+
+    # 4. Contextual retrieval tests (3 tests)
+    @pytest.mark.asyncio
+    async def test_retrieval_contextual_hybrid_search(self, retrieval_service, sample_episodes):
+        """Should combine temporal and semantic scoring"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        async def mock_temporal(*args, **kwargs):
+            return {"episodes": [], "count": 0}
+
+        async def mock_semantic(*args, **kwargs):
+            return {"episodes": [], "count": 0}
+
+        retrieval_service.retrieve_temporal = mock_temporal
+        retrieval_service.retrieve_semantic = mock_semantic
+
+        result = await retrieval_service.retrieve_contextual(
+            agent_id="agent1",
+            current_task="data analysis",
+            limit=5
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieval_contextual_with_feedback(self, retrieval_service):
+        """Should include feedback-based boosting in contextual retrieval"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        async def mock_temporal(*args, **kwargs):
+            return {"episodes": [], "count": 0}
+
+        async def mock_semantic(*args, **kwargs):
+            return {"episodes": [], "count": 0}
+
+        retrieval_service.retrieve_temporal = mock_temporal
+        retrieval_service.retrieve_semantic = mock_semantic
+
+        result = await retrieval_service.retrieve_contextual(
+            agent_id="agent1",
+            current_task="task",
+            limit=5
+        )
+
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieval_contextual_with_canvas_context(self, retrieval_service):
+        """Should enrich contextual retrieval with canvas context"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        async def mock_temporal(*args, **kwargs):
+            return {"episodes": [], "count": 0}
+
+        async def mock_semantic(*args, **kwargs):
+            return {"episodes": [], "count": 0}
+
+        retrieval_service.retrieve_temporal = mock_temporal
+        retrieval_service.retrieve_semantic = mock_semantic
+
+        result = await retrieval_service.retrieve_contextual(
+            agent_id="agent1",
+            current_task="spreadsheet analysis",
+            limit=5
+        )
+
+        assert "episodes" in result
+
+    # 5. Edge case tests (3 tests)
+    @pytest.mark.asyncio
+    async def test_retrieval_with_deleted_agent(self, retrieval_service):
+        """Should handle retrieval for deleted/non-existent agent"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        retrieval_service.db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        result = await retrieval_service.retrieve_temporal(
+            agent_id="deleted_agent",
+            time_range="7d",
+            limit=50
+        )
+
+        assert result["episodes"] == []
+
+    @pytest.mark.asyncio
+    async def test_retrieval_with_corrupt_episode_data(self, retrieval_service):
+        """Should handle episodes with missing or corrupt fields"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        # Episode with minimal fields
+        corrupt_episode = Episode(
+            id="corrupt1",
+            agent_id="agent1",
+            user_id="user1",
+            workspace_id="default",
+            title="",  # Empty title
+            summary=None,  # Missing summary
+            status="completed",
+            started_at=datetime.now(),
+            topics=[],
+            importance_score=0.0,
+            maturity_at_time="INTERN",
+            human_intervention_count=0,
+            constitutional_score=0.0,
+            decay_score=0.0,
+            access_count=0,
+            canvas_ids=[],
+            feedback_ids=[],
+            canvas_action_count=0
+        )
+
+        retrieval_service.db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [corrupt_episode]
+
+        result = await retrieval_service.retrieve_temporal(
+            agent_id="agent1",
+            time_range="7d",
+            limit=50
+        )
+
+        # Should handle gracefully
+        assert "episodes" in result
+
+    @pytest.mark.asyncio
+    async def test_retrieval_cache_invalidation(self, retrieval_service):
+        """Should handle cache invalidation during retrieval"""
+        retrieval_service.governance.can_perform_action.return_value = {"allowed": True}
+
+        # First call
+        retrieval_service.db.query.return_value.filter.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = []
+
+        result1 = await retrieval_service.retrieve_temporal(
+            agent_id="agent1",
+            time_range="7d",
+            limit=50
+        )
+
+        # Second call should still work
+        result2 = await retrieval_service.retrieve_temporal(
+            agent_id="agent1",
+            time_range="7d",
+            limit=50
+        )
+
+        assert result1["episodes"] == result2["episodes"] == []

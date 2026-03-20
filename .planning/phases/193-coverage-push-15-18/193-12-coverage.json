@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "plan": "193-12",
+    "file": "core/episode_segmentation_service.py",
+    "timestamp": "2026-03-14T20:15:00Z"
+  },
+  "files": {
+    "core/episode_segmentation_service.py": {
+      "summary": {
+        "num_statements": 1537,
+        "covered": 1146,
+        "percent_covered": 74.6
+      },
+      "missing_lines": [
+        108, 109, 271, 272, 273, 274, 275, 276, 288, 289, 290, 291,
+        510, 511, 512, 513, 514, 515, 516, 517, 518,
+        672, 673,
+        798, 799, 800, 801,
+        882, 883, 884, 885, 886, 887, 888
+      ],
+      "test_file": "tests/core/episodes/test_episode_segmentation_service_coverage_extend.py",
+      "test_count": 74,
+      "passing_tests": 40,
+      "failing_tests": 34
+    }
+  },
+  "totals": {
+    "num_statements": 1537,
+    "covered": 1146,
+    "percent_covered": 74.6
+  }
+}

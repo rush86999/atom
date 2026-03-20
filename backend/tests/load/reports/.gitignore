@@ -1,0 +1,7 @@
+# Ignore all load test reports
+*.json
+*.html
+*.log
+
+# But keep baseline for regression detection
+!baseline.json

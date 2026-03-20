@@ -370,19 +370,15 @@ class TestCanvasAuditTrail:
         audit = CanvasAudit(
             id="audit-1",
             agent_id="agent-1",
-            agent_execution_id="execution-1",
             user_id="user-1",
             canvas_id="canvas-1",
-            component_type="chart",
-            component_name="line_chart",
-            action="present",
-            governance_check_passed=True,
-            audit_metadata={"title": "Test Chart", "data_points": 10}
+            action_type="present",
+            details_json={"title": "Test Chart", "data_points": 10, "canvas_type": "line_chart"}
         )
 
-        assert audit.component_type == "chart"
-        assert audit.action == "present"
-        assert audit.governance_check_passed == True
+        assert audit.action_type == "present"
+        assert audit.agent_id == "agent-1"
+        assert audit.canvas_id == "canvas-1"
 
     async def test_canvas_audit_created_for_form_submission(self, mock_db):
         """Test that canvas audit entry tracks form submissions."""
@@ -393,14 +389,12 @@ class TestCanvasAuditTrail:
             agent_id="agent-1",
             user_id="user-1",
             canvas_id="canvas-1",
-            component_type="form",
-            action="submit",
-            governance_check_passed=True,
-            audit_metadata={"field_count": 5}
+            action_type="form_submit",
+            details_json={"field_count": 5, "canvas_type": "form"}
         )
 
-        assert audit.component_type == "form"
-        assert audit.action == "submit"
+        assert audit.action_type == "form_submit"
+        assert audit.agent_id == "agent-1"
 
 
 if __name__ == "__main__":

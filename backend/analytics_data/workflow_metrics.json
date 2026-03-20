@@ -16,5 +16,23 @@
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
     "last_executed": "2026-02-18T04:22:09.947043"
+  },
+  "simple_workflow": {
+    "execution_count": 24,
+    "success_count": 0,
+    "failure_count": 24,
+    "total_duration_seconds": 1.6565210000000001,
+    "total_time_saved_seconds": 0.0,
+    "total_business_value": 0.0,
+    "last_executed": "2026-03-15T23:02:03.516002"
+  },
+  "failing_workflow": {
+    "execution_count": 4,
+    "success_count": 0,
+    "failure_count": 4,
+    "total_duration_seconds": 0.010266,
+    "total_time_saved_seconds": 0.0,
+    "total_business_value": 0.0,
+    "last_executed": "2026-03-15T23:02:03.526801"
   }
 }

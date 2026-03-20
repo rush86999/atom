@@ -119,7 +119,7 @@ class Alert:
 class WorkflowAnalyticsEngine:
     """Advanced analytics engine for workflow monitoring and insights"""
 
-    def __init__(self, db_path: str = "analytics.db"):
+    def __init__(self, db_path: str = "analytics.db", enable_background_thread: bool = False):
         self.db_path = Path(db_path)
         self.db_path.expanduser().absolute()
 
@@ -137,8 +137,14 @@ class WorkflowAnalyticsEngine:
         # Active alerts
         self.active_alerts: Dict[str, Alert] = {}
 
-        # Start background processing
-        self._start_background_processing()
+        # Background thread control
+        self.enable_background_thread = enable_background_thread
+        self._background_thread = None
+        self._stop_event = None
+
+        # Start background processing only if enabled
+        if self.enable_background_thread:
+            self._start_background_processing()
 
         logger.info(f"Workflow Analytics Engine initialized with database: {self.db_path}")
 
@@ -805,6 +811,9 @@ class WorkflowAnalyticsEngine:
 
     def _start_background_processing(self):
         """Start background processing for analytics"""
+        if not self.enable_background_thread:
+            return
+
         async def background_task():
             while True:
                 try:

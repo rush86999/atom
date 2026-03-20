@@ -109,6 +109,28 @@ class SecurityLevel(str, enum.Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
+class DebugEventType(str, enum.Enum):
+    """Types of debug events"""
+    LOG = "log"
+    STATE_SNAPSHOT = "state_snapshot"
+    METRIC = "metric"
+    ERROR = "error"
+    SYSTEM = "system"
+
+class DebugInsightType(str, enum.Enum):
+    """Types of debug insights"""
+    ERROR = "error"
+    PERFORMANCE = "performance"
+    ANOMALY = "anomaly"
+    CONSISTENCY = "consistency"
+    FLOW = "flow"
+
+class DebugInsightSeverity(str, enum.Enum):
+    """Severity levels for debug insights"""
+    CRITICAL = "critical"
+    WARNING = "warning"
+    INFO = "info"
+
 class PostType(str, enum.Enum):
     """Types of social posts - SOCIAL-01"""
     STATUS = "status"
@@ -150,7 +172,8 @@ team_members = Table(
     Column('user_id', String, ForeignKey('users.id'), primary_key=True),
     Column('team_id', String, ForeignKey('teams.id'), primary_key=True),
     Column('role', String, default="member"),
-    Column('joined_at', DateTime(timezone=True), server_default=func.now())
+    Column('joined_at', DateTime(timezone=True), server_default=func.now()),
+    extend_existing=True  # Allow redefinition during test collection
 )
 
 user_workspaces = Table(
@@ -159,7 +182,8 @@ user_workspaces = Table(
     Column('user_id', String, ForeignKey('users.id'), primary_key=True),
     Column('workspace_id', String, ForeignKey('workspaces.id'), primary_key=True),
     Column('role', String, default="member"),
-    Column('joined_at', DateTime(timezone=True), server_default=func.now())
+    Column('joined_at', DateTime(timezone=True), server_default=func.now()),
+    extend_existing=True  # Allow redefinition during test collection
 )
 
 class Workspace(Base):
@@ -1199,7 +1223,9 @@ class AgentStatus(str, enum.Enum):
     SUPERVISED = "supervised" # Operational but monitored
     AUTONOMOUS = "autonomous" # Fully trusted
     PAUSED = "paused"
+    STOPPED = "stopped"
     DEPRECATED = "deprecated"
+    DELETED = "deleted"
 
 class AgentTriggerMode(str, enum.Enum):
     """How an agent can be triggered"""
@@ -1272,6 +1298,7 @@ class AgentRegistry(Base):
     self_healed_count = Column(Integer, default=0)  # Track self-healing recovery
     is_system_agent = Column(Boolean, default=False)  # System agents can use workspace tokens
     enabled = Column(Boolean, default=True)  # Whether agent is available for supervision tasks
+    diversity_profile = Column(JSON, default={})  # Strategy traits (e.g., risk_profile, focus)
 
     version = Column(String, default="1.0.0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -2810,6 +2837,7 @@ class BrowserAudit(Base):
     agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
     user = relationship("User", foreign_keys=[user_id])
 
+<<<<<<< HEAD
 # CONSOLIDATED to line 3668: class Artifact(Base):
 #     """
 #     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
@@ -2841,6 +2869,10 @@ class BrowserAudit(Base):
 #     author = relationship("User", foreign_keys=[author_id])
 #     locked_by = relationship("User", foreign_keys=[locked_by_user_id])
 #     workspace = relationship("Workspace")
+=======
+# First Artifact class removed - duplicate definition causing SQLAlchemy errors
+# Use the multi-tenant Artifact class at line 3668 instead
+>>>>>>> 94aff054939db42cfd64147e6cb362e64896ae3a
 
 class ArtifactVersion(Base):
     """
@@ -3283,6 +3315,39 @@ class AgentHandoff(Base):
     canvas = relationship("Canvas", back_populates="handoffs")
     tenant = relationship("Tenant", backref="agent_handoffs")
 
+
+class CoordinatedStrategy(Base):
+    """A strategic plan formed by multiple specialty agents."""
+    __tablename__ = "coordinated_strategies"
+
+    id = Column(String, primary_key=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    objective = Column(Text, nullable=False)
+    status = Column(String, default="draft")  # draft, negotiating, approved, executed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    contributions = relationship("StrategyContribution", back_populates="strategy", cascade="all, delete-orphan")
+
+
+class StrategyContribution(Base):
+    """A specific contribution or critique from a specialty agent in a strategy."""
+    __tablename__ = "strategy_contributions"
+
+    id = Column(String, primary_key=True)
+    strategy_id = Column(String, ForeignKey("coordinated_strategies.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    specialty = Column(String, nullable=False)
+    content = Column(JSON, nullable=False)  # The actual strategic input
+    status = Column(String, default="proposed")  # proposed, debated, final
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    strategy = relationship("CoordinatedStrategy", back_populates="contributions")
+    agent = relationship("AgentRegistry")
+
 class Workflow(Base):
     """Core workflow definition model."""
     __tablename__ = 'workflows'
@@ -3641,6 +3706,7 @@ role_permissions = Table(
     Base.metadata,
     Column("role_id", String, ForeignKey("custom_roles.id", ondelete="CASCADE"), primary_key=True),
     Column("permission_id", String, ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+    extend_existing=True  # Allow redefinition during test collection
 )
 
 class Permission(Base):
@@ -3697,9 +3763,9 @@ class Artifact(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
     # Relationships
-    tenant = relationship("Tenant", backref="artifacts")
     author = relationship("User", foreign_keys=[author_id])
     locked_by = relationship("User", foreign_keys=[locked_by_user_id])
+    tenant = relationship("Tenant", backref="artifacts")
     workspace = relationship("Workspace", backref="artifacts")
     canvas = relationship("Canvas", backref="artifacts")
     comments = relationship("ArtifactComment", back_populates="artifact", cascade="all, delete-orphan")
@@ -4573,6 +4639,89 @@ class WorkflowExecutionLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+# ============================================================
+# WORKFLOW DEBUGGING MODELS
+# ============================================================
+
+class DebugVariable(Base):
+    """Debug variables captured during workflow execution"""
+    __tablename__ = "workflow_debug_variables"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    variable_name = Column(String(255), nullable=False)
+    variable_value = Column(JSON, nullable=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+    captured_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship
+    workflow_execution = relationship("WorkflowExecution", foreign_keys=[workflow_execution_id])
+
+    __table_args__ = (
+        Index('idx_workflow_execution_id', 'workflow_execution_id'),
+    )
+
+
+class ExecutionTrace(Base):
+    """Execution traces for workflow debugging"""
+    __tablename__ = "workflow_execution_traces"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    step_id = Column(String(255), nullable=False)
+    trace_type = Column(String(50), nullable=False)  # info/debug/error
+    message = Column(Text, nullable=True)
+    trace_metadata = Column(JSON, nullable=True)  # Renamed from 'metadata' (reserved)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship
+    workflow_execution = relationship("WorkflowExecution", foreign_keys=[workflow_execution_id])
+
+    __table_args__ = (
+        Index('idx_workflow_execution_trace', 'workflow_execution_id'),
+        Index('idx_trace_type', 'trace_type'),
+    )
+
+
+class WorkflowBreakpoint(Base):
+    """Breakpoints for workflow debugging"""
+    __tablename__ = "workflow_breakpoints"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, nullable=False, index=True)
+    step_id = Column(String(255), nullable=False)
+    condition = Column(Text, nullable=True)  # Conditional breakpoint expression
+    enabled = Column(Boolean, default=True, nullable=False)
+    hit_count = Column(Integer, default=0, nullable=False)
+    created_by = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_workflow_breakpoint', 'workflow_id'),
+        Index('idx_step_breakpoint', 'step_id'),
+    )
+
+
+class WorkflowDebugSession(Base):
+    """Debug sessions for workflow debugging"""
+    __tablename__ = "workflow_debug_sessions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=True, index=True)
+    session_type = Column(String(50), nullable=False)  # interactive/automated
+    status = Column(String(50), nullable=False)  # active/paused/completed
+    breakpoints = Column(JSON, nullable=True, default=list)
+    current_step = Column(String(255), nullable=True)
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    workflow_execution = relationship("WorkflowExecution", foreign_keys=[workflow_execution_id])
+
+    __table_args__ = (
+        Index('idx_debug_session_execution', 'workflow_execution_id'),
+        Index('idx_debug_session_status', 'status'),
+    )
 
 
 # ============================================================
@@ -4670,6 +4819,62 @@ class SESComplaintList(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# =============================================================================
+# DEBUG SYSTEM MODELS (Phase 203)
+# =============================================================================
+
+class DebugEvent(Base):
+    """
+    Debug event captured during agent execution.
+
+    Tracks anomalies, errors, and notable events for debugging
+    and system health monitoring.
+    """
+    __tablename__ = "debug_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_type = Column(String(50), nullable=False, index=True)  # log, state_snapshot, metric, error, system
+    component_type = Column(String(50), nullable=False, index=True)  # agent, browser, workflow, system
+    component_id = Column(String, nullable=True, index=True)  # Component identifier
+    correlation_id = Column(String, nullable=False, index=True)  # Links related events
+    parent_event_id = Column(String, nullable=True, index=True)  # For event chains
+    level = Column(String(20), nullable=True)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    message = Column(Text, nullable=True)  # Log message
+    data = Column(JSON, nullable=True)  # Full event data
+    event_metadata = Column(JSON, nullable=True)  # Tags, labels, additional context
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    def __repr__(self):
+        return f"<DebugEvent {self.id}: {self.event_type} - {self.level}>"
+
+
+class DebugInsight(Base):
+    """
+    AI-generated insight about a debug event.
+
+    Provides analysis, root cause hypotheses, and suggested actions
+    for debug events using AI-powered diagnostics.
+    """
+    __tablename__ = "debug_insights"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    insight_type = Column(String(50), nullable=False, index=True)  # error, performance, anomaly, consistency, flow
+    severity = Column(String(20), nullable=False, index=True)  # critical, warning, info
+    title = Column(String(200), nullable=True)
+    description = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)
+    evidence = Column(JSON, nullable=True)  # Evidence data
+    confidence_score = Column(Float, default=0.5)  # 0.0 to 1.0
+    suggestions = Column(JSON, nullable=True)  # List of suggestion strings
+    scope = Column(String(50), nullable=True)  # component, system, distributed
+    affected_components = Column(JSON, nullable=True)  # List of affected components
+    resolved = Column(Boolean, default=False, index=True)
+    generated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+    def __repr__(self):
+        return f"<DebugInsight {self.id}: {self.insight_type} (confidence: {self.confidence_score})>"
 
 
 # =============================================================================
@@ -5762,6 +5967,18 @@ class AgentProposal(Base):
     )
 
 
+    @property
+    def proposed_action(self):
+        """Helper to access action data from proposal_data"""
+        if self.proposal_type == 'action':
+            return self.proposal_data
+        return {}
+
+    @property
+    def reasoning(self):
+        """Helper to access reasoning from proposal_data"""
+        return self.proposal_data.get('reasoning', '')
+
     def __repr__(self):
         return f"<AgentProposal(id={self.id}, agent_id={self.agent_id}, status={self.status})>"
 
@@ -5934,6 +6151,86 @@ class OAuthToken(Base):
 
     def __repr__(self):
         return f"<OAuthToken(id={self.id}, client_id={self.client_id}, user_id={self.user_id}, is_active={self.is_active})>"
+
+
+# ============================================================================
+# JWT Token Management Models
+# ============================================================================
+
+class ActiveToken(Base):
+    """
+    Active JWT tokens for user authentication.
+
+    Tracks currently active JWT tokens to support token management,
+    revocation, and cleanup operations.
+    """
+    __tablename__ = "active_tokens"
+
+    # JWT ID (jti) - unique identifier for the token
+    jti = Column(String, primary_key=True, nullable=False)
+
+    # Foreign key to user
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Token content (hashed for security)
+    token = Column(Text, nullable=False)
+
+    # Expiration timestamp
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Creation timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Token metadata
+    token_type = Column(String(20), default="access")  # access, refresh, etc.
+
+    # Indexes for common queries
+    __table_args__ = (
+        Index('idx_active_tokens_user_id', 'user_id'),
+        Index('idx_active_tokens_expires_at', 'expires_at'),
+        Index('idx_active_tokens_user_expires', 'user_id', 'expires_at'),
+    )
+
+    def __repr__(self):
+        return f"<ActiveToken(jti={self.jti}, user_id={self.user_id}, expires_at={self.expires_at})>"
+
+
+class RevokedToken(Base):
+    """
+    Revoked JWT tokens for blacklist functionality.
+
+    Tracks revoked tokens to prevent their reuse even if they haven't expired yet.
+    Supports token revocation due to logout, password changes, or security incidents.
+    """
+    __tablename__ = "revoked_tokens"
+
+    # JWT ID (jti) - unique identifier for the token
+    jti = Column(String, primary_key=True, nullable=False)
+
+    # Foreign key to user
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # When the token was revoked
+    revoked_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Original expiration (for cleanup)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Reason for revocation
+    reason = Column(String(100), nullable=True)  # logout, password_change, security_incident, etc.
+
+    # Token metadata
+    token_type = Column(String(20), default="access")  # access, refresh, etc.
+
+    # Indexes for common queries
+    __table_args__ = (
+        Index('idx_revoked_tokens_user_id', 'user_id'),
+        Index('idx_revoked_tokens_expires_at', 'expires_at'),
+        Index('idx_revoked_tokens_user_expires', 'user_id', 'expires_at'),
+    )
+
+    def __repr__(self):
+        return f"<RevokedToken(jti={self.jti}, user_id={self.user_id}, revoked_at={self.revoked_at})>"
 
 
 # ============================================================================
@@ -7359,6 +7656,47 @@ class SkillCache(Base):
 
     def __repr__(self):
         return f"<SkillCache(skill_id={self.skill_id}, expires_at={self.expires_at})>"
+
+
+class CategoryCache(Base):
+    """
+    Cache for category data from Atom SaaS.
+
+    Stores category data locally to reduce API calls to Atom SaaS.
+    Cached data expires daily and is refreshed on-demand.
+    """
+    __tablename__ = "category_cache"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category_name = Column(String, nullable=False, unique=True, index=True)
+
+    # Cached category data
+    category_data = Column(JSON, nullable=False)
+
+    # Cache expiration
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Metadata
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Cache hit tracking
+    hit_count = Column(Integer, default=0, nullable=False)
+    last_hit_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    tenant = relationship("Tenant", backref="category_cache")
+
+    def is_expired(self) -> bool:
+        """Check if cache entry has expired."""
+        from datetime import datetime
+        return datetime.now(self.expires_at.tzinfo) > self.expires_at
+
+    def __repr__(self):
+        return f"<CategoryCache(category_name={self.category_name}, expires_at={self.expires_at})>"
 
 
 # ============================================================================
