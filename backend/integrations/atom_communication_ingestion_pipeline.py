@@ -35,6 +35,7 @@ except ImportError:
 from pathlib import Path
 
 from core.knowledge_ingestion import get_knowledge_ingestion
+from .ingestion_models import RecordType
 
 logger = logging.getLogger(__name__)
 

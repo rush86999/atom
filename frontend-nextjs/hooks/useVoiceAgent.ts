@@ -24,8 +24,10 @@ export const useVoiceAgent = (): UseVoiceAgentReturn => {
             audioRef.current = null;
         };
 
-        audioRef.current.addEventListener('ended', handleEnded);
-        audioRef.current.addEventListener('error', handleError);
+        if (audioRef.current) {
+            audioRef.current.addEventListener('ended', handleEnded);
+            audioRef.current.addEventListener('error', handleError);
+        }
 
         return () => {
             if (audioRef.current) {
@@ -41,7 +43,6 @@ export const useVoiceAgent = (): UseVoiceAgentReturn => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
-
         }
         setIsPlaying(false);
     }, []);
@@ -87,14 +88,12 @@ export const useVoiceAgent = (): UseVoiceAgentReturn => {
 
             audio.play().catch(err => {
                 console.error("Failed to play audio:", err);
-                setIsPlaying(true); // Setting isPlaying to true if it actually started
-                // Wait for ending
+                setIsPlaying(false);
             });
         } catch (error) {
             console.error("Error creating audio object:", error);
             setIsPlaying(false);
         }
-
     }, [stopAudio]);
 
     return {

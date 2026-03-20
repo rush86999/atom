@@ -32,8 +32,7 @@ from core.lazy_integration_registry import (
     get_loaded_integrations,
     load_integration,
 )
-import core.models
-import core.models_registration  # Fixes circular relationship issues
+import core.models_registration  # Unified model registration
 from core.resource_guards import MemoryGuard, ResourceGuard
 from core.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
@@ -273,7 +272,7 @@ app.add_middleware(
 
 # Security Middleware (V2 Enhanced)
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=5000)
 
 # ============================================================================
 # GLOBAL EXCEPTION HANDLER
@@ -605,6 +604,12 @@ try:
         logger.warning(f"Failed to load Task Monitoring routes: {e}")
 
     try:
+        from apps.ai_employee.router import router as ai_employee_router
+        app.include_router(ai_employee_router)
+    except Exception as e:
+        logger.warning(f"Failed to load AI Employee routes: {e}")
+
+    try:
         from core.workflow_endpoints import router as workflow_router
         app.include_router(workflow_router, prefix="/api/v1", tags=["Workflows"])
     except ImportError as e:
@@ -699,21 +704,12 @@ try:
     # 4. Microsoft 365 Integration
     try:
         from integrations.microsoft365_routes import microsoft365_router
-
-        # Primary Route (New Standard)
-        app.include_router(microsoft365_router, prefix="/api/integrations/microsoft365", tags=["Microsoft 365"])
-        # Legacy Route (For backward compatibility/caching rewrites)
-        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365 (Legacy)"])
+        # Unified route
+        app.include_router(microsoft365_router, prefix="/api/v1/integrations/microsoft365", tags=["Microsoft 365"])
     except ImportError:
         logger.warning("Microsoft 365 routes not found, skipping.")
 
-    # 5. OAuth (Critical for login)
-    try:
-        from oauth_routes import router as oauth_router
-        app.include_router(oauth_router, prefix="/api/auth", tags=["OAuth"])
-        logger.info("✓ OAuth Routes Loaded")
-    except ImportError:
-        logger.warning("OAuth routes not found, skipping.")
+
 
     # 5.a Mobile Authentication Routes
     try:
@@ -746,17 +742,11 @@ try:
     except ImportError as e:
         logger.warning(f"MCP routes not found: {e}")
 
-    try:
-        from api.integrations_catalog_routes import router as catalog_router
-        app.include_router(catalog_router)
-        logger.info("✓ Integrations Catalog Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Integrations catalog routes not found: {e}")
-
+    # 5. Unified OAuth Routes
     try:
         from api.oauth_routes import router as oauth_router
         app.include_router(oauth_router)
-        logger.info("✓ OAuth Routes Loaded")
+        logger.info("✓ Unified OAuth Routes Loaded")
     except ImportError as e:
         logger.warning(f"OAuth routes not found: {e}")
 

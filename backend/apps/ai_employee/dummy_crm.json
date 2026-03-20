@@ -1,0 +1,12 @@
+[
+    {
+        "name": "Brennan",
+        "email": "brennan@brennan.ca",
+        "company": "Brennan Manufacturing",
+        "machine_requested": "CNC Lathe Machine T-500",
+        "quantity": 3
+    },
+    {
+        "company_summary": "Brennan Machinery is a Canadian metal fabrication and sheet metal equipment supplier since 1935, representing leading US, Italian, and Taiwanese manufacturers. They specialize in ironworkers, presses, tube equipment, CNC folders, shears, lasers, lathes, mills, drills, and parts washers, with a focus on cost-effective solutions and technical expertise for metalworking applications."
+    }
+]
