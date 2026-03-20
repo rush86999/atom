@@ -1,0 +1,297 @@
+name: Cross-Platform Property Tests
+
+# Triggers: push, pull_request on property test paths
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend-nextjs/shared/property-tests/**'
+      - 'mobile/src/__tests__/property/**'
+      - 'frontend-nextjs/src-tauri/tests/*proptest*.rs'
+      - '.github/workflows/cross-platform-property-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend-nextjs/shared/property-tests/**'
+      - 'mobile/src/__tests__/property/**'
+      - 'frontend-nextjs/src-tauri/tests/*proptest*.rs'
+      - '.github/workflows/cross-platform-property-tests.yml'
+
+# Cancel in-progress runs for same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job 1: Frontend property tests (FastCheck)
+  frontend-property-tests:
+    name: Frontend Property Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend-nextjs
+        run: npm ci
+
+      - name: Run property tests
+        working-directory: ./frontend-nextjs
+        run: |
+          npm test -- shared-invariants --ci --json --outputFile=coverage/jest-frontend-property-results.json || true
+
+      - name: Upload frontend results
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-frontend-property-results
+          path: frontend-nextjs/coverage/jest-frontend-property-results.json
+          retention-days: 7
+
+  # Job 2: Mobile property tests (FastCheck)
+  mobile-property-tests:
+    name: Mobile Property Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Run property tests
+        working-directory: ./mobile
+        run: |
+          npm test -- --ci --json --outputFile=coverage/jest-mobile-property-results.json || true
+
+      - name: Upload mobile results
+        uses: actions/upload-artifact@v4
+        with:
+          name: jest-mobile-property-results
+          path: mobile/coverage/jest-mobile-property-results.json
+          retention-days: 7
+
+  # Job 3: Desktop property tests (proptest)
+  desktop-property-tests:
+    name: Desktop Property Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run property tests
+        working-directory: ./frontend-nextjs/src-tauri
+        run: |
+          cargo test property_tests 2>&1 | tee proptest-output.txt || true
+
+      - name: Format proptest results
+        working-directory: ./frontend-nextjs/src-tauri
+        run: |
+          python3 tests/proptest_formatter.py --input proptest-output.txt --output proptest-results.json
+
+      - name: Upload desktop results
+        uses: actions/upload-artifact@v4
+        with:
+          name: proptest-results
+          path: frontend-nextjs/src-tauri/proptest-results.json
+          retention-days: 7
+
+  # Job 4: Aggregate results and comment PR
+  aggregate-results:
+    name: Aggregate Property Test Results
+    runs-on: ubuntu-latest
+    needs: [frontend-property-tests, mobile-property-tests, desktop-property-tests]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download frontend results
+        uses: actions/download-artifact@v4
+        with:
+          name: jest-frontend-property-results
+          path: .
+
+      - name: Download mobile results
+        uses: actions/download-artifact@v4
+        with:
+          name: jest-mobile-property-results
+          path: .
+
+      - name: Download desktop results
+        uses: actions/download-artifact@v4
+        with:
+          name: proptest-results
+          path: .
+
+      - name: Aggregate results
+        run: |
+          python3 backend/tests/scripts/aggregate_property_tests.py \
+            --frontend jest-frontend-property-results.json \
+            --mobile jest-mobile-property-results.json \
+            --desktop proptest-results.json \
+            --output property_test_results.json \
+            --format json || true
+
+      - name: Upload aggregated results
+        uses: actions/upload-artifact@v4
+        with:
+          name: property-test-results
+          path: property_test_results.json
+          retention-days: 30
+
+      - name: Update historical tracking
+        run: |
+          # Merge with historical data
+          python3 -c "
+          import json
+          from pathlib import Path
+
+          # Read current results
+          current = json.loads(Path('property_test_results.json').read_text())
+
+          # Read historical data
+          history_file = Path('backend/tests/coverage_reports/metrics/property_test_results.json')
+          if history_file.exists():
+              historical = json.loads(history_file.read_text())
+          else:
+              historical = {'history': []}
+
+          # Add current run to history
+          historical['history'].append({
+              'timestamp': current['timestamp'],
+              'total': current['total'],
+              'passed': current['passed'],
+              'failed': current['failed'],
+              'pass_rate': current['pass_rate']
+          })
+
+          # Keep last 30 runs
+          historical['history'] = historical['history'][-30:]
+
+          # Write back
+          history_file.write_text(json.dumps(historical, indent=2))
+          "
+
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read aggregated results
+            const results = JSON.parse(fs.readFileSync('property_test_results.json', 'utf8'));
+
+            // Generate markdown table
+            const frontendRate = results.platforms.frontend.total > 0
+              ? ((results.platforms.frontend.passed / results.platforms.frontend.total) * 100).toFixed(1)
+              : '-';
+            const mobileRate = results.platforms.mobile.total > 0
+              ? ((results.platforms.mobile.passed / results.platforms.mobile.total) * 100).toFixed(1)
+              : '-';
+            const desktopRate = results.platforms.desktop.total > 0
+              ? ((results.platforms.desktop.passed / results.platforms.desktop.total) * 100).toFixed(1)
+              : '-';
+
+            const comment = `## Property Test Results
+
+            | Platform | Passed | Total | Pass Rate |
+            |----------|--------|-------|-----------|
+            | Frontend | ${results.platforms.frontend.passed} | ${results.platforms.frontend.total} | ${frontendRate}% |
+            | Mobile | ${results.platforms.mobile.passed} | ${results.platforms.mobile.total} | ${mobileRate}% |
+            | Desktop | ${results.platforms.desktop.passed} | ${results.platforms.desktop.total} | ${desktopRate}% |
+            | **Overall** | **${results.passed}** | **${results.total}** | **${results.pass_rate.toFixed(1)}%** |
+
+            ${results.failed > 0 ? '❌ Some property tests failed (' + results.failed + ' failures)' : '✅ All property tests passed'}
+
+            <details>
+            <summary>View detailed results</summary>
+
+            \`\`\`json
+            ${JSON.stringify(results, null, 2)}
+            \`\`\`
+            </details>`;
+
+            // Post comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Generate step summary
+        run: |
+          echo "## Property Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Passed | Total | Pass Rate |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|-------|-----------|" >> $GITHUB_STEP_SUMMARY
+
+          # Parse results and add to summary
+          python3 -c "
+          import json
+          from pathlib import Path
+
+          results = json.loads(Path('property_test_results.json').read_text())
+
+          for platform, data in results['platforms'].items():
+              total = data['total']
+              if total > 0:
+                  rate = (data['passed'] / total * 100)
+                  print(f'| {platform.capitalize()} | {data[\"passed\"]} | {total} | {rate:.1f}% |')
+              else:
+                  print(f'| {platform.capitalize()} | - | - | - |')
+          " >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Overall**: ${{ results.passed }}/${{ results.total }} (${{ results.pass_rate }}%)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail on test failures
+        run: |
+          python3 -c "
+          import json
+          from pathlib import Path
+
+          results = json.loads(Path('property_test_results.json').read_text())
+
+          if results['failed'] > 0:
+              print(f'❌ Property tests failed: {results[\"failed\"]} failures')
+              exit(1)
+          else:
+              print('✅ All property tests passed')
+              exit(0)
+          "

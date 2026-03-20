@@ -1,0 +1,448 @@
+name: Menu Bar CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'menubar/**'
+      - '.github/workflows/menubar-ci.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'menubar/**'
+      - '.github/workflows/menubar-ci.yml'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create GitHub Release'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  NODE_VERSION: '18.x'
+  RUST_VERSION: 'stable'
+  TAURI_CLI_VERSION: '1.5.0'
+
+jobs:
+  # ============================================================================
+  # Test Job
+  # ============================================================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: menubar/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./menubar
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./menubar
+        run: npm run lint --if-present
+
+      - name: Run TypeScript type check
+        working-directory: ./menubar
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        working-directory: ./menubar
+        run: npm test --if-present
+
+  # ============================================================================
+  # Build Job - macOS (Intel)
+  # ============================================================================
+  build-macos-intel:
+    name: Build macOS (Intel)
+    needs: test
+    runs-on: macos-13
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: x86_64-apple-darwin
+
+      - name: Install dependencies
+        working-directory: ./menubar
+        run: npm ci
+
+      - name: Build macOS app (Intel)
+        working-directory: ./menubar
+        run: npm run tauri build -- --target x86_64-apple-darwin
+
+      - name: Sign macOS app
+        working-directory: ./menubar
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Import certificate
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$APPLE_CERTIFICATE_PASSWORD" build.keychain
+
+          # Sign app
+          codesign --sign "$APPLE_SIGNING_IDENTITY" --force --deep src-tauri/target/x86_64-apple-darwin/release/bundle/macos/Atom Menu Bar.app
+
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-intel-app
+          path: menubar/src-tauri/target/x86_64-apple-darwin/release/bundle/macos/Atom Menu Bar.app
+          retention-days: 30
+
+      - name: Upload macOS Intel dmg
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-intel-dmg
+          path: menubar/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Atom_Menu_Bar_*.dmg
+          retention-days: 30
+
+  # ============================================================================
+  # Build Job - macOS (Apple Silicon)
+  # ============================================================================
+  build-macos-apple-silicon:
+    name: Build macOS (Apple Silicon)
+    needs: test
+    runs-on: macos-14
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: aarch64-apple-darwin
+
+      - name: Install dependencies
+        working-directory: ./menubar
+        run: npm ci
+
+      - name: Build macOS app (Apple Silicon)
+        working-directory: ./menubar
+        run: npm run tauri build -- --target aarch64-apple-darwin
+
+      - name: Sign macOS app
+        working-directory: ./menubar
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Import certificate
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$APPLE_CERTIFICATE_PASSWORD" build.keychain
+
+          # Sign app
+          codesign --sign "$APPLE_SIGNING_IDENTITY" --force --deep src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Atom Menu Bar.app
+
+      - name: Upload macOS Apple Silicon artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-apple-silicon-app
+          path: menubar/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Atom Menu Bar.app
+          retention-days: 30
+
+      - name: Upload macOS Apple Silicon dmg
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-apple-silicon-dmg
+          path: menubar/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Atom_Menu_Bar_*.dmg
+          retention-days: 30
+
+  # ============================================================================
+  # Build Job - Windows
+  # ============================================================================
+  build-windows:
+    name: Build Windows
+    needs: test
+    runs-on: windows-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install dependencies
+        working-directory: ./menubar
+        run: npm ci
+
+      - name: Build Windows app
+        working-directory: ./menubar
+        run: npm run tauri build
+
+      - name: Sign Windows app
+        working-directory: ./menubar
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          # Sign with certificate (if provided)
+          if [ -n "$WINDOWS_CERTIFICATE" ]; then
+            echo "$WINDOWS_CERTIFICATE" | base64 --decode > certificate.pfx
+            signtool sign /f certificate.pfx /p "$WINDOWS_CERTIFICATE_PASSWORD" \
+              /t http://timestamp.digicert.com \
+              src-tauri/target/release/bundle/msi/Atom_Menu_Bar_*.msi
+          fi
+        shell: bash
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-msi
+          path: menubar/src-tauri/target/release/bundle/msi/Atom_Menu_Bar_*.msi
+          retention-days: 30
+
+  # ============================================================================
+  # Notarize macOS (Intel)
+  # ============================================================================
+  notarize-macos-intel:
+    name: Notarize macOS (Intel)
+    needs: build-macos-intel
+    runs-on: macos-13
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS Intel dmg
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-intel-dmg
+          path: ./menubar
+
+      - name: Notarize macOS app
+        working-directory: ./menubar
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Find dmg file
+          DMG_FILE=$(ls Atom_Menu_Bar_*.dmg | head -n 1)
+
+          # Notarize
+          xcrun notarytool submit "$DMG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple
+          xcrun stapler staple "$DMG_FILE"
+
+      - name: Upload notarized dmg
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-intel-dmg-notarized
+          path: menubar/Atom_Menu_Bar_*.dmg
+          retention-days: 30
+
+  # ============================================================================
+  # Notarize macOS (Apple Silicon)
+  # ============================================================================
+  notarize-macos-apple-silicon:
+    name: Notarize macOS (Apple Silicon)
+    needs: build-macos-apple-silicon
+    runs-on: macos-14
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS Apple Silicon dmg
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-apple-silicon-dmg
+          path: ./menubar
+
+      - name: Notarize macOS app
+        working-directory: ./menubar
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Find dmg file
+          DMG_FILE=$(ls Atom_Menu_Bar_*.dmg | head -n 1)
+
+          # Notarize
+          xcrun notarytool submit "$DMG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple
+          xcrun stapler staple "$DMG_FILE"
+
+      - name: Upload notarized dmg
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-apple-silicon-dmg-notarized
+          path: menubar/Atom_Menu_Bar_*.dmg
+          retention-days: 30
+
+  # ============================================================================
+  # Create GitHub Release
+  # ============================================================================
+  release:
+    name: Create Release
+    needs:
+      - notarize-macos-intel
+      - notarize-macos-apple-silicon
+      - build-windows
+    runs-on: ubuntu-latest
+    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event.inputs.release == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
+
+      - name: Create release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## Atom Menu Bar ${{ github.ref_name }}
+
+          ### Downloads
+
+          **macOS (Intel):** `macos-intel-dmg-notarized/Atom_Menu_Bar_*.dmg`
+          **macOS (Apple Silicon):** `macos-apple-silicon-dmg-notarized/Atom_Menu_Bar_*.dmg`
+          **Windows:** `windows-msi/Atom_Menu_Bar_*.msi`
+
+          ### Installation
+
+          **macOS:**
+          1. Download the `.dmg` file for your architecture
+          2. Open the file and drag Atom Menu Bar to Applications
+          3. Launch from Applications or menu bar
+
+          **Windows:**
+          1. Download the `.msi` installer
+          2. Run the installer
+          3. Launch from Start Menu
+
+          ### What's Changed
+
+          Full changelog: https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: release_notes.md
+          files: |
+            artifacts/macos-intel-dmg-notarized/*.dmg
+            artifacts/macos-apple-silicon-dmg-notarized/*.dmg
+            artifacts/windows-msi/*.msi
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # Auto-Update Configuration
+  # ============================================================================
+  update-config:
+    name: Update Auto-Config
+    needs: release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create latest.json for auto-updater
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          cat > menubar/latest.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "See https://github.com/${{ github.repository }}/releases/tag/v$VERSION",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-x86_64": {
+                "signature": "",
+                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/Atom_Menu_Bar_$VERSION_x64.dmg"
+              },
+              "darwin-aarch64": {
+                "signature": "",
+                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/Atom_Menu_Bar_$VERSION_aarch64.dmg"
+              },
+              "windows-x86_64": {
+                "signature": "",
+                "url": "https://github.com/${{ github.repository }}/releases/download/v$VERSION/Atom_Menu_Bar_$VERSION_x64_en-US.msi"
+              }
+            }
+          }
+          EOF
+
+      - name: Upload latest.json to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: menubar/latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
