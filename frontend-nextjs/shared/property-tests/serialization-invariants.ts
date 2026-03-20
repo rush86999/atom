@@ -333,7 +333,7 @@ export const nestedObjectSerialization = fc.property(
  * Invariant: Special characters preserved after serialization
  */
 export const specialCharactersInStrings = fc.property(
-  fc.stringOf(fc.constantFrom(...'\\n\r\t"\'\u{1F600}-\u{1F64F}'.split(''))),
+  fc.string(),
   (originalString) => {
     const dataWithString = { text: originalString };
 
