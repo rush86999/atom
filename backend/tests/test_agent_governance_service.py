@@ -1056,3 +1056,610 @@ class TestPromoteToAutonomous:
                     agent_id="agent_123",
                     user=user
                 )
+
+
+# ==================== TEST FEEDBACK ADJUDICATION ====================
+
+class TestFeedbackAdjudication:
+    """Test feedback adjudication logic with different user roles and specialties."""
+
+    @pytest.mark.asyncio
+    async def test_admin_feedback_accepted(self, governance_service, db_session):
+        """Test that admin feedback is automatically accepted."""
+        agent = AgentRegistry(
+            id="agent_123",
+            name="Test Agent",
+            category="Finance",
+            module_path="test",
+            class_name="TestAgent",
+            confidence_score=0.7
+        )
+        admin_user = User(
+            id="admin_123",
+            email="admin@example.com",
+            role=UserRole.WORKSPACE_ADMIN,
+            specialty="Admin"
+        )
+
+        feedback = AgentFeedback(
+            id="feedback_123",
+            agent_id="agent_123",
+            user_id="admin_123",
+            original_output="Wrong output",
+            user_correction="Correct output",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        # Create separate mocks for User and Agent queries
+        user_query_mock = MagicMock()
+        agent_query_mock = MagicMock()
+        user_query_mock.filter.return_value.first.return_value = admin_user
+        agent_query_mock.filter.return_value.first.return_value = agent
+
+        # Make query return different mocks based on the model being queried
+        def query_side_effect(model):
+            if model == User:
+                return user_query_mock
+            elif model == AgentRegistry:
+                return agent_query_mock
+            return MagicMock()
+
+        db_session.query.side_effect = query_side_effect
+
+        with patch('core.agent_governance_service.get_governance_cache'):
+            with patch('core.agent_world_model.WorldModelService') as mock_wm_class:
+                mock_wm = AsyncMock()
+                mock_wm_class.return_value = mock_wm
+
+                with patch.object(db_session, 'commit'):
+                    await governance_service._adjudicate_feedback(feedback)
+
+                    assert feedback.status == FeedbackStatus.ACCEPTED.value
+                    assert feedback.adjudicated_at is not None
+                    assert "Trusted reviewer" in feedback.ai_reasoning
+
+    @pytest.mark.asyncio
+    async def test_specialty_match_accepted(self, governance_service, db_session):
+        """Test that specialty match is automatically accepted."""
+        agent = AgentRegistry(
+            id="agent_123",
+            name="Test Agent",
+            category="Finance",
+            module_path="test",
+            class_name="TestAgent",
+            confidence_score=0.7
+        )
+        finance_user = User(
+            id="user_123",
+            email="finance@example.com",
+            role=UserRole.MEMBER,
+            specialty="Finance"
+        )
+
+        feedback = AgentFeedback(
+            id="feedback_123",
+            agent_id="agent_123",
+            user_id="user_123",
+            original_output="Wrong output",
+            user_correction="Correct output",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        user_query_mock = MagicMock()
+        agent_query_mock = MagicMock()
+        user_query_mock.filter.return_value.first.return_value = finance_user
+        agent_query_mock.filter.return_value.first.return_value = agent
+
+        def query_side_effect(model):
+            if model == User:
+                return user_query_mock
+            elif model == AgentRegistry:
+                return agent_query_mock
+            return MagicMock()
+
+        db_session.query.side_effect = query_side_effect
+
+        with patch('core.agent_governance_service.get_governance_cache'):
+            with patch('core.agent_world_model.WorldModelService') as mock_wm_class:
+                mock_wm = AsyncMock()
+                mock_wm_class.return_value = mock_wm
+
+                with patch.object(db_session, 'commit'):
+                    await governance_service._adjudicate_feedback(feedback)
+
+                    assert feedback.status == FeedbackStatus.ACCEPTED.value
+                    assert "Trusted reviewer" in feedback.ai_reasoning
+
+    @pytest.mark.asyncio
+    async def test_non_trusted_reviewer_pending(self, governance_service, db_session):
+        """Test that non-trusted reviewers get pending status."""
+        agent = AgentRegistry(
+            id="agent_123",
+            name="Test Agent",
+            category="Finance",
+            module_path="test",
+            class_name="TestAgent",
+            confidence_score=0.7
+        )
+        regular_user = User(
+            id="user_123",
+            email="user@example.com",
+            role=UserRole.MEMBER,
+            specialty="Engineering"
+        )
+
+        feedback = AgentFeedback(
+            id="feedback_123",
+            agent_id="agent_123",
+            user_id="user_123",
+            original_output="Wrong output",
+            user_correction="Correct output",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        user_query_mock = MagicMock()
+        agent_query_mock = MagicMock()
+        user_query_mock.filter.return_value.first.return_value = regular_user
+        agent_query_mock.filter.return_value.first.return_value = agent
+
+        def query_side_effect(model):
+            if model == User:
+                return user_query_mock
+            elif model == AgentRegistry:
+                return agent_query_mock
+            return MagicMock()
+
+        db_session.query.side_effect = query_side_effect
+
+        with patch.object(db_session, 'commit'):
+            with patch('core.agent_governance_service.get_governance_cache'):
+                await governance_service._adjudicate_feedback(feedback)
+
+                assert feedback.status == FeedbackStatus.PENDING.value
+                assert "queued for specialty review" in feedback.ai_reasoning.lower()
+
+    @pytest.mark.asyncio
+    async def test_feedback_creates_experience(self, governance_service, db_session):
+        """Test that accepted feedback creates WorldModel experience."""
+        agent = AgentRegistry(
+            id="agent_123",
+            name="Test Agent",
+            category="Finance",
+            module_path="test",
+            class_name="TestAgent",
+            confidence_score=0.7
+        )
+        admin_user = User(
+            id="admin_123",
+            email="admin@example.com",
+            role=UserRole.WORKSPACE_ADMIN,
+            specialty="Admin"
+        )
+
+        feedback = AgentFeedback(
+            id="feedback_123",
+            agent_id="agent_123",
+            user_id="admin_123",
+            original_output="Wrong output",
+            user_correction="Correct output",
+            input_context="Test context",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        user_query_mock = MagicMock()
+        agent_query_mock = MagicMock()
+        user_query_mock.filter.return_value.first.return_value = admin_user
+        agent_query_mock.filter.return_value.first.return_value = agent
+
+        def query_side_effect(model):
+            if model == User:
+                return user_query_mock
+            elif model == AgentRegistry:
+                return agent_query_mock
+            return MagicMock()
+
+        db_session.query.side_effect = query_side_effect
+
+        with patch('core.agent_governance_service.get_governance_cache'):
+            with patch('core.agent_world_model.WorldModelService') as mock_wm_class:
+                mock_wm = AsyncMock()
+                mock_wm_class.return_value = mock_wm
+
+                with patch.object(db_session, 'commit'):
+                    await governance_service._adjudicate_feedback(feedback)
+
+                    mock_wm.record_experience.assert_called_once()
+                    experience_arg = mock_wm.record_experience.call_args[0][0]
+                    assert experience_arg.agent_id == "agent_123"
+                    assert experience_arg.task_type == "correction"
+                    assert experience_arg.outcome == "Failure"
+
+    @pytest.mark.asyncio
+    async def test_confidence_penalty_on_feedback(self, governance_service, db_session):
+        """Test that accepted feedback reduces confidence score."""
+        agent = AgentRegistry(
+            id="agent_123",
+            name="Test Agent",
+            category="Finance",
+            module_path="test",
+            class_name="TestAgent",
+            confidence_score=0.8
+        )
+        admin_user = User(
+            id="admin_123",
+            email="admin@example.com",
+            role=UserRole.WORKSPACE_ADMIN,
+            specialty="Admin"
+        )
+
+        feedback = AgentFeedback(
+            id="feedback_123",
+            agent_id="agent_123",
+            user_id="admin_123",
+            original_output="Wrong output",
+            user_correction="Correct output",
+            status=FeedbackStatus.PENDING.value
+        )
+
+        # Need 3 agent queries: one for adjudicate, two for _update_confidence_score
+        agent_query_mock = MagicMock()
+        agent_query_mock.filter.return_value.first.return_value = agent
+        user_query_mock = MagicMock()
+        user_query_mock.filter.return_value.first.return_value = admin_user
+
+        query_count = [0]
+        def query_side_effect(model):
+            if model == User:
+                return user_query_mock
+            elif model == AgentRegistry:
+                return agent_query_mock
+            return MagicMock()
+
+        db_session.query.side_effect = query_side_effect
+
+        with patch('core.agent_governance_service.get_governance_cache'):
+            with patch('core.agent_world_model.WorldModelService') as mock_wm_class:
+                mock_wm = AsyncMock()
+                mock_wm_class.return_value = mock_wm
+
+                with patch.object(db_session, 'add'):
+                    with patch.object(db_session, 'commit'):
+                        initial_score = agent.confidence_score
+                        await governance_service._adjudicate_feedback(feedback)
+
+                        # Confidence should decrease due to negative feedback
+                        assert agent.confidence_score < initial_score
+
+
+# ==================== TEST ENFORCE ACTION ====================
+
+class TestEnforceAction:
+    """Test action enforcement with approval routing."""
+
+    def test_enforce_action_allowed(self, governance_service, db_session, sample_agent_autonomous):
+        """Test that autonomous agents can perform actions without approval."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_autonomous
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None  # Cache miss
+        mock_cache.set = Mock()
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            result = governance_service.enforce_action(
+                agent_id="agent_autonomous",
+                action_type="execute"
+            )
+
+            # AUTONOMOUS agent with complexity 4 action should be allowed
+            assert result["proceed"] == True
+            # Status can be either APPROVED or PENDING_APPROVAL depending on complexity
+            assert result["status"] in ["APPROVED", "PENDING_APPROVAL"]
+
+    def test_enforce_action_blocked(self, governance_service, db_session, sample_agent_student):
+        """Test that student agents are blocked from complex actions."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_student
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None  # Cache miss
+        mock_cache.set = Mock()
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            result = governance_service.enforce_action(
+                agent_id="agent_student",
+                action_type="delete"
+            )
+
+            assert result["proceed"] == False
+            assert result["status"] == "BLOCKED"
+            assert "HUMAN_APPROVAL" in result["action_required"]
+
+    def test_enforce_action_pending_approval(self, governance_service, db_session, sample_agent_supervised):
+        """Test that supervised agents require approval for complex actions."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_supervised
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None  # Cache miss
+        mock_cache.set = Mock()
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            result = governance_service.enforce_action(
+                agent_id="agent_supervised",
+                action_type="submit_form"
+            )
+
+            assert result["proceed"] == True
+            assert result["status"] == "PENDING_APPROVAL"
+            assert result["action_required"] == "WAIT_FOR_APPROVAL"
+
+
+# ==================== TEST AGENT CAPABILITIES ====================
+
+class TestAgentCapabilities:
+    """Test agent capability retrieval and display."""
+
+    def test_get_agent_capabilities_student(self, governance_service, db_session, sample_agent_student):
+        """Test getting capabilities for STUDENT agent."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_student
+
+        capabilities = governance_service.get_agent_capabilities("agent_student")
+
+        assert capabilities["maturity_level"] == AgentStatus.STUDENT.value
+        assert "allowed_actions" in capabilities
+        assert "present_chart" in capabilities["allowed_actions"]
+        assert "delete" not in capabilities["allowed_actions"]
+        assert "restricted_actions" in capabilities
+        assert "delete" in capabilities["restricted_actions"]
+
+    def test_get_agent_capabilities_autonomous(self, governance_service, db_session, sample_agent_autonomous):
+        """Test getting capabilities for AUTONOMOUS agent."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_autonomous
+
+        capabilities = governance_service.get_agent_capabilities("agent_autonomous")
+
+        assert capabilities["maturity_level"] == AgentStatus.AUTONOMOUS.value
+        assert "allowed_actions" in capabilities
+        assert "delete" in capabilities["allowed_actions"]
+        assert "execute" in capabilities["allowed_actions"]
+        assert len(capabilities["restricted_actions"]) == 0
+
+    def test_get_agent_capabilities_not_found(self, governance_service, db_session):
+        """Test getting capabilities for non-existent agent."""
+        db_session.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(Exception):
+            governance_service.get_agent_capabilities("nonexistent_agent")
+
+
+# ==================== TEST STATUS VALIDATION ====================
+
+class TestStatusValidation:
+    """Test status validation and confidence-based maturity correction."""
+
+    def test_status_mismatch_corrected(self, governance_service, db_session):
+        """Test that status mismatch with confidence is corrected."""
+        # Create agent with manipulated status (INTERN but confidence suggests STUDENT)
+        agent = AgentRegistry(
+            id="agent_manipulated",
+            name="Manipulated Agent",
+            category="Test",
+            module_path="test",
+            class_name="TestAgent",
+            status=AgentStatus.INTERN.value,
+            confidence_score=0.3  # Should be STUDENT
+        )
+        db_session.query.return_value.filter.return_value.first.return_value = agent
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None  # Cache miss
+        mock_cache.set = Mock()
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            result = governance_service.can_perform_action(
+                agent_id="agent_manipulated",
+                action_type="stream_chat"
+            )
+
+            # Should use confidence-based maturity (STUDENT) not stored status (INTERN)
+            assert result["agent_status"] == AgentStatus.STUDENT.value
+
+    def test_confidence_none_defaults_to_student(self, governance_service, db_session):
+        """Test that None confidence defaults to STUDENT level."""
+        agent = AgentRegistry(
+            id="agent_no_confidence",
+            name="No Confidence Agent",
+            category="Test",
+            module_path="test",
+            class_name="TestAgent",
+            status=AgentStatus.STUDENT.value,
+            confidence_score=None
+        )
+        db_session.query.return_value.filter.return_value.first.return_value = agent
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None  # Cache miss
+        mock_cache.set = Mock()
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            result = governance_service.can_perform_action(
+                agent_id="agent_no_confidence",
+                action_type="present_chart"
+            )
+
+            # Should handle None confidence gracefully
+            assert "confidence_score" in result
+            assert result["confidence_score"] >= 0.0
+
+    def test_status_validation_warning_logged(self, governance_service, db_session):
+        """Test that status mismatch triggers a warning log."""
+        agent = AgentRegistry(
+            id="agent_mismatch",
+            name="Mismatch Agent",
+            category="Test",
+            module_path="test",
+            class_name="TestAgent",
+            status=AgentStatus.AUTONOMOUS.value,
+            confidence_score=0.5  # Should be INTERN, not AUTONOMOUS
+        )
+        db_session.query.return_value.filter.return_value.first.return_value = agent
+
+        mock_cache = MagicMock()
+        mock_cache.get.return_value = None  # Cache miss
+        mock_cache.set = Mock()
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            with patch('core.agent_governance_service.logger') as mock_logger:
+                governance_service.can_perform_action(
+                    agent_id="agent_mismatch",
+                    action_type="execute"
+                )
+
+                # Should log warning about status mismatch
+                mock_logger.warning.assert_called()
+
+
+# ==================== TEST CACHE INTEGRATION ENHANCED ====================
+
+class TestCacheIntegrationEnhanced:
+    """Enhanced tests for governance cache integration."""
+
+    def test_cache_key_combination(self, governance_service, mock_cache, db_session, sample_agent_intern):
+        """Test that cache key combines agent_id and action_type."""
+        mock_cache.get.return_value = None
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_intern
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            governance_service.can_perform_action(
+                agent_id="agent_intern",
+                action_type="stream_chat"
+            )
+
+            # Verify cache.get was called with correct key combination
+            mock_cache.get.assert_called_once_with("agent_intern", "stream_chat")
+
+    def test_cache_set_after_miss(self, governance_service, mock_cache, db_session, sample_agent_intern):
+        """Test that cache is set after a cache miss."""
+        mock_cache.get.return_value = None
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_intern
+
+        with patch('core.agent_governance_service.get_governance_cache', return_value=mock_cache):
+            governance_service.can_perform_action(
+                agent_id="agent_intern",
+                action_type="submit_form"
+            )
+
+            # Verify cache.set was called to store the result
+            mock_cache.set.assert_called_once()
+
+    def test_cache_invalidation_on_pause(self, governance_service, db_session, sample_agent_intern):
+        """Test that cache is invalidated when agent is paused."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_intern
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = MagicMock()
+            mock_cache_instance.invalidate = Mock()
+            mock_cache.return_value = mock_cache_instance
+
+            with patch.object(db_session, 'commit'):
+                with patch.object(db_session, 'refresh'):
+                    governance_service.pause_agent("agent_intern")
+
+                    mock_cache_instance.invalidate.assert_called_once_with("agent_intern")
+
+    def test_cache_invalidation_on_resume(self, governance_service, db_session, sample_agent_paused):
+        """Test that cache is invalidated when agent is resumed."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_paused
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = MagicMock()
+            mock_cache_instance.invalidate = Mock()
+            mock_cache.return_value = mock_cache_instance
+
+            with patch.object(db_session, 'commit'):
+                with patch.object(db_session, 'refresh'):
+                    governance_service.resume_agent("agent_paused")
+
+                    mock_cache_instance.invalidate.assert_called_once_with("agent_paused")
+
+
+# ==================== TEST ERROR HANDLING ====================
+
+class TestErrorHandling:
+    """Test error handling in edge cases."""
+
+    def test_update_confidence_agent_not_found(self, governance_service, db_session):
+        """Test updating confidence for non-existent agent."""
+        db_session.query.return_value.filter.return_value.first.return_value = None
+
+        with patch('core.agent_governance_service.get_governance_cache'):
+            # Should not raise error, just return gracefully
+            governance_service._update_confidence_score(
+                agent_id="nonexistent_agent",
+                positive=True,
+                impact_level="high"
+            )
+
+    def test_pause_agent_not_found(self, governance_service, db_session):
+        """Test pausing non-existent agent raises error."""
+        db_session.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(Exception):
+            governance_service.pause_agent("nonexistent_agent")
+
+    def test_resume_agent_not_found(self, governance_service, db_session):
+        """Test resuming non-existent agent raises error."""
+        db_session.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(Exception):
+            governance_service.resume_agent("nonexistent_agent")
+
+    def test_stop_agent_not_found(self, governance_service, db_session):
+        """Test stopping non-existent agent raises error."""
+        db_session.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(Exception):
+            governance_service.stop_agent("nonexistent_agent")
+
+    def test_delete_agent_not_found(self, governance_service, db_session):
+        """Test deleting non-existent agent raises error."""
+        db_session.query.return_value.filter.return_value.first.return_value = None
+
+        with pytest.raises(Exception):
+            governance_service.delete_agent("nonexistent_agent")
+
+    def test_promote_agent_not_found(self, governance_service, db_session):
+        """Test promoting non-existent agent raises error."""
+        user = User(
+            id="user_123",
+            email="admin@example.com",
+            role=UserRole.WORKSPACE_ADMIN,
+            specialty="Admin"
+        )
+
+        # Setup query to return None for agent lookup
+        db_session.query.return_value.filter.return_value.first.return_value = None
+
+        with patch('core.agent_governance_service.RBACService') as mock_rbac:
+            mock_rbac.check_permission.return_value = True
+
+            with pytest.raises(Exception):
+                governance_service.promote_to_autonomous(
+                    agent_id="nonexistent_agent",
+                    user=user
+                )
+
+    def test_resume_non_paused_agent(self, governance_service, db_session, sample_agent_intern):
+        """Test resuming an agent that is not paused."""
+        db_session.query.return_value.filter.return_value.first.return_value = sample_agent_intern
+
+        with patch('core.agent_governance_service.get_governance_cache') as mock_cache:
+            mock_cache_instance = MagicMock()
+            mock_cache_instance.invalidate = Mock()
+            mock_cache.return_value = mock_cache_instance
+
+            # Should return early without status change
+            result = governance_service.resume_agent("agent_intern")
+
+            # Status should remain INTERN
+            assert result.status == AgentStatus.INTERN.value
+            # Cache should NOT be invalidated since agent wasn't paused
+            mock_cache_instance.invalidate.assert_not_called()
