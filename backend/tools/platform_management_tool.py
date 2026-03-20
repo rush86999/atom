@@ -20,9 +20,7 @@ async def get_platform_settings(context: Dict[str, Any] = None) -> Dict[str, Any
     from core.database import SessionLocal
     from core.models import TenantSetting
     
-    workspace_id = context.get("workspace_id") if context else None
-    if not workspace_id:
-        return {"error": "No workspace context found."}
+    workspace_id = (context.get("workspace_id") if context else None) or "default"
         
     try:
         with SessionLocal() as db:
@@ -37,9 +35,7 @@ async def update_platform_setting(key: str, value: str, context: Dict[str, Any] 
     from core.database import SessionLocal
     from core.models import TenantSetting
     
-    workspace_id = context.get("workspace_id") if context else None
-    if not workspace_id:
-        return "Error: No workspace context found."
+    workspace_id = (context.get("workspace_id") if context else None) or "default"
         
     try:
         with SessionLocal() as db:
@@ -72,20 +68,23 @@ async def update_tenant_profile(
     from core.database import SessionLocal
     from core.models import Tenant, Workspace
     
-    workspace_id = context.get("workspace_id") if context else None
-    if not workspace_id:
-        return "Error: No workspace context found."
+    workspace_id = (context.get("workspace_id") if context else None) or "default"
         
     try:
         with SessionLocal() as db:
             # First get tenant_id from workspace
             ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-            if not ws:
-                return f"Error: Workspace {workspace_id} not found."
             
-            tenant_id = ws.tenant_id
+            # Fallback for single-tenant mode where workspace might not exist yet
+            tenant_id = ws.tenant_id if ws else "default"
+            
             tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-            if not tenant:
+            
+            # If default tenant doesn't exist, we might be in ultra-lean OS mode
+            if not tenant and tenant_id == "default":
+                # Create default tenant on the fly if needed? Or just return error
+                return f"Error: Default tenant not found. Please initialize the system."
+            elif not tenant:
                 return f"Error: Tenant {tenant_id} not found."
             
             updates = []

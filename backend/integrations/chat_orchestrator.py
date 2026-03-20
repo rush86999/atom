@@ -1004,7 +1004,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             db = SessionLocal()
             try:
                 # In a real app, workspace_id comes from context or session
-                workspace_id = context.get("workspace_id") if context else "default-workspace"
+                workspace_id = context.get("workspace_id") if context else "default"
                 assistant = AccountingAssistant(db)
                 result = await assistant.process_query(workspace_id, message)
                 
@@ -1074,7 +1074,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
             db = SessionLocal()
             try:
                 from sales.assistant import SalesAssistant
-                workspace_id = context.get("workspace_id") if context else "default-workspace"
+                workspace_id = context.get("workspace_id") if context else "default"
                 assistant = SalesAssistant(db)
                 answer = await assistant.answer_sales_query(workspace_id, message)
                 
@@ -1097,7 +1097,7 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
         from core.business_health_service import business_health_service
         
         message_lower = message.lower()
-        workspace_id = context.get("workspace_id") if context else "default-workspace"
+        workspace_id = context.get("workspace_id") if context else "default"
         
         try:
             if any(word in message_lower for word in ["simulate", "simulation", "impact", "what if"]):

@@ -2,7 +2,7 @@
 
 
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, UniqueConstraint, Enum as SQLEnum, Index, BigInteger, TypeDecorator, Numeric, Date
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 import uuid
 from decimal import Decimal
 
@@ -686,6 +686,7 @@ class WorkflowExecution(Base):
     __tablename__ = "workflow_executions"
 
     execution_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     workflow_id = Column(String, nullable=False, index=True)
     status = Column(String, default=WorkflowExecutionStatus.PENDING.value, index=True)
     input_data = Column(Text, nullable=True)
@@ -696,6 +697,7 @@ class WorkflowExecution(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     error = Column(Text, nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     # Add user_id foreign key for user binding
     user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     
@@ -2837,8 +2839,7 @@ class BrowserAudit(Base):
     agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
     user = relationship("User", foreign_keys=[user_id])
 
-<<<<<<< HEAD
-# CONSOLIDATED to line 3668: class Artifact(Base):
+# Removed duplicate Artifact class - using consolidated definition at line 3668
 #     """
 #     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
 #
@@ -2869,10 +2870,7 @@ class BrowserAudit(Base):
 #     author = relationship("User", foreign_keys=[author_id])
 #     locked_by = relationship("User", foreign_keys=[locked_by_user_id])
 #     workspace = relationship("Workspace")
-=======
-# First Artifact class removed - duplicate definition causing SQLAlchemy errors
-# Use the multi-tenant Artifact class at line 3668 instead
->>>>>>> 94aff054939db42cfd64147e6cb362e64896ae3a
+# Artifact class moved - duplicate definition resolved
 
 class ArtifactVersion(Base):
     """
@@ -4620,17 +4618,22 @@ class WorkflowExecutionLog(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     # Core linkage
     execution_id = Column(String, index=True, nullable=False)
-    workflow_id = Column(String, index=True, nullable=False)
-    step_id = Column(String, index=True, nullable=False)
-    step_type = Column(String, nullable=False)
+    workflow_id = Column(String, index=True, nullable=True)
+    step_id = Column(String, index=True, nullable=True)
+    step_type = Column(String, nullable=True)
     
     # Metrics
-    start_time = Column(DateTime(timezone=True), nullable=False)
-    end_time = Column(DateTime(timezone=True), nullable=False)
-    duration_ms = Column(Float, nullable=False)
+    start_time = Column(DateTime(timezone=True), nullable=True)
+    end_time = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Float, nullable=True)
     
-    status = Column(String, nullable=False)
+    status = Column(String, nullable=True)
     error_code = Column(String, nullable=True)
+    
+    # Compatibility with older tests
+    level = Column(String, nullable=True)
+    message = Column(Text, nullable=True)
+    timestamp = Column(DateTime(timezone=True), default=func.now())
     
     trigger_data = Column(JSON, nullable=True)
     results = Column(JSON, nullable=True)
@@ -6025,7 +6028,7 @@ class PackageInstallation(Base):
     version = Column(String(100), nullable=False)
     maturity_level_at_install = Column(String(50), nullable=False)
     vulnerabilities_found = Column(Integer, default=0)
-    vulnerability_details = Column(JSONB, nullable=True)
+    vulnerability_details = Column(JSON, nullable=True)
     installation_status = Column(String(50), nullable=False, default="pending")
     error_message = Column(Text, nullable=True)
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -6250,7 +6253,7 @@ class SDLCAgentConfig(Base):
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     agent_type = Column(String(20), nullable=False)  # planner, coder, tester, reviewer, deployer
     enabled = Column(Boolean, default=False, nullable=False)
-    config = Column(JSONB, default={}, nullable=True)  # Type-specific configuration
+    config = Column(JSON, default={}, nullable=True)  # Type-specific configuration
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -6287,7 +6290,7 @@ class SDLCAuditLog(Base):
     approval_required = Column(Boolean, nullable=True)  # Whether approval was needed
     approved_by = Column(String(255), nullable=True)  # Approver identifier
     approved_at = Column(DateTime(timezone=True), nullable=True)  # Approval timestamp
-    constitutional_violations = Column(JSONB, nullable=True)  # List of violations if any
+    constitutional_violations = Column(JSON, nullable=True)  # List of violations if any
     episode_id = Column(String, ForeignKey("agent_episodes.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
@@ -6615,7 +6618,7 @@ class ACUConsumption(Base):
     acu_cost = Column(Numeric(10, 4), nullable=False)
 
     # Raw metrics from Fly.io
-    raw_metrics = Column(JSONB, nullable=True)
+    raw_metrics = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -6693,7 +6696,7 @@ class ACUUsageReport(Base):
     report_type = Column(String(20), nullable=False)  # 'daily', 'weekly', 'monthly'
 
     # Report data
-    project_breakdown = Column(JSONB, nullable=True)  # {project_id: {acu, cost}}
+    project_breakdown = Column(JSON, nullable=True)  # {project_id: {acu, cost}}
     quota_usage_percent = Column(Numeric(5, 2), nullable=True)
     forecast_overage = Column(Boolean, nullable=True)
 
@@ -6829,12 +6832,12 @@ class SmartHomeDevice(Base):
     room = Column(String(100))
     floor = Column(String(50))
 
-    # Device capabilities (JSONB array)
+    # Device capabilities (JSON array)
     # ['on_off', 'brightness', 'color', 'color_temperature', 'thermostat', 'lock', 'motion', 'temperature']
-    capabilities = Column(JSONB, default=list)
+    capabilities = Column(JSON, default=list)
 
     # Current device state (dynamic properties)
-    state = Column(JSONB, default=dict)
+    state = Column(JSON, default=dict)
 
     # Device metadata
     manufacturer = Column(String(255))
@@ -6893,13 +6896,13 @@ class SmartHomeAutomationRule(Base):
     # TAP Pattern: Trigger -> Condition(s) -> Action(s)
     # Trigger: What initiates the rule
     trigger_type = Column(String(50), nullable=False)  # 'state', 'time', 'event', 'geolocation'
-    trigger_config = Column(JSONB, nullable=False)  # Trigger-specific configuration
+    trigger_config = Column(JSON, nullable=False)  # Trigger-specific configuration
 
     # Conditions: Optional filters (AND/OR/NOT logic)
-    conditions = Column(JSONB, default=list)  # Array of condition objects
+    conditions = Column(JSON, default=list)  # Array of condition objects
 
     # Actions: What to execute when rule fires
-    actions = Column(JSONB, nullable=False)  # Array of action objects
+    actions = Column(JSON, nullable=False)  # Array of action objects
 
     # Rule settings
     is_enabled = Column(Boolean, nullable=False, default=True)
@@ -6948,7 +6951,7 @@ class SmartHomeScene(Base):
 
     # Scene devices (what to set when scene activates)
     # [{device_id, state, delay_seconds}]
-    scene_devices = Column(JSONB, nullable=False)
+    scene_devices = Column(JSON, nullable=False)
 
     # Scene settings
     is_favorite = Column(Boolean, nullable=False, default=False)
@@ -6996,7 +6999,7 @@ class SmartHomeSchedule(Base):
     # What to execute
     target_type = Column(String(50), nullable=False)  # 'scene', 'device', 'automation_rule'
     target_id = Column(String, nullable=False)  # ID of scene/device/rule
-    target_config = Column(JSONB)  # Configuration for target execution
+    target_config = Column(JSON)  # Configuration for target execution
 
     # Schedule settings
     is_enabled = Column(Boolean, nullable=False, default=True)
@@ -7057,7 +7060,7 @@ class SmartHomeEnergyUsage(Base):
     peak_power_watts = Column(Numeric(8, 2))
 
     # Optimization suggestions
-    optimization_suggestions = Column(JSONB)  # Suggestions to reduce consumption
+    optimization_suggestions = Column(JSON)  # Suggestions to reduce consumption
 
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
