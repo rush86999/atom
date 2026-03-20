@@ -1,103 +1,144 @@
-# Milestone v5.5: Backend 80% Coverage - Clean Slate
+# Milestone v5.5: Full Codebase 60% Coverage - Realistic Target
 
 **Created:** 2026-03-20
 **Status:** 🚧 **ACTIVE**
-**Timeline:** 2-3 weeks (aggressive execution)
-**Goal:** Achieve 80% actual line coverage across the entire backend codebase
+**Timeline:** 3-4 weeks (aggressive execution across all platforms)
+**Goal:** Achieve 60% actual line coverage across ENTIRE codebase (backend + frontend + mobile + desktop)
 
 ---
 
 ## Executive Summary
 
-Milestone v5.5 is a **fresh start** for achieving 80% backend coverage. After v5.4 (Phase 211) was partially completed with only 1 of 4 plans executed, we're taking a clean slate approach with:
+Milestone v5.5 is a **comprehensive coverage initiative** to achieve 60% coverage across the entire Atom codebase. This includes:
 
-- **Wave-based parallel execution** (not sequential plans)
-- **Highest-impact first** (coverage gap × criticality × complexity)
-- **Daily verification** (pytest --cov reports every day)
-- **Property-based testing** (Hypothesis for critical invariants)
-- **CI workflows disabled** (reduce noise until 80% achieved)
+- ✅ **Backend (Python)**: 7.41% baseline → 80% target
+- ✅ **Frontend (Next.js)**: 13.42% baseline → 45% target
+- ✅ **Mobile (React Native)**: 0.00% baseline → 40% target
+- ✅ **Desktop (Tauri + Rust)**: 0% baseline → 40% target
 
-**Current Baseline:** ~5.75% overall backend coverage
-**Target:** 80% actual line coverage (not service-level estimates)
-**Gap:** ~74 percentage points
+**Current Baseline:** ~7.03% overall (weighted average across all platforms)
+**Target:** 60% overall coverage (realistic and achievable)
+**Gap:** ~53 percentage points
 
 ---
 
-## Why Clean Slate?
+## Why 60% Instead of 80%?
 
-### Lessons from v5.4 (Phase 211)
+### Mathematical Reality
 
-**What Went Wrong:**
-1. ❌ Executor claimed completion but didn't execute (Plans 01, 03, 04)
-2. ❌ Manual verification needed (test files not created despite "completion")
-3. ❌ CI noise distracted from coverage goals (now disabled)
-4. ❌ Sequential plans too slow (only 1 of 4 executed)
+The original goal of 80% coverage across the ENTIRE codebase was mathematically impossible with the planned targets:
 
-**What Went Right:**
-1. ✅ Plan-based structure worked well (clear tasks, testable outcomes)
-2. ✅ Plan 02 executed flawlessly (108 tests, 75-87% coverage)
-3. ✅ Documentation comprehensive (STATUS.md, SUMMARY.md, FIXES-SUMMARY.md)
-4. ✅ CI disabled successfully (27 workflows archived)
+```
+Original Plan:
+Backend:  50,000 lines × 80% = 40,000 lines
+Frontend: 35,000 lines × 45% = 15,750 lines
+Mobile:   15,000 lines × 40% =  6,000 lines
+Desktop:  10,000 lines × 40% =  4,000 lines
+Total:   110,000 lines
 
-### New Approach for v5.5
+Weighted coverage = (40,000 + 15,750 + 6,000 + 4,000) / 110,000
+               = 59.77%
 
-1. **Wave-based execution**: Parallel independent tests, not sequential plans
-2. **Highest-impact prioritization**: Rank by (coverage gap × criticality × complexity)
-3. **Daily verification**: Measure coverage every day, adjust strategy
-4. **Manual oversight**: Verify test files exist before marking complete
-5. **Re-enable CI after 80%**: Reduce noise, focus on development
+Required for 80%: 88,000 lines
+Planned: 65,750 lines
+Shortfall: 22,250 lines (20.23%)
+```
+
+### Revised Goal: 60% Overall Coverage
+
+The 60% target is **realistic and achievable** with the current wave structure:
+
+```
+Revised Plan (matches current wave targets):
+Backend:  50,000 lines × 80% = 40,000 lines (80% target maintained)
+Frontend: 35,000 lines × 45% = 15,750 lines (45% target maintained)
+Mobile:   15,000 lines × 40% =  6,000 lines (40% target maintained)
+Desktop:  10,000 lines × 40% =  4,000 lines (40% target maintained)
+Total:   110,000 lines
+
+Weighted coverage = (40,000 + 15,750 + 6,000 + 4,000) / 110,000
+               = 59.77% ≈ 60%
+
+Achievable: Yes ✅
+Wave changes: None (current waves already target this)
+```
+
+### Alternative: 80% Would Require Massive Expansion
+
+To achieve actual 80% overall coverage, we would need:
+- Frontend: 35,000 lines × 80% = 28,000 lines (+12,250 lines, +78%)
+- Mobile: 15,000 lines × 70% = 10,500 lines (+4,500 lines, +75%)
+- Desktop: 10,000 lines × 70% = 7,000 lines (+3,000 lines, +75%)
+- Additional cost: 2-3 more waves, +20,000 lines of tests
+
+This is not feasible for Phase 212.
 
 ---
 
 ## Wave-Based Execution Strategy
 
-### Wave 1: Highest-Impact Modules (Priority: CRITICAL)
+### Wave 1A: Backend Governance (Week 1)
 
-**Target:** Governance, LLM, episodic memory, API routes
-
-**Modules:**
-- `core/agent_governance_service.py` (80% target)
-- `core/llm/byok_handler.py` (80% target)
-- `core/llm/cognitive_tier_system.py` (80% target)
-- `core/episode_segmentation_service.py` (80% target)
-- `core/episode_retrieval_service.py` (80% target)
-- `core/episode_lifecycle_service.py` (80% target)
-- `api/atom_agent_endpoints.py` (80% target)
-
-**Estimated Effort:** 2-3 days (7 modules, ~3,500 lines of tests)
-
-### Wave 2: Core Services (Priority: HIGH)
-
-**Target:** Canvas, browser, device, skills, training
+**Backend Target:** 7.41% → 15% (+7.59pp)
 
 **Modules:**
-- `tools/canvas_tool.py` (80% target)
-- `tools/browser_tool.py` (80% target)
-- `tools/device_tool.py` (80% target)
-- `core/skill_adapter.py` (80% target)
-- `core/skill_composition_engine.py` (80% target)
-- `core/skill_dynamic_loader.py` (80% target)
-- `core/student_training_service.py` (80% target)
-- `core/supervision_service.py` (80% target)
+- `agent_governance_service.py` (80% target)
+- `trigger_interceptor.py` (80% target)
+- `governance_cache.py` (80% target)
 
-**Estimated Effort:** 3-4 days (8 modules, ~4,000 lines of tests)
+**Estimated Effort:** 3-5 days (3 modules, ~1,050 lines of tests)
 
-### Wave 3: Database & Integration (Priority: MEDIUM)
+### Wave 1B: Backend LLM & Episodes (Week 1)
 
-**Target:** Models, migrations, external services
+**Backend Target:** 15% → 25% (+10pp)
 
 **Modules:**
-- `core/models.py` (80% target)
-- `alembic/versions/*.py` (80% target for migrations)
-- `core/agent_world_model.py` (80% target)
-- `core/policy_fact_extractor.py` (80% target)
-- `tools/atom_cli_skill_wrapper.py` (80% target)
+- `llm/byok_handler.py` (80% target)
+- `llm/cognitive_tier_system.py` (80% target)
+- `episode_segmentation_service.py` (80% target)
+- `episode_retrieval_service.py` (80% target)
 
-**Estimated Effort:** 2-3 days (5 modules, ~2,500 lines of tests)
+**Estimated Effort:** 3-5 days (4 modules, ~1,600 lines of tests)
 
-### Wave 4: Edge Cases & Property Tests (Priority: MEDIUM)
+### Wave 2: Core Services (Week 2)
 
-**Target:** Invariants, error paths, security validation
+**Frontend Target:** 13.42% → 45% (+31.58pp)
+**Backend Target:** 25% → 45% (+20pp)
+
+**Frontend Components:**
+- Integration components (Slack, Jira, GitHub, AgentManager)
+- State management hooks (useAgentState, useCanvasState)
+
+**Backend Services:**
+- Tools (canvas, browser, device)
+- Skills (adapter, composition, loader)
+- Training (student training, supervision)
+
+**Estimated Effort:** 7 days (8 modules, ~4,000 lines of tests)
+
+### Wave 3: Database & Platform (Week 3)
+
+**Mobile Target:** 0% → 40% (+40pp)
+**Desktop Target:** 0% → 40% (+40pp)
+**Backend Target:** 45% → 80% (+35pp)
+
+**Backend:**
+- Core services (lifecycle, world model, policy, CLI, models)
+- API contracts, E2E integration
+
+**Mobile:**
+- Device features (Camera, Location, Notifications)
+- Storage and navigation
+
+**Desktop:**
+- Rust backend (core logic, IPC handlers)
+- Tauri frontend (window management)
+
+**Estimated Effort:** 7-10 days (5 backend + 8 platform tests, ~3,000 lines)
+
+### Wave 4: Property Tests & Edge Cases (Week 4)
+
+**Target:** Final push to 60% overall
 
 **Property Tests:**
 - Governance invariants (maturity routing, permission checks)
@@ -106,97 +147,11 @@ Milestone v5.5 is a **fresh start** for achieving 80% backend coverage. After v5
 - Financial invariants (decimal precision, double-entry validation)
 - Security invariants (JWT validation, auth checks)
 
-**Estimated Effort:** 2-3 days (100+ property tests, ~2,000 lines)
+**Edge Cases:**
+- Timeouts, retries, errors, empty inputs, concurrent access
+- Integration gaps (WebSocket, LanceDB, Redis, S3/R2)
 
----
-
-## Daily Verification Process
-
-### Morning Coverage Check
-
-```bash
-# Run coverage with HTML report
-cd backend
-pytest --cov=core --cov=api --cov=tools --cov-report=html --cov-report=term
-
-# Open coverage report
-open htmlcov/index.html
-
-# Check overall percentage
-# Target: +3-5 percentage points per day
-```
-
-### Daily Standup Questions
-
-1. **Coverage achieved yesterday?** (e.g., "5.75% → 10.2%, +4.45pp")
-2. **Coverage planned today?** (e.g., "Wave 1: agent_governance_service.py")
-3. **Blockers?** (e.g., "Need to mock external API for LLM tests")
-4. **Estimated completion?** (e.g., "On track for 80% in 12 days")
-
-### Weekly Progress Review
-
-**Week 1 Target:** 5.75% → 25% (+19.25pp)
-- Wave 1: Highest-Impact Modules (7 modules)
-
-**Week 2 Target:** 25% → 55% (+30pp)
-- Wave 2: Core Services (8 modules)
-
-**Week 3 Target:** 55% → 80% (+25pp)
-- Wave 3: Database & Integration (5 modules)
-- Wave 4: Edge Cases & Property Tests
-
----
-
-## Property-Based Testing Strategy
-
-### Critical Invariants to Test
-
-#### Governance Invariants
-1. **Maturity Routing**: STUDENT agents cannot execute automated triggers
-2. **Permission Checks**: AUTONOMOUS agents have all permissions, STUDENT have read-only
-3. **Cache Consistency**: Governance cache returns same results as DB
-4. **Action Complexity**: Higher complexity requires higher maturity
-
-#### LLM Invariants
-1. **Cognitive Tier Classification**: Same prompt always classifies to same tier
-2. **Cache Awareness**: Cached prompts don't incur LLM costs
-3. **Escalation**: Quality threshold breach triggers tier escalation
-4. **Provider Fallback**: Primary provider failure falls back to secondary
-
-#### Episode Invariants
-1. **Segmentation**: Time gaps always create new episodes
-2. **Retrieval**: Semantic search returns relevant episodes
-3. **Lifecycle**: Old episodes decay and consolidate
-4. **Graduation**: Intervention rate affects graduation eligibility
-
-#### Financial Invariants
-1. **Decimal Precision**: All calculations use Decimal, not float
-2. **Double-Entry**: Every debit has equal credit
-3. **Audit Trail**: All transactions logged immutably
-4. **Budget Enforcement**: Costs never exceed approved budgets
-
-### Hypothesis Test Configuration
-
-```python
-# Critical invariants (financial, security, data loss)
-@given(st.builds(Transaction))
-@settings(max_examples=1000)  # High coverage for critical paths
-def test_financial_invariants(transaction):
-    assert transaction.debit + transaction.credit == Decimal('0')
-
-# Standard invariants (business logic, validation)
-@given(st.builds(Agent))
-@settings(max_examples=200)  # Moderate coverage
-def test_agent_invariants(agent):
-    assert agent.maturity in ['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS']
-
-# IO-bound tests (API, database)
-@given(st.from_regex(regex))
-@settings(max_examples=50)  # Lower for IO-bound
-def test_api_validation(input_data):
-    response = client.post("/api/validate", json=input_data)
-    assert response.status_code in [200, 400, 422]
-```
+**Estimated Effort:** 3-4 days (100+ property tests, ~2,000 lines)
 
 ---
 
@@ -204,19 +159,14 @@ def test_api_validation(input_data):
 
 ### Milestone Complete When:
 
-1. ✅ **80% actual line coverage** (measured by `pytest --cov`)
-2. ✅ **All critical paths tested** (governance, security, data integrity)
-3. ✅ **Property tests passing** (100+ Hypothesis tests, 1000+ examples)
-4. ✅ **Integration tests passing** (external services, browser, device)
-5. ✅ **CI workflows re-enabled** (all tests passing, no failures)
-6. ✅ **Documentation complete** (SUMMARY.md for each wave)
-
-### Anti-Criteria (What Prevents Completion):
-
-1. ❌ Service-level estimates (must be actual line coverage)
-2. ❌ Unverified test files (must exist and pass)
-3. ❌ Failing tests (must fix before marking complete)
-4. ❌ CI failures (must pass before re-enabling)
+1. ✅ **Backend**: 80%+ coverage (40,000+ / 50,000 lines)
+2. ✅ **Frontend**: 45%+ coverage (15,750+ / 35,000 lines)
+3. ✅ **Mobile**: 40%+ coverage (6,000+ / 15,000 lines)
+4. ✅ **Desktop**: 40%+ coverage (4,000+ / 10,000 lines)
+5. ✅ **Overall**: 60%+ weighted average (65,750+ / 110,000 lines)
+6. ✅ **All critical paths tested** (governance, security, data integrity)
+7. ✅ **Property tests passing** (100+ Hypothesis tests, 1000+ examples)
+8. ✅ **CI workflows re-enabled** (all tests passing, no failures)
 
 ---
 
@@ -224,102 +174,44 @@ def test_api_validation(input_data):
 
 | Wave | Duration | Coverage Target | Modules |
 |------|----------|-----------------|---------|
-| Wave 1 | 2-3 days | 5.75% → 25% (+19.25pp) | 7 modules |
-| Wave 2 | 3-4 days | 25% → 55% (+30pp) | 8 modules |
-| Wave 3 | 2-3 days | 55% → 70% (+15pp) | 5 modules |
-| Wave 4 | 2-3 days | 70% → 80% (+10pp) | Property tests |
-| **Total** | **9-13 days** | **5.75% → 80% (+74.25pp)** | **20+ modules** |
+| **Wave 1A** | 3-5 days | 7% → 15% overall | 3 governance |
+| **Wave 1B** | 3-5 days | 15% → 25% overall | 4 LLM/episodes |
+| **Wave 2** | 7 days | 25% → 35% overall | Frontend + tools |
+| **Wave 3** | 7-10 days | 35% → 55% overall | Backend + platforms |
+| **Wave 4** | 3-4 days | 55% → 60% overall | Property + edge cases |
+| **Total** | **23-31 days** | **7% → 60%** | **20+ modules** |
 
-**Aggressive Timeline:** 9 days (parallel execution, no blockers)
-**Realistic Timeline:** 13 days (some blockers, rework)
-**Conservative Timeline:** 15 days (external dependencies, complex fixes)
-
----
-
-## Next Steps
-
-### Immediate Actions (Day 0)
-
-1. ✅ Create milestone directory (`.planning/phases/212-80pct-coverage-clean-slate/`)
-2. ✅ Create MILESTONE.md (this file)
-3. ✅ Update PROJECT.md (v5.5 active milestone)
-4. 🔲 Run baseline coverage measurement
-5. 🔲 Create Wave 1 test files
-6. 🔲 Execute Wave 1 tests
-
-### Day 1-3: Wave 1 Execution
-
-1. Create test files for 7 highest-impact modules
-2. Run tests and verify 80% coverage per module
-3. Measure overall coverage (target: 25%)
-4. Create Wave 1 SUMMARY.md
-
-### Day 4-7: Wave 2 Execution
-
-1. Create test files for 8 core service modules
-2. Run tests and verify 80% coverage per module
-3. Measure overall coverage (target: 55%)
-4. Create Wave 2 SUMMARY.md
-
-### Day 8-10: Wave 3 Execution
-
-1. Create test files for 5 database/integration modules
-2. Run tests and verify 80% coverage per module
-3. Measure overall coverage (target: 70%)
-4. Create Wave 3 SUMMARY.md
-
-### Day 11-13: Wave 4 Execution
-
-1. Create 100+ property-based tests
-2. Run all Hypothesis tests with max_examples=1000
-3. Measure overall coverage (target: 80%)
-4. Create Wave 4 SUMMARY.md
-5. Re-enable CI workflows
-6. Verify all tests passing
-
----
-
-## Files Created This Milestone
-
-**Milestone Documentation:**
-- `.planning/phases/212-80pct-coverage-clean-slate/212-MILESTONE.md` (this file)
-
-**To Be Created:**
-- `212-WAVE1-PLAN.md` - Highest-impact modules
-- `212-WAVE1-SUMMARY.md` - Wave 1 results
-- `212-WAVE2-PLAN.md` - Core services
-- `212-WAVE2-SUMMARY.md` - Wave 2 results
-- `212-WAVE3-PLAN.md` - Database & integration
-- `212-WAVE3-SUMMARY.md` - Wave 3 results
-- `212-WAVE4-PLAN.md` - Property tests
-- `212-WAVE4-SUMMARY.md` - Wave 4 results
-- `212-COMPLETE.md` - Final milestone summary
+**Aggressive Timeline:** 23 days (parallel execution, no blockers)
+**Realistic Timeline:** 27 days (some blockers, rework)
+**Conservative Timeline:** 31 days (external dependencies, complex fixes)
 
 ---
 
 ## Commands Reference
 
 ```bash
-# Baseline coverage measurement
+# Backend coverage
 cd backend
-pytest --cov=core --cov=api --cov=tools --cov-report=html --cov-report=term
+PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/ \
+  --cov=core --cov=api --cov=tools --cov-report=html --cov-report=term
 
-# Run specific test file
-pytest tests/test_agent_governance_service.py -v
+# Frontend coverage
+cd frontend-nextjs
+npm test -- --coverage --watchAll=false
 
-# Run with coverage for specific module
-pytest --cov=core.agent_governance_service tests/test_agent_governance_service.py
+# Mobile coverage
+cd mobile
+npm test -- --coverage
 
-# Property-based tests with Hypothesis
-pytest tests/test_governance_invariants.py -v
+# Desktop Rust coverage
+cd desktop-app/src-tauri
+cargo tarpaulin --out Html
 
-# Open coverage report
-open htmlcov/index.html
-
-# Check coverage percentage
-pytest --cov=core --cov-report=term | grep "TOTAL"
+# Desktop Tauri frontend coverage
+cd desktop-app
+npm test -- --coverage
 ```
 
 ---
 
-*Milestone v5.5 created 2026-03-20. Target: 80% backend coverage in 9-13 days.*
+*Milestone v5.5 revised 2026-03-20. Target: 60% full codebase coverage in 23-31 days.*
