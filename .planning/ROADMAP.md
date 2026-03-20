@@ -1559,6 +1559,37 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 - [ ] TEST-05: Document mocking pattern for future reference
 
 **Plans**:
-- [ ] 215-01-PLAN.md — Fix TestCreateTest fixtures (add agent lookup mocks to 8 fixtures)
-- [ ] 215-02-PLAN.md — Fix TestStartTest fixtures (add start_test mocks to 2 fixtures)
+- [x] 215-01-PLAN.md — Fix TestCreateTest fixtures (add agent lookup mocks to 8 fixtures)
+- [x] 215-02-PLAN.md — Fix TestStartTest fixtures (add start_test mocks to 2 fixtures)
+
+### Phase 216: Fix Business Facts Test Failures 📋 PLANNED
+**Goal**: Fix 10 failing tests related to business facts admin API routes
+**Status**: 📋 PLANNED (2026-03-20)
+**Plans**: 3 plans
+
+**Problem**: 10 tests failing in `tests/api/test_admin_business_facts_routes.py`:
+- **Response structure issues**: Tests expect string in `detail` field but get dict
+- **Mock fixture gaps**: WorldModelService, S3/R2, PDF extraction not properly mocked
+- **External dependencies**: Tests hit real services instead of mocks
+
+**Root Causes**:
+1. **Response Structure Mismatch**: FastAPI wraps error responses in complex objects
+2. **Mock Patching Wrong Location**: Tests patch where service is defined, not where imported
+
+**Solution Strategy**:
+- Wave 1: Fix response structure assertions (2 tests)
+- Wave 1: Fix mock patching locations for WorldModelService (8 tests)
+- Wave 2: Document patterns for future tests
+
+**Plans**:
+- [ ] 216-01-PLAN.md — Fix response structure assertions (test_get_fact_not_found, test_upload_invalid_file_type)
+- [ ] 216-02-PLAN.md — Fix WorldModelService patch location in upload and verify tests (8 tests)
+- [ ] 216-03-PLAN.md — Document mock patching and error assertion patterns
+
+**Success Criteria**:
+- [ ] FACT-01: All 10 business facts tests pass (0 failures)
+- [ ] FACT-02: No AttributeError or Mock errors
+- [ ] FACT-03: Tests remain fast (no real S3/R2 calls)
+- [ ] FACT-04: No production code changes (test-only fixes)
+- [ ] FACT-05: Document S3/R2 mocking pattern for future tests
 
