@@ -365,6 +365,12 @@ async def change_password(
                 resource_id=user_id
             )
 
+        # Check if user is locked
+        if user.status == "locked":
+            raise router.unauthorized_error(
+                message="Account is locked. Cannot change password."
+            )
+
         # Verify old password
         if not auth_service.verify_password(data.old_password, user.password_hash):
             raise router.unauthorized_error(
