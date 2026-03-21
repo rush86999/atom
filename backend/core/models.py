@@ -7850,3 +7850,188 @@ class SyncState(Base):
 
     def __repr__(self):
         return f"<SyncState(id={self.id}, status={self.status}, last_sync={self.last_sync})>"
+
+
+# =============================================================================
+# CANVAS COLLABORATION MODELS (Multi-Agent Canvas Collaboration)
+# =============================================================================
+
+class CanvasCollaborationSession(Base):
+    """
+    Multi-agent collaboration session for shared canvases.
+
+    Manages collaboration between multiple agents working on the same canvas
+    with role-based permissions, conflict detection, and coordination.
+    """
+    __tablename__ = "canvas_collaboration_sessions"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Canvas identification
+    canvas_id = Column(String(255), nullable=False, index=True)
+    session_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Collaboration settings
+    collaboration_mode = Column(String(50), nullable=False, default="sequential")  # sequential, parallel, locked
+    max_agents = Column(Integer, nullable=False, default=5)
+
+    # Status tracking
+    status = Column(String(50), nullable=False, default="active", index=True)  # active, paused, completed, cancelled
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    participants = relationship("CanvasAgentParticipant", back_populates="session", cascade="all, delete-orphan")
+    conflicts = relationship("CanvasConflict", back_populates="session", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<CanvasCollaborationSession(id={self.id}, canvas_id={self.canvas_id}, status={self.status})>"
+
+
+class CanvasAgentParticipant(Base):
+    """
+    Agent participant in a canvas collaboration session.
+
+    Tracks agent participation, roles, permissions, and activity within
+    collaboration sessions.
+    """
+    __tablename__ = "canvas_agent_participants"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Foreign keys
+    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Role and permissions
+    role = Column(String(50), nullable=False, default="contributor")  # owner, contributor, reviewer, viewer
+    permissions = Column(JSON, nullable=True)  # Granular permissions list
+
+    # Status tracking
+    status = Column(String(50), nullable=False, default="active", index=True)  # active, inactive, removed
+    actions_count = Column(Integer, nullable=False, default=0)
+    held_locks = Column(JSON, nullable=True)  # List of component IDs currently locked
+
+    # Activity tracking
+    last_activity_at = Column(DateTime(timezone=True), nullable=True)
+    left_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    session = relationship("CanvasCollaborationSession", back_populates="participants")
+    agent = relationship("AgentRegistry", backref="collaboration_sessions")
+
+    def __repr__(self):
+        return f"<CanvasAgentParticipant(id={self.id}, agent_id={self.agent_id}, role={self.role})>"
+
+
+class CanvasConflict(Base):
+    """
+    Conflict detection and resolution for canvas collaboration.
+
+    Tracks conflicts when multiple agents try to modify the same component
+    and their resolution.
+    """
+    __tablename__ = "canvas_conflicts"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Foreign keys
+    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    canvas_id = Column(String(255), nullable=False, index=True)
+    component_id = Column(String(255), nullable=False, index=True)
+
+    # Conflicting agents
+    agent_a_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
+    agent_b_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
+
+    # Conflicting actions
+    agent_a_action = Column(String(50), nullable=False)  # update, delete, move
+    agent_b_action = Column(String(50), nullable=False)
+
+    # Resolution
+    resolution = Column(String(50), nullable=True)  # merge, agent_a_wins, agent_b_wins, manual
+    resolved_by = Column(String(255), nullable=True)  # user_id or system
+    resolved_action = Column(JSON, nullable=True)  # Final action taken
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    detected_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    # Relationships
+    session = relationship("CanvasCollaborationSession", back_populates="conflicts")
+
+    def __repr__(self):
+        return f"<CanvasConflict(id={self.id}, component_id={self.component_id}, resolution={self.resolution})>"
+
+
+# =============================================================================
+# ADDITIONAL DEBUG MODELS
+# =============================================================================
+
+class DebugStateSnapshot(Base):
+    """
+    System state snapshot for debugging.
+
+    Captures complete system state at a point in time for debugging
+    and rollback analysis.
+    """
+    __tablename__ = "debug_state_snapshots"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Snapshot metadata
+    component_type = Column(String(50), nullable=False, index=True)  # agent, workflow, system
+    component_id = Column(String(255), nullable=False, index=True)
+    snapshot_type = Column(String(50), nullable=False, index=True)  # full, incremental, checkpoint
+
+    # State data
+    state_data = Column(JSON, nullable=False)  # Complete state snapshot
+    snapshot_metadata = Column(JSON, nullable=True)  # Additional context
+
+    # Timestamps
+    captured_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<DebugStateSnapshot(id={self.id}, component_id={self.component_id}, type={self.snapshot_type})>"
+
+
+class DebugMetric(Base):
+    """
+    Debug metric for performance monitoring.
+
+    Tracks performance metrics and debugging KPIs.
+    """
+    __tablename__ = "debug_metrics"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Metric identification
+    metric_name = Column(String(100), nullable=False, index=True)
+    metric_type = Column(String(50), nullable=False)  # counter, gauge, histogram
+    component_type = Column(String(50), nullable=False, index=True)
+    component_id = Column(String(255), nullable=True, index=True)
+
+    # Metric value
+    value = Column(Float, nullable=False)
+    unit = Column(String(50), nullable=True)  # ms, count, percent, etc.
+
+    # Labels/dimensions
+    labels = Column(JSON, nullable=True)  # Additional labels for grouping
+
+    # Timestamps
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<DebugMetric(id={self.id}, name={self.metric_name}, value={self.value})>"

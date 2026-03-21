@@ -56,7 +56,6 @@ class DocumentationCanvasService:
         content: str,
         canvas_id: Optional[str] = None,
         agent_id: Optional[str] = None,
-        layout: str = "document",
         enable_comments: bool = True,
         enable_versioning: bool = True
     ) -> Dict[str, Any]:
@@ -91,15 +90,11 @@ class DocumentationCanvasService:
             # Create canvas audit entry
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="docs",
-                component_type="rich_editor",
-                component_name="document",
-                action="create",
-                audit_metadata={
+                action_type="create",  # Changed from "action" to "action_type"
+                details_json={  # Changed from "audit_metadata" to "details_json"
                     "title": title,
                     "content": content,
                     "layout": layout,
@@ -137,7 +132,6 @@ class DocumentationCanvasService:
         canvas_id: str,
         user_id: str,
         content: str,
-        changes: str = "",
         create_version: bool = True
     ) -> Dict[str, Any]:
         """
@@ -163,7 +157,7 @@ class DocumentationCanvasService:
             if not audit:
                 return {"success": False, "error": "Document not found"}
 
-            metadata = audit.audit_metadata or {}
+            metadata = audit.details_json or {}
             versions = metadata.get("versions", [])
 
             # Create new version if enabled
@@ -185,13 +179,9 @@ class DocumentationCanvasService:
             # Create update audit entry
             update_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="docs",
-                component_type="rich_editor",
-                action="update",
-                audit_metadata=metadata
+                details_json=metadata
             )
 
             self.db.add(update_audit)
@@ -240,10 +230,10 @@ class DocumentationCanvasService:
             if not audit:
                 return {"success": False, "error": "Document not found"}
 
-            if not audit.audit_metadata.get("enable_comments", True):
+            if not audit.details_json.get("enable_comments", True):
                 return {"success": False, "error": "Comments not enabled for this document"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json
             comments = metadata.get("comments", [])
 
             # Create new comment
@@ -262,13 +252,9 @@ class DocumentationCanvasService:
             # Create comment audit entry
             comment_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="docs",
-                component_type="comment_thread",
-                action="comment",
-                audit_metadata=metadata
+                details_json=metadata
             )
 
             self.db.add(comment_audit)
@@ -314,7 +300,7 @@ class DocumentationCanvasService:
             if not audit:
                 return {"success": False, "error": "Document not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json
             comments = metadata.get("comments", [])
 
             # Find and resolve comment
@@ -330,13 +316,9 @@ class DocumentationCanvasService:
             # Create resolution audit entry
             resolution_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="docs",
-                component_type="comment_thread",
-                action="resolve_comment",
-                audit_metadata=metadata
+                details_json=metadata
             )
 
             self.db.add(resolution_audit)
@@ -377,7 +359,7 @@ class DocumentationCanvasService:
             # The update_document_content method appends to the versions list
             # so the latest audit entry should have the complete history
             latest_audit = audits[-1]
-            metadata = latest_audit.audit_metadata or {}
+            metadata = latest_audit.details_json or {}
             versions = metadata.get("versions", [])
 
             return {
@@ -417,7 +399,7 @@ class DocumentationCanvasService:
             if not audit:
                 return {"success": False, "error": "Document not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json
             versions = metadata.get("versions", [])
 
             # Find version
@@ -449,13 +431,9 @@ class DocumentationCanvasService:
             # Create restoration audit entry
             restore_audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                workspace_id="default",
                 user_id=user_id,
                 canvas_id=canvas_id,
-                canvas_type="docs",
-                component_type="version_history",
-                action="restore_version",
-                audit_metadata=metadata
+                details_json=metadata
             )
 
             self.db.add(restore_audit)
@@ -495,7 +473,7 @@ class DocumentationCanvasService:
             if not audit:
                 return {"success": False, "error": "Document not found"}
 
-            metadata = audit.audit_metadata
+            metadata = audit.details_json
             content = metadata.get("content", "")
 
             # Parse markdown headings
