@@ -8035,3 +8035,98 @@ class DebugMetric(Base):
 
     def __repr__(self):
         return f"<DebugMetric(id={self.id}, name={self.metric_name}, value={self.value})>"
+
+
+# =============================================================================
+# FINANCIAL AUDIT MODELS (SOX Compliance & Financial Tracking)
+# =============================================================================
+
+class FinancialAudit(Base):
+    """
+    Financial audit trail for SOX compliance and transaction tracking.
+
+    Records all financial operations with automatic logging via SQLAlchemy
+    event listeners. Provides tamper-evidence through hash chain integration.
+    """
+    __tablename__ = 'financial_audits'
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Account reference
+    account_id = Column(String(255), ForeignKey("financial_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Operation details
+    operation_type = Column(String(50), nullable=False, index=True)  # INSERT, UPDATE, DELETE
+    table_name = Column(String(100), nullable=False, index=True)
+    record_id = Column(String(255), nullable=True, index=True)
+
+    # Change tracking
+    old_values = Column(JSON, nullable=True)  # Before state
+    new_values = Column(JSON, nullable=True)  # After state
+
+    # User context (extracted from session.info)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    agent_maturity = Column(String(50), nullable=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+
+    # Compliance
+    hash_chain = Column(String(64), nullable=True)  # SHA-256 hash chain for tamper evidence
+    previous_hash = Column(String(64), nullable=True)  # Links to previous audit entry
+
+    # Metadata
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    audit_metadata = Column(JSON, nullable=True)  # Additional compliance data
+
+    # Relationships
+    account = relationship("FinancialAccount", backref="audit_trail")
+
+    def __repr__(self):
+        return f"<FinancialAudit(id={self.id}, operation_type={self.operation_type}, account_id={self.account_id})>"
+
+
+class FinancialAccount(Base):
+    """
+    Financial account for tracking budget limits and expenses.
+
+    Supports account hierarchy with parent-child relationships for
+    departmental budget allocation and tracking.
+    """
+    __tablename__ = 'financial_accounts'
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Account details
+    name = Column(String(255), nullable=False)
+    account_type = Column(String(50), nullable=False, index=True)  # checking, savings, credit_card, expense
+    parent_account_id = Column(String(255), ForeignKey("financial_accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Balance tracking
+    balance = Column(Float, nullable=False, default=0.0)
+    currency = Column(String(3), nullable=False, default="USD")
+
+    # Budget limits
+    budget_limit = Column(Float, nullable=True)
+    alert_threshold = Column(Float, nullable=True)  # Alert when spending exceeds % of budget
+
+    # Status
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    status = Column(String(50), nullable=False, default="active", index=True)  # active, suspended, closed
+
+    # Tenant
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Metadata
+    description = Column(Text, nullable=True)
+    account_metadata = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    tenant = relationship("Tenant", backref="financial_accounts")
+    parent_account = relationship("FinancialAccount", remote_side=[id], backref="child_accounts")
+
+    def __repr__(self):
+        return f"<FinancialAccount(id={self.id}, name={self.name}, balance={self.balance}>"
