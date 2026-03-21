@@ -220,6 +220,23 @@ export const agentHandlers = [
     );
   }),
 
+  // Chat memory stats endpoint (for useChatMemory hook)
+  rest.get('/api/chat/memory/stats', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+        stats: {
+          total_memories: 0,
+          total_episodes: 0,
+          total_tokens: 0,
+          last_updated: new Date().toISOString()
+        },
+        timestamp: new Date().toISOString()
+      })
+    );
+  }),
+
   // List all agents
   rest.get('/api/atom-agent/agents', (req, res, ctx) => {
     return res(
