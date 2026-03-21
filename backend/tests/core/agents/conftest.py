@@ -101,6 +101,9 @@ def test_agent_student(db_session):
     agent = AgentRegistry(
         id="test-agent-student",
         name="Test Student Agent",
+        category="Testing",
+        module_path="test.agents.student",
+        class_name="StudentAgent",
         status=AgentStatus.STUDENT,
         tenant_id="default",
         created_at=datetime.now()
@@ -116,6 +119,9 @@ def test_agent_intern(db_session):
     agent = AgentRegistry(
         id="test-agent-intern",
         name="Test Intern Agent",
+        category="Testing",
+        module_path="test.agents.intern",
+        class_name="InternAgent",
         status=AgentStatus.INTERN,
         tenant_id="default",
         created_at=datetime.now()
@@ -131,6 +137,9 @@ def test_agent_supervised(db_session):
     agent = AgentRegistry(
         id="test-agent-supervised",
         name="Test Supervised Agent",
+        category="Testing",
+        module_path="test.agents.supervised",
+        class_name="SupervisedAgent",
         status=AgentStatus.SUPERVISED,
         tenant_id="default",
         created_at=datetime.now()
