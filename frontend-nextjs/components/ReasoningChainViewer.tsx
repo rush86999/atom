@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
+import { ThumbsUp, ThumbsDown, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ReasoningStep {
     id: string;
@@ -26,13 +28,16 @@ interface ReasoningChain {
 interface ReasoningChainViewerProps {
     chainId?: string;
     chainData?: ReasoningChain;
+    onStepFeedback?: (stepId: string, score: number, comment?: string) => Promise<void>;
 }
 
-const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, chainData }) => {
+const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, chainData, onStepFeedback }) => {
     const [chain, setChain] = useState<ReasoningChain | null>(chainData || null);
     const [loading, setLoading] = useState(!chainData);
     const [error, setError] = useState<string | null>(null);
     const [expandedStep, setExpandedStep] = useState<string | null>(null);
+    const [activeFeedbackStep, setActiveFeedbackStep] = useState<string | null>(null);
+    const [feedbackComment, setFeedbackComment] = useState("");
     const mermaidRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -151,6 +156,31 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
                             <span className="step-icon">{getStepIcon(step.type)}</span>
                             <span className="step-number">#{index + 1}</span>
                             <span className="step-type">{step.type.replace('_', ' ')}</span>
+                            
+                            {onStepFeedback && step.id && (
+                                <div className="step-feedback-actions" onClick={(e) => e.stopPropagation()}>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 hover:text-emerald-500"
+                                        onClick={() => onStepFeedback(step.id, 1)}
+                                    >
+                                        <ThumbsUp className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 hover:text-rose-500"
+                                        onClick={() => {
+                                            setActiveFeedbackStep(step.id);
+                                            onStepFeedback(step.id, -1);
+                                        }}
+                                    >
+                                        <ThumbsDown className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            )}
+
                             <div
                                 className="confidence-bar"
                                 style={{
@@ -160,6 +190,30 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
                             />
                         </div>
                         <div className="step-description">{step.description}</div>
+
+                        {activeFeedbackStep === step.id && (
+                            <div className="step-comment-input" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex gap-2 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <input
+                                        className="flex-1 bg-transparent text-xs border-none focus:ring-0 placeholder:text-muted-foreground/50 text-gray-800 dark:text-gray-200"
+                                        placeholder="Provide a correction..."
+                                        value={feedbackComment}
+                                        onChange={(e) => setFeedbackComment(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && onStepFeedback) {
+                                                onStepFeedback(step.id, 0, feedbackComment);
+                                                setActiveFeedbackStep(null);
+                                                setFeedbackComment("");
+                                            }
+                                        }}
+                                        autoFocus
+                                    />
+                                    <Button size="icon" variant="ghost" className="h-4 w-4" onClick={() => setActiveFeedbackStep(null)}>
+                                        <XCircle className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
 
                         {expandedStep === step.id && (
                             <div className="step-details">
@@ -255,6 +309,29 @@ const ReasoningChainViewer: React.FC<ReasoningChainViewerProps> = ({ chainId, ch
           align-items: center;
           gap: 12px;
           position: relative;
+        }
+
+        .step-feedback-actions {
+          display: flex;
+          gap: 4px;
+          opacity: 0;
+          transition: opacity 0.2s;
+          margin-left: auto;
+          margin-right: 120px;
+        }
+
+        .step-item:hover .step-feedback-actions {
+          opacity: 1;
+        }
+
+        .step-comment-input {
+          margin-top: 12px;
+          animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .step-icon {
