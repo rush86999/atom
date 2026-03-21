@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Edit } from "lucide-react";
+import { Play, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, Edit, Brain } from "lucide-react";
 
 export interface AgentInfo {
     id: string;
@@ -20,9 +20,10 @@ interface AgentCardProps {
     onStop: (id: string) => void;
     onChat: (id: string) => void;
     onEdit: (id: string) => void;
+    onViewReasoning: (id: string) => void;
 }
 
-const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onEdit }) => {
+const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onEdit, onViewReasoning }) => {
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -59,6 +60,9 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, onRun, onStop, onChat, onE
                 </Button>
                 <Button variant="outline" size="icon" onClick={() => onEdit(agent.id)} title="Edit Agent">
                     <Edit className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => onViewReasoning(agent.id)} title="View Reasoning Trace">
+                    <Brain className="w-4 h-4" />
                 </Button>
                 {agent.status === "running" ? (
                     <Button
