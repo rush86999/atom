@@ -410,7 +410,17 @@ JSON Schema:
                     name = e_data.get("name")
                     if not name: continue
 
-                    # Deduplicate logic simplified:
+                    # Deduplicate by name/type per workspace
+                    existing = session.query(GraphNode).filter_by(
+                        workspace_id=workspace_id,
+                        name=name,
+                        type=e_data.get("type", "unknown")
+                    ).first()
+
+                    if existing:
+                        node_map[name] = existing.id
+                        continue
+
                     node = GraphNode(
                         workspace_id=workspace_id,
                         name=name,
@@ -427,6 +437,17 @@ JSON Schema:
                     src = node_map.get(r_data.get("from"))
                     dst = node_map.get(r_data.get("to"))
                     if src and dst:
+                        # Optional: Deduplicate edges too
+                        existing_edge = session.query(GraphEdge).filter_by(
+                            workspace_id=workspace_id,
+                            source_node_id=src,
+                            target_node_id=dst,
+                            relationship_type=r_data.get("type", "related_to")
+                        ).first()
+                        
+                        if existing_edge:
+                            continue
+
                         edge = GraphEdge(
                             workspace_id=workspace_id,
                             source_node_id=src,
@@ -437,7 +458,7 @@ JSON Schema:
                         session.add(edge)
 
                 session.commit()
-                logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges to Postgres")
+                logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges to Postgres (with deduplication)")
             except Exception as e:
                 session.rollback()
                 logger.error(f"Structured ingestion failed: {e}")
