@@ -17,7 +17,10 @@ from sqlalchemy.orm import Session
 
 # Import Database
 from core.database import engine, get_db_session
-from core.models import CommunityMembership, GraphCommunity, GraphEdge, GraphNode
+from core.models import (
+    CommunityMembership, GraphCommunity, GraphEdge, GraphNode,
+    User, Workspace, Team, SupportTicket, Formula, UserTask
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +51,140 @@ class Relationship:
     description: str = ""
     properties: Dict[str, Any] = field(default_factory=dict)
 
+# ==================== CANONICAL ENTITY REGISTRY ====================
+
+ENTITY_REGISTRY = {
+    "user": {
+        "model": User,
+        "search_fields": ["email", "first_name", "last_name"],
+        "display_field": "email",
+        "updatable_fields": ["first_name", "last_name", "specialty"]
+    },
+    "workspace": {
+        "model": Workspace,
+        "search_fields": ["name"],
+        "display_field": "name",
+        "updatable_fields": ["name", "description"]
+    },
+    "team": {
+        "model": Team,
+        "search_fields": ["name"],
+        "display_field": "name",
+        "updatable_fields": ["name", "description"]
+    },
+    "ticket": {
+        "model": SupportTicket,
+        "search_fields": ["subject"],
+        "display_field": "subject",
+        "updatable_fields": ["status", "priority"]
+    },
+    "formula": {
+        "model": Formula,
+        "search_fields": ["name"],
+        "display_field": "name",
+        "updatable_fields": ["expression", "description"]
+    },
+    "task": {
+        "model": UserTask,
+        "search_fields": ["title"],
+        "display_field": "title",
+        "updatable_fields": ["status", "priority", "description"]
+    }
+}
+
 class GraphRAGEngine:
     """
     PostgreSQL-backed GraphRAG Engine.
     Uses SQL Recursive CTEs for traversal (Stateless).
     """
+
+    def _get_registry_entry(self, entity_type: str) -> Optional[Dict]:
+        """Get the registry configuration for a canonical type."""
+        t_lower = entity_type.lower()
+        if t_lower in ENTITY_REGISTRY:
+            return ENTITY_REGISTRY[t_lower]
+        return None
+
+    def _sanitize_canonical_data(self, registry_entry: Dict, metadata: Dict) -> Dict:
+        """Filter metadata to only allow updatable fields defined in the registry."""
+        sanitized = {}
+        updatable = registry_entry.get("updatable_fields", [])
+        for field_name in updatable:
+            if field_name in metadata and metadata[field_name] is not None:
+                sanitized[field_name] = metadata[field_name]
+        return sanitized
+
+    def _resolve_canonical_entity(self, session: Session, workspace_id: str, 
+                                 entity_type: str, name: str, 
+                                 canonical_id: Optional[str] = None) -> Optional[Any]:
+        """Resolve a semantic node to a concrete database record."""
+        registry = self._get_registry_entry(entity_type)
+        if not registry:
+            return None
+
+        model = registry["model"]
+        
+        # 1. Match by ID if provided
+        if canonical_id:
+            return session.query(model).filter(model.id == canonical_id).first()
+        
+        # 2. Match by Name/Search fields
+        display_field = registry.get("display_field", "name")
+        # Try exact match on display field first
+        match = session.query(model).filter(
+            getattr(model, display_field).ilike(name)
+        ).first()
+        
+        if match:
+            return match
+            
+        # 3. Fuzzy match across search fields
+        for field_name in registry.get("search_fields", []):
+            match = session.query(model).filter(
+                getattr(model, field_name).ilike(f"%{name}%")
+            ).first()
+            if match:
+                return match
+                
+        return None
+
+    def canonical_search(self, workspace_id: str, entity_type: str, query: str) -> List[Dict]:
+        """Search for canonical records to anchor graph nodes."""
+        registry = self._get_registry_entry(entity_type)
+        if not registry:
+            return []
+
+        model = registry["model"]
+        search_fields = registry.get("search_fields", ["name"])
+        display_field = registry.get("display_field", "name")
+        
+        with get_db_session() as session:
+            try:
+                # Use a combined OR filter for all search fields
+                from sqlalchemy import or_
+                filters = [getattr(model, f_name).ilike(f"%{query}%") for f_name in search_fields]
+                
+                # Check for tenant/workspace isolation if the model has a column for it
+                # In personal edition, some models might not have workspace_id but use other links
+                # For simplicity, we'll try to find workspace_id or tenant_id
+                query_obj = session.query(model).filter(or_(*filters))
+                
+                if hasattr(model, 'workspace_id'):
+                    query_obj = query_obj.filter(model.workspace_id == workspace_id)
+                elif hasattr(model, 'tenant_id'):
+                    # Map workspace_id to tenant_id if needed, or assume they are compatible strings here
+                    query_obj = query_obj.filter(model.tenant_id == workspace_id)
+
+                records = query_obj.limit(10).all()
+                return [
+                    {"id": str(r.id), "name": getattr(r, display_field)}
+                    for r in records
+                ]
+            except Exception as e:
+                logger.error(f"Canonical search failed: {e}")
+                return []
+            finally:
+                session.close()
     
     def _get_llm_client(self, workspace_id: str):
         """Get LLM client with BYOK support for specific workspace"""
@@ -169,7 +301,7 @@ JSON Schema:
                         id=str(uuid.uuid4()),
                         name=email,
                         entity_type="email",
-                        description=f"Email address found in document",
+                        description="Email address found in document",
                         properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                     ))
                     entity_names.add(email)
@@ -183,7 +315,7 @@ JSON Schema:
                         id=str(uuid.uuid4()),
                         name=url,
                         entity_type="url",
-                        description=f"URL found in document",
+                        description="URL found in document",
                         properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                     ))
                     entity_names.add(url)
@@ -199,7 +331,7 @@ JSON Schema:
                         id=str(uuid.uuid4()),
                         name=phone,
                         entity_type="phone",
-                        description=f"Phone number found in document",
+                        description="Phone number found in document",
                         properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                     ))
                     entity_names.add(phone)
@@ -218,7 +350,7 @@ JSON Schema:
                             id=str(uuid.uuid4()),
                             name=date_str,
                             entity_type="date",
-                            description=f"Date found in document",
+                            description="Date found in document",
                             properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                         ))
                         entity_names.add(date_str)
@@ -232,7 +364,7 @@ JSON Schema:
                         id=str(uuid.uuid4()),
                         name=amount,
                         entity_type="currency",
-                        description=f"Currency amount found in document",
+                        description="Currency amount found in document",
                         properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                     ))
                     entity_names.add(amount)
@@ -249,7 +381,7 @@ JSON Schema:
                         id=str(uuid.uuid4()),
                         name=path,
                         entity_type="file_path",
-                        description=f"File path found in document",
+                        description="File path found in document",
                         properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                     ))
                     entity_names.add(path)
@@ -265,7 +397,7 @@ JSON Schema:
                             id=str(uuid.uuid4()),
                             name=ip,
                             entity_type="ip_address",
-                            description=f"IP address found in document",
+                            description="IP address found in document",
                             properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                         ))
                         entity_names.add(ip)
@@ -279,7 +411,7 @@ JSON Schema:
                         id=str(uuid.uuid4()),
                         name=uuid_str,
                         entity_type="uuid",
-                        description=f"UUID found in document",
+                        description="UUID found in document",
                         properties={"source": source, "doc_id": doc_id, "pattern_extracted": True}
                     ))
                     entity_names.add(uuid_str)
@@ -303,7 +435,7 @@ JSON Schema:
                             from_entity=from_entity,
                             to_entity=to_entity,
                             rel_type=rel_type,
-                            description=f"Relationship extracted via pattern matching",
+                            description="Relationship extracted via pattern matching",
                             properties={"pattern_extracted": True}
                         ))
 
@@ -346,6 +478,31 @@ JSON Schema:
             try:
                 # Check existence first (or use ON CONFLICT in raw SQL)
                 # Using ORM for clarity, though bulk raw SQL is faster for mass ingestion
+                
+                # CANONICAL ANCHORING LOGIC
+                canonical_type = entity.properties.get("canonical_type")
+                canonical_id = entity.properties.get("canonical_id")
+                
+                db_record = None
+                if canonical_type:
+                    db_record = self._resolve_canonical_entity(
+                        session, workspace_id, canonical_type, entity.name, canonical_id
+                    )
+                    
+                    if db_record:
+                        # Anchor the entity to the concrete ID
+                        entity.properties["anchor_id"] = str(db_record.id)
+                        entity.properties["anchor_type"] = canonical_type
+                        
+                        # BIDIRECTIONAL SYNC: Update the DB record with metadata from Graph UI if applicable
+                        registry = self._get_registry_entry(canonical_type)
+                        if registry:
+                            update_data = self._sanitize_canonical_data(registry, entity.properties)
+                            if update_data:
+                                for k, v in update_data.items():
+                                    setattr(db_record, k, v)
+                                logger.info(f"Synced {len(update_data)} fields back to {canonical_type} {db_record.id}")
+
                 existing = session.query(GraphNode).filter_by(
                     workspace_id=workspace_id,
                     name=entity.name,
@@ -353,8 +510,15 @@ JSON Schema:
                 ).first()
 
                 if existing:
+                    # Update properties and metadata
                     existing.description = entity.description
-                    existing.properties = entity.properties
+                    
+                    # Merge properties
+                    merged_props = (existing.properties or {}).copy()
+                    merged_props.update(entity.properties)
+                    existing.properties = merged_props
+                    
+                    existing.updated_at = datetime.utcnow()
                     entity.id = existing.id
                 else:
                     node = GraphNode(
@@ -657,6 +821,7 @@ JSON Schema:
         except Exception as e:
             logger.error(f"Failed to enqueue job: {e}")
             return False
+
 
 # Global Instance
 graphrag_engine = GraphRAGEngine()

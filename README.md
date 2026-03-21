@@ -110,6 +110,13 @@ That's it! 🚀
 - **Atom SaaS Sync**: Bidirectional sync with Atom marketplace for skills and ratings ✨ NEW
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
 
+### 🔍 Knowledge Graph & GraphRAG ✨ NEW
+- **Recursive Knowledge Retrieval**: Higher-order reasoning via BFS graph traversal.
+- **Canonical Anchoring**: Link graph nodes to concrete database records (Users, Tickets, Formulas).
+- **Bidirectional Sync**: Update entity metadata directly from the Graph UI.
+- **Visual Explorer**: Interactive D3-powered graph visualization at `/graph`.
+- [GraphRAG Documentation →](docs/GRAPHRAG_PORTED.md)
+
 ### 🌐 Community Skills & Package Marketplace ✨
 - **5,000+ OpenClaw/ClawHub skills**: Import community-built tools
 - **Skill Marketplace**: PostgreSQL-based with search, ratings, categories
