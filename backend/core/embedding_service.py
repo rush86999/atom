@@ -576,7 +576,7 @@ class EmbeddingService:
         Returns:
             List of (episode_id, normalized_score) sorted by relevance (descending)
         """
-        from core.models import Episode
+        from core.models import AgentEpisode
 
         # Lazy load cross-encoder
         if not hasattr(self, '_cross_encoder'):
@@ -595,16 +595,16 @@ class EmbeddingService:
                 return []
 
         # Fetch episode content
-        episodes = db.query(Episode).filter(
-            Episode.id.in_(episode_ids),
-            Episode.agent_id == agent_id
+        episodes = db.query(AgentEpisode).filter(
+            AgentEpisode.id.in_(episode_ids),
+            AgentEpisode.agent_id == agent_id
         ).all()
 
         episode_map = {ep.id: ep for ep in episodes}
 
         # Create (query, episode_text) pairs
         pairs = [
-            (query, episode_map[ep_id].summary or episode_map[ep_id].description or "")
+            (query, episode_map[ep_id].task_description or "")
             for ep_id in episode_ids
             if ep_id in episode_map
         ]

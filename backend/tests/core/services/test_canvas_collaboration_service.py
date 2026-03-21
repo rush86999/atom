@@ -6,8 +6,6 @@ Tests for multi-agent canvas collaboration service including:
 - Permission checks
 - Conflict resolution
 - Activity tracking
-
-Note: Some models may not exist in the codebase yet. Tests use mocks where needed.
 """
 
 import pytest
@@ -15,53 +13,6 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, MagicMock, patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-
-# Create base for mock models if needed
-Base = declarative_base()
-
-
-# Mock models that may not exist
-class MockCanvasCollaborationSession(Base):
-    __tablename__ = "canvas_collaboration_sessions"
-    id = None
-    canvas_id = None
-    session_id = None
-    user_id = None
-    collaboration_mode = None
-    max_agents = None
-    status = None
-    created_at = None
-    completed_at = None
-
-class MockCanvasAgentParticipant(Base):
-    __tablename__ = "canvas_agent_participants"
-    id = None
-    collaboration_session_id = None
-    agent_id = None
-    user_id = None
-    role = None
-    permissions = None
-    status = None
-    actions_count = 0
-    held_locks = None
-    last_activity_at = None
-    left_at = None
-
-class MockCanvasConflict(Base):
-    __tablename__ = "canvas_conflicts"
-    id = None
-    collaboration_session_id = None
-    canvas_id = None
-    component_id = None
-    agent_a_id = None
-    agent_b_id = None
-    agent_a_action = None
-    agent_b_action = None
-    resolution = None
-    resolved_by = None
-    resolved_action = None
-    resolved_at = None
 
 
 @pytest.fixture
@@ -69,12 +20,9 @@ def db_session():
     """Create a test database session."""
     engine = create_engine("sqlite:///:memory:")
 
-    # Try to import Base from models, use fallback if models don't exist
-    try:
-        from core.models import Base
-        Base.metadata.create_all(engine)
-    except Exception:
-        Base.metadata.create_all(engine)
+    # Import Base from models
+    from core.models import Base
+    Base.metadata.create_all(engine)
 
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()
