@@ -1,0 +1,163 @@
+---
+wave: 1
+depends_on:
+  - 217-PLAN-01-debug-database-state
+files_modified:
+  - tests/test_auth_routes_coverage.py
+autonomous: false
+---
+
+# Plan 217-02: Fix Mock Database Session Issue
+
+**Goal:** Fix the database session mismatch causing auth tests to fail with 401 Unauthorized.
+
+## Problem (from Plan 01)
+
+The mock `verify_new` passes `test_db` to `verify_credentials()`, but:
+- User created in test_db session
+- verify_credentials() creates NEW session internally via `get_db()`
+- SQLite session isolation prevents seeing uncommitted data
+
+## Solution
+
+Ensure `verify_credentials()` uses the SAME test_db session throughout, not create a new one.
+
+## Tasks
+
+### Task 1: Check verify_credentials Implementation
+
+**File:** `core/enterprise_auth_service.py`
+
+**Action:** Verify that verify_credentials doesn't create its own session.
+
+**If it does:**
+```python
+# Current (wrong):
+def verify_credentials(self, db: Session, username_or_email: str, password: str):
+    from core.database import get_db
+    db = next(get_db())  # Creates NEW session - BUG!
+    user = db.query(User)...
+
+# Should be:
+def verify_credentials(self, db: Session, username_or_email: str, password: str):
+    user = db.query(User)...  # Use passed session
+```
+
+### Task 2: Fix verify_credentials to Use Passed Session
+
+**File:** `core/enterprise_auth_service.py`
+
+**Changes:**
+```python
+def verify_credentials(self, db: Session, username_or_email: str, password: str) -> Optional[UserCredentials]:
+    """
+    Verify user credentials from database.
+
+    Args:
+        db: Database session (USE THIS, don't create new one)
+        username_or_email: Username or email
+        password: Plain text password
+
+    Returns:
+        UserCredentials if valid, None otherwise
+    """
+    try:
+        from core.models import User
+
+        # Use the passed db session, NOT get_db()
+        user = db.query(User).filter(
+            (User.email == username_or_email) | (User.id == username_or_email)
+        ).first()
+
+        if not user:
+            logger.warning(f"User not found: {username_or_email}")
+            return None
+
+        # Verify password
+        if not user.password_hash:
+            logger.warning(f"User {user.id} has no password hash (SSO user?)")
+            return None
+
+        if not self.verify_password(password, user.password_hash):
+            logger.warning(f"Invalid password for user {user.id}")
+            return None
+
+        # Check user status
+        if user.status != "active":
+            logger.warning(f"User {user.id} is not active: {user.status}")
+            return None
+
+        # Map user roles to enterprise roles
+        enterprise_roles = self._map_user_role(user.role)
+        security_level = self._get_security_level(user.role)
+
+        return UserCredentials(
+            user_id=user.id,
+            username=user.email,  # Using email as username
+            email=user.email,
+            roles=enterprise_roles,
+            security_level=security_level,
+            permissions=[]
+        )
+
+    except Exception as e:
+        logger.error(f"Enterprise credential verification error: {e}")
+        return None
+```
+
+### Task 3: Alternative Fix - Use Autocommit with test_db
+
+If verify_credentials is already correct, the issue might be transaction isolation.
+
+**File:** `tests/test_auth_routes_coverage.py`
+
+**Changes:**
+```python
+@pytest.fixture(scope="function")
+def test_db():
+    """Create test database session with autocommit."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker, Session
+    from core.database import Base
+    from core.models import User
+
+    # Use in-memory SQLite with autocommit
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(bind=engine)
+
+    SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    test_db = SessionLocal()
+
+    # Create tables
+    User.__table__.create(bind=engine)
+
+    yield test_db
+
+    # Cleanup
+    test_db.close()
+    engine.dispose()
+```
+
+### Task 4: Test the Fix
+
+**Command:**
+```bash
+cd /Users/rushiparikh/projects/atom/backend
+PYTHONPATH=. pytest tests/test_auth_routes_coverage.py::TestLoginEndpoint::test_login_success_with_valid_credentials -v
+```
+
+**Expected:** Test passes with 200 OK
+
+## Verification
+
+- [ ] verify_credentials uses passed db session, not get_db()
+- [ ] test_db has proper transaction isolation
+- [ ] At least one failing test now passes
+- [ ] No hardcoded credentials or workarounds
+
+## Success Criteria
+
+Login test succeeds with user being found and password verified correctly.

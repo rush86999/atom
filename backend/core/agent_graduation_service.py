@@ -9,6 +9,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from core.lancedb_handler import get_lancedb_handler
 from core.models import (
@@ -451,6 +452,9 @@ class AgentGraduationService:
             agent.configuration = {}
         agent.configuration["promoted_at"] = datetime.now().isoformat()
         agent.configuration["promoted_by"] = validated_by
+
+        # Flag configuration as modified for SQLAlchemy JSON tracking
+        flag_modified(agent, "configuration")
 
         self.db.commit()
         logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")
