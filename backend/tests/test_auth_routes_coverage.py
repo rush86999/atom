@@ -85,7 +85,8 @@ def test_app(test_db: Session):
     # Mock _verify_enterprise_credentials_new to use test_db
     async def mock_verify_new(username: str, password: str):
         """Mock credential verification using test database."""
-        from core.enterprise_auth_service import EnterpriseAuthService
+        from core.enterprise_auth_service import EnterpriseAuthService, UserCredentials
+
         auth_service = EnterpriseAuthService()
 
         # Use the test database directly
