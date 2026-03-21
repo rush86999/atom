@@ -222,14 +222,10 @@ async def refresh_token(
 
         # Check user still exists and is active
         user = db.query(User).filter(User.id == user_id).first()
-    except Exception as e:
-        if e.__class__.__name__ == 'HTTPException':
-            raise
-        logger.error(f"Token refresh error: {e}")
-        raise router.unauthorized_error(
-            message="Invalid refresh token",
-            details={"error": str(e)}
-        )
+        if not user:
+            raise router.unauthorized_error(
+                message="User not found"
+            )
 
         # Get user credentials for token creation
         user_creds = auth_service.verify_credentials(db, user.email, "")  # No password needed for refresh
@@ -270,11 +266,11 @@ async def refresh_token(
             security_level=user_creds['security_level']
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
-        if e.__class__.__name__ == 'HTTPException':
+        # Re-raise HTTPExceptions (already formatted errors)
+        if hasattr(e, 'status_code'):
             raise
+        # Log and wrap other exceptions
         logger.error(f"Token refresh error: {e}")
         raise router.unauthorized_error(
             message="Invalid refresh token",
