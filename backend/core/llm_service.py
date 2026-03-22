@@ -513,7 +513,7 @@ class LLMService:
             # Get optimal provider based on complexity
             complexity = self.handler.analyze_query_complexity(prompt)
             optimal_provider, optimal_model = self.handler.get_optimal_provider(complexity)
-            provider_id = optimal_provider.value
+            provider_id = optimal_provider  # Already a string, not an enum
 
             # Map model from "auto" to optimal model for complexity
             if model == "auto":
