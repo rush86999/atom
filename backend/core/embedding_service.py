@@ -647,23 +647,18 @@ class EmbeddingService:
     # ========================================================================
 
     async def _generate_openai_embedding(self, text: str) -> List[float]:
-        """Generate embedding using OpenAI API"""
+        """
+        Generate embedding using OpenAI API via LLMService.
+
+        Delegates to LLMService for unified OpenAI embedding generation with
+        BYOK support, cost tracking, and observability.
+        """
         try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(
-                api_key=self.config.get("api_key") or os.getenv("OPENAI_API_KEY")
+            embedding = await self.llm_service.generate_embedding(
+                text=text,
+                model=self.model
             )
-
-            response = await client.embeddings.create(
-                model=self.model,
-                input=text
-            )
-
-            return response.data[0].embedding
-
-        except ImportError:
-            raise Exception("OpenAI package not installed. Run: pip install openai")
+            return embedding
         except Exception as e:
             logger.error(f"OpenAI embedding generation failed: {e}")
             raise
