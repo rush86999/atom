@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 4 of 11 (Critical Migration Part 3)
-Plan: 2 of 3 in current phase
+Plan: 1 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-22 — Plan 225-02 completed: BYOKHandler vs LLMService usage verification
+Last activity: 2026-03-22 — Plan 225-01 completed: VoiceService migrated to LLMService for BYOK key resolution
 
-Progress: [███████░░] 41% (13/32 plans complete)
+Progress: [██████░░] 41% (13/32 plans complete)
 
 ## Performance Metrics
 
@@ -30,7 +30,7 @@ Progress: [███████░░] 41% (13/32 plans complete)
 | 222 | 6/6 | 51 min | ~8.5 min |
 | 223 | 3/4 | 15 min | ~5 min |
 | 224 | 4/4 | 11 min | ~3 min |
-| 225 | 1/3 | 1 min | ~1 min |
+| 225 | 0/3 | TBD | - |
 | 226 | 0/1 | TBD | - |
 | 227 | 0/1 | TBD | - |
 | 228 | 0/2 | TBD | - |
@@ -40,11 +40,11 @@ Progress: [███████░░] 41% (13/32 plans complete)
 | 232 | 0/3 | TBD | - |
 
 **Recent Trend:**
-- Last 3 plans: 225-02 (~1 min), 224-04 (~3 min), 224-02 (~5 min)
+- Last 3 plans: 224-04 (~3 min), 224-02 (~5 min), 224-01 (~3 min)
 - Trend: Consistent velocity
 
 *Updated after each plan completion*
-| Phase 225-critical-migration-part-3 P02 | 34s | 3 tasks | 1 file |
+| Phase 225-critical-migration-part-3 P01 | 108s | 3 tasks | 1 file |
 | Phase 224-critical-migration-part-2 P04 | 219s | 4 tasks | 3 files |
 | Phase 224-critical-migration-part-2 P02 | 297s | 5 tasks | 2 files |
 | Phase 223-critical-migration-part-1 P03 | 318s | 4 tasks | 2 files |
@@ -53,6 +53,7 @@ Progress: [███████░░] 41% (13/32 plans complete)
 | Phase 224-critical-migration-part-2 P04 | 219 | 4 tasks | 3 files |
 | Phase 224 P03 | 270 | 5 tasks | 2 files |
 | Phase 225 P02 | 34 | 3 tasks | 1 files |
+| Phase 225 P01 | 108 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -79,7 +80,7 @@ Recent decisions affecting current work:
 - [Phase 224]: Add cross-cutting integration tests to verify embeddings, cost tracking, side effects
 - [Phase 224]: Verify all cross-cutting concerns: embeddings, cost tracking, side effects, compatibility
 - [Phase 224]: Migrate SocialPostGenerator to LLMService, change model from gpt-4.1-mini to gpt-4o-mini, update test mocks for LLMService, all 39 tests passing
-- [Phase 225-02]: BYOKHandler direct usage is ACCEPTABLE for agent classes - they need full access to structured generation, cognitive tier routing, and instructor integration. LLMService is an external wrapper for API routes.
+- [Phase 225-01]: Access AsyncOpenAI client from LLMService.handler.async_clients for audio APIs (partial migration pattern - LLMService doesn't support audio.transcriptions yet)
 
 ### Pending Todos
 
