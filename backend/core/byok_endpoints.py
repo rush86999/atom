@@ -98,8 +98,12 @@ class BYOKManager:
             try:
                 with open(BYOK_CONFIG_FILE, "r") as f:
                     data = json.load(f)
+                    from dataclasses import fields
+                    provider_fields = {f.name for f in fields(AIProviderConfig)}
                     for p_data in data.get("providers", []):
-                        provider = AIProviderConfig(**p_data)
+                        # Filter to only valid fields for AIProviderConfig
+                        p_data_filtered = {k: v for k, v in p_data.items() if k in provider_fields}
+                        provider = AIProviderConfig(**p_data_filtered)
                         self.providers[provider.id] = provider
             except Exception as e:
                 logger.error(f"Failed to load BYOK config: {e}")
@@ -109,6 +113,8 @@ class BYOKManager:
             try:
                 with open(BYOK_KEYS_FILE, "r") as f:
                     data = json.load(f)
+                    from dataclasses import fields
+                    key_fields = {f.name for f in fields(APIKey)}
                     for k_id, k_data in data.get("keys", {}).items():
                         # Convert ISO strings back to datetime
                         if k_data.get("created_at"):
@@ -116,7 +122,9 @@ class BYOKManager:
                         if k_data.get("last_used"):
                             k_data["last_used"] = datetime.fromisoformat(k_data["last_used"])
                         
-                        api_key = APIKey(**k_data)
+                        # Filter to only valid fields for APIKey
+                        k_data_filtered = {k: v for k, v in k_data.items() if k in key_fields}
+                        api_key = APIKey(**k_data_filtered)
                         self.api_keys[k_id] = api_key
             except Exception as e:
                 logger.error(f"Failed to load BYOK keys: {e}")

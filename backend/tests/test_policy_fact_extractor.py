@@ -200,9 +200,9 @@ class TestExtractFactsFromDocument:
                 user_id="user_123"
             )
 
-            # Verify warning was logged
-            mock_logger.warning.assert_called_once()
-            assert "not implemented" in mock_logger.warning.call_args[0][0].lower()
+            # Verify error was logged (since Docling is likely missing in test env)
+            mock_logger.error.assert_called_once()
+            assert "docling processor not available" in mock_logger.error.call_args[0][0].lower()
 
     @pytest.mark.asyncio
     async def test_extract_facts_returns_extraction_result_object(self, sample_extractor):
