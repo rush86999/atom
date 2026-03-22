@@ -103,7 +103,7 @@ class TestAgentExecutionE2E:
         # Execute agent with mocked LLM streaming
         # Note: Schema errors may occur in session update, but chat endpoint still works
         try:
-            with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+            with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
                 response = e2e_client.post("/api/atom-agent/chat", json={
                     "agent_id": agent.id,
                     "message": "Test message for E2E",
@@ -129,7 +129,7 @@ class TestAgentExecutionE2E:
         e2e_db_session.commit()
 
         # Execute with streaming
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat/stream", json={
                 "agent_id": agent.id,
                 "message": "Streaming test message",
@@ -151,7 +151,7 @@ class TestAgentExecutionE2E:
         e2e_db_session.commit()
 
         # Execute agent
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Status tracking test",
@@ -177,7 +177,7 @@ class TestAgentExecutionE2E:
         e2e_db_session.commit()
 
         # Execute and measure time
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Latency measurement test",
@@ -200,7 +200,7 @@ class TestAgentExecutionE2E:
         e2e_db_session.commit()
 
         # Execute with erroring LLM
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', mock_llm_streaming_error):
+        with patch('core.llm_service.LLMService.stream_completion', mock_llm_streaming_error):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Error test message",
@@ -237,7 +237,7 @@ class TestMaturityLevelExecution:
         e2e_db_session.commit()
 
         # Execute SUPERVISED agent
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', mock_llm_streaming):
+        with patch('core.llm_service.LLMService.stream_completion', mock_llm_streaming):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Supervised execution test",
@@ -262,7 +262,7 @@ class TestMaturityLevelExecution:
         e2e_db_session.commit()
 
         # Execute with intervention flag
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', mock_llm_streaming):
+        with patch('core.llm_service.LLMService.stream_completion', mock_llm_streaming):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Intervention test",
@@ -318,7 +318,7 @@ class TestMaturityLevelExecution:
         e2e_db_session.commit()
 
         # Execute with pre-approval (if supported)
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', mock_llm_streaming):
+        with patch('core.llm_service.LLMService.stream_completion', mock_llm_streaming):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Approved execution test",
@@ -472,7 +472,7 @@ class TestEpisodicMemoryIntegration:
         e2e_db_session.commit()
 
         # Execute agent
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Episode creation test",
@@ -499,7 +499,7 @@ class TestEpisodicMemoryIntegration:
         e2e_db_session.commit()
 
         # Execute agent
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Segment creation test",
@@ -528,7 +528,7 @@ class TestEpisodicMemoryIntegration:
         e2e_db_session.commit()
 
         # Execute agent with canvas context
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Canvas context test",
@@ -564,7 +564,7 @@ class TestEpisodicMemoryIntegration:
         e2e_db_session.commit()
 
         # Execute agent
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Feedback context test",
@@ -587,7 +587,7 @@ class TestEpisodicMemoryIntegration:
         e2e_db_session.commit()
 
         # Execute with erroring LLM
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', mock_llm_streaming_error):
+        with patch('core.llm_service.LLMService.stream_completion', mock_llm_streaming_error):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Failure episode test",
