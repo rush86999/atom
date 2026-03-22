@@ -41,6 +41,7 @@ from core.llm.cache_aware_router import CacheAwareRouter
 from core.llm.cognitive_tier_service import CognitiveTierService
 from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
 from core.llm_usage_tracker import llm_usage_tracker
+from core.lux_config import lux_config
 from core.models import AgentExecution, Tenant, Workspace
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.MODERATE: "minimax-m2.5",
         QueryComplexity.COMPLEX: "minimax-m2.5",
         QueryComplexity.ADVANCED: "minimax-m2.5",
+    },
+    "lux": {  # LUX Computer Use (Claude 3.5 Sonnet based)
+        QueryComplexity.SIMPLE: "lux-1.0",
+        QueryComplexity.MODERATE: "lux-1.0",
+        QueryComplexity.COMPLEX: "lux-1.0",
+        QueryComplexity.ADVANCED: "lux-1.0",
     },
     "qwen": {
         QueryComplexity.SIMPLE: "qwen-plus",
@@ -246,11 +253,27 @@ class BYOKHandler:
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
             "minimax": {"base_url": "https://api.minimaxi.com/v1"},  # Phase 68-04: MiniMax M2.5 integration
+            "lux": {"base_url": None},  # Phase 226.2-01: LUX Computer Use (uses Anthropic API)
             "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
         }
 
         # Separate sync and async clients
         self.async_clients: Dict[str, Any] = {}
+
+        # Phase 226.2-01: Special handling for LUX provider (uses Anthropic API key via lux_config)
+        if "lux" in providers_config:
+            # LUX uses Anthropic API key via lux_config or BYOK fallback
+            api_key = lux_config.get_anthropic_key() or self.byok_manager.get_api_key("lux")
+            if api_key:
+                try:
+                    self.clients["lux"] = OpenAI(api_key=api_key)
+                    if AsyncOpenAI:
+                        self.async_clients["lux"] = AsyncOpenAI(api_key=api_key)
+                    logger.info("Initialized LUX provider with Anthropic client")
+                except Exception as e:
+                    logger.error(f"Failed to initialize LUX client: {e}")
+            # Remove lux from providers_config so it doesn't get processed in the loop below
+            del providers_config["lux"]
 
         for provider_id, config in providers_config.items():
             # Check if BYOK is configured for this provider and workspace
@@ -734,7 +757,8 @@ class BYOKHandler:
                         logger.info(f"Prioritizing {preferred_ocr[0][0]} for PDF OCR task")
 
                 # 2. Naive filter: Only keep known vision models if not already specialized
-                vision_models = ["gpt-4o", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "claude-3-5-sonnet", "claude-3-opus", "gpt-4-turbo", "deepseek", "deepinfra"]
+                # Phase 226.2-01: Added "lux" for computer use tasks
+                vision_models = ["gpt-4o", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "claude-3-5-sonnet", "claude-3-opus", "gpt-4-turbo", "deepseek", "deepinfra", "lux"]
                 vision_options = []
                 for prov, mod in options:
                     if any(v in mod.lower() for v in vision_models):
