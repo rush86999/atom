@@ -664,28 +664,19 @@ class EmbeddingService:
             raise
 
     async def _generate_openai_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using OpenAI API (batch)"""
+        """
+        Generate embeddings using OpenAI API (batch) via LLMService.
+
+        Delegates to LLMService for unified batch embedding generation with
+        automatic batching, BYOK support, cost tracking, and observability.
+        LLMService handles 2048 batch limit internally.
+        """
         try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(
-                api_key=self.config.get("api_key") or os.getenv("OPENAI_API_KEY")
+            embeddings = await self.llm_service.generate_embeddings_batch(
+                texts=texts,
+                model=self.model
             )
-
-            # OpenAI supports up to 2048 texts per request
-            batch_size = 2048
-            all_embeddings = []
-
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                response = await client.embeddings.create(
-                    model=self.model,
-                    input=batch
-                )
-                all_embeddings.extend([item.embedding for item in response.data])
-
-            return all_embeddings
-
+            return embeddings
         except Exception as e:
             logger.error(f"OpenAI batch embedding generation failed: {e}")
             raise
