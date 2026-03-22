@@ -27,6 +27,11 @@ from core.canvas_context_provider import get_canvas_provider, CanvasContext
 from core.agents.queen_agent import QueenAgent
 from core.llm_service import LLMService, get_llm_service
 
+# LLM Integration:
+# Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
+# Initialized via get_llm_service() singleton factory for workspace-aware service.
+# All LLM calls (generate_response, generate_structured_response) go through self.llm.
+
 logger = logging.getLogger(__name__)
 
 
