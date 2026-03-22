@@ -1,5 +1,31 @@
 # Milestones
 
+## v6.0 BYOK Migration to Unified LLMService API (Started: 2026-03-22)
+
+**Goal:** Consolidate all BYOK (Bring Your Own Key) LLM interactions to a single unified LLMService API, eliminating direct API calls and fragmented BYOKHandler usage.
+
+**Target features:**
+- Migrate 9 files with direct OpenAI/Anthropic API calls to LLMService
+- Standardize 59 files using BYOKHandler directly
+- Enhance LLMService with streaming, structured output, cognitive tier routing
+- Add monitoring, caching, and telemetry
+- Comprehensive test coverage and documentation
+
+**Strategy:** 3-phase approach: Critical migration → Standardization → Optimization
+
+**Planned phases:** TBD (estimated 15-20 phases), TBD plans, TBD requirements
+
+**Status:** 🚧 READY TO START
+
+**Phase Breakdown:**
+- Phase 1: Enhance LLMService Interface (add streaming, structured output, cognitive tiers)
+- Phase 2: Migrate Direct API Calls (9 critical files: embeddings, GraphRAG, security)
+- Phase 3: Standardize BYOKHandler Usage (59 files across core services, agents, API routes)
+- Phase 4: Enhanced Observability (monitoring, caching, telemetry)
+- Phase 5: Testing & Documentation (comprehensive tests, migration guide)
+
+---
+
 ## v3.2 Bug Finding & Coverage Expansion (Started: 2026-02-24)
 
 **Goal:** Expand backend test coverage through property-based testing and targeted bug finding to achieve higher overall coverage and discover hidden edge cases.

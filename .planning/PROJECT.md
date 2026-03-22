@@ -1,22 +1,21 @@
-# Atom Test Coverage Initiative
+# Atom AI-Powered Business Automation Platform
 
-## Current Milestone: v5.5 Fix Test Failures and Push Backend Coverage to 80%
+## Current Milestone: v6.0 BYOK Migration to Unified LLMService API
 
-**Goal:** Fix all test failures and push backend coverage from 74.6% to 80% through targeted test additions and quality gate enforcement.
+**Goal:** Consolidate all BYOK LLM interactions to a single unified LLMService API, eliminating fragmentation and direct provider API calls.
 
 **Target features:**
-- Fix test failures (14 industry workflow + 24 2FA route errors)
-- Core services coverage expansion (token storage, error handling, logging)
-- API routes coverage (episodes, auto-install, admin, composition)
-- Tools & integration coverage (canvas, browser, device, governance, LLM)
-- Property-based testing for critical invariants (Hypothesis)
-- Quality gates & CI/CD re-enablement (98%+ pass rate, 80% coverage)
+- Unified LLMService interface with streaming, structured output, cognitive tier routing
+- Migrate 9 files with direct OpenAI/Anthropic API calls
+- Standardize 59 files using BYOKHandler directly
+- Enhanced observability (monitoring, caching, telemetry)
+- Comprehensive test coverage and documentation
 
-**Strategy:** Fix failures → Expand coverage → Verify → Enforce quality gates
+**Strategy:** 3-phase approach - Enhance LLMService → Migrate critical files → Standardize usage
 
-**Timeline:** 1-2 weeks (focused execution)
+**Timeline:** 4 weeks (architectural refactoring)
 
-**Actual Coverage Discovery:** System-wide scan revealed 74.6% actual line coverage (not 8.5% as previously claimed) with 1,489 test files and 483 passing tests.
+**Current State:** 59 files directly import BYOKHandler, 9 files make direct API calls, fragmentation across codebase
 
 ---
 
