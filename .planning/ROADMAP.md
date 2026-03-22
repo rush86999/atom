@@ -5,6 +5,7 @@
 Comprehensive cross-platform testing initiative to achieve 80% code coverage across all platforms (backend Python, frontend React/Next.js, mobile React Native, desktop Tauri/Rust). Starting from v5.2's baseline (backend: 26.15%, frontend: 65.85%, mobile: infrastructure foundation, desktop: 65-70%), this milestone focuses on filling coverage gaps with targeted test development, fixing failing tests, and enforcing quality gates to prevent regression.
 
 **Current Milestone:** v6.0 BYOK Migration to Unified LLMService API — Consolidate all LLM interactions to unified interface, eliminate fragmentation, add observability
+**Active Phase:** Phase 226: LLM Provider Registry & LUX Integration (3 plans)
 **Previous Milestone:** v5.5 Test Coverage Expansion — Achieve 80% backend coverage through targeted testing (PAUSED after Phase 221)
 
 ## Milestones
@@ -1792,20 +1793,23 @@ Plans:
 - [ ] 225-02-PLAN.md — Verify generic_agent.py BYOKHandler usage (internal layer pattern acceptable for agents)
 - [ ] 225-03-PLAN.md — Verify atom_meta_agent.py LLMService integration (already migrated)
 
-#### Phase 226: Core Services Standardization
-**Goal**: Update 8 core service files to use LLMService instead of BYOKHandler
-**Depends on**: Phase 225
-**Requirements**: STD-01, STD-02
+#### Phase 226: LLM Provider Registry & LUX Integration
+**Goal**: Create persistent provider registry system with auto-discovery, integrate LUX model into BPC routing, and secure API key management
+**Depends on**: Phase 225.1
+**Requirements**: New feature development
 **Success Criteria** (what must be TRUE):
-  1. All 8 core service files use LLMService instead of importing BYOKHandler directly
-  2. Episode segmentation, workflow engine, and other core services work without BYOKHandler
-  3. All 8 files pass existing tests with LLMService integration
-  4. No regression in core service functionality (episodes, workflows, canvas, etc.)
-  5. Direct BYOKHandler imports removed from core services
-**Plans**: TBD
+  1. ProviderRegistry and ModelCatalog database tables exist with auto-discovery sync
+  2. LUX model integrated into BPC routing with quality score 88
+  3. API keys submitted via POST body (not URL query params - security fix)
+  4. Provider registry CRUD endpoints accessible via REST API
+  5. All integration tests pass for provider registry and LUX routing
+**Plans**: 3 plans
+**Status**: 📋 PLANNED (2026-03-22)
 
 Plans:
-- [ ] 226-01: Update core service files to use LLMService (8 files)
+- [ ] 226-01-PLAN.md — Create provider registry with SQLAlchemy models and auto-discovery service
+- [ ] 226-02-PLAN.md — Integrate LUX model into BPC routing (BYOKHandler, benchmarks, tests)
+- [ ] 226-03-PLAN.md — Create provider registry REST API and fix API key security (POST body)
 
 #### Phase 227: Agent System Standardization
 **Goal**: Update 5 agent system files to use LLMService instead of BYOKHandler
