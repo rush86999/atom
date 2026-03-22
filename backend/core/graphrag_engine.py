@@ -200,33 +200,25 @@ class GraphRAGEngine:
             finally:
                 session.close()
     
-    def _get_llm_client(self, workspace_id: str):
-        """Get LLM client with BYOK support for specific workspace"""
-        if not GRAPHRAG_LLM_ENABLED:
-            return None
-            
-        try:
-            from openai import OpenAI
+    def _get_llm_client(self, workspace_id: str) -> None:
+        """
+        LLM client management now handled by LLMService.
 
-            from core.byok_endpoints import get_byok_manager
-            
-            byok = get_byok_manager()
-            # 1. Try Tenant-specific Key
-            api_key = byok.get_tenant_api_key(workspace_id, GRAPHRAG_LLM_PROVIDER)
-            
-            # 2. Fallback to Platform Key
-            if not api_key:
-                api_key = byok.get_api_key(GRAPHRAG_LLM_PROVIDER)
-            
-            if api_key:
-                return OpenAI(api_key=api_key)
-            return None
-        except ImportError:
-            logger.warning("OpenAI or BYOK Manager not available")
-            return None
+        This method returns None for compatibility. Actual LLM calls
+        use self.llm_service.generate_completion which handles
+        provider selection, API key resolution, and caching internally.
+        """
+        return None
 
     def _is_llm_available(self, workspace_id: str) -> bool:
-        return self._get_llm_client(workspace_id) is not None
+        """
+        Check if LLM is available for GraphRAG operations.
+        LLMService handles provider availability internally.
+        """
+        # LLMService handles provider selection and availability
+        # Always return True when GRAPHRAG_LLM_ENABLED is set
+        # LLMService will handle errors if provider is unavailable
+        return GRAPHRAG_LLM_ENABLED
 
     # ==================== LLM EXTRACTION (Ported from V1 Enhanced) ====================
 
