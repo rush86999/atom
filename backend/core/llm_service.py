@@ -607,6 +607,109 @@ class LLMService:
             logger.error(f"Structured generation failed: {e}")
             return None
 
+    async def generate_embedding(
+        self,
+        text: str,
+        model: str = "text-embedding-3-small"
+    ) -> List[float]:
+        """
+        Generate embedding vector for a single text string.
+
+        Phase 223-01: Embedding generation support for migration consistency.
+        Provides unified interface for embedding generation using OpenAI's API.
+
+        Args:
+            text: The text string to generate embedding for
+            model: Embedding model name (default: "text-embedding-3-small")
+                - "text-embedding-3-small": 1536 dimensions, ~$0.00002/1K tokens
+                - "text-embedding-3-large": 3072 dimensions, ~$0.00013/1K tokens
+
+        Returns:
+            List[float]: Embedding vector (1536 or 3072 dimensions depending on model)
+
+        Raises:
+            Exception: If OpenAI package not installed or API call fails
+
+        Example:
+            >>> service = LLMService()
+            >>> embedding = await service.generate_embedding("Hello, world!")
+            >>> print(len(embedding))  # 1536 for text-embedding-3-small
+            >>> print(embedding[:3])   # First 3 dimensions
+
+        Note:
+            - Uses BYOKHandler for API key resolution (OpenAI BYOK key preferred)
+            - Logs cost telemetry (model used, token count, estimated cost)
+            - Lazy imports AsyncOpenAI to avoid import errors if openai not installed
+        """
+        try:
+            # Lazy import to avoid errors if openai not installed
+            from openai import AsyncOpenAI
+
+            # Get API key from BYOKHandler or environment
+            api_key = None
+            if hasattr(self.handler, 'clients') and 'openai' in self.handler.clients:
+                # Try to get API key from BYOK configuration
+                openai_client = self.handler.clients.get('openai')
+                if hasattr(openai_client, 'api_key'):
+                    api_key = openai_client.api_key
+
+            if not api_key:
+                # Fallback to environment variable
+                api_key = os.getenv("OPENAI_API_KEY")
+
+            if not api_key:
+                raise ValueError("OpenAI API key not found in BYOK configuration or OPENAI_API_KEY environment variable")
+
+            # Create AsyncOpenAI client
+            client = AsyncOpenAI(api_key=api_key)
+
+            # Call embeddings API
+            response = await client.embeddings.create(
+                model=model,
+                input=text
+            )
+
+            # Extract embedding vector
+            embedding = response.data[0].embedding
+
+            # Cost tracking telemetry
+            token_count = response.usage.total_tokens if hasattr(response, 'usage') else len(text) // 4
+            if model == "text-embedding-3-small":
+                cost_per_1k = 0.00002
+            elif model == "text-embedding-3-large":
+                cost_per_1k = 0.00013
+            else:
+                cost_per_1k = 0.0001  # Fallback estimate
+
+            estimated_cost = (token_count / 1000) * cost_per_1k
+
+            logger.info(
+                f"Embedding generated: model={model}, tokens={token_count}, "
+                f"estimated_cost=${estimated_cost:.6f}"
+            )
+
+            # Track usage if llm_usage_tracker is available
+            try:
+                llm_usage_tracker.track_usage(
+                    provider="openai",
+                    model=model,
+                    input_tokens=token_count,
+                    output_tokens=0,
+                    estimated_cost=estimated_cost
+                )
+            except Exception as tracking_error:
+                logger.debug(f"Usage tracking failed (non-critical): {tracking_error}")
+
+            return embedding
+
+        except ImportError:
+            raise Exception(
+                "OpenAI package not installed. Run: pip install openai"
+            )
+        except Exception as e:
+            logger.error(f"Embedding generation failed: {e}")
+            raise
+
     def classify_tier(self, prompt: str, task_type: Optional[str] = None) -> CognitiveTier:
         """
         Classify a prompt into a cognitive tier.
