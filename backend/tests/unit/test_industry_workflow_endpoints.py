@@ -34,7 +34,7 @@ def client():
 def mock_template():
     """Create mock industry template"""
     template = MagicMock(spec=IndustryWorkflowTemplate)
-    template.id = "test_template_1"
+    template.id = "healthcare_patient_onboarding"
     template.name = "Invoice Processing Automation"
     template.description = "Automate invoice processing workflows"
     template.industry = Industry.HEALTHCARE
@@ -125,13 +125,13 @@ class TestIndustryEndpoints:
         mock_get_engine.return_value = mock_engine
         mock_engine.get_template_by_id.return_value = mock_template
 
-        response = client.get("/api/v1/templates/industry/test_template_1")
+        response = client.get("/api/v1/templates/industry/healthcare_patient_onboarding")
 
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "template" in data
-        assert data["template"]["id"] == "test_template_1"
+        assert data["template"]["id"] == "healthcare_patient_onboarding"
 
     @patch('core.industry_workflow_endpoints.get_industry_workflow_engine')
     def test_get_template_details_not_found(self, mock_get_engine, client, mock_engine):
@@ -204,7 +204,7 @@ class TestROICalculation:
         }
 
         response = client.post(
-            "/api/v1/templates/test_template_1/roi",
+            "/api/v1/templates/healthcare_patient_onboarding/roi",
             json={"hourly_rate": 50.0}
         )
 
@@ -240,7 +240,7 @@ class TestRecommendations:
     def test_get_template_recommendations_success(self, mock_get_engine, client, mock_engine, mock_template):
         """Test getting personalized template recommendations"""
         mock_get_engine.return_value = mock_engine
-        mock_engine.templates = {"test_template_1": mock_template}
+        mock_engine.templates = {"healthcare_patient_onboarding": mock_template}
 
         response = client.get(
             "/api/v1/templates/recommendations",
@@ -302,7 +302,7 @@ class TestImplementationGuide:
         mock_get_engine.return_value = mock_engine
         mock_engine.get_template_by_id.return_value = mock_template
 
-        response = client.get("/api/v1/templates/implementation-guide/test_template_1")
+        response = client.get("/api/v1/templates/implementation-guide/healthcare_patient_onboarding")
 
         assert response.status_code == 200
         data = response.json()
