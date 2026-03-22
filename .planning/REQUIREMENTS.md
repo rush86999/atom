@@ -80,17 +80,45 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LLM-01 through LLM-05 | Phase 222 | Pending |
-| MIG-01 through MIG-09 | Phases 223-231 | Pending |
-| STD-01 through STD-07 | Phases 232-240 | Pending |
-| OBS-01 through OBS-05 | Phase 241 | Pending |
-| TEST-01 through TEST-07 | Phases 242-243 | Pending |
+| LLM-01 | Phase 222 | Pending |
+| LLM-02 | Phase 222 | Pending |
+| LLM-03 | Phase 222 | Pending |
+| LLM-04 | Phase 222 | Pending |
+| LLM-05 | Phase 222 | Pending |
+| MIG-01 | Phase 223 | Pending |
+| MIG-02 | Phase 223 | Pending |
+| MIG-03 | Phase 223 | Pending |
+| MIG-04 | Phase 224 | Pending |
+| MIG-05 | Phase 224 | Pending |
+| MIG-06 | Phase 224 | Pending |
+| MIG-07 | Phase 225 | Pending |
+| MIG-08 | Phase 225 | Pending |
+| MIG-09 | Phase 225 | Pending |
+| STD-01 | Phase 226 | Pending |
+| STD-02 | Phase 226 | Pending |
+| STD-03 | Phase 227 | Pending |
+| STD-04 | Phase 228 | Pending |
+| STD-05 | Phase 228 | Pending |
+| STD-06 | Phase 229 | Pending |
+| STD-07 | Phase 229 | Pending |
+| OBS-01 | Phase 230 | Pending |
+| OBS-02 | Phase 230 | Pending |
+| OBS-03 | Phase 230 | Pending |
+| OBS-04 | Phase 230 | Pending |
+| OBS-05 | Phase 230 | Pending |
+| TEST-01 | Phase 231 | Pending |
+| TEST-02 | Phase 231 | Pending |
+| TEST-03 | Phase 231 | Pending |
+| TEST-04 | Phase 231 | Pending |
+| TEST-05 | Phase 232 | Pending |
+| TEST-06 | Phase 232 | Pending |
+| TEST-07 | Phase 232 | Pending |
 
 **Coverage:**
 - v1 requirements: 31 total
-- Mapped to phases: TBD
-- Unmapped: TBD (roadmap not created yet)
+- Mapped to phases: 31 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after initial definition*
+*Last updated: 2026-03-22 after roadmap creation*
