@@ -1803,7 +1803,7 @@ Plans:
   3. API keys submitted via POST body (not URL query params - security fix)
   4. Provider registry CRUD endpoints accessible via REST API
   5. All integration tests pass for provider registry and LUX routing
-**Sub-phases**: 3 sub-phases
+**Sub-phases**: 4 sub-phases
 **Status**: 📋 PLANNED (2026-03-22)
 
 **Sub-phase 226.1: Provider Registry Foundation** (3-5 days)
@@ -1824,6 +1824,13 @@ Plans:
 - Success: POST body for API keys, provider registry API endpoints, frontend updates, tests
 - Plans:
   - [ ] 226.3-01-PLAN.md — Create provider_registry_routes.py, fix byok_endpoints security, update BYOKManager.tsx
+
+**Sub-phase 226.4: Registry Capabilities & Auto-Sync** (2-3 days)
+- Goal: Enhance registry with capability-based routing, specialized provider access control, and auto-sync with latest models
+- Success: Capability tags in ModelCatalog, exclude_from_general_routing flag, auto-sync from provider APIs, provider health monitoring
+- Status: 📋 PLANNED (2026-03-22)
+- Plans:
+  - [x] 226.4-01-PLAN.md — Add capability metadata, routing exclusions, provider sync service, health checks, tests (6 tasks)
 
 #### Phase 227: Agent System Standardization
 **Goal**: Update 5 agent system files to use LLMService instead of BYOKHandler
