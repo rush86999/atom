@@ -120,7 +120,7 @@ class TestAutonomousAgentEpisodeCreation:
         e2e_db_session.commit()
 
         # Execute AUTONOMOUS agent with mocked LLM streaming
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Test message for episode creation",
@@ -162,7 +162,7 @@ class TestAutonomousAgentEpisodeCreation:
 
         # Execute multiple actions
         for i in range(3):
-            with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+            with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
                 response = e2e_client.post("/api/atom-agent/chat", json={
                     "agent_id": agent.id,
                     "message": f"Test action {i+1}",
@@ -214,7 +214,7 @@ class TestSupervisedAgentEpisodeCreation:
         e2e_db_session.commit()
 
         # Execute SUPERVISED agent
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Supervised execution test",
@@ -257,7 +257,7 @@ class TestSupervisedAgentEpisodeCreation:
         e2e_db_session.commit()
 
         # Execute with intervention flag
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Intervention test",
@@ -312,7 +312,7 @@ class TestCanvasContextIntegration:
         e2e_db_session.commit()
 
         # Execute agent with canvas context
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Present a chart",
@@ -379,7 +379,7 @@ class TestFeedbackContextIntegration:
         e2e_db_session.commit()
 
         # Execute agent
-        with patch('core.llm.byok_handler.BYOKHandler.stream_completion', self.mock_llm):
+        with patch('core.llm_service.LLMService.stream_completion', self.mock_llm):
             response = e2e_client.post("/api/atom-agent/chat", json={
                 "agent_id": agent.id,
                 "message": "Generate a response",
