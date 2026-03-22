@@ -1593,3 +1593,79 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 - [x] FACT-04: No production code changes (test-only fixes)
 - [x] FACT-05: Document S3/R2 mocking pattern for future tests
 
+### Phase 217: Fix Auth Routes Test Failures ✅ COMPLETE
+**Goal**: Fix 5 failing tests related to authentication routes (login, refresh, change password)
+**Status**: ✅ COMPLETE (2026-03-21)
+**Plans**: 3 plans
+
+**Problem**: 5 tests failing in `tests/api/test_auth_routes_coverage.py`:
+- **2 login endpoint tests**: UserRole enum references non-existent values
+- **2 refresh token tests**: Unreachable code due to exception handler placement
+- **1 change password test**: Missing locked user check
+
+**Root Causes**:
+1. **UserRole Enum Issues**: _get_user_permissions() referenced enum values that don't exist in models.py
+2. **Exception Handler Flow**: Refresh token exception always raised, making token generation unreachable
+3. **Missing Status Check**: Change password didn't verify user account status
+
+**Solution Applied**:
+- Removed non-existent roles, added OWNER and VIEWER roles
+- Moved token generation inside try block, fixed HTTPException handling
+- Added user.status == "locked" validation before password change
+
+**Results**:
+- 60/60 tests passing (100%)
+- 180/180 passing across 3 runs (100% stability)
+- Zero flakiness
+
+**Plans**:
+- [x] 217-01-PLAN.md — Debug Database State ✅
+- [x] 217-02-PLAN.md — Fix Mock Session Issue ✅
+- [x] 217-03-PLAN.md — Verify All Tests ✅
+
+### Phase 218: Fix Industry Workflow Test Collection ✅ COMPLETE
+**Goal**: Fix pytest collection errors caused by duplicate test file basenames for industry workflow
+**Status**: ✅ COMPLETE (2026-03-21)
+**Plans**: 2 plans
+
+**Problem**: Two test files with identical basenames for industry workflow endpoints:
+- `tests/unit/test_industry_workflow_endpoints.py` (358 lines, uses correct @patch pattern)
+- `tests/api/services/test_industry_workflow_endpoints.py` (441 lines, uses incorrect fixture pattern)
+
+**Root Causes**:
+1. **Duplicate File**: Phase 219-coverage-push created duplicate test file
+2. **Wrong Mocking Pattern**: Fixture-based mock doesn't intercept FastAPI dependency injection
+
+**Solution Applied**:
+- Deleted duplicate file at `tests/api/services/test_industry_workflow_endpoints.py`
+- Fixed remaining issues in `tests/unit/test_industry_workflow_endpoints.py`
+
+**Plans**:
+- [x] 218-01-PLAN.md — Remove duplicate test file ✅
+- [x] 218-02-PLAN.md — Fix unit test mock configuration ✅
+
+### Phase 219: Fix Industry Workflow Test Failures 🚧 PENDING
+**Goal**: Fix all failing industry workflow endpoint tests and remove duplicate test file
+**Status**: 🚧 PENDING (2026-03-21)
+**Plans**: 1 plan (219-01)
+
+**Problem**: 10 tests failing across two duplicate test files:
+- `tests/unit/test_industry_workflow_endpoints.py` (4 failures)
+- `tests/api/services/test_industry_workflow_endpoints.py` (14 failures, duplicate file)
+
+**Root Causes**:
+1. **Duplicate Test File**: Phase 219-coverage-push created duplicate test file
+2. **Wrong Mocking Pattern**: Fixture-based mock doesn't work with FastAPI dependency injection
+3. **Template ID Mismatch**: Tests expect "test_template_1" but real templates use IDs like "healthcare_patient_onboarding"
+4. **ROI Request Validation**: Pydantic 422 error on template_id in both path and body
+
+**Success Criteria**:
+- [ ] IND-01: All 17 industry workflow tests pass (0 failures)
+- [ ] IND-02: Duplicate test file removed
+- [ ] IND-03: Tests use correct @patch decorator pattern
+- [ ] IND-04: No regressions in other tests
+- [ ] IND-05: Overall test pass rate >= 98%
+
+**Plans**:
+- [ ] 219-01-PLAN.md — Remove duplicate test file and fix mock configuration
+
