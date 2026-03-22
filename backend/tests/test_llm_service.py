@@ -1827,3 +1827,186 @@ class TestPhase222Requirements:
         assert "response" in result
         assert "tier" in result
 
+
+class TestLLMServiceEmbedding(TestLLMServiceProviderSelection):
+    """Tests for LLMService embedding generation methods (Phase 223-01)."""
+
+    @pytest.fixture
+    def embedding_service(self, mock_handler):
+        """Create LLMService with mocked handler for embedding tests"""
+        with patch('core.llm_service.BYOKHandler', return_value=mock_handler):
+            service = LLMService(workspace_id="test")
+            service.handler = mock_handler
+
+            # Mock OpenAI client for BYOK clients dict
+            mock_openai_client = Mock()
+            mock_openai_client.api_key = "test-api-key"
+            service.handler.clients = {"openai": mock_openai_client}
+
+            return service
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_basic(self, embedding_service):
+        """Verify returns embedding vector with correct dimensions"""
+        # Mock AsyncOpenAI client
+        mock_response = Mock()
+        mock_response.data = [Mock()]
+        mock_response.data[0].embedding = [0.1, 0.2, 0.3] * 512  # 1536 dimensions
+        mock_response.usage.total_tokens = 10
+
+        with patch('openai.AsyncOpenAI') as mock_async_openai:
+            mock_client = AsyncMock()
+            mock_client.embeddings.create = AsyncMock(return_value=mock_response)
+            mock_async_openai.return_value = mock_client
+
+            # Generate embedding
+            embedding = await embedding_service.generate_embedding("Hello, world!")
+
+            # Verify embedding dimensions
+            assert isinstance(embedding, list)
+            assert len(embedding) == 1536  # text-embedding-3-small
+            assert all(isinstance(x, float) for x in embedding)
+
+            # Verify API was called correctly
+            mock_client.embeddings.create.assert_called_once_with(
+                model="text-embedding-3-small",
+                input="Hello, world!"
+            )
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_with_custom_model(self, embedding_service):
+        """Verify custom model selection (text-embedding-3-large)"""
+        # Mock AsyncOpenAI client
+        mock_response = Mock()
+        mock_response.data = [Mock()]
+        mock_response.data[0].embedding = [0.1, 0.2, 0.3] * 1024  # 3072 dimensions
+        mock_response.usage.total_tokens = 15
+
+        with patch('openai.AsyncOpenAI') as mock_async_openai:
+            mock_client = AsyncMock()
+            mock_client.embeddings.create = AsyncMock(return_value=mock_response)
+            mock_async_openai.return_value = mock_client
+
+            # Generate embedding with large model
+            embedding = await embedding_service.generate_embedding(
+                "Complex text",
+                model="text-embedding-3-large"
+            )
+
+            # Verify embedding dimensions for large model
+            assert len(embedding) == 3072  # text-embedding-3-large
+
+            # Verify API was called with correct model
+            mock_client.embeddings.create.assert_called_once_with(
+                model="text-embedding-3-large",
+                input="Complex text"
+            )
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_api_key_from_byok(self, embedding_service):
+        """Verify BYOKHandler provides API key"""
+        # Mock AsyncOpenAI client
+        mock_response = Mock()
+        mock_response.data = [Mock()]
+        mock_response.data[0].embedding = [0.1] * 1536
+        mock_response.usage.total_tokens = 5
+
+        with patch('openai.AsyncOpenAI') as mock_async_openai:
+            mock_client = AsyncMock()
+            mock_client.embeddings.create = AsyncMock(return_value=mock_response)
+            mock_async_openai.return_value = mock_client
+
+            # Generate embedding
+            embedding = await embedding_service.generate_embedding("Test")
+
+            # Verify AsyncOpenAI was initialized with BYOK API key
+            mock_async_openai.assert_called_once()
+            call_kwargs = mock_async_openai.call_args[1]
+            assert call_kwargs['api_key'] == "test-api-key"
+
+            assert len(embedding) == 1536
+
+    @pytest.mark.asyncio
+    async def test_generate_embeddings_batch_basic(self, embedding_service):
+        """Verify batch processing multiple texts"""
+        # Mock AsyncOpenAI client
+        mock_response = Mock()
+        mock_response.data = [
+            Mock(embedding=[0.1] * 1536),
+            Mock(embedding=[0.2] * 1536),
+            Mock(embedding=[0.3] * 1536)
+        ]
+        mock_response.usage.total_tokens = 30
+
+        with patch('openai.AsyncOpenAI') as mock_async_openai:
+            mock_client = AsyncMock()
+            mock_client.embeddings.create = AsyncMock(return_value=mock_response)
+            mock_async_openai.return_value = mock_client
+
+            # Generate embeddings for batch
+            texts = ["text1", "text2", "text3"]
+            embeddings = await embedding_service.generate_embeddings_batch(texts)
+
+            # Verify batch results
+            assert isinstance(embeddings, list)
+            assert len(embeddings) == 3
+            assert all(len(emb) == 1536 for emb in embeddings)
+            assert all(isinstance(emb, list) for emb in embeddings)
+
+            # Verify API was called with batch
+            mock_client.embeddings.create.assert_called_once_with(
+                model="text-embedding-3-small",
+                input=texts
+            )
+
+    @pytest.mark.asyncio
+    async def test_generate_embeddings_batch_large(self, embedding_service):
+        """Verify respects 2048 batch limit for large inputs"""
+        # Create 2500 texts (exceeds 2048 limit)
+        texts = [f"text{i}" for i in range(2500)]
+
+        # Mock AsyncOpenAI client with batch responses
+        call_count = 0
+
+        async def mock_create(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            batch = kwargs['input']
+
+            mock_response = Mock()
+            mock_response.data = [Mock(embedding=[0.1] * 1536) for _ in batch]
+            mock_response.usage.total_tokens = len(batch) * 3
+            return mock_response
+
+        with patch('openai.AsyncOpenAI') as mock_async_openai:
+            mock_client = AsyncMock()
+            mock_client.embeddings.create = mock_create
+            mock_async_openai.return_value = mock_client
+
+            # Generate embeddings for large batch
+            embeddings = await embedding_service.generate_embeddings_batch(texts)
+
+            # Verify all embeddings returned
+            assert len(embeddings) == 2500
+            assert all(len(emb) == 1536 for emb in embeddings)
+
+            # Verify API was called twice (2048 + 1452)
+            assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_error_handling(self, embedding_service):
+        """Verify API errors are caught and logged"""
+        # Mock AsyncOpenAI client to raise error
+        with patch('openai.AsyncOpenAI') as mock_async_openai:
+            mock_client = AsyncMock()
+            mock_client.embeddings.create = AsyncMock(
+                side_effect=Exception("API rate limit exceeded")
+            )
+            mock_async_openai.return_value = mock_client
+
+            # Verify error is raised
+            with pytest.raises(Exception) as exc_info:
+                await embedding_service.generate_embedding("Test")
+
+            assert "API rate limit exceeded" in str(exc_info.value)
+
