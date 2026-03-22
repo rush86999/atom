@@ -28,8 +28,8 @@ class TestEpisodeSegmentationServiceCoverage:
             mock_lancedb.return_value = Mock()
 
             # Mock BYOK handler
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -53,8 +53,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -72,8 +72,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -92,8 +92,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -111,8 +111,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -129,8 +129,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -145,8 +145,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -164,8 +164,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -181,8 +181,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -197,8 +197,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -215,8 +215,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -228,8 +228,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -245,8 +245,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -264,8 +264,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -278,8 +278,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -297,8 +297,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -316,8 +316,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -335,8 +335,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -348,8 +348,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -366,8 +366,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -385,8 +385,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -402,8 +402,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -419,8 +419,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -436,8 +436,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -455,8 +455,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -472,8 +472,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -490,8 +490,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -518,8 +518,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -531,8 +531,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -549,8 +549,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -566,8 +566,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 # Set environment variable
                 import os
@@ -590,8 +590,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 # Ensure no env var
                 import os
@@ -612,8 +612,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -631,8 +631,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -648,8 +648,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -667,8 +667,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -692,8 +692,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -713,8 +713,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -733,8 +733,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -754,8 +754,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -770,8 +770,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -796,8 +796,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -816,8 +816,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -838,8 +838,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -856,8 +856,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -872,8 +872,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -887,8 +887,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -910,8 +910,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -935,8 +935,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -960,8 +960,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -982,8 +982,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -1007,8 +1007,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -1032,8 +1032,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -1054,8 +1054,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
@@ -1070,8 +1070,8 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 service = EpisodeSegmentationService(db_session)
 
