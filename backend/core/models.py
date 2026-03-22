@@ -8150,7 +8150,7 @@ class ProviderRegistry(Base):
     is_active = Column(Boolean, default=True, index=True)
     discovered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    metadata = Column(JSON)  # Freeform provider-specific data
+    provider_metadata = Column(JSON)  # Freeform provider-specific data
 
     # Relationship to models
     models = relationship("ModelCatalog", back_populates="provider", cascade="all, delete-orphan")
@@ -8176,7 +8176,7 @@ class ModelCatalog(Base):
     source = Column(String(50))  # "litellm", "openrouter", "manual"
     discovered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    metadata = Column(JSON)
+    model_metadata = Column(JSON)
 
     # Relationship to provider
     provider = relationship("ProviderRegistry", back_populates="models")
