@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 225.1-agent-llmservice-migration (Agent LLMService Migration)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-03-22 — Plan 225.1-03 completed: Migrate GenericAgent from BYOKHandler to LLMService
+Plan: 4 of 4 in current phase
+Status: Complete
+Last activity: 2026-03-22 — Plan 225.1-04 completed: Migrate remaining agent services from BYOKHandler to LLMService
 
 Progress: [██████░░] 53% (18/34 plans complete)
 
@@ -58,6 +58,7 @@ Progress: [██████░░] 53% (18/34 plans complete)
 | Phase 225 P01 | 108 | 3 tasks | 1 files |
 | Phase 225.1 P01 | 96 | 4 tasks | 1 files |
 | Phase 225.1 P03 | 317 | 4 tasks | 2 files |
+| Phase 225.1 P04 | 394 | 8 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 225.1]: GenericAgent migrated to LLMService - all LLM interactions now use unified interface
 - [Phase 225.1]: Import path is core.llm_service (not core.llm.llm_service) - file in core/ directory
 - [Phase 225.1]: Method name changes: generate_response → generate, generate_structured_response → generate_structured
+- [Phase 225.1]: All agent services (GenericAgent, AgentExecutionService, EpisodeSegmentationService, CanvasSummaryService, AI Employee Executor) now use LLMService as single source of truth
+- [Phase 225.1]: Remaining BYOKHandler imports are legitimate (workflow_engine, event_sourced_architecture, atom_agent_endpoints API routes, llm_service.py wrapper)
 
 ### Pending Todos
 
