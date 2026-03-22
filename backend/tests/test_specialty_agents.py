@@ -29,7 +29,7 @@ async def test_generic_agent_initialization(mock_agent_model):
 
 @pytest.mark.asyncio
 @patch("core.generic_agent.WorldModelService")
-@patch("core.generic_agent.BYOKHandler")
+@patch("core.generic_agent.LLMService")
 async def test_generic_agent_execution(mock_llm_cls, mock_wm_cls, mock_agent_model):
     # Setup Mocks
     mock_wm = mock_wm_cls.return_value
@@ -42,7 +42,7 @@ async def test_generic_agent_execution(mock_llm_cls, mock_wm_cls, mock_agent_mod
     mock_wm.record_experience.side_effect = lambda *args, **kwargs: async_return(None)
     
     mock_llm = mock_llm_cls.return_value
-    mock_llm.generate_response.side_effect = lambda *args, **kwargs: async_return("I have completed the task.")
+    mock_llm.generate.side_effect = lambda *args, **kwargs: async_return("I have completed the task.")
     
     # Execute
     agent = GenericAgent(mock_agent_model)
