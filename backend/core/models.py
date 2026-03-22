@@ -8173,6 +8173,8 @@ class ModelCatalog(Base):
     max_input_tokens = Column(Integer)
     context_window = Column(Integer)
     mode = Column(String(50))  # "chat", "completion", "vision"
+    capabilities = Column(JSON, default=lambda: ["chat"])  # e.g., ["chat", "vision", "tools", "computer_use", "browser_use"]
+    exclude_from_general_routing = Column(Boolean, default=False)  # True if not suitable for general text routing
     source = Column(String(50))  # "litellm", "openrouter", "manual"
     discovered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
