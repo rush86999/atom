@@ -90,6 +90,12 @@ try:
 except ImportError:
     get_byok_manager = None
 
+# LLMService Integration for OpenAI embeddings
+try:
+    from core.llm_service import LLMService
+except ImportError:
+    LLMService = None
+
 
 
 
@@ -156,13 +162,22 @@ class LanceDBHandler:
             logger.error(f"Failed to initialize BYOK manager: {e}", exc_info=True)
             self.byok_manager = None
 
+        # Initialize LLMService for OpenAI embeddings (unified interface)
+        # LLMService handles BYOK API key resolution, cost tracking, and observability
+        # Used for OpenAI embeddings only (local embedder keeps sentence-transformers/fastembed)
+        if LLMService:
+            self.llm_service = LLMService(workspace_id=workspace_id or "default")
+        else:
+            logger.warning("LLMService not available, OpenAI embeddings disabled")
+            self.llm_service = None
+
         # Initialize LanceDB if available (LAZY LOAD)
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
         # if LANCEDB_AVAILABLE:
         #     self._initialize_db()
 
         # Initialize embedder (LAZY LOAD on first use to prevent import block)
-        # self._initialize_embedder() 
+        # self._initialize_embedder()
         self.embedder = None
 
     def _ensure_db(self):
