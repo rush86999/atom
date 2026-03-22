@@ -2837,7 +2837,6 @@ class BrowserAudit(Base):
     agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
     user = relationship("User", foreign_keys=[user_id])
 
-<<<<<<< HEAD
 # CONSOLIDATED to line 3668: class Artifact(Base):
 #     """
 #     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
@@ -2869,10 +2868,6 @@ class BrowserAudit(Base):
 #     author = relationship("User", foreign_keys=[author_id])
 #     locked_by = relationship("User", foreign_keys=[locked_by_user_id])
 #     workspace = relationship("Workspace")
-=======
-# First Artifact class removed - duplicate definition causing SQLAlchemy errors
-# Use the multi-tenant Artifact class at line 3668 instead
->>>>>>> 94aff054939db42cfd64147e6cb362e64896ae3a
 
 class ArtifactVersion(Base):
     """
