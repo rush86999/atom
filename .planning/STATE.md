@@ -1,30 +1,36 @@
-Phase: 220 (Fix Industry Workflow Test Failures)
-Status: COMPLETE
+Milestone: v6.0 BYOK Migration to Unified LLMService API
+Status: NOT STARTED
 Started: 2026-03-22
-Completed: 2026-03-22
 
-## Phase 220: Fix Industry Workflow Test Failures
+## Milestone v6.0: BYOK Migration to Unified LLMService API
 
-**Progress:** [██████████] 100%
+**Progress:** [░░░░░░░░░░] 0%
 
-**Objective:** Fix all 5 failing industry workflow endpoint tests
+**Objective:** Consolidate all BYOK LLM interactions to a single unified LLMService API
 
 **Background:**
-Phase 220-01 fixes the remaining test failures in the industry workflow endpoint test suite. Issues included template ID mismatches, Pydantic validation errors, and exception handling test problems.
+The Atom platform has fragmented LLM provider interactions with 59 files directly importing BYOKHandler and 9 files making direct OpenAI/Anthropic API calls. This milestone consolidates all LLM operations through a unified LLMService interface.
 
-**Plans:**
-- Plan 01: Fix all 5 failing tests ✅ COMPLETE
+**Planned Phases:** TBD (estimated 15-20 phases)
 
 ## Current Status
 
-**Phase 220: Fix Industry Workflow Test Failures** ✅ COMPLETE
-- **Completed:** 2026-03-22
-- **Duration:** ~10 minutes (600 seconds)
-- **Tasks Completed:** 4
-- **Commits:** 3 (b362e0e2d, 2aeafd753, 112395cff)
+**Milestone v6.0: BYOK Migration** 🚧 NOT STARTED
+- **Status:** Planning phase - gathering requirements
+- **Exploration:** Complete - 112 files identified for migration
 
-**Key Achievement:**
-Fixed all 5 failing tests, achieving 100% pass rate (17/17 tests passing).
+**Key Findings:**
+- 59 files directly import BYOKHandler
+- 9 files make direct OpenAI/Anthropic API calls (bypassing BYOK)
+- LLMService exists but is incomplete (232 lines vs BYOKHandler's 1,560 lines)
+- Estimated effort: 14-23 person-days over 4 weeks
+
+## Previous Milestone: v5.5 Test Coverage (PAUSED)
+
+**Status:** ⏸️ PAUSED after Phase 220 completion
+- Phase 220: ✅ Complete (industry workflow tests fixed)
+- Phase 221: ⏸️ Not started (2FA routes - tests already passing)
+- Phases 222-226: ⏸️ Deferred for v6.0 BYOK migration
 
 ## Issues Fixed
 
