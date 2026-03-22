@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 225.1-agent-llmservice-migration (Agent LLMService Migration)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-03-22 — Plan 225.1-02 completed: Add missing BYOKHandler methods to LLMService
+Last activity: 2026-03-22 — Plan 225.1-03 completed: Migrate GenericAgent from BYOKHandler to LLMService
 
-Progress: [██████░░] 50% (17/34 plans complete)
+Progress: [██████░░] 53% (18/34 plans complete)
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [██████░░] 50% (17/34 plans complete)
 | Phase 225 P02 | 34 | 3 tasks | 1 files |
 | Phase 225 P01 | 108 | 3 tasks | 1 files |
 | Phase 225.1 P01 | 96 | 4 tasks | 1 files |
+| Phase 225.1 P03 | 317 | 4 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,9 @@ Recent decisions affecting current work:
 - [Phase 225.1-02]: Added 4 BYOKHandler methods to LLMService (analyze_query_complexity, get_available_providers, get_context_window, truncate_to_context)
 - [Phase 225.1-02]: All methods follow delegation pattern (return self.handler.<method>()), enabling complete agent migration to LLMService
 - [Phase 225.1-02]: 6 comprehensive tests added for new methods, all 86 tests passing (100% pass rate)
+- [Phase 225.1]: GenericAgent migrated to LLMService - all LLM interactions now use unified interface
+- [Phase 225.1]: Import path is core.llm_service (not core.llm.llm_service) - file in core/ directory
+- [Phase 225.1]: Method name changes: generate_response → generate, generate_structured_response → generate_structured
 
 ### Pending Todos
 
@@ -104,8 +108,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 225.1-02 execution)
-Stopped at: Completed plan 225.1-02 - Added 4 BYOKHandler methods to LLMService, all tests passing
+Last session: 2026-03-22 (plan 225.1-03 execution)
+Stopped at: Completed plan 225.1-03 - Migrated GenericAgent from BYOKHandler to LLMService, all 4 tasks complete
 Resume file: None
 
 ## Milestone Context
