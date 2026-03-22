@@ -1669,3 +1669,30 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 **Plans**:
 - [ ] 219-01-PLAN.md — Remove duplicate test file and fix mock configuration
 
+### Phase 220: Fix Industry Workflow Test Failures 🚧 PENDING
+**Goal**: Fix all failing industry workflow endpoint tests (5 failures)
+**Status**: 🚧 PENDING (2026-03-22)
+**Plans**: 1 plan (220-01)
+
+**Problem**: 5 tests failing in `tests/unit/test_industry_workflow_endpoints.py`:
+1. test_get_industry_template_details_success - Template ID mismatch (404 instead of 200)
+2. test_calculate_template_roi_success - Pydantic 422 error (template_id in body + path)
+3. test_calculate_roi_template_not_found - Expects 400 but gets 422
+4. test_get_implementation_guide_success - Template ID mismatch (404 instead of 200)
+5. test_endpoint_exception_handling - Expects 500 but gets 200
+
+**Root Causes**:
+1. **Template ID Mismatch**: Tests use "test_template_1" but real templates use IDs like "healthcare_patient_onboarding"
+2. **ROI Request Validation**: ROICalculationRequest has template_id in body when it's in path
+3. **Exception Handling**: Mock side_effect not properly triggering exception
+
+**Success Criteria**:
+- [ ] IND-01: All 17 industry workflow tests pass (0 failures)
+- [ ] IND-02: Duplicate test file removed
+- [ ] IND-03: Tests use real template IDs (healthcare_patient_onboarding, etc.)
+- [ ] IND-04: ROI request validation fixed (template_id removed from body)
+- [ ] IND-05: Exception handling test properly triggers exceptions
+
+**Plans**:
+- [ ] 220-01-PLAN.md — Fix ROI request model and update tests with real template IDs
+
