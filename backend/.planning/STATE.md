@@ -6,14 +6,14 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 06-social-layer - Plan 03 (PII Redaction Fixes)
+**Current focus:** Phase 218-fix-test-collection-errors - Plan 01 (COMPLETE)
 
 ## Current Position
 
-Phase: 215-fix-remaining-ab-test-failures
-Plan: 02 (COMPLETE)
+Phase: 218-fix-test-collection-errors
+Plan: 01 (COMPLETE)
 Status: COMPLETE ✅
-Last activity: 2026-03-20 — Phase 215 COMPLETE: Fixed all 10 remaining A/B testing test failures. Changed patch location from 'core.ab_testing_service.ABTestingService' to 'api.ab_testing.ABTestingService' to properly intercept service instantiation. Updated response structure assertions to match API wrapping (data field for success, detail field for errors). Fixed validation tests to expect 422 (Pydantic) instead of 400. All 55 A/B tests now passing (100% pass rate, up from 81.8%). Zero database dependencies, ~12s execution time. Commits: 85c149356, dcf4503a8, 04c252e35.
+Last activity: 2026-03-22 — Phase 218-01 COMPLETE: Fixed 2 test files with collection errors blocking full test suite. Made aiofiles optional in core/trajectory.py using try/except pattern with AIOFILES_AVAILABLE flag. Added pytest.importorskip('aiofiles') to test_trace_validator.py for graceful test skipping. Rewrote test_time_expression_parser.py to match actual implementation API (24 tests, was 0 due to import errors). Full test suite now collects with 0 errors (16,046 tests). Duration: 235 seconds. Commits: 158a13c94, ab21f0e14, cf9528737.
 
 Phase 05 Summary:
 - Plan 01: Agent governance & maturity routing (1,313 lines, 54 tests, 100% passing)
