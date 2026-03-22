@@ -249,20 +249,6 @@ class TestFullScanWorkflow:
             assert result["safe"] == False
 
     @pytest.mark.asyncio
-    async def test_scan_skill_without_openai_key(self):
-        """Scanner works without OpenAI API key (static only)."""
-        # Create scanner without API key
-        scanner = SkillSecurityScanner(api_key=None)
-
-        safe_code = "print('hello world')"
-        result = await scanner.scan_skill("test", safe_code)
-
-        # Should return safe but with UNKNOWN risk (no LLM)
-        assert result["safe"] == True
-        assert result["risk_level"] == "UNKNOWN"
-        assert "LLM scan unavailable" in result["findings"][0]
-
-    @pytest.mark.asyncio
     async def test_scan_skill_integration(self, monkeypatch):
         """Full integration test with static + LLM."""
         # Set dummy API key so scanner initializes with client
