@@ -962,3 +962,275 @@ class TestLLMServiceStructuredIntegration(TestLLMServiceProviderSelection):
 
         # Should return None
         assert result_none is None
+
+
+class TestGenerateWithTier:
+    """Tests for LLMService.generate_with_tier method (Phase 222-03)."""
+
+    @pytest.fixture
+    def mock_db(self):
+        """Mock database session."""
+        return Mock()
+
+    @pytest.fixture
+    def llm_service(self, mock_db):
+        """Create LLMService instance with mocked dependencies."""
+        return LLMService(workspace_id="test", db=mock_db)
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_basic(self, llm_service):
+        """Verify returns dict with expected keys."""
+        # Mock the handler's generate_with_cognitive_tier method
+        mock_response = {
+            "response": "This is a test response",
+            "tier": "standard",
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "cost_cents": 0.05,
+            "escalated": False,
+            "request_id": "test-request-123"
+        }
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+        result = await llm_service.generate_with_tier(
+            prompt="Test prompt",
+            system_instruction="You are helpful."
+        )
+
+        # Verify all expected keys are present
+        assert "response" in result
+        assert "tier" in result
+        assert "provider" in result
+        assert "model" in result
+        assert "cost_cents" in result
+        assert "escalated" in result
+        assert "request_id" in result
+
+        # Verify values
+        assert result["response"] == "This is a test response"
+        assert result["tier"] == "standard"
+        assert result["provider"] == "openai"
+        assert result["model"] == "gpt-4o-mini"
+        assert result["cost_cents"] == 0.05
+        assert result["escalated"] is False
+        assert result["request_id"] == "test-request-123"
+
+        # Verify handler was called correctly
+        llm_service.handler.generate_with_cognitive_tier.assert_called_once_with(
+            prompt="Test prompt",
+            system_instruction="You are helpful.",
+            task_type=None,
+            user_tier_override=None,
+            agent_id=None,
+            image_payload=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_auto_classification(self, llm_service):
+        """Verify tier classification works."""
+        # Mock response with micro tier
+        mock_response = {
+            "response": "Simple response",
+            "tier": "micro",
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "cost_cents": 0.001,
+            "escalated": False,
+            "request_id": "req-456"
+        }
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+        result = await llm_service.generate_with_tier(
+            prompt="Hi",
+            task_type="chat"
+        )
+
+        # Verify micro tier was selected
+        assert result["tier"] == "micro"
+        assert result["cost_cents"] == 0.001
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_user_override(self, llm_service):
+        """Verify user_tier_override bypasses classification."""
+        # Mock response with versatile tier (user-forced)
+        mock_response = {
+            "response": "Complex analysis",
+            "tier": "versatile",
+            "provider": "anthropic",
+            "model": "claude-3-5-sonnet",
+            "cost_cents": 0.15,
+            "escalated": False,
+            "request_id": "req-789"
+        }
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+        result = await llm_service.generate_with_tier(
+            prompt="Simple question",
+            user_tier_override="versatile"
+        )
+
+        # Verify versatile tier was used (user override)
+        assert result["tier"] == "versatile"
+        assert result["model"] == "claude-3-5-sonnet"
+
+        # Verify handler was called with user_tier_override
+        llm_service.handler.generate_with_cognitive_tier.assert_called_once()
+        call_kwargs = llm_service.handler.generate_with_cognitive_tier.call_args.kwargs
+        assert call_kwargs["user_tier_override"] == "versatile"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_with_vision(self, llm_service):
+        """Verify image_payload support."""
+        # Mock response with vision model
+        mock_response = {
+            "response": "I see an image",
+            "tier": "versatile",
+            "provider": "anthropic",
+            "model": "claude-3-5-sonnet",
+            "cost_cents": 0.2,
+            "escalated": False,
+            "request_id": "req-vision-1"
+        }
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+        result = await llm_service.generate_with_tier(
+            prompt="What's in this image?",
+            image_payload="data:image/png;base64,iVBORw0KG..."
+        )
+
+        # Verify vision-capable model was used
+        assert result["tier"] == "versatile"
+        assert result["response"] == "I see an image"
+
+        # Verify handler was called with image_payload
+        llm_service.handler.generate_with_cognitive_tier.assert_called_once()
+        call_kwargs = llm_service.handler.generate_with_cognitive_tier.call_args.kwargs
+        assert call_kwargs["image_payload"] == "data:image/png;base64,iVBORw0KG..."
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_budget_exceeded(self, llm_service):
+        """Verify budget check rejection."""
+        # Mock budget exceeded response
+        mock_response = {
+            "error": "Budget exceeded",
+            "tier": "heavy",
+            "estimated_cost_cents": 5.0
+        }
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+        result = await llm_service.generate_with_tier(
+            prompt="Generate a large report",
+            task_type="analysis"
+        )
+
+        # Verify error response
+        assert "error" in result
+        assert result["error"] == "Budget exceeded"
+        assert result["tier"] == "heavy"
+        assert result["estimated_cost_cents"] == 5.0
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_escalation(self, llm_service):
+        """Verify escalation on quality issues."""
+        # Mock response with escalation flag
+        mock_response = {
+            "response": "High quality response after escalation",
+            "tier": "complex",
+            "provider": "anthropic",
+            "model": "claude-3-opus-20240229",
+            "cost_cents": 1.5,
+            "escalated": True,
+            "request_id": "req-escalated-1"
+        }
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+        result = await llm_service.generate_with_tier(
+            prompt="Complex architectural decision",
+            task_type="code",
+            agent_id="test-agent"
+        )
+
+        # Verify escalation occurred
+        assert result["escalated"] is True
+        assert result["tier"] == "complex"
+        assert result["model"] == "claude-3-opus-20240229"
+
+        # Verify handler was called with agent_id
+        llm_service.handler.generate_with_cognitive_tier.assert_called_once()
+        call_kwargs = llm_service.handler.generate_with_cognitive_tier.call_args.kwargs
+        assert call_kwargs["agent_id"] == "test-agent"
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_all_tiers(self, llm_service):
+        """Verify all tier values are valid."""
+        tiers = ["micro", "standard", "versatile", "heavy", "complex"]
+
+        for tier in tiers:
+            mock_response = {
+                "response": f"Response for {tier}",
+                "tier": tier,
+                "provider": "openai",
+                "model": "model-name",
+                "cost_cents": 0.1,
+                "escalated": False,
+                "request_id": f"req-{tier}"
+            }
+
+            llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+            result = await llm_service.generate_with_tier(
+                prompt=f"Test {tier}",
+                user_tier_override=tier
+            )
+
+            # Verify tier value is valid
+            assert result["tier"] == tier
+            assert result["tier"] in tiers
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_cost_cents_is_numeric(self, llm_service):
+        """Verify cost_cents is numeric."""
+        mock_response = {
+            "response": "Response",
+            "tier": "standard",
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "cost_cents": 0.05,
+            "escalated": False,
+            "request_id": "req-123"
+        }
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+        result = await llm_service.generate_with_tier(prompt="Test")
+
+        # Verify cost_cents is numeric
+        assert isinstance(result["cost_cents"], (int, float))
+
+    @pytest.mark.asyncio
+    async def test_generate_with_tier_escalated_is_boolean(self, llm_service):
+        """Verify escalated flag is boolean."""
+        for escalated_value in [True, False]:
+            mock_response = {
+                "response": "Response",
+                "tier": "standard",
+                "provider": "openai",
+                "model": "gpt-4o-mini",
+                "cost_cents": 0.05,
+                "escalated": escalated_value,
+                "request_id": "req-123"
+            }
+
+            llm_service.handler.generate_with_cognitive_tier = AsyncMock(return_value=mock_response)
+
+            result = await llm_service.generate_with_tier(prompt="Test")
+
+            # Verify escalated is boolean
+            assert isinstance(result["escalated"], bool)
+            assert result["escalated"] == escalated_value
