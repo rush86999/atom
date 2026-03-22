@@ -158,7 +158,7 @@ class SkillSecurityScanner:
 
         return findings
 
-    def _llm_scan(self, skill_name: str, skill_content: str) -> Dict[str, Any]:
+    async def _llm_scan(self, skill_name: str, skill_content: str) -> Dict[str, Any]:
         """
         Use GPT-4 for semantic analysis of skill code.
 
@@ -170,8 +170,7 @@ class SkillSecurityScanner:
             Dict with safe, risk_level, findings
         """
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4",
+            response = await self.llm_service.generate_completion(
                 messages=[
                     {
                         "role": "system",
@@ -188,11 +187,12 @@ class SkillSecurityScanner:
                           f"[LOW/MEDIUM/HIGH/CRITICAL], then explain."
                     }
                 ],
+                model="gpt-4",
                 max_tokens=500,
                 temperature=0
             )
 
-            analysis = response.choices[0].message.content
+            analysis = response.get("content", "")
             logger.info(f"LLM scan completed for '{skill_name}'")
 
             # Parse LLM response for risk assessment
