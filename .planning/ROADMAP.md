@@ -1781,7 +1781,7 @@ Plans:
 **Requirements**: MIG-07, MIG-08, MIG-09
 **Success Criteria** (what must be TRUE):
   1. voice_service.py uses LLMService for voice processing operations
-  2. generic_agent.py standardized to use LLMService (already uses BYOKHandler)
+  2. generic_agent.py verified using correct LLM integration pattern (BYOKHandler for agent classes is acceptable per architectural decision)
   3. atom_meta_agent.py verified using LLMService (already using it)
   4. All three files pass existing tests with LLMService integration
   5. No regression in voice processing, agent execution, or meta-agent coordination
