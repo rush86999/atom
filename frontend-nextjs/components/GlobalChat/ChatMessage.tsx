@@ -132,7 +132,7 @@ export function ChatMessage({ message, onActionClick, onFeedback }: ChatMessageP
                         )}
                     </CardContent>
 
-                    {message.actions && message.actions.length > 0 && (
+                    {Array.isArray(message.actions) && message.actions.length > 0 && (
                         <CardFooter className="p-2 pt-0 flex flex-wrap gap-2">
                             {message.actions.map((action, idx) => (
                                 <Button

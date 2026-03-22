@@ -28,7 +28,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.orm import Session
 
 from core.workflow_engine import WorkflowEngine, MissingInputError
-from core.models import WorkflowExecution, WorkflowStepExecution, WorkflowExecutionStatus
+from core.models import WorkflowExecution, WorkflowExecutionStatus
 from tests.factories.workflow_factory import WorkflowExecutionFactory, WorkflowStepExecutionFactory
 
 

@@ -178,8 +178,11 @@ class TestRiskAssessment:
 class TestCaching:
     """Test scan result caching."""
 
-    def test_scan_caches_results_by_sha(self):
+    def test_scan_caches_results_by_sha(self, monkeypatch):
         """Verify cache behavior with same content."""
+        # Set dummy API key so scanner initializes with client
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key")
+
         scanner = SkillSecurityScanner()
 
         # Mock LLM to avoid API call
@@ -201,8 +204,11 @@ class TestCaching:
             # Results should be identical
             assert result1 == result2
 
-    def test_cache_can_be_cleared(self):
+    def test_cache_can_be_cleared(self, monkeypatch):
         """Cache can be cleared to force re-scanning."""
+        # Set dummy API key so scanner initializes with client
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key")
+
         scanner = SkillSecurityScanner()
 
         with patch.object(scanner, '_llm_scan') as mock_llm:
@@ -255,8 +261,11 @@ class TestFullScanWorkflow:
         assert result["risk_level"] == "UNKNOWN"
         assert "LLM scan unavailable" in result["findings"][0]
 
-    def test_scan_skill_integration(self):
+    def test_scan_skill_integration(self, monkeypatch):
         """Full integration test with static + LLM."""
+        # Set dummy API key so scanner initializes with client
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key")
+
         scanner = SkillSecurityScanner()
 
         with patch.object(scanner, '_llm_scan') as mock_llm:

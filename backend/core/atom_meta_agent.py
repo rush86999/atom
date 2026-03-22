@@ -163,6 +163,9 @@ class AtomMetaAgent:
         "list_integrations",
         "call_integration",  # Fallback
         "canvas_tool",
+        # Platform & Management Tools
+        "get_platform_settings",
+        "update_platform_setting",
         "update_tenant_profile",
         "set_byok_api_key",
         "list_tenant_members",
@@ -199,7 +202,7 @@ class AtomMetaAgent:
             
         logger.info(f"Atom executing request: {request[:50]}... (mode: {trigger_mode.value})")
         
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         execution_id = execution_id or str(uuid.uuid4())
 
         # 0. Get Tenant ID and Create Execution Record
@@ -207,8 +210,6 @@ class AtomMetaAgent:
         try:
             with SessionLocal() as db:
                 # CRITICAL: Validate workspace exists and get tenant_id
-                # Note: We're trusting workspace_id from instance variable
-                # In production, should validate tenant_id from request context
                 workspace = db.query(Workspace).filter(
                     Workspace.id == self.workspace_id
                 ).first()
@@ -217,13 +218,13 @@ class AtomMetaAgent:
                     logger.error(f"Workspace {self.workspace_id} not found")
                     raise HTTPException(status_code=404, detail="Workspace not found")
 
-                tenant_id = workspace.tenant_id
+                tenant_id = workspace.tenant_id or "default"
 
                 # Create persistent execution record
                 execution = AgentExecution(
                     id=execution_id,
                     agent_id="atom_main",
-                    tenant_id=tenant_id or "default",
+                    tenant_id=tenant_id,
                     status=ExecutionStatus.RUNNING.value,
                     input_summary=request[:200],
                     triggered_by=trigger_mode.value,
@@ -246,7 +247,7 @@ class AtomMetaAgent:
                 canvas_state = await self.canvas_provider.get_canvas_context(
                     db=db,
                     canvas_id=canvas_context["canvas_id"],
-                    tenant_id=tenant_id or "default"
+                    tenant_id=tenant_id
                 )
                 if canvas_state:
                     canvas_text = self.canvas_provider.format_for_agent(canvas_state)

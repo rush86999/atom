@@ -1,8 +1,8 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: v5.4 Backend 80% Coverage - Baseline & Plan
+## Current Milestone: v5.5 Backend 80% Coverage - Clean Slate
 
-**Goal:** Achieve 80% actual line coverage across the entire backend codebase through comprehensive baseline measurement and targeted testing phases.
+**Goal:** Achieve 80% actual line coverage across the entire backend codebase through wave-based parallel execution and highest-impact module prioritization.
 
 **Target features:**
 - Comprehensive backend coverage baseline (actual line coverage, not service-level estimates)
@@ -111,7 +111,21 @@ If everything else fails, the following must have comprehensive test coverage:
 - ✓ Quality infrastructure reliability — Flaky test detection, retries, quarantine (151-01 through 151-04) — v5.2
 - ✓ Quality infrastructure documentation — Testing guides, onboarding (152-01 through 152-05) — v5.2
 
-**v5.3 Coverage Expansion to 80% Targets (2026-03-11):** ✅ SHIPPED
+**v5.4 Backend 80% Coverage - Baseline & Plan (2026-03-11):** ⚠️ ARCHIVED (Partial)
+- ⚠️ Phase 211 (Coverage Push to 80%) — Partially complete, 1 of 4 plans executed — v5.4
+- ⚠️ Message Handling Coverage — webhook_handlers (77%), jwt_verifier (81%), unified_message_processor (87%) — v5.4
+- ⚠️ CI Workflows Disabled — All 27 GitHub Actions workflows disabled for focused development — v5.4
+- ❌ Core Utility Services — Plan created but not executed — v5.4
+- ❌ Skill Execution System — Plan created but not executed — v5.4
+- ❌ Verification and Final Report — Plan created but not executed — v5.4
+
+**v5.4 Outcomes:**
+- Message handling: 77-87% coverage (3 modules, 108 tests)
+- CI workflows: All disabled to reduce noise
+- Lesson: Verify executor completion, don't trust status alone
+- Decision: Archive v5.4, start v5.5 with clean slate
+
+**v5.5 Backend 80% Coverage - Clean Slate (2026-03-20):** 🚧 ACTIVE
 - ✓ Coverage gates — Progressive thresholds (70% → 75% → 80%), emergency bypass mechanism (153-01 through 153-04) — v5.3
 - ✓ Coverage trends — PR trend comments (↑↓→ indicators), assert-to-test ratio tracking, complexity metrics (154-01 through 154-04) — v5.3
 - ✓ Quick wins — DTOs, utilities, UI components, configuration (80%+ coverage) (155-01 through 155-04) — v5.3
@@ -134,15 +148,22 @@ If everything else fails, the following must have comprehensive test coverage:
 
 ### Active
 
-**v5.4 Backend 80% Coverage - Baseline & Plan (2026-03-11):**
-- [ ] Comprehensive baseline measurement — Actual line coverage across all backend modules (not estimates) — v5.4
-- [ ] High-impact file prioritization — Rank by coverage gap, criticality, complexity — v5.4
-- [ ] Core services testing — Governance (80%+), LLM routing, episodic memory, world model — v5.4
-- [ ] API routes coverage — FastAPI endpoints, validation, error handling (80%+) — v5.4
-- [ ] Database layer testing — Models, relationships, migrations, constraints (80%+) — v5.4
-- [ ] Integration testing — External services, browser, device capabilities (80%+) — v5.4
-- [ ] Progressive quality gates — 70% → 75% → 80% enforcement with bypass mechanism — v5.4
-- [ ] Property-based testing — Invariants for critical paths (governance, security, data integrity) — v5.4
+**v5.5 Backend 80% Coverage - Clean Slate (2026-03-20):** 🚧 **NEW MILESTONE**
+- [ ] Wave 1: Highest-Impact Modules — Governance, LLM, episodic memory, API routes (80% target) — v5.5
+- [ ] Wave 2: Core Services — Canvas, browser, device, skills, training (80% target) — v5.5
+- [ ] Wave 3: Database & Integration — Models, migrations, external services (80% target) — v5.5
+- [ ] Wave 4: Edge Cases & Property Tests — Invariants, error paths, security validation — v5.5
+- [ ] Daily Coverage Verification — pytest --cov reports, trend tracking, gap analysis — v5.5
+- [ ] Property-Based Testing — Hypothesis tests for critical invariants (1000+ examples) — v5.5
+- [ ] Integration Testing — External services, browser automation, device capabilities — v5.5
+- [ ] CI Re-enablement — Re-enable workflows only after 80% target achieved — v5.5
+
+**Strategy:**
+1. **Highest-Impact First**: Rank modules by (coverage gap × criticality × complexity)
+2. **Wave-Based Parallelism**: Execute independent test waves in parallel
+3. **Daily Verification**: Measure coverage every day with `pytest --cov --cov-report=html`
+4. **Property Tests**: Add Hypothesis tests for critical invariants
+5. **Re-enable CI**: Only when 80% coverage is achieved and all tests passing
 
 ### Out of Scope
 
@@ -228,4 +249,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-03-11 after v5.3 milestone, starting v5.4 (Backend 80% Coverage - Baseline & Plan)*
+*Last updated: 2026-03-20 after archiving v5.4 (partial), starting v5.5 (Backend 80% Coverage - Clean Slate)*

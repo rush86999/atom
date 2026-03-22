@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Brain } from "lucide-react";
+import ReasoningChainViewer from "@/components/ReasoningChainViewer";
 
 const AgentsDashboard = () => {
     const router = useRouter();
@@ -35,6 +37,10 @@ const AgentsDashboard = () => {
     const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
     const [runInstructions, setRunInstructions] = useState("");
     const [isRunning, setIsRunning] = useState(false);
+    
+    // Reasoning Modal State
+    const [isReasoningModalOpen, setIsReasoningModalOpen] = useState(false);
+    const [selectedReasoningId, setSelectedReasoningId] = useState<string | null>(null);
 
     // WebSocket Integration
     const { isConnected, lastMessage, subscribe } = useWebSocket();
@@ -207,6 +213,35 @@ const AgentsDashboard = () => {
         }
     };
 
+    const handleViewReasoning = (id: string) => {
+        setSelectedReasoningId(id);
+        setIsReasoningModalOpen(true);
+    };
+
+    const handleStepFeedback = async (stepId: string, score: number, comment?: string) => {
+        try {
+            // Internal path for single-tenant feedback
+            const res = await fetch(`http://localhost:8000/api/v1/agents/steps/feedback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                },
+                body: JSON.stringify({
+                    step_id: stepId,
+                    score: score,
+                    feedback_text: comment
+                })
+            });
+
+            if (res.ok) {
+                toast({ title: "Feedback Recorded", description: "The agent will learn from this correction." });
+            }
+        } catch (e) {
+            toast({ title: "Error", description: "Failed to submit feedback", variant: "error" });
+        }
+    };
+
     const saveAgentChanges = async () => {
         if (!selectedAgentId) return;
 
@@ -280,7 +315,7 @@ const AgentsDashboard = () => {
                                 </div>
                             )}
 
-                            {agents.map(agent => (
+                            {Array.isArray(agents) && agents.map(agent => (
                                 <AgentCard
                                     key={agent.id}
                                     agent={agent}
@@ -288,6 +323,7 @@ const AgentsDashboard = () => {
                                     onStop={handleStopAgent}
                                     onChat={handleChat}
                                     onEdit={handleEdit}
+                                    onViewReasoning={handleViewReasoning}
                                 />
                             ))}
                         </div>
@@ -381,6 +417,31 @@ const AgentsDashboard = () => {
                         <Button onClick={saveAgentChanges}>
                             Save Changes
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Reasoning Viewer Dialog */}
+            <Dialog open={isReasoningModalOpen} onOpenChange={setIsReasoningModalOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Brain className="w-5 h-5 text-purple-600" />
+                            Agent Reasoning Audit: {agents.find(a => a.id === selectedReasoningId)?.name}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Review the agent's internal thought process and provide corrections to improve its accuracy.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedReasoningId && (
+                        <div className="py-2">
+                            <ReasoningChainViewer 
+                                chainId={selectedReasoningId} 
+                                onStepFeedback={handleStepFeedback}
+                            />
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button onClick={() => setIsReasoningModalOpen(false)}>Close</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

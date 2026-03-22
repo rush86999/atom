@@ -583,6 +583,190 @@ class TestGovernanceBlocking:
 
 Reference: `backend/tests/test_package_security.py` for comprehensive examples.
 
+### API Route Testing with BaseAPIRouter
+
+Testing API routes that use BaseAPIRouter requires specific patterns for mock patching and error response assertions.
+
+#### Mock Patching: Patch Where Imported
+
+Always patch services at their import location in the route module, not at their definition location.
+
+```python
+# Route file imports:
+# api/admin/business_facts_routes.py
+from core.agent_world_model import WorldModelService
+
+# Test file patches at import location:
+with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_service):
+    response = client.get("/api/admin/governance/facts/123")
+```
+
+**Why:** When the route module imports `WorldModelService` at module level, it creates a reference to the original class. Patching at the definition location (`core.agent_world_model.WorldModelService`) doesn't affect this already-imported reference. Patching at the import location intercepts the reference the route actually uses.
+
+**Exception:** For services imported inside functions (not at module level), patch at the original location:
+
+```python
+# Route function with local import:
+def upload_document(file: UploadFile):
+    from core.storage import get_storage_service  # Local import
+    storage = get_storage_service()
+
+# Test patch location:
+with patch('core.storage.get_storage_service', return_value=mock_storage):
+    response = client.post("/upload", files={"file": test_file})
+```
+
+#### Error Response Assertions
+
+BaseAPIRouter.error_response() returns structured errors. Access nested message field:
+
+```python
+# Success response (200 OK)
+response = client.get("/api/admin/governance/facts/123")
+assert response.status_code == 200
+data = response.json()
+assert data["success"] == True
+assert data["data"]["fact"] == "Invoices over $500 require VP approval"
+
+# Error response (404, 400, 500, etc.)
+response = client.get("/api/admin/governance/facts/non-existent")
+assert response.status_code == 404
+detail = response.json()["detail"]
+assert detail["success"] == False
+assert detail["error"]["code"] == "NOT_FOUND"
+assert "not found" in detail["error"]["message"].lower()  # String operations on message
+```
+
+**Error Response Structure:**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Business fact not found: fact-123",
+    "timestamp": "2026-03-20T11:05:21.123456",
+    "details": {}
+  }
+}
+```
+
+**Common HTTP Status Codes:**
+- `400` - VALIDATION_ERROR (invalid input from BaseAPIRouter.validation_error)
+- `401` - UNAUTHORIZED (missing/invalid auth)
+- `403` - FORBIDDEN (insufficient permissions)
+- `404` - NOT_FOUND (resource not found from BaseAPIRouter.not_found_error)
+- `500` - INTERNAL_ERROR (server error)
+
+#### Service Mock Fixtures
+
+Use AsyncMock for async services, configure returns in fixture:
+
+```python
+@pytest.fixture
+def mock_world_model_service(sample_business_fact):
+    """Mock WorldModelService with configured return values."""
+    mock = AsyncMock()
+    mock.get_fact_by_id.return_value = sample_business_fact
+    mock.list_all_facts.return_value = [sample_business_fact]
+    mock.create_fact.return_value = sample_business_fact
+    return mock
+
+def test_get_fact_success(authenticated_admin_client, mock_world_model_service):
+    """Test getting a business fact by ID."""
+    with patch('api.admin.business_facts_routes.WorldModelService',
+               return_value=mock_world_model_service):
+
+        response = authenticated_admin_client.get("/api/admin/governance/facts/fact-123")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] == True
+```
+
+**AsyncMock vs MagicMock:**
+- **AsyncMock:** For async service methods (most API services)
+- **MagicMock:** For sync methods or non-service objects
+
+#### Configure Mocks Inside Patch Context
+
+When overriding fixture defaults, configure mocks **inside** the patch context manager:
+
+```python
+# Before (incorrect):
+mock_extractor.extract_facts_from_document.return_value = result
+with patch('api.admin.routes.get_policy_fact_extractor', return_value=mock_extractor):
+    # Test - uses fixture default, not result
+
+# After (correct):
+with patch('api.admin.routes.get_policy_fact_extractor',
+           return_value=mock_extractor) as patched_extractor:
+    patched_extractor.extract_facts_from_document.return_value = result
+    # Test - uses test-specific result
+```
+
+#### S3/R2 Storage Mocking
+
+Mock storage services for citation verification:
+
+```python
+@pytest.fixture
+def mock_storage_service():
+    """Mock S3/R2 storage service."""
+    mock = MagicMock()
+    mock.upload_file.return_value = "s3://atom-business-facts/uploads/test.pdf"
+    mock.check_exists.return_value = True
+    mock.download_file.return_value = b"PDF content bytes"
+    return mock
+```
+
+#### PDF Extraction Mocking
+
+Mock PDF extraction services for document upload tests:
+
+```python
+@pytest.fixture
+def mock_policy_extractor():
+    """Mock policy fact extractor."""
+    mock = AsyncMock()
+    mock.extract_facts_from_document.return_value = {
+        "facts": [
+            {
+                "fact": "Invoices over $500 require VP approval",
+                "citations": ["s3://atom-business-facts/policies/ap-policy.pdf:page:5"],
+                "reason": "Extracted from AP policy document",
+                "confidence": 0.95
+            }
+        ],
+        "metadata": {"source": "ap-policy.pdf", "page_count": 10}
+    }
+    return mock
+```
+
+#### Complete Example
+
+```python
+def test_upload_and_extract_success(authenticated_admin_client,
+                                   mock_policy_extractor,
+                                   mock_storage_service):
+    """Test successful document upload and fact extraction."""
+    test_file = io.BytesIO(b"%PDF-1.4 ... test PDF content ...")
+
+    with patch('api.admin.business_facts_routes.get_policy_fact_extractor',
+               return_value=mock_policy_extractor):
+        with patch('core.storage.get_storage_service', return_value=mock_storage_service):
+            response = authenticated_admin_client.post(
+                "/api/admin/governance/facts/upload",
+                files={"file": ("test.pdf", test_file, "application/pdf")}
+            )
+
+            assert response.status_code == 201
+            data = response.json()
+            assert len(data["data"]["facts"]) == 1
+            assert "VP approval" in data["data"]["facts"][0]["fact"]
+```
+
+**Reference:** See `.planning/phases/216-fix-business-facts-test-failures/216-PATTERN-DOC.md` for complete patterns with before/after examples from Phase 216 fixes.
+
 ## Code Review Checklist
 
 Before submitting a PR, verify:

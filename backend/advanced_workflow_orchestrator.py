@@ -214,6 +214,7 @@ class AdvancedWorkflowOrchestrator:
                 with get_db_session() as db:
                     snapshot = WorkflowSnapshot(
                         execution_id=context.workflow_id,
+                        tenant_id="default",
                         step_id=step_id,
                         step_order=len(context.execution_history), # Index based on history length
                         status=context.results.get(step_id, {}).get("status", "unknown"),
@@ -399,6 +400,7 @@ class AdvancedWorkflowOrchestrator:
                         new_exec = WorkflowExecution(
                             execution_id=new_execution_id,
                             workflow_id=original_workflow_id,
+                            tenant_id="default",
                             user_id=original_user_id,
                             status=WorkflowExecutionStatus.PENDING.value, # Ready to run
                             input_data=json.dumps(original_input_data),

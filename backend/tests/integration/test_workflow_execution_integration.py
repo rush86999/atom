@@ -34,7 +34,11 @@ from core.models import (
     UserRole,
     WorkflowExecutionStatus
 )
+import inspect
+print(f"\nDEBUG: WorkflowExecutionLog imported from: {inspect.getfile(WorkflowExecutionLog)}")
+print(f"DEBUG: WorkflowExecutionLog columns: {WorkflowExecutionLog.__table__.columns.keys()}\n")
 from tests.factories.user_factory import UserFactory
+
 
 
 class TestWorkflowExecutionIntegration:
@@ -76,7 +80,7 @@ class TestWorkflowExecutionIntegration:
 
         # Complete execution
         execution.status = WorkflowExecutionStatus.COMPLETED.value
-        # execution.completed_at = datetime.utcnow()  # Field not in model
+        execution.completed_at = datetime.utcnow()
         execution.outputs = json.dumps({"result": "success"})
         db_session.commit()
 
@@ -191,7 +195,7 @@ class TestWorkflowExecutionIntegration:
         # Mark as failed
         execution.status = WorkflowExecutionStatus.FAILED.value
         execution.error = "Intentional failure at step-2"
-        # execution.completed_at = datetime.utcnow()  # Field not in model
+        execution.completed_at = datetime.utcnow()
         db_session.commit()
 
         # Verify failure state
@@ -244,7 +248,7 @@ class TestWorkflowExecutionIntegration:
 
         # Complete
         execution.status = WorkflowExecutionStatus.COMPLETED.value
-        # execution.completed_at = datetime.utcnow()  # Field not in model
+        execution.completed_at = datetime.utcnow()
         db_session.commit()
 
         # Verify completed
@@ -379,7 +383,7 @@ class TestMultiStepWorkflowIntegration:
 
         # Complete workflow
         execution.status = WorkflowExecutionStatus.COMPLETED.value
-        # execution.completed_at = datetime.utcnow()  # Field not in model
+        execution.completed_at = datetime.utcnow()
         execution.outputs = json.dumps({"audit": "trail"})
         db_session.commit()
 
@@ -389,7 +393,7 @@ class TestMultiStepWorkflowIntegration:
         ).first()
 
         assert retrieved.status == WorkflowExecutionStatus.COMPLETED.value
-        # assert retrieved.completed_at is not None  # Field not in model
+        assert retrieved.completed_at is not None
 
 
 class TestWorkflowWithCanvasIntegration:
@@ -413,13 +417,16 @@ class TestWorkflowWithCanvasIntegration:
         # Create canvas audit record
         canvas_audit = CanvasAudit(
             user_id=user.id,
+            tenant_id=user.tenant_id if hasattr(user, 'tenant_id') and user.tenant_id else "default",
             agent_id="workflow-agent",
             canvas_id="test-canvas-1",
-            canvas_type="generic",
-            component_type="chart",
-            component_name="line",
-            action="present",
-            audit_metadata={"workflow_execution_id": execution.execution_id}
+            action_type="present",
+            details_json={
+                "canvas_type": "generic",
+                "component_type": "chart",
+                "component_name": "line",
+                "audit_metadata": {"workflow_execution_id": execution.execution_id}
+            }
         )
         db_session.add(canvas_audit)
         db_session.commit()
@@ -430,7 +437,7 @@ class TestWorkflowWithCanvasIntegration:
         ).all()
 
         assert len(canvas_records) > 0
-        assert canvas_records[0].action == "present"
+        assert canvas_records[0].action_type == "present"
 
     def test_workflow_updates_canvas(self, db_session: Session):
         """Test workflow updates existing canvas."""
@@ -440,12 +447,15 @@ class TestWorkflowWithCanvasIntegration:
         # Create initial canvas
         canvas_audit = CanvasAudit(
             user_id=user.id,
+            tenant_id=user.tenant_id if hasattr(user, 'tenant_id') and user.tenant_id else "default",
             agent_id="workflow-agent",
             canvas_id="test-canvas-2",
-            canvas_type="sheets",
-            component_type="table",
-            action="present",
-            audit_metadata={"data": "initial"}
+            action_type="present",
+            details_json={
+                "canvas_type": "sheets",
+                "component_type": "table",
+                "audit_metadata": {"data": "initial"}
+            }
         )
         db_session.add(canvas_audit)
         db_session.commit()
@@ -461,8 +471,8 @@ class TestWorkflowWithCanvasIntegration:
         db_session.commit()
 
         # Update canvas
-        canvas_audit.action = "update"
-        canvas_audit.audit_metadata = {"data": "updated"}
+        canvas_audit.action_type = "update"
+        canvas_audit.details_json = {"data": "updated"}
         db_session.commit()
 
         # Verify canvas was updated
@@ -470,8 +480,8 @@ class TestWorkflowWithCanvasIntegration:
             CanvasAudit.canvas_id == "test-canvas-2"
         ).first()
 
-        assert updated.action == "update"
-        assert updated.audit_metadata == {"data": "updated"}
+        assert updated.action_type == "update"
+        assert updated.details_json == {"data": "updated"}
 
     def test_workflow_canvas_audit_trail(self, db_session: Session):
         """Test workflow canvas operations create audit trail."""
@@ -493,12 +503,15 @@ class TestWorkflowWithCanvasIntegration:
         for action in actions:
             audit = CanvasAudit(
                 user_id=user.id,
+                tenant_id=user.tenant_id if hasattr(user, 'tenant_id') and user.tenant_id else "default",
                 agent_id="workflow-agent",
                 canvas_id="audit-canvas-1",
-                canvas_type="generic",
-                component_type="chart",
-                action=action,
-                audit_metadata={"step": action}
+                action_type=action,
+                details_json={
+                    "canvas_type": "generic",
+                    "component_type": "chart",
+                    "audit_metadata": {"step": action}
+                }
             )
             db_session.add(audit)
         db_session.commit()
@@ -509,9 +522,9 @@ class TestWorkflowWithCanvasIntegration:
         ).order_by(CanvasAudit.created_at).all()
 
         assert len(audit_trail) == 3
-        assert audit_trail[0].action == "present"
-        assert audit_trail[1].action == "update"
-        assert audit_trail[2].action == "close"
+        assert audit_trail[0].action_type == "present"
+        assert audit_trail[1].action_type == "update"
+        assert audit_trail[2].action_type == "close"
 
 
 class TestWorkflowDatabaseQueries:
@@ -602,5 +615,5 @@ class TestWorkflowDatabaseQueries:
             WorkflowExecution.execution_id == execution.execution_id
         ).first()
 
-        # assert retrieved.completed_at is not None  # Field not in model
+        assert retrieved.completed_at is not None
         assert retrieved.created_at is not None

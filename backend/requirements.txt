@@ -120,7 +120,6 @@ prometheus-client>=0.19.0,<1.0.0
 structlog>=23.0.0,<24.0.0
 
 # Package dependency security scanning (Phase 35)
-pip-audit>=2.17.0,<3.0.0
 safety>=3.0.0,<4.0.0
 pipdeptree>=2.13.0,<3.0.0
 
@@ -152,7 +151,6 @@ networkx>=3.0
 python-hue-v2>=0.20.0  # Philips Hue API v2 integration
 # Media control (Phase 66-01)
 spotipy>=2.24.0  # Spotify Web API client
-SoCo>=0.31.0  # Sonos speaker control library
 
 # Creative tools (Phase 66-03)
 ffmpeg-python>=0.2.0  # Pythonic FFmpeg wrapper for video/audio processing

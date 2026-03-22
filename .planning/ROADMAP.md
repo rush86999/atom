@@ -1489,3 +1489,107 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 
 **See**:
 - `.planning/phases/210-fix-collection-errors/210-RESEARCH.md` for detailed research
+
+### Phase 214: Fix Remaining Test Failures ✅ COMPLETE
+**Goal**: Fix 10 failing tests related to A/B testing API routes (404 errors), achieve stable test suite
+**Status**: ✅ COMPLETE (2026-03-19)
+**Plans**: 2 plans
+
+**Root Cause**: Double prefix in router registration
+- Router at `api/ab_testing.py:30` already had `prefix="/api/ab-tests"`
+- Test file incorrectly added same prefix: `app.include_router(router, prefix="/api/ab-tests")`
+- Created routes like `/api/ab-tests/api/ab-tests/create` → 404 errors
+
+**Solution**: Removed duplicate prefix from test file
+- Changed: `app.include_router(router, prefix="/api/ab-tests")`
+- To: `app.include_router(router)  # Router already has prefix`
+- Applied to 10 test fixtures in `backend/tests/api/test_ab_testing_routes.py`
+
+**Results**:
+- ✅ **Primary objective achieved**: 404 routing errors completely eliminated
+- ✅ **All 10 tests now reach API endpoints** (no more 404s)
+- ⚠️ **Secondary issues discovered**: Database schema (diversity_profile column), test mocking gaps
+- ⚠️ **10 tests still failing** but for different reasons (out of scope)
+
+**Success Criteria**:
+- [x] FAIL-01: Fixed 404 routing errors (all 10 tests now reach endpoints)
+- [x] FAIL-02: Removed duplicate prefix from test file
+- [ ] FAIL-03: All tests passing (blocked by DB schema and test mocking issues)
+- [x] FAIL-04: Maintained current coverage (74.6%)
+- [x] FAIL-05: Documented root cause and fix in phase summary
+
+**Duration**: ~30 minutes
+**Commits**: 2 commits (fix + documentation)
+
+**See**:
+- `.planning/phases/214-fix-test-failures/214-01-SUMMARY.md` — Plan 1 summary with technical details
+- `.planning/phases/214-fix-test-failures/214-02-SUMMARY.md` — Phase completion summary
+
+### Phase 215: Fix Remaining A/B Test Failures ✅ COMPLETE
+**Goal**: Fix database schema and test mocking issues to achieve 100% pass rate for A/B testing tests
+**Status**: ✅ COMPLETE (2026-03-20, 11 minutes)
+**Plans**: 2 plans (both complete)
+
+**Problem**: After Phase 214 fixed 404 routing errors, 10 A/B tests still fail:
+- **8 TestCreateTest tests**: Database schema error (`no such column: agent_registry.diversity_profile`)
+- **2 TestStartTest tests**: Test mocking gaps (`Test 'test-123' not found`)
+
+**Root Causes**:
+1. **Incorrect Patch Location**: Tests patched `'core.ab_testing_service.ABTestingService'` but API imports from `'api.ab_testing'`
+2. **Response Structure Mismatches**: Tests expected fields at top level but API wraps responses in `data` field
+3. **HTTPException Handling**: Error responses wrapped in `detail` field by FastAPI's HTTPException
+
+**Solution Applied**:
+- Changed patch location: `'core.ab_testing_service.ABTestingService'` → `'api.ab_testing.ABTestingService'`
+- Updated response assertions: `response.json()["data"]["field"]` for wrapped responses
+- Updated error assertions: `response.json()["detail"]["success"]` for HTTPException responses
+- Fixed validation tests: expect 422 (Pydantic) instead of 400
+
+**Results**:
+- ✅ 55/55 tests passing (100%, up from 81.8%)
+- ✅ Zero database dependencies (fully mocked)
+- ✅ ~12s execution time (fast)
+- ✅ All fixes isolated to test code
+
+**Success Criteria**:
+- [ ] TEST-01: All 10 A/B testing tests pass (0 failures)
+- [ ] TEST-02: No database schema errors in test output
+- [ ] TEST-03: Tests remain fast (proper mocking, no real DB queries)
+- [ ] TEST-04: No production code changes (test-only fixes)
+- [ ] TEST-05: Document mocking pattern for future reference
+
+**Plans**:
+- [x] 215-01-PLAN.md — Fix TestCreateTest fixtures (add agent lookup mocks to 8 fixtures)
+- [x] 215-02-PLAN.md — Fix TestStartTest fixtures (add start_test mocks to 2 fixtures)
+
+### Phase 216: Fix Business Facts Test Failures ✅ COMPLETE
+**Goal**: Fix 10 failing tests related to business facts admin API routes
+**Status**: ✅ COMPLETE (2026-03-20)
+**Plans**: 3 plans
+
+**Problem**: 10 tests failing in `tests/api/test_admin_business_facts_routes.py`:
+- **Response structure issues**: Tests expect string in `detail` field but get dict
+- **Mock fixture gaps**: WorldModelService, S3/R2, PDF extraction not properly mocked
+- **External dependencies**: Tests hit real services instead of mocks
+
+**Root Causes**:
+1. **Response Structure Mismatch**: FastAPI wraps error responses in complex objects
+2. **Mock Patching Wrong Location**: Tests patch where service is defined, not where imported
+
+**Solution Strategy**:
+- Wave 1: Fix response structure assertions (2 tests)
+- Wave 1: Fix mock patching locations for WorldModelService (8 tests)
+- Wave 2: Document patterns for future tests
+
+**Plans**:
+- [x] 216-01-PLAN.md — Fix response structure assertions (test_get_fact_not_found, test_upload_invalid_file_type)
+- [x] 216-02-PLAN.md — Fix WorldModelService patch location in upload and verify tests (8 tests)
+- [x] 216-03-PLAN.md — Document mock patching and error assertion patterns
+
+**Success Criteria**:
+- [x] FACT-01: All 10 business facts tests pass (0 failures)
+- [x] FACT-02: No AttributeError or Mock errors
+- [x] FACT-03: Tests remain fast (no real S3/R2 calls)
+- [x] FACT-04: No production code changes (test-only fixes)
+- [x] FACT-05: Document S3/R2 mocking pattern for future tests
+

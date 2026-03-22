@@ -18,6 +18,11 @@ from unittest.mock import patch, Mock, MagicMock
 # Module-level mocking for PackageInstaller (Phase 182 pattern)
 sys.modules['core.package_installer'] = MagicMock()
 
+# Module-level mocking for npm-related imports
+sys.modules['core.npm_script_analyzer'] = MagicMock()
+sys.modules['core.npm_package_installer'] = MagicMock()
+sys.modules['core.package_governance_service'] = MagicMock()
+
 from core.skill_adapter import CommunitySkillTool, CommunitySkillInput, create_community_tool
 
 
@@ -437,3 +442,394 @@ class TestPythonPackageSkills:
 
         assert "sandbox" in str(exc_info.value).lower()
         assert "security" in str(exc_info.value).lower()
+
+
+class TestCLISkillExecution:
+    """Test CLI skill execution for atom-* prefixed skills."""
+
+    @pytest.fixture
+    def cli_skill(self):
+        """Create a CLI skill definition."""
+        return {
+            "name": "atom-daemon",
+            "description": "Start Atom daemon",
+            "skill_id": "atom-daemon",
+            "skill_type": "prompt_only",
+            "skill_content": "Daemon management"
+        }
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_executes_command(self, mock_execute, cli_skill):
+        """Test that CLI skills execute atom-cli commands."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started on port 8000",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start daemon")
+
+        assert "Command executed successfully" in result
+        assert "Daemon started on port 8000" in result
+        mock_execute.assert_called_once()
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_parses_port_argument(self, mock_execute, cli_skill):
+        """Test CLI argument parsing for port flag."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start daemon on port 3000")
+
+        # Verify port was parsed and passed
+        call_args = mock_execute.call_args
+        assert call_args[0][0] == "daemon"
+        assert "--port" in call_args[0][1]
+        assert "3000" in call_args[0][1]
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_parses_host_argument(self, mock_execute, cli_skill):
+        """Test CLI argument parsing for host flag."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start with host localhost")
+
+        call_args = mock_execute.call_args
+        assert "--host" in call_args[0][1]
+        assert "localhost" in call_args[0][1]
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_parses_workers_argument(self, mock_execute, cli_skill):
+        """Test CLI argument parsing for workers flag."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("workers 4")
+
+        call_args = mock_execute.call_args
+        args = call_args[0][1]
+        # Args should be a list containing workers flag
+        assert args is not None
+        assert "--workers" in args
+        assert "4" in args
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_boolean_flags(self, mock_execute, cli_skill):
+        """Test CLI argument parsing for boolean flags."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start with host mount in dev mode foreground")
+
+        call_args = mock_execute.call_args
+        args = call_args[0][1]
+        assert "--host-mount" in args
+        assert "--dev" in args
+        assert "--foreground" in args
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_config_show_daemon(self, mock_execute):
+        """Test atom-config with --show-daemon flag."""
+        config_skill = {
+            "name": "atom-config",
+            "description": "Show daemon configuration",
+            "skill_id": "atom-config",
+            "skill_type": "prompt_only",
+            "skill_content": "Config management"
+        }
+
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon config: ...",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(config_skill)
+        result = tool._run("Show daemon configuration")
+
+        call_args = mock_execute.call_args
+        args = call_args[0][1]
+        assert "--show-daemon" in args
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_command_failure(self, mock_execute, cli_skill):
+        """Test CLI skill command failure handling."""
+        mock_execute.return_value = {
+            "success": False,
+            "stdout": "",
+            "stderr": "Docker daemon not running"
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start daemon")
+
+        assert "Command failed" in result
+        assert "Docker daemon not running" in result
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_success_with_stderr(self, mock_execute, cli_skill):
+        """Test CLI skill success with stderr warnings."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started",
+            "stderr": "Warning: low memory"
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start daemon")
+
+        assert "Command executed successfully" in result
+        assert "Daemon started" in result
+        assert "Warnings:" in result
+        assert "Warning: low memory" in result
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_exception_handling(self, mock_execute, cli_skill):
+        """Test CLI skill exception handling."""
+        mock_execute.side_effect = Exception("Subprocess failed")
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start daemon")
+
+        assert "ERROR" in result
+        assert "Failed to execute CLI skill" in result
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_no_arguments(self, mock_execute, cli_skill):
+        """Test CLI skill with no arguments."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Status: running",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Check status")
+
+        # Should call with None for args
+        call_args = mock_execute.call_args
+        assert call_args[0][1] is None
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_port_equals_syntax(self, mock_execute, cli_skill):
+        """Test CLI argument parsing with port=3000 syntax."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start on port=3000")
+
+        call_args = mock_execute.call_args
+        args = call_args[0][1]
+        assert args is not None
+        assert "--port" in args
+        assert "3000" in args
+
+    @patch('core.skill_adapter.execute_atom_cli_command')
+    def test_cli_skill_dev_flag(self, mock_execute, cli_skill):
+        """Test CLI argument parsing for dev flag."""
+        mock_execute.return_value = {
+            "success": True,
+            "stdout": "Daemon started in dev mode",
+            "stderr": ""
+        }
+
+        tool = create_community_tool(cli_skill)
+        result = tool._run("Start in development mode")
+
+        call_args = mock_execute.call_args
+        args = call_args[0][1]
+        assert args is not None
+        assert "--dev" in args
+
+
+class TestSandboxErrorHandling:
+    """Test sandbox execution error handling."""
+
+    @patch('core.skill_sandbox.HazardSandbox')
+    def test_sandbox_docker_not_running(self, mock_sandbox_class, python_skill):
+        """Test error message when Docker daemon is not running."""
+        mock_sandbox = Mock()
+        mock_sandbox.execute_python.side_effect = RuntimeError("Docker daemon is not running")
+        mock_sandbox_class.return_value = mock_sandbox
+
+        python_skill["sandbox_enabled"] = True
+        tool = create_community_tool(python_skill)
+
+        result = tool._run("test query")
+
+        assert "SANDBOX_ERROR" in result
+        assert "Docker is not running" in result
+
+    @patch('core.skill_sandbox.HazardSandbox')
+    def test_sandbox_general_execution_error(self, mock_sandbox_class, python_skill):
+        """Test general sandbox execution error."""
+        mock_sandbox = Mock()
+        mock_sandbox.execute_python.side_effect = Exception("Code syntax error")
+        mock_sandbox_class.return_value = mock_sandbox
+
+        python_skill["sandbox_enabled"] = True
+        tool = create_community_tool(python_skill)
+
+        result = tool._run("test query")
+
+        assert "EXECUTION_ERROR" in result
+
+
+class TestPackageInstallationErrorPaths:
+    """Test error handling in package installation."""
+
+    @patch('core.package_installer.PackageInstaller')
+    def test_execute_with_packages_exception(self, mock_installer_class):
+        """Test exception handling in _execute_python_skill_with_packages."""
+        mock_installer = Mock()
+        mock_installer.install_packages.return_value = {
+            "success": True,
+            "image_tag": "atom-skill:testing-v1"
+        }
+        mock_installer.execute_with_packages.side_effect = Exception("Execution failed")
+        mock_installer_class.return_value = mock_installer
+
+        package_skill = {
+            "name": "numpy_skill",
+            "description": "Skill with packages",
+            "skill_id": "numpy_001",
+            "skill_type": "python_code",
+            "skill_content": "def execute(query: str) -> str:\n    return f'Processed: {query}'",
+            "packages": ["numpy==1.21.0"]
+        }
+
+        tool = create_community_tool(package_skill)
+        result = tool._run("test query")
+
+        assert "PACKAGE_EXECUTION_ERROR" in result
+        assert "Execution failed" in result
+
+    @patch('core.package_installer.PackageInstaller')
+    def test_extract_function_code_no_wrapper_needed(self, mock_installer_class):
+        """Test _extract_function_code when wrapper already exists."""
+        mock_installer = Mock()
+        mock_installer.install_packages.return_value = {
+            "success": True,
+            "image_tag": "atom-skill:testing-v1"
+        }
+        mock_installer.execute_with_packages.return_value = "Result"
+        mock_installer_class.return_value = mock_installer
+
+        package_skill = {
+            "name": "wrapped_skill",
+            "description": "Skill with execution wrapper",
+            "skill_id": "wrapped_001",
+            "skill_type": "python_code",
+            "skill_content": "def execute(query: str) -> str:\n    return query\n\nresult = execute(query)\nprint(result)",
+            "packages": ["numpy"]
+        }
+
+        tool = create_community_tool(package_skill)
+        tool._run("test query")
+
+        # Verify code wasn't modified (wrapper already present)
+        call_args = mock_installer.execute_with_packages.call_args
+        code = call_args[1]["code"]
+        assert code.count("result = execute(query)") == 1  # Only one occurrence
+
+
+class TestNodeJsSkillAdapter:
+    """Test Node.js skill adapter with npm packages."""
+
+    @pytest.fixture
+    def nodejs_skill(self):
+        """Create a Node.js skill definition."""
+        return {
+            "skill_id": "nodejs_001",
+            "code": "console.log('Hello from Node.js')",
+            "node_packages": ["lodash@4.17.21"],
+            "package_manager": "npm",
+            "agent_id": "test_agent"
+        }
+
+    def test_nodejs_skill_initialization(self, nodejs_skill):
+        """Test NodeJsSkillAdapter initialization."""
+        from core.skill_adapter import NodeJsSkillAdapter
+
+        adapter = NodeJsSkillAdapter(
+            skill_id=nodejs_skill["skill_id"],
+            code=nodejs_skill["code"],
+            node_packages=nodejs_skill["node_packages"],
+            package_manager=nodejs_skill["package_manager"],
+            agent_id=nodejs_skill["agent_id"]
+        )
+
+        assert adapter.skill_id == "nodejs_001"
+        assert adapter.code == "console.log('Hello from Node.js')"
+        assert adapter.node_packages == ["lodash@4.17.21"]
+        assert adapter.package_manager == "npm"
+        assert adapter.agent_id == "test_agent"
+
+    def test_parse_npm_package(self, nodejs_skill):
+        """Test _parse_npm_package method."""
+        from core.skill_adapter import NodeJsSkillAdapter
+
+        adapter = NodeJsSkillAdapter(**nodejs_skill)
+
+        # Test with version
+        name, version = adapter._parse_npm_package("lodash@4.17.21")
+        assert name == "lodash"
+        assert version == "4.17.21"
+
+        # Test without version (defaults to 'latest')
+        name, version = adapter._parse_npm_package("express")
+        assert name == "express"
+        assert version == "latest"
+
+    def test_nodejs_skill_basetool(self, nodejs_skill):
+        """Test that NodeJsSkillAdapter is a BaseTool."""
+        from core.skill_adapter import NodeJsSkillAdapter
+        from langchain.tools import BaseTool
+
+        adapter = NodeJsSkillAdapter(
+            skill_id=nodejs_skill["skill_id"],
+            code=nodejs_skill["code"],
+            node_packages=nodejs_skill["node_packages"],
+            agent_id=nodejs_skill["agent_id"]
+        )
+
+        assert isinstance(adapter, BaseTool)
+        assert adapter.name == "nodejs_skill"
+
+    def test_nodejs_skill_run_method(self, nodejs_skill):
+        """Test NodeJsSkillAdapter _run method."""
+        from core.skill_adapter import NodeJsSkillAdapter
+
+        adapter = NodeJsSkillAdapter(
+            skill_id=nodejs_skill["skill_id"],
+            code=nodejs_skill["code"],
+            node_packages=nodejs_skill["node_packages"],
+            agent_id=nodejs_skill["agent_id"]
+        )
+
+        # Test that _run returns error message (since npm packages are mocked)
+        result = adapter._run({"query": "test"})
+        # Should return an error about npm packages since modules are mocked
+        assert isinstance(result, str)

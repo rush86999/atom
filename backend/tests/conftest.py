@@ -226,6 +226,7 @@ def db_session():
     """
     # Import here to avoid circular imports
     from core.database import Base
+    import core.models # Ensure all models are registered
 
     # Use file-based temp SQLite for tests (more stable than :memory:)
     fd, db_path = tempfile.mkstemp(suffix='.db')
@@ -270,6 +271,19 @@ def db_session():
             is_active=True
         )
         session.add(default_tenant)
+        session.commit()
+
+    # Create default workspace for tests (required by MetaAgent)
+    from core.models import Workspace
+    default_workspace = session.query(Workspace).filter(Workspace.id == "default").first()
+    if not default_workspace:
+        default_workspace = Workspace(
+            id="default",
+            tenant_id="default",
+            name="Default Workspace",
+            description="Test workspace"
+        )
+        session.add(default_workspace)
         session.commit()
 
     yield session

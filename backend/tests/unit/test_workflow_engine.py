@@ -23,6 +23,8 @@ from typing import Dict, Any
 from core.workflow_engine import WorkflowEngine, MissingInputError, SchemaValidationError, StepTimeoutError
 from core.execution_state_manager import ExecutionStateManager
 from core.exceptions import ValidationError, ExternalServiceError
+from core.database import get_db_session
+from core.websockets import get_connection_manager
 
 
 # =============================================================================
@@ -68,9 +70,17 @@ def analytics():
 
 
 @pytest.fixture
-def workflow_engine(state_manager):
+def workflow_engine(state_manager, ws_manager):
     """Create a WorkflowEngine instance with mocked dependencies"""
-    with patch('core.workflow_engine.get_state_manager', return_value=state_manager):
+    with patch('core.workflow_engine.get_state_manager', return_value=state_manager), \
+         patch('core.workflow_engine.get_connection_manager', return_value=ws_manager), \
+         patch('core.workflow_engine.get_db_session') as mock_db_session:
+        
+        # Setup mock DB session for WorkflowExecutionLog operations
+        mock_db = MagicMock()
+        mock_db.__enter__.return_value = mock_db
+        mock_db_session.return_value = mock_db
+        
         engine = WorkflowEngine(max_concurrent_steps=3)
         engine.state_manager = state_manager
         yield engine

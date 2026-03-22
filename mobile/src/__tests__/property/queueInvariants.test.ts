@@ -14,7 +14,7 @@
  * backend/tests/property_tests/governance/test_governance_maturity_invariants.py
  */
 
-import fc from 'fast-check';
+import * as fc from 'fast-check';
 import { OfflineAction, SyncPriority } from '../../services/offlineSyncService';
 
 // Priority level mappings (from offlineSyncService)

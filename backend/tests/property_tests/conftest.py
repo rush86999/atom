@@ -195,7 +195,11 @@ from core.models import (
     TrainingSession,
     TriggerSource,
     User,
+    Tenant,
+    Workspace,
     WorkflowExecution,
+    WorkflowSnapshot,
+    WorkflowTemplate,
     LinkToken,
     OAuthToken,
     PasswordResetToken
@@ -272,6 +276,17 @@ def db_session():
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     session = TestingSessionLocal()
 
+    # Seed default tenant for tests
+    try:
+        from core.models import Tenant
+        default_tenant = Tenant(id="default", name="Default Tenant", slug="default")
+        session.add(default_tenant)
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        # Fallback if Tenant table wasn't created
+        pass
+
     yield session
 
     # Cleanup
@@ -293,6 +308,7 @@ def test_agent(db_session: Session):
     """
     agent = AgentRegistry(
         name="TestAgent",
+        tenant_id="default",
         category="test",
         module_path="test.module",
         class_name="TestClass",
@@ -315,6 +331,7 @@ def test_agents(db_session: Session):
     for status in AgentStatus:
         agent = AgentRegistry(
             name=f"TestAgent_{status.value}",
+            tenant_id="default",
             category="test",
             module_path="test.module",
             class_name="TestClass",

@@ -10,10 +10,10 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 199-fix-test-collection-errors
-Plan: 08 (COMPLETE)
+Phase: 215-fix-remaining-ab-test-failures
+Plan: 02 (COMPLETE)
 Status: COMPLETE ✅
-Last activity: 2026-03-16 — Plan 199-08 COMPLETE: Agent Graduation Service Coverage Fix. Fixed schema drift between EpisodeFactory and AgentEpisode model (removed workspace_id, added tenant_id/task_description/outcome). Fixed maturity value casing (uppercase → lowercase to match AgentStatus enum values). Fixed service code to use task_description instead of non-existent title field. All 106 tests passing (up from 14 passing/10 failing). Coverage increased from 73.8% to 96% (exceeded 85% target by 11 percentage points). Commit: 5b0afe63d.
+Last activity: 2026-03-20 — Phase 215 COMPLETE: Fixed all 10 remaining A/B testing test failures. Changed patch location from 'core.ab_testing_service.ABTestingService' to 'api.ab_testing.ABTestingService' to properly intercept service instantiation. Updated response structure assertions to match API wrapping (data field for success, detail field for errors). Fixed validation tests to expect 422 (Pydantic) instead of 400. All 55 A/B tests now passing (100% pass rate, up from 81.8%). Zero database dependencies, ~12s execution time. Commits: 85c149356, dcf4503a8, 04c252e35.
 
 Phase 05 Summary:
 - Plan 01: Agent governance & maturity routing (1,313 lines, 54 tests, 100% passing)
