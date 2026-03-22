@@ -710,6 +710,147 @@ class LLMService:
             logger.error(f"Embedding generation failed: {e}")
             raise
 
+    async def generate_embeddings_batch(
+        self,
+        texts: List[str],
+        model: str = "text-embedding-3-small"
+    ) -> List[List[float]]:
+        """
+        Generate embedding vectors for multiple texts in a single batch operation.
+
+        Phase 223-01: Batch embedding generation for efficiency and cost optimization.
+        Processes multiple texts in batches of 2048 (OpenAI's limit) to minimize API calls.
+
+        Args:
+            texts: List of text strings to generate embeddings for
+            model: Embedding model name (default: "text-embedding-3-small")
+                - "text-embedding-3-small": 1536 dimensions, ~$0.00002/1K tokens
+                - "text-embedding-3-large": 3072 dimensions, ~$0.00013/1K tokens
+
+        Returns:
+            List[List[float]]: List of embedding vectors (one per input text)
+                - Each vector has 1536 or 3072 dimensions depending on model
+                - Order matches input texts order
+
+        Raises:
+            Exception: If OpenAI package not installed or API call fails
+
+        Example:
+            >>> service = LLMService()
+            >>> texts = ["Hello", "world", "batch"]
+            >>> embeddings = await service.generate_embeddings_batch(texts)
+            >>> print(len(embeddings))  # 3
+            >>> print(len(embeddings[0]))  # 1536 for text-embedding-3-small
+
+        Note:
+            - Processes in batches of 2048 texts per API call (OpenAI limit)
+            - Cost-effective: Single API call per batch instead of per text
+            - Aggregates token counts across all batches for cost tracking
+            - Logs batch size, total tokens, and estimated cost
+        """
+        try:
+            # Lazy import to avoid errors if openai not installed
+            from openai import AsyncOpenAI
+
+            # Get API key from BYOKHandler or environment
+            api_key = None
+            if hasattr(self.handler, 'clients') and 'openai' in self.handler.clients:
+                # Try to get API key from BYOK configuration
+                openai_client = self.handler.clients.get('openai')
+                if hasattr(openai_client, 'api_key'):
+                    api_key = openai_client.api_key
+
+            if not api_key:
+                # Fallback to environment variable
+                api_key = os.getenv("OPENAI_API_KEY")
+
+            if not api_key:
+                raise ValueError("OpenAI API key not found in BYOK configuration or OPENAI_API_KEY environment variable")
+
+            # Create AsyncOpenAI client
+            client = AsyncOpenAI(api_key=api_key)
+
+            # Process in batches of 2048 (OpenAI limit)
+            batch_size = 2048
+            all_embeddings = []
+            total_tokens = 0
+
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i + batch_size]
+                batch_number = i // batch_size + 1
+                total_batches = (len(texts) + batch_size - 1) // batch_size
+
+                logger.debug(
+                    f"Processing embedding batch {batch_number}/{total_batches} "
+                    f"({len(batch)} texts)"
+                )
+
+                try:
+                    # Call embeddings API for this batch
+                    response = await client.embeddings.create(
+                        model=model,
+                        input=batch
+                    )
+
+                    # Extract embeddings from response
+                    batch_embeddings = [item.embedding for item in response.data]
+                    all_embeddings.extend(batch_embeddings)
+
+                    # Track token count
+                    if hasattr(response, 'usage'):
+                        total_tokens += response.usage.total_tokens
+
+                except Exception as batch_error:
+                    logger.error(
+                        f"Batch {batch_number} failed (texts {i}-{i+len(batch)}): {batch_error}"
+                    )
+                    raise Exception(
+                        f"Embedding batch {batch_number} failed: {batch_error}. "
+                        f"Batch index: {i}, Batch size: {len(batch)}"
+                    ) from batch_error
+
+            # Cost calculation
+            if model == "text-embedding-3-small":
+                cost_per_1k = 0.00002
+            elif model == "text-embedding-3-large":
+                cost_per_1k = 0.00013
+            else:
+                cost_per_1k = 0.0001  # Fallback estimate
+
+            # Estimate tokens if not provided by API
+            if total_tokens == 0:
+                total_tokens = sum(len(text) // 4 for text in texts)
+
+            estimated_cost = (total_tokens / 1000) * cost_per_1k
+
+            logger.info(
+                f"Batch embeddings generated: model={model}, texts={len(texts)}, "
+                f"batches={total_batches}, total_tokens={total_tokens}, "
+                f"estimated_cost=${estimated_cost:.6f}"
+            )
+
+            # Track usage if llm_usage_tracker is available
+            try:
+                llm_usage_tracker.track_usage(
+                    provider="openai",
+                    model=model,
+                    input_tokens=total_tokens,
+                    output_tokens=0,
+                    estimated_cost=estimated_cost
+                )
+            except Exception as tracking_error:
+                logger.debug(f"Usage tracking failed (non-critical): {tracking_error}")
+
+            return all_embeddings
+
+        except ImportError:
+            raise Exception(
+                "OpenAI package not installed. Run: pip install openai"
+            )
+        except Exception as e:
+            logger.error(f"Batch embedding generation failed: {e}")
+            raise
+
     def classify_tier(self, prompt: str, task_type: Optional[str] = None) -> CognitiveTier:
         """
         Classify a prompt into a cognitive tier.
