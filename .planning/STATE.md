@@ -1,9 +1,53 @@
-Phase: 217 (Fix Auth Routes Test Failures)
-Status: COMPLETE ✅
+Phase: 219 (Fix Industry Workflow Test Failures)
+Status: PLANNING
 Started: 2026-03-21
-Completed: 2026-03-21
 
-## Phase 217: Fix Auth Routes Test Failures
+## Phase 219: Fix Industry Workflow Test Failures
+
+**Progress:** █░░░░░░░░░░░░░░░░░░░░ 0% (0/1 plans complete)
+
+**Objective:** Fix failing industry workflow endpoint tests and remove duplicate test file
+
+**Background:**
+Phase 219-coverage-push created a duplicate test file that uses incorrect fixture-based mocking. The correct unit test file has some test failures due to template ID mismatches and request validation issues.
+
+**Plans:**
+- Plan 01: Remove duplicate test file and fix mock configuration
+
+## Current Status
+
+**Phase 219: Planning** 🚧 PENDING
+- **Status:** Plan created, awaiting execution
+- **Plan File:** .planning/phases/219-fix-industry-workflow-test-failures/219-01-PLAN.md
+
+## Problem Analysis
+
+### Issue 1: Duplicate Test File
+- `tests/api/services/test_industry_workflow_endpoints.py` (441 lines) - Uses incorrect fixture pattern
+- `tests/unit/test_industry_workflow_endpoints.py` (358 lines) - Uses correct @patch pattern
+- **Fix:** Delete duplicate file
+
+### Issue 2: Template ID Mismatch
+- Tests expect "test_template_1" but real templates use IDs like "healthcare_patient_onboarding"
+- **Fix:** Use real template IDs in tests
+
+### Issue 3: ROI Request Validation
+- Pydantic 422 error when template_id is in both path and request body
+- **Fix:** Remove template_id from request body (it's in the path)
+
+## Success Criteria
+
+- [ ] IND-01: All 17 industry workflow tests pass (0 failures)
+- [ ] IND-02: Duplicate test file removed
+- [ ] IND-03: Tests use correct @patch decorator pattern
+- [ ] IND-04: No regressions in other tests
+- [ ] IND-05: Overall test pass rate >= 98%
+
+## Next Steps
+
+Execute Phase 219: `/gsd:execute-phase 219`
+
+## Phase 217: Fix Auth Routes Test Failures ✅ COMPLETE
 
 **Progress:** ████████████████████████████████ 100% (3/3 plans complete)
 
