@@ -8129,4 +8129,57 @@ class FinancialAccount(Base):
     parent_account = relationship("FinancialAccount", remote_side=[id], backref="child_accounts")
 
     def __repr__(self):
-        return f"<FinancialAccount(id={self.id}, name={self.name}, balance={self.balance}>"
+        return f"<FinancialAccount(id={self.id}, name={self.name}, balance={self.balance})>"
+
+
+class ProviderRegistry(Base):
+    """Persistent provider registry with auto-discovery metadata"""
+    __tablename__ = "provider_registry"
+
+    provider_id = Column(String(50), primary_key=True)  # e.g., "openai", "anthropic", "lux"
+    name = Column(String(100), nullable=False)  # Human-readable name
+    description = Column(String(500))
+    litellm_provider = Column(String(50))  # For mapping to LiteLLM models
+    base_url = Column(String(500))  # API endpoint
+    supports_vision = Column(Boolean, default=False)
+    supports_tools = Column(Boolean, default=False)
+    supports_cache = Column(Boolean, default=False)
+    supports_structured_output = Column(Boolean, default=False)
+    reasoning_level = Column(Integer)  # 1-4 scale for reasoning capability
+    quality_score = Column(Float)  # Benchmark score (0-100)
+    is_active = Column(Boolean, default=True, index=True)
+    discovered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    metadata = Column(JSON)  # Freeform provider-specific data
+
+    # Relationship to models
+    models = relationship("ModelCatalog", back_populates="provider", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<ProviderRegistry(provider_id={self.provider_id}, name={self.name}, is_active={self.is_active})>"
+
+
+class ModelCatalog(Base):
+    """Individual models within providers"""
+    __tablename__ = "model_catalog"
+
+    model_id = Column(String(100), primary_key=True)  # e.g., "gpt-4o", "lux-1.0"
+    provider_id = Column(String(50), ForeignKey("provider_registry.provider_id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200))  # Human-readable model name
+    description = Column(String(500))
+    input_cost_per_token = Column(Float)
+    output_cost_per_token = Column(Float)
+    max_tokens = Column(Integer)
+    max_input_tokens = Column(Integer)
+    context_window = Column(Integer)
+    mode = Column(String(50))  # "chat", "completion", "vision"
+    source = Column(String(50))  # "litellm", "openrouter", "manual"
+    discovered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    metadata = Column(JSON)
+
+    # Relationship to provider
+    provider = relationship("ProviderRegistry", back_populates="models")
+
+    def __repr__(self):
+        return f"<ModelCatalog(model_id={self.model_id}, provider_id={self.provider_id}, mode={self.mode})>"
