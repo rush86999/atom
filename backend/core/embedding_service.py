@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 from functools import lru_cache
 from datetime import datetime
 from sqlalchemy.orm import Session
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,10 @@ class EmbeddingService:
         self._fastembed_cache = {}  # Simple dict cache (LRU logic manual)
         self._fastembed_cache_order = []  # Track access order for LRU eviction
         self._fastembed_cache_max = 1000  # Max cache size
+
+        # Initialize LLMService for OpenAI embeddings (unified interface)
+        # Note: FastEmbed and Cohere use their own clients (keep local)
+        self.llm_service = LLMService(workspace_id="default")
 
         logger.info(
             f"Initialized EmbeddingService: provider={self.provider}, model={self.model}"
