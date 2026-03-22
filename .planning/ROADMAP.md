@@ -5,7 +5,7 @@
 Comprehensive cross-platform testing initiative to achieve 80% code coverage across all platforms (backend Python, frontend React/Next.js, mobile React Native, desktop Tauri/Rust). Starting from v5.2's baseline (backend: 26.15%, frontend: 65.85%, mobile: infrastructure foundation, desktop: 65-70%), this milestone focuses on filling coverage gaps with targeted test development, fixing failing tests, and enforcing quality gates to prevent regression.
 
 **Current Milestone:** v6.0 BYOK Migration to Unified LLMService API — Consolidate all LLM interactions to unified interface, eliminate fragmentation, add observability
-**Active Phase:** Phase 226: LLM Provider Registry & LUX Integration (3 plans)
+**Active Phase:** Phase 226: LLM Provider Registry & LUX Integration (3 sub-phases)
 **Previous Milestone:** v5.5 Test Coverage Expansion — Achieve 80% backend coverage through targeted testing (PAUSED after Phase 221)
 
 ## Milestones
@@ -1803,17 +1803,31 @@ Plans:
   3. API keys submitted via POST body (not URL query params - security fix)
   4. Provider registry CRUD endpoints accessible via REST API
   5. All integration tests pass for provider registry and LUX routing
-**Plans**: 3 plans
+**Sub-phases**: 3 sub-phases
 **Status**: 📋 PLANNED (2026-03-22)
 
-Plans:
-- [ ] 226-01-PLAN.md — Create provider registry with SQLAlchemy models and auto-discovery service
-- [ ] 226-02-PLAN.md — Integrate LUX model into BPC routing (BYOKHandler, benchmarks, tests)
-- [ ] 226-03-PLAN.md — Create provider registry REST API and fix API key security (POST body)
+**Sub-phase 226.1: Provider Registry Foundation** (3-5 days)
+- Goal: Create persistent provider registry with auto-discovery from LiteLLM/OpenRouter
+- Success: ProviderRegistry/ModelCatalog tables, auto-discovery sync, CRUD operations
+- Plans:
+  - [ ] 226.1-01-PLAN.md — Create SQLAlchemy models, ProviderRegistryService, ProviderAutoDiscovery, migration, tests
+
+**Sub-phase 226.2: LUX Integration & Routing** (1-2 days)
+- Goal: Integrate LUX model into BPC routing system
+- Success: LUX in COST_EFFICIENT_MODELS, quality score 88, client initialization, tests
+- Status: ✅ COMPLETE (2026-03-22)
+- Plans:
+  - [x] 226.2-01-PLAN.md — Add LUX to BYOKHandler routing, benchmarks.py quality score, integration tests
+
+**Sub-phase 226.3: Frontend & Health Monitoring** (2-3 days)
+- Goal: Enhance UI and secure API key management
+- Success: POST body for API keys, provider registry API endpoints, frontend updates, tests
+- Plans:
+  - [ ] 226.3-01-PLAN.md — Create provider_registry_routes.py, fix byok_endpoints security, update BYOKManager.tsx
 
 #### Phase 227: Agent System Standardization
 **Goal**: Update 5 agent system files to use LLMService instead of BYOKHandler
-**Depends on**: Phase 226
+**Depends on**: Phase 226.3
 **Requirements**: STD-03
 **Success Criteria** (what must be TRUE):
   1. All 5 agent system files use LLMService instead of importing BYOKHandler directly
