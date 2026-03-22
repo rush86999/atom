@@ -1577,7 +1577,7 @@ class WorkflowEngine:
         """
         try:
             from core.agent_context_resolver import AgentContextResolver
-            from core.llm.byok_handler import BYOKHandler
+            from core.llm_service import get_llm_service
             from core.models import AgentRegistry
 
             action = agent_context.get("action", "unknown")
@@ -1627,10 +1627,10 @@ Input data:
 
 Use the available tools as needed to complete the action. Return your response in a clear, structured format."""
 
-            # Execute using BYOK handler
+            # Execute using LLMService (infrastructure layer - accessing handler for tool calling support)
             try:
-                llm_handler = BYOKHandler(self.db)
-                response = await llm_handler.chat_completion(
+                llm_service = get_llm_service(db=self.db)
+                response = await llm_service.handler.chat_completion(
                     provider=agent.llm_provider,
                     model=agent.llm_model,
                     messages=[{"role": "user", "content": prompt}],
