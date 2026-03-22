@@ -615,7 +615,7 @@ class TestAdminSkillRoutesSecurity:
 
         try:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
-                with patch('api.admin.skill_routes.LLMAnalyzer', return_value=mock_llm_analyzer):
+                with patch('atom_security.analyzers.llm.LLMAnalyzer', return_value=mock_llm_analyzer):
                     with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                         response = authenticated_admin_client.post(
                     "/api/admin/skills/api/admin/skills",
@@ -656,7 +656,7 @@ class TestAdminSkillRoutesSecurity:
 
         try:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
-                with patch('api.admin.skill_routes.LLMAnalyzer', return_value=mock_llm_analyzer):
+                with patch('atom_security.analyzers.llm.LLMAnalyzer', return_value=mock_llm_analyzer):
                     with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                         response = authenticated_admin_client.post(
                     "/api/admin/skills/api/admin/skills",
