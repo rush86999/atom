@@ -607,6 +607,174 @@ class LLMService:
             logger.error(f"Structured generation failed: {e}")
             return None
 
+    def classify_tier(self, prompt: str, task_type: Optional[str] = None) -> CognitiveTier:
+        """
+        Classify a prompt into a cognitive tier.
+
+        Phase 222-03: Helper method to understand tier decisions without making API calls.
+
+        Uses the CognitiveClassifier to analyze prompt complexity based on:
+        - Token count (shorter prompts -> lower tiers)
+        - Semantic complexity (keywords, structure)
+        - Task type hints (code, analysis, etc.)
+
+        Args:
+            prompt: The user prompt to classify
+            task_type: Optional task type hint (code, chat, analysis, etc.)
+
+        Returns:
+            CognitiveTier enum value (MICRO, STANDARD, VERSATILE, HEAVY, or COMPLEX)
+
+        Example:
+            >>> service = LLMService()
+            >>> tier = service.classify_tier("Hi there")
+            >>> print(tier)  # CognitiveTier.MICRO
+
+            >>> tier = service.classify_tier("Write a Python REST API with authentication", task_type="code")
+            >>> print(tier)  # CognitiveTier.VERSATILE or HEAVY
+
+        Note:
+            This is a classification-only operation. It does not check budgets,
+            select models, or make API calls. Use generate_with_tier() for full routing.
+        """
+        return self.handler.classify_cognitive_tier(prompt, task_type)
+
+    def get_tier_description(self, tier: Union[str, CognitiveTier]) -> Dict[str, Any]:
+        """
+        Get human-readable description of a cognitive tier.
+
+        Phase 222-03: Helper method to understand tier characteristics without making API calls.
+
+        Provides detailed information about each cognitive tier including:
+        - Cost range (per million tokens)
+        - Quality level (benchmark scores)
+        - Typical use cases
+        - Example models
+
+        Args:
+            tier: Cognitive tier as string (e.g., "standard") or CognitiveTier enum
+
+        Returns:
+            Dictionary with keys:
+                - name: str (tier name)
+                - cost_range: str (cost per million tokens)
+                - quality_level: str (quality description)
+                - use_cases: List[str] (typical use cases)
+                - example_models: List[str] (example models in this tier)
+
+        Example:
+            >>> service = LLMService()
+            >>> desc = service.get_tier_description("versatile")
+            >>> print(desc["cost_range"])  # "~$2-5/M tokens"
+            >>> print(desc["use_cases"])   # ["Reasoning", "Analysis", "Code generation"]
+
+            >>> # Can also use CognitiveTier enum
+            >>> from core.llm.cognitive_tier_system import CognitiveTier
+            >>> desc = service.get_tier_description(CognitiveTier.MICRO)
+            >>> print(desc["cost_range"])  # "<$0.01/M tokens"
+
+        Note:
+            If tier string is invalid, returns description for STANDARD tier as fallback.
+        """
+        # Convert string to CognitiveTier enum if needed
+        if isinstance(tier, str):
+            tier_map = {
+                "micro": CognitiveTier.MICRO,
+                "standard": CognitiveTier.STANDARD,
+                "versatile": CognitiveTier.VERSATILE,
+                "heavy": CognitiveTier.HEAVY,
+                "complex": CognitiveTier.COMPLEX
+            }
+            tier_enum = tier_map.get(tier.lower(), CognitiveTier.STANDARD)
+        else:
+            tier_enum = tier
+
+        # Tier descriptions
+        descriptions = {
+            CognitiveTier.MICRO: {
+                "name": "MICRO",
+                "cost_range": "<$0.01/M tokens",
+                "quality_level": "Basic quality for simple tasks",
+                "use_cases": [
+                    "Greetings and casual chat",
+                    "Basic Q&A",
+                    "Simple confirmations",
+                    "Low-stakes recommendations"
+                ],
+                "example_models": [
+                    "gpt-4o-mini",
+                    "claude-3-haiku",
+                    "gemini-1.5-flash"
+                ]
+            },
+            CognitiveTier.STANDARD: {
+                "name": "STANDARD",
+                "cost_range": "~$0.50/M tokens",
+                "quality_level": "Balanced cost/quality for general tasks",
+                "use_cases": [
+                    "General conversation",
+                    "Text summarization",
+                    "Basic explanations",
+                    "Everyday tasks"
+                ],
+                "example_models": [
+                    "gpt-4o-mini",
+                    "claude-3-haiku",
+                    "mini-m2.5"
+                ]
+            },
+            CognitiveTier.VERSATILE: {
+                "name": "VERSATILE",
+                "cost_range": "~$2-5/M tokens",
+                "quality_level": "Advanced capabilities for complex tasks",
+                "use_cases": [
+                    "Complex reasoning",
+                    "Data analysis",
+                    "Code generation",
+                    "Multi-step problem solving"
+                ],
+                "example_models": [
+                    "gpt-4o",
+                    "claude-3-5-sonnet",
+                    "gemini-1.5-pro"
+                ]
+            },
+            CognitiveTier.HEAVY: {
+                "name": "HEAVY",
+                "cost_range": "~$10-20/M tokens",
+                "quality_level": "High-performance for demanding tasks",
+                "use_cases": [
+                    "Advanced code generation",
+                    "Research and analysis",
+                    "Complex document processing",
+                    "Architectural decisions"
+                ],
+                "example_models": [
+                    "claude-3-opus",
+                    "gpt-4-turbo",
+                    "gemini-1.5-pro"
+                ]
+            },
+            CognitiveTier.COMPLEX: {
+                "name": "COMPLEX",
+                "cost_range": "~$30+/M tokens",
+                "quality_level": "Maximum quality for critical tasks",
+                "use_cases": [
+                    "Security analysis",
+                    "System architecture",
+                    "Critical business decisions",
+                    "Complex multi-agent coordination"
+                ],
+                "example_models": [
+                    "claude-3-opus",
+                    "gpt-4",
+                    "claude-3-5-sonnet"
+                ]
+            }
+        }
+
+        return descriptions.get(tier_enum, descriptions[CognitiveTier.STANDARD])
+
 
 def get_llm_service(workspace_id: str = "default", db=None) -> LLMService:
     """Factory function to get an LLMService instance."""
