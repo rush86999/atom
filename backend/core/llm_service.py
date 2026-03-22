@@ -9,10 +9,12 @@ import json
 import logging
 import os
 import asyncio
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Union, Type
 from enum import Enum
 
+from pydantic import BaseModel
 from core.llm.byok_handler import BYOKHandler, QueryComplexity
+from core.llm.cognitive_tier_system import CognitiveTier
 from core.llm_usage_tracker import llm_usage_tracker
 
 logger = logging.getLogger(__name__)
@@ -195,6 +197,78 @@ class LLMService:
             if "deepseek" in model: return (input_tokens * 0.14 + output_tokens * 0.28) / 1e6
             return (input_tokens * 1.0 + output_tokens * 2.0) / 1e6
 
+    async def generate_with_tier(
+        self,
+        prompt: str,
+        system_instruction: str = "You are a helpful assistant.",
+        task_type: Optional[str] = None,
+        user_tier_override: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        image_payload: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate response using cognitive tier routing with intelligent 5-tier system.
+
+        Phase 222-03: Exposes BYOKHandler's generate_with_cognitive_tier method for
+        cost-optimized, quality-aware LLM routing with automatic escalation.
+
+        Five Cognitive Tiers:
+        - MICRO: Ultra-low cost (<$0.01/M tokens), simple tasks (greetings, basic QA)
+        - STANDARD: Balanced cost/quality (~$0.50/M tokens), general tasks (chat, summarization)
+        - VERSATILE: Advanced capabilities (~$2-5/M tokens), complex tasks (reasoning, analysis)
+        - HEAVY: High-performance (~$10-20/M tokens), demanding tasks (code gen, research)
+        - COMPLEX: Maximum quality (~$30+/M tokens), critical tasks (architecture, security)
+
+        Pipeline:
+        1. Classify prompt complexity (token count + semantic analysis + task type)
+        2. Check budget constraints (monthly + per-request limits)
+        3. Select optimal model (cache-aware cost scoring)
+        4. Generate with automatic escalation on quality issues
+
+        Args:
+            prompt: The user query
+            system_instruction: System prompt for the LLM
+            task_type: Optional task type hint (code, chat, analysis, etc.)
+            user_tier_override: Optional user-specified tier (bypasses classification)
+                Valid values: "micro", "standard", "versatile", "heavy", "complex"
+            agent_id: Optional agent ID for cost tracking and escalation history
+            image_payload: Optional base64/URL image for multimodal input
+
+        Returns:
+            Dictionary with keys:
+            - response: str - Generated text response
+            - tier: str - Cognitive tier used (e.g., "standard", "versatile")
+            - provider: str - Provider ID used (e.g., "openai", "anthropic")
+            - model: str - Model name used (e.g., "gpt-4o-mini", "claude-3-5-sonnet")
+            - cost_cents: float - Estimated cost in cents
+            - escalated: bool - Whether escalation occurred (True if tier was upgraded)
+            - request_id: str - Unique request ID for tracking
+            - error: str - Error message if generation failed
+
+        Example:
+            >>> service = LLMService()
+            >>> result = await service.generate_with_tier(
+            ...     "Explain quantum computing in simple terms",
+            ...     task_type="analysis"
+            ... )
+            >>> print(result["response"])
+            >>> print(f"Tier: {result['tier']}, Model: {result['model']}, Cost: ${result['cost_cents']/100:.4f}")
+
+            >>> # Force specific tier (bypass classification)
+            >>> result = await service.generate_with_tier(
+            ...     "Write a Python function",
+            ...     user_tier_override="versatile"
+            ... )
+        """
+        return await self.handler.generate_with_cognitive_tier(
+            prompt=prompt,
+            system_instruction=system_instruction,
+            task_type=task_type,
+            user_tier_override=user_tier_override,
+            agent_id=agent_id,
+            image_payload=image_payload
+        )
+
     async def analyze_proposal(self, proposal: str, context: Optional[str] = None) -> Dict[str, Any]:
         """
         Governance helper: Analyze an agent proposal for safety and alignment.
@@ -202,11 +276,11 @@ class LLMService:
         prompt = f"Analyze the following agent proposal for safety, alignment, and efficiency:\n\nPROPOSAL:\n{proposal}"
         if context:
             prompt += f"\n\nCONTEXT:\n{context}"
-            
+
         system = "You are an Agent Governance Auditor. Evaluate the proposal and return a JSON-formatted analysis with 'safe' (bool), 'risk_level' (str), and 'recommendation' (str)."
-        
+
         response = await self.generate(prompt, system_instruction=system, model="quality")
-        
+
         try:
             # Try to extract JSON if the model wrapped it in markdown
             if "```json" in response:
@@ -224,6 +298,314 @@ class LLMService:
     def is_available(self) -> bool:
         """Check if LLM service is available by checking for any initialized clients."""
         return len(self.handler.clients) > 0
+
+    def get_optimal_provider(
+        self,
+        complexity: str = "moderate",
+        task_type: Optional[str] = None,
+        prefer_cost: bool = True,
+        tenant_plan: str = "free",
+        is_managed_service: bool = True,
+        requires_tools: bool = False,
+        requires_structured: bool = False
+    ) -> tuple[str, str]:
+        """
+        Get the optimal provider and model for a given complexity level.
+
+        Uses the BPC (Benchmark-Price-Capability) algorithm to rank models
+        based on quality benchmarks, pricing, and capabilities.
+
+        Args:
+            complexity: Query complexity level ("simple", "moderate", "complex", "advanced")
+            task_type: Optional task type hint (e.g., "summarization", "code_generation")
+            prefer_cost: Whether to prefer cost over quality
+            tenant_plan: Tenant plan for model restrictions
+            is_managed_service: Whether this is managed service or BYOK
+            requires_tools: Whether model must support tool calling
+            requires_structured: Whether model must support structured output
+
+        Returns:
+            Tuple of (provider_id, model_name)
+
+        Example:
+            >>> service = LLMService()
+            >>> provider, model = service.get_optimal_provider(complexity="moderate")
+            >>> print(f"Using {provider} with {model}")
+        """
+        # Map complexity string to QueryComplexity enum
+        complexity_map = {
+            "simple": QueryComplexity.SIMPLE,
+            "moderate": QueryComplexity.MODERATE,
+            "complex": QueryComplexity.COMPLEX,
+            "advanced": QueryComplexity.ADVANCED
+        }
+        complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
+
+        return self.handler.get_optimal_provider(
+            complexity=complexity_enum,
+            task_type=task_type,
+            prefer_cost=prefer_cost,
+            tenant_plan=tenant_plan,
+            is_managed_service=is_managed_service,
+            requires_tools=requires_tools,
+            requires_structured=requires_structured
+        )
+
+    def get_ranked_providers(
+        self,
+        complexity: str = "moderate",
+        task_type: Optional[str] = None,
+        prefer_cost: bool = True,
+        tenant_plan: str = "free",
+        is_managed_service: bool = True,
+        requires_tools: bool = False,
+        requires_structured: bool = False,
+        estimated_tokens: int = 1000,
+        cognitive_tier: Optional[str] = None
+    ) -> List[tuple[str, str]]:
+        """
+        Get a ranked list of providers and models using the BPC algorithm.
+
+        Cache-Aware Cost Optimization:
+        When estimated_tokens is provided, uses cache-aware effective cost calculation
+        to prioritize models with good prompt caching support (e.g., Anthropic).
+
+        Cognitive Tier Filtering:
+        When cognitive_tier is provided, uses 5-tier quality filtering instead of
+        QueryComplexity for more granular control.
+
+        Args:
+            complexity: Query complexity level ("simple", "moderate", "complex", "advanced")
+            task_type: Optional task type hint
+            prefer_cost: Whether to prefer cost over quality
+            tenant_plan: Tenant plan for model restrictions
+            is_managed_service: Whether this is managed service or BYOK
+            requires_tools: Whether model must support tool calling
+            requires_structured: Whether model must support structured output
+            estimated_tokens: Estimated input token count (for cache hit prediction)
+            cognitive_tier: Optional cognitive tier ("micro", "standard", "versatile", "heavy", "complex")
+
+        Returns:
+            List of (provider_id, model_name) tuples ranked by value score
+
+        Example:
+            >>> service = LLMService()
+            >>> providers = service.get_ranked_providers(
+            ...     complexity="complex",
+            ...     estimated_tokens=5000,
+            ...     cognitive_tier="versatile"
+            ... )
+            >>> for provider, model in providers[:3]:
+            ...     print(f"{provider}: {model}")
+        """
+        # Map complexity string to QueryComplexity enum
+        complexity_map = {
+            "simple": QueryComplexity.SIMPLE,
+            "moderate": QueryComplexity.MODERATE,
+            "complex": QueryComplexity.COMPLEX,
+            "advanced": QueryComplexity.ADVANCED
+        }
+        complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
+
+        # Map cognitive_tier string to CognitiveTier enum if provided
+        cognitive_tier_enum = None
+        if cognitive_tier:
+            tier_map = {
+                "micro": CognitiveTier.MICRO,
+                "standard": CognitiveTier.STANDARD,
+                "versatile": CognitiveTier.VERSATILE,
+                "heavy": CognitiveTier.HEAVY,
+                "complex": CognitiveTier.COMPLEX
+            }
+            cognitive_tier_enum = tier_map.get(cognitive_tier.lower())
+
+        return self.handler.get_ranked_providers(
+            complexity=complexity_enum,
+            task_type=task_type,
+            prefer_cost=prefer_cost,
+            tenant_plan=tenant_plan,
+            is_managed_service=is_managed_service,
+            requires_tools=requires_tools,
+            requires_structured=requires_structured,
+            estimated_tokens=estimated_tokens,
+            workspace_id=self.workspace_id,
+            cognitive_tier=cognitive_tier_enum
+        )
+
+    def get_routing_info(self, prompt: str, task_type: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get routing decision info without making an API call.
+
+        Useful for UI preview features - shows users which model will be used
+        and estimated cost before generation.
+
+        Args:
+            prompt: The user prompt to analyze
+            task_type: Optional task type hint
+
+        Returns:
+            Dict with keys:
+                - complexity: str (complexity level)
+                - selected_provider: str (provider ID)
+                - selected_model: str (model name)
+                - available_providers: List[str] (list of providers)
+                - cost_tier: str (budget/mid/premium)
+                - estimated_cost_usd: Optional[float] (estimated cost)
+                - error: Optional[str] (error message if no providers available)
+
+        Example:
+            >>> service = LLMService()
+            >>> info = service.get_routing_info("Explain quantum computing")
+            >>> print(f"Using {info['selected_model']} at {info['estimated_cost_usd']}")
+        """
+        return self.handler.get_routing_info(prompt=prompt, task_type=task_type)
+
+    async def stream_completion(
+        self,
+        messages: List[Dict[str, str]],
+        model: str = "auto",
+        provider_id: str = "auto",
+        temperature: float = 0.7,
+        max_tokens: int = 1000,
+        agent_id: Optional[str] = None,
+        db = None
+    ):
+        """
+        Stream LLM responses token-by-token with automatic provider fallback.
+
+        Provides real-time streaming of LLM responses with governance tracking and
+        automatic provider fallback on failure. This is the unified streaming interface
+        for all LLM interactions in the platform.
+
+        Args:
+            messages: Chat messages in OpenAI format (role + content)
+            model: Model name (default: "auto" for optimal model selection)
+            provider_id: Provider identifier (default: "auto" for optimal provider)
+            temperature: Sampling temperature (0.0-1.0)
+            max_tokens: Maximum tokens to generate
+            agent_id: Optional agent ID for governance tracking
+            db: Optional database session for governance tracking
+
+        Yields:
+            Individual tokens as they arrive from the LLM
+
+        Example:
+            ```python
+            llm_service = LLMService()
+            messages = [{"role": "user", "content": "Hello!"}]
+            async for token in llm_service.stream_completion(messages):
+                print(token, end="", flush=True)
+            ```
+
+        Note:
+            - When provider_id="auto", analyzes query complexity to select optimal provider
+            - Includes automatic provider fallback on failure
+            - Integrates with governance tracking when agent_id and db are provided
+        """
+        # Analyze complexity for auto provider selection
+        if provider_id == "auto":
+            # Extract prompt from messages for complexity analysis
+            prompt = ""
+            for msg in messages:
+                if msg.get("role") == "user":
+                    prompt += msg.get("content", "") + "\n"
+
+            # Get optimal provider based on complexity
+            complexity = self.handler.analyze_query_complexity(prompt)
+            optimal_provider, optimal_model = self.handler.get_optimal_provider(complexity)
+            provider_id = optimal_provider.value
+
+            # Map model from "auto" to optimal model for complexity
+            if model == "auto":
+                model = optimal_model
+
+        # Delegate to BYOKHandler's stream_completion
+        async for token in self.handler.stream_completion(
+            messages=messages,
+            model=model,
+            provider_id=provider_id,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            agent_id=agent_id,
+            db=db
+        ):
+            yield token
+
+    async def generate_structured(
+        self,
+        prompt: str,
+        response_model: Type[BaseModel],
+        system_instruction: str = "You are a helpful assistant.",
+        temperature: float = 0.2,
+        model: str = "auto",
+        task_type: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        image_payload: Optional[str] = None
+    ) -> Optional[BaseModel]:
+        """
+        Generate structured output using Pydantic model validation.
+
+        Provides tenant-aware routing between BYOK and Managed AI based on subscription,
+        with support for vision inputs via image_payload.
+
+        Args:
+            prompt: The user prompt
+            response_model: Pydantic model class for structured output validation
+            system_instruction: System instruction for the LLM
+            temperature: Sampling temperature (0.0-1.0)
+            model: Model name (default: "auto" for optimal model selection)
+            task_type: Optional task type hint (e.g., "summarization", "code_generation")
+            agent_id: Optional agent ID for cost tracking
+            image_payload: Optional Base64 image string or URL for vision support
+
+        Returns:
+            Instance of response_model with validated data, or None if generation fails
+
+        Example:
+            ```python
+            from pydantic import BaseModel
+
+            class SentimentAnalysis(BaseModel):
+                sentiment: str  # "positive", "negative", "neutral"
+                confidence: float
+                key_points: List[str]
+
+            llm_service = LLMService()
+            result = await llm_service.generate_structured(
+                prompt="Analyze the sentiment of this review...",
+                response_model=SentimentAnalysis
+            )
+            if result:
+                print(f"Sentiment: {result.sentiment}")
+                print(f"Confidence: {result.confidence}")
+            ```
+
+        Note:
+            - Tenant-aware routing: BYOK keys used if available, otherwise Managed AI
+            - Vision support: Pass image_payload (Base64 or URL) for multimodal inputs
+            - Graceful fallback: Returns None if instructor unavailable or generation fails
+            - Auto model selection: When model="auto", selects optimal model for structured output
+        """
+        # Check if handler has clients available
+        if not self.is_available():
+            logger.warning("No LLM clients available for structured generation")
+            return None
+
+        # Delegate to BYOKHandler's generate_structured_response
+        try:
+            result = await self.handler.generate_structured_response(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                response_model=response_model,
+                temperature=temperature,
+                task_type=task_type,
+                agent_id=agent_id,
+                image_payload=image_payload
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Structured generation failed: {e}")
+            return None
 
 
 def get_llm_service(workspace_id: str = "default", db=None) -> LLMService:
