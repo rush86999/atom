@@ -39,8 +39,8 @@ class TestEpisodeSegmentationExtended:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 from core.episode_segmentation_service import EpisodeSegmentationService
                 service = EpisodeSegmentationService(db_session)
@@ -70,8 +70,8 @@ class TestEpisodeSegmentationExtended:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 from core.episode_segmentation_service import EpisodeSegmentationService, SEMANTIC_SIMILARITY_THRESHOLD
 
@@ -96,8 +96,8 @@ class TestEpisodeSegmentationExtended:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
-                mock_byok.return_value = Mock()
+            with patch('core.episode_segmentation_service.LLMService') as mock_llm:
+                mock_llm.return_value = Mock()
 
                 from core.episode_segmentation_service import EpisodeSegmentationService
 
@@ -125,7 +125,7 @@ class TestEpisodeSegmentationExtended:
     def test_segment_by_task_completion(self, agent_status, creates_boundary, db_session):
         """Cover task completion detection (lines 117-124)"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 executions = [
@@ -148,7 +148,7 @@ class TestEpisodeSegmentationExtended:
     def test_task_completion_without_result_summary(self, db_session):
         """Cover lines 121-122: Only count completed with result_summary"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 executions = [
@@ -168,7 +168,7 @@ class TestEpisodeSegmentationExtended:
     async def test_create_episode_minimum_size_check(self, db_session):
         """Cover lines 282-286: Minimum size check"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 # Create session with single message
@@ -195,7 +195,7 @@ class TestEpisodeSegmentationExtended:
     async def test_create_episode_force_create(self, db_session):
         """Cover line 285: force_create bypasses minimum size check"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 # Create session with single message
@@ -225,7 +225,7 @@ class TestEpisodeSegmentationExtended:
     async def test_create_episode_session_not_found(self, db_session):
         """Cover lines 244-246: Session not found error"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 result = await service.create_episode_from_session(
@@ -239,7 +239,7 @@ class TestEpisodeSegmentationExtended:
     async def test_episode_boundary_detection_integration(self, db_session):
         """Cover lines 288-291: Boundary detection integration"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 # Create session with messages that have time gaps
@@ -275,7 +275,7 @@ class TestEpisodeSegmentationExtended:
     async def test_episode_metadata_enrichment(self, db_session):
         """Cover lines 295-299: Episode metadata enrichment"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 base_time = datetime.now(timezone.utc)
@@ -312,7 +312,7 @@ class TestEpisodeSegmentationExtended:
     async def test_episode_with_executions(self, db_session):
         """Cover lines 253-257: Fetch executions by agent_id and time range"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 base_time = datetime.now(timezone.utc)
@@ -352,7 +352,7 @@ class TestEpisodeSegmentationExtended:
     async def test_episode_executions_outside_time_range(self, db_session):
         """Cover lines 256: Filter executions by time range"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 base_time = datetime.now(timezone.utc)
@@ -391,7 +391,7 @@ class TestEpisodeSegmentationExtended:
     def test_cosine_similarity_edge_cases(self, db_session):
         """Cover cosine similarity with various edge cases"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 # Test with various vector types
@@ -404,7 +404,7 @@ class TestEpisodeSegmentationExtended:
     def test_keyword_similarity_edge_cases(self, db_session):
         """Cover keyword similarity edge cases"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 # Test with special characters, numbers, etc.
@@ -418,7 +418,7 @@ class TestEpisodeSegmentationExtended:
     def test_empty_messages_handling(self, db_session):
         """Cover empty message list handling in boundary detection"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 # Empty list should not crash
@@ -434,7 +434,7 @@ class TestEpisodeSegmentationExtended:
     def test_single_message_handling(self, db_session):
         """Cover single message handling (no boundaries possible)"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 msg = ChatMessage(id="1", content="Single", created_at=datetime.now(timezone.utc), conversation_id="s1", tenant_id="t1", role="user")
@@ -449,7 +449,7 @@ class TestEpisodeSegmentationExtended:
     async def test_create_episode_with_canvas_context(self, db_session):
         """Cover canvas context integration in episode creation"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 base_time = datetime.now(timezone.utc)
@@ -486,7 +486,7 @@ class TestEpisodeSegmentationExtended:
     async def test_create_episode_with_feedback_context(self, db_session):
         """Cover feedback context integration in episode creation"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 base_time = datetime.now(timezone.utc)
@@ -518,7 +518,7 @@ class TestEpisodeSegmentationExtended:
     def test_topic_change_detection_multiple_messages(self, db_session):
         """Cover topic change with multiple message boundaries"""
         with patch('core.episode_segmentation_service.get_lancedb_handler'):
-            with patch('core.episode_segmentation_service.BYOKHandler'):
+            with patch('core.episode_segmentation_service.LLMService'):
                 service = EpisodeSegmentationService(db_session)
 
                 # Mock embed_text to return diverse embeddings
