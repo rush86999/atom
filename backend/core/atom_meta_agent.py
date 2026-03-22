@@ -7,7 +7,7 @@ import logging
 import uuid
 import asyncio
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from fastapi import HTTPException
 
@@ -338,7 +338,7 @@ class AtomMetaAgent:
                 "step_type": "planning",
                 "thought": "Activating Queen Agent to design architectural blueprint...",
                 "action": {"tool": "queen_architect", "params": {"goal": request}},
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             if step_callback: await step_callback(plan_record)
             
@@ -380,7 +380,7 @@ class AtomMetaAgent:
         status = "success"
 
         for current_step in range(1, max_steps + 1):
-            step_start = datetime.utcnow()
+            step_start = datetime.now(timezone.utc)
             # Generate next step using instructor for structured output
             react_step = await self._react_step(
                 request=request,
@@ -400,7 +400,7 @@ class AtomMetaAgent:
                 "output": None,
                 "confidence": getattr(react_step, 'confidence', 0.9),
                 "duration_ms": 0,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
             
             # Stream to UI
@@ -466,7 +466,7 @@ class AtomMetaAgent:
                     execution_history += f"Observation: {observation}\n"
 
                 # Update duration after tool execution
-                step_record["duration_ms"] = (datetime.utcnow() - step_start).total_seconds() * 1000
+                step_record["duration_ms"] = (datetime.now(timezone.utc) - step_start).total_seconds() * 1000
                 if step_callback: await step_callback(step_record)
             
             # Persist Step to DB (Phase 6: Learning Loop)
@@ -509,7 +509,7 @@ class AtomMetaAgent:
         await self._record_execution(request, result_payload, trigger_mode)
         
         # Update Execution Record with duration
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc)
         duration = (end_time - start_time).total_seconds()
         
         db = SessionLocal()
@@ -934,7 +934,7 @@ Provide your Mentorship Guidance:"""
             learnings=f"Trigger: {trigger_mode.value}. Steps: {len(result.get('actions_executed', []))}",
             agent_role="Meta",
             specialty=None,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
         await self.world_model.record_experience(experience)
 
@@ -1054,7 +1054,7 @@ async def handle_manual_trigger(request: str, user: User,
                     outputs={"observation": step_record.get("output")} if step_record.get("output") else {},
                     confidence=step_record.get("confidence", 0.9),
                     duration_ms=step_record.get("duration_ms", 0.0),
-                    timestamp=datetime.utcnow(),
+                    timestamp=datetime.now(timezone.utc),
                     metadata={"step_number": step_record.get("step")}
                 )
                 tracker.persist_step_to_db(step_obj, execution_id)
