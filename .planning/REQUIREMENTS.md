@@ -1,73 +1,78 @@
-# Requirements: Atom Backend 80% Coverage Initiative
+# Requirements: Atom Test Coverage Initiative
 
-**Defined:** 2026-03-11
+**Defined:** 2026-03-22
 **Core Value:** Critical system paths are thoroughly tested and validated before production deployment
 
-## v5.4 Requirements
+## v1 Requirements
 
-Requirements for Backend 80% Coverage milestone. Each maps to roadmap phases.
+Requirements for v5.5 milestone: Fix test failures and push backend coverage from 74.6% to 80%.
 
-### Coverage Infrastructure & Measurement
+### Test Failure Resolution
 
-- [ ] **COV-01**: Team can measure actual line coverage (not service-level estimates) across entire backend using coverage.py JSON output
-- [ ] **COV-02**: Team can measure branch coverage with `--cov-branch` flag enabled in pytest configuration
-- [ ] **COV-03**: Team can enforce progressive coverage thresholds (70% → 75% → 80%) via quality gates with emergency bypass mechanism
-- [ ] **COV-04**: Team can generate coverage gap analysis identifying untested code prioritized by business impact (critical → moderate → low)
-- [ ] **COV-05**: Team can generate test stub files for uncovered code using automated gap-driven tooling
+- [ ] **FAIL-01**: All industry workflow tests pass (0 failures)
+- [ ] **FAIL-02**: Duplicate test file removed (test_industry_workflow_endpoints.py in tests/api/services/)
+- [ ] **FAIL-03**: Template ID mismatches fixed (use real template IDs like "healthcare_patient_onboarding")
+- [ ] **FAIL-04**: ROI request validation fixed (remove template_id from request body)
+- [ ] **FAIL-05**: All 2FA routes test errors resolved (24 errors fixed)
+- [ ] **FAIL-06**: 2FA test fixtures and dependencies properly configured
+- [ ] **FAIL-07**: Overall test pass rate >= 98% (currently 90.6%)
 
-### Core Services Testing
+### Core Services Coverage Expansion
 
-- [ ] **CORE-01**: Team can test agent governance service (maturity routing, permission checks, cache validation) at 80%+ line coverage
-- [ ] **CORE-02**: Team can test LLM service (provider routing, cognitive tier classification, streaming, cache) at 80%+ line coverage
-- [ ] **CORE-03**: Team can test episodic memory services (segmentation, retrieval modes, lifecycle) at 80%+ line coverage
-- [ ] **CORE-04**: Team can test governance invariants using property-based tests (Hypothesis) - cache consistency, maturity rules, permission checks
-- [ ] **CORE-05**: Team can test maturity matrix (4 levels × 4 complexities) using parametrized tests covering all agent behaviors
+- [ ] **CORE-01**: Token storage service coverage >= 80% (currently has gaps at line 17)
+- [ ] **CORE-02**: Error handler decorator coverage >= 80% (gaps at line 74)
+- [ ] **CORE-03**: Structured logger coverage >= 80% (gaps at lines 112, 187)
+- [ ] **CORE-04**: API routes base coverage >= 80% (gaps at line 54)
 
-### API & Database Layer
+### API Routes Coverage Expansion
 
-- [ ] **API-01**: Team can test FastAPI endpoints (agent chat, canvas, browser, device, auth) at 75%+ line coverage using TestClient
-- [ ] **API-02**: Team can test database models (CRUD operations, relationships, foreign keys, cascades) at 80%+ line coverage using SQLite temp DBs
-- [ ] **API-03**: Team can test API contracts using Schemathesis for OpenAPI spec validation
-- [ ] **API-04**: Team can test complex model relationships (many-to-many, self-referential, polymorphic) with proper session isolation
-- [ ] **API-05**: Team can test error paths (401 unauthorized, 500 server errors, constraint violations) for all endpoints
+- [ ] **API-01**: Episode routes coverage >= 80% (gaps at line 305)
+- [ ] **API-02**: Auto-install routes coverage >= 80% (gaps at lines 25, 32)
+- [ ] **API-03**: Admin routes coverage >= 80% (gaps at lines 99, 1065)
+- [ ] **API-04**: Composition routes coverage >= 80% (gaps at line 35)
 
-### Tools & Integrations
+### Tools & Integration Coverage
 
-- [ ] **TOOL-01**: Team can test browser automation tool (Playwright CDP, session management, screenshot capture) at 75%+ line coverage
-- [ ] **TOOL-02**: Team can test device capabilities tool (camera, location, notifications, shell access) at 75%+ line coverage
-- [ ] **TOOL-03**: Team can test LanceDB integration (vector search, semantic similarity, batch operations) at 70%+ line coverage with deterministic mocks
-- [ ] **TOOL-04**: Team can test WebSocket connections (async streaming, connection lifecycle, error handling) using AsyncMock patterns
-- [ ] **TOOL-05**: Team can test HTTP clients (LLM providers, external APIs) using responses library with proper error handling
+- [ ] **TOOL-01**: Canvas tool coverage >= 80%
+- [ ] **TOOL-02**: Browser automation tool coverage >= 80%
+- [ ] **TOOL-03**: Device capabilities tool coverage >= 80%
+- [ ] **TOOL-04**: Agent governance service coverage >= 80%
+- [ ] **TOOL-05**: LLM routing and BYOK handler coverage >= 80%
 
-### Gap Closure & Quality
+### Quality Gates & Infrastructure
 
-- [ ] **GAP-01**: Team can audit coverage exclusions (`# pragma: no cover`) and remove outdated or unnecessary exclusions
-- [ ] **GAP-02**: Team can write tests for error paths (network failures, timeouts, malformed responses) systematically across all services
-- [ ] **GAP-03**: Team can write tests for edge cases (boundary conditions, invalid inputs, state transitions) across all services
-- [ ] **GAP-04**: Team can fix flaky tests (timing issues, race conditions, async coordination) by addressing root causes not just adding retries
-- [ ] **GAP-05**: Team can achieve 80% overall line coverage and 70%+ branch coverage across entire backend codebase
+- [ ] **QUAL-01**: Backend actual line coverage >= 80% (up from 74.6%)
+- [ ] **QUAL-02**: All tests passing with >= 98% pass rate
+- [ ] **QUAL-03**: Property-based tests added for critical invariants (Hypothesis)
+- [ ] **QUAL-04**: Coverage report generated and verified (HTML + JSON)
+- [ ] **QUAL-05**: CI/CD workflows re-enabled after 80% target achieved
 
 ## v2 Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+Deferred to future milestone. Not in current v5.5 scope.
 
-### Performance Testing
-- **PERF-01**: Team can measure test execution time and identify slow tests (>1s) for optimization
-- **PERF-02**: Team can run full test suite in parallel with pytest-xdist in <30 minutes
+### Frontend Coverage
+- **FRONT-01**: Next.js frontend coverage >= 80%
+- **FRONT-02**: React components coverage >= 80%
+- **FRONT-03**: State management coverage >= 80%
 
-### Mutation Testing
-- **MUT-01**: Team can validate test quality using mutation testing (mutmut or pymut) to verify branch coverage effectiveness
+### Mobile Coverage
+- **MOBILE-01**: React Native coverage >= 80%
+- **MOBILE-02**: Platform-specific coverage (iOS/Android) >= 70%
+
+### Desktop Coverage
+- **DESK-01**: Tauri desktop coverage >= 80%
+- **DESK-02**: Rust backend coverage >= 70%
 
 ## Out of Scope
 
-Explicitly excluded. Documented to prevent scope creep.
-
 | Feature | Reason |
 |---------|--------|
-| E2E Testing | Backend-focused milestone; E2E handled in Phase 148 (cross-platform orchestration) |
-| Load Testing | Performance testing separate concern; use existing monitoring.py metrics instead |
-| Fuzz Testing | Security testing separate initiative; property-based testing for invariants instead |
-| New Feature Development | This milestone focuses on testing existing features, not building new capabilities |
+| New feature development | This milestone focuses on testing existing features, not building new ones |
+| Production deployment | Infrastructure setup and deployment automation (separate initiative) |
+| Frontend testing | Deferred to v6.0 (backend focus for v5.5) |
+| Mobile testing | Deferred to v6.0 (backend focus for v5.5) |
+| Desktop testing | Deferred to v6.0 (backend focus for v5.5) |
 
 ## Traceability
 
@@ -75,37 +80,37 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COV-01 | Phase 163 | Pending |
-| COV-02 | Phase 163 | Pending |
-| COV-03 | Phase 163 | Pending |
-| COV-04 | Phase 164 | Pending |
-| COV-05 | Phase 164 | Pending |
-| CORE-01 | Phase 165 | Pending |
-| CORE-02 | Phase 165 | Pending |
-| CORE-03 | Phase 166 | Pending |
-| CORE-04 | Phase 165 | Pending |
-| CORE-05 | Phase 165 | Pending |
-| API-01 | Phase 167 | Pending |
-| API-02 | Phase 168 | Pending |
-| API-03 | Phase 167 | Pending |
-| API-04 | Phase 168 | Pending |
-| API-05 | Phase 167 | Pending |
-| TOOL-01 | Phase 169 | Pending |
-| TOOL-02 | Phase 169 | Pending |
-| TOOL-03 | Phase 170 | Pending |
-| TOOL-04 | Phase 170 | Pending |
-| TOOL-05 | Phase 170 | Pending |
-| GAP-01 | Phase 171 | Pending |
-| GAP-02 | Phase 171 | Pending |
-| GAP-03 | Phase 171 | Pending |
-| GAP-04 | Phase 171 | Pending |
-| GAP-05 | Phase 171 | Pending |
+| FAIL-01 | Phase 220 | Pending |
+| FAIL-02 | Phase 220 | Pending |
+| FAIL-03 | Phase 220 | Pending |
+| FAIL-04 | Phase 220 | Pending |
+| FAIL-05 | Phase 221 | Pending |
+| FAIL-06 | Phase 221 | Pending |
+| FAIL-07 | Phase 226 | Pending |
+| CORE-01 | Phase 222 | Pending |
+| CORE-02 | Phase 222 | Pending |
+| CORE-03 | Phase 222 | Pending |
+| CORE-04 | Phase 222 | Pending |
+| API-01 | Phase 223 | Pending |
+| API-02 | Phase 223 | Pending |
+| API-03 | Phase 223 | Pending |
+| API-04 | Phase 223 | Pending |
+| TOOL-01 | Phase 224 | Pending |
+| TOOL-02 | Phase 224 | Pending |
+| TOOL-03 | Phase 224 | Pending |
+| TOOL-04 | Phase 224 | Pending |
+| TOOL-05 | Phase 224 | Pending |
+| QUAL-01 | Phase 225 | Pending |
+| QUAL-02 | Phase 226 | Pending |
+| QUAL-03 | Phase 224 | Pending |
+| QUAL-04 | Phase 225 | Pending |
+| QUAL-05 | Phase 226 | Pending |
 
 **Coverage:**
-- v5.4 requirements: 25 total
-- Mapped to phases: 25
+- v1 requirements: 24 total
+- Mapped to phases: 24
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Requirements defined: 2026-03-22*
+*Last updated: 2026-03-22 after initial definition*
