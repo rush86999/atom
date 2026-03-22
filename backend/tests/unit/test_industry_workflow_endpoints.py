@@ -345,12 +345,16 @@ class TestErrorHandling:
     def test_endpoint_exception_handling(self, mock_get_engine, client, mock_engine):
         """Test general exception handling in endpoints"""
         mock_get_engine.return_value = mock_engine
-        mock_engine.get_all_industries.side_effect = Exception("Unexpected error")
+        mock_engine.search_templates.side_effect = Exception("Unexpected error")
 
-        response = client.get("/api/v1/industries")
+        response = client.post(
+            "/api/v1/templates/search",
+            json={"industry": "healthcare"}
+        )
 
-        # Should return 500 for server error
+        # Should return 500 for server error (search endpoint has exception handling)
         assert response.status_code == 500
+        assert "Search failed" in response.json()["detail"]
 
 
 # Run tests
