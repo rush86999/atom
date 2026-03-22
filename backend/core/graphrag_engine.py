@@ -22,6 +22,9 @@ from core.models import (
     User, Workspace, Team, SupportTicket, Formula, UserTask
 )
 
+# Import LLMService for unified LLM interactions
+from core.llm_service import LLMService
+
 logger = logging.getLogger(__name__)
 
 # ==================== CONFIGURATION ====================
@@ -97,6 +100,17 @@ class GraphRAGEngine:
     PostgreSQL-backed GraphRAG Engine.
     Uses SQL Recursive CTEs for traversal (Stateless).
     """
+
+    def __init__(self, workspace_id: str = "default"):
+        """
+        Initialize GraphRAG Engine.
+
+        Args:
+            workspace_id: Workspace identifier for multi-tenant isolation
+        """
+        self.workspace_id = workspace_id
+        # Initialize LLMService for unified LLM interactions
+        self.llm_service = LLMService(workspace_id=workspace_id)
 
     def _get_registry_entry(self, entity_type: str) -> Optional[Dict]:
         """Get the registry configuration for a canonical type."""
