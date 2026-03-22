@@ -3,6 +3,15 @@
 **Gathered:** March 22, 2026
 **Status:** Ready for planning
 
+## Guiding Vision
+
+**Unify ALL LLM calls under LLMService API** — including embeddings, voice, and any other LLM interactions. This achieves:
+- **Centralized BYOK** — Single point for all provider Bring Your Own Key configuration
+- **Unified cost tracking** — All token usage and costs tracked through one service
+- **Easier maintenance** — One interface to update, monitor, and optimize
+
+Phase 223 is the first step toward this vision, migrating three critical services.
+
 ## Phase Boundary
 
 Migrate three critical backend services from direct OpenAI/Anthropic API calls to the unified LLMService:
@@ -15,7 +24,8 @@ All three services must pass existing tests with no regression in functionality.
 ## Implementation Decisions
 
 ### Migration Strategy
-- **Parallel migration tracks**: Each service migrates independently using existing LLMService capabilities (no need to add embedding methods first)
+- **Comprehensive unification**: LLMService becomes the single source of truth for ALL LLM interactions (embeddings, chat, streaming, structured output, future voice)
+- **Parallel migration tracks**: Each service migrates independently using existing LLMService capabilities (add embedding methods to LLMService if needed)
 - **Sequential dependency**: Plans execute in order (223-01 → 223-02 → 223-03 → 223-04) with 223-01 completing before subsequent migrations start
 - **Verify after each plan**: Run all existing tests after each plan completion. If tests fail, stop and fix before proceeding to next plan
 - **Maintain existing interfaces**: Keep all original service methods and signatures unchanged—only swap internal implementation to use LLMService
@@ -31,7 +41,8 @@ No specific requirements—use standard migration patterns.
 
 ## Deferred Ideas
 
-None—discussion stayed within phase scope.
+- **Voice/audio LLM support** — Add to LLMService API as part of the unified vision (future phase)
+- **Cost tracking dashboard** — Leverage unified LLMService cost data for observability (future milestone)
 
 ---
 
