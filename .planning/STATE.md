@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** All LLM interactions flow through a single unified interface for consistency, observability, and maintainability
-**Current focus:** Phase 224 - Critical Migration Part 2
+**Current focus:** Phase 225 - Critical Migration Part 3
 
 ## Current Position
 
-Phase: 3 of 11 (Critical Migration Part 2)
-Plan: 4 of 4 in current phase
+Phase: 4 of 11 (Critical Migration Part 3)
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-22 — Plan 224-04 completed: Meta-verification and cross-cutting concern validation
+Last activity: 2026-03-22 — Plan 225-02 completed: BYOKHandler vs LLMService usage verification
 
-Progress: [███████░░] 38% (12/32 plans complete)
+Progress: [███████░░] 41% (13/32 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: ~6 minutes
-- Total execution time: 1.4 hours
+- Total execution time: 1.5 hours
 
 **By Phase:**
 
@@ -30,7 +30,7 @@ Progress: [███████░░] 38% (12/32 plans complete)
 | 222 | 6/6 | 51 min | ~8.5 min |
 | 223 | 3/4 | 15 min | ~5 min |
 | 224 | 4/4 | 11 min | ~3 min |
-| 225 | 0/3 | TBD | - |
+| 225 | 1/3 | 1 min | ~1 min |
 | 226 | 0/1 | TBD | - |
 | 227 | 0/1 | TBD | - |
 | 228 | 0/2 | TBD | - |
@@ -40,18 +40,19 @@ Progress: [███████░░] 38% (12/32 plans complete)
 | 232 | 0/3 | TBD | - |
 
 **Recent Trend:**
-- Last 3 plans: 224-04 (~3 min), 224-02 (~5 min), 224-01 (~3 min)
+- Last 3 plans: 225-02 (~1 min), 224-04 (~3 min), 224-02 (~5 min)
 - Trend: Consistent velocity
 
 *Updated after each plan completion*
+| Phase 225-critical-migration-part-3 P02 | 34s | 3 tasks | 1 file |
 | Phase 224-critical-migration-part-2 P04 | 219s | 4 tasks | 3 files |
 | Phase 224-critical-migration-part-2 P02 | 297s | 5 tasks | 2 files |
-| Phase 224-critical-migration-part-2 P01 | 180s | 4 tasks | 2 files |
 | Phase 223-critical-migration-part-1 P03 | 318s | 4 tasks | 2 files |
 | Phase 223-critical-migration-part-1 P02 | 156s | 4 tasks | 1 file |
 | Phase 223-critical-migration-part-1 P01 | 186s | 3 tasks | 2 files |
 | Phase 224-critical-migration-part-2 P04 | 219 | 4 tasks | 3 files |
 | Phase 224 P03 | 270 | 5 tasks | 2 files |
+| Phase 225 P02 | 34 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Recent decisions affecting current work:
 - [Phase 224]: Add cross-cutting integration tests to verify embeddings, cost tracking, side effects
 - [Phase 224]: Verify all cross-cutting concerns: embeddings, cost tracking, side effects, compatibility
 - [Phase 224]: Migrate SocialPostGenerator to LLMService, change model from gpt-4.1-mini to gpt-4o-mini, update test mocks for LLMService, all 39 tests passing
+- [Phase 225-02]: BYOKHandler direct usage is ACCEPTABLE for agent classes - they need full access to structured generation, cognitive tier routing, and instructor integration. LLMService is an external wrapper for API routes.
 
 ### Pending Todos
 
@@ -89,8 +91,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 224-01 execution)
-Stopped at: Completed plan 224-01 - Migrate LLMAnalyzer to LLMService
+Last session: 2026-03-22 (plan 225-02 execution)
+Stopped at: Completed plan 225-02 - Verify and document BYOKHandler vs LLMService usage in generic_agent
 Resume file: None
 
 ## Milestone Context
