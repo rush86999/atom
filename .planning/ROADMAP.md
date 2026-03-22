@@ -1,8 +1,11 @@
-# Roadmap: Atom Test Coverage Initiative
+# Roadmap: Atom Platform Development
 
 ## Overview
 
 Comprehensive cross-platform testing initiative to achieve 80% code coverage across all platforms (backend Python, frontend React/Next.js, mobile React Native, desktop Tauri/Rust). Starting from v5.2's baseline (backend: 26.15%, frontend: 65.85%, mobile: infrastructure foundation, desktop: 65-70%), this milestone focuses on filling coverage gaps with targeted test development, fixing failing tests, and enforcing quality gates to prevent regression.
+
+**Current Milestone:** v6.0 BYOK Migration to Unified LLMService API — Consolidate all LLM interactions to unified interface, eliminate fragmentation, add observability
+**Previous Milestone:** v5.5 Test Coverage Expansion — Achieve 80% backend coverage through targeted testing (PAUSED after Phase 221)
 
 ## Milestones
 
@@ -14,6 +17,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - ✅ **v5.3 Coverage Expansion to 80% Targets** - Phases 153-162 (shipped 2026-03-11)
 - ✅ **v5.4 Backend 80% Coverage - Baseline & Plan** - Phases 163-171 (shipped 2026-03-11)
 - 🚧 **v5.5 Backend 80% Coverage - Execution** - Phases 172-193 (in progress)
+- 📋 **v6.0 BYOK Migration to Unified LLMService API** - Phases 222-232 (planned)
 
 ## Phases
 
@@ -1084,6 +1088,17 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 204. Coverage Push to 75-80% | v5.5 | 7/7 | ✅ Complete | 2026-03-17 |
 | 205. Coverage Quality & Target Achievement | v5.5 | 4/4 | Complete | 2026-03-18 |
 | 206. Coverage Push to 80% | v5.5 | TBD | Planning | - |
+| 222. LLMService Enhancement | v6.0 | 0/5 | Not started | - |
+| 223. Critical Migration Part 1 | v6.0 | 0/3 | Not started | - |
+| 224. Critical Migration Part 2 | v6.0 | 0/3 | Not started | - |
+| 225. Critical Migration Part 3 | v6.0 | 0/3 | Not started | - |
+| 226. Core Services Standardization | v6.0 | 0/1 | Not started | - |
+| 227. Agent System Standardization | v6.0 | 0/1 | Not started | - |
+| 228. API Routes & Tools Standardization | v6.0 | 0/2 | Not started | - |
+| 229. BYOKHandler Deprecation | v6.0 | 0/2 | Not started | - |
+| 230. Enhanced Observability | v6.0 | 0/5 | Not started | - |
+| 231. Comprehensive Testing | v6.0 | 0/4 | Not started | - |
+| 232. Documentation & Completion | v6.0 | 0/3 | Not started | - |
 
 ### Phase 205: Coverage Quality & Target Achievement ✅ COMPLETE
 **Status**: Complete (2026-03-18)
@@ -1695,4 +1710,195 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 
 **Plans**:
 - [ ] 220-01-PLAN.md — Fix ROI request model and update tests with real template IDs
+
+
+### 📋 v6.0 BYOK Migration to Unified LLMService API (Phases 222-232)
+
+**Milestone Goal:** Consolidate all BYOK LLM interactions to unified LLMService API, eliminate fragmentation, add observability
+
+#### Phase 222: LLMService Enhancement
+**Goal**: LLMService provides unified interface with streaming, structured output, and cognitive tier routing
+**Depends on**: Nothing (first phase of v6.0)
+**Requirements**: LLM-01, LLM-02, LLM-03, LLM-04, LLM-05
+**Success Criteria** (what must be TRUE):
+  1. LLMService exposes stream_completion method for streaming LLM responses
+  2. LLMService exposes generate_structured method for structured output (JSON schema validation)
+  3. LLMService exposes generate_with_tier method for cognitive tier routing
+  4. LLMService exposes get_optimal_provider method for provider selection
+  5. LLMService maintains backward compatibility with existing BYOKHandler during transition
+**Plans**: 5 plans
+
+Plans:
+- [ ] 222-01-PLAN.md — Add streaming response interface (stream_completion with AsyncGenerator, provider fallback)
+- [ ] 222-02-PLAN.md — Add structured output interface (generate_structured with Pydantic validation, vision support)
+- [ ] 222-03-PLAN.md — Add cognitive tier routing (generate_with_tier with 5-tier classification, escalation)
+- [ ] 222-04-PLAN.md — Add provider selection utilities (get_optimal_provider, get_ranked_providers, get_routing_info)
+- [ ] 222-05-PLAN.md — Ensure backward compatibility (existing methods unchanged, migration documentation)
+
+#### Phase 223: Critical Migration Part 1
+**Goal**: Migrate embedding service, GraphRAG engine, and skill security scanner to LLMService
+**Depends on**: Phase 222
+**Requirements**: MIG-01, MIG-02, MIG-03
+**Success Criteria** (what must be TRUE):
+  1. embedding_service.py uses LLMService instead of AsyncOpenAI client
+  2. graphrag_engine.py uses LLMService instead of OpenAI client
+  3. skill_security_scanner.py uses LLMService for security-sensitive operations
+  4. All three files pass existing tests with LLMService integration
+  5. No regression in embedding generation, GraphRAG queries, or security scanning
+**Plans**: TBD
+
+Plans:
+- [ ] 223-01: Migrate embedding_service.py to LLMService
+- [ ] 223-02: Migrate graphrag_engine.py to LLMService
+- [ ] 223-03: Migrate skill_security_scanner.py to LLMService
+
+#### Phase 224: Critical Migration Part 2
+**Goal**: Migrate security analyzers, LanceDB handler, and social post generator to LLMService
+**Depends on**: Phase 223
+**Requirements**: MIG-04, MIG-05, MIG-06
+**Success Criteria** (what must be TRUE):
+  1. atom_security/analyzers/llm.py uses LLMService instead of direct API calls
+  2. lancedb_handler.py uses LLMService for vector database embeddings
+  3. social_post_generator.py uses LLMService for content generation
+  4. All three files pass existing tests with LLMService integration
+  5. No regression in security analysis, vector embeddings, or social content generation
+**Plans**: TBD
+
+Plans:
+- [ ] 224-01: Migrate atom_security/analyzers/llm.py to LLMService
+- [ ] 224-02: Migrate lancedb_handler.py to LLMService
+- [ ] 224-03: Migrate social_post_generator.py to LLMService
+
+#### Phase 225: Critical Migration Part 3
+**Goal**: Migrate voice service and verify agent system files using LLMService
+**Depends on**: Phase 224
+**Requirements**: MIG-07, MIG-08, MIG-09
+**Success Criteria** (what must be TRUE):
+  1. voice_service.py uses LLMService for voice processing operations
+  2. generic_agent.py standardized to use LLMService (already uses BYOKHandler)
+  3. atom_meta_agent.py verified using LLMService (already using it)
+  4. All three files pass existing tests with LLMService integration
+  5. No regression in voice processing, agent execution, or meta-agent coordination
+**Plans**: TBD
+
+Plans:
+- [ ] 225-01: Migrate voice_service.py to LLMService
+- [ ] 225-02: Standardize generic_agent.py to use LLMService
+- [ ] 225-03: Verify atom_meta_agent.py uses LLMService
+
+#### Phase 226: Core Services Standardization
+**Goal**: Update 8 core service files to use LLMService instead of BYOKHandler
+**Depends on**: Phase 225
+**Requirements**: STD-01, STD-02
+**Success Criteria** (what must be TRUE):
+  1. All 8 core service files use LLMService instead of importing BYOKHandler directly
+  2. Episode segmentation, workflow engine, and other core services work without BYOKHandler
+  3. All 8 files pass existing tests with LLMService integration
+  4. No regression in core service functionality (episodes, workflows, canvas, etc.)
+  5. Direct BYOKHandler imports removed from core services
+**Plans**: TBD
+
+Plans:
+- [ ] 226-01: Update core service files to use LLMService (8 files)
+
+#### Phase 227: Agent System Standardization
+**Goal**: Update 5 agent system files to use LLMService instead of BYOKHandler
+**Depends on**: Phase 226
+**Requirements**: STD-03
+**Success Criteria** (what must be TRUE):
+  1. All 5 agent system files use LLMService instead of importing BYOKHandler directly
+  2. Meta-agent, GraphRAG, and other agent systems work without BYOKHandler
+  3. All 5 files pass existing tests with LLMService integration
+  4. No regression in agent system functionality (reasoning, graph operations, etc.)
+  5. Direct BYOKHandler imports removed from agent systems
+**Plans**: TBD
+
+Plans:
+- [ ] 227-01: Update agent system files to use LLMService (5 files)
+
+#### Phase 228: API Routes & Tools Standardization
+**Goal**: Update API routes and tools files to use LLMService instead of BYOKHandler
+**Depends on**: Phase 227
+**Requirements**: STD-04, STD-05
+**Success Criteria** (what must be TRUE):
+  1. All 3 API routes files use LLMService instead of importing BYOKHandler directly
+  2. Platform management tool uses LLMService instead of BYOKHandler
+  3. All 4 files pass existing tests with LLMService integration
+  4. No regression in API endpoints (competitor analysis, learning plans, mobile)
+  5. Direct BYOKHandler imports removed from API routes and tools
+**Plans**: TBD
+
+Plans:
+- [ ] 228-01: Update API routes files to use LLMService (3 files)
+- [ ] 228-02: Update tools files to use LLMService (1 file)
+
+#### Phase 229: BYOKHandler Deprecation
+**Goal**: Add deprecation warnings and migration documentation for BYOKHandler usage
+**Depends on**: Phase 228
+**Requirements**: STD-06, STD-07
+**Success Criteria** (what must be TRUE):
+  1. Deprecation warnings emitted when direct BYOKHandler usage detected
+  2. Migration documentation provides code examples and patterns for developers
+  3. Developers can easily understand how to migrate from BYOKHandler to LLMService
+  4. Migration guide covers common patterns and edge cases
+  5. No remaining direct BYOKHandler usage in codebase (all migrated to LLMService)
+**Plans**: TBD
+
+Plans:
+- [ ] 229-01: Add deprecation warnings to BYOKHandler usage
+- [ ] 229-02: Create migration documentation for developers
+
+#### Phase 230: Enhanced Observability
+**Goal**: Add monitoring, caching, and telemetry for LLM operations
+**Depends on**: Phase 229
+**Requirements**: OBS-01, OBS-02, OBS-03, OBS-04, OBS-05
+**Success Criteria** (what must be TRUE):
+  1. LLMService tracks all LLM calls (provider, model, tokens, cost)
+  2. Metrics aggregated by provider and model (usage, cost, latency)
+  3. Response caching implemented for common queries with cache invalidation
+  4. Cache-aware routing integrated with LLMService for cost optimization
+  5. Telemetry dashboard displays LLM operations monitoring in real-time
+**Plans**: TBD
+
+Plans:
+- [ ] 230-01: Add LLM call tracking to LLMService
+- [ ] 230-02: Add metrics aggregation by provider and model
+- [ ] 230-03: Implement response caching for common queries
+- [ ] 230-04: Integrate cache-aware routing with LLMService
+- [ ] 230-05: Create telemetry dashboard for LLM operations
+
+#### Phase 231: Comprehensive Testing
+**Goal**: Add unit, integration, and property-based tests for LLMService and migrations
+**Depends on**: Phase 230
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04
+**Success Criteria** (what must be TRUE):
+  1. Unit tests cover all LLMService methods (streaming, structured output, tiers)
+  2. Integration tests updated for each migrated file (39 test files updated)
+  3. Property-based tests validate LLM invariants (Hypothesis)
+  4. Performance benchmarks show before/after migration metrics
+  5. All tests pass with >98% pass rate across test suite
+**Plans**: TBD
+
+Plans:
+- [ ] 231-01: Add unit tests for all LLMService methods
+- [ ] 231-02: Update integration tests for migrated files
+- [ ] 231-03: Add property-based tests for LLM invariants
+- [ ] 231-04: Run performance benchmarks (before/after)
+
+#### Phase 232: Documentation & Completion
+**Goal**: Complete API reference, migration guide, and troubleshooting documentation
+**Depends on**: Phase 231
+**Requirements**: TEST-05, TEST-06, TEST-07
+**Success Criteria** (what must be TRUE):
+  1. API reference documentation complete for all LLMService methods
+  2. Migration guide provides code examples and patterns for developers
+  3. Troubleshooting guide covers common issues and resolutions
+  4. Documentation accessible in docs/ directory with clear navigation
+  5. Developers can self-service resolve common migration issues
+**Plans**: TBD
+
+Plans:
+- [ ] 232-01: Create API reference documentation for LLMService
+- [ ] 232-02: Create migration guide for developers
+- [ ] 232-03: Create troubleshooting guide for common issues
 
