@@ -229,28 +229,27 @@ class LanceDBHandler:
             self.db = None
     
     def _initialize_embedder(self):
-        """Initialize embedding provider"""
+        """
+        Initialize embedding provider
+
+        For OpenAI: LLMService handles client creation and API key resolution internally
+        For local: Uses sentence-transformers or fastembed
+        """
         try:
-            if self.embedding_provider == "openai" and OPENAI_AVAILABLE:
-                # BYOK Key Retrieval
-                api_key = self.openai_api_key
-                if self.byok_manager:
-                    byok_key = self.byok_manager.get_api_key("openai")
-                    if byok_key:
-                        api_key = byok_key
-                
-                if not api_key:
-                    logger.warning("OpenAI API key not found, falling back to local embeddings")
+            if self.embedding_provider == "openai":
+                # Check if LLMService is available
+                if not self.llm_service:
+                    logger.warning("LLMService not available, falling back to local embeddings")
                     self.embedding_provider = "local"
                     self._init_local_embedder()
                 else:
-                    # Lazy import OpenAI
-                    from openai import OpenAI
-                    self.openai_client = OpenAI(api_key=api_key)
-                    logger.info("OpenAI embeddings initialized (BYOK enabled)")
+                    # LLMService handles OpenAI client creation and API key resolution
+                    # No direct client needed - use llm_service.generate_embedding
+                    self.openai_client = None  # Deprecated, use llm_service instead
+                    logger.info("OpenAI embeddings initialized via LLMService (BYOK enabled)")
             else:
                 self._init_local_embedder()
-                
+
         except Exception as e:
             logger.error(f"Failed to initialize embedder: {e}")
             self.embedder = None
