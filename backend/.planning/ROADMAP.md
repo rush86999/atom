@@ -60,12 +60,13 @@
 **Requirements**: FAIL-05, FAIL-06
 
 **Success Criteria** (what must be TRUE):
-1. All 24 2FA routes test errors resolved
+1. All 89 2FA routes tests pass (0 errors)
 2. 2FA test fixtures and dependencies properly configured
 3. 2FA tests execute successfully without import or fixture errors
 4. No regressions in previously passing tests
 
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 221-01-PLAN.md — Verify all 2FA tests pass and document current test state
 
 ---
 
@@ -166,7 +167,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 220. Fix Industry Workflow Test Failures | 0/1 | Planning | - |
-| 221. Fix 2FA Routes Test Errors | 0/0 | Not started | - |
+| 221. Fix 2FA Routes Test Errors | 0/1 | Planning | - |
 | 222. Core Services Coverage Expansion | 0/0 | Not started | - |
 | 223. API Routes Coverage Expansion | 0/0 | Not started | - |
 | 224. Tools & Integration Coverage | 0/0 | Not started | - |
