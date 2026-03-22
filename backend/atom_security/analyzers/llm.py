@@ -110,28 +110,30 @@ class LLMAnalyzer:
         return self._parse_json(text)
 
     async def _analyze_byok(self, system_prompt: str, user_prompt: str) -> List[Finding]:
-        """BYOK API call."""
-        if self.provider == "openai":
-            response = await asyncio.to_thread(
-                self.client.chat.completions.create,
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            text = response.choices[0].message.content
-        elif self.provider == "anthropic":
-            response = await asyncio.to_thread(
-                self.client.messages.create,
-                model=self.model,
-                max_tokens=1024,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}]
-            )
-            text = response.content[0].text
-            
+        """
+        BYOK API call via LLMService.
+
+        Uses unified LLMService interface for all providers (OpenAI, Anthropic).
+        LLMService handles provider selection, API key resolution, and cost tracking.
+        """
+        # Build messages in OpenAI format
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        # Use model parameter (gpt-4o, claude-3-5-sonnet, etc.)
+        # Note: response_format not supported yet, JSON mode requested in system prompt instead
+        response = await self.llm_service.generate_completion(
+            messages=messages,
+            model=self.model,
+            temperature=0.1,
+            max_tokens=1024
+        )
+
+        # Extract content from LLMService response format
+        text = response.get("content", "")
+
         return self._parse_json(text)
 
     def _parse_json(self, text: str) -> List[Finding]:
