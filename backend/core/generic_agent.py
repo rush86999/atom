@@ -15,6 +15,8 @@ from core.react_models import ReActObservation, ReActStep, ToolCall
 from integrations.mcp_service import mcp_service
 
 # Try to import instructor for structured parsing
+# AsyncOpenAI import is for instructor library (structured output validation)
+# Not used for direct API calls - all LLM interactions go through BYOKHandler
 try:
     import instructor
     from openai import AsyncOpenAI
@@ -54,6 +56,19 @@ class GenericAgent:
         # Initialize Services
         self.world_model = WorldModelService(workspace_id)
         self.mcp = mcp_service
+
+        # LLM Integration Note:
+        # Agent classes use BYOKHandler directly (internal layer) rather than LLMService (external wrapper).
+        # This is intentional: agents need full access to BYOKHandler's structured generation,
+        # cognitive tier routing, and instructor integration. LLMService wraps BYOKHandler
+        # for external API consumers who need a simplified interface.
+        #
+        # Architecture layers:
+        # - Layer 1 (Bottom): AsyncOpenAI/AsyncAnthropic clients (provider SDKs)
+        # - Layer 2 (Middle): BYOKHandler (unified internal interface, cognitive tier, cost tracking)
+        # - Layer 3 (Top): LLMService (external wrapper for API routes, simplified interface)
+        # - Agent classes: Use Layer 2 (BYOKHandler) for full feature access
+        # - API routes: Use Layer 3 (LLMService) for simplified interface
         self.llm = BYOKHandler(workspace_id=workspace_id)
         self.session_tools: List[Dict[str, Any]] = [] # Lazy-loaded tools
 
