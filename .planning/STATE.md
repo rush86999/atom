@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 225.1-agent-llmservice-migration (Agent LLMService Migration)
-Plan: 7 of 8 in current phase
-Status: In Progress
-Last activity: 2026-03-22 — Plan 225.1-07 completed: Update meta agent, API, and integration test infrastructure
+Plan: 6 of 8 in current phase
+Status: Complete
+Last activity: 2026-03-22 — Plan 225.1-06 completed: Update high-value integration and episode tests
 
 Progress: [██████░░] 56% (19/34 plans complete)
 
@@ -61,6 +61,7 @@ Progress: [██████░░] 56% (19/34 plans complete)
 | Phase 225.1 P04 | 394 | 8 tasks | 6 files |
 | Phase 225.1 P05 | 247 | 3 tasks | 2 files |
 | Phase 225.1 P07 | 292 | 4 tasks | 7 files |
+| Phase 225.1 P06 | 357 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
