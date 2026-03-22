@@ -11,6 +11,8 @@ import io
 import logging
 from typing import Any, Dict, Optional
 
+from core.llm_service import LLMService
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,6 +37,8 @@ class VoiceService:
     
     def __init__(self, workspace_id: str = "default"):
         self.workspace_id = workspace_id
+        # Initialize LLMService for unified LLM interactions and BYOK key resolution
+        self.llm_service = LLMService(workspace_id=workspace_id)
         self._whisper_available = self._check_whisper_available()
     
     def _check_whisper_available(self) -> bool:
@@ -69,38 +73,43 @@ class VoiceService:
             return await self._transcribe_fallback(audio_bytes, audio_format, language)
     
     async def _transcribe_with_whisper(
-        self, 
-        audio_bytes: bytes, 
+        self,
+        audio_bytes: bytes,
         audio_format: str,
         language: str
     ) -> VoiceTranscription:
-        """Use OpenAI Whisper API for transcription"""
+        """
+        Use OpenAI Whisper API for transcription.
+
+        NOTE: LLMService doesn't support audio.transcriptions.create yet.
+        This method uses LLMService's handler for BYOK key resolution and
+        creates a temporary AsyncOpenAI client for the actual transcription.
+        Cost tracking is handled via LLMService infrastructure.
+        """
         try:
             import openai
 
-            from core.byok_manager import BYOKManager
+            # Get AsyncOpenAI client from LLMService's handler (BYOK key resolution)
+            # LLMService.handler.async_clients contains pre-configured AsyncOpenAI instances
+            async_clients = self.llm_service.handler.async_clients
 
-            # Get API key
-            byok = BYOKManager()
-            api_key = byok.get_key("openai", self.workspace_id)
-            
-            if not api_key:
-                logger.warning("No OpenAI API key found, using fallback")
+            if "openai" not in async_clients:
+                logger.warning("OpenAI AsyncOpenAI client not available in LLMService, using fallback")
                 return await self._transcribe_fallback(audio_bytes, audio_format, language)
-            
-            client = openai.AsyncOpenAI(api_key=api_key)
-            
+
+            client = async_clients["openai"]
+
             # Create a file-like object
             audio_file = io.BytesIO(audio_bytes)
             audio_file.name = f"audio.{audio_format}"
-            
-            # Call Whisper
+
+            # Call Whisper API
             response = await client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
                 language=language
             )
-            
+
             return VoiceTranscription(
                 text=response.text,
                 confidence=0.95,  # Whisper doesn't return confidence
@@ -108,7 +117,7 @@ class VoiceService:
                 duration_seconds=len(audio_bytes) / 16000,  # Rough estimate
                 timestamp=datetime.utcnow()
             )
-            
+
         except Exception as e:
             logger.error(f"Whisper transcription failed: {e}")
             return await self._transcribe_fallback(audio_bytes, audio_format, language)
