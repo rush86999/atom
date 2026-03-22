@@ -314,18 +314,22 @@ class TestIntentHandlers:
     @patch('core.atom_agent_endpoints.load_workflows')
     async def test_list_workflows_intent_handler(self, mock_load, db_session: Session):
         """Test list workflows intent handler."""
-        from core.atom_agent_endpoints import list_workflows_intent
+        from core.atom_agent_endpoints import handle_list_workflows
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_load.return_value = [
             {"id": "wf-1", "name": "Workflow 1"},
             {"id": "wf-2", "name": "Workflow 2"}
         ]
 
-        result = list_workflows_intent(
+        # Use ChatRequest instead of Individual args if handle_* expects it
+        request = ChatRequest(
             message="List workflows",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_list_workflows(request)
 
         assert "success" in result or "workflows" in result
 
@@ -333,17 +337,20 @@ class TestIntentHandlers:
     @patch('core.atom_agent_endpoints.load_workflows')
     async def test_run_workflow_intent_handler(self, mock_load, mock_save, db_session: Session):
         """Test run workflow intent handler."""
-        from core.atom_agent_endpoints import run_workflow_intent
+        from core.atom_agent_endpoints import handle_run_workflow
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_load.return_value = [
             {"id": "wf-1", "name": "Test Workflow"}
         ]
 
-        result = run_workflow_intent(
+        request = ChatRequest(
             message="Run workflow wf-1",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_run_workflow(request, entities={"workflow_ref": "wf-1"})
 
         assert "success" in result or "workflow_id" in result
 
@@ -354,17 +361,20 @@ class TestCalendarIntents:
     @patch('core.atom_agent_endpoints.GoogleCalendarService')
     async def test_create_event_intent_handler(self, mock_service_cls, db_session: Session):
         """Test create event intent handler."""
-        from core.atom_agent_endpoints import create_event_intent
+        from core.atom_agent_endpoints import handle_create_event
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_service = MagicMock()
         mock_service.create_event.return_value = {"event_id": "evt-123"}
         mock_service_cls.return_value = mock_service
 
-        result = create_event_intent(
+        request = ChatRequest(
             message="Create event tomorrow at 2pm",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_create_event(request, entities={"summary": "Meeting tomorrow", "start_time": "tomorrow at 2pm"})
 
         # Should handle even if service is not configured
         assert result is not None
@@ -372,7 +382,8 @@ class TestCalendarIntents:
     @patch('core.atom_agent_endpoints.GoogleCalendarService')
     async def test_list_events_intent_handler(self, mock_service_cls, db_session: Session):
         """Test list events intent handler."""
-        from core.atom_agent_endpoints import list_events_intent
+        from core.atom_agent_endpoints import handle_list_events
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_service = MagicMock()
         mock_service.list_events.return_value = [
@@ -380,11 +391,13 @@ class TestCalendarIntents:
         ]
         mock_service_cls.return_value = mock_service
 
-        result = list_events_intent(
+        request = ChatRequest(
             message="List my events",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_list_events(request, entities={})
 
         # Should handle even if service is not configured
         assert result is not None
@@ -396,17 +409,20 @@ class TestEmailIntents:
     @patch('core.atom_agent_endpoints.GmailService')
     async def test_send_email_intent_handler(self, mock_service_cls, db_session: Session):
         """Test send email intent handler."""
-        from core.atom_agent_endpoints import send_email_intent
+        from core.atom_agent_endpoints import handle_send_email
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_service = MagicMock()
         mock_service.send_email.return_value = {"message_id": "msg-123"}
         mock_service_cls.return_value = mock_service
 
-        result = send_email_intent(
+        request = ChatRequest(
             message="Send email to test@example.com",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_send_email(request, entities={"to": "test@example.com", "body": "Hello"})
 
         # Should handle even if service is not configured
         assert result is not None
@@ -414,7 +430,8 @@ class TestEmailIntents:
     @patch('core.atom_agent_endpoints.GmailService')
     async def test_search_emails_intent_handler(self, mock_service_cls, db_session: Session):
         """Test search emails intent handler."""
-        from core.atom_agent_endpoints import search_emails_intent
+        from core.atom_agent_endpoints import handle_search_emails
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_service = MagicMock()
         mock_service.search_emails.return_value = [
@@ -422,11 +439,13 @@ class TestEmailIntents:
         ]
         mock_service_cls.return_value = mock_service
 
-        result = search_emails_intent(
+        request = ChatRequest(
             message="Search for emails about project",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_search_emails(request, entities={"query": "project"})
 
         # Should handle even if service is not configured
         assert result is not None
@@ -438,14 +457,21 @@ class TestTaskIntents:
     @patch('core.atom_agent_endpoints.create_task')
     async def test_create_task_intent_handler(self, mock_create_task, db_session: Session):
         """Test create task intent handler."""
-        from core.atom_agent_endpoints import create_task_intent
+        from core.atom_agent_endpoints import handle_task_intent
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_create_task.return_value = {"task_id": "task-123"}
 
-        result = create_task_intent(
+        request = ChatRequest(
             message="Create a new task",
             user_id="test-user",
             session_id="test-session"
+        )
+
+        result = await handle_task_intent(
+            intent="CREATE_TASK",
+            entities={"title": "New Task"},
+            request=request
         )
 
         # Should handle task creation
@@ -454,16 +480,23 @@ class TestTaskIntents:
     @patch('core.atom_agent_endpoints.get_tasks')
     async def test_list_tasks_intent_handler(self, mock_get_tasks, db_session: Session):
         """Test list tasks intent handler."""
-        from core.atom_agent_endpoints import list_tasks_intent
+        from core.atom_agent_endpoints import handle_task_intent
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_get_tasks.return_value = [
             {"task_id": "task-1", "title": "Task 1"}
         ]
 
-        result = list_tasks_intent(
+        request = ChatRequest(
             message="List all my tasks",
             user_id="test-user",
             session_id="test-session"
+        )
+
+        result = await handle_task_intent(
+            intent="LIST_TASKS",
+            entities={},
+            request=request
         )
 
         # Should handle task listing
@@ -476,16 +509,23 @@ class TestFinanceIntents:
     @patch('core.atom_agent_endpoints.list_quickbooks_items')
     async def test_get_transactions_intent_handler(self, mock_list, db_session: Session):
         """Test get transactions intent handler."""
-        from core.atom_agent_endpoints import get_transactions_intent
+        from core.atom_agent_endpoints import handle_finance_intent
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_list.return_value = [
             {"transaction_id": "txn-1", "amount": 100.00}
         ]
 
-        result = get_transactions_intent(
+        request = ChatRequest(
             message="Show recent transactions",
             user_id="test-user",
             session_id="test-session"
+        )
+
+        result = await handle_finance_intent(
+            intent="GET_TRANSACTIONS",
+            entities={},
+            request=request
         )
 
         # Should handle transaction listing
@@ -498,7 +538,8 @@ class TestSystemIntents:
     @patch('core.atom_agent_endpoints.SystemStatus')
     async def test_get_system_status_intent_handler(self, mock_status_cls, db_session: Session):
         """Test get system status intent handler."""
-        from core.atom_agent_endpoints import get_system_status_intent
+        from core.atom_agent_endpoints import handle_system_status
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_status = MagicMock()
         mock_status.get_status.return_value = {
@@ -507,11 +548,13 @@ class TestSystemIntents:
         }
         mock_status_cls.return_value = mock_status
 
-        result = get_system_status_intent(
+        request = ChatRequest(
             message="What is the system status",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_system_status(request)
 
         # Should handle system status
         assert result is not None
@@ -519,17 +562,20 @@ class TestSystemIntents:
     @patch('core.atom_agent_endpoints.unified_hybrid_search')
     async def test_platform_search_intent_handler(self, mock_search, db_session: Session):
         """Test platform search intent handler."""
-        from core.atom_agent_endpoints import platform_search_intent
+        from core.atom_agent_endpoints import handle_platform_search
+        from core.atom_agent_endpoints import ChatRequest
 
         mock_search.return_value = [
             {"id": "1", "title": "Result 1"}
         ]
 
-        result = platform_search_intent(
+        request = ChatRequest(
             message="Search for customer data",
             user_id="test-user",
             session_id="test-session"
         )
+
+        result = await handle_platform_search(request, entities={"query": "customer data"})
 
         # Should handle search
         assert result is not None

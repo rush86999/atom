@@ -92,7 +92,9 @@ class TestSandboxExecutor:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -102,8 +104,10 @@ class TestSandboxExecutor:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=0,  # No interventions
                 constitutional_score=0.95,
@@ -131,7 +135,9 @@ class TestSandboxExecutor:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -141,8 +147,10 @@ class TestSandboxExecutor:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=10,  # High interventions
                 constitutional_score=0.7,
@@ -233,7 +241,9 @@ class TestCalculateReadinessScore:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -258,7 +268,9 @@ class TestCalculateReadinessScore:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -268,10 +280,12 @@ class TestCalculateReadinessScore:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
-                human_intervention_count=1,  # Low interventions (10% rate)
+                human_intervention_count=0 if i < 9 else 1,  # Only 1 intervention out of 10 (10% rate)
                 constitutional_score=0.80,  # Above 0.70 threshold
                 started_at=datetime.now()
             )
@@ -299,7 +313,9 @@ class TestCalculateReadinessScore:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -309,8 +325,10 @@ class TestCalculateReadinessScore:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.90,
@@ -337,7 +355,9 @@ class TestCalculateReadinessScore:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -347,8 +367,10 @@ class TestCalculateReadinessScore:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=6,  # 60% intervention rate
                 constitutional_score=0.90,
@@ -375,7 +397,9 @@ class TestCalculateReadinessScore:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -385,8 +409,10 @@ class TestCalculateReadinessScore:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=1,
                 constitutional_score=0.60,  # Below 0.70 threshold
@@ -412,7 +438,9 @@ class TestCalculateReadinessScore:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -422,8 +450,10 @@ class TestCalculateReadinessScore:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.90,
@@ -579,7 +609,9 @@ class TestPromoteAgent:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -621,7 +653,9 @@ class TestPromoteAgent:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -650,6 +684,9 @@ class TestPromoteAgent:
             agent = AgentRegistry(
                 id=f"agent-{from_maturity}",
                 name=f"Agent {from_maturity}",
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
                 status=AgentStatus[from_maturity]
             )
             db_session.add(agent)
@@ -693,7 +730,9 @@ class TestGetGraduationAuditTrail:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.INTERN,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.intern",
+            class_name="InternAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -703,8 +742,10 @@ class TestGetGraduationAuditTrail:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="INTERN",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=2,
                 constitutional_score=0.85,
@@ -721,7 +762,7 @@ class TestGetGraduationAuditTrail:
 
         assert result["agent_id"] == "test-agent"
         assert result["agent_name"] == "Test Agent"
-        assert result["current_maturity"] == "INTERN"
+        assert result["current_maturity"] == "intern"  # Enum value is lowercase
         assert result["total_episodes"] == 5
         assert result["total_interventions"] == 10
         assert "episodes_by_maturity" in result
@@ -735,7 +776,9 @@ class TestGetGraduationAuditTrail:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.INTERN,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.intern",
+            class_name="InternAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -745,8 +788,10 @@ class TestGetGraduationAuditTrail:
             episode = Episode(
                 id=f"episode-student-{i}",
                 agent_id="test-agent",
-                title=f"Student Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Student Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=1,
                 constitutional_score=0.80,
@@ -758,8 +803,10 @@ class TestGetGraduationAuditTrail:
             episode = Episode(
                 id=f"episode-intern-{i}",
                 agent_id="test-agent",
-                title=f"Intern Episode {i}",
-                maturity_at_time="INTERN",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Intern Episode {i}",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.90,
@@ -774,8 +821,8 @@ class TestGetGraduationAuditTrail:
             agent_id="test-agent"
         )
 
-        assert result["episodes_by_maturity"]["STUDENT"] == 3
-        assert result["episodes_by_maturity"]["INTERN"] == 2
+        assert result["episodes_by_maturity"]["student"] == 3
+        assert result["episodes_by_maturity"]["intern"] == 2
 
 
 class TestCalculateSupervisionMetrics:
@@ -789,7 +836,9 @@ class TestCalculateSupervisionMetrics:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.SUPERVISED,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.supervised",
+            class_name="SupervisedAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -813,7 +862,9 @@ class TestCalculateSupervisionMetrics:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.SUPERVISED,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.supervised",
+            class_name="SupervisedAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -824,6 +875,10 @@ class TestCalculateSupervisionMetrics:
             session = SupervisionSession(
                 id=f"session-{i}",
                 agent_id="test-agent",
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
                 status="completed",
                 started_at=base_time - timedelta(hours=i+1),
                 duration_seconds=3600,  # 1 hour each
@@ -855,7 +910,9 @@ class TestCalculateSupervisionMetrics:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.SUPERVISED,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.supervised",
+            class_name="SupervisedAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -864,6 +921,10 @@ class TestCalculateSupervisionMetrics:
         session1 = SupervisionSession(
             id="session-1",
             agent_id="test-agent",
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
             status="completed",
             started_at=datetime.now(),
             duration_seconds=7200,  # 2 hours
@@ -875,6 +936,10 @@ class TestCalculateSupervisionMetrics:
         session2 = SupervisionSession(
             id="session-2",
             agent_id="test-agent",
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
             status="completed",
             started_at=datetime.now(),
             duration_seconds=1800,  # 30 minutes
@@ -909,6 +974,10 @@ class TestCalculatePerformanceTrend:
             SupervisionSession(
                 id=f"session-{i}",
                 agent_id="test-agent",
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
                 supervisor_rating=4.0,
                 started_at=datetime.now()
             )
@@ -926,13 +995,18 @@ class TestCalculatePerformanceTrend:
         base_time = datetime.now()
 
         # Create 10 sessions with improving performance
+        # Recent sessions (lower i) should have BETTER performance than older sessions
         sessions = []
         for i in range(10):
             session = SupervisionSession(
                 id=f"session-{i}",
                 agent_id="test-agent",
-                supervisor_rating=3.0 + (i * 0.2),  # Improving ratings
-                intervention_count=10 - i,  # Decreasing interventions
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
+                supervisor_rating=5.0 - (i * 0.2),  # Recent better, older worse
+                intervention_count=i,  # Recent fewer, older more
                 started_at=base_time - timedelta(hours=i+1)
             )
             sessions.append(session)
@@ -948,13 +1022,18 @@ class TestCalculatePerformanceTrend:
         base_time = datetime.now()
 
         # Create 10 sessions with declining performance
+        # Recent sessions (lower i) should have WORSE performance than older sessions
         sessions = []
         for i in range(10):
             session = SupervisionSession(
                 id=f"session-{i}",
                 agent_id="test-agent",
-                supervisor_rating=5.0 - (i * 0.3),  # Declining ratings
-                intervention_count=i,  # Increasing interventions
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
+                supervisor_rating=3.0 + (i * 0.3),  # Recent worse, older better
+                intervention_count=10 - i,  # Recent more, older fewer
                 started_at=base_time - timedelta(hours=i+1)
             )
             sessions.append(session)
@@ -975,7 +1054,9 @@ class TestValidateGraduationWithSupervision:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.INTERN,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.intern",
+            class_name="InternAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -985,8 +1066,10 @@ class TestValidateGraduationWithSupervision:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="INTERN",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.90,
@@ -999,6 +1082,10 @@ class TestValidateGraduationWithSupervision:
             session = SupervisionSession(
                 id=f"session-{i}",
                 agent_id="test-agent",
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
                 status="completed",
                 started_at=datetime.now(),
                 duration_seconds=3600,
@@ -1028,7 +1115,9 @@ class TestValidateGraduationWithSupervision:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.INTERN,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.intern",
+            class_name="InternAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -1038,8 +1127,10 @@ class TestValidateGraduationWithSupervision:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="INTERN",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=5,
                 constitutional_score=0.70,
@@ -1052,6 +1143,10 @@ class TestValidateGraduationWithSupervision:
             session = SupervisionSession(
                 id=f"session-{i}",
                 agent_id="test-agent",
+                agent_name="Test Agent",
+                workspace_id="default",
+                trigger_context={},
+                supervisor_id="supervisor-123",
                 status="completed",
                 started_at=datetime.now(),
                 duration_seconds=3600,
@@ -1083,7 +1178,9 @@ class TestCalculateSkillUsageMetrics:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.INTERN,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.intern",
+            class_name="InternAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -1107,7 +1204,9 @@ class TestCalculateSkillUsageMetrics:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.INTERN,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.intern",
+            class_name="InternAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -1117,6 +1216,7 @@ class TestCalculateSkillUsageMetrics:
             execution = SkillExecution(
                 id=f"execution-{i}",
                 agent_id="test-agent",
+                tenant_id="default",
                 skill_id=f"skill-{i % 3}",  # 3 unique skills
                 skill_source="community",
                 status="success",
@@ -1149,7 +1249,9 @@ class TestCalculateReadinessScoreWithSkills:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.INTERN,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.intern",
+            class_name="InternAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -1159,8 +1261,10 @@ class TestCalculateReadinessScoreWithSkills:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="INTERN",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="intern",
                 status="completed",
                 human_intervention_count=1,
                 constitutional_score=0.80,
@@ -1173,6 +1277,7 @@ class TestCalculateReadinessScoreWithSkills:
             execution = SkillExecution(
                 id=f"execution-{i}",
                 agent_id="test-agent",
+                tenant_id="default",
                 skill_id=f"skill-{i}",
                 skill_source="community",
                 status="success",
@@ -1205,7 +1310,9 @@ class TestExecuteGraduationExam:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()
@@ -1215,8 +1322,10 @@ class TestExecuteGraduationExam:
             episode = Episode(
                 id=f"episode-{i}",
                 agent_id="test-agent",
-                title=f"Episode {i}",
-                maturity_at_time="STUDENT",
+                tenant_id="default",
+                outcome="success",
+                task_description=f"Episode {i}",
+                maturity_at_time="student",
                 status="completed",
                 human_intervention_count=0,
                 constitutional_score=0.95,
@@ -1280,8 +1389,10 @@ class TestEdgeCasesAndErrorHandling:
         episode = Episode(
             id="test-episode",
             agent_id="test-agent",
-            title="Test Episode",
-            maturity_at_time="INTERN",
+                tenant_id="default",
+                outcome="success",
+            task_description="Test Episode",
+            maturity_at_time="intern",
             status="completed"
         )
         db_session.add(episode)
@@ -1290,7 +1401,7 @@ class TestEdgeCasesAndErrorHandling:
         service = AgentGraduationService(db_session)
 
         # Mock ConstitutionalValidator to avoid import errors
-        with patch('core.agent_graduation_service.ConstitutionalValidator') as mock_validator_class:
+        with patch('core.constitutional_validator.ConstitutionalValidator') as mock_validator_class:
             mock_validator = Mock()
             mock_validator.validate_actions.return_value = {
                 "compliant": True,
@@ -1313,7 +1424,7 @@ class TestEdgeCasesAndErrorHandling:
         service = AgentGraduationService(db_session)
 
         # Mock sandbox executor
-        with patch('core.agent_graduation_service.get_sandbox_executor') as mock_get_executor:
+        with patch('core.sandbox_executor.get_sandbox_executor') as mock_get_executor:
             mock_executor = Mock()
             mock_executor.execute_in_sandbox = AsyncMock(return_value=Mock(
                 passed=True,
@@ -1349,7 +1460,9 @@ class TestEdgeCasesAndErrorHandling:
             id="test-agent",
             name="Test Agent",
             status=AgentStatus.STUDENT,
-        category="Testing"
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
         )
         db_session.add(agent)
         db_session.commit()

@@ -21,7 +21,7 @@ from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 from sqlalchemy.orm import Session
 
-from core.models import User, WorkflowExecution, WorkflowStepExecution, WorkflowTemplate, WorkflowSnapshot
+from core.models import User, WorkflowExecution, WorkflowTemplate, WorkflowSnapshot
 
 
 class TestWorkflowExecutionModelInvariants:
@@ -43,6 +43,7 @@ class TestWorkflowExecutionModelInvariants:
         # Arrange & Act: Create workflow execution
         execution = WorkflowExecution(
             workflow_id=f"workflow_{uuid.uuid4()}",
+            tenant_id="default",
             status=status,
             version=version
         )
@@ -77,6 +78,7 @@ class TestWorkflowExecutionModelInvariants:
 
         execution = WorkflowExecution(
             workflow_id=f"workflow_{uuid.uuid4()}",
+            tenant_id="default",
             status="COMPLETED",
             created_at=created_at,
             updated_at=updated_at
@@ -108,6 +110,7 @@ class TestWorkflowExecutionModelInvariants:
 
         execution = WorkflowExecution(
             workflow_id=f"workflow_{uuid.uuid4()}",
+            tenant_id="default",
             status=status,
             error=error
         )
@@ -144,6 +147,7 @@ class TestWorkflowExecutionStateTransitions:
         # Create execution with initial state
         execution = WorkflowExecution(
             workflow_id=f"workflow_{uuid.uuid4()}",
+            tenant_id="default",
             status=initial_state
         )
         db_session.add(execution)
@@ -168,6 +172,7 @@ class TestWorkflowExecutionStateTransitions:
         """INVARIANT: Version numbers should be monotonically increasing."""
         execution = WorkflowExecution(
             workflow_id=f"workflow_{uuid.uuid4()}",
+            tenant_id="default",
             version=from_version
         )
         db_session.add(execution)
@@ -220,6 +225,7 @@ class TestWorkflowIdUniquenessInvariants:
             workflow_id = f"workflow_{uuid.uuid4()}"
             execution = WorkflowExecution(
                 workflow_id=workflow_id,
+                tenant_id="default",
                 status="PENDING"
             )
             db_session.add(execution)
@@ -295,6 +301,7 @@ class TestWorkflowExecutionLifecycle:
         """INVARIANT: Workflow executions can be bound to users."""
         execution = WorkflowExecution(
             workflow_id=workflow_id,
+            tenant_id="default",
             status="PENDING",
             user_id=user_id
         )
@@ -313,6 +320,7 @@ class TestWorkflowExecutionLifecycle:
         """INVARIANT: Workflow executions can have ownership."""
         execution = WorkflowExecution(
             workflow_id=workflow_id,
+            tenant_id="default",
             status="PENDING",
             owner_id=owner_id
         )
@@ -334,6 +342,7 @@ class TestWorkflowExecutionLifecycle:
 
         execution = WorkflowExecution(
             workflow_id=f"workflow_{uuid.uuid4()}",
+            tenant_id="default",
             status="PENDING",
             visibility=visibility
         )
@@ -358,6 +367,7 @@ class TestWorkflowExecutionConcurrency:
         for _ in range(execution_count):
             execution = WorkflowExecution(
                 workflow_id=workflow_id,
+                tenant_id="default",
                 status="RUNNING"
             )
             db_session.add(execution)
@@ -384,6 +394,7 @@ class TestWorkflowExecutionConcurrency:
         for _ in range(execution_count):
             execution = WorkflowExecution(
                 workflow_id=f"workflow_{uuid.uuid4()}",
+                tenant_id="default",
                 status="PENDING"
             )
             db_session.add(execution)
@@ -399,55 +410,8 @@ class TestWorkflowExecutionConcurrency:
         assert len(execution_ids) == execution_count, f"Expected {execution_count} unique IDs"
 
 
-class TestWorkflowStepExecutionInvariants:
-    """Test WorkflowStepExecution model maintains critical invariants."""
-
-    @given(
-        total_steps=st.integers(min_value=1, max_value=100)
-    )
-    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_step_number_validity(self, db_session: Session, total_steps: int):
-        """INVARIANT: Step numbers should be within valid range."""
-        # Generate valid step number within range
-        import random
-        step_number = random.randint(0, max(0, total_steps - 1))
-
-        # Step number should be in valid range
-        assert 0 <= step_number < total_steps, \
-            f"Step number {step_number} outside range [0, {total_steps - 1}]"
-
-    @given(
-        step_status=st.sampled_from(["PENDING", "RUNNING", "COMPLETED", "FAILED", "SKIPPED"])
-    )
-    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_step_status_enum_validity(self, db_session: Session, step_status: str):
-        """INVARIANT: Step status must be valid enum value."""
-        valid_statuses = ["PENDING", "RUNNING", "COMPLETED", "FAILED", "SKIPPED"]
-        assert step_status in valid_statuses, f"Invalid step status: {step_status}"
-
-    @given(
-        retry_count=st.integers(min_value=0, max_value=10)
-    )
-    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_step_retry_count_limits(self, db_session: Session, retry_count: int):
-        """INVARIANT: Step retry count should be limited."""
-        max_retries = 10
-        assert 0 <= retry_count <= max_retries, \
-            f"Retry count {retry_count} outside range [0, {max_retries}]"
-
-    @given(
-        duration_ms=st.integers(min_value=0, max_value=3600000)  # 0 to 1 hour
-    )
-    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
-    def test_step_execution_duration(self, db_session: Session, duration_ms: int):
-        """INVARIANT: Step execution duration should be tracked."""
-        # Duration should be non-negative
-        assert duration_ms >= 0, "Duration should be non-negative"
-
-        # Duration should be reasonable
-        max_duration = 3600000  # 1 hour
-        assert duration_ms <= max_duration, \
-            f"Duration {duration_ms}ms exceeds maximum {max_duration}ms"
+    # WorkflowStepExecution invariants removed (model deprecated)
+    pass
 
 
 class TestWorkflowTemplateInvariants:

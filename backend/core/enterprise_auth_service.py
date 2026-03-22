@@ -371,11 +371,12 @@ class EnterpriseAuthService:
         if user.role == UserRole.SUPER_ADMIN.value:
             return ["all"]
 
-        # System-level admin roles have broad permissions
-        if user.role in [
-            UserRole.SECURITY_ADMIN.value,
-            UserRole.WORKSPACE_ADMIN.value
-        ]:
+        # Owner has all permissions
+        if user.role == UserRole.OWNER.value:
+            return ["all"]
+
+        # Admin roles have broad permissions
+        if user.role == UserRole.ADMIN.value:
             return [
                 "manage_users",
                 "manage_security",
@@ -386,33 +387,19 @@ class EnterpriseAuthService:
                 "execute_workflows"
             ]
 
-        # Specialized admin roles
-        if user.role == UserRole.WORKFLOW_ADMIN.value:
+        # Workspace admin has broad permissions
+        if user.role == UserRole.WORKSPACE_ADMIN.value:
             return [
-                "manage_workflows",
-                "view_analytics",
-                "execute_workflows",
-                "manage_automations"
-            ]
-        elif user.role == UserRole.AUTOMATION_ADMIN.value:
-            return [
-                "manage_automations",
-                "execute_workflows",
-                "view_analytics"
-            ]
-        elif user.role == UserRole.INTEGRATION_ADMIN.value:
-            return [
-                "manage_integrations",
-                "view_analytics"
-            ]
-        elif user.role == UserRole.COMPLIANCE_ADMIN.value:
-            return [
+                "manage_users",
+                "manage_security",
                 "view_audit_logs",
+                "manage_workflows",
+                "manage_integrations",
                 "view_analytics",
-                "manage_compliance"
+                "execute_workflows"
             ]
 
-        # Standard roles (no workspace context needed)
+        # Team lead can execute workflows and view reports
         if user.role == UserRole.TEAM_LEAD.value:
             return [
                 "read_workflows",
@@ -420,16 +407,26 @@ class EnterpriseAuthService:
                 "view_analytics",
                 "manage_team_reports"
             ]
-        elif user.role == UserRole.MEMBER.value:
+
+        # Member can execute workflows
+        if user.role == UserRole.MEMBER.value:
             return [
                 "read_workflows",
                 "execute_workflows",
                 "view_analytics"
             ]
-        elif user.role == UserRole.GUEST.value:
+
+        # Viewer can only read
+        if user.role == UserRole.VIEWER.value:
             return [
                 "read_workflows",
                 "view_analytics"
+            ]
+
+        # Guest has minimal permissions
+        if user.role == UserRole.GUEST.value:
+            return [
+                "read_workflows"
             ]
 
         # Fallback to minimal permissions

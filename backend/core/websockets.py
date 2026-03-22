@@ -241,6 +241,18 @@ class ConnectionManager:
             audit_data
         )
 
+    async def notify_workflow_status(self, user_id: str, execution_id: str, status: str, data: Any = None):
+        """Broadcast workflow status update to user channel"""
+        await self.broadcast_event(
+            f"user:{user_id}",
+            "workflow:status",
+            {
+                "execution_id": execution_id,
+                "status": status,
+                "data": data
+            }
+        )
+
 manager = ConnectionManager()
 
 def get_connection_manager():

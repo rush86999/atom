@@ -2,7 +2,7 @@
 
 
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, UniqueConstraint, Enum as SQLEnum, Index, BigInteger, TypeDecorator, Numeric, Date
-from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 import uuid
 from decimal import Decimal
 
@@ -686,6 +686,7 @@ class WorkflowExecution(Base):
     __tablename__ = "workflow_executions"
 
     execution_id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     workflow_id = Column(String, nullable=False, index=True)
     status = Column(String, default=WorkflowExecutionStatus.PENDING.value, index=True)
     input_data = Column(Text, nullable=True)
@@ -696,6 +697,7 @@ class WorkflowExecution(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     error = Column(Text, nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     # Add user_id foreign key for user binding
     user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     
@@ -2723,6 +2725,7 @@ class CanvasAudit(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     canvas_id = Column(String(255), ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
     tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(String(255), ForeignKey("chat_sessions.id", ondelete="SET NULL"), nullable=True, index=True)  # Link to chat session for episodic memory
 
     # Action details
     action_type = Column(String(100), nullable=False, index=True)  # "form_submit", "canvas_close", "artifact_modify", etc.
@@ -2740,11 +2743,13 @@ class CanvasAudit(Base):
 
     # Relationships
     canvas = relationship("Canvas", back_populates="audit_records")
+    session = relationship("ChatSession", foreign_keys=[session_id])
 
     __table_args__ = (
         Index('idx_canvas_audit_canvas_id', 'canvas_id'),
         Index('idx_canvas_audit_action_type', 'action_type'),
         Index('idx_canvas_audit_created_at', 'created_at'),
+        Index('idx_canvas_audit_session_id', 'session_id'),
     )
 
     def __repr__(self):
@@ -2837,7 +2842,11 @@ class BrowserAudit(Base):
     agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
     user = relationship("User", foreign_keys=[user_id])
 
+<<<<<<< HEAD
 # CONSOLIDATED to line 3668: class Artifact(Base):
+=======
+# Removed duplicate Artifact class - using consolidated definition at line 3668
+>>>>>>> 2e1f47dae7b2a3182b1fffe990502909935fa836
 #     """
 #     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
 #
@@ -2868,6 +2877,10 @@ class BrowserAudit(Base):
 #     author = relationship("User", foreign_keys=[author_id])
 #     locked_by = relationship("User", foreign_keys=[locked_by_user_id])
 #     workspace = relationship("Workspace")
+<<<<<<< HEAD
+=======
+# Artifact class moved - duplicate definition resolved
+>>>>>>> 2e1f47dae7b2a3182b1fffe990502909935fa836
 
 class ArtifactVersion(Base):
     """
@@ -4615,17 +4628,22 @@ class WorkflowExecutionLog(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     # Core linkage
     execution_id = Column(String, index=True, nullable=False)
-    workflow_id = Column(String, index=True, nullable=False)
-    step_id = Column(String, index=True, nullable=False)
-    step_type = Column(String, nullable=False)
+    workflow_id = Column(String, index=True, nullable=True)
+    step_id = Column(String, index=True, nullable=True)
+    step_type = Column(String, nullable=True)
     
     # Metrics
-    start_time = Column(DateTime(timezone=True), nullable=False)
-    end_time = Column(DateTime(timezone=True), nullable=False)
-    duration_ms = Column(Float, nullable=False)
+    start_time = Column(DateTime(timezone=True), nullable=True)
+    end_time = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Float, nullable=True)
     
-    status = Column(String, nullable=False)
+    status = Column(String, nullable=True)
     error_code = Column(String, nullable=True)
+    
+    # Compatibility with older tests
+    level = Column(String, nullable=True)
+    message = Column(Text, nullable=True)
+    timestamp = Column(DateTime(timezone=True), default=func.now())
     
     trigger_data = Column(JSON, nullable=True)
     results = Column(JSON, nullable=True)
@@ -6020,7 +6038,7 @@ class PackageInstallation(Base):
     version = Column(String(100), nullable=False)
     maturity_level_at_install = Column(String(50), nullable=False)
     vulnerabilities_found = Column(Integer, default=0)
-    vulnerability_details = Column(JSONB, nullable=True)
+    vulnerability_details = Column(JSON, nullable=True)
     installation_status = Column(String(50), nullable=False, default="pending")
     error_message = Column(Text, nullable=True)
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -6245,7 +6263,7 @@ class SDLCAgentConfig(Base):
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     agent_type = Column(String(20), nullable=False)  # planner, coder, tester, reviewer, deployer
     enabled = Column(Boolean, default=False, nullable=False)
-    config = Column(JSONB, default={}, nullable=True)  # Type-specific configuration
+    config = Column(JSON, default={}, nullable=True)  # Type-specific configuration
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -6282,7 +6300,7 @@ class SDLCAuditLog(Base):
     approval_required = Column(Boolean, nullable=True)  # Whether approval was needed
     approved_by = Column(String(255), nullable=True)  # Approver identifier
     approved_at = Column(DateTime(timezone=True), nullable=True)  # Approval timestamp
-    constitutional_violations = Column(JSONB, nullable=True)  # List of violations if any
+    constitutional_violations = Column(JSON, nullable=True)  # List of violations if any
     episode_id = Column(String, ForeignKey("agent_episodes.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
@@ -6610,7 +6628,7 @@ class ACUConsumption(Base):
     acu_cost = Column(Numeric(10, 4), nullable=False)
 
     # Raw metrics from Fly.io
-    raw_metrics = Column(JSONB, nullable=True)
+    raw_metrics = Column(JSON, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -6688,7 +6706,7 @@ class ACUUsageReport(Base):
     report_type = Column(String(20), nullable=False)  # 'daily', 'weekly', 'monthly'
 
     # Report data
-    project_breakdown = Column(JSONB, nullable=True)  # {project_id: {acu, cost}}
+    project_breakdown = Column(JSON, nullable=True)  # {project_id: {acu, cost}}
     quota_usage_percent = Column(Numeric(5, 2), nullable=True)
     forecast_overage = Column(Boolean, nullable=True)
 
@@ -6824,12 +6842,12 @@ class SmartHomeDevice(Base):
     room = Column(String(100))
     floor = Column(String(50))
 
-    # Device capabilities (JSONB array)
+    # Device capabilities (JSON array)
     # ['on_off', 'brightness', 'color', 'color_temperature', 'thermostat', 'lock', 'motion', 'temperature']
-    capabilities = Column(JSONB, default=list)
+    capabilities = Column(JSON, default=list)
 
     # Current device state (dynamic properties)
-    state = Column(JSONB, default=dict)
+    state = Column(JSON, default=dict)
 
     # Device metadata
     manufacturer = Column(String(255))
@@ -6888,13 +6906,13 @@ class SmartHomeAutomationRule(Base):
     # TAP Pattern: Trigger -> Condition(s) -> Action(s)
     # Trigger: What initiates the rule
     trigger_type = Column(String(50), nullable=False)  # 'state', 'time', 'event', 'geolocation'
-    trigger_config = Column(JSONB, nullable=False)  # Trigger-specific configuration
+    trigger_config = Column(JSON, nullable=False)  # Trigger-specific configuration
 
     # Conditions: Optional filters (AND/OR/NOT logic)
-    conditions = Column(JSONB, default=list)  # Array of condition objects
+    conditions = Column(JSON, default=list)  # Array of condition objects
 
     # Actions: What to execute when rule fires
-    actions = Column(JSONB, nullable=False)  # Array of action objects
+    actions = Column(JSON, nullable=False)  # Array of action objects
 
     # Rule settings
     is_enabled = Column(Boolean, nullable=False, default=True)
@@ -6943,7 +6961,7 @@ class SmartHomeScene(Base):
 
     # Scene devices (what to set when scene activates)
     # [{device_id, state, delay_seconds}]
-    scene_devices = Column(JSONB, nullable=False)
+    scene_devices = Column(JSON, nullable=False)
 
     # Scene settings
     is_favorite = Column(Boolean, nullable=False, default=False)
@@ -6991,7 +7009,7 @@ class SmartHomeSchedule(Base):
     # What to execute
     target_type = Column(String(50), nullable=False)  # 'scene', 'device', 'automation_rule'
     target_id = Column(String, nullable=False)  # ID of scene/device/rule
-    target_config = Column(JSONB)  # Configuration for target execution
+    target_config = Column(JSON)  # Configuration for target execution
 
     # Schedule settings
     is_enabled = Column(Boolean, nullable=False, default=True)
@@ -7052,7 +7070,7 @@ class SmartHomeEnergyUsage(Base):
     peak_power_watts = Column(Numeric(8, 2))
 
     # Optimization suggestions
-    optimization_suggestions = Column(JSONB)  # Suggestions to reduce consumption
+    optimization_suggestions = Column(JSON)  # Suggestions to reduce consumption
 
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -7839,3 +7857,283 @@ class SyncState(Base):
 
     def __repr__(self):
         return f"<SyncState(id={self.id}, status={self.status}, last_sync={self.last_sync})>"
+
+
+# =============================================================================
+# CANVAS COLLABORATION MODELS (Multi-Agent Canvas Collaboration)
+# =============================================================================
+
+class CanvasCollaborationSession(Base):
+    """
+    Multi-agent collaboration session for shared canvases.
+
+    Manages collaboration between multiple agents working on the same canvas
+    with role-based permissions, conflict detection, and coordination.
+    """
+    __tablename__ = "canvas_collaboration_sessions"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Canvas identification
+    canvas_id = Column(String(255), nullable=False, index=True)
+    session_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Collaboration settings
+    collaboration_mode = Column(String(50), nullable=False, default="sequential")  # sequential, parallel, locked
+    max_agents = Column(Integer, nullable=False, default=5)
+
+    # Status tracking
+    status = Column(String(50), nullable=False, default="active", index=True)  # active, paused, completed, cancelled
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    participants = relationship("CanvasAgentParticipant", back_populates="session", cascade="all, delete-orphan")
+    conflicts = relationship("CanvasConflict", back_populates="session", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<CanvasCollaborationSession(id={self.id}, canvas_id={self.canvas_id}, status={self.status})>"
+
+
+class CanvasAgentParticipant(Base):
+    """
+    Agent participant in a canvas collaboration session.
+
+    Tracks agent participation, roles, permissions, and activity within
+    collaboration sessions.
+    """
+    __tablename__ = "canvas_agent_participants"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Foreign keys
+    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Role and permissions
+    role = Column(String(50), nullable=False, default="contributor")  # owner, contributor, reviewer, viewer
+    permissions = Column(JSON, nullable=True)  # Granular permissions list
+
+    # Status tracking
+    status = Column(String(50), nullable=False, default="active", index=True)  # active, inactive, removed
+    actions_count = Column(Integer, nullable=False, default=0)
+    held_locks = Column(JSON, nullable=True)  # List of component IDs currently locked
+
+    # Activity tracking
+    last_activity_at = Column(DateTime(timezone=True), nullable=True)
+    left_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    session = relationship("CanvasCollaborationSession", back_populates="participants")
+    agent = relationship("AgentRegistry", backref="collaboration_sessions")
+
+    def __repr__(self):
+        return f"<CanvasAgentParticipant(id={self.id}, agent_id={self.agent_id}, role={self.role})>"
+
+
+class CanvasConflict(Base):
+    """
+    Conflict detection and resolution for canvas collaboration.
+
+    Tracks conflicts when multiple agents try to modify the same component
+    and their resolution.
+    """
+    __tablename__ = "canvas_conflicts"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Foreign keys
+    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    canvas_id = Column(String(255), nullable=False, index=True)
+    component_id = Column(String(255), nullable=False, index=True)
+
+    # Conflicting agents
+    agent_a_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
+    agent_b_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
+
+    # Conflicting actions
+    agent_a_action = Column(String(50), nullable=False)  # update, delete, move
+    agent_b_action = Column(String(50), nullable=False)
+
+    # Resolution
+    resolution = Column(String(50), nullable=True)  # merge, agent_a_wins, agent_b_wins, manual
+    resolved_by = Column(String(255), nullable=True)  # user_id or system
+    resolved_action = Column(JSON, nullable=True)  # Final action taken
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    detected_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    # Relationships
+    session = relationship("CanvasCollaborationSession", back_populates="conflicts")
+
+    def __repr__(self):
+        return f"<CanvasConflict(id={self.id}, component_id={self.component_id}, resolution={self.resolution})>"
+
+
+# =============================================================================
+# ADDITIONAL DEBUG MODELS
+# =============================================================================
+
+class DebugStateSnapshot(Base):
+    """
+    System state snapshot for debugging.
+
+    Captures complete system state at a point in time for debugging
+    and rollback analysis.
+    """
+    __tablename__ = "debug_state_snapshots"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Snapshot metadata
+    component_type = Column(String(50), nullable=False, index=True)  # agent, workflow, system
+    component_id = Column(String(255), nullable=False, index=True)
+    snapshot_type = Column(String(50), nullable=False, index=True)  # full, incremental, checkpoint
+
+    # State data
+    state_data = Column(JSON, nullable=False)  # Complete state snapshot
+    snapshot_metadata = Column(JSON, nullable=True)  # Additional context
+
+    # Timestamps
+    captured_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<DebugStateSnapshot(id={self.id}, component_id={self.component_id}, type={self.snapshot_type})>"
+
+
+class DebugMetric(Base):
+    """
+    Debug metric for performance monitoring.
+
+    Tracks performance metrics and debugging KPIs.
+    """
+    __tablename__ = "debug_metrics"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Metric identification
+    metric_name = Column(String(100), nullable=False, index=True)
+    metric_type = Column(String(50), nullable=False)  # counter, gauge, histogram
+    component_type = Column(String(50), nullable=False, index=True)
+    component_id = Column(String(255), nullable=True, index=True)
+
+    # Metric value
+    value = Column(Float, nullable=False)
+    unit = Column(String(50), nullable=True)  # ms, count, percent, etc.
+
+    # Labels/dimensions
+    labels = Column(JSON, nullable=True)  # Additional labels for grouping
+
+    # Timestamps
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<DebugMetric(id={self.id}, name={self.metric_name}, value={self.value})>"
+
+
+# =============================================================================
+# FINANCIAL AUDIT MODELS (SOX Compliance & Financial Tracking)
+# =============================================================================
+
+class FinancialAudit(Base):
+    """
+    Financial audit trail for SOX compliance and transaction tracking.
+
+    Records all financial operations with automatic logging via SQLAlchemy
+    event listeners. Provides tamper-evidence through hash chain integration.
+    """
+    __tablename__ = 'financial_audits'
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Account reference
+    account_id = Column(String(255), ForeignKey("financial_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Operation details
+    operation_type = Column(String(50), nullable=False, index=True)  # INSERT, UPDATE, DELETE
+    table_name = Column(String(100), nullable=False, index=True)
+    record_id = Column(String(255), nullable=True, index=True)
+
+    # Change tracking
+    old_values = Column(JSON, nullable=True)  # Before state
+    new_values = Column(JSON, nullable=True)  # After state
+
+    # User context (extracted from session.info)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    agent_maturity = Column(String(50), nullable=True)  # STUDENT, INTERN, SUPERVISED, AUTONOMOUS
+
+    # Compliance
+    hash_chain = Column(String(64), nullable=True)  # SHA-256 hash chain for tamper evidence
+    previous_hash = Column(String(64), nullable=True)  # Links to previous audit entry
+
+    # Metadata
+    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    audit_metadata = Column(JSON, nullable=True)  # Additional compliance data
+
+    # Relationships
+    account = relationship("FinancialAccount", backref="audit_trail")
+
+    def __repr__(self):
+        return f"<FinancialAudit(id={self.id}, operation_type={self.operation_type}, account_id={self.account_id})>"
+
+
+class FinancialAccount(Base):
+    """
+    Financial account for tracking budget limits and expenses.
+
+    Supports account hierarchy with parent-child relationships for
+    departmental budget allocation and tracking.
+    """
+    __tablename__ = 'financial_accounts'
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Account details
+    name = Column(String(255), nullable=False)
+    account_type = Column(String(50), nullable=False, index=True)  # checking, savings, credit_card, expense
+    parent_account_id = Column(String(255), ForeignKey("financial_accounts.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    # Balance tracking
+    balance = Column(Float, nullable=False, default=0.0)
+    currency = Column(String(3), nullable=False, default="USD")
+
+    # Budget limits
+    budget_limit = Column(Float, nullable=True)
+    alert_threshold = Column(Float, nullable=True)  # Alert when spending exceeds % of budget
+
+    # Status
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    status = Column(String(50), nullable=False, default="active", index=True)  # active, suspended, closed
+
+    # Tenant
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Metadata
+    description = Column(Text, nullable=True)
+    account_metadata = Column(JSON, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=False)
+
+    # Relationships
+    tenant = relationship("Tenant", backref="financial_accounts")
+    parent_account = relationship("FinancialAccount", remote_side=[id], backref="child_accounts")
+
+    def __repr__(self):
+        return f"<FinancialAccount(id={self.id}, name={self.name}, balance={self.balance}>"

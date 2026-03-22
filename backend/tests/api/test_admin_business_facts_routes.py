@@ -492,7 +492,8 @@ class TestBusinessFactsGet:
             )
 
             assert response.status_code == status.HTTP_404_NOT_FOUND
-            assert "not found" in response.json()["detail"].lower()
+            detail = response.json()["detail"]
+            assert "not found" in detail["error"]["message"].lower()
 
     def test_get_fact_with_metadata(
         self,
@@ -810,9 +811,9 @@ class TestBusinessFactsUpload:
         """Test successful document upload and extraction."""
         filename, file_content, content_type = mock_pdf_upload()
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service), \
-             patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+             patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
 
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
@@ -850,9 +851,9 @@ class TestBusinessFactsUpload:
         """Test upload with domain parameter."""
         filename, file_content, content_type = mock_pdf_upload()
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service), \
-             patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+             patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
 
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
@@ -877,14 +878,15 @@ class TestBusinessFactsUpload:
         filename = "test.exe"
         content = b"MZ\x90\x00"  # EXE header
 
-        with patch('core.agent_world_model.WorldModelService'):
+        with patch('api.admin.business_facts_routes.WorldModelService'):
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
                 files={"file": (filename, io.BytesIO(content), "application/x-msdownload")}
             )
 
-            assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-            assert "Unsupported file type" in response.json()["detail"]
+            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            detail = response.json()["detail"]
+            assert "Unsupported file type" in detail["error"]["message"]
 
     def test_upload_extracts_multiple_facts(
         self,
@@ -900,7 +902,10 @@ class TestBusinessFactsUpload:
         # Configure mock to return multiple facts
         from core.policy_fact_extractor import ExtractionResult, ExtractedFact
 
-        mock_policy_extractor.extract_facts_from_document.return_value = ExtractionResult(
+        # Configure bulk_record_facts to return 5
+        mock_world_model_service.bulk_record_facts.return_value = 5
+
+        extraction_result = ExtractionResult(
             success=True,
             facts=[
                 ExtractedFact(fact=f"Fact {i}", domain="test", confidence=0.9)
@@ -910,9 +915,12 @@ class TestBusinessFactsUpload:
             source_document=filename
         )
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service), \
-             patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+             patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
+
+            # Configure mock inside patch context
+            mock_policy_extractor.extract_facts_from_document.return_value = extraction_result
 
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
@@ -936,9 +944,9 @@ class TestBusinessFactsUpload:
         s3_uri = "s3://atom-business-facts/workspace-123/doc.pdf"
         mock_storage_service.upload_file.return_value = s3_uri
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service), \
-             patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+             patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
 
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
@@ -967,9 +975,9 @@ class TestBusinessFactsUpload:
         filename, file_content, content_type = mock_pdf_upload()
 
         # Track os.unlink calls
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service), \
-             patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor), \
+             patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor), \
              patch('os.unlink') as mock_unlink, \
              patch('os.rmdir') as mock_rmdir:
 
@@ -997,7 +1005,7 @@ class TestBusinessFactsUpload:
         mock_policy_extractor.extract_facts_from_document.side_effect = Exception("Extraction failed")
 
         with patch('core.storage.get_storage_service', return_value=mock_storage_service), \
-             patch('core.policy_fact_extractor.get_policy_fact_extractor', return_value=mock_policy_extractor):
+             patch('api.admin.business_facts_routes.get_policy_fact_extractor', return_value=mock_policy_extractor):
 
             response = authenticated_admin_client.post(
                 "/api/admin/governance/facts/upload",
@@ -1026,7 +1034,7 @@ class TestBusinessFactsVerify:
         sample_business_fact.citations = ["s3://atom-business-facts/policies/test.pdf"]
         mock_storage_service.check_exists.return_value = True
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service):
 
             response = authenticated_admin_client.post(
@@ -1058,7 +1066,7 @@ class TestBusinessFactsVerify:
         sample_business_fact.citations = ["s3://atom-business-facts/policies/missing.pdf"]
         mock_storage_service.check_exists.return_value = False
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service):
 
             response = authenticated_admin_client.post(
@@ -1084,7 +1092,7 @@ class TestBusinessFactsVerify:
         # Mock fact with local citation
         sample_business_fact.citations = ["local-file.pdf"]
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('os.path.exists') as mock_exists:
 
             mock_exists.return_value = True
@@ -1114,7 +1122,7 @@ class TestBusinessFactsVerify:
         ]
         mock_storage_service.check_exists.return_value = True
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service), \
              patch('os.path.exists', return_value=True):
 
@@ -1146,7 +1154,7 @@ class TestBusinessFactsVerify:
         ]
         mock_storage_service.check_exists.return_value = True
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service):
 
             response = authenticated_admin_client.post(
@@ -1174,7 +1182,7 @@ class TestBusinessFactsVerify:
         mock_storage_service.bucket = "atom-business-facts"
         mock_storage_service.check_exists.return_value = False
 
-        with patch('core.agent_world_model.WorldModelService', return_value=mock_world_model_service), \
+        with patch('api.admin.business_facts_routes.WorldModelService', return_value=mock_world_model_service), \
              patch('core.storage.get_storage_service', return_value=mock_storage_service):
 
             response = authenticated_admin_client.post(

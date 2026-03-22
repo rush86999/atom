@@ -98,17 +98,68 @@ class RedisWorker:
             logger.warning("Louvain not available, falling back to connected components")
             return [list(c) for c in nx.connected_components(G)]
 
-    def generate_summary(self, G: nx.Graph, community_nodes: List[str]) -> str:
-        """Generate LLM summary (Stubbed)"""
-        node_names = [G.nodes[n].get("name", "Unknown") for n in community_nodes[:5]]
-        count = len(community_nodes)
-        if count > 5:
-            return f"Cluster of {count} entities involving {', '.join(node_names)}..."
-        return f"Group related to {', '.join(node_names)}"
+    def _get_llm_client(self, workspace_id: str):
+        """Get LLM client with BYOK support"""
+        try:
+            from openai import OpenAI
+            from core.byok_endpoints import get_byok_manager
+            
+            byok = get_byok_manager()
+            api_key = byok.get_tenant_api_key(workspace_id, "openai")
+            if not api_key:
+                api_key = byok.get_api_key("openai")
+            
+            if api_key:
+                return OpenAI(api_key=api_key)
+            return None
+        except ImportError:
+            return None
 
-    def extract_keywords(self, G: nx.Graph, community_nodes: List[str]) -> List[str]:
-        """Extract top keywords (Stubbed)"""
-        return [G.nodes[n].get("name") for n in community_nodes[:5] if G.nodes[n].get("name")]
+    def summarize_community(self, workspace_id: str, G: nx.Graph, community_nodes: List[str]) -> Dict[str, Any]:
+        """Generate LLM summary and keywords for a community using BYOK"""
+        client = self._get_llm_client(workspace_id)
+        if not client:
+             # Fallback
+            node_names = [G.nodes[n].get("name", "Unknown") for n in community_nodes[:3]]
+            return {
+                "summary": f"Group related to {', '.join(node_names)} and {len(community_nodes)-3} other entities.",
+                "keywords": node_names
+            }
+        
+        # Prepare context
+        nodes_list = [f"- {G.nodes[n].get('name', 'Unknown')} ({G.nodes[n].get('type', 'entity')})" for n in community_nodes[:20]]
+        nodes_str = "\n".join(nodes_list)
+        
+        prompt = f"""Summarize this knowledge graph community.
+Entities:
+{nodes_str}
+
+Respond in valid JSON only:
+{{
+  "summary": "Short 1-2 sentence description",
+  "keywords": ["keyword1", "keyword2", "keyword3"]
+}}"""
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+            
+            data = json.loads(response.choices[0].message.content)
+            return {
+                "summary": data.get("summary", f"Community of {len(community_nodes)} entities."),
+                "keywords": data.get("keywords", [])
+            }
+        except Exception as e:
+            logger.error(f"Failed to summarize community: {e}")
+            node_names = [G.nodes[n].get("name", "Unknown") for n in community_nodes[:3]]
+            return {
+                "summary": f"Group related to {', '.join(node_names)}.",
+                "keywords": node_names
+            }
 
     def save_communities(self, workspace_id: str, communities: List[List[str]], G: nx.Graph):
         """Persist results to Postgres"""
@@ -117,17 +168,17 @@ class RedisWorker:
             session.execute(text("DELETE FROM graph_communities WHERE workspace_id = :ws_id"), {"ws_id": workspace_id})
             session.commit()
             
+            logger.info(f"Summarizing and saving {len(communities)} communities...")
             for i, members in enumerate(communities):
                 if len(members) < 2: continue 
                 
-                summary = self.generate_summary(G, members)
-                keywords = self.extract_keywords(G, members)
+                res = self.summarize_community(workspace_id, G, members)
                 
                 comm = GraphCommunity(
                     workspace_id=workspace_id,
                     level=0,
-                    summary=summary,
-                    keywords=keywords
+                    summary=res["summary"],
+                    keywords=res["keywords"]
                 )
                 session.add(comm)
                 session.flush() # Get ID

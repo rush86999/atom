@@ -12,7 +12,7 @@
  * @module property-tests/canvas-invariants
  */
 
-import fc from 'fast-check';
+import * as fc from 'fast-check';
 import { CanvasState, VALID_CANVAS_TRANSITIONS } from './types';
 
 /**

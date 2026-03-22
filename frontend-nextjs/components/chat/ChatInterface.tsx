@@ -539,7 +539,7 @@ Shall I activate it now, or would you like to review the steps first?`,
             {/* Messages Area */}
             <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4 max-w-3xl mx-auto">
-                    {messages.map((msg) => (
+                    {Array.isArray(messages) && messages.map((msg) => (
                         <ChatMessage
                             key={msg.id}
                             message={msg}
@@ -628,7 +628,7 @@ Shall I activate it now, or would you like to review the steps first?`,
                     )}
 
                     {/* Attachment Chips */}
-                    {activeAttachments.length > 0 && (
+                    {Array.isArray(activeAttachments) && activeAttachments.length > 0 && (
                         <div className="flex flex-wrap gap-2 mb-2 animate-in fade-in slide-in-from-bottom-2">
                             {activeAttachments.map((doc, idx) => (
                                 <div key={doc.id || idx} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-xs border border-border">

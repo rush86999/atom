@@ -15,7 +15,7 @@
  * mobile/src/__tests__/integration/devicePermissions.integration.test.ts
  */
 
-import fc from 'fast-check';
+import * as fc from 'fast-check';
 
 // Permission state types (from Expo modules)
 type PermissionStatus = 'notAsked' | 'granted' | 'denied' | 'limited';
