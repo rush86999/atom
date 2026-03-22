@@ -109,6 +109,39 @@ class ProviderAutoDiscovery:
             "is_active": True,
         }
 
+    def _detect_capabilities(self, model_name: str, pricing: Dict) -> List[str]:
+        """Detect model capabilities from metadata
+
+        Args:
+            model_name: Model identifier
+            pricing: Pricing dictionary from DynamicPricingFetcher
+
+        Returns:
+            List of capability tags
+        """
+        capabilities = ["chat"]  # Default capability for general-purpose models
+
+        # Add vision capability
+        mode = pricing.get("mode", "chat")
+        if mode == "vision" or pricing.get("supports_vision"):
+            capabilities.append("vision")
+
+        # Add tools/function calling capability
+        if pricing.get("supports_function_calling"):
+            capabilities.append("tools")
+
+        # LUX computer use specialization (Phase 226.2-01 Decision 2)
+        if model_name.startswith("lux"):
+            # LUX is specialized for computer use, NOT general chat
+            capabilities = ["computer_use", "browser_use"]
+            # Note: No "chat" capability means exclude_from_general_routing will be True
+
+        # Remove chat capability for vision-only models
+        if mode == "vision" and "chat" in capabilities:
+            capabilities.remove("chat")
+
+        return capabilities
+
     def _extract_model_from_pricing(self, model_name: str, pricing: Dict) -> Optional[Dict[str, Any]]:
         """Extract model dict from pricing data
 
@@ -123,6 +156,9 @@ class ProviderAutoDiscovery:
         if litellm_provider == "unknown":
             return None
 
+        # Auto-detect capabilities
+        capabilities = self._detect_capabilities(model_name, pricing)
+
         return {
             "model_id": model_name,
             "provider_id": litellm_provider,
@@ -134,6 +170,8 @@ class ProviderAutoDiscovery:
             "max_input_tokens": pricing.get("max_input_tokens"),
             "context_window": pricing.get("context_window"),
             "mode": pricing.get("mode", "chat"),
+            "capabilities": capabilities,
+            "exclude_from_general_routing": "chat" not in capabilities,
             "source": pricing.get("source", "litellm"),
         }
 
