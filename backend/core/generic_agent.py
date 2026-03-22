@@ -9,7 +9,7 @@ import uuid
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.database import get_db_session
-from core.llm.llm_service import LLMService
+from core.llm_service import LLMService
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.react_models import ReActObservation, ReActStep, ToolCall
 from integrations.mcp_service import mcp_service
