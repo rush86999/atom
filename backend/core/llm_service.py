@@ -432,6 +432,57 @@ class LLMService:
             cognitive_tier=cognitive_tier_enum
         )
 
+    def get_available_providers(self) -> List[str]:
+        """
+        Get list of providers with valid API keys.
+
+        Returns:
+            List of provider IDs (e.g., ["openai", "anthropic", "deepseek"])
+
+        Example:
+            >>> service = LLMService()
+            >>> providers = service.get_available_providers()
+            >>> print(providers)  # ['openai', 'deepseek', ...]
+        """
+        return self.handler.get_available_providers()
+
+    def get_context_window(self, model_name: str) -> int:
+        """
+        Get the context window size for a model from dynamic pricing data.
+        Returns a safe default if not found.
+
+        Args:
+            model_name: Model identifier (e.g., "gpt-4o", "claude-3-5-sonnet")
+
+        Returns:
+            Context window size in tokens (e.g., 128000, 200000)
+
+        Example:
+            >>> service = LLMService()
+            >>> context = service.get_context_window("gpt-4o")
+            >>> print(context)  # 128000
+        """
+        return self.handler.get_context_window(model_name)
+
+    def truncate_to_context(self, text: str, model_name: str, reserve_tokens: int = 1000) -> str:
+        """
+        Truncate text to fit within the model's context window.
+        Reserves tokens for the response.
+
+        Args:
+            text: Input text to truncate
+            model_name: Model identifier for context window lookup
+            reserve_tokens: Tokens to reserve for response (default 1000)
+
+        Returns:
+            Truncated text that fits in context window, with truncation indicator
+
+        Example:
+            >>> service = LLMService()
+            >>> short = service.truncate_to_context(long_text, "gpt-4o", reserve_tokens=2000)
+        """
+        return self.handler.truncate_to_context(text, model_name, reserve_tokens)
+
     def get_routing_info(self, prompt: str, task_type: Optional[str] = None) -> Dict[str, Any]:
         """
         Get routing decision info without making an API call.
