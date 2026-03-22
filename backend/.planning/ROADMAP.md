@@ -2,224 +2,259 @@
 
 **Project**: Atom AI-Powered Business Automation Platform
 **Initiative**: Test Coverage Improvement & Quality Assurance
-**Current Coverage**: 21.35% (as of 2026-03-21)
-**Target Coverage**: 50% (Phase 10 goal) → 80% (ultimate goal)
+**Current Coverage**: 74.6% actual line coverage (as of 2026-03-22)
+**Target Coverage**: 80% (v5.5 milestone goal)
 
 ---
 
-## Current Milestone: v3.3 Bug Fixing & Coverage Expansion
+## Current Milestone: v5.5 Fix Test Failures and Push Backend Coverage to 80%
 
-**Goal**: Fix all blocking test issues and expand coverage from 21.35% to 50%
+**Goal**: Fix remaining test failures and expand backend coverage from 74.6% to 80%
 
-### Phase 218: Fix Test Collection Errors
-**Status**: PLANNED
-**Priority**: CRITICAL (blocking test execution)
-**Plans:** 1 plan
+**Started**: 2026-03-22
+**Status**: PLANNING
 
-**Goal**: Fix 2 test files with collection errors that prevent tests from running
-
-**Requirements**:
-- REQ-001: All test files must collect without errors
-- REQ-002: All test dependencies must be available or mocked
-
-**Gap Closure**: Closes collection errors blocking full test suite execution
-
-**Plans:**
-- [ ] 218-01-PLAN.md — Make aiofiles optional in trajectory.py and fix test imports
-
-**Success Criteria**:
-- [ ] `pytest tests/core/test_time_expression_parser.py --collect-only` succeeds
-- [ ] `pytest tests/core/test_trace_validator.py --collect-only` succeeds
-- [ ] Full test suite collects with 0 errors
-
-**Estimated Time**: 1-2 hours
+**Strategy**: Fix test failures first → Expand coverage → Quality gates enforcement
 
 ---
 
-### Phase 219: Fix Industry Workflow Test Failures
-**Status**: PENDING
-**Priority**: CRITICAL (quality gate blocking)
+## Phases
 
-**Goal**: Fix all 10 failing tests in `test_industry_workflow_endpoints.py`
-
-**Requirements**:
-- REQ-003: 98%+ test pass rate required for coverage expansion
-- REQ-004: All industry workflow endpoints must have passing tests
-
-**Gap Closure**: Closes test failures blocking progress on coverage goals
-
-**Tasks**:
-1. Investigate 10 failing tests in `test_industry_workflow_endpoints.py`
-   - Analyze failure patterns and root causes
-   - Determine if test fixtures or implementation needs fixes
-2. Fix test assertions or implementation bugs
-   - Update tests to match actual API behavior
-   - Fix implementation if tests are correct
-3. Verify all 10 tests passing
-   - Run full test suite for the file
-   - Confirm 100% pass rate
-4. Update test documentation
-   - Document any test pattern changes
-   - Add notes for future maintainers
-
-**Success Criteria**:
-- [ ] All 10 tests in `test_industry_workflow_endpoints.py` passing
-- [ ] Overall test pass rate ≥98%
-- [ ] No regression in other tests
-
-**Estimated Time**: 2-3 hours
+- [ ] **Phase 220: Fix Industry Workflow Test Failures** - Fix 10 failing tests in industry workflow endpoints
+- [ ] **Phase 221: Fix 2FA Routes Test Errors** - Resolve 24 test errors in 2FA routes
+- [ ] **Phase 222: Core Services Coverage Expansion** - Push core services coverage to 80%
+- [ ] **Phase 223: API Routes Coverage Expansion** - Push API routes coverage to 80%
+- [ ] **Phase 224: Tools & Integration Coverage** - Push tools and integration coverage to 80%
+- [ ] **Phase 225: Coverage Verification & Reports** - Generate coverage reports and verify 80% target
+- [ ] **Phase 226: Quality Gates Enforcement** - Ensure 98% pass rate and re-enable CI/CD
 
 ---
 
-### Phase 220: Improve Test Assertion Density
-**Status**: PENDING
-**Priority**: HIGH (test quality)
+## Phase Details
 
-**Goal**: Bring 5 test files with low assertion density above 0.15 threshold
+### Phase 220: Fix Industry Workflow Test Failures
 
-**Requirements**:
-- REQ-005: All test files must have assertion density ≥0.15
-- REQ-006: Tests must validate behavior, not just execute code
+**Goal**: All industry workflow tests pass with 0 failures
 
-**Gap Closure**: Closes test quality gaps identified in coverage report
+**Depends on**: Nothing (first phase)
 
-**Tasks**:
-1. Improve `test_user_management_monitoring.py` assertion density (0.054 → 0.15+)
-   - Add assertions for expected outcomes
-   - Remove no-op test code
-2. Improve `test_supervision_learning_integration.py` assertion density (0.042 → 0.15+)
-   - Add validation for learning outcomes
-   - Add assertions for supervision states
-3. Improve `test_mcp_a2a_tools.py` assertion density (0.141 → 0.15+)
-   - Add tool execution result assertions
-   - Validate side effects
-4. Improve `test_email_api_ingestion.py` assertion density (0.105 → 0.15+)
-   - Add email processing assertions
-   - Validate database state changes
-5. Improve `test_auth_routes_coverage.py` assertion density (0.091 → 0.15+)
-   - Add auth outcome assertions
-   - Validate token/session creation
-6. Verify all files meet 0.15 threshold
-   - Run assertion density checker
-   - Confirm all files pass
-7. Document assertion density patterns
-   - Create best practices guide
-   - Add examples to testing docs
+**Requirements**: FAIL-01, FAIL-02, FAIL-03, FAIL-04
 
-**Success Criteria**:
-- [ ] All 5 test files ≥0.15 assertion density
-- [ ] No tests marked with low assertion density warning
-- [ ] Test quality documentation updated
+**Success Criteria** (what must be TRUE):
+1. All 10 industry workflow tests pass (0 failures)
+2. Duplicate test file `test_industry_workflow_endpoints.py` removed from tests/api/services/
+3. Template ID mismatches fixed (using real template IDs like "healthcare_patient_onboarding")
+4. ROI request validation fixed (template_id removed from request body)
 
-**Estimated Time**: 4-6 hours
+**Plans**: 1 plan
+- [ ] 220-01-PLAN.md — Fix failing tests by removing duplicate file, fixing ROI validation, and updating template IDs
 
 ---
 
-### Phase 221: High-Impact Coverage Expansion (Zero → 40%)
-**Status**: PENDING
-**Priority**: HIGH (primary coverage goal)
+### Phase 221: Fix 2FA Routes Test Errors
 
-**Goal**: Add test coverage to 10 largest zero-coverage modules (minimum 40% coverage each)
+**Goal**: All 2FA routes tests execute without errors
 
-**Requirements**:
-- REQ-007: Critical code paths must have test coverage
-- REQ-008: Target highest-impact files first (max coverage gain per test)
+**Depends on**: Phase 220
 
-**Gap Closure**: Closes largest coverage gap from 21.35% toward 50% target
+**Requirements**: FAIL-05, FAIL-06
 
-**Tasks**:
-1. Identify 10 largest zero-coverage files (>200 lines)
-   - Analyze coverage report for zero-coverage modules
-   - Prioritize by lines of code and criticality
-   - Focus on: core services, API routes, tools
-2. Write unit tests for each target file (minimum 40% coverage)
-   - Test core functionality and public APIs
-   - Test error handling and edge cases
-   - Use appropriate test patterns (unit, integration, property)
-3. Focus areas based on coverage analysis:
-   - API routes: agent_guidance, analytics_dashboard, debug_routes
-   - Core services: active_intervention, admin_bootstrap, agent_coordination
-   - Tools: calendar_tool, canvas_tools (coding, docs, email, orchestration)
-4. Verify coverage improvement
-   - Run full coverage report
-   - Confirm overall coverage increased by 5-10 percentage points
-   - Validate individual file coverage ≥40%
+**Success Criteria** (what must be TRUE):
+1. All 24 2FA routes test errors resolved
+2. 2FA test fixtures and dependencies properly configured
+3. 2FA tests execute successfully without import or fixture errors
+4. No regressions in previously passing tests
 
-**Target Files** (from coverage report):
-1. `core/agent_coordination.py` (131 lines, 0%)
-2. `core/agent_learning_enhanced.py` (118 lines, 0%)
-3. `core/agent_request_manager.py` (130 lines, 0%)
-4. `core/ai_workflow_optimization_endpoints.py` (137 lines, 0%)
-5. `core/analytics_endpoints.py` (119 lines, 0%)
-6. `tools/calendar_tool.py` (123 lines, 0%)
-7. `api/agent_guidance_routes.py` (171 lines, 0%)
-8. `api/analytics_dashboard_routes.py` (114 lines, 0%)
-9. `api/debug_routes.py` (296 lines, 0%)
-10. `api/financial_audit_routes.py` (66 lines, 0%)
-
-**Success Criteria**:
-- [ ] All 10 target files achieve ≥40% coverage
-- [ ] Overall coverage increased from 21.35% to ~30%+
-- [ ] All new tests pass reliably
-- [ ] Coverage trend shows positive trajectory
-
-**Estimated Time**: 12-16 hours (2-3 days)
+**Plans**: TBD
 
 ---
 
-## Optional Phases (Can Defer)
+### Phase 222: Core Services Coverage Expansion
 
-### Phase 222: Medium-Impact Coverage Expansion
-**Status**: PENDING
-**Priority**: MEDIUM
+**Goal**: Core services achieve 80% test coverage
 
-**Goal**: Improve coverage from 30% to 40% by targeting medium-impact files
+**Depends on**: Phase 221
 
-**Tasks**: Target 15 files with 1-20% coverage, achieve 40% each
+**Requirements**: CORE-01, CORE-02, CORE-03, CORE-04
 
-**Estimated Time**: 8-12 hours
+**Success Criteria** (what must be TRUE):
+1. Token storage service coverage >= 80% (currently has gaps at line 17)
+2. Error handler decorator coverage >= 80% (gaps at line 74)
+3. Structured logger coverage >= 80% (gaps at lines 112, 187)
+4. API routes base coverage >= 80% (gaps at line 54)
 
----
-
-### Phase 223: Property-Based Testing Expansion
-**Status**: PENDING
-**Priority**: MEDIUM
-
-**Goal**: Add Hypothesis property tests for system invariants
-
-**Tasks**: Add property tests for governance, episodic memory, and streaming invariants
-
-**Estimated Time**: 6-8 hours
+**Plans**: TBD
 
 ---
 
-## Progress Tracking
+### Phase 223: API Routes Coverage Expansion
 
-### Coverage Metrics
-- **Baseline**: 15.2% (Phase 09)
-- **Current**: 21.35% (2026-03-21)
-- **Phase 221 Target**: ~30%+
-- **Milestone Target**: 50%
-- **Ultimate Goal**: 80%
+**Goal**: API routes achieve 80% test coverage
 
-### Quality Metrics
-- **Test Pass Rate**: ~97% (need 98%+)
-- **Collection Errors**: 2 files (need 0)
-- **Assertion Density**: 5 files below threshold (need 0)
-- **Flaky Tests**: TBD
+**Depends on**: Phase 222
+
+**Requirements**: API-01, API-02, API-03, API-04
+
+**Success Criteria** (what must be TRUE):
+1. Episode routes coverage >= 80% (gaps at line 305)
+2. Auto-install routes coverage >= 80% (gaps at lines 25, 32)
+3. Admin routes coverage >= 80% (gaps at lines 99, 1065)
+4. Composition routes coverage >= 80% (gaps at line 35)
+
+**Plans**: TBD
+
+---
+
+### Phase 224: Tools & Integration Coverage
+
+**Goal**: Tools and integration services achieve 80% test coverage with property-based tests
+
+**Depends on**: Phase 223
+
+**Requirements**: TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, QUAL-03
+
+**Success Criteria** (what must be TRUE):
+1. Canvas tool coverage >= 80%
+2. Browser automation tool coverage >= 80%
+3. Device capabilities tool coverage >= 80%
+4. Agent governance service coverage >= 80%
+5. LLM routing and BYOK handler coverage >= 80%
+6. Property-based tests added for critical invariants (Hypothesis tests)
+
+**Plans**: TBD
+
+---
+
+### Phase 225: Coverage Verification & Reports
+
+**Goal**: Verify 80% backend coverage achieved and generate comprehensive reports
+
+**Depends on**: Phase 224
+
+**Requirements**: QUAL-01, QUAL-04
+
+**Success Criteria** (what must be TRUE):
+1. Backend actual line coverage >= 80% (up from 74.6%)
+2. Coverage report generated (HTML + JSON formats)
+3. Coverage gaps identified and documented
+4. All critical system paths have >= 80% coverage
+
+**Plans**: TBD
+
+---
+
+### Phase 226: Quality Gates Enforcement
+
+**Goal**: Ensure 98% test pass rate and re-enable CI/CD workflows
+
+**Depends on**: Phase 225
+
+**Requirements**: FAIL-07, QUAL-02, QUAL-05
+
+**Success Criteria** (what must be TRUE):
+1. Overall test pass rate >= 98% (currently 90.6%)
+2. All tests passing with no failures or errors
+3. CI/CD workflows re-enabled after 80% target achieved
+4. Quality gates operational (pre-commit, CI, trend tracking)
+
+**Plans**: TBD
+
+---
+
+## Progress Table
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 220. Fix Industry Workflow Test Failures | 0/1 | Planning | - |
+| 221. Fix 2FA Routes Test Errors | 0/0 | Not started | - |
+| 222. Core Services Coverage Expansion | 0/0 | Not started | - |
+| 223. API Routes Coverage Expansion | 0/0 | Not started | - |
+| 224. Tools & Integration Coverage | 0/0 | Not started | - |
+| 225. Coverage Verification & Reports | 0/0 | Not started | - |
+| 226. Quality Gates Enforcement | 0/0 | Not started | - |
 
 ---
 
 ## Dependencies
 
-**Phase 218** → **Phase 219** → **Phase 220** → **Phase 221** → **Phase 222** → **Phase 223**
+**Phase 220** → **Phase 221** → **Phase 222** → **Phase 223** → **Phase 224** → **Phase 225** → **Phase 226**
 
-- Phase 218 must complete before 219 (blocking test execution)
-- Phase 219 must complete before 220 (quality gate for expansion)
-- Phase 220 should complete before 221 (good test hygiene)
-- Phases 221-223 can run in parallel if resources allow
+- Phase 220 must complete before 221 (test failures block progress)
+- Phase 221 must complete before 222 (all tests must pass before coverage expansion)
+- Phase 222 must complete before 223 (core services foundation first)
+- Phase 223 must complete before 224 (API routes before tools/integration)
+- Phase 224 must complete before 225 (coverage complete before verification)
+- Phase 225 must complete before 226 (verification before quality gates)
 
 ---
 
-*Last Updated: 2026-03-21*
-*Next Action: Execute Phase 218 - Fix Test Collection Errors*
+## Coverage Metrics
+
+### Baseline (2026-03-22)
+- **Overall Coverage**: 74.6% actual line coverage
+- **Test Pass Rate**: 90.6% (483 passing, 14 failing, 36 errors)
+- **Total Tests**: 1,489 test files
+
+### Milestone Targets
+- **Phase 220**: 0 test failures (industry workflow)
+- **Phase 221**: 0 test errors (2FA routes)
+- **Phase 222**: Core services >= 80%
+- **Phase 223**: API routes >= 80%
+- **Phase 224**: Tools & integration >= 80%
+- **Phase 225**: Overall >= 80%
+- **Phase 226**: 98%+ pass rate, CI/CD re-enabled
+
+### Ultimate Goal
+- **Overall Coverage**: 80% actual line coverage
+- **Test Pass Rate**: 98%+ (targeting 100%)
+- **Quality Gates**: All operational
+
+---
+
+## Testing Strategy
+
+### Test Failure Resolution (Phases 220-221)
+- Fix failing tests by analyzing root causes
+- Remove duplicate test files
+- Fix test fixtures and dependencies
+- Validate test assertions match API behavior
+
+### Coverage Expansion (Phases 222-224)
+- Target specific coverage gaps identified in baseline
+- Add unit tests for uncovered code paths
+- Add integration tests for endpoint validation
+- Add property-based tests for invariants (Hypothesis)
+
+### Quality Enforcement (Phases 225-226)
+- Generate comprehensive coverage reports (HTML + JSON)
+- Verify 80% target achieved across all modules
+- Ensure 98%+ pass rate maintained
+- Re-enable CI/CD workflows with quality gates
+
+---
+
+## Notes
+
+### Key Insights
+1. **Test failures must be fixed first** - Can't expand coverage with failing tests
+2. **Actual line coverage matters** - 74.6% is real baseline, not estimates
+3. **Progressive approach** - Fix failures → Core services → API routes → Tools → Verify → Quality gates
+4. **Property-based testing** - Add Hypothesis tests for critical invariants during Phase 224
+
+### Risks
+1. **Test failures may be complex** - Industry workflow and 2FA tests may have deep issues
+2. **Coverage gaps may be large** - 5.4 percentage points to target (74.6% → 80%)
+3. **Test suite size** - 1,489 test files require careful navigation
+4. **Timeline pressure** - Aggressive execution required
+
+### Opportunities
+1. **Clear target** - 80% is well-defined milestone
+2. **Structured approach** - Phases build on each other
+3. **Quality gates ready** - Infrastructure from v5.4 available
+4. **Comprehensive requirements** - 24 requirements provide complete coverage scope
+
+---
+
+*Last Updated: 2026-03-22*
+*Next Action: Execute Phase 220 - Fix Industry Workflow Test Failures*
+*Milestone: v5.5 Fix Test Failures and Push Backend Coverage to 80%*
