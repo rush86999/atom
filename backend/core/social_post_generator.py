@@ -12,11 +12,10 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 try:
-    import openai
-    from openai import AsyncOpenAI
-    OPENAI_AVAILABLE = True
+    from core.llm_service import LLMService
+    LLM_SERVICE_AVAILABLE = True
 except ImportError:
-    OPENAI_AVAILABLE = False
+    LLM_SERVICE_AVAILABLE = False
 
 from sqlalchemy.orm import Session
 from core.models import AgentOperationTracker, AgentRegistry
@@ -62,20 +61,22 @@ class SocialPostGenerator:
         # Rate limiting tracker: {agent_id: last_post_timestamp}
         self._rate_limit_tracker = {}  # type: Dict[str, datetime]
 
-        # Initialize OpenAI client if available
-        self._openai_client = None
-        if OPENAI_AVAILABLE and os.getenv("OPENAI_API_KEY"):
+        # Initialize LLMService for GPT-4.1 mini social content generation
+        self.llm_service = None
+        if LLM_SERVICE_AVAILABLE:
             try:
-                self._openai_client = AsyncOpenAI(
-                    api_key=os.getenv("OPENAI_API_KEY"),
-                    timeout=5.0
-                )
-                logger.info("SocialPostGenerator: GPT-4.1 mini client initialized")
+                self.llm_service = LLMService(workspace_id="default")
+                # Check if OpenAI provider is available
+                if self.llm_service.is_available():
+                    logger.info("SocialPostGenerator: LLMService initialized for GPT-4.1 mini")
+                else:
+                    logger.warning("SocialPostGenerator: No LLM providers available, using templates only")
+                    self.llm_service = None
             except Exception as e:
-                logger.warning("SocialPostGenerator: Failed to initialize OpenAI client")
-                self._openai_client = None
+                logger.warning(f"SocialPostGenerator: Failed to initialize LLMService: {e}")
+                self.llm_service = None
         else:
-            logger.warning("SocialPostGenerator: OPENAI_API_KEY not set, using templates only")
+            logger.warning("SocialPostGenerator: LLMService package not available, using templates only")
 
     def is_significant_operation(self, tracker: AgentOperationTracker) -> bool:
         """
@@ -165,7 +166,7 @@ class SocialPostGenerator:
             raise ValueError("what_explanation is required for post generation")
 
         # Try GPT-4.1 mini if enabled and available
-        if self.llm_enabled and self._openai_client:
+        if self.llm_enabled and self.llm_service:
             try:
                 return await self._generate_with_llm(tracker, agent)
             except asyncio.TimeoutError:
@@ -331,7 +332,7 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         episode_context = self._format_episode_context(episodes)
 
         # Generate post with or without episode context
-        if episode_context and self._openai_client:
+        if episode_context and self.llm_service:
             # Use LLM with episode context
             content = await self._generate_with_llm_and_context(
                 operation, episode_context
