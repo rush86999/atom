@@ -220,16 +220,22 @@ class GraphRAGEngine:
         # LLMService will handle errors if provider is unavailable
         return GRAPHRAG_LLM_ENABLED
 
-    # ==================== LLM EXTRACTION (Ported from V1 Enhanced) ====================
+    # ==================== LLM EXTRACTION (Migrated to LLMService) ====================
 
-    def _llm_extract_entities_and_relationships(
+    async def _llm_extract_entities_and_relationships(
         self, text: str, doc_id: str, source: str, workspace_id: str
     ) -> tuple[List[Entity], List[Relationship]]:
-        """Extract using LLM with BYOK"""
-        client = self._get_llm_client(workspace_id)
-        if not client:
-            return [], []
+        """
+        Extract entities and relationships using LLMService.
 
+        Uses unified LLM interface for BYOK support, provider selection,
+        and cost tracking. JSON mode requested via system prompt.
+
+        Cost tracking consideration:
+        - GraphRAG entity/relationship extraction can be expensive (~$0.01-0.10 per document)
+        - LLMService.generate_completion tracks tokens/cost automatically via unified telemetry
+        - Consider adding monitoring alerts for high-cost GraphRAG operations
+        """
         prompt = f"""Analyze the following text and extract knowledge graph elements.
 Respond with valid JSON only.
 
@@ -245,19 +251,24 @@ JSON Schema:
 }}"""
 
         try:
-            response = client.chat.completions.create(
-                model=GRAPHRAG_LLM_MODEL,
+            # Use LLMService for unified LLM interaction
+            response = await self.llm_service.generate_completion(
                 messages=[
                     {"role": "system", "content": "You are a knowledge graph extractor. Output valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1,
-                response_format={"type": "json_object"}
+                model=GRAPHRAG_LLM_MODEL,
+                temperature=0.1
             )
-            
-            content = response.choices[0].message.content
+
+            # Extract content from LLMService response format
+            content = response.get("content", "")
+            if not content:
+                logger.warning(f"LLM extraction returned empty content for doc {doc_id}")
+                return [], []
+
             data = json.loads(content)
-            
+
             entities = []
             for e in data.get("entities", []):
                 entities.append(Entity(
@@ -267,7 +278,7 @@ JSON Schema:
                     description=e.get("description", ""),
                     properties={"source": source, "doc_id": doc_id, "llm_extracted": True}
                 ))
-            
+
             relationships = []
             for r in data.get("relationships", []):
                 relationships.append(Relationship(
@@ -278,10 +289,15 @@ JSON Schema:
                     description=r.get("description", ""),
                     properties={"llm_extracted": True}
                 ))
-                
+
+            logger.info(f"LLM extraction found {len(entities)} entities and {len(relationships)} relationships for doc {doc_id}")
             return entities, relationships
+
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM response as JSON for doc {doc_id}: {e}")
+            return [], []
         except Exception as e:
-            logger.error(f"LLM extraction failed: {e}")
+            logger.error(f"LLM extraction failed for doc {doc_id}: {e}")
             return [], []
 
     # ==================== PATTERN-BASED EXTRACTION FALLBACK ====================
@@ -454,13 +470,18 @@ JSON Schema:
 
     # ==================== INGESTION ORCHESTRATOR ====================
 
-    def ingest_document(self, workspace_id: str, doc_id: str, text: str, source: str = "unknown"):
-        """Ingest raw text -> Extract -> Store in Postgres"""
+    async def ingest_document(self, workspace_id: str, doc_id: str, text: str, source: str = "unknown"):
+        """
+        Ingest raw text -> Extract -> Store in Postgres.
+
+        Note: This method is now async due to LLMService.generate_completion being async.
+        For backward compatibility, a sync wrapper can be added if needed.
+        """
 
         # 1. Extract
         if self._is_llm_available(workspace_id):
             logger.info(f"Using LLM-based extraction for document {doc_id}")
-            entities, relationships = self._llm_extract_entities_and_relationships(text, doc_id, source, workspace_id)
+            entities, relationships = await self._llm_extract_entities_and_relationships(text, doc_id, source, workspace_id)
         else:
             logger.warning(f"LLM unavailable for workspace {workspace_id}, using pattern-based fallback")
             entities, relationships = self._pattern_extract_entities_and_relationships(text, doc_id, source)
