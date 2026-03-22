@@ -22,7 +22,7 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 # Import at runtime to avoid circular dependencies
-BYOKHandler = None
+LLMService = None
 
 
 class CanvasSummaryService:
@@ -70,14 +70,14 @@ class CanvasSummaryService:
         ),
     }
 
-    def __init__(self, byok_handler: Any):
+    def __init__(self, llm_service: Any):
         """
         Initialize canvas summary service.
 
         Args:
-            byok_handler: BYOK handler for LLM generation
+            llm_service: LLM service for LLM generation
         """
-        self.byok_handler = byok_handler
+        self.llm_service = llm_service
         self._summary_cache: Dict[str, str] = {}
         self._cost_tracker: Dict[str, float] = {}
 
@@ -134,7 +134,7 @@ class CanvasSummaryService:
             prompt = self._build_prompt(canvas_type, canvas_state, agent_task, user_interaction)
 
             summary = await asyncio.wait_for(
-                self.byok_handler.generate_response(
+                self.llm_service.generate(
                     prompt=prompt,
                     system_instruction="You are a canvas presentation analyzer. Generate concise semantic summaries (50-100 words).",
                     temperature=0.0,  # Deterministic for consistency
