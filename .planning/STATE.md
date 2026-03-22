@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 225.1-agent-llmservice-migration (Agent LLMService Migration)
-Plan: 4 of 4 in current phase
-Status: Complete
-Last activity: 2026-03-22 — Plan 225.1-04 completed: Migrate remaining agent services from BYOKHandler to LLMService
+Plan: 7 of 8 in current phase
+Status: In Progress
+Last activity: 2026-03-22 — Plan 225.1-07 completed: Update meta agent, API, and integration test infrastructure
 
-Progress: [██████░░] 53% (18/34 plans complete)
+Progress: [██████░░] 56% (19/34 plans complete)
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [██████░░] 53% (18/34 plans complete)
 | Phase 225.1 P01 | 96 | 4 tasks | 1 files |
 | Phase 225.1 P03 | 317 | 4 tasks | 2 files |
 | Phase 225.1 P04 | 394 | 8 tasks | 6 files |
+| Phase 225.1 P05 | 247 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Recent decisions affecting current work:
 - [Phase 225.1]: Method name changes: generate_response → generate, generate_structured_response → generate_structured
 - [Phase 225.1]: All agent services (GenericAgent, AgentExecutionService, EpisodeSegmentationService, CanvasSummaryService, AI Employee Executor) now use LLMService as single source of truth
 - [Phase 225.1]: Remaining BYOKHandler imports are legitimate (workflow_engine, event_sourced_architecture, atom_agent_endpoints API routes, llm_service.py wrapper)
+- [Phase 225.1]: Test mock updates required after service migration - All test mocks must patch LLMService instead of BYOKHandler when migrating services
+- [Phase 225.1]: Patch path matters - Must patch the import path used by code under test (core.agent_execution_service.LLMService, not core.llm.llm_service)
+- [Phase 225.1]: E2E test patch path - core.llm_service.LLMService for EpisodeSegmentationService which imports from core.llm_service
 
 ### Pending Todos
 
@@ -111,8 +115,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 225.1-03 execution)
-Stopped at: Completed plan 225.1-03 - Migrated GenericAgent from BYOKHandler to LLMService, all 4 tasks complete
+Last session: 2026-03-22 (plan 225.1-05 execution)
+Stopped at: Completed plan 225.1-05 - Fixed failing agent execution tests, all 3 tasks complete
 Resume file: None
 
 ## Milestone Context
