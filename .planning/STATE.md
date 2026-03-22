@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 225.1-agent-llmservice-migration (Agent LLMService Migration)
-Plan: 6 of 8 in current phase
+Plan: COMPLETE (8/8 plans)
 Status: Complete
-Last activity: 2026-03-22 — Plan 225.1-06 completed: Update high-value integration and episode tests
+Last activity: 2026-03-22 — Phase 225.1 COMPLETE: All agent services migrated to LLMService
 
-Progress: [██████░░] 56% (19/34 plans complete)
+Progress: [██████░░] 59% (21/34 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: ~6 minutes
-- Total execution time: 1.6 hours
+- Total plans completed: 21
+- Average duration: ~5 minutes
+- Total execution time: 1.8 hours
 
 **By Phase:**
 
@@ -31,6 +31,7 @@ Progress: [██████░░] 56% (19/34 plans complete)
 | 223 | 3/4 | 15 min | ~5 min |
 | 224 | 4/4 | 11 min | ~3 min |
 | 225 | 3/3 | 11 min | ~4 min |
+| 225.1 | 8/8 | 32 min | ~4 min |
 | 226 | 0/1 | TBD | - |
 | 227 | 0/1 | TBD | - |
 | 228 | 0/2 | TBD | - |
@@ -62,6 +63,7 @@ Progress: [██████░░] 56% (19/34 plans complete)
 | Phase 225.1 P05 | 247 | 3 tasks | 2 files |
 | Phase 225.1 P07 | 292 | 4 tasks | 7 files |
 | Phase 225.1 P06 | 357 | 3 tasks | 6 files |
+| Phase 225.1 P08 | 167 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -106,6 +108,8 @@ Recent decisions affecting current work:
 - [Phase 225.1]: Test mock updates required after service migration - All test mocks must patch LLMService instead of BYOKHandler when migrating services
 - [Phase 225.1]: Patch path matters - Must patch the import path used by code under test (core.agent_execution_service.LLMService, not core.llm.llm_service)
 - [Phase 225.1]: E2E test patch path - core.llm_service.LLMService for EpisodeSegmentationService which imports from core.llm_service
+- [Phase 225.1]: Gap 1 closed - all agent-related test mocks successfully migrated to LLMService (~341 patches updated)
+- [Phase 225.1]: All 15 remaining BYOKHandler patches are legitimate (boundary, error, API, LLMService tests)
 
 ### Pending Todos
 
@@ -117,8 +121,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 225.1-07 execution)
-Stopped at: Completed plan 225.1-07 - Fixed failing agent execution tests, all 3 tasks complete
+Last session: 2026-03-22 (plan 225.1-08 execution)
+Stopped at: Completed phase 225.1 - All 8 plans complete, all agent services migrated to LLMService, Gap 1 closed
 Resume file: None
 
 ## Milestone Context
