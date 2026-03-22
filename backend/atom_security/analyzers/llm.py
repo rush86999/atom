@@ -5,6 +5,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from ..core.models import Finding, Severity
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,9 @@ class LLMAnalyzer:
         self.api_key = api_key or os.getenv("ATOM_SECURITY_LLM_API_KEY")
         self.provider = provider or os.getenv("ATOM_SECURITY_LLM_PROVIDER", "openai")
         self.pipeline = None
-        self.client = None
+
+        # Initialize LLMService for unified LLM interactions (replaces direct clients)
+        self.llm_service = LLMService(workspace_id="default")
 
         if self.mode == "local":
             self._init_local()
