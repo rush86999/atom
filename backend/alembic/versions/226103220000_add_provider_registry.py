@@ -35,7 +35,7 @@ def upgrade():
         sa.Column('is_active', sa.Boolean(), default=True, nullable=False),
         sa.Column('discovered_at', sa.DateTime()),
         sa.Column('last_updated', sa.DateTime()),
-        sa.Column('metadata', sa.JSON()),
+        sa.Column('provider_metadata', sa.JSON()),
     )
     op.create_index('ix_provider_registry_is_active', 'provider_registry', ['is_active'])
 
@@ -55,7 +55,7 @@ def upgrade():
         sa.Column('source', sa.String(50)),
         sa.Column('discovered_at', sa.DateTime()),
         sa.Column('last_updated', sa.DateTime()),
-        sa.Column('metadata', sa.JSON()),
+        sa.Column('model_metadata', sa.JSON()),
     )
     op.create_index('ix_model_catalog_provider_id', 'model_catalog', ['provider_id'])
 
