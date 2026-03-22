@@ -24,7 +24,7 @@ from core.chat_session_manager import get_chat_session_manager
 from core.database import get_db_session, SessionLocal
 from core.episode_integration import trigger_episode_creation
 from core.lancedb_handler import get_chat_history_manager
-from core.llm.byok_handler import BYOKHandler, QueryComplexity
+from core.llm_service import LLMService
 from core.models import AgentExecution
 from core.websockets import manager as ws_manager
 
@@ -165,9 +165,9 @@ async def execute_agent_chat(
                 # Continue anyway - don't block execution on audit failure
 
         # ============================================
-        # LLM: Initialize BYOK Handler
+        # LLM: Initialize LLM Service
         # ============================================
-        byok_handler = BYOKHandler(workspace_id=workspace_id, provider_id="auto")
+        llm_service = LLMService(workspace_id=workspace_id)
 
         # Prepare messages for LLM
         messages = []
@@ -200,8 +200,8 @@ Provide helpful, concise responses. Be direct and practical."""
         })
 
         # Get optimal provider for this request
-        complexity = byok_handler.analyze_query_complexity(message, task_type="chat")
-        provider_id, model = byok_handler.get_optimal_provider(
+        complexity = llm_service.analyze_query_complexity(message, task_type="chat")
+        provider_id, model = llm_service.get_optimal_provider(
             complexity,
             task_type="chat",
             prefer_cost=True,
@@ -247,7 +247,7 @@ Provide helpful, concise responses. Be direct and practical."""
             stream_kwargs["agent_id"] = agent.id
 
         # Stream response
-        async for token in byok_handler.stream_completion(**stream_kwargs):
+        async for token in llm_service.stream_completion(**stream_kwargs):
             accumulated_content += token
             tokens_count += 1
 
