@@ -49,7 +49,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 import uuid
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from core.database import Base
 from core.data_visibility import DataVisibility
