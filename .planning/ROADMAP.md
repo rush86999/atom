@@ -1764,7 +1764,11 @@ Plans:
   3. social_post_generator.py uses LLMService for content generation
   4. All three files pass existing tests with LLMService integration
   5. No regression in security analysis, vector embeddings, or social content generation
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 224-01-PLAN.md — Migrate atom_security/analyzers/llm.py to LLMService
+- [ ] 224-02-PLAN.md — Migrate lancedb_handler.py to LLMService for embeddings
+- [ ] 224-03-PLAN.md — Migrate social_post_generator.py to LLMService
+- [ ] 224-04-PLAN.md — Meta-verification and migration checklist
 
 Plans:
 - [ ] 224-01: Migrate atom_security/analyzers/llm.py to LLMService
