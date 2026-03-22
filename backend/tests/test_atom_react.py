@@ -9,18 +9,18 @@ from core.models import User
 @pytest.fixture
 def mock_atom_agent():
     with patch("core.atom_meta_agent.WorldModelService") as MockWM, \
-         patch("core.atom_meta_agent.BYOKHandler") as MockLLM, \
+         patch("core.atom_meta_agent.LLMService") as MockLLM, \
          patch("core.atom_meta_agent.AdvancedWorkflowOrchestrator") as MockOrch:
-         
+
          agent = AtomMetaAgent()
-         
+
          # Mock dependencies
          agent.world_model = MockWM.return_value
          agent.world_model.recall_experiences = AsyncMock(return_value={"experiences": []})
          agent.world_model.record_experience = AsyncMock()
-         
+
          agent.llm = MockLLM.return_value
-         agent.llm.generate_response = AsyncMock()
+         agent.llm.generate = AsyncMock()
          
          # Mock Spawn
          agent.spawn_agent = AsyncMock()
@@ -44,7 +44,7 @@ async def test_atom_react_spawn_flow(mock_atom_agent):
     Final Answer: The Q3 expenses execution is complete. See report.
     """
     
-    mock_atom_agent.llm.generate_response.side_effect = [response_1, response_2]
+    mock_atom_agent.llm.generate.side_effect = [response_1, response_2]
     
     # Mock the internal GenericAgent execution that happens inside _step_act for spawn_agent
     # Since we mocked spawn_agent method itself, we need to ensure _step_act logic is tested 
@@ -92,7 +92,7 @@ async def test_atom_react_integration_flow(mock_atom_agent):
     Final Answer: Search complete.
     """
     
-    mock_atom_agent.llm.generate_response.side_effect = [response_1, response_2]
+    mock_atom_agent.llm.generate.side_effect = [response_1, response_2]
     mock_atom_agent.call_integration = AsyncMock(return_value={"result": "Found it"})
     
     result = await mock_atom_agent.execute("Search for Atom")
