@@ -83,7 +83,7 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(user=mock_user)
@@ -102,7 +102,7 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id=workspace_id)
@@ -151,7 +151,7 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -192,7 +192,7 @@ class TestAtomMetaAgentExtended:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -460,7 +460,7 @@ class TestAtomMetaAgentEdgeCases:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -472,7 +472,7 @@ class TestAtomMetaAgentEdgeCases:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -507,7 +507,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace")
@@ -523,7 +523,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace", user=mock_user)
@@ -543,7 +543,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id=workspace_id)
@@ -554,7 +554,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -566,7 +566,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -578,7 +578,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -590,7 +590,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService') as mock_wm, \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace")
@@ -602,7 +602,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator') as mock_orch, \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -647,7 +647,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -667,7 +667,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -693,7 +693,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -713,7 +713,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service') as mock_mcp, \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -725,7 +725,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler') as mock_byok, \
+             patch('core.atom_meta_agent.LLMService') as mock_llm, \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id="test-workspace")
@@ -737,7 +737,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService'), \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider') as mock_canvas:
 
             agent = AtomMetaAgent()
@@ -769,7 +769,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService') as mock_wm, \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent()
@@ -784,7 +784,7 @@ class TestAtomMetaAgentCoverageExtend:
         with patch('core.atom_meta_agent.WorldModelService') as mock_wm, \
              patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator'), \
              patch('core.atom_meta_agent.mcp_service'), \
-             patch('core.atom_meta_agent.BYOKHandler'), \
+             patch('core.atom_meta_agent.LLMService'), \
              patch('core.atom_meta_agent.get_canvas_provider'):
 
             agent = AtomMetaAgent(workspace_id=workspace_id)
