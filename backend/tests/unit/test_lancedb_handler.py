@@ -180,16 +180,17 @@ class TestEmbedderInitialization:
         assert handler.embedder is not None
 
     @patch('core.lancedb_handler.OPENAI_AVAILABLE', True)
-    @patch('core.lancedb_handler.OpenAI')
-    def test_initialize_openai_embedder(self, mock_openai_class, temp_db_path, monkeypatch):
-        """Initialize OpenAI embedder"""
+    @patch('core.lancedb_handler.LLMService')
+    def test_initialize_openai_embedder(self, mock_llm_service_class, temp_db_path, monkeypatch):
+        """Initialize OpenAI embedder via LLMService"""
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
+        mock_service = Mock()
+        mock_llm_service_class.return_value = mock_service
 
         handler = LanceDBHandler(db_path=temp_db_path, embedding_provider="openai")
 
-        assert handler.openai_client is not None
+        assert handler.llm_service is not None
+        assert handler.openai_client is None  # Deprecated, should be None
 
     def test_fallback_to_mock_embedder(self, temp_db_path):
         """Fallback to MockEmbedder when SentenceTransformers unavailable"""
