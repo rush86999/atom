@@ -3,7 +3,7 @@ import asyncio
 import json
 import re
 from typing import Dict, List, Any
-from core.llm.byok_handler import BYOKHandler
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +16,8 @@ class EmployeeExecutor:
     """
     
     def __init__(self):
-        # We use a default workspace_id for the BYOK handler initialization
-        self._llm = BYOKHandler(workspace_id="ai_employee_shared")
+        # We use a default workspace_id for the LLM service initialization
+        self._llm = LLMService(workspace_id="ai_employee_shared")
         
     async def run_task(self, command: str, current_state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -61,7 +61,7 @@ Respond in EXACT JSON:
 }}
 """
             try:
-                response_text = await self._llm.generate_response(
+                response_text = await self._llm.generate(
                     prompt=prompt,
                     system_instruction="You are an autonomous JSON agent. Output ONLY raw JSON.",
                     task_type="agentic"
