@@ -1785,12 +1785,12 @@ Plans:
   3. atom_meta_agent.py verified using LLMService (already using it)
   4. All three files pass existing tests with LLMService integration
   5. No regression in voice processing, agent execution, or meta-agent coordination
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 225-01: Migrate voice_service.py to LLMService
-- [ ] 225-02: Standardize generic_agent.py to use LLMService
-- [ ] 225-03: Verify atom_meta_agent.py uses LLMService
+- [ ] 225-01-PLAN.md — Migrate voice_service.py to LLMService (remove BYOKManager, use LLMService for API key resolution)
+- [ ] 225-02-PLAN.md — Verify generic_agent.py BYOKHandler usage (internal layer pattern acceptable for agents)
+- [ ] 225-03-PLAN.md — Verify atom_meta_agent.py LLMService integration (already migrated)
 
 #### Phase 226: Core Services Standardization
 **Goal**: Update 8 core service files to use LLMService instead of BYOKHandler
