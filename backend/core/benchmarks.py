@@ -37,6 +37,7 @@ MODEL_QUALITY_SCORES = {
     "gemini-2.0-flash": 86,
     "gemini-1.5-flash": 84,
     "minimax-m2.5": 88,  # Standard tier, between gemini-2.0-flash and deepseek-chat
+    "lux-1.0": 88,  # LUX Computer Use (Claude 3.5 Sonnet based) - Phase 226.2-01
 
     # Efficiency / Simple
     "deepseek-chat": 80,
