@@ -47,7 +47,7 @@
 4. ROI request validation fixed (template_id removed from request body)
 
 **Plans**: 1 plan
-- [ ] 220-01-PLAN.md — Fix failing tests by removing duplicate file, fixing ROI validation, and updating template IDs
+- [x] 220-01-PLAN.md — Fix failing tests by removing duplicate file, fixing ROI validation, and updating template IDs ✅ COMPLETE (2026-03-22)
 
 ---
 
