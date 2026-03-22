@@ -9,22 +9,15 @@ import uuid
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.database import get_db_session
-from core.llm.byok_handler import BYOKHandler
+from core.llm.llm_service import LLMService
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.react_models import ReActObservation, ReActStep, ToolCall
 from integrations.mcp_service import mcp_service
 
-# Try to import instructor for structured parsing
-# AsyncOpenAI import is for instructor library (structured output validation)
-# Not used for direct API calls - all LLM interactions go through BYOKHandler
-try:
-    import instructor
-    from openai import AsyncOpenAI
-    INSTRUCTOR_AVAILABLE = True
-except ImportError:
-    INSTRUCTOR_AVAILABLE = False
-    instructor = None
-    AsyncOpenAI = None
+# Instructor library is used internally by LLMService for structured output
+# No need to import directly here
+instructor = None  # Reserved for future direct use if needed
+INSTRUCTOR_AVAILABLE = False  # LLMService handles instructor internally
 
 logger = logging.getLogger(__name__)
 
