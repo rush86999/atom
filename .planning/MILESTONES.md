@@ -99,6 +99,40 @@
 
 ---
 
+## v5.5 Fix Test Failures and Push Backend Coverage to 80% (Started: 2026-03-22)
+
+**Goal:** Fix all test failures and push backend coverage from 74.6% to 80% through targeted test additions and quality gate enforcement.
+
+**Target features:**
+- Fix test failures (14 industry workflow + 24 2FA route errors)
+- Core services coverage expansion (token storage, error handling, logging)
+- API routes coverage (episodes, auto-install, admin, composition)
+- Tools & integration coverage (canvas, browser, device, governance, LLM)
+- Property-based testing for critical invariants (Hypothesis)
+- Quality gates & CI/CD re-enablement (98%+ pass rate, 80% coverage)
+
+**Strategy:** Fix failures → Expand coverage → Verify → Enforce quality gates
+
+**Timeline:** 1-2 weeks (focused execution)
+
+**Planned phases:** 7 (220-226), TBD plans, 24 requirements
+
+**Status:** 🚧 READY TO START
+
+**Actual Coverage Discovery:**
+System-wide scan revealed 74.6% actual line coverage (not 8.5% as previously claimed) with 1,489 test files and 483 passing tests. This milestone focuses on fixing the 38 failing/error tests and adding targeted coverage to reach 80%.
+
+**Phase Breakdown:**
+- Phase 220: Fix Industry Workflow Test Failures (FAIL-01 through FAIL-04)
+- Phase 221: Fix 2FA Routes Test Errors (FAIL-05, FAIL-06)
+- Phase 222: Core Services Coverage Expansion (CORE-01 through CORE-04)
+- Phase 223: API Routes Coverage Expansion (API-01 through API-04)
+- Phase 224: Tools & Integration Coverage (TOOL-01 through TOOL-05, QUAL-03)
+- Phase 225: Coverage Verification & Reports (QUAL-01, QUAL-04)
+- Phase 226: Quality Gates Enforcement (FAIL-07, QUAL-02, QUAL-05)
+
+---
+
 ## v5.4 Backend 80% Coverage - Baseline & Plan (Started: 2026-03-11)
 
 **Goal:** Achieve 80% actual line coverage across entire backend through comprehensive baseline measurement, gap analysis, and targeted testing of core services, API routes, database layer, and integrations.
