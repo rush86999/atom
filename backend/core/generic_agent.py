@@ -380,7 +380,7 @@ What is your next step?"""
         # Pass screenshot if available and vision is enabled
         image_payload = self.last_screenshot if self.vision_enabled else None
         
-        structured_result = await self.llm.generate_structured_response(
+        structured_result = await self.llm.generate_structured(
             prompt=user_prompt,
             system_instruction=system_prompt,
             response_model=ReActStep,
@@ -396,8 +396,8 @@ What is your next step?"""
         if structured_result:
             return structured_result
         
-        # Fallback: Use BYOK handler for raw response
-        raw_response = await self.llm.generate_response(
+        # Fallback: Use LLMService for raw response
+        raw_response = await self.llm.generate(
             prompt=user_prompt,
             system_instruction=system_prompt,
             model_type="fast",
