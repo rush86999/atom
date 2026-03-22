@@ -25,16 +25,17 @@ def generic_agent(mock_agent_registry):
         mock_wm = MockWM.return_value
         mock_wm.recall_experiences = AsyncMock(return_value={"experiences": []})
         mock_wm.record_experience = AsyncMock()
-        
-        # Mock BYOKHandler
-        with patch("core.generic_agent.BYOKHandler") as MockLLM:
+
+        # Mock LLMService
+        with patch("core.generic_agent.LLMService") as MockLLM:
             agent = GenericAgent(mock_agent_registry)
             agent.llm = MockLLM.return_value
-            agent.llm.generate_response = AsyncMock()
-            
+            agent.llm.generate = AsyncMock()
+            agent.llm.generate_structured = AsyncMock()
+
             # Mock MCP tool execution
             agent._step_act = AsyncMock(return_value="42")
-            
+
             yield agent
 
 @pytest.mark.integration
@@ -59,7 +60,7 @@ async def test_react_loop_reasoning(generic_agent):
     Final Answer: The answer is 42.
     """
     
-    generic_agent.llm.generate_response.side_effect = [response_1, response_2]
+    generic_agent.llm.generate.side_effect = [response_1, response_2]
     
     # Execute
     result = await generic_agent.execute("What is 21 + 21?")
@@ -88,7 +89,7 @@ async def test_react_loop_max_steps(generic_agent):
     generic_agent.config["max_steps"] = 3
     
     # Always return just thought, no answer
-    generic_agent.llm.generate_response.return_value = "Thought: Still thinking..."
+    generic_agent.llm.generate.return_value = "Thought: Still thinking..."
     
     result = await generic_agent.execute("Infinite loop?")
     
