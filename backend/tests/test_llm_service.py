@@ -1234,3 +1234,155 @@ class TestGenerateWithTier:
             # Verify escalated is boolean
             assert isinstance(result["escalated"], bool)
             assert result["escalated"] == escalated_value
+
+
+class TestCognitiveTierHelpers:
+    """Tests for LLMService cognitive tier helper methods (Phase 222-03)."""
+
+    @pytest.fixture
+    def mock_db(self):
+        """Mock database session."""
+        return Mock()
+
+    @pytest.fixture
+    def llm_service(self, mock_db):
+        """Create LLMService instance with mocked dependencies."""
+        return LLMService(workspace_id="test", db=mock_db)
+
+    def test_classify_tier_simple(self, llm_service):
+        """Verify simple prompts classify as MICRO."""
+        # Mock the handler's classify_cognitive_tier method
+        llm_service.handler.classify_cognitive_tier = Mock(return_value=CognitiveTier.MICRO)
+
+        tier = llm_service.classify_tier("Hi there!")
+
+        # Verify returns CognitiveTier enum
+        assert isinstance(tier, CognitiveTier)
+        assert tier == CognitiveTier.MICRO
+
+        # Verify handler was called correctly
+        llm_service.handler.classify_cognitive_tier.assert_called_once_with("Hi there!", None)
+
+    def test_classify_tier_code(self, llm_service):
+        """Verify code prompts classify higher."""
+        # Mock the handler's classify_cognitive_tier method
+        llm_service.handler.classify_cognitive_tier = Mock(return_value=CognitiveTier.VERSATILE)
+
+        tier = llm_service.classify_tier(
+            "Write a Python REST API with JWT authentication",
+            task_type="code"
+        )
+
+        # Verify returns higher tier for code
+        assert tier == CognitiveTier.VERSATILE
+
+        # Verify handler was called with task_type
+        llm_service.handler.classify_cognitive_tier.assert_called_once()
+        call_args = llm_service.handler.classify_cognitive_tier.call_args
+        assert call_args[0][0] == "Write a Python REST API with JWT authentication"
+        assert call_args[0][1] == "code"
+
+    def test_classify_tier_with_task_type(self, llm_service):
+        """Verify task_type affects classification."""
+        # Mock different tiers based on task_type
+        def mock_classify(prompt, task_type):
+            if task_type == "analysis":
+                return CognitiveTier.HEAVY
+            elif task_type == "chat":
+                return CognitiveTier.STANDARD
+            else:
+                return CognitiveTier.VERSATILE
+
+        llm_service.handler.classify_cognitive_tier = Mock(side_effect=mock_classify)
+
+        # Test analysis task
+        tier_analysis = llm_service.classify_tier("Analyze this data", task_type="analysis")
+        assert tier_analysis == CognitiveTier.HEAVY
+
+        # Test chat task
+        tier_chat = llm_service.classify_tier("Hello", task_type="chat")
+        assert tier_chat == CognitiveTier.STANDARD
+
+    def test_get_tier_description(self, llm_service):
+        """Verify returns valid descriptions for all tiers."""
+        tiers = ["micro", "standard", "versatile", "heavy", "complex"]
+
+        for tier_str in tiers:
+            desc = llm_service.get_tier_description(tier_str)
+
+            # Verify all expected keys are present
+            assert "name" in desc
+            assert "cost_range" in desc
+            assert "quality_level" in desc
+            assert "use_cases" in desc
+            assert "example_models" in desc
+
+            # Verify types
+            assert isinstance(desc["name"], str)
+            assert isinstance(desc["cost_range"], str)
+            assert isinstance(desc["quality_level"], str)
+            assert isinstance(desc["use_cases"], list)
+            assert isinstance(desc["example_models"], list)
+
+            # Verify content is not empty
+            assert len(desc["use_cases"]) > 0
+            assert len(desc["example_models"]) > 0
+
+            # Verify tier name matches
+            assert desc["name"].upper() == tier_str.upper()
+
+    def test_get_tier_description_with_enum(self, llm_service):
+        """Verify works with CognitiveTier enum input."""
+        # Test with enum
+        desc = llm_service.get_tier_description(CognitiveTier.VERSATILE)
+
+        assert desc["name"] == "VERSATILE"
+        assert "complex reasoning" in desc["use_cases"][0].lower() or "reasoning" in desc["use_cases"][0].lower()
+        assert len(desc["example_models"]) > 0
+
+    def test_get_tier_description_invalid(self, llm_service):
+        """Verify handles invalid tier gracefully."""
+        # Test with invalid tier string (should fallback to STANDARD)
+        desc = llm_service.get_tier_description("invalid_tier")
+
+        # Should return STANDARD description as fallback
+        assert desc["name"] == "STANDARD"
+        assert "cost_range" in desc
+
+    def test_get_tier_description_content_quality(self, llm_service):
+        """Verify tier descriptions contain expected keywords."""
+        # Test MICRO tier
+        desc_micro = llm_service.get_tier_description("micro")
+        assert "0.01" in desc_micro["cost_range"] or "<" in desc_micro["cost_range"]
+        assert any("chat" in use_case.lower() or "greeting" in use_case.lower() for use_case in desc_micro["use_cases"])
+
+        # Test VERSATILE tier
+        desc_versatile = llm_service.get_tier_description("versatile")
+        assert "2" in desc_versatile["cost_range"] or "5" in desc_versatile["cost_range"]
+        assert any("reasoning" in use_case.lower() or "analysis" in use_case.lower() or "code" in use_case.lower()
+                   for use_case in desc_versatile["use_cases"])
+
+        # Test COMPLEX tier
+        desc_complex = llm_service.get_tier_description("complex")
+        assert "30" in desc_complex["cost_range"] or ">" in desc_complex["cost_range"]
+        assert any("security" in use_case.lower() or "architecture" in use_case.lower()
+                   for use_case in desc_complex["use_cases"])
+
+    def test_get_tier_description_example_models(self, llm_service):
+        """Verify example models are provided for each tier."""
+        for tier_str in ["micro", "standard", "versatile", "heavy", "complex"]:
+            desc = llm_service.get_tier_description(tier_str)
+
+            # Verify example models list is not empty
+            assert len(desc["example_models"]) > 0
+
+            # Verify example models are strings
+            for model in desc["example_models"]:
+                assert isinstance(model, str)
+                assert len(model) > 0
+
+            # Verify common model names appear
+            all_models = " ".join(desc["example_models"]).lower()
+            # At least one well-known model should appear
+            assert any(name in all_models for name in ["gpt", "claude", "gemini", "mini"])
+
