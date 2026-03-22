@@ -1,20 +1,22 @@
 # Atom Test Coverage Initiative
 
-## Current Milestone: v5.5 Backend 80% Coverage - Clean Slate
+## Current Milestone: v5.5 Fix Test Failures and Push Backend Coverage to 80%
 
-**Goal:** Achieve 80% actual line coverage across the entire backend codebase through wave-based parallel execution and highest-impact module prioritization.
+**Goal:** Fix all test failures and push backend coverage from 74.6% to 80% through targeted test additions and quality gate enforcement.
 
 **Target features:**
-- Comprehensive backend coverage baseline (actual line coverage, not service-level estimates)
-- Core services testing (agent governance, LLM routing, episodic memory, world model)
-- API routes coverage (FastAPI endpoints, validation, error handling)
-- Database layer testing (models, relationships, migrations)
-- Integration testing (external services, browser automation, device capabilities)
-- Progressive quality gates (70% → 75% → 80% with emergency bypass)
+- Fix test failures (14 industry workflow + 24 2FA route errors)
+- Core services coverage expansion (token storage, error handling, logging)
+- API routes coverage (episodes, auto-install, admin, composition)
+- Tools & integration coverage (canvas, browser, device, governance, LLM)
+- Property-based testing for critical invariants (Hypothesis)
+- Quality gates & CI/CD re-enablement (98%+ pass rate, 80% coverage)
 
-**Strategy:** Baseline first → targeted phases → quality enforcement
+**Strategy:** Fix failures → Expand coverage → Verify → Enforce quality gates
 
-**Timeline:** 2-3 weeks (aggressive execution)
+**Timeline:** 1-2 weeks (focused execution)
+
+**Actual Coverage Discovery:** System-wide scan revealed 74.6% actual line coverage (not 8.5% as previously claimed) with 1,489 test files and 483 passing tests.
 
 ---
 
