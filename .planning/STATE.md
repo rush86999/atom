@@ -1,24 +1,32 @@
-Phase: 219 (Fix Industry Workflow Test Failures)
-Status: PLANNING
-Started: 2026-03-21
+Phase: 220 (Fix Industry Workflow Test Failures)
+Status: COMPLETE
+Started: 2026-03-22
+Completed: 2026-03-22
 
-## Phase 219: Fix Industry Workflow Test Failures
+## Phase 220: Fix Industry Workflow Test Failures
 
-**Progress:** [██████████] 104%
+**Progress:** [██████████] 100%
 
-**Objective:** Fix failing industry workflow endpoint tests and remove duplicate test file
+**Objective:** Fix all 5 failing industry workflow endpoint tests
 
 **Background:**
-Phase 219-coverage-push created a duplicate test file that uses incorrect fixture-based mocking. The correct unit test file has some test failures due to template ID mismatches and request validation issues.
+Phase 220-01 fixes the remaining test failures in the industry workflow endpoint test suite. Issues included template ID mismatches, Pydantic validation errors, and exception handling test problems.
 
 **Plans:**
-- Plan 01: Remove duplicate test file and fix mock configuration
+- Plan 01: Fix all 5 failing tests ✅ COMPLETE
 
 ## Current Status
 
-**Phase 219: Planning** 🚧 PENDING
-- **Status:** Plan created, awaiting execution
-- **Plan File:** .planning/phases/219-fix-industry-workflow-test-failures/219-01-PLAN.md
+**Phase 220: Fix Industry Workflow Test Failures** ✅ COMPLETE
+- **Completed:** 2026-03-22
+- **Duration:** ~10 minutes (600 seconds)
+- **Tasks Completed:** 4
+- **Commits:** 3 (b362e0e2d, 2aeafd753, 112395cff)
+
+**Key Achievement:**
+Fixed all 5 failing tests, achieving 100% pass rate (17/17 tests passing).
+
+## Issues Fixed
 
 ## Problem Analysis
 
@@ -122,6 +130,7 @@ Ready for:
 | 217-03 | 912s (15m) | 5 | 2 |
 | **Phase 217 Total** | **~30 minutes** | **10** | **4** |
 | Phase 217-fix-auth-routes-test-failures P217-03 | 938 | 5 tasks | 2 files |
+| Phase 220 P01 | 600 | 4 tasks | 2 files |
 
 ## Decisions Made
 
@@ -139,6 +148,9 @@ Ready for:
 - [Phase 217-fix-auth-routes-test-failures]: Added locked user account check in change_password endpoint to prevent password changes when account is locked
 - [Phase 217-fix-auth-routes-test-failures]: Reduced test password length from 128 to 70 characters to respect bcrypt 72-byte limit
 - [Phase 217-fix-auth-routes-test-failures]: Made concurrent login test robust to TestClient threading limitations by requiring 1/5 successes instead of 5/5
+- [Phase 220]: Remove template_id from ROICalculationRequest model (already in path parameter per REST API best practices)
+- [Phase 220]: Use real template IDs in tests (healthcare_patient_onboarding instead of test_template_1)
+- [Phase 220]: Update exception handling test to verify ValueError handling for invalid industry enum
 
 ## Blockers
 
