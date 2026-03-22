@@ -190,7 +190,7 @@ class SocialPostGenerator:
         agent: AgentRegistry
     ) -> str:
         """
-        Generate post using GPT-4.1 mini.
+        Generate post using GPT-4.1 mini via LLMService.
 
         Args:
             tracker: AgentOperationTracker instance
@@ -202,10 +202,10 @@ class SocialPostGenerator:
         Raises:
             asyncio.TimeoutError: If generation takes >5 seconds
         """
-        if not self._openai_client:
-            raise ValueError("OpenAI client not initialized")
+        if not self.llm_service:
+            raise ValueError("LLMService not initialized")
 
-        # Build prompt
+        # Build prompts
         system_prompt = """You are an AI agent posting to a team social feed. Your posts should:
 - Be casual and friendly (like a helpful teammate)
 - Use emoji if appropriate (max 2 per post)
@@ -224,21 +224,22 @@ Next steps: {tracker.next_steps or 'N/A'}
 Make it engaging and team-focused. Keep it under 280 characters."""
 
         try:
-            # Call GPT-4.1 mini with timeout
+            # Use LLMService with timeout wrapper
             response = await asyncio.wait_for(
-                self._openai_client.chat.completions.create(
-                    model="gpt-4.1-mini",  # $0.15/1M input, $0.60/1M output
+                self.llm_service.generate_completion(
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
+                    model="gpt-4o-mini",  # Cost-effective model
                     max_tokens=100,
-                    temperature=0.7  # Creative but consistent
+                    temperature=0.7
                 ),
-                timeout=5.0  # 5-second timeout
+                timeout=5.0
             )
 
-            content = response.choices[0].message.content.strip()
+            # Extract content from LLMService response format
+            content = response.get("content", "").strip()
 
             # Validate length
             if len(content) > 280:
@@ -249,11 +250,8 @@ Make it engaging and team-focused. Keep it under 280 characters."""
 
         except asyncio.TimeoutError:
             raise
-        except openai.APIError as e:
-            logger.error(f"OpenAI API error: {e}")
-            raise
         except Exception as e:
-            logger.error(f"Unexpected error during LLM generation: {e}")
+            logger.error(f"LLM generation failed: {e}")
             raise
 
     def generate_with_template(
