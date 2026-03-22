@@ -27,7 +27,7 @@ class TestEpisodeSegmentationServiceCoverage:
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            # Mock BYOK handler
+            # Mock LLM service
             with patch('core.episode_segmentation_service.LLMService') as mock_llm:
                 mock_llm.return_value = Mock()
 
@@ -36,17 +36,17 @@ class TestEpisodeSegmentationServiceCoverage:
                 assert service.db is db_session
                 assert service.lancedb is not None
                 assert service.detector is not None
-                assert service.byok_handler is not None
+                assert service.llm_service is not None
 
-    def test_service_initialization_with_custom_byok(self, db_session):
-        """Cover lines 205-218: Custom BYOK handler initialization"""
+    def test_service_initialization_with_custom_llm(self, db_session):
+        """Cover lines 205-218: Custom LLM service initialization"""
         with patch('core.episode_segmentation_service.get_lancedb_handler') as mock_lancedb:
             mock_lancedb.return_value = Mock()
 
-            custom_byok = Mock()
-            service = EpisodeSegmentationService(db_session, byok_handler=custom_byok)
+            custom_llm = Mock()
+            service = EpisodeSegmentationService(db_session, llm_service=custom_llm)
 
-            assert service.byok_handler is custom_byok
+            assert service.llm_service is custom_llm
 
     def test_time_gap_detection_below_threshold(self, db_session):
         """Cover time-based segmentation (lines 80-200): No gap below 30 min"""
