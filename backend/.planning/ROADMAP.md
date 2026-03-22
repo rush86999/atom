@@ -12,8 +12,9 @@
 **Goal**: Fix all blocking test issues and expand coverage from 21.35% to 50%
 
 ### Phase 218: Fix Test Collection Errors
-**Status**: PENDING
+**Status**: PLANNED
 **Priority**: CRITICAL (blocking test execution)
+**Plans:** 1 plan
 
 **Goal**: Fix 2 test files with collection errors that prevent tests from running
 
@@ -23,13 +24,8 @@
 
 **Gap Closure**: Closes collection errors blocking full test suite execution
 
-**Tasks**:
-1. Fix import error in `tests/core/test_time_expression_parser.py`
-   - Issue: Cannot import `TimeExpressionParser` from `core.time_expression_parser`
-   - Action: Correct import to use actual export name
-2. Fix missing dependency in `tests/core/test_trace_validator.py`
-   - Issue: Missing `aiofiles` module
-   - Action: Add aiofiles to test dependencies or skip test if optional
+**Plans:**
+- [ ] 218-01-PLAN.md — Make aiofiles optional in trajectory.py and fix test imports
 
 **Success Criteria**:
 - [ ] `pytest tests/core/test_time_expression_parser.py --collect-only` succeeds
