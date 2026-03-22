@@ -73,15 +73,15 @@ class LLMAnalyzer:
             raise
 
     def _init_byok(self):
-        """Initialize cloud provider client."""
-        if self.provider == "openai":
-            from openai import OpenAI
-            self.client = OpenAI(api_key=self.api_key)
-        elif self.provider == "anthropic":
-            from anthropic import Anthropic
-            self.client = Anthropic(api_key=self.api_key)
-        else:
-            raise ValueError(f"Unsupported provider: {self.provider}")
+        """
+        Initialize BYOK mode using LLMService.
+
+        LLMService handles provider selection, API key resolution,
+        and client creation internally via BYOKHandler.
+        """
+        # LLMService initialized in __init__ handles all BYOK configuration
+        # No direct client creation needed
+        pass
 
     async def analyze(self, skill_name: str, content: str) -> List[Finding]:
         """Run analysis on skill content."""
