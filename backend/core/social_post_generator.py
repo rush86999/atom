@@ -440,8 +440,8 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         Returns:
             Generated post content (max 280 chars)
         """
-        if not self._openai_client:
-            raise RuntimeError("OpenAI client not initialized")
+        if not self.llm_service:
+            raise RuntimeError("LLMService not initialized")
 
         # Build system prompt with episode guidance
         system_prompt = self._build_system_prompt(with_episodes=True)
@@ -450,16 +450,18 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         user_prompt = self._build_user_prompt(operation, episode_context)
 
         try:
-            response = await self._openai_client.chat.completions.create(
-                model="gpt-4.1-mini",  # Cost-effective model
+            response = await self.llm_service.generate_completion(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
+                model="gpt-4o-mini",  # Cost-effective model
                 max_tokens=150,
-                timeout=5.0
+                temperature=0.7
             )
-            content = response.choices[0].message.content.strip()
+
+            # Extract content from LLMService response format
+            content = response.get("content", "").strip()
 
             # Validate length
             if len(content) > 280:
