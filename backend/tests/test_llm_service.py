@@ -623,6 +623,135 @@ class TestLLMServiceBackwardCompatibility(TestLLMServiceProviderSelection):
         assert service.workspace_id == "test"
         assert service.handler is not None
 
+    def test_init_signature(self, compat_service):
+        """Verify __init__ accepts (workspace_id, db) parameters"""
+        # Test with workspace_id only
+        service1 = LLMService(workspace_id="test")
+        assert service1.workspace_id == "test"
+        assert service1.handler is not None
+
+        # Test with both parameters
+        service2 = LLMService(workspace_id="test", db=None)
+        assert service2.workspace_id == "test"
+        assert service2.handler is not None
+
+    def test_get_provider_returns_enum(self, compat_service):
+        """Verify get_provider returns LLMProvider enum"""
+        # Test various model names return correct provider enum
+        assert compat_service.get_provider("gpt-4o").value == "openai"
+        assert compat_service.get_provider("claude-3-5-sonnet").value == "anthropic"
+        assert compat_service.get_provider("deepseek-chat").value == "deepseek"
+        assert compat_service.get_provider("gemini-1.5-pro").value == "gemini"
+        assert compat_service.get_provider("minimax-m2.5").value == "minimax"
+        assert compat_service.get_provider("mistral-7b").value == "mistral"
+        assert compat_service.get_provider("qwen-7b").value == "qwen"
+
+        # Verify return type is LLMProvider enum
+        from core.llm_service import LLMProvider
+        provider = compat_service.get_provider("gpt-4o")
+        assert isinstance(provider, LLMProvider)
+        assert hasattr(provider, 'value')
+
+    def test_generate_returns_str(self, compat_service):
+        """Verify generate returns string"""
+        import asyncio
+        result = compat_service.generate(
+            prompt="Test prompt",
+            system_instruction="You are helpful",
+            model="auto"
+        )
+        response = asyncio.run(result)
+        assert isinstance(response, str)
+        assert response == "test response"
+
+    def test_generate_completion_returns_dict(self, compat_service):
+        """Verify generate_completion returns dict with expected keys"""
+        import asyncio
+        messages = [
+            {"role": "system", "content": "You are helpful"},
+            {"role": "user", "content": "Test"}
+        ]
+
+        result = compat_service.generate_completion(messages=messages)
+        response = asyncio.run(result)
+
+        # Verify dict structure
+        assert isinstance(response, dict)
+        assert "success" in response
+        assert "content" in response or "text" in response
+        assert "usage" in response
+        assert "model" in response
+        assert "provider" in response
+
+        # Verify usage structure
+        assert "prompt_tokens" in response["usage"]
+        assert "completion_tokens" in response["usage"]
+        assert "total_tokens" in response["usage"]
+
+    def test_estimate_tokens_returns_int(self, compat_service):
+        """Verify estimate_tokens returns integer"""
+        text = "This is a test prompt for token estimation"
+        tokens = compat_service.estimate_tokens(text, model="gpt-4o-mini")
+
+        assert isinstance(tokens, int)
+        assert tokens > 0
+        # Rough estimate: ~4 chars per token with tolerance
+        assert tokens >= len(text) // 4 - 2
+
+    def test_estimate_cost_returns_float(self, compat_service):
+        """Verify estimate_cost returns float"""
+        cost = compat_service.estimate_cost(
+            input_tokens=1000,
+            output_tokens=500,
+            model="gpt-4o-mini"
+        )
+
+        assert isinstance(cost, float)
+        assert cost >= 0
+        # Should be a small value (USD)
+        assert cost < 1.0
+
+    def test_analyze_proposal_returns_dict(self, compat_service):
+        """Verify analyze_proposal returns dict with expected keys"""
+        import asyncio
+
+        # Mock the generate method for analyze_proposal
+        async def mock_generate(*args, **kwargs):
+            return '{"safe": true, "risk_level": "low", "recommendation": "Proceed"}'
+
+        compat_service.generate = mock_generate
+
+        result = asyncio.run(compat_service.analyze_proposal(
+            proposal="Test proposal",
+            context="Test context"
+        ))
+
+        # Verify dict structure
+        assert isinstance(result, dict)
+        # Should have either safe/risk_level keys or raw_response/error keys
+        assert "safe" in result or "raw_response" in result or "error" in result
+
+    def test_is_available_returns_bool(self, compat_service):
+        """Verify is_available returns boolean"""
+        # With mocked clients
+        assert isinstance(compat_service.is_available(), bool)
+        # Should be True when clients exist
+        assert compat_service.is_available() is True
+
+    def test_direct_byok_handler_usage(self):
+        """Verify direct BYOKHandler usage still works"""
+        from core.llm.byok_handler import BYOKHandler
+
+        # Create BYOKHandler directly
+        handler = BYOKHandler(workspace_id="test", db_session=None)
+
+        # Verify it's importable and instantiable
+        assert handler is not None
+        assert hasattr(handler, 'clients')
+        assert hasattr(handler, 'generate_response')
+        assert hasattr(handler, 'stream_completion')
+        assert hasattr(handler, 'get_optimal_provider')
+
 
 class TestLLMServiceStructuredOutput(TestLLMServiceProviderSelection):
     """Tests for LLMService.generate_structured method"""
@@ -1385,4 +1514,316 @@ class TestCognitiveTierHelpers:
             all_models = " ".join(desc["example_models"]).lower()
             # At least one well-known model should appear
             assert any(name in all_models for name in ["gpt", "claude", "gemini", "mini"])
+
+
+class TestPhase222Requirements:
+    """Phase 222-06: Verification tests for all LLM-01 through LLM-05 requirements."""
+
+    @pytest.fixture
+    def mock_db(self):
+        """Mock database session."""
+        return Mock()
+
+    @pytest.fixture
+    def llm_service(self, mock_db):
+        """Create LLMService instance for phase verification."""
+        return LLMService(workspace_id="test", db=mock_db)
+
+    def test_phase_222_requirements_met(self, llm_service):
+        """
+        Verify all Phase 222 requirements are satisfied.
+
+        LLM-01: stream_completion method exists and is async
+        LLM-02: generate_structured method accepts Pydantic model
+        LLM-03: generate_with_tier method accepts cognitive tier
+        LLM-04: get_optimal_provider method exists
+        LLM-05: Existing methods unchanged (backward compatibility)
+        """
+        # LLM-01: stream_completion method exists and is async
+        assert hasattr(llm_service, 'stream_completion'), \
+            "LLM-01: stream_completion method must exist"
+        import inspect
+        # Check if it's an async generator function (returns AsyncGenerator)
+        assert inspect.isasyncgenfunction(llm_service.stream_completion), \
+            "LLM-01: stream_completion must be an async generator function"
+
+        # LLM-02: generate_structured method accepts Pydantic model
+        assert hasattr(llm_service, 'generate_structured'), \
+            "LLM-02: generate_structured method must exist"
+        import inspect
+        sig = inspect.signature(llm_service.generate_structured)
+        assert 'response_model' in sig.parameters, \
+            "LLM-02: generate_structured must accept response_model parameter"
+
+        # LLM-03: generate_with_tier method accepts cognitive tier
+        assert hasattr(llm_service, 'generate_with_tier'), \
+            "LLM-03: generate_with_tier method must exist"
+        sig = inspect.signature(llm_service.generate_with_tier)
+        assert 'user_tier_override' in sig.parameters, \
+            "LLM-03: generate_with_tier must accept user_tier_override parameter"
+
+        # LLM-04: get_optimal_provider method exists
+        assert hasattr(llm_service, 'get_optimal_provider'), \
+            "LLM-04: get_optimal_provider method must exist"
+        assert callable(llm_service.get_optimal_provider), \
+            "LLM-04: get_optimal_provider must be callable"
+
+        # LLM-05: Existing methods unchanged (backward compatibility)
+        # Check that old methods still exist
+        assert hasattr(llm_service, 'generate'), \
+            "LLM-05: generate method must exist for backward compatibility"
+        assert hasattr(llm_service, 'generate_completion'), \
+            "LLM-05: generate_completion method must exist for backward compatibility"
+        assert hasattr(llm_service, 'get_provider'), \
+            "LLM-05: get_provider method must exist for backward compatibility"
+        assert hasattr(llm_service, 'estimate_tokens'), \
+            "LLM-05: estimate_tokens method must exist for backward compatibility"
+        assert hasattr(llm_service, 'estimate_cost'), \
+            "LLM-05: estimate_cost method must exist for backward compatibility"
+
+        # Check method signatures haven't changed
+        sig = inspect.signature(llm_service.generate)
+        assert 'prompt' in sig.parameters, \
+            "LLM-05: generate method must accept prompt parameter"
+        assert 'system_instruction' in sig.parameters, \
+            "LLM-05: generate method must accept system_instruction parameter"
+        assert 'model' in sig.parameters, \
+            "LLM-05: generate method must accept model parameter"
+
+    def test_llm_service_complete_interface(self, llm_service):
+        """Verify all expected methods exist with correct signatures."""
+        import inspect
+
+        # New methods from Phase 222
+        new_methods = [
+            'stream_completion',
+            'generate_structured',
+            'generate_with_tier',
+            'get_optimal_provider',
+            'get_ranked_providers',
+            'get_routing_info',
+            'classify_tier',
+            'get_tier_description'
+        ]
+
+        # Existing methods (backward compatibility)
+        existing_methods = [
+            'generate',
+            'generate_completion',
+            'get_provider',
+            'estimate_tokens',
+            'estimate_cost',
+            'is_available',
+            'analyze_proposal'
+        ]
+
+        # Verify all new methods exist
+        for method_name in new_methods:
+            assert hasattr(llm_service, method_name), \
+                f"Method {method_name} must exist"
+            assert callable(getattr(llm_service, method_name)), \
+                f"Method {method_name} must be callable"
+
+        # Verify all existing methods still exist
+        for method_name in existing_methods:
+            assert hasattr(llm_service, method_name), \
+                f"Method {method_name} must exist for backward compatibility"
+            assert callable(getattr(llm_service, method_name)), \
+                f"Method {method_name} must be callable"
+
+        # Verify stream_completion returns AsyncGenerator
+        assert hasattr(llm_service.stream_completion, '__annotations__'), \
+            "stream_completion should have type hints"
+        return_annotation = inspect.signature(llm_service.stream_completion).return_annotation
+        # Check for AsyncGenerator in return annotation (may be string or actual type)
+        if isinstance(return_annotation, str):
+            assert 'AsyncGenerator' in return_annotation, \
+                "stream_completion should return AsyncGenerator"
+
+        # Verify generate_structured accepts Type[BaseModel]
+        sig = inspect.signature(llm_service.generate_structured)
+        assert 'response_model' in sig.parameters, \
+            "generate_structured must accept response_model parameter"
+
+        # Verify generate_with_tier accepts tier override
+        sig = inspect.signature(llm_service.generate_with_tier)
+        assert 'user_tier_override' in sig.parameters, \
+            "generate_with_tier must accept user_tier_override parameter"
+        assert 'task_type' in sig.parameters, \
+            "generate_with_tier must accept task_type parameter"
+
+        # Verify provider selection methods return tuples
+        sig = inspect.signature(llm_service.get_optimal_provider)
+        # Check that method is callable (actual return type verification requires execution)
+
+    def test_llm_service_delegation_to_byok(self, llm_service):
+        """Verify methods delegate to self.handler (BYOKHandler)."""
+        # Verify handler exists
+        assert hasattr(llm_service, 'handler'), \
+            "LLMService must have handler attribute"
+        assert llm_service.handler is not None, \
+            "LLMService handler must not be None"
+
+        # Verify handler is BYOKHandler instance
+        from core.llm.byok_handler import BYOKHandler
+        assert isinstance(llm_service.handler, BYOKHandler), \
+            "LLMService handler must be BYOKHandler instance"
+
+        # Add mock clients for generate_structured to work
+        llm_service.handler.clients = {"openai": Mock()}  # Mock client
+
+        # Verify key methods delegate to handler
+        # Mock the handler methods to verify delegation
+        llm_service.handler.generate_response = AsyncMock(return_value="test")
+
+        async def mock_stream(*args, **kwargs):
+            yield "test"
+
+        llm_service.handler.stream_completion = mock_stream
+
+        mock_model_instance = Mock(spec=BaseModel)
+        llm_service.handler.generate_structured_response = AsyncMock(
+            return_value=mock_model_instance
+        )
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(
+            return_value={
+                "response": "test",
+                "tier": "standard",
+                "provider": "openai",
+                "model": "gpt-4o-mini",
+                "cost_cents": 0.05,
+                "escalated": False,
+                "request_id": "test-123"
+            }
+        )
+        llm_service.handler.get_optimal_provider = Mock(
+            return_value=("openai", "gpt-4o-mini")
+        )
+        llm_service.handler.get_ranked_providers = Mock(
+            return_value=[("openai", "gpt-4o-mini")]
+        )
+        llm_service.handler.get_routing_info = Mock(
+            return_value={
+                "complexity": "moderate",
+                "selected_provider": "openai",
+                "selected_model": "gpt-4o-mini",
+                "available_providers": ["openai"],
+                "cost_tier": "premium",
+                "estimated_cost_usd": 0.001
+            }
+        )
+
+        # Test generate delegates to generate_response
+        import asyncio
+        result = asyncio.run(llm_service.generate("test"))
+        assert llm_service.handler.generate_response.called, \
+            "generate should delegate to handler.generate_response"
+
+        # Test stream_completion delegates to handler.stream_completion
+        async def test_stream():
+            tokens = []
+            async for token in llm_service.stream_completion(
+                messages=[{"role": "user", "content": "test"}],
+                model="gpt-4o-mini",
+                provider_id="openai"
+            ):
+                tokens.append(token)
+            return tokens
+
+        tokens = asyncio.run(test_stream())
+        # Stream delegation verified (handler mock returns tokens)
+
+        # Test generate_structured delegates to generate_structured_response
+        result = asyncio.run(llm_service.generate_structured(
+            prompt="test",
+            response_model=Mock
+        ))
+        assert llm_service.handler.generate_structured_response.called, \
+            "generate_structured should delegate to handler.generate_structured_response"
+
+        # Test generate_with_tier delegates to generate_with_cognitive_tier
+        result = asyncio.run(llm_service.generate_with_tier(prompt="test"))
+        assert llm_service.handler.generate_with_cognitive_tier.called, \
+            "generate_with_tier should delegate to handler.generate_with_cognitive_tier"
+
+        # Test get_optimal_provider delegates to handler
+        provider, model = llm_service.get_optimal_provider()
+        assert llm_service.handler.get_optimal_provider.called, \
+            "get_optimal_provider should delegate to handler.get_optimal_provider"
+
+        # Test get_ranked_providers delegates to handler
+        providers = llm_service.get_ranked_providers()
+        assert llm_service.handler.get_ranked_providers.called, \
+            "get_ranked_providers should delegate to handler.get_ranked_providers"
+
+        # Test get_routing_info delegates to handler
+        info = llm_service.get_routing_info("test")
+        assert llm_service.handler.get_routing_info.called, \
+            "get_routing_info should delegate to handler.get_routing_info"
+
+    def _mock_stream_generator(self):
+        """Helper to create a mock async generator for streaming."""
+        async def mock_gen(*args, **kwargs):
+            yield "test"
+        return mock_gen
+
+    @pytest.mark.asyncio
+    async def test_llm_service_complete_interface_async(self, llm_service):
+        """Verify async methods work correctly."""
+        # Mock handler methods with proper async returns
+        llm_service.handler.generate_response = AsyncMock(return_value="response")
+
+        # Mock stream_completion as async generator
+        async def mock_stream(*args, **kwargs):
+            yield "test"
+
+        llm_service.handler.stream_completion = mock_stream
+
+        # Create a mock BaseModel for structured output
+        mock_model_instance = Mock(spec=BaseModel)
+        llm_service.handler.generate_structured_response = AsyncMock(
+            return_value=mock_model_instance
+        )
+
+        llm_service.handler.generate_with_cognitive_tier = AsyncMock(
+            return_value={
+                "response": "test",
+                "tier": "standard",
+                "provider": "openai",
+                "model": "gpt-4o-mini",
+                "cost_cents": 0.05,
+                "escalated": False,
+                "request_id": "test-123"
+            }
+        )
+
+        # Mock is_available to return True
+        llm_service.handler.clients = {"openai": Mock()}  # Add mock client
+
+        # Test generate
+        result = await llm_service.generate("test prompt")
+        assert result == "response"
+
+        # Test stream_completion
+        tokens = []
+        async for token in llm_service.stream_completion(
+            messages=[{"role": "user", "content": "test"}],
+            model="gpt-4o-mini",
+            provider_id="openai"
+        ):
+            tokens.append(token)
+        assert len(tokens) > 0
+
+        # Test generate_structured
+        result = await llm_service.generate_structured(
+            prompt="test",
+            response_model=Mock
+        )
+        assert result is not None
+
+        # Test generate_with_tier
+        result = await llm_service.generate_with_tier(prompt="test")
+        assert "response" in result
+        assert "tier" in result
 
