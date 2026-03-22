@@ -1746,12 +1746,13 @@ Plans:
   3. skill_security_scanner.py uses LLMService for security-sensitive operations
   4. All three files pass existing tests with LLMService integration
   5. No regression in embedding generation, GraphRAG queries, or security scanning
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 223-01: Migrate embedding_service.py to LLMService
-- [ ] 223-02: Migrate graphrag_engine.py to LLMService
-- [ ] 223-03: Migrate skill_security_scanner.py to LLMService
+- [ ] 223-01-PLAN.md — Add embedding generation to LLMService (generate_embedding, generate_embeddings_batch)
+- [ ] 223-02-PLAN.md — Migrate embedding_service.py to LLMService
+- [ ] 223-03-PLAN.md — Migrate graphrag_engine.py to LLMService
+- [ ] 223-04-PLAN.md — Migrate skill_security_scanner.py to LLMService
 
 #### Phase 224: Critical Migration Part 2
 **Goal**: Migrate security analyzers, LanceDB handler, and social post generator to LLMService
