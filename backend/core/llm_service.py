@@ -1019,6 +1019,26 @@ class LLMService:
 
         return descriptions.get(tier_enum, descriptions[CognitiveTier.STANDARD])
 
+    def analyze_query_complexity(self, prompt: str, task_type: Optional[str] = None) -> QueryComplexity:
+        """
+        Analyze query complexity to determine optimal provider routing.
+
+        Uses regex-based heuristic with expanded vocabulary for robust classification.
+
+        Args:
+            prompt: The user prompt to analyze
+            task_type: Optional task type hint (code, chat, analysis, etc.)
+
+        Returns:
+            QueryComplexity enum value (SIMPLE, MODERATE, COMPLEX, or ADVANCED)
+
+        Example:
+            >>> service = LLMService()
+            >>> complexity = service.analyze_query_complexity("Write a Python REST API")
+            >>> print(complexity.value)  # 'complex' or 'advanced'
+        """
+        return self.handler.analyze_query_complexity(prompt, task_type)
+
 
 def get_llm_service(workspace_id: str = "default", db=None) -> LLMService:
     """Factory function to get an LLMService instance."""
