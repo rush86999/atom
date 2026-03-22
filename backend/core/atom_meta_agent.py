@@ -25,7 +25,7 @@ from ai.nlp_engine import NaturalLanguageEngine, CommandIntentResult, CommandTyp
 from typing import Literal
 from core.canvas_context_provider import get_canvas_provider, CanvasContext
 from core.agents.queen_agent import QueenAgent
-from core.llm_router import LLMRouter
+from core.llm_service import LLMService, get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +128,7 @@ class SpecialtyAgentTemplate:
 
 
 
-from core.llm.byok_handler import BYOKHandler
+# ReAct Models
 from core.react_models import ReActStep, ToolCall, ReActObservation
 import json
 
@@ -181,7 +181,7 @@ class AtomMetaAgent:
         self.orchestrator = AdvancedWorkflowOrchestrator()
         self._spawned_agents: Dict[str, AgentRegistry] = {}
         self.mcp = mcp_service  # MCP access for tools
-        self.llm = BYOKHandler(workspace_id=workspace_id)
+        self.llm = get_llm_service(workspace_id=workspace_id)
         self.session_tools: List[Dict[str, Any]] = [] # Usage: Dynamically added tools
         self.canvas_provider = get_canvas_provider()  # Canvas context provider
         self.queen = None # Lazy loaded
@@ -346,7 +346,7 @@ class AtomMetaAgent:
                 # 1. Queen Phase: Generate Blueprint
                 if not self.queen:
                     with SessionLocal() as db:
-                        self.queen = QueenAgent(db, LLMRouter())
+                        self.queen = QueenAgent(db, self.llm)
                 
                 blueprint = await self.queen.generate_blueprint(request, tenant_id=tenant_id or "default")
                 
