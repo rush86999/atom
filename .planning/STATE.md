@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** All LLM interactions flow through a single unified interface for consistency, observability, and maintainability
-**Current focus:** Phase 226.1 - Provider Registry Foundation
+**Current focus:** Phase 226.2 - LUX Integration Routing
 
 ## Current Position
 
-Phase: 226.1-provider-registry-foundation (Provider Registry Foundation)
-Plan: 01 - Provider Registry Foundation
-Status: In Progress
-Last activity: 2026-03-22 — Phase 226.1-01 COMPLETE: Created database-backed provider registry with auto-discovery
+Phase: 226.2-lux-integration-routing (LUX Integration Routing)
+Plan: 01 - LUX BPC Integration
+Status: Complete
+Last activity: 2026-03-22 — Phase 226.2-01 COMPLETE: Integrated LUX computer use model into BPC routing system
 
-Progress: [██████░░] 62% (22/34 plans complete)
+Progress: [██████░░] 63% (23/34 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 22
-- Average duration: ~5.5 minutes
-- Total execution time: 2.0 hours
+- Total plans completed: 23
+- Average duration: ~5.3 minutes
+- Total execution time: 2.1 hours
 
 **By Phase:**
 
@@ -33,6 +33,7 @@ Progress: [██████░░] 62% (22/34 plans complete)
 | 225 | 3/3 | 11 min | ~4 min |
 | 225.1 | 8/8 | 32 min | ~4 min |
 | 226.1 | 1/1 | 12 min | ~12 min |
+| 226.2 | 1/1 | 2 min | ~2 min |
 | 226 | 0/1 | TBD | - |
 | 227 | 0/1 | TBD | - |
 | 228 | 0/2 | TBD | - |
@@ -42,10 +43,11 @@ Progress: [██████░░] 62% (22/34 plans complete)
 | 232 | 0/3 | TBD | - |
 
 **Recent Trend:**
-- Last 3 plans: 226.1-01 (~12 min), 225.1-08 (~3 min), 225.1-07 (~5 min)
+- Last 3 plans: 226.2-01 (~2 min), 226.1-01 (~12 min), 225.1-08 (~3 min)
 - Trend: Consistent velocity
 
 *Updated after each plan completion*
+| Phase 226.2-lux-integration-routing P01 | 141s | 3 tasks | 3 files |
 | Phase 226.1-provider-registry-foundation P01 | 704s | 4 tasks | 5 files |
 | Phase 225.1-agent-llmservice-migration P02 | 163s | 5 tasks | 2 files |
 | Phase 225-critical-migration-part-3 P03 | 509s | 3 tasks | 2 files |
@@ -119,6 +121,12 @@ Recent decisions affecting current work:
 - [Phase 226.1-01]: Database tables created with indexes on is_active and provider_id for filtering performance
 - [Phase 226.1-01]: Singleton pattern used for both services with dependency injection support for testing
 - [Phase 226.1-01]: Alembic migration 226103220000 applied successfully, provider registry now stores 2,922+ models
+- [Phase 226.2-01]: Integrated LUX computer use model into BPC routing system with lux-1.0 model mapping
+- [Phase 226.2-01]: Added LUX provider configuration to BYOKHandler using lux_config.get_anthropic_key() with BYOK fallback
+- [Phase 226.2-01]: Added LUX quality score 88 to MODEL_QUALITY_SCORES (Standard tier, matches minimax-m2.5)
+- [Phase 226.2-01]: Added LUX to vision_models list for computer use task routing
+- [Phase 226.2-01]: Created 10 comprehensive integration tests with 100% pass rate
+- [Phase 226.2-01]: Fixed mock patch path for test reliability (core.llm.byok_handler.lux_config)
 
 ### Pending Todos
 
@@ -130,8 +138,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 226.1-01 execution)
-Stopped at: Completed phase 226.1-01 - Provider registry foundation with database models, CRUD service, and auto-discovery
+Last session: 2026-03-22 (plan 226.2-01 execution)
+Stopped at: Completed phase 226.2-01 - LUX BPC integration with provider configuration, quality scoring, and comprehensive tests
 Resume file: None
 
 ## Milestone Context
