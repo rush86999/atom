@@ -480,13 +480,27 @@ class LanceDBHandler:
             if self.embedding_provider == "openai" and self.llm_service:
                 # Use LLMService for unified embedding generation
                 # Note: embed_text is synchronous but LLMService.generate_embedding is async
-                # Use asyncio.run() to bridge the sync/async gap
+                # Use asyncio.run() when not in async context
                 try:
                     import asyncio
-                    embedding = asyncio.run(self.llm_service.generate_embedding(
-                        text=text,
-                        model="text-embedding-3-small"  # 1536 dimensions
-                    ))
+
+                    async def _get_embedding():
+                        return await self.llm_service.generate_embedding(
+                            text=text,
+                            model="text-embedding-3-small"  # 1536 dimensions
+                        )
+
+                    try:
+                        # Check if we're in an async context
+                        asyncio.get_running_loop()
+                        # We're in an async context, can't use asyncio.run()
+                        # Return None and let caller handle async properly
+                        logger.warning("embed_text called from async context - use async embedding methods")
+                        return None
+                    except RuntimeError:
+                        # No running event loop, safe to use asyncio.run()
+                        embedding = asyncio.run(_get_embedding())
+
                     if NUMPY_AVAILABLE:
                         import numpy as np
                         return np.array(embedding)
