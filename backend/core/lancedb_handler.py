@@ -463,19 +463,38 @@ class LanceDBHandler:
             return False
     
     def embed_text(self, text: str) -> Optional[Any]:
-        """Embed text using configured provider"""
+        """
+        Embed text using configured provider
+
+        For OpenAI: Uses LLMService.generate_embedding (unified interface)
+        For local: Uses sentence-transformers or fastembed
+
+        Args:
+            text: Text to embed
+
+        Returns:
+            Embedding vector (numpy array or list) or None on failure
+        """
         self._ensure_embedder()
         try:
-            if self.embedding_provider == "openai" and self.openai_client:
-                response = self.openai_client.embeddings.create(
-                    input=text,
-                    model="text-embedding-3-small"
-                )
-                if NUMPY_AVAILABLE:
-                    import numpy as np  # Import locally if needed
-                    return np.array(response.data[0].embedding)
-                return response.data[0].embedding
-            
+            if self.embedding_provider == "openai" and self.llm_service:
+                # Use LLMService for unified embedding generation
+                # Note: embed_text is synchronous but LLMService.generate_embedding is async
+                # Use asyncio.run() to bridge the sync/async gap
+                try:
+                    import asyncio
+                    embedding = asyncio.run(self.llm_service.generate_embedding(
+                        text=text,
+                        model="text-embedding-3-small"  # 1536 dimensions
+                    ))
+                    if NUMPY_AVAILABLE:
+                        import numpy as np
+                        return np.array(embedding)
+                    return embedding
+                except Exception as e:
+                    logger.error(f"LLMService embedding generation failed: {e}")
+                    raise
+
             elif self.embedder:
                 try:
                     if NUMPY_AVAILABLE:
@@ -486,11 +505,11 @@ class LanceDBHandler:
                 except Exception as e:
                     logger.error(f"embedder.encode failed: {e}")
                     raise e
-            
+
             else:
                 logger.error(f"No embedding provider available. Provider: {self.embedding_provider}, Embedder: {self.embedder}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Failed to embed text: {e}")
             return None
