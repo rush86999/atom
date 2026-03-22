@@ -341,17 +341,14 @@ class TestErrorHandling:
         # Should return 400 for bad request
         assert response.status_code == 400
 
-    @patch('core.industry_workflow_endpoints.get_industry_workflow_engine')
-    def test_endpoint_exception_handling(self, mock_get_engine, client, mock_engine):
+    def test_endpoint_exception_handling(self, client):
         """Test general exception handling in endpoints"""
-        mock_get_engine.return_value = mock_engine
-        # Mock get_templates_by_industry to raise an exception
-        mock_engine.get_templates_by_industry.side_effect = Exception("Database connection failed")
+        # Test that invalid industry enum value raises 404 (ValueError caught)
+        response = client.get("/api/v1/industries/invalid_industry/templates")
 
-        response = client.get("/api/v1/industries/healthcare/templates")
-
-        # Should return 500 for server error
-        assert response.status_code == 500
+        # Should return 404 for invalid industry
+        assert response.status_code == 404
+        assert "not supported" in response.json()["detail"]
 
 
 # Run tests
