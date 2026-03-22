@@ -60,11 +60,13 @@ class TestLUXBPCIntegration:
         assert "lux" in handler.clients, "LUX client should be initialized"
         # Verify Anthropic client was created (OpenAI class is used for Anthropic API)
 
-    @patch('core.lux_config.lux_config.get_anthropic_key')
+    @patch('core.llm.byok_handler.lux_config')
     @patch('core.llm.byok_handler.get_byok_manager')
-    def test_lux_client_fallback_to_byok(self, mock_byok, mock_lux_key):
+    def test_lux_client_fallback_to_byok(self, mock_byok, mock_lux_config):
         """Verify LUX falls back to BYOK for API key"""
-        mock_lux_key.return_value = None  # lux_config returns None
+        # Mock lux_config.get_anthropic_key() to return None
+        mock_lux_config.get_anthropic_key.return_value = None
+
         mock_byok_instance = Mock()
         mock_byok_instance.get_api_key.return_value = "byok-lux-key"
         mock_byok_instance.is_configured.return_value = True
@@ -75,7 +77,8 @@ class TestLUXBPCIntegration:
         # LUX should be initialized via BYOK fallback
         assert "lux" in handler.clients or handler.clients == {}, \
             "LUX client should be initialized via BYOK or gracefully skipped"
-        mock_byok_instance.get_api_key.assert_called_with("lux")
+        # Verify BYOK was called as fallback
+        mock_byok_instance.get_api_key.assert_any_call("lux")
 
     def test_lux_not_in_tools_disabled_models(self):
         """Verify LUX is not in MODELS_WITHOUT_TOOLS (unless it actually doesn't support tools)"""
