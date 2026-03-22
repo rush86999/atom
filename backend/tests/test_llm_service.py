@@ -2010,3 +2010,133 @@ class TestLLMServiceEmbedding(TestLLMServiceProviderSelection):
 
             assert "API rate limit exceeded" in str(exc_info.value)
 
+
+class TestLLMServiceNewMethods:
+    """Tests for new LLMService methods added in Phase 225.1-02."""
+
+    @pytest.fixture
+    def mock_handler(self):
+        """Mock BYOKHandler with new methods."""
+        handler = Mock()
+        handler.clients = {"openai": Mock(), "anthropic": Mock()}
+
+        # Mock analyze_query_complexity
+        handler.analyze_query_complexity = Mock(return_value=QueryComplexity.MODERATE)
+
+        # Mock get_available_providers
+        handler.get_available_providers = Mock(return_value=["openai", "anthropic", "deepseek"])
+
+        # Mock get_context_window
+        handler.get_context_window = Mock(return_value=128000)
+
+        # Mock truncate_to_context
+        handler.truncate_to_context = Mock(return_value="truncated text")
+
+        return handler
+
+    @pytest.fixture
+    def llm_service(self, mock_handler):
+        """Create LLMService with mocked handler."""
+        with patch('core.llm_service.BYOKHandler', return_value=mock_handler):
+            service = LLMService(workspace_id="test")
+            service.handler = mock_handler
+            return service
+
+    def test_analyze_query_complexity(self, llm_service, mock_handler):
+        """Test query complexity analysis."""
+        # Simple query
+        simple = llm_service.analyze_query_complexity("hello")
+        assert simple.value == "moderate"  # Mock returns MODERATE
+        mock_handler.analyze_query_complexity.assert_called_with("hello", None)
+
+        # Complex query
+        mock_handler.analyze_query_complexity = Mock(return_value=QueryComplexity.COMPLEX)
+        complex_query = llm_service.analyze_query_complexity(
+            "Implement a REST API with authentication"
+        )
+        assert complex_query.value == "complex"
+
+        # With task type hint
+        mock_handler.analyze_query_complexity = Mock(return_value=QueryComplexity.ADVANCED)
+        code = llm_service.analyze_query_complexity("write a function", task_type="code")
+        assert code.value == "advanced"
+        mock_handler.analyze_query_complexity.assert_called_with("write a function", "code")
+
+    def test_get_available_providers(self, llm_service, mock_handler):
+        """Test provider list retrieval."""
+        providers = llm_service.get_available_providers()
+
+        assert isinstance(providers, list)
+        assert len(providers) == 3
+        assert "openai" in providers
+        assert "anthropic" in providers
+        assert "deepseek" in providers
+
+        # Verify delegation
+        mock_handler.get_available_providers.assert_called_once()
+
+    def test_get_context_window(self, llm_service, mock_handler):
+        """Test context window lookup."""
+        # Test GPT-4o
+        context = llm_service.get_context_window("gpt-4o")
+        assert context == 128000
+        mock_handler.get_context_window.assert_called_with("gpt-4o")
+
+        # Test Claude
+        mock_handler.get_context_window = Mock(return_value=200000)
+        context_claude = llm_service.get_context_window("claude-3-5-sonnet")
+        assert context_claude == 200000
+        mock_handler.get_context_window.assert_called_with("claude-3-5-sonnet")
+
+    def test_truncate_to_context(self, llm_service, mock_handler):
+        """Test text truncation."""
+        # Test basic truncation
+        long_text = "a" * 10000
+        truncated = llm_service.truncate_to_context(long_text, "gpt-4o")
+        assert truncated == "truncated text"
+        mock_handler.truncate_to_context.assert_called_with(long_text, "gpt-4o", 1000)
+
+        # Test with custom reserve_tokens
+        mock_handler.truncate_to_context = Mock(return_value="custom truncated")
+        truncated_custom = llm_service.truncate_to_context(long_text, "gpt-4o", reserve_tokens=2000)
+        assert truncated_custom == "custom truncated"
+        mock_handler.truncate_to_context.assert_called_with(long_text, "gpt-4o", 2000)
+
+    def test_all_new_methods_delegation(self, llm_service, mock_handler):
+        """Verify all new methods properly delegate to BYOKHandler."""
+        # Test analyze_query_complexity
+        llm_service.analyze_query_complexity("test")
+        assert mock_handler.analyze_query_complexity.called
+
+        # Test get_available_providers
+        llm_service.get_available_providers()
+        assert mock_handler.get_available_providers.called
+
+        # Test get_context_window
+        llm_service.get_context_window("gpt-4o")
+        assert mock_handler.get_context_window.called
+
+        # Test truncate_to_context
+        llm_service.truncate_to_context("test", "gpt-4o")
+        assert mock_handler.truncate_to_context.called
+
+    def test_new_methods_return_types(self, llm_service):
+        """Test that new methods return correct types."""
+        # analyze_query_complexity returns QueryComplexity enum
+        result = llm_service.analyze_query_complexity("test")
+        assert isinstance(result, QueryComplexity)
+
+        # get_available_providers returns list of strings
+        providers = llm_service.get_available_providers()
+        assert isinstance(providers, list)
+        assert all(isinstance(p, str) for p in providers)
+
+        # get_context_window returns int
+        context = llm_service.get_context_window("gpt-4o")
+        assert isinstance(context, int)
+        assert context > 0
+
+        # truncate_to_context returns string
+        truncated = llm_service.truncate_to_context("test", "gpt-4o")
+        assert isinstance(truncated, str)
+
