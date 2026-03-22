@@ -128,7 +128,7 @@ class TestExecutionOrchestration:
                 })
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.ws_manager', mock_ws_manager):
                         with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
@@ -166,7 +166,7 @@ class TestExecutionOrchestration:
                 })
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -233,7 +233,7 @@ class TestExecutionOrchestration:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -271,7 +271,7 @@ class TestStateManagement:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -304,7 +304,7 @@ class TestStateManagement:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -336,7 +336,7 @@ class TestStateManagement:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -380,7 +380,7 @@ class TestErrorHandling:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     result = await execute_agent_chat(
                         agent_id="agent_123",
                         message="Hello",
@@ -410,7 +410,7 @@ class TestErrorHandling:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -437,7 +437,7 @@ class TestErrorHandling:
             resolver_instance.resolve_agent_for_request = AsyncMock(return_value=(None, {}))
             MockResolver.return_value = resolver_instance
 
-            with patch('core.agent_execution_service.BYOKHandler') as MockBYOK:
+            with patch('core.agent_execution_service.LLMService') as MockLLM:
                 mock_byok_handler = AsyncMock()
                 mock_byok_handler.analyze_query_complexity = Mock(return_value=2)
                 mock_byok_handler.get_optimal_provider = Mock(return_value=("openai", "gpt-4"))
@@ -446,7 +446,7 @@ class TestErrorHandling:
                     yield "Hello"
 
                 mock_byok_handler.stream_completion = mock_stream
-                MockBYOK.return_value = mock_byok_handler
+                MockLLM.return_value = mock_byok_handler
 
                 with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                     with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
@@ -484,7 +484,7 @@ class TestStreaming:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.ws_manager', mock_ws_manager):
                         with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
@@ -519,7 +519,7 @@ class TestStreaming:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.ws_manager', mock_ws_manager):
                         with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
@@ -564,7 +564,7 @@ class TestConversationHistory:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -596,7 +596,7 @@ class TestConversationHistory:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=mock_chat_history):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -635,7 +635,7 @@ class TestSessionManagement:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=mock_session_manager):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -670,7 +670,7 @@ class TestSessionManagement:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -709,7 +709,7 @@ class TestEpisodeTriggering:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation') as mock_trigger:
@@ -748,7 +748,7 @@ class TestSyncWrapper:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -778,7 +778,7 @@ class TestSyncWrapper:
                 governance_instance.can_perform_action = Mock(return_value={"allowed": True})
                 MockGovernance.return_value = governance_instance
 
-                with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+                with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                     with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                             with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -828,7 +828,7 @@ class TestFeatureFlags:
         mock_query.filter.return_value.first.return_value = sample_agent
 
         with patch.dict('os.environ', {'STREAMING_GOVERNANCE_ENABLED': 'false'}):
-            with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+            with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                 with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                     with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
@@ -851,7 +851,7 @@ class TestFeatureFlags:
         mock_query.filter.return_value.first.return_value = sample_agent
 
         with patch.dict('os.environ', {'EMERGENCY_GOVERNANCE_BYPASS': 'true'}):
-            with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+            with patch('core.agent_execution_service.LLMService', return_value=mock_byok_handler):
                 with patch('core.agent_execution_service.get_chat_history_manager', return_value=Mock()):
                     with patch('core.agent_execution_service.get_chat_session_manager', return_value=Mock()):
                         with patch('core.agent_execution_service.trigger_episode_creation', new_callable=AsyncMock):
