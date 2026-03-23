@@ -3,6 +3,11 @@ Test data factories for Atom platform.
 
 Uses factory_boy for dynamic, isolated test data generation.
 All factories inherit from BaseFactory which manages SQLAlchemy sessions.
+
+IMPORTANT: All factory calls in test environment MUST include _session parameter:
+    AgentFactory.create(_session=db_session, ...)
+
+See: backend/tests/factories/README.md for complete documentation.
 """
 
 from tests.factories.base import BaseFactory
