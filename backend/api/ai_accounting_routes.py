@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.decimal_utils import to_decimal
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ async def ingest_transaction(request: TransactionRequest):
     tx = Transaction(
         id=request.id,
         date=datetime.fromisoformat(request.date),
-        amount=request.amount,
+        amount=to_decimal(request.amount),
         description=request.description,
         merchant=request.merchant,
         source=TransactionSource(request.source)
