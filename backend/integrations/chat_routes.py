@@ -7,11 +7,13 @@ import os
 # Add parent directory to path to import from backend
 import sys
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
+from core.models import User
+from core.security_dependencies import get_current_user
 from integrations.chat_orchestrator import ChatOrchestrator, FeatureType
 
 # Configure logging
@@ -73,11 +75,28 @@ class RenameSessionRequest(BaseModel):
 
 
 @router.patch("/sessions/{session_id}")
-async def rename_session(session_id: str, request: RenameSessionRequest) -> Dict[str, Any]:
+async def rename_session(
+    session_id: str,
+    request: RenameSessionRequest,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
     """
-    Rename a chat session
+    Rename a chat session (authenticated)
+
+    **Security**: Requires authentication and verifies user owns the session
     """
     try:
+        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
+        if current_user.id != request.user_id:
+            logger.warning(
+                f"Session rename denied: user {current_user.id} attempted to rename "
+                f"session {session_id} belonging to {request.user_id}"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You can only rename your own chat sessions"
+            )
+
         # Check permissions first
         session = chat_orchestrator.conversation_sessions.get(session_id)
         if not session:
@@ -85,12 +104,12 @@ async def rename_session(session_id: str, request: RenameSessionRequest) -> Dict
             managed_session = chat_orchestrator.session_manager.get_session(session_id)
             if managed_session:
                 session = managed_session
-        
+
         if not session:
              raise HTTPException(status_code=404, detail="Session not found")
-             
-        if session.get("user_id") != request.user_id:
-             logger.warning(f"Rename denied: Owner {session.get('user_id')} != Requestor {request.user_id}")
+
+        if session.get("user_id") != current_user.id:
+             logger.warning(f"Rename denied: Owner {session.get('user_id')} != Requestor {current_user.id}")
              raise HTTPException(status_code=403, detail="Access denied")
 
         success = chat_orchestrator.rename_session(session_id, request.title)
@@ -112,26 +131,48 @@ async def rename_session(session_id: str, request: RenameSessionRequest) -> Dict
         raise HTTPException(status_code=500, detail=f"Failed to rename session: {str(e)}")
 
 @router.get("/sessions/{session_id}")
-async def get_session_details(session_id: str, user_id: str) -> Dict[str, Any]:
+async def get_session_details(
+    session_id: str,
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
     """
-    Get details for a specific session
+    Get details for a specific session (authenticated)
+
+    **Security**: Requires authentication and verifies user owns the session
     """
     try:
+        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
+        if current_user.id != user_id:
+            logger.warning(
+                f"Chat access denied: user {current_user.id} attempted to access "
+                f"session {session_id} belonging to {user_id}"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You can only access your own chat sessions"
+            )
+
         # We can use orchestrator's memory or fetch from session manager
         # Since orchestrator has get_user_sessions, let's use a direct get_session
         session = chat_orchestrator.conversation_sessions.get(session_id)
-        
+
         if not session:
              # Let's peek into manager
              managed_session = chat_orchestrator.session_manager.get_session(session_id)
              if managed_session:
                  session = managed_session
-        
+
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
-            
-        if session.get("user_id") != user_id:
-             raise HTTPException(status_code=403, detail="Access denied")
+
+        # Additional verification: ensure session belongs to the authenticated user
+        if session.get("user_id") != current_user.id:
+            logger.warning(
+                f"Chat access denied: session {session_id} user mismatch "
+                f"(expected: {current_user.id}, got: {session.get('user_id')})"
+            )
+            raise HTTPException(status_code=403, detail="Access denied")
 
         return {
             "success": True,
@@ -151,12 +192,28 @@ async def get_session_details(session_id: str, user_id: str) -> Dict[str, Any]:
 
 # API Routes
 @router.post("/message")
-async def send_chat_message(request: ChatMessageRequest) -> ChatMessageResponse:
+async def send_chat_message(
+    request: ChatMessageRequest,
+    current_user: User = Depends(get_current_user)
+) -> ChatMessageResponse:
     """
-    Send a chat message to the ATOM chat orchestrator
+    Send a chat message to the ATOM chat orchestrator (authenticated)
+
+    **Security**: Requires authentication and verifies user matches request.user_id
     """
     try:
-        logger.info(f"Processing chat message from user {request.user_id}: {request.message}")
+        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
+        if current_user.id != request.user_id:
+            logger.warning(
+                f"Chat message denied: user {current_user.id} attempted to send message "
+                f"as user {request.user_id}"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You can only send messages as yourself"
+            )
+
+        logger.info(f"Processing chat message from user {current_user.id}: {request.message}")
 
         # Handle "new" session ID from frontend - treat as fresh session
         session_id = request.session_id
@@ -164,8 +221,9 @@ async def send_chat_message(request: ChatMessageRequest) -> ChatMessageResponse:
             session_id = None
 
         # Process the message through the chat orchestrator
+        # Use authenticated user_id instead of request.user_id
         response = await chat_orchestrator.process_chat_message(
-            user_id=request.user_id,
+            user_id=current_user.id,
             message=request.message,
             session_id=session_id,
             context=request.context
@@ -190,19 +248,41 @@ async def send_chat_message(request: ChatMessageRequest) -> ChatMessageResponse:
 
 
 @router.get("/memory/{session_id}")
-async def get_chat_memory(session_id: str, user_id: str) -> ChatMemoryResponse:
+async def get_chat_memory(
+    session_id: str,
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+) -> ChatMemoryResponse:
     """
-    Get memory/context for a specific chat session
+    Get memory/context for a specific chat session (authenticated)
+
+    **Security**: Requires authentication and verifies user owns the session
     """
     try:
-        logger.info(f"Retrieving memory for session {session_id} and user {user_id}")
+        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
+        if current_user.id != user_id:
+            logger.warning(
+                f"Chat memory access denied: user {current_user.id} attempted to access "
+                f"memory for session {session_id} belonging to {user_id}"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You can only access your own chat sessions"
+            )
+
+        logger.info(f"Retrieving memory for session {session_id} and user {current_user.id}")
 
         # Check if session exists
         if session_id not in chat_orchestrator.conversation_sessions:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
         session = chat_orchestrator.conversation_sessions[session_id]
-        if session.get("user_id") != user_id:
+        # Verify session belongs to authenticated user
+        if session.get("user_id") != current_user.id:
+            logger.warning(
+                f"Chat memory access denied: session {session_id} user mismatch "
+                f"(expected: {current_user.id}, got: {session.get('user_id')})"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
 
         return ChatMemoryResponse(
@@ -219,24 +299,43 @@ async def get_chat_memory(session_id: str, user_id: str) -> ChatMemoryResponse:
 
 
 @router.get("/history/{session_id}")
-async def get_chat_history(session_id: str, user_id: str) -> ChatHistoryResponse:
+async def get_chat_history(
+    session_id: str,
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+) -> ChatHistoryResponse:
     """
-    Get chat history for a specific session
+    Get chat history for a specific session (authenticated)
+
+    **Security**: Requires authentication and verifies user owns the session
     """
     try:
-        logger.info(f"Retrieving history for session {session_id} and user {user_id}")
+        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
+        if current_user.id != user_id:
+            logger.warning(
+                f"Chat history access denied: user {current_user.id} attempted to access "
+                f"history for session {session_id} belonging to {user_id}"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You can only access your own chat sessions"
+            )
+
+        logger.info(f"Retrieving history for session {session_id} and user {current_user.id}")
 
         # Lazy-load session if it doesn't exist (e.g. new chat from frontend)
         if session_id not in chat_orchestrator.conversation_sessions:
-            logger.info(f"Session {session_id} not found, lazy-initializing for user {user_id}")
-            session = chat_orchestrator._get_or_create_session(user_id, session_id)
+            logger.info(f"Session {session_id} not found, lazy-initializing for user {current_user.id}")
+            session = chat_orchestrator._get_or_create_session(current_user.id, session_id)
         else:
             session = chat_orchestrator.conversation_sessions[session_id]
 
-        # Verify user access (if we didn't just create it)
-        # RELAXED CHECK: Allow 'default_user' to access everything in dev mode
-        if session.get("user_id") != user_id and user_id != "default_user":
-            logger.warning(f"Access denied: Session owner {session.get('user_id')} != Request user {user_id}")
+        # Verify session belongs to authenticated user (prevents IDOR)
+        if session.get("user_id") != current_user.id:
+            logger.warning(
+                f"Chat history access denied: session {session_id} user mismatch "
+                f"(expected: {current_user.id}, got: {session.get('user_id')})"
+            )
             raise HTTPException(status_code=403, detail="Access denied")
 
         return ChatHistoryResponse(
@@ -253,19 +352,35 @@ async def get_chat_history(session_id: str, user_id: str) -> ChatHistoryResponse
 
 
 @router.get("/sessions")
-async def get_user_sessions(user_id: str) -> Dict[str, Any]:
+async def get_user_sessions(
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
     """
-    Get all chat sessions for a user
+    Get all chat sessions for a user (authenticated)
+
+    **Security**: Requires authentication and verifies user matches requested user_id
     """
     try:
-        logger.info(f"Retrieving sessions for user {user_id}")
+        # Security: Verify authenticated user matches the requested user_id (prevents IDOR)
+        if current_user.id != user_id:
+            logger.warning(
+                f"User sessions access denied: user {current_user.id} attempted to access "
+                f"sessions belonging to {user_id}"
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: You can only access your own chat sessions"
+            )
+
+        logger.info(f"Retrieving sessions for user {current_user.id}")
 
         # Use orchestrator to get sessions (handles DB/File persistence)
         # Note: This returns a Dict[session_id, session_data]
-        user_sessions = chat_orchestrator.get_user_sessions(user_id)
+        user_sessions = chat_orchestrator.get_user_sessions(current_user.id)
 
         return {
-            "user_id": user_id,
+            "user_id": current_user.id,
             "sessions": user_sessions,
             "total_sessions": len(user_sessions)
         }
