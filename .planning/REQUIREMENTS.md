@@ -137,14 +137,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 through AUTH-07 | Phase 1 | Pending |
-| AGNT-01 through AGNT-08 | Phase 2 | Pending |
-| CANV-01 through CANV-11 | Phase 3 | Pending |
-| WORK-01 through WORK-10 | Phase 4 | Pending |
-| INFRA-01 through INFRA-10 | Phase 5 | Pending |
-| STRESS-01 through STRESS-11 | Phase 6 | Pending |
-| MOBILE-01 through MOBILE-07 | Phase 7 | Pending |
-| A11Y-01 through A11Y-07 | Phase 7 | Pending |
+| AUTH-01 through AUTH-07 | Phase 234 | Pending |
+| AGNT-01 through AGNT-08 | Phase 234 | Pending |
+| CANV-01 through CANV-11 | Phase 235 | Pending |
+| WORK-01 through WORK-10 | Phase 235 | Pending |
+| INFRA-01 through INFRA-10 | Phase 233 | Pending |
+| STRESS-01 through STRESS-11 | Phase 236 | Pending |
+| MOBILE-01 through MOBILE-07 | Phase 236 | Pending |
+| A11Y-01 through A11Y-07 | Phase 236 | Pending |
 
 **Coverage:**
 - v1 requirements: 58 total
@@ -163,4 +163,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-23*
-*Last updated: 2026-03-23 after initial requirements definition*
+*Last updated: 2026-03-23 after roadmap creation (v7.0)*
