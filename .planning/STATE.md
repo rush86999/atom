@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 226.4-registry-capabilities-sync (Registry Capabilities Sync)
-Plan: 04 - Capability and Health Routing Integration
+Plan: 05 - Provider Health API and Scheduler Integration
 Status: Complete
-Last activity: 2026-03-23 — Phase 226.4-04 COMPLETE: Integrated capability-based routing and health filtering into BYOKHandler with 15 integration tests
+Last activity: 2026-03-22 — Phase 226.4-05 COMPLETE: Created provider health API endpoints and integrated ProviderScheduler into application startup with 8 integration tests
 
-Progress: [██████░░] 68% (27/38 plans complete)
+Progress: [██████░░] 71% (28/38 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 28
 - Average duration: ~5.3 minutes
-- Total execution time: 2.2 hours
+- Total execution time: 2.5 hours
 
 **By Phase:**
 
@@ -34,7 +34,7 @@ Progress: [██████░░] 68% (27/38 plans complete)
 | 225.1 | 8/8 | 32 min | ~4 min |
 | 226.1 | 1/1 | 12 min | ~12 min |
 | 226.2 | 1/1 | 2 min | ~2 min |
-| 226.4 | 2/5 | 13 min | ~6.5 min |
+| 226.4 | 5/5 | 25 min | ~5 min |
 | 226 | 0/1 | TBD | - |
 | 227 | 0/1 | TBD | - |
 | 228 | 0/2 | TBD | - |
@@ -159,6 +159,12 @@ Recent decisions affecting current work:
 - [Phase 226.4-03]: Health monitor integration tracks sync as 'provider_registry' provider
 - [Phase 226.4-03]: Singleton pattern with get_instance() for global scheduler access
 - [Phase 226.4-03]: Created 15 comprehensive unit tests with 100% pass rate
+- [Phase 226.4-05]: Created provider health API endpoints with 3 routes (GET /health, GET /{id}/health, POST /sync)
+- [Phase 226.4-05]: Integrated ProviderScheduler into application startup/shutdown lifecycle
+- [Phase 226.4-05]: Provider health routes use datetime.now(timezone.utc) for Python 3.14+ compatibility
+- [Phase 226.4-05]: Health endpoints don't require authentication (operational monitoring pattern)
+- [Phase 226.4-05]: Integration tests use real database for simplicity and better coverage
+- [Phase 226.4-05]: Created 8 integration tests with 100% pass rate (8/8 tests passing)
 
 ### Pending Todos
 
@@ -170,8 +176,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23 (plan 226.4-04 execution)
-Stopped at: Completed phase 226.4-04 - Capability and health routing integration with BYOKHandler enhancement
+Last session: 2026-03-22 (plan 226.4-05 execution)
+Stopped at: Completed phase 226.4-05 - Provider health API and scheduler integration
 Resume file: None
 
 ## Milestone Context
