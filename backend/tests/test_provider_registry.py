@@ -9,9 +9,13 @@ from core.database import get_db_session
 
 @pytest.fixture
 def db_session():
-    """Provide a test database session"""
+    """Provide a test database session with cleanup"""
     with get_db_session() as db:
         yield db
+        # Cleanup: Delete all test data after each test
+        db.query(ModelCatalog).delete()
+        db.query(ProviderRegistry).delete()
+        db.commit()
 
 
 class TestProviderRegistryService:
@@ -240,9 +244,16 @@ class TestProviderRegistryService:
 
     def test_singleton_pattern(self, db_session):
         """Test get_provider_registry returns singleton instance"""
-        registry1 = get_provider_registry(db_session)
-        registry2 = get_provider_registry(db_session)
+        # Reset singleton for testing
+        import core.provider_registry as pr_module
+        pr_module._registry_instance = None
+
+        registry1 = get_provider_registry()
+        registry2 = get_provider_registry()
         assert registry1 is registry2
+
+        # Reset again to avoid affecting other tests
+        pr_module._registry_instance = None
 
 
 class TestProviderAutoDiscovery:
