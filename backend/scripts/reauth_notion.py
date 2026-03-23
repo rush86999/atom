@@ -202,7 +202,8 @@ def run_reauth():
     port = parsed_uri.port or 80
     
     try:
-        with socketserver.TCPServer(("", port), OAuthCallbackHandler) as httpd:
+        # Bind to 127.0.0.1 only (localhost) to prevent external access - security fix
+        with socketserver.TCPServer(("127.0.0.1", port), OAuthCallbackHandler) as httpd:
             httpd.handle_request()
     except Exception as e:
         print(f"❌ Error starting local server: {e}")
