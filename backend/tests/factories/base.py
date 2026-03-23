@@ -5,6 +5,7 @@ Uses factory_boy for dynamic, isolated test data generation.
 All factories inherit from BaseFactory which manages SQLAlchemy sessions.
 """
 
+import os
 import factory
 from factory.alchemy import SQLAlchemyModelFactory
 from sqlalchemy.orm import Session
@@ -30,8 +31,27 @@ class BaseFactory(SQLAlchemyModelFactory):
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
-        """Override to handle session injection."""
+        """Override to handle session injection with enforcement.
+
+        Args:
+            model_class: SQLAlchemy model class
+            _session: Database session (REQUIRED in test environment)
+
+        Raises:
+            RuntimeError: If _session not provided in test environment
+
+        In test environment (detected by PYTEST_XDIST_WORKER_ID), the _session
+        parameter is MANDATORY to ensure proper test isolation.
+        """
         session = kwargs.pop('_session', None)
+        is_test_env = os.environ.get('PYTEST_XDIST_WORKER_ID') is not None
+
+        if is_test_env and session is None:
+            raise RuntimeError(
+                "{0}.create() requires _session parameter in test environment. "
+                "Usage: {0}.create(_session=db_session, ...)".format(cls.__name__)
+            )
+
         if session:
             # Use provided session (from test fixture)
             cls._meta.sqlalchemy_session = session
