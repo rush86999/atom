@@ -229,8 +229,22 @@ class EpisodeLifecycleService:
             user_feedback: Feedback score (-1.0 to 1.0)
 
         Returns:
-            True if successful
+            True if successful, False if episode not found or invalid feedback
+
+        Raises:
+            ValueError: If user_feedback is outside valid range [-1.0, 1.0]
         """
+        # Defensive validation: reject out-of-bounds feedback
+        if not -1.0 <= user_feedback <= 1.0:
+            logger.warning(
+                f"Invalid feedback score {user_feedback} for episode {episode_id}. "
+                f"Valid range is [-1.0, 1.0]"
+            )
+            raise ValueError(
+                f"Invalid feedback_score: {user_feedback}. "
+                f"Must be between -1.0 and 1.0"
+            )
+
         episode = self.db.query(Episode).filter(
             Episode.id == episode_id
         ).first()
