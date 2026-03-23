@@ -436,6 +436,14 @@ try:
     except ImportError as e:
         logger.warning(f"Business Facts routes not found: {e}")
 
+    # 1.7 JIT Verification Routes (Safe Import)
+    try:
+        from api.admin.jit_verification_routes import router as jit_verification_router
+        app.include_router(jit_verification_router, prefix="") # Already has valid prefix
+        logger.info("✓ JIT Verification Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"JIT Verification routes not found: {e}")
+
     # 2. Workflow Engine
     try:
         from core.availability_endpoints import router as availability_router
