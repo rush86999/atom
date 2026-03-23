@@ -276,33 +276,6 @@ def db_session(worker_database):
     SessionLocal = worker_database
     session = SessionLocal()
 
-    # Create default tenant for tests (required by SocialPost foreign key)
-    from core.models import Tenant, Workspace
-    default_tenant = session.query(Tenant).filter(Tenant.id == "default").first()
-    if not default_tenant:
-        default_tenant = Tenant(
-            id="default",
-            name="Default Tenant",
-            subdomain="default",
-            edition="personal",
-            plan_type="free",
-            is_active=True
-        )
-        session.add(default_tenant)
-        session.commit()
-
-    # Create default workspace for tests (required by MetaAgent)
-    default_workspace = session.query(Workspace).filter(Workspace.id == "default").first()
-    if not default_workspace:
-        default_workspace = Workspace(
-            id="default",
-            tenant_id="default",
-            name="Default Workspace",
-            description="Test workspace"
-        )
-        session.add(default_workspace)
-        session.commit()
-
     # Start nested transaction for rollback
     from sqlalchemy import Connection
     if isinstance(session, Connection):
