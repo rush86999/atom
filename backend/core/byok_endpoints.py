@@ -14,10 +14,23 @@ logger = logging.getLogger(__name__)
 
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, Field, validator
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Request Models for API Key Submission (Security: POST body instead of query params)
+class AddAPIKeyRequest(BaseModel):
+    """Secure API key submission via POST body"""
+    api_key: str = Field(..., min_length=10, description="API key string")
+    key_name: str = Field(default="default", max_length=100, description="Key identifier")
+
+    @validator('key_name')
+    def validate_key_name(cls, v):
+        if v and not v.replace('_', '').isalnum():
+            raise ValueError("key_name must be alphanumeric with underscores only")
+        return v
 
 # BYOK Configuration Storage
 BYOK_CONFIG_FILE = "./data/byok_config.json"
@@ -699,22 +712,57 @@ async def get_ai_provider(
 @router.post("/api/ai/providers/{provider_id}/keys")
 async def store_api_key(
     provider_id: str,
-    api_key: str,
-    key_name: str = "default",
-    environment: str = "production",
+    request: AddAPIKeyRequest,
+    background_tasks: BackgroundTasks,
     byok_manager: BYOKManager = Depends(get_byok_manager),
 ):
-    """Store an API key for a provider"""
+    """Store an API key for a provider (secure: uses POST body)
+
+    Security: API keys in POST body don't appear in browser history, logs, or analytics.
+    """
+    # Validate api_key
+    if not request.api_key or len(request.api_key) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid API key: must be at least 10 characters"
+        )
+
+    # Validate provider_id
+    valid_providers = ["openai", "anthropic", "deepseek", "gemini", "moonshot", "minimax", "qwen", "lux", "groq", "google", "google_flash", "mistral", "glm", "glm_5", "deepinfra", "tavily", "minimax_2_5", "anthropic_opus_4_6", "openai_5_3"]
+    if provider_id not in valid_providers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid provider_id: {provider_id}"
+        )
+
     try:
-        key_id = byok_manager.store_api_key(provider_id, api_key, key_name, environment)
+        # Hash the key for storage (SHA-256)
+        key_hash = hashlib.sha256(request.api_key.encode()).hexdigest()
+
+        # Encrypt using existing BYOK encryption logic
+        encrypted_key = byok_manager.encrypt_api_key(request.api_key)
+
+        # Store in BYOK system
+        key_id = byok_manager.store_api_key(
+            provider_id=provider_id,
+            api_key=request.api_key,
+            key_name=request.key_name,
+            environment="production"
+        )
+
         return {
             "success": True,
-            "key_id": key_id,
-            "message": f"API key stored successfully for {provider_id}",
+            "message": f"API key '{request.key_name}' added for {provider_id}",
+            "provider_id": provider_id,
+            "key_name": request.key_name,
+            "key_preview": f"{request.api_key[:4]}...{request.api_key[-4:]}",
+            "key_id": key_id
         }
+
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error(f"Failed to store API key: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to store API key: {str(e)}"
         )
