@@ -37,6 +37,7 @@ MODEL_QUALITY_SCORES = {
     "gemini-2.0-flash": 86,
     "gemini-1.5-flash": 84,
     "minimax-m2.5": 88,  # Standard tier, between gemini-2.0-flash and deepseek-chat
+    "lux-1.0": 88,  # LUX Computer Use (Claude 3.5 Sonnet based) - Phase 226.2-01
 
     # Efficiency / Simple
     "deepseek-chat": 80,
@@ -70,3 +71,55 @@ def get_quality_score(model_id: str) -> int:
         return 75
         
     return 70  # Default floor for unspecified models
+
+
+# Capability-specific quality scores (0-100)
+# Used for specialized routing when models excel at specific tasks
+MODEL_CAPABILITY_SCORES = {
+    "computer_use": {
+        "lux-1.0": 95,  # Specialized for computer use
+        "claude-3.5-sonnet": 85,  # Good but not specialized
+        "gpt-4o": 80,
+    },
+    "vision": {
+        "gpt-4o": 95,
+        "claude-3.5-sonnet": 90,
+        "gemini-2.0-flash": 88,
+        "lux-1.0": 85,  # Has vision but not specialized for it
+    },
+    "tools": {
+        "claude-3.5-sonnet": 93,
+        "gpt-4o": 91,
+        "gemini-2.0-flash": 85,
+    },
+}
+
+
+def get_capability_score(model_id: str, capability: str) -> int:
+    """
+    Get the capability-specific quality score for a model.
+    Falls back to general quality score if capability-specific score missing.
+
+    Args:
+        model_id: Model identifier
+        capability: Capability name (e.g., "computer_use", "vision", "tools")
+
+    Returns:
+        Capability-specific quality score (0-100)
+    """
+    # Check capability-specific scores first
+    if capability in MODEL_CAPABILITY_SCORES:
+        capability_scores = MODEL_CAPABILITY_SCORES[capability]
+
+        # Exact match
+        if model_id in capability_scores:
+            return capability_scores[model_id]
+
+        # Partial match
+        model_lower = model_id.lower()
+        for key, score in capability_scores.items():
+            if key.lower() in model_lower:
+                return score
+
+    # Fallback to general quality score
+    return get_quality_score(model_id)

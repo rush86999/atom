@@ -135,10 +135,13 @@ async def start_recording(
 async def record_event(
     recording_id: str,
     request: RecordEventRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     """
     Record an event during canvas session.
+
+    **SECURITY**: Requires authentication to prevent unauthorized event injection.
 
     - **event_type**: Type of event (operation_start, update, complete, error, etc.)
     - **event_data**: Event data specific to the event type

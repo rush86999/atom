@@ -180,16 +180,17 @@ class TestEmbedderInitialization:
         assert handler.embedder is not None
 
     @patch('core.lancedb_handler.OPENAI_AVAILABLE', True)
-    @patch('core.lancedb_handler.OpenAI')
-    def test_initialize_openai_embedder(self, mock_openai_class, temp_db_path, monkeypatch):
-        """Initialize OpenAI embedder"""
+    @patch('core.lancedb_handler.LLMService')
+    def test_initialize_openai_embedder(self, mock_llm_service_class, temp_db_path, monkeypatch):
+        """Initialize OpenAI embedder via LLMService"""
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        mock_client = Mock()
-        mock_openai_class.return_value = mock_client
+        mock_service = Mock()
+        mock_llm_service_class.return_value = mock_service
 
         handler = LanceDBHandler(db_path=temp_db_path, embedding_provider="openai")
 
-        assert handler.openai_client is not None
+        assert handler.llm_service is not None
+        assert handler.openai_client is None  # Deprecated, should be None
 
     def test_fallback_to_mock_embedder(self, temp_db_path):
         """Fallback to MockEmbedder when SentenceTransformers unavailable"""
@@ -1045,4 +1046,60 @@ class TestUtilityFunctions:
                 assert embeddings is not None
 
 
-# Total: 67 tests
+# ============================================================================
+# Test Class 11: TestLanceDBLLMServiceIntegration (2 tests)
+# ============================================================================
+
+class TestLanceDBLLMServiceIntegration:
+    """Test LanceDB handler with LLMService embedding integration"""
+
+    def test_openai_embedding_via_llm_service(self, temp_db_path, monkeypatch):
+        """OpenAI embeddings use LLMService.generate_embedding"""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key")
+
+        with patch('core.lancedb_handler.LLMService') as mock_llm_service_class:
+            # Mock LLMService class
+            mock_service = Mock()
+            mock_service.generate_embedding = AsyncMock(
+                return_value=[0.1] * 1536  # OpenAI dimensions
+            )
+            mock_llm_service_class.return_value = mock_service
+
+            handler = LanceDBHandler(
+                db_path=temp_db_path,
+                embedding_provider="openai"
+            )
+
+            # Verify LLMService was initialized
+            assert handler.llm_service is not None
+            assert handler.llm_service == mock_service
+
+            # Call embed_text (which should use LLMService)
+            # Note: embed_text uses asyncio.run() internally, which works in sync context
+            vector = handler.embed_text("Test text")
+
+            # Verify embedding generated
+            assert vector is not None
+            assert len(vector) == 1536  # OpenAI text-embedding-3-small dimensions
+
+            # Verify LLMService.generate_embedding was called
+            mock_service.generate_embedding.assert_called_once_with(
+                text="Test text",
+                model="text-embedding-3-small"
+            )
+
+    def test_embedding_dimensions_match_provider(self, temp_db_path):
+        """Embedding dimensions match provider (1536 for OpenAI, 384 for local)"""
+        # Test with local embedder (MockEmbedder defaults to 384 dimensions)
+        handler = LanceDBHandler(
+            db_path=temp_db_path,
+            embedding_provider="local"
+        )
+
+        vector = handler.embed_text("Test text")
+
+        assert vector is not None
+        assert len(vector) == 384  # Local embedder (MockEmbedder) dimensions
+
+
+# Total: 69 tests (67 existing + 2 new)

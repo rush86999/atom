@@ -70,6 +70,9 @@ services:
     environment:
       - PORT=3003
       - NODE_ENV=production
+      # SECURITY: Enable authentication for piece engine management endpoints
+      - REQUIRE_AUTH=true
+      - PIECE_ENGINE_API_KEY=${PIECE_ENGINE_API_KEY:-change-this-to-a-secure-random-key}
     restart: unless-stopped
     networks:
       - atom_network

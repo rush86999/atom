@@ -1,259 +1,199 @@
 # Atom 80% Test Coverage Initiative - State Management
-# Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-10)
+See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Critical system paths are thoroughly tested and validated before production deployment
-**Current focus:** Phase 06-social-layer - Plan 03 (PII Redaction Fixes)
-
-## Current Position
-
-Phase: 215-fix-remaining-ab-test-failures
-Plan: 02 (COMPLETE)
-Status: COMPLETE ✅
-Last activity: 2026-03-20 — Phase 215 COMPLETE: Fixed all 10 remaining A/B testing test failures. Changed patch location from 'core.ab_testing_service.ABTestingService' to 'api.ab_testing.ABTestingService' to properly intercept service instantiation. Updated response structure assertions to match API wrapping (data field for success, detail field for errors). Fixed validation tests to expect 422 (Pydantic) instead of 400. All 55 A/B tests now passing (100% pass rate, up from 81.8%). Zero database dependencies, ~12s execution time. Commits: 85c149356, dcf4503a8, 04c252e35.
-
-Phase 05 Summary:
-- Plan 01: Agent governance & maturity routing (1,313 lines, 54 tests, 100% passing)
-- Plan 02: Graduation framework & context resolution (1,121 lines, 44 tests, 59.1% passing - test env issues)
-- Plan 03: Execution orchestration & coordination (1,483 lines, 26 tests, 100% passing)
-- Total: 3,917 lines (exceeded 2,500+ target by 56.7%), 112/127 tests passing
-
-Progress: [██████████] 67% (Phase 04: 3/3 complete, Phase 05: 3/3 complete, Phase 06: ready to start)
-### Coverage Metrics (as of 2026-02-19)
-- **Overall Coverage**: 15.2%
-- **Current Goal**: 80%
-- **Coverage Gap**: 64.8 percentage points to target
-- **Focus**: AI-related components (governance, LLM, memory, agents, social, skills, local agent, IM)
-- **Phase 30 Progress**: atom_agent_endpoints.py 33.04% (+252 lines from baseline)
+**Current focus:** v5.5 Fix Test Failures and Push Backend Coverage to 80%
 
 ---
 
 ## Current Position
 
-**Phase**: Phase 1 - Foundation & Infrastructure
-**Plans**: 2 plans (1-1: Baseline Coverage, 1-2: Test Infrastructure)
-**Status**: RESEARCH COMPLETE - Ready to begin execution
-**Last activity**: 2026-02-17 — Project research, requirements, and roadmap created
+**Phase**: Phase 220 - Fix Industry Workflow Test Failures
+**Plan**: TBD (0 plans)
+**Status**: PLANNING
+**Last activity**: 2026-03-22 — Roadmap created for v5.5 milestone with 7 phases (220-226) targeting 80% backend coverage from 74.6% baseline. 24 requirements mapped across test failure resolution, coverage expansion, and quality gates enforcement. Next: Plan Phase 220 execution.
 
-**Roadmap Structure**:
-- Phase 1: Foundation & Infrastructure (1.5-2.5 days)
-- Phase 2: Core Invariants (3-5 days)
-- Phase 3: Memory Layer (3-4 days)
-- Phase 4: Agent Layer (4-5 days)
-- Phase 5: Social Layer (3-4 days)
-- Phase 6: Skills Layer (4-5 days)
-- Phase 7: Local Agent (3-4 days)
-- Phase 8: IM Layer (2-3 days)
-- Phase 9: LLM Validation (3-4 days)
-- Phase 10: Chaos Engineering (3-4 days)
-- Phase 11: Gap Filling (5-7 days)
+Progress: [        ] 0% (Roadmap complete, ready to begin execution)
 
-**Total Estimated Time**: 35-50 days
+---
+
+## Coverage Metrics
+
+### Baseline (2026-03-22)
+- **Overall Coverage**: 74.6% actual line coverage
+- **Test Pass Rate**: 90.6% (483 passing, 14 failing, 36 errors)
+- **Total Tests**: 1,489 test files
+- **Coverage Gap**: 5.4 percentage points to 80% target
+
+### Milestone v5.5 Targets
+- **Phase 220**: 0 test failures (industry workflow)
+- **Phase 221**: 0 test errors (2FA routes)
+- **Phase 222**: Core services >= 80%
+- **Phase 223**: API routes >= 80%
+- **Phase 224**: Tools & integration >= 80%
+- **Phase 225**: Overall >= 80%
+- **Phase 226**: 98%+ pass rate, CI/CD re-enabled
 
 ---
 
 ## Pending Todos
 
-### High Priority (Phase 10 - Wave 1)
-1. **[COMPLETED] Performance and Stability Verification (TQ-03, TQ-04)** ✅
-   - **Status**: COMPLETED - Plan 10-05 (2026-02-16)
-   - **Achieved**: 6:47 execution time (8.8x faster than 60-min requirement)
-   - **Stability**: 0.016% flaky test rate (1 test out of 6,226)
-   - **Result**: TQ-03 PASS, TQ-04 NEAR PASS (exceptionally low flaky rate)
-   - **Impact**: Confirmed test infrastructure meets performance requirements
-   - **Report**: 10-05-performance-stability-report.md
-   - **Commit**: e6d327d1, 85084647
+### Critical (Phase 220 - Test Failure Resolution)
+1. **[PENDING] Fix Industry Workflow Test Failures** (FAIL-01, FAIL-02, FAIL-03, FAIL-04)
+   - **Status**: PENDING
+   - **Goal**: All 10 industry workflow tests pass (0 failures)
+   - **Tasks**:
+     - Remove duplicate test file `test_industry_workflow_endpoints.py` from tests/api/services/
+     - Fix template ID mismatches (use real template IDs like "healthcare_patient_onboarding")
+     - Fix ROI request validation (remove template_id from request body)
+     - Verify all 10 tests passing
+   - **Impact**: Unblocks coverage expansion work
 
-2. **[COMPLETED] Fix Hypothesis TypeError Blocking Property Tests** ✅
-   - **Status**: COMPLETED - Plan 10-01 (2026-02-16)
-   - **Fixed**: Enhanced conftest.py to detect and remove MagicMock objects from sys.modules
-   - **Result**: 10,727 tests collecting (0 errors), property tests execute without TypeError
-   - **Impact**: Enables property test collection for coverage expansion
-   - **Commit**: fe47c5fa
+2. **[PENDING] Fix 2FA Routes Test Errors** (FAIL-05, FAIL-06)
+   - **Status**: PENDING
+   - **Goal**: Resolve all 24 2FA routes test errors
+   - **Tasks**:
+     - Fix 2FA test fixtures and dependencies
+     - Resolve import errors in 2FA routes tests
+     - Configure test fixtures properly
+     - Verify no regressions in other tests
+   - **Impact**: Enables 98%+ pass rate target
 
-2. **[COMPLETED] Fix Governance and Proposal Test Failures** ✅
-   - **Status**: COMPLETED - Plan 10-02 (2026-02-15)
-   - **Completed**:
-     - Governance graduation tests: 2/2 fixed ✅ (test_score_calculation_weights, test_promote_invalid_status_key)
-     - Proposal service tests: 5/5 fixed ✅ (browser, integration, workflow, agent actions, format_outcome)
-   - **Impact**: Improved test pass rate, ready for coverage expansion
-   - **Commit**: 19cc76c4
+### High Priority (Phases 221-226 - Coverage Expansion)
+3. **[PENDING] Core Services Coverage Expansion** (CORE-01, CORE-02, CORE-03, CORE-04)
+   - **Status**: PENDING
+   - **Goal**: Core services achieve 80% coverage
+   - **Target Files**:
+     - Token storage service (gaps at line 17)
+     - Error handler decorator (gaps at line 74)
+     - Structured logger (gaps at lines 112, 187)
+     - API routes base (gaps at line 54)
+   - **Impact**: Foundation for API routes coverage
 
-3. **[COMPLETED] Fix Graduation Governance Test Flakiness** ✅
-   - **Status**: COMPLETED - Plan 10-03 (2026-02-16)
-   - **Fixed**: Verified test_agent_graduation_governance.py uses `configuration` attribute
-   - **Result**: 28/28 tests passing consistently across 3 runs (no flakiness)
-   - **Impact**: Closed gap from 10-01/10-02 where factories were fixed but tests weren't
-   - **Note**: Fix already existed in commit e4c76262, this plan verified it
-   - **Next Action**: Execute remaining Phase 10 plans (10-04, 10-05)
+4. **[PENDING] API Routes Coverage Expansion** (API-01, API-02, API-03, API-04)
+   - **Status**: PENDING
+   - **Goal**: API routes achieve 80% coverage
+   - **Target Files**:
+     - Episode routes (gaps at line 305)
+     - Auto-install routes (gaps at lines 25, 32)
+     - Admin routes (gaps at lines 99, 1065)
+     - Composition routes (gaps at line 35)
+   - **Impact**: API layer fully tested
 
-4. **[IN PROGRESS] Achieve 98%+ Test Pass Rate (TQ-02)** ✅ PARTIAL
-   - **Status**: PARTIAL - Plan 10-04 (2026-02-16)
-   - **Estimated**: ~97.5-98% pass rate (medium confidence)
-   - **Verification**: INCOMPLETE - full suite requires >30 min for 3 runs
-   - **Blockers**: 18 recursion errors in workspace routes, rate limiting delays
-   - **Report**: 10-04-pass-rate-report.md (392 lines)
-   - **Recommendation**: Phase 10-06 (fix recursion), 10-07 (run 3 full suites), 10-08 (final calculation)
-   - **Commits**: eb8c16c2, a60bc707, 2d5f7994
+5. **[PENDING] Tools & Integration Coverage** (TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, QUAL-03)
+   - **Status**: PENDING
+   - **Goal**: Tools and integration achieve 80% coverage with property-based tests
+   - **Target Files**:
+     - Canvas tool
+     - Browser automation tool
+     - Device capabilities tool
+     - Agent governance service
+     - LLM routing and BYOK handler
+     - Property-based tests for invariants (Hypothesis)
+   - **Impact**: Complete backend coverage
 
-### Medium Priority (Phase 10 - Waves 2-6)
-3. **[CRITICAL] Expand Coverage from 15.2% to 50%**
-   - **Status**: PENDING - Main Phase 10 goal
-   - **Strategy**: High-impact files first (>200 lines)
-   - **Progress**: 15.2% → 50% (34.8 percentage point gap)
-   - **Timeline**: 1 week (aggressive)
-   - **Approach**:
-     - Wave 2: Coverage analysis (identify high-impact files)
-     - Wave 3: Add unit tests for core services
-     - Wave 4: Add integration tests for critical paths
-     - Wave 5: Add property tests for invariants
-     - Wave 6: Verify 50% coverage achieved
-   - **Next Action**: Coverage analysis after test failures fixed
+6. **[PENDING] Coverage Verification & Reports** (QUAL-01, QUAL-04)
+   - **Status**: PENDING
+   - **Goal**: Verify 80% backend coverage achieved
+   - **Tasks**:
+     - Generate comprehensive coverage reports (HTML + JSON)
+     - Verify 80% target achieved across all modules
+     - Document remaining coverage gaps
+     - Validate all critical system paths >= 80%
+   - **Impact**: Confirms milestone success
 
-4. **[IMPROVEMENT] Add Property-Based Tests**
-   - **Status**: PLANNED
-   - **Goal**: Hypothesis-based property tests for invariants
-   - **Focus**: Core services and critical business logic
-   - **Timeline**: During Phase 10 coverage expansion (Wave 5)
-   - **Next Action**: Identify invariant opportunities alongside unit tests
-
-### Low Priority
-5. **[ENHANCEMENT] Add Performance Regression Tests**
-   - **Status**: BACKLOG
-   - **Goal**: Prevent performance degradation
-   - **Approach**: Benchmark critical paths, set performance thresholds
-   - **Next Action**: Define performance testing strategy
+7. **[PENDING] Quality Gates Enforcement** (FAIL-07, QUAL-02, QUAL-05)
+   - **Status**: PENDING
+   - **Goal**: Ensure 98% test pass rate and re-enable CI/CD
+   - **Tasks**:
+     - Achieve 98%+ overall test pass rate (currently 90.6%)
+     - Ensure all tests passing with no failures or errors
+     - Re-enable CI/CD workflows after 80% target achieved
+     - Verify quality gates operational (pre-commit, CI, trend tracking)
+   - **Impact**: Production-ready quality infrastructure
 
 ---
 
 ## Blockers
 
 ### Active Blockers
-1. **Remaining Test Failures**
-   - **Type**: ~20-25 tests still failing from Phase 09
-   - **Impact**: Blocks 98%+ pass rate, must fix before coverage expansion
+1. **Industry Workflow Test Failures**
+   - **Type**: 10 failing tests in industry workflow endpoints
+   - **Impact**: Blocks Phase 220 completion, must fix before coverage expansion
    - **Categories**:
-     - Governance graduation tests: 0 failures ✅ (fixed in 10-03)
-     - Proposal service tests: 0 failures ✅ (fixed in 10-02)
-     - Other unit tests: ~20-25 failures remaining
-   - **Root Cause**: Various (test logic, fixture issues, UNIQUE constraints)
-   - **Resolution**: Fix failures first (Phase 10, Wave 1)
-   - **Progress**: 48 tests fixed (10-01: 35 collection errors, 10-02: 7 tests, 10-03: verified 28 tests)
+     - Duplicate test file causing conflicts
+     - Template ID mismatches (fake vs real IDs)
+     - ROI request validation issues
+   - **Root Cause**: Test configuration and fixture issues
+   - **Resolution**: Fix failures first (Phase 220)
+   - **Progress**: 0/10 tests fixed
 
-### Recent Blockers (Resolved in Phase 09)
-1. ✅ **356 Collection Errors** - RESOLVED
-   - Fixed all governance, auth, and property test collection errors
-   - Commits: `c7756a0f`, `15ad1eb9`, `f3b60d01`
+2. **2FA Routes Test Errors**
+   - **Type**: 24 test errors in 2FA routes
+   - **Impact**: Blocks Phase 221 completion, prevents 98% pass rate
+   - **Categories**:
+     - Import errors
+     - Fixture configuration issues
+     - Dependency problems
+   - **Root Cause**: Test infrastructure and setup issues
+   - **Resolution**: Fix errors after Phase 220 (Phase 221)
+   - **Progress**: 0/24 errors resolved
 
-2. ✅ **AsyncMock Usage Pattern** - RESOLVED
-   - Fixed 19 governance tests using correct AsyncMock pattern
-   - Commit: `15ad1eb9`
-
-3. ✅ **Property Test TypeErrors** - RESOLVED
-   - Fixed 10 property test collection errors
-   - Commit: `c7756a0f`
+### Coverage Gaps
+3. **5.4 Percentage Points to 80% Target**
+   - **Type**: Coverage gap (74.6% → 80%)
+   - **Impact**: Must close gap through targeted test development
+   - **Strategy**: Progressive expansion (core services → API routes → tools)
+   - **Resolution**: Phases 222-224
+   - **Progress**: 0% of gap closed
 
 ---
 
 ## Recent Work
 
-### Completed (Phase 10 - 2026-02-16)
-**Goal**: Pass rate verification for TQ-02 requirement
+### Completed (Phase 219 - Coverage Push Zero Coverage Files)
+**Goal**: Add tests to zero-coverage files
 
 **Completed Tasks**:
-- ✅ Created comprehensive pass rate verification report (392 lines)
-- ✅ Documented execution challenges (10,727 tests, >10 min per run)
-- ✅ Identified 18 recursion errors in workspace routes tests
-- ✅ Estimated pass rate at ~97.5-98% (medium confidence)
-- ✅ Provided 3 options for complete verification
-- ✅ Recommended Phase 10-06, 10-07, 10-08 for completion
+- ✅ Identified zero-coverage files requiring tests
+- ✅ Added baseline tests for previously untested modules
+- ✅ Improved overall coverage from previous baseline
 
 **Commits**:
-- `eb8c16c2` - docs(10-04): document pass rate verification challenges and methodology
-- `a60bc707` - docs(10-04): add execution analysis and recommendations to pass rate report
-- `2d5f7994` - docs(10-04): complete pass rate verification summary
+- (Specific commits to be added)
 
-**Impact**: Partial gap closure - methodology documented, blockers identified, clear path to completion
-
-### Completed (Phase 10 - 2026-02-16)
-**Goal**: Fix Hypothesis TypeError blocking property test collection
-
-**Completed Tasks**:
-- ✅ Fixed conftest.py to handle MagicMock objects in sys.modules
-- ✅ Property tests now collect successfully (3,529 tests)
-- ✅ Full test suite collection: 10,727 tests (0 errors)
-- ✅ No isinstance() TypeError during property test execution
-- ✅ Verified graduation governance tests use correct attributes (28/28 passing)
-- ✅ Fixed governance and proposal test failures (7 tests)
-
-**Commits**:
-- `fe47c5fa` - Fix module restoration to detect and remove MagicMock objects (10-01)
-- `19cc76c4` - Complete plan 10-02 summary and state update (10-02)
-- `e4c76262` - Fix graduation governance tests - metadata_json -> configuration (10-03 verification)
-
-**Impact**: Enables property test collection, improved test pass rate, verified test stability
-
-### Completed (Phase 09 - 2026-02-15, 80% Substantial)
-**Goal**: Fix all failing tests and establish quality gates
-
-**Completed Tasks**:
-- ✅ Fixed all 356 collection errors (100% improvement)
-- ✅ Fixed 30+ test failures (91% reduction, 324 → ~25)
-- ✅ Established 3 quality gates (pre-commit, CI, trend tracking)
-- ✅ Achieved ~97% pass rate (95.3% → ~97%)
-- ✅ Identified AsyncMock usage pattern and fixed 19 governance tests
-- ✅ Created coverage trend tracking infrastructure
-
-**Commits**:
-- `c7756a0f` - Phase 09 planning setup
-- `15ad1eb9` - Trigger interceptor test fixes (19 tests)
-- `f3b60d01` - Auth endpoint test fixes (11 tests)
-- `0bce34a4` - Quality gates infrastructure
-- `1152e720` - Phase 09 summary (substantial completion)
-
-**Remaining Work** (Optional for Phase 09 completion):
-- Fix ~25-30 remaining test failures
-- Fix db_session fixture transaction rollback
-- Verify 98%+ pass rate across 3 full runs
-
-### Completed (Phase 44 - 2026-02-15)
-**Goal**: Fix CI pipeline and achieve stable test runs
-
-**Completed Tasks**:
-- ✅ Fixed all integration test failures (301/301 passing)
-- ✅ Fixed all unit test syntax errors (2,447 tests collecting)
-- ✅ Removed 31 duplicate test files causing import conflicts
-- ✅ Configured pytest.ini to ignore problematic external dependencies
-- ✅ Achieved 95.3% pass rate
+**Impact**: Progressive improvement toward 80% target
 
 ---
 
 ## Coverage Analysis
 
-### Current Coverage: 15.2%
+### Current Coverage: 74.6%
 
-**Coverage Expansion Strategy (Phase 10 - 6 Waves)**:
-1. **Wave 1** (Phase 10): Fix remaining test failures (~25-30 tests)
-2. **Wave 2** (Phase 11): Coverage analysis - identify high-impact files (>200 lines)
-3. **Wave 3** (Phase 12): Add unit tests for largest untested files
-4. **Wave 4** (Phase 13): Add integration tests for critical paths
-5. **Wave 5** (Phase 14): Add property tests for invariants
-6. **Wave 6** (Phase 15): Verify 50% coverage target achieved
+**Coverage Expansion Strategy (v5.5 - 7 Phases)**:
+1. **Phase 220**: Fix industry workflow test failures (FAIL-01 through FAIL-04)
+2. **Phase 221**: Fix 2FA routes test errors (FAIL-05, FAIL-06)
+3. **Phase 222**: Core services coverage expansion (CORE-01 through CORE-04)
+4. **Phase 223**: API routes coverage expansion (API-01 through API-04)
+5. **Phase 224**: Tools & integration coverage (TOOL-01 through TOOL-05, QUAL-03)
+6. **Phase 225**: Coverage verification & reports (QUAL-01, QUAL-04)
+7. **Phase 226**: Quality gates enforcement (FAIL-07, QUAL-02, QUAL-05)
 
-**High-Impact File Categories** (need investigation):
-- Core services (governance, episodes, streaming)
-- API routes (canvas, browser, device, deeplinks)
-- Tools (canvas_tool, browser_tool, device_tool)
-- Utilities and helpers
+**High-Impact Coverage Categories**:
+- **Core Services**: Token storage, error handler, structured logger, API routes base
+- **API Routes**: Episodes, auto-install, admin, composition
+- **Tools & Integration**: Canvas, browser automation, device capabilities, agent governance, LLM routing
 
 **Testing Approach**:
-- Unit tests for individual functions and classes
-- Integration tests for API endpoints and service interactions
-- Property tests for system invariants and business rules
-- Maintain 98%+ pass rate throughout expansion
+- Fix test failures first (Phases 220-221)
+- Target specific coverage gaps (Phases 222-224)
+- Add unit tests for uncovered code paths
+- Add integration tests for endpoint validation
+- Add property tests for invariants (Phase 224)
+- Verify and enforce quality gates (Phases 225-226)
 
 ---
 
@@ -263,22 +203,23 @@ Progress: [██████████] 67% (Phase 04: 3/3 complete, Phase 05
 - **Framework**: Pytest with pytest-asyncio
 - **Configuration**: pytest.ini
 - **Factories**: Factory Boy for test data
-- **Database**: SQLite with transaction rollback (needs improvement)
+- **Database**: SQLite with transaction rollback
 
 ### Coverage Tools
 - **Tool**: pytest-cov
 - **Reports**: HTML, JSON, terminal
 - **Location**: `tests/coverage_reports/`
-- **Trend Tracking**: `tests/coverage_reports/trends.json` ✅ (Phase 09)
+- **Baseline**: 74.6% actual line coverage (2026-03-22)
 
-### Quality Gates (Phase 09)
-- **Pre-commit Hook**: ✅ Enforces 80% minimum coverage
-- **CI Pass Rate Check**: ✅ Informational (detailed parsing pending)
-- **Coverage Trend Script**: ✅ Tracks progress over time
+### Quality Goals (v5.5)
+- **Pre-commit Hook**: Enforce 80% minimum coverage
+- **CI Pass Rate Check**: 98%+ pass rate required
+- **Coverage Trend Tracking**: Monitor progress to 80%
+- **CI/CD Workflows**: Re-enable after 80% target achieved
 
 ### CI/CD Integration
 - **Platform**: GitHub Actions
-- **Status**: Active and passing (~97% pass rate)
+- **Status**: Quality gates being enforced
 - **Configuration**: .github/workflows/ci.yml
 
 ---
@@ -301,457 +242,120 @@ Progress: [██████████] 67% (Phase 04: 3/3 complete, Phase 05
 
 ## Next Actions
 
-### Immediate (Phase 10 Kickoff)
-1. **Create Execution Plans for Wave 1**
-   - Plan 10-01: Fix governance graduation test failures (18 tests)
-   - Plan 10-02: Fix proposal service and other test failures (7-12 tests)
+### Immediate (Phase 220 Kickoff)
+1. **Create Execution Plan for Phase 220**
+   - Analyze 10 failing industry workflow tests
+   - Identify root causes for each failure
+   - Create task list for fixes
+   - Estimate time and effort
 
-2. **Execute Wave 1: Fix Test Failures**
-   - Fix governance graduation tests
-   - Fix proposal service tests
-   - Fix other unit test failures
-   - Verify 98%+ pass rate achieved
+2. **Execute Phase 220: Fix Industry Workflow Test Failures**
+   - Remove duplicate test file
+   - Fix template ID mismatches
+   - Fix ROI request validation
+   - Verify all 10 tests passing
 
-### Short Term (Phase 10 Execution - 1 week)
-3. **Coverage Analysis** (Wave 2 - Phase 11)
-   - Run coverage report with detailed breakdown
-   - Identify lowest-coverage, largest files (>200 lines)
-   - Prioritize high-impact, low-effort testing opportunities
+### Short Term (Phase 221 Execution)
+3. **Execute Phase 221: Fix 2FA Routes Test Errors**
+   - Fix 24 test errors
+   - Configure test fixtures properly
+   - Verify no regressions
+   - Confirm 98%+ pass rate achievable
 
-4. **Add Unit Tests** (Wave 3 - Phase 12)
-   - Target largest untested files first
-   - Focus on core services (governance, episodes, streaming)
-   - Track progress with coverage reports
-
-5. **Add Integration Tests** (Wave 4 - Phase 13)
-   - Focus on untested critical paths
-   - API endpoints and service interactions
-   - Maintain test isolation
-
-6. **Add Property Tests** (Wave 5 - Phase 14)
-   - Identify system invariants
-   - Hypothesis-based property tests
-   - Focus on business logic and data validation
-
-7. **Verify 50% Coverage** (Wave 6 - Phase 15)
-   - Run full coverage report
-   - Verify all quality gates passing
-   - Document lessons learned
+### Medium Term (Phases 222-226 Execution - 1-2 weeks)
+4. **Execute Coverage Expansion Phases**
+   - Phase 222: Core services coverage to 80%
+   - Phase 223: API routes coverage to 80%
+   - Phase 224: Tools & integration coverage to 80%
+   - Phase 225: Verify 80% overall coverage
+   - Phase 226: Enforce quality gates and re-enable CI/CD
 
 ---
 
 ## Metrics Dashboard
 
 ### Test Health
-- **Collection Success**: 100% (10,176 collected, 0 errors) ✅
-- **Pass Rate**: ~97% (need 98%+)
-- **Flaky Tests**: TBD (need analysis)
+- **Collection Success**: 100% (1,489 test files)
+- **Pass Rate**: 90.6% (target: 98%+)
+- **Failures**: 14 failing tests (target: 0)
+- **Errors**: 36 test errors (target: 0)
 
 ### Coverage Progress
-- **Current**: 15.2%
-- **Phase 10 Target**: 50%
-- **Ultimate Goal**: 80%
-- **Progress to Phase 10**: 0% (just starting)
+- **Current**: 74.6%
+- **v5.5 Target**: 80%
+- **Gap**: 5.4 percentage points
+- **Progress to v5.5**: 0% (just starting)
 
 ### Velocity
-- **Tests Added in Phase 09**: 0 (focus on fixes)
-- **Coverage Change in Phase 09**: Baseline established at 15.2%
-- **Trend**: Ready for expansion
+- **Tests Added in v5.4**: TBD (from previous phases)
+- **Coverage Change in v5.4**: Achieved 74.6% baseline
+- **Trend**: Ready for final push to 80%
 
 ---
 
 ## Notes
 
 ### Key Insights
-1. **Roadmap created**: 6 phases (10-15) for v1.1 milestone
-2. **Test suite stable**: 0 collection errors, ~97% pass rate
-3. **Quality gates operational**: Pre-commit, CI, trend tracking all working
-4. **Coverage gap clear**: 34.8 percentage points to Phase 10 target
-5. **Strategy defined**: High-impact files first, aggressive 1-week timeline
+1. **Roadmap created**: 7 phases (220-226) for v5.5 milestone
+2. **Test failures identified**: 14 failures + 36 errors blocking progress
+3. **Coverage baseline established**: 74.6% actual line coverage (not estimates)
+4. **Clear target defined**: 80% coverage with 98%+ pass rate
+5. **Strategy defined**: Fix failures first → Expand coverage → Verify → Enforce quality gates
 
 ### Risks
-1. **Timeline aggressive**: 1 week for 34.8 percentage points ambitious
-2. **Test failures**: ~25-30 remaining must be fixed first
-3. **Fixture limitations**: db_session needs transaction rollback
-4. **Coverage complexity**: Large files may have complex logic
+1. **Test failures complex**: Industry workflow and 2FA tests may have deep issues
+2. **Coverage gap challenging**: 5.4 percentage points requires focused effort
+3. **Test suite massive**: 1,489 test files require careful navigation
+4. **Timeline aggressive**: All phases must execute efficiently
 
 ### Opportunities
-1. **High-impact strategy**: Focus on large files maximizes coverage gain
-2. **Quality gates ready**: Infrastructure prevents regression
-3. **Test patterns established**: AsyncMock, factories, fixtures all working
-4. **Documentation comprehensive**: CLAUDE.md, docs/ provide clear guidance
-
----
-
-## Decisions from Phase 04 (Hybrid Retrieval)
-
-### FastEmbed Coarse Search Implementation (Plan 04-01)
-
-**1. Dual Vector Storage Architecture**
-- Context: FastEmbed (384-dim) and Sentence Transformers (1024-dim) have incompatible dimensionalities
-- Decision: Store both in separate columns (`vector_fastembed` and `vector`) to prevent conflicts
-- Impact: Enables hybrid retrieval (coarse FastEmbed → fine ST reranking) in future plans
-- Files: core/lancedb_handler.py, alembic/versions/b53c19d68ac1
-
-**2. LRU Cache Size of 1000 Episodes**
-- Context: Balance memory usage vs. cache hit rate for FastEmbed embeddings
-- Decision: Use 1000-episode limit (~1.5MB memory) based on research recommendations
-- Impact: Sub-1ms retrieval for recent episodes, automatic eviction prevents unbounded growth
-- Files: core/embedding_service.py
-
-**3. Dimension Validation at LanceDB Layer**
-- Context: Prevent silent corruption from embedding dimension mismatches
-- Decision: Enforce vector size at storage layer with clear error messages
-- Impact: Adds slight write overhead but prevents data integrity issues
-- Files: core/lancedb_handler.py
-
-**4. Cache Tracking Columns in Episode Model**
-- Context: Need visibility into cache penetration and warming strategies
-- Decision: Add `fastembed_cached`, `fastembed_cached_at`, `embedding_cached`, `embedding_cached_at` columns
-- Impact: Operational monitoring without additional queries
-- Files: core/models.py, alembic/versions/b53c19d68ac1
-
-### Hybrid Retrieval with Cross-Encoder Reranking (Plan 04-02)
-
-**1. Two-Stage Retrieval Architecture**
-- Context: Balance speed and quality for semantic search
-- Decision: FastEmbed coarse search (<20ms, top-100) + cross-encoder reranking (<150ms, top-50)
-- Impact: Total latency <200ms with >15% relevance improvement vs. FastEmbed alone
-- Files: core/hybrid_retrieval_service.py, core/embedding_service.py, core/atom_agent_endpoints.py
-
-**2. Lazy Loading of CrossEncoder Model**
-- Context: CrossEncoder models are large (~1GB+) and slow to load
-- Decision: Load model on first reranking request, not at service initialization
-- Impact: Faster startup, model loads only when needed, tagged as "coarse_only" until loaded
-
-**3. Weighted Scoring (30% Coarse + 70% Reranked)**
-- Context: Reranking provides higher quality but coarse scores still useful
-- Decision: Combined weighted average balances both sources
-- Impact: Better relevance than pure reranking, more stable than pure coarse
-- Formula: `combined_score = 0.3 * coarse_score + 0.7 * reranked_score`
-
-**4. Automatic Fallback on Reranking Failure**
-- Context: Reranking can fail due to model errors, missing deps, or processing issues
-- Decision: Return coarse results tagged as "coarse_fallback" on exception
-- Impact: No silent failures, users always get results, monitoring visibility
-- Files: core/hybrid_retrieval_service.py
-
-**5. GPU Support Ready Architecture**
-- Context: CrossEncoder can be 10-50x faster with GPU acceleration
-- Decision: Include `device` parameter in CrossEncoder initialization
-- Impact: Easy to enable GPU by setting `device="cuda"` when available
-- Files: core/hybrid_retrieval_service.py, core/embedding_service.py
-
-### Hybrid Retrieval Testing (Plan 04-03)
-
-**1. Mocked Implementation for External Dependencies**
-- Context: FastEmbed, CrossEncoder, and LanceDB require external models and datastores
-- Decision: Use mocked implementations to create test framework without requiring actual embeddings
-- Impact: Tests provide framework structure and validate logic flow. Real validation requires actual embeddings and human judgments
-- Files: tests/unit/test_hybrid_retrieval.py, tests/property_tests/episodes/test_hybrid_retrieval_invariants.py, tests/integration/test_hybrid_retrieval_integration.py
-
-**2. Property Test Structure with Mocked Implementations**
-- Context: Property tests need to validate invariants without external dependencies
-- Decision: Use Hypothesis with mocked implementations for Recall@10, NDCG@10, and monotonic improvement
-- Impact: Framework ready for real validation once embeddings are available. Tests establish invariant validation patterns
-- Files: tests/property_tests/episodes/test_hybrid_retrieval_invariants.py
-
-**3. Integration Test Structure Prioritized Over Perfect Mocking**
-- Context: Test infrastructure provides more value than perfect mocking
-- Decision: Create comprehensive test suite with 5/10 unit tests passing, framework structure solid
-- Impact: Test infrastructure complete with clear paths for improvement. Authentication setup needed for full endpoint validation
-- Files: tests/unit/test_hybrid_retrieval.py, tests/integration/test_hybrid_retrieval_integration.py
-
-**4. A/B Testing Framework for Relevance Measurement**
-- Context: Need to validate >15% relevance improvement vs. baseline
-- Decision: Create A/B testing structure comparing hybrid vs. baseline retrieval
-- Impact: Framework ready for real validation with actual embeddings and human judgments
-- Files: tests/integration/test_hybrid_retrieval_integration.py
-
-**5. Performance Benchmark Structure for Latency Targets**
-- Context: Need to validate <200ms total latency (coarse <20ms + rerank <150ms)
-- Decision: Create performance benchmark tests with mocked implementations
-- Impact: Framework ready for real performance measurement with actual FastEmbed and CrossEncoder
-- Files: tests/unit/test_hybrid_retrieval.py, tests/integration/test_hybrid_retrieval_integration.py
-
-## Decisions from Phase 03 (Memory Layer)
-
-### Episode Segmentation Bug Fixes (Plan 03-01)
-**1. Fixed ChatMessage field mismatch: session_id → conversation_id**
-- Context: Model refactored but service code not updated
-- Decision: Update service to use correct model field
-- Impact: Episode creation now correctly retrieves messages
-
-**2. Fixed AgentExecution query pattern: session_id → agent_id + time range**
-- Context: AgentExecution has no session_id field
-- Decision: Use established pattern from supervision_service (agent_id + started_at >= session.created_at)
-- Impact: Episode creation now correctly retrieves executions
-
-**3. Added defensive null checks for None content**
-- Context: Service crashed on None message content
-- Decision: Add null/hasattr checks before accessing content
-- Impact: Service gracefully handles missing data
-
-**4. Added isinstance(dict) checks for metadata**
-- Context: Service called .items() on Mock objects during tests
-- Decision: Check isinstance(dict) before calling dict methods
-- Impact: Service handles malformed metadata and test mocks
-
-### Lifecycle and Graduation Test Strategy (Plan 03-02)
-**1. Refactor property tests to avoid database fixtures**
-- Context: Hypothesis property tests with db_session fixture caused flaky failures
-- Decision: Refactor to use in-memory data structures instead of database
-- Impact: Tests run reliably without flaky failures, faster execution
-
-**2. Document integration test failures as infrastructure issue**
-- Context: Integration tests exist but fail due to duplicate index error in models.py
-- Decision: Document as known issue, proceed with property tests
-- Impact: Plan completes on time, integration tests ready to run after schema fix
-
-**3. Use Hypothesis for invariant validation**
-- Context: Need to validate lifecycle and graduation invariants across wide input range
-- Decision: Property-based testing with 50-200 examples per test
-- Impact: 2,700+ examples validate invariants, edge cases caught automatically
-
----
-
-## Accumulated Context from Phase 09
-
-### Internal Method Mocking Pattern (Learned in Phase 10-02)
-**When external dependencies don't exist, mock internal service methods instead**
-
-**Correct Pattern**:
-```python
-# Mock internal method _execute_browser_action instead of non-existent execute_browser_automation
-with patch.object(proposal_service, '_execute_browser_action', new=AsyncMock(...)):
-    result = await proposal_service.approve_proposal(...)
-```
-
-**Wrong Pattern** (causes AttributeError):
-```python
-# Don't patch non-existent external modules
-with patch('tools.browser_tool.execute_browser_automation', new=AsyncMock(...)):
-    # This fails: AttributeError: module does not have attribute
-```
-
-**Use Case**: When production code imports non-existent modules, mock the internal methods that call them.
-
-### Test Suite Categorization for Performance Measurement (Learned in Phase 10-05)
-**When tests have infinite loops or are extremely slow, categorize and exclude them**
-
-**Correct Pattern**:
-```bash
-# Run test categories separately to avoid stuck tests
-pytest tests/integration/ -q --tb=line
-pytest tests/unit/ -q --tb=line
-pytest tests/property_tests/ -q --tb-line
-```
-
-**Wrong Pattern** (causes stuck execution):
-```python
-# Don't run full suite if some tests have infinite loops
-pytest tests/ -v --tb=line  # Gets stuck at 28% forever
-```
-
-**Use Case**: Email/calendar integration tests with infinite retry loops prevent full suite execution. Exclude them with `--ignore` flag and measure core suite performance separately.
-
-### Flaky Test Detection via Multi-Run Comparison (Learned in Phase 10-05)
-**Run tests multiple times and compare failures to identify flaky behavior**
-
-**Pattern**:
-```bash
-# Run tests 3 times
-pytest tests/unit/ -q > run1.log
-pytest tests/unit/ -q > run2.log
-pytest tests/unit/ -q > run3.log
-
-# Extract and compare failures
-grep "FAILED" run*.log | awk '{print $1}' | sort | uniq -c | grep -v "3 "
-```
-
-**Rationale**: Tests that fail inconsistently across runs are flaky (timing, state, isolation issues). Tests that fail consistently are systematic (logic, fixture, configuration issues).
-
-### Important Metadata Prioritization (Learned in Phase 10-02)
-**Always include important metadata first before variable-length content**
-
-**Pattern**:
-```python
-# Prioritize important topics
-important_topics = [proposal.proposal_type, action_type]
-
-# Extract variable content
-topics = set()
-topics.update(extract_from_title(title))
-topics.update(extract_from_reasoning(reasoning))
-
-# Combine: important first, then limit
-return important_topics + list(topics)[:5]
-```
-
-**Rationale**: Prevents important metadata from being randomly excluded due to set ordering and list limits.
-
-### AsyncMock Usage Pattern (Learned in Phase 09)
-**Correct Pattern**:
-```python
-with patch('core.trigger_interceptor.get_async_governance_cache') as mock_cache_getter:
-    mock_cache = AsyncMock()
-    mock_cache.get = AsyncMock(return_value=None)  # Returns AsyncMock object
-```
-
-**Wrong Pattern** (causes coroutines):
-```python
-with patch('core.trigger_interceptor.get_async_governance_cache', new_callable=AsyncMock) as mock_cache_getter:
-    mock_cache = AsyncMock()
-    mock_cache.get.return_value = None  # This returns a coroutine!
-```
-
-### Quality Gates Infrastructure (Phase 09)
-1. **Pre-commit Coverage Hook**: Enforces 80% minimum coverage
-2. **CI Pass Rate Threshold**: Checks pass rate after each run
-3. **Coverage Trend Tracking**: Monitors progress over time
-
-### Test Fixture Issues (Phase 09 Discovery)
-- **db_session fixture**: Lacks transaction rollback, causes UNIQUE constraint violations
-- **Impact**: 7 auth tests failing with cross-test pollution
-- **Solution**: Documented for future implementation (deferred to maintain timeline)
+1. **Clear milestone**: 80% is well-defined and achievable
+2. **Structured phases**: Each phase builds on previous success
+3. **Quality infrastructure**: Pre-commit, CI, trend tracking all available
+4. **Comprehensive requirements**: 24 requirements provide complete scope
 
 ---
 
 ## Roadmap Summary
 
-### Phase 10: Fix Remaining Test Failures (Wave 1)
-**Goal**: Achieve 98%+ pass rate
-**Plans**: 2 plans
-- 10-01: Fix governance graduation test failures (18 tests)
-- 10-02: Fix proposal service and other test failures (7-12 tests)
+### Phase 220: Fix Industry Workflow Test Failures
+**Goal**: All industry workflow tests pass with 0 failures
+**Requirements**: FAIL-01, FAIL-02, FAIL-03, FAIL-04
+**Plans**: TBD
 
-### Phase 11: Coverage Analysis & Prioritization (Wave 2)
-**Goal**: Identify high-impact files
-**Plans**: 1 plan
-- 11-01: Analyze coverage and prioritize high-impact files
+### Phase 221: Fix 2FA Routes Test Errors
+**Goal**: All 2FA routes tests execute without errors
+**Requirements**: FAIL-05, FAIL-06
+**Plans**: TBD
 
-### Phase 12: Unit Test Expansion for Core Services (Wave 3)
-**Goal**: Core services achieve >60% coverage
-**Plans**: 3 plans
-- 12-01: Add unit tests for agent governance services
-- 12-02: Add unit tests for episodic memory services
-- 12-03: Add unit tests for LLM streaming services
+### Phase 222: Core Services Coverage Expansion
+**Goal**: Core services achieve 80% test coverage
+**Requirements**: CORE-01, CORE-02, CORE-03, CORE-04
+**Plans**: TBD
 
-### Phase 13: Integration & API Test Expansion (Wave 4)
-**Goal**: API routes and tools achieve >50% coverage
-**Plans**: 3 plans
-- 13-01: Add integration tests for canvas API routes
-- 13-02: Add integration tests for browser and device API routes
-- 13-03: Add integration tests for canvas, browser, and device tools
+### Phase 223: API Routes Coverage Expansion
+**Goal**: API routes achieve 80% test coverage
+**Requirements**: API-01, API-02, API-03, API-04
+**Plans**: TBD
 
-### Phase 14: Property-Based Testing Implementation (Wave 5)
-**Goal**: Property tests validate system invariants
-**Plans**: 3 plans
-- 14-01: Add property tests for governance system invariants
-- 14-02: Add property tests for episodic memory invariants
-- 14-03: Add property tests for streaming LLM invariants
+### Phase 224: Tools & Integration Coverage
+**Goal**: Tools and integration services achieve 80% test coverage
+**Requirements**: TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, QUAL-03
+**Plans**: TBD
 
-### Phase 15: Verification & Infrastructure Updates (Wave 6)
-**Goal**: 50% coverage achieved, infrastructure operational
-**Plans**: 2 plans
-- 15-01: Verify 50% coverage target achieved
-- 15-02: Update test infrastructure (trend tracking, CI metrics, reporting)
+### Phase 225: Coverage Verification & Reports
+**Goal**: Verify 80% backend coverage achieved
+**Requirements**: QUAL-01, QUAL-04
+**Plans**: TBD
+
+### Phase 226: Quality Gates Enforcement
+**Goal**: Ensure 98% test pass rate and re-enable CI/CD
+**Requirements**: FAIL-07, QUAL-02, QUAL-05
+**Plans**: TBD
 
 ---
 
-## Recent Decisions (Phase 05 - Agent Layer)
-
-### Agent Governance Test Suite Implementation (Plan 05-01)
-
-**Decision:** Comprehensive test suite for agent governance using property-based testing, unit tests, and performance validation
-
-**Context:** Agent governance is critical for AI safety - ensures agents only take actions appropriate to their maturity level (STUDENT/INTERN/SUPERVISED/AUTONOMOUS).
-
-**Implementation:**
-- **Property Tests (571 lines, 15 tests):** Hypothesis-based invariants testing maturity routing determinism, action complexity matrix (1-4), confidence score bounds
-- **Unit Tests (417 lines, 23 tests):** Pytest tests for all 4 maturity levels, permission checks, maturity transitions, cache invalidation
-- **Performance Tests (325 lines, 16 tests):** Cache hit rate >95%, P99 latency <1ms, LRU eviction, TTL expiration, thread safety
-
-**Outcomes:**
-- All 54 tests passing (100%)
-- All 7 must-haves validated
-- Coverage exceeds minimum requirements (property 571 > 400, unit 417 > 300, cache 325 > 200)
-- Performance targets met (>95% hit rate, <1ms P99 latency)
-- Total: 1,313 lines of test code
-
-**Alternatives Considered:**
-- Only unit tests: Would miss edge cases that property tests catch
-- Only integration tests: Would be too slow for CI/CD
-- Manual testing: Would not provide regression protection
-
-**Impact:**
-- Validates 4-tier maturity routing (STUDENT→INTERN→SUPERVISED→AUTONOMOUS)
-- Ensures action complexity matrix enforced (1: presentation, 2: streaming, 3: state change, 4: deletion)
-- Confirms governance cache performance meets targets
-- Provides regression protection for AI safety-critical code
-
-**Files Created:**
-- tests/property_tests/agent/test_agent_governance_invariants.py (571 lines)
-- tests/unit/agent/test_agent_governance_service.py (417 lines)
-- tests/unit/agent/test_governance_cache.py (325 lines)
-
-**Commit:** addd5eb1
-
-### Agent Execution & Coordination Integration Tests (Plan 05-03)
-
-**Decision:** Integration and property tests for agent execution orchestration and multi-agent coordination
-
-**Context:** Agent execution is the core workflow - agents take actions based on user input. Tests validate the complete pipeline with error handling, audit logging, and graceful degradation. Agent coordination enables multi-agent workflows - tests validate message delivery and ordering.
-
-**Implementation:**
-- **Integration Tests (1,181 lines, 17 tests):** End-to-end execution (governance → LLM → streaming → persistence), agent-to-agent messaging, event bus pub/sub, FIFO ordering, multi-agent workflows
-- **Property Tests (302 lines, 9 tests):** FIFO ordering invariant, event bus reliability, coordination termination, message content preservation
-
-**Bug Fixes:**
-1. **STUDENT Agent Governance Check (Rule 1):** Fixed case-sensitive comparison
-   - `if sender_maturity == "STUDENT"` → `if sender_maturity.lower() == "student"`
-   - Database stores lowercase "student", check was using uppercase "STUDENT"
-
-2. **Event Bus Iteration Bug (Rule 1):** Fixed set modification during iteration
-   - Collect websockets before iterating, avoid modifying set during iteration
-   - Prevents RuntimeError when dead connections are removed during broadcast
-
-**Outcomes:**
-- All 26 tests passing (100%)
-- All 5 must-haves validated
-- Coverage: 1,483 lines of test code (execution: 652 lines, coordination: 529 lines, property: 302 lines)
-- Two production bugs fixed (STUDENT governance, event bus iteration)
-
-**Alternatives Considered:**
-- Only unit tests: Would not validate end-to-end execution flow
-- Only integration tests: Would miss edge cases that property tests catch
-- Manual testing: Would not provide regression protection
-
-**Impact:**
-- Validates complete execution pipeline (governance → LLM → streaming → persistence)
-- Ensures agent coordination works (social layer, event bus, FIFO ordering)
-- Fixes STUDENT agent governance (was not blocking posts due to case sensitivity)
-- Fixes event bus reliability (was crashing on dead connections)
-- Provides regression protection for critical execution and coordination code
-
-**Files Created:**
-- tests/integration/agent/test_agent_execution_orchestration.py (652 lines, 7 tests)
-- tests/integration/agent/test_agent_coordination.py (529 lines, 10 tests)
-- tests/property_tests/agent/test_agent_coordination_invariants.py (302 lines, 9 tests)
-
-**Files Modified:**
-- core/agent_social_layer.py (STUDENT governance fix)
-- core/agent_communication.py (event bus iteration fix)
-
-**Commits:**
-- f9e2c45d - Integration tests for agent execution orchestration
-- 25f1b5db - Integration tests for agent coordination + bug fixes
-- 802f7d6c - Property tests for coordination invariants
-
----
-
-*Last Updated: 2026-02-19*
-*Milestone: v1.1 Coverage Expansion to 50%*
-*Phase 30 Plan 02: Substantial Completion (67% of coverage target)*
-*Session Stopped At: Completed 30-02-PLAN.md - Atom Agent Endpoints API Contracts*
+*Last Updated: 2026-03-22*
+*Milestone: v5.5 Fix Test Failures and Push Backend Coverage to 80%*
+*Phase: 220 - Fix Industry Workflow Test Failures*
 *State automatically updated by GSD workflow*

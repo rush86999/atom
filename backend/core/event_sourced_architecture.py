@@ -145,18 +145,18 @@ class PerceptionLayer:
             raise
     
     async def _analyze_with_llm(self, input_data: Dict[str, Any]) -> PerceptionResult:
-        """Analyze input using multi-provider LLM via BYOKHandler"""
+        """Analyze input using multi-provider LLM via LLMService"""
         try:
-            # Import BYOKHandler for actual LLM integration
-            from core.llm.byok_handler import BYOKHandler
+            # Import LLMService for unified LLM integration
+            from core.llm_service import get_llm_service
 
-            handler = BYOKHandler()
+            service = get_llm_service()
 
             # Build analysis prompt from input data
             prompt = self._build_analysis_prompt(input_data)
 
             # Generate response using cost-optimized provider
-            response = await handler.generate_response(
+            response = await service.generate(
                 prompt=prompt,
                 system_instruction="You are an AI perception analyzer. Analyze inputs and extract intent, entities, confidence, reasoning, and suggested actions. Respond in JSON format.",
                 temperature=0.3,  # Lower temperature for more structured output

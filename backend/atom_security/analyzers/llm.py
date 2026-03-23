@@ -5,6 +5,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from ..core.models import Finding, Severity
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,9 @@ class LLMAnalyzer:
         self.api_key = api_key or os.getenv("ATOM_SECURITY_LLM_API_KEY")
         self.provider = provider or os.getenv("ATOM_SECURITY_LLM_PROVIDER", "openai")
         self.pipeline = None
-        self.client = None
+
+        # Initialize LLMService for unified LLM interactions (replaces direct clients)
+        self.llm_service = LLMService(workspace_id="default")
 
         if self.mode == "local":
             self._init_local()
@@ -70,15 +73,15 @@ class LLMAnalyzer:
             raise
 
     def _init_byok(self):
-        """Initialize cloud provider client."""
-        if self.provider == "openai":
-            from openai import OpenAI
-            self.client = OpenAI(api_key=self.api_key)
-        elif self.provider == "anthropic":
-            from anthropic import Anthropic
-            self.client = Anthropic(api_key=self.api_key)
-        else:
-            raise ValueError(f"Unsupported provider: {self.provider}")
+        """
+        Initialize BYOK mode using LLMService.
+
+        LLMService handles provider selection, API key resolution,
+        and client creation internally via BYOKHandler.
+        """
+        # LLMService initialized in __init__ handles all BYOK configuration
+        # No direct client creation needed
+        pass
 
     async def analyze(self, skill_name: str, content: str) -> List[Finding]:
         """Run analysis on skill content."""
@@ -107,28 +110,30 @@ class LLMAnalyzer:
         return self._parse_json(text)
 
     async def _analyze_byok(self, system_prompt: str, user_prompt: str) -> List[Finding]:
-        """BYOK API call."""
-        if self.provider == "openai":
-            response = await asyncio.to_thread(
-                self.client.chat.completions.create,
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            text = response.choices[0].message.content
-        elif self.provider == "anthropic":
-            response = await asyncio.to_thread(
-                self.client.messages.create,
-                model=self.model,
-                max_tokens=1024,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}]
-            )
-            text = response.content[0].text
-            
+        """
+        BYOK API call via LLMService.
+
+        Uses unified LLMService interface for all providers (OpenAI, Anthropic).
+        LLMService handles provider selection, API key resolution, and cost tracking.
+        """
+        # Build messages in OpenAI format
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+        # Use model parameter (gpt-4o, claude-3-5-sonnet, etc.)
+        # Note: response_format not supported yet, JSON mode requested in system prompt instead
+        response = await self.llm_service.generate_completion(
+            messages=messages,
+            model=self.model,
+            temperature=0.1,
+            max_tokens=1024
+        )
+
+        # Extract content from LLMService response format
+        text = response.get("content", "")
+
         return self._parse_json(text)
 
     def _parse_json(self, text: str) -> List[Finding]:

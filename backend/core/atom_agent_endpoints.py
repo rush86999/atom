@@ -32,8 +32,10 @@ from sqlalchemy.orm import Session
 from operations.system_intelligence_service import SystemIntelligenceService
 from pydantic import BaseModel
 
+from core.auth import get_current_user
 from core.chat_context_manager import get_chat_context_manager
 from core.chat_session_manager import get_chat_session_manager
+from core.models import User
 
 # Import Episode integration for auto-creation
 from core.episode_integration import trigger_episode_creation
@@ -175,11 +177,14 @@ def save_chat_interaction(
         "x-rate-limit": "100/minute"
     }
 )
-async def list_sessions(user_id: str = "default_user", limit: int = 50):
+async def list_sessions(
+    current_user: User = Depends(get_current_user),
+    limit: int = 50
+):
     """List all chat sessions for a user"""
     try:
         session_manager = get_chat_session_manager("default")
-        sessions = session_manager.list_user_sessions(user_id, limit=limit)
+        sessions = session_manager.list_user_sessions(current_user.id, limit=limit)
         return {
             "success": True,
             "sessions": [
@@ -219,11 +224,11 @@ async def list_sessions(user_id: str = "default_user", limit: int = 50):
         "x-rate-limit": "100/minute"
     }
 )
-async def create_new_session(user_id: str = Body(..., embed=True)):
+async def create_new_session(current_user: User = Depends(get_current_user)):
     """Create a new chat session"""
     try:
         session_manager = get_chat_session_manager("default")
-        session_id = session_manager.create_session(user_id=user_id)
+        session_id = session_manager.create_session(user_id=current_user.id)
         return {"success": True, "session_id": session_id}
     except Exception as e:
         logger.error(f"Failed to create session: {e}")
@@ -274,7 +279,10 @@ async def create_new_session(user_id: str = Body(..., embed=True)):
         "x-rate-limit": "100/minute"
     }
 )
-async def get_session_history(session_id: str):
+async def get_session_history(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+):
     """
     Retrieve conversation history for a specific session.
     Returns all messages in chronological order.
@@ -283,14 +291,21 @@ async def get_session_history(session_id: str):
         session_manager = get_chat_session_manager("default")
         chat_history = get_chat_history_manager("default")
 
-        # Verify session exists
+        # Verify session exists and user owns it
         session = session_manager.get_session(session_id)
         if not session:
             return {
                 "success": False,
                 "error": "Session not found"
             }
-        
+
+        # Verify user owns the session
+        if session.get("user_id") != current_user.id:
+            return {
+                "success": False,
+                "error": "Unauthorized access to session"
+            }
+
         # Retrieve messages from LanceDB
         messages = chat_history.get_session_history(session_id, limit=100)
         
@@ -374,12 +389,18 @@ async def get_session_history(session_id: str):
         "x-rate-limit": "60/minute"
     }
 )
-async def chat_with_agent(request: ChatRequest):
+async def chat_with_agent(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
     Handle chat messages from the Universal ATOM Assistant.
     Uses LLM to interpret intent and interact with platform features.
     """
     try:
+        # Override user_id with authenticated user's ID
+        request.user_id = current_user.id
+
         # Single-tenant: use default context
         chat_history = get_chat_history_manager("default")
         session_manager = get_chat_session_manager("default")
@@ -388,14 +409,21 @@ async def chat_with_agent(request: ChatRequest):
         # Session management: create or load session
         if not request.session_id:
             # Create new session
-            session_id = session_manager.create_session(request.user_id)
+            session_id = session_manager.create_session(current_user.id)
         else:
             session_id = request.session_id
-            # Verify session exists
+            # Verify session exists and user owns it
             session = session_manager.get_session(session_id)
             if not session:
-               # Session doesn't exist, create new one
-                session_id = session_manager.create_session(request.user_id)
+                # Session doesn't exist, create new one
+                session_id = session_manager.create_session(current_user.id)
+            else:
+                # Verify ownership
+                if session.get("user_id") != current_user.id:
+                    return {
+                        "success": False,
+                        "error": "Unauthorized access to session"
+                    }
         
         # Load conversation history from LanceDB (replaces passed history)
         stored_history = chat_history.get_session_history(session_id, limit=20)
@@ -1637,7 +1665,10 @@ async def handle_platform_search(request: ChatRequest, entities: Dict[str, Any])
 # ==================== STREAMING CHAT ENDPOINT ====================
 
 @router.post("/chat/stream")
-async def chat_stream_agent(request: ChatRequest):
+async def chat_stream_agent(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_user)
+):
     """
     Handle chat messages with streaming LLM responses.
     Tokens are broadcast via WebSocket as they arrive from the LLM.
@@ -1648,6 +1679,8 @@ async def chat_stream_agent(request: ChatRequest):
     - Agent execution tracking
     - Performance-optimized caching
     """
+    # Override user_id with authenticated user's ID
+    request.user_id = current_user.id
     # Feature flag for governance (can be disabled for emergencies)
     import os
     governance_enabled = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
@@ -1663,7 +1696,7 @@ async def chat_stream_agent(request: ChatRequest):
         from core.agent_context_resolver import AgentContextResolver
         from core.agent_governance_service import AgentGovernanceService
         from core.database import get_db_session
-        from core.llm.byok_handler import BYOKHandler
+        from core.llm_service import LLMService
         from core.models import AgentExecution
         from core.websockets import manager as ws_manager
 
@@ -1719,8 +1752,8 @@ async def chat_stream_agent(request: ChatRequest):
 
                     logger.info(f"Agent execution {agent_execution.id} started for agent {agent.name}")
 
-        # Get BYOK handler
-        byok_handler = BYOKHandler(workspace_id=ws_id, provider_id="auto")
+        # Get LLM service
+        llm_service = LLMService(workspace_id=ws_id)
 
         # Prepare messages for LLM
         messages = []
@@ -1764,10 +1797,8 @@ Provide helpful, concise responses. When you need to take actions, describe what
         })
 
         # Get optimal provider for streaming
-        from core.llm.byok_handler import QueryComplexity
-
-        complexity = byok_handler.analyze_query_complexity(request.message, task_type="chat")
-        provider_id, model = byok_handler.get_optimal_provider(
+        complexity = llm_service.analyze_query_complexity(request.message, task_type="chat")
+        provider_id, model = llm_service.get_optimal_provider(
             complexity,
             task_type="chat",
             prefer_cost=True,
@@ -1812,7 +1843,7 @@ Provide helpful, concise responses. When you need to take actions, describe what
             if agent and governance_enabled:
                 stream_kwargs["agent_id"] = agent.id
 
-            async for token in byok_handler.stream_completion(**stream_kwargs):
+            async for token in llm_service.stream_completion(**stream_kwargs):
                 accumulated_content += token
                 tokens_count += 1
 

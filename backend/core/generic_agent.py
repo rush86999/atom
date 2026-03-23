@@ -9,20 +9,15 @@ import uuid
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.database import get_db_session
-from core.llm.byok_handler import BYOKHandler
+from core.llm_service import LLMService
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.react_models import ReActObservation, ReActStep, ToolCall
 from integrations.mcp_service import mcp_service
 
-# Try to import instructor for structured parsing
-try:
-    import instructor
-    from openai import AsyncOpenAI
-    INSTRUCTOR_AVAILABLE = True
-except ImportError:
-    INSTRUCTOR_AVAILABLE = False
-    instructor = None
-    AsyncOpenAI = None
+# Instructor library is used internally by LLMService for structured output
+# No need to import directly here
+instructor = None  # Reserved for future direct use if needed
+INSTRUCTOR_AVAILABLE = False  # LLMService handles instructor internally
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +49,21 @@ class GenericAgent:
         # Initialize Services
         self.world_model = WorldModelService(workspace_id)
         self.mcp = mcp_service
-        self.llm = BYOKHandler(workspace_id=workspace_id)
+
+        # LLM Integration Note:
+        # Agent classes now use LLMService as the single source of truth for all LLM interactions.
+        # LLMService wraps BYOKHandler and provides a unified interface with:
+        # - Structured generation (via instructor integration)
+        # - Cognitive tier routing (5-tier system)
+        # - Cost tracking and telemetry
+        # - BYOK key resolution
+        #
+        # Architecture layers:
+        # - Layer 1 (Bottom): AsyncOpenAI/AsyncAnthropic clients (provider SDKs)
+        # - Layer 2 (Middle): BYOKHandler (unified internal interface)
+        # - Layer 3 (Top): LLMService (single source of truth for all code)
+        # - All code: Uses Layer 3 (LLMService) for unified observability and management
+        self.llm = LLMService(workspace_id=workspace_id)
         self.session_tools: List[Dict[str, Any]] = [] # Lazy-loaded tools
 
         
@@ -371,7 +380,7 @@ What is your next step?"""
         # Pass screenshot if available and vision is enabled
         image_payload = self.last_screenshot if self.vision_enabled else None
         
-        structured_result = await self.llm.generate_structured_response(
+        structured_result = await self.llm.generate_structured(
             prompt=user_prompt,
             system_instruction=system_prompt,
             response_model=ReActStep,
@@ -387,8 +396,8 @@ What is your next step?"""
         if structured_result:
             return structured_result
         
-        # Fallback: Use BYOK handler for raw response
-        raw_response = await self.llm.generate_response(
+        # Fallback: Use LLMService for raw response
+        raw_response = await self.llm.generate(
             prompt=user_prompt,
             system_instruction=system_prompt,
             model_type="fast",

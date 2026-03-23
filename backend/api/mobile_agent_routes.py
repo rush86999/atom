@@ -23,7 +23,7 @@ from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.episode_segmentation_service import EpisodeSegmentationService
 from core.episode_retrieval_service import EpisodeRetrievalService, RetrievalMode
-from core.llm.byok_handler import BYOKHandler
+from core.llm_service import LLMService
 from core.models import AgentRegistry, AgentFeedback, AgentExecution, User
 from core.websockets import manager as ws_manager
 
@@ -318,12 +318,12 @@ Provide helpful, concise responses. You are communicating via a mobile interface
             "content": request.message
         })
 
-        # Initialize BYOK handler for LLM streaming
-        byok_handler = BYOKHandler(workspace_id="default", provider_id="auto")
+        # Initialize LLMService for LLM streaming
+        llm_service = LLMService(workspace_id="default")
 
         # Analyze query complexity and get optimal provider
-        complexity = byok_handler.analyze_query_complexity(request.message, task_type="chat")
-        provider_id, model = byok_handler.get_optimal_provider(
+        complexity = llm_service.analyze_query_complexity(request.message, task_type="chat")
+        provider_id, model = llm_service.get_optimal_provider(
             complexity,
             task_type="chat",
             prefer_cost=True,
@@ -353,7 +353,7 @@ Provide helpful, concise responses. You are communicating via a mobile interface
         tokens_count = 0
 
         try:
-            async for token in byok_handler.stream_completion(
+            async for token in llm_service.stream_completion(
                 messages=messages,
                 model=model,
                 provider_id=provider_id,

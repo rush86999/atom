@@ -73,18 +73,18 @@ def mock_governance():
 
 
 @pytest.fixture
-def mock_byok_handler():
-    """Mock BYOK handler."""
-    with patch('core.agent_execution_service.BYOKHandler') as mock_handler_cls:
-        handler = MagicMock()
-        mock_handler_cls.return_value = handler
-        handler.analyze_query_complexity.return_value = MagicMock(
+def mock_llm_service():
+    """Mock LLM service."""
+    with patch('core.agent_execution_service.LLMService') as mock_service_cls:
+        llm_service = MagicMock()
+        mock_service_cls.return_value = llm_service
+        llm_service.analyze_query_complexity.return_value = MagicMock(
             complexity_score=0.5,
             estimated_tokens=100
         )
-        handler.get_optimal_provider.return_value = ("openai", "gpt-4")
-        handler.stream_completion.return_value = _async_stream_tokens(["Hello", " world", "!"])
-        yield handler
+        llm_service.get_optimal_provider.return_value = ("openai", "gpt-4")
+        llm_service.stream_completion.return_value = _async_stream_tokens(["Hello", " world", "!"])
+        yield llm_service
 
 
 @pytest.fixture
@@ -114,7 +114,7 @@ class TestAgentExecutionService:
     """Test agent execution service initialization and configuration."""
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_success(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_success(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test successful agent chat execution."""
         # Setup mocks
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
@@ -144,7 +144,7 @@ class TestAgentExecutionService:
                         assert result["agent_name"] == mock_agent.name
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_with_conversation_history(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_with_conversation_history(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test agent chat execution with conversation history."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -171,7 +171,7 @@ class TestAgentExecutionService:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_with_session_id(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_with_session_id(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test agent chat execution with existing session ID."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -194,7 +194,7 @@ class TestAgentExecutionService:
                         assert result["session_id"] == "existing-session-123"
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_with_custom_workspace(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_with_custom_workspace(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test agent chat execution with custom workspace."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -216,7 +216,7 @@ class TestAgentExecutionService:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_without_governance(self, mock_user, mock_byok_handler):
+    async def test_execute_agent_chat_without_governance(self, mock_user, mock_llm_service):
         """Test agent chat execution without governance enabled."""
         with patch.dict('os.environ', {'STREAMING_GOVERNANCE_ENABLED': 'false'}):
             with patch('core.agent_execution_service.get_chat_history_manager'):
@@ -231,7 +231,7 @@ class TestAgentExecutionService:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_with_emergency_bypass(self, mock_agent, mock_user, mock_byok_handler):
+    async def test_execute_agent_chat_with_emergency_bypass(self, mock_agent, mock_user, mock_llm_service):
         """Test agent chat execution with emergency bypass."""
         with patch.dict('os.environ', {'EMERGENCY_GOVERNANCE_BYPASS': 'true'}):
             with patch('core.agent_execution_service.get_chat_history_manager'):
@@ -246,7 +246,7 @@ class TestAgentExecutionService:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_agent_resolution_fails(self, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_agent_resolution_fails(self, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test agent chat execution when agent resolution fails."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(None, None))
 
@@ -267,7 +267,7 @@ class TestAgentExecutionService:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_returns_execution_metadata(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_returns_execution_metadata(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that execution returns metadata including tokens and provider."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -292,7 +292,7 @@ class TestAgentExecutionService:
                         assert result["model"] == "gpt-4"
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_creates_agent_execution_record(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_creates_agent_execution_record(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that AgentExecution record is created."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -315,7 +315,7 @@ class TestAgentExecutionService:
                         assert mock_session.commit.called
 
     @pytest.mark.asyncio
-    async def test_execute_agent_chat_analyzes_query_complexity(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execute_agent_chat_analyzes_query_complexity(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that query complexity is analyzed."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -334,7 +334,7 @@ class TestAgentExecutionService:
                         )
 
                         # Verify complexity analysis was called
-                        mock_byok_handler.analyze_query_complexity.assert_called_once()
+                        mock_llm_service.analyze_query_complexity.assert_called_once()
 
 
 # ========================================================================
@@ -346,7 +346,7 @@ class TestExecutionLifecycle:
     """Test execution lifecycle, states, and transitions."""
 
     @pytest.mark.asyncio
-    async def test_execution_state_running_to_completed(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_state_running_to_completed(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test execution transitions from running to completed."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -379,7 +379,7 @@ class TestExecutionLifecycle:
                             assert execution_obj.status == "completed"
 
     @pytest.mark.asyncio
-    async def test_execution_records_duration(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_records_duration(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that execution duration is recorded."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -401,7 +401,7 @@ class TestExecutionLifecycle:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execution_updates_output_data(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_updates_output_data(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that execution output data is updated."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -423,7 +423,7 @@ class TestExecutionLifecycle:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execution_records_end_time(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_records_end_time(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that execution end time is recorded."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -444,7 +444,7 @@ class TestExecutionLifecycle:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execution_without_governance_skips_audit(self, mock_user, mock_byok_handler):
+    async def test_execution_without_governance_skips_audit(self, mock_user, mock_llm_service):
         """Test that execution without governance skips audit record."""
         with patch.dict('os.environ', {'STREAMING_GOVERNANCE_ENABLED': 'false'}):
             with patch('core.agent_execution_service.SessionLocal') as mock_db:
@@ -463,7 +463,7 @@ class TestExecutionLifecycle:
                             assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execution_with_session_creates_continuity(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_with_session_creates_continuity(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that execution with session ID maintains continuity."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -486,7 +486,7 @@ class TestExecutionLifecycle:
                         assert result["session_id"] == "existing-session"
 
     @pytest.mark.asyncio
-    async def test_execution_without_session_creates_new(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_without_session_creates_new(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that execution without session ID creates new session."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -512,7 +512,7 @@ class TestExecutionLifecycle:
                         mock_session_mgr.create_session.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_execution_saves_to_chat_history(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_saves_to_chat_history(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that messages are saved to chat history."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -538,7 +538,7 @@ class TestExecutionLifecycle:
                         assert mock_chat.add_message.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_execution_triggers_episode_creation(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_triggers_episode_creation(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that episode creation is triggered."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -572,7 +572,7 @@ class TestExecutionMonitoring:
     """Test execution monitoring, progress tracking, and logging."""
 
     @pytest.mark.asyncio
-    async def test_execution_with_streaming_enabled(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler, mock_websocket_manager):
+    async def test_execution_with_streaming_enabled(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service, mock_websocket_manager):
         """Test execution with WebSocket streaming enabled."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -596,7 +596,7 @@ class TestExecutionMonitoring:
                         assert mock_websocket_manager.broadcast.called
 
     @pytest.mark.asyncio
-    async def test_streaming_sends_start_message(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler, mock_websocket_manager):
+    async def test_streaming_sends_start_message(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service, mock_websocket_manager):
         """Test that streaming sends start message."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -622,7 +622,7 @@ class TestExecutionMonitoring:
                         assert first_call[0][1]["type"] == "streaming:start"
 
     @pytest.mark.asyncio
-    async def test_streaming_sends_update_messages(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler, mock_websocket_manager):
+    async def test_streaming_sends_update_messages(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service, mock_websocket_manager):
         """Test that streaming sends update messages for each token."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -644,7 +644,7 @@ class TestExecutionMonitoring:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_streaming_sends_complete_message(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler, mock_websocket_manager):
+    async def test_streaming_sends_complete_message(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service, mock_websocket_manager):
         """Test that streaming sends complete message."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -670,7 +670,7 @@ class TestExecutionMonitoring:
                         assert last_call[0][1]["type"] == "streaming:complete"
 
     @pytest.mark.asyncio
-    async def test_streaming_includes_message_id(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler, mock_websocket_manager):
+    async def test_streaming_includes_message_id(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service, mock_websocket_manager):
         """Test that streaming includes unique message ID."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -694,7 +694,7 @@ class TestExecutionMonitoring:
                         assert "message_id" in result
 
     @pytest.mark.asyncio
-    async def test_streaming_broadcasts_to_user_channel(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler, mock_websocket_manager):
+    async def test_streaming_broadcasts_to_user_channel(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service, mock_websocket_manager):
         """Test that streaming broadcasts to user-specific channel."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -719,7 +719,7 @@ class TestExecutionMonitoring:
                             assert call[0][0] == f"user:{mock_user.id}"
 
     @pytest.mark.asyncio
-    async def test_non_streaming_skips_websocket(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler, mock_websocket_manager):
+    async def test_non_streaming_skips_websocket(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service, mock_websocket_manager):
         """Test that non-streaming execution doesn't use WebSocket."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -743,7 +743,7 @@ class TestExecutionMonitoring:
                         assert not mock_websocket_manager.broadcast.called
 
     @pytest.mark.asyncio
-    async def test_execution_without_streaming_still_succeeds(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_execution_without_streaming_still_succeeds(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test that execution succeeds without streaming."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -797,7 +797,7 @@ class TestExecutionErrors:
             assert "governance" in result["error"].lower()
 
     @pytest.mark.asyncio
-    async def test_agent_execution_record_creation_fails(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_agent_execution_record_creation_fails(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test execution continues even if AgentExecution record creation fails."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -821,7 +821,7 @@ class TestExecutionErrors:
                         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_chat_history_persistence_fails(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_chat_history_persistence_fails(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test execution continues even if chat history persistence fails."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -856,18 +856,18 @@ class TestExecutionErrors:
             mock_session = MagicMock()
             mock_db.return_value = mock_session
 
-            with patch('core.agent_execution_service.BYOKHandler') as mock_handler_cls:
-                handler = MagicMock()
-                mock_handler_cls.return_value = handler
-                handler.analyze_query_complexity.return_value = MagicMock()
-                handler.get_optimal_provider.return_value = ("openai", "gpt-4")
+            with patch('core.agent_execution_service.LLMService') as mock_service_cls:
+                llm_service = MagicMock()
+                mock_service_cls.return_value = llm_service
+                llm_service.analyze_query_complexity.return_value = MagicMock()
+                llm_service.get_optimal_provider.return_value = ("openai", "gpt-4")
 
                 # Make streaming fail
                 async def failing_stream():
                     raise Exception("LLM API error")
                     yield
 
-                handler.stream_completion = failing_stream
+                llm_service.stream_completion = failing_stream
 
                 result = await execute_agent_chat(
                     agent_id=mock_agent.id,
@@ -879,7 +879,7 @@ class TestExecutionErrors:
                 assert "error" in result
 
     @pytest.mark.asyncio
-    async def test_episode_creation_fails_gracefully(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_byok_handler):
+    async def test_episode_creation_fails_gracefully(self, mock_agent, mock_user, mock_agent_resolution, mock_governance, mock_llm_service):
         """Test execution continues even if episode creation fails."""
         mock_agent_resolution.resolve_agent_for_request = AsyncMock(return_value=(mock_agent, {}))
         mock_governance.can_perform_action.return_value = {"allowed": True}
@@ -918,7 +918,7 @@ class TestSynchronousExecution:
         with patch('core.agent_execution_service.SessionLocal'):
             with patch('core.agent_execution_service.AgentContextResolver'):
                 with patch('core.agent_execution_service.AgentGovernanceService'):
-                    with patch('core.agent_execution_service.BYOKHandler'):
+                    with patch('core.agent_execution_service.LLMService'):
                         with patch('core.agent_execution_service.get_chat_history_manager'):
                             with patch('core.agent_execution_service.get_chat_session_manager'):
                                 with patch('core.agent_execution_service.trigger_episode_creation'):
@@ -936,7 +936,7 @@ class TestSynchronousExecution:
         with patch('core.agent_execution_service.SessionLocal'):
             with patch('core.agent_execution_service.AgentContextResolver'):
                 with patch('core.agent_execution_service.AgentGovernanceService'):
-                    with patch('core.agent_execution_service.BYOKHandler'):
+                    with patch('core.agent_execution_service.LLMService'):
                         with patch('core.agent_execution_service.get_chat_history_manager'):
                             with patch('core.agent_execution_service.get_chat_session_manager'):
                                 with patch('core.agent_execution_service.trigger_episode_creation') as mock_episode:
@@ -963,7 +963,7 @@ class TestSynchronousExecution:
         with patch('core.agent_execution_service.SessionLocal'):
             with patch('core.agent_execution_service.AgentContextResolver'):
                 with patch('core.agent_execution_service.AgentGovernanceService'):
-                    with patch('core.agent_execution_service.BYOKHandler'):
+                    with patch('core.agent_execution_service.LLMService'):
                         with patch('core.agent_execution_service.get_chat_history_manager'):
                             with patch('core.agent_execution_service.get_chat_session_manager'):
                                 with patch('core.agent_execution_service.trigger_episode_creation'):
@@ -982,7 +982,7 @@ class TestSynchronousExecution:
         with patch('core.agent_execution_service.SessionLocal'):
             with patch('core.agent_execution_service.AgentContextResolver'):
                 with patch('core.agent_execution_service.AgentGovernanceService'):
-                    with patch('core.agent_execution_service.BYOKHandler'):
+                    with patch('core.agent_execution_service.LLMService'):
                         with patch('core.agent_execution_service.get_chat_history_manager'):
                             with patch('core.agent_execution_service.get_chat_session_manager'):
                                 with patch('core.agent_execution_service.trigger_episode_creation'):

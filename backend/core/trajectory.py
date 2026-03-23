@@ -4,8 +4,16 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 import uuid
-import aiofiles
 from pydantic import BaseModel, Field
+
+# Optional dependency for async file operations
+try:
+    import aiofiles
+    AIOFILES_AVAILABLE = True
+except ImportError:
+    AIOFILES_AVAILABLE = False
+    import logging
+    logging.getLogger(__name__).warning("aiofiles not available - async file saving will fail")
 
 
 class TraceStepType(str, Enum):
@@ -71,11 +79,14 @@ class TrajectoryRecorder:
 
     async def save(self, directory: str = "logs/traces"):
         """Save trace to a JSON file"""
+        if not AIOFILES_AVAILABLE:
+            raise ImportError("aiofiles is required for async file saving. Install with: pip install aiofiles")
+
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-            
+
         filename = f"{directory}/{self.trace.trace_id}.json"
-        
+
         # Convert pydantic model to json
         data = self.trace.dict()
         # Handle datetime serialization
@@ -86,5 +97,5 @@ class TrajectoryRecorder:
 
         async with aiofiles.open(filename, mode='w') as f:
             await f.write(json.dumps(data, default=json_serial, indent=2))
-        
+
         return filename

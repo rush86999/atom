@@ -193,8 +193,8 @@ def segmentation_service_mocked(db_session, mock_lancedb_embeddings):
     Mocks embed_text to return test vectors for semantic similarity testing.
     Uses mock_lancedb_embeddings fixture to provide semantic-aware embeddings.
     """
-    # Mock BYOK handler and CanvasSummaryService
-    with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
+    # Mock LLMService and CanvasSummaryService
+    with patch('core.episode_segmentation_service.LLMService') as mock_llm:
         with patch('core.episode_segmentation_service.CanvasSummaryService') as mock_canvas:
             with patch('core.episode_segmentation_service.get_lancedb_handler', return_value=mock_lancedb_embeddings):
                 service = EpisodeSegmentationService(db_session)

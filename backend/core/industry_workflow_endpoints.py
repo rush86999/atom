@@ -19,7 +19,6 @@ router = APIRouter()
 # Pydantic models for requests/responses
 
 class ROICalculationRequest(BaseModel):
-    template_id: str
     hourly_rate: float = Field(50.0, description="Hourly rate for time value calculation")
 
 class TemplateSearchRequest(BaseModel):

@@ -170,10 +170,13 @@ class TestSocialPostGenerator:
     @pytest.mark.asyncio
     async def test_generate_from_operation_success(self, generator, mock_tracker, mock_agent):
         """Test successful post generation"""
-        with patch.object(generator, '_openai_client', create=True):
-            generator._openai_client = AsyncMock()
-            generator._openai_client.chat.completions.create = AsyncMock(
-                return_value=Mock(choices=[Mock(message=Mock(content="Just finished tests! 🧪"))])
+        with patch.object(generator, 'llm_service', create=True):
+            generator.llm_service = Mock()
+            generator.llm_service.generate_completion = AsyncMock(
+                return_value={
+                    "content": "Just finished tests! 🧪",
+                    "usage": {"total_tokens": 100}
+                }
             )
 
             post = await generator.generate_from_operation(mock_tracker, mock_agent)
@@ -184,7 +187,7 @@ class TestSocialPostGenerator:
     @pytest.mark.asyncio
     async def test_generate_from_operation_fallback_to_template(self, generator, mock_tracker, mock_agent):
         """Test fallback to template when LLM unavailable"""
-        generator._openai_client = None
+        generator.llm_service = None
 
         post = await generator.generate_from_operation(mock_tracker, mock_agent)
 
@@ -194,9 +197,9 @@ class TestSocialPostGenerator:
     @pytest.mark.asyncio
     async def test_llm_timeout_fallback(self, generator, mock_tracker, mock_agent):
         """Test that LLM timeout falls back to template"""
-        with patch.object(generator, '_openai_client', create=True):
-            generator._openai_client = AsyncMock()
-            generator._openai_client.chat.completions.create = AsyncMock(
+        with patch.object(generator, 'llm_service', create=True):
+            generator.llm_service = Mock()
+            generator.llm_service.generate_completion = AsyncMock(
                 side_effect=asyncio.TimeoutError()
             )
 
@@ -215,11 +218,9 @@ class TestSocialPostGenerator:
     @pytest.mark.asyncio
     async def test_llm_api_error_fallback(self, generator, mock_tracker, mock_agent):
         """Test that API errors fall back to template"""
-        with patch.object(generator, '_openai_client', create=True):
-            import openai
-            generator._openai_client = AsyncMock()
-            # Use Exception instead of APIError to avoid complex signature
-            generator._openai_client.chat.completions.create = AsyncMock(
+        with patch.object(generator, 'llm_service', create=True):
+            generator.llm_service = Mock()
+            generator.llm_service.generate_completion = AsyncMock(
                 side_effect=Exception("API request failed")
             )
 
@@ -242,10 +243,10 @@ class TestSocialPostGenerator:
         """Verify 280 character truncation"""
         # Create a very long response
         long_response = "x" * 300
-        with patch.object(generator, '_openai_client', create=True):
-            generator._openai_client = AsyncMock()
-            generator._openai_client.chat.completions.create = AsyncMock(
-                return_value=Mock(choices=[Mock(message=Mock(content=long_response))])
+        with patch.object(generator, 'llm_service', create=True):
+            generator.llm_service = Mock()
+            generator.llm_service.generate_completion = AsyncMock(
+                return_value={"content": long_response}
             )
 
             post = await generator.generate_from_operation(mock_tracker, mock_agent)
@@ -255,10 +256,10 @@ class TestSocialPostGenerator:
     @pytest.mark.asyncio
     async def test_generated_post_quality(self, generator, mock_tracker, mock_agent):
         """Verify casual tone, emoji usage (max 2), no jargon"""
-        with patch.object(generator, '_openai_client', create=True):
-            generator._openai_client = AsyncMock()
-            generator._openai_client.chat.completions.create = AsyncMock(
-                return_value=Mock(choices=[Mock(message=Mock(content="Just finished running tests! 🎉 All passed! 🧪"))])
+        with patch.object(generator, 'llm_service', create=True):
+            generator.llm_service = Mock()
+            generator.llm_service.generate_completion = AsyncMock(
+                return_value={"content": "Just finished running tests! 🎉 All passed! 🧪"}
             )
 
             post = await generator.generate_from_operation(mock_tracker, mock_agent)

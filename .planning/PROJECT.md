@@ -1,36 +1,39 @@
-# Atom Test Coverage Initiative
+# Atom AI-Powered Business Automation Platform
 
-## Current Milestone: v5.5 Backend 80% Coverage - Clean Slate
+## Current Milestone: v6.5 World Model Performance - JIT Fact Caching
 
-**Goal:** Achieve 80% actual line coverage across the entire backend codebase through wave-based parallel execution and highest-impact module prioritization.
+**Goal:** Optimize business policy verification performance by adding caching layer for JIT fact/citation verification results, reducing R2/S3 storage check latency.
 
 **Target features:**
-- Comprehensive backend coverage baseline (actual line coverage, not service-level estimates)
-- Core services testing (agent governance, LLM routing, episodic memory, world model)
-- API routes coverage (FastAPI endpoints, validation, error handling)
-- Database layer testing (models, relationships, migrations)
-- Integration testing (external services, browser automation, device capabilities)
-- Progressive quality gates (70% → 75% → 80% with emergency bypass)
+- Verification result cache (boolean: is this fact/citation valid?)
+- Cache pre-warming on application startup (load frequently accessed facts)
+- TTL-based cache invalidation
+- Background worker for cache pre-warming
+- Cache hit/miss metrics for observability
 
-**Strategy:** Baseline first → targeted phases → quality enforcement
+**Strategy:** Cache-first verification → Pre-warm on startup → Background refresh (future v6.6)
 
-**Timeline:** 2-3 weeks (aggressive execution)
+**Timeline:** 1-2 weeks (focused performance optimization)
+
+**Current State:** JIT fact verification system exists in core/policy_fact_extractor.py, but each verification hits R2/S3 storage (slow)
 
 ---
 
 ## What This Is
 
-A comprehensive testing initiative to achieve 80% code coverage across the Atom AI-powered business automation platform using property-based tests, fuzzy tests, and integration tests. Coverage spans backend services, API routes, mobile app, desktop app, and menu bar components.
+Atom is an AI-powered business automation platform that uses multi-agent systems, governance, episodic memory, and world models to automate workflows. The platform includes real-time streaming LLM responses, canvas-based presentations, browser automation, and comprehensive testing infrastructure.
+
+Current focus: v6.5 World Model Performance - optimizing JIT fact/citation verification through caching to reduce R2/S3 storage latency.
 
 ## Core Value
 
-**Critical system paths are thoroughly tested and validated before production deployment.**
+**World Model queries return verified business facts with minimal latency through intelligent caching and pre-warming.**
 
-If everything else fails, the following must have comprehensive test coverage:
-- Agent governance and maturity routing
-- Security validation and authentication
-- Episodic memory system
-- Financial and data integrity operations
+If everything else fails, business policy verification must:
+- Cache verification results to avoid repeated R2/S3 checks
+- Pre-warm cache on startup with frequently accessed facts
+- Provide observability for cache hit/miss metrics
+- Maintain fact validity with TTL-based invalidation
 
 ## Requirements
 
@@ -249,4 +252,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-03-20 after archiving v5.4 (partial), starting v5.5 (Backend 80% Coverage - Clean Slate)*
+*Last updated: 2026-03-23 after Phase 228 completion, starting v6.5 (World Model Performance)*
