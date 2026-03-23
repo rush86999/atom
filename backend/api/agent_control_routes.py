@@ -21,7 +21,7 @@ Usage:
     response = requests.post("http://localhost:8000/api/agent/stop")
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -30,6 +30,10 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from cli.daemon import DaemonManager
+
+# Import authentication and authorization
+from core.admin_endpoints import get_super_admin
+from core.models import User
 
 router = APIRouter(prefix="/api/agent", tags=["agent-control"])
 
@@ -103,8 +107,14 @@ class ExecuteCommandResponse(BaseModel):
 
 # API Endpoints
 @router.post("/start", response_model=StartAgentResponse)
-async def start_atom(request: StartAgentRequest):
-    """Start Atom OS as background service.
+async def start_atom(
+    request: StartAgentRequest,
+    current_user: User = Depends(get_super_admin)
+):
+    """Start Atom OS as background service (super_admin only).
+
+    **SECURITY**: Requires super_admin authentication to prevent unauthorized
+    daemon control. Use this endpoint only from trusted sources.
 
     Called by external agents (Claude, OpenClaw, custom agents) to
     programmatically start Atom as a background service.
@@ -162,8 +172,11 @@ async def start_atom(request: StartAgentRequest):
 
 
 @router.post("/stop", response_model=StopAgentResponse)
-async def stop_atom():
-    """Stop Atom OS background service.
+async def stop_atom(current_user: User = Depends(get_super_admin)):
+    """Stop Atom OS background service (super_admin only).
+
+    **SECURITY**: Requires super_admin authentication to prevent unauthorized
+    daemon control.
 
     Gracefully shuts down Atom daemon service.
 
@@ -206,8 +219,14 @@ async def stop_atom():
 
 
 @router.post("/restart", response_model=RestartAgentResponse)
-async def restart_atom(request: StartAgentRequest):
-    """Restart Atom OS background service.
+async def restart_atom(
+    request: StartAgentRequest,
+    current_user: User = Depends(get_super_admin)
+):
+    """Restart Atom OS background service (super_admin only).
+
+    **SECURITY**: Requires super_admin authentication to prevent unauthorized
+    daemon control.
 
     Stops Atom if running, then starts again with new configuration.
 
@@ -310,8 +329,14 @@ async def get_status():
 
 
 @router.post("/execute", response_model=ExecuteCommandResponse)
-async def execute_atom_command(request: ExecuteCommandRequest):
-    """Execute single Atom command and return result.
+async def execute_atom_command(
+    request: ExecuteCommandRequest,
+    current_user: User = Depends(get_super_admin)
+):
+    """Execute single Atom command and return result (super_admin only).
+
+    **SECURITY**: Requires super_admin authentication to prevent unauthorized
+    command execution. This endpoint executes arbitrary Atom commands.
 
     Useful for one-off tasks from other agents. Starts Atom temporarily,
     executes command, and shuts down.

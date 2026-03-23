@@ -14,7 +14,8 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db_session
-from core.models import ScheduledMessage
+from core.models import ScheduledMessage, User
+from core.auth import get_current_user
 from core.scheduled_messaging_service import ScheduledMessagingService
 
 logger = logging.getLogger(__name__)
@@ -103,9 +104,12 @@ class ParseNaturalLanguageResponse(BaseModel):
 async def create_scheduled_message(
     request: CreateScheduledMessageRequest,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new scheduled or recurring message.
+
+    **SECURITY**: Requires authentication.
 
     For one_time messages: Provide `scheduled_for`
     For recurring messages: Provide `cron_expression` or `natural_language_schedule`
@@ -143,9 +147,12 @@ async def list_scheduled_messages(
     schedule_type: Optional[str] = None,
     limit: int = 100,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     List scheduled messages with optional filters.
+
+    **SECURITY**: Requires authentication.
 
     Can filter by:
     - agent_id: Only messages from this agent
@@ -168,8 +175,11 @@ async def list_scheduled_messages(
 async def get_scheduled_message(
     message_id: str,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
-    """Get a specific scheduled message by ID."""
+    """Get a specific scheduled message by ID.
+
+    **SECURITY**: Requires authentication."""
     service = ScheduledMessagingService(db)
 
     message = service.get_scheduled_message(message_id=message_id)
@@ -185,9 +195,12 @@ async def update_scheduled_message(
     message_id: str,
     request: UpdateScheduledMessageRequest,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a scheduled message.
+
+    **SECURITY**: Requires authentication.
 
     Can update:
     - template: Message template
@@ -214,9 +227,12 @@ async def update_scheduled_message(
 async def pause_scheduled_message(
     message_id: str,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Pause a scheduled message.
+
+    **SECURITY**: Requires authentication.
 
     Paused messages will not execute until resumed.
     """
@@ -231,9 +247,12 @@ async def pause_scheduled_message(
 async def resume_scheduled_message(
     message_id: str,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Resume a paused scheduled message.
+
+    **SECURITY**: Requires authentication.
 
     Resumes execution based on the schedule.
     """
@@ -248,9 +267,12 @@ async def resume_scheduled_message(
 async def cancel_scheduled_message(
     message_id: str,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Cancel a scheduled message.
+
+    **SECURITY**: Requires authentication.
 
     Cancelled messages will not execute again.
     """
@@ -266,9 +288,12 @@ async def get_execution_history(
     agent_id: Optional[str] = None,
     limit: int = 100,
     db: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get execution history for scheduled messages.
+
+    **SECURITY**: Requires authentication.
 
     Shows past executions with metadata.
     """
