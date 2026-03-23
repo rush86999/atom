@@ -6,9 +6,11 @@ including browser context, page, and base URL configuration.
 """
 
 import os
+import shutil
 import sys
 from datetime import datetime
 
+import allure
 import pytest
 from playwright.sync_api import BrowserContext as SyncBrowserContext
 
@@ -87,6 +89,23 @@ def browser_context_args(browser_context_args):
         context_args["record_video_dir"] = video_dir
 
     return context_args
+
+
+@pytest.fixture(scope="session", autouse=True)
+def clean_allure_results():
+    """
+    Clean Allure results directory before test run.
+
+    Prevents old test results from polluting current run.
+
+    Yields:
+        None: Allows test session to proceed
+    """
+    allure_dir = "allure-results"
+    if os.path.exists(allure_dir):
+        shutil.rmtree(allure_dir)
+    yield
+    # Don't clean after (let user review results)
 
 
 @pytest.fixture(scope="session")
@@ -248,6 +267,16 @@ def pytest_runtest_makereport(item, call):
             page.screenshot(path=screenshot_path, full_page=True)
             print(f"\nScreenshot saved: {screenshot_path}")
 
+            # Attach screenshot to Allure report
+            try:
+                allure.attach.file(
+                    screenshot_path,
+                    name=f"Screenshot: {item.name}",
+                    attachment_type=allure.attachment_type.PNG
+                )
+            except Exception as e:
+                print(f"Failed to attach screenshot to Allure: {e}")
+
             # Save video if in CI environment
             if is_ci_environment():
                 video_path = page.video.path()
@@ -258,6 +287,16 @@ def pytest_runtest_makereport(item, call):
                     named_video_path = f"backend/tests/e2e_ui/artifacts/videos/{video_timestamp}_{video_test_name}.webm"
                     os.rename(video_path, named_video_path)
                     print(f"\nVideo saved: {named_video_path}")
+
+                    # Attach video to Allure report
+                    try:
+                        allure.attach.file(
+                            named_video_path,
+                            name=f"Video: {item.name}",
+                            attachment_type=allure.attachment_type.WEBM
+                        )
+                    except Exception as e:
+                        print(f"Failed to attach video to Allure: {e}")
 
 
 # ============================================================================
