@@ -42,38 +42,6 @@ const BusinessFactsPageContent: React.FC = () => {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const { toast } = useToast();
 
-  // Keyboard shortcuts
-  useKeyboardShortcuts([
-    {
-      title: "Actions",
-      shortcuts: [
-        {
-          key: "?",
-          description: "Show keyboard shortcuts",
-          action: () => setShowKeyboardHelp(true),
-        },
-        {
-          key: "n",
-          description: "Create new fact",
-          action: handleCreateFact,
-        },
-        {
-          key: "r",
-          description: "Refresh facts",
-          action: handleRefresh,
-        },
-        {
-          key: "/",
-          description: "Focus search",
-          action: () => {
-            const searchInput = document.querySelector("input[placeholder*='Search']") as HTMLInputElement;
-            searchInput?.focus();
-          },
-        },
-      ],
-    },
-  ]);
-
   const poller = new AdminPoller();
 
   // Fetch all facts
@@ -178,6 +146,38 @@ const BusinessFactsPageContent: React.FC = () => {
     setEditingFact(null);
   };
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      title: "Actions",
+      shortcuts: [
+        {
+          key: "?",
+          description: "Show keyboard shortcuts",
+          action: () => setShowKeyboardHelp(true),
+        },
+        {
+          key: "n",
+          description: "Create new fact",
+          action: handleCreateFact,
+        },
+        {
+          key: "r",
+          description: "Refresh facts",
+          action: handleRefresh,
+        },
+        {
+          key: "/",
+          description: "Focus search",
+          action: () => {
+            const searchInput = document.querySelector("input[placeholder*='Search']") as HTMLInputElement;
+            searchInput?.focus();
+          },
+        },
+      ],
+    },
+  ]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -187,7 +187,8 @@ const BusinessFactsPageContent: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <React.Fragment>
+      <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -298,9 +299,10 @@ const BusinessFactsPageContent: React.FC = () => {
           onCancel={handleFormCancel}
         />
       )}
+    </div>
 
-      {/* Keyboard Shortcuts Help */}
-      <KeyboardShortcutsHelp
+    {/* Keyboard Shortcuts Help */}
+    <KeyboardShortcutsHelp
         open={showKeyboardHelp}
         onClose={() => setShowKeyboardHelp(false)}
         groups={[
@@ -315,7 +317,7 @@ const BusinessFactsPageContent: React.FC = () => {
           },
         ]}
       />
-    </>
+    </React.Fragment>
   );
 };
 
@@ -323,7 +325,7 @@ const BusinessFactsPageContent: React.FC = () => {
 const BusinessFactsPageWrapper: React.FC = () => {
   return (
     <ErrorBoundary>
-      <BusinessFactsPage />
+      <BusinessFactsPageContent />
       <OfflineIndicator />
     </ErrorBoundary>
   );

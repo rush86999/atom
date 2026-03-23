@@ -58,78 +58,6 @@ const JITVerificationDashboardContent: React.FC = () => {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const { toast } = useToast();
 
-  // Keyboard shortcuts
-  useKeyboardShortcuts([
-    {
-      title: "Navigation",
-      shortcuts: [
-        {
-          key: "?",
-          description: "Show keyboard shortcuts",
-          action: () => setShowKeyboardHelp(true),
-        },
-        {
-          key: "r",
-          description: "Refresh dashboard",
-          action: handleRefresh,
-        },
-        {
-          key: "a",
-          description: "Toggle auto-refresh",
-          action: () => setAutoRefresh((prev) => !prev),
-        },
-      ],
-    },
-    {
-      title: "Tabs",
-      shortcuts: [
-        {
-          key: "1",
-          description: "Go to Overview tab",
-          action: () => {
-            // Tab switching would require ref management
-            console.log("Navigate to Overview tab");
-          },
-        },
-        {
-          key: "2",
-          description: "Go to Worker tab",
-          action: () => {
-            console.log("Navigate to Worker tab");
-          },
-        },
-        {
-          key: "3",
-          description: "Go to Cache tab",
-          action: () => {
-            console.log("Navigate to Cache tab");
-          },
-        },
-        {
-          key: "4",
-          description: "Go to Citations tab",
-          action: () => {
-            console.log("Navigate to Citations tab");
-          },
-        },
-        {
-          key: "5",
-          description: "Go to Logs tab",
-          action: () => {
-            console.log("Navigate to Logs tab");
-          },
-        },
-        {
-          key: "6",
-          description: "Go to Top Citations tab",
-          action: () => {
-            console.log("Navigate to Top Citations tab");
-          },
-        },
-      ],
-    },
-  ]);
-
   // Poller for real-time updates
   const poller = new AdminPoller();
 
@@ -222,6 +150,78 @@ const JITVerificationDashboardContent: React.FC = () => {
     fetchDashboardData();
   };
 
+  // Keyboard shortcuts (defined after functions to avoid reference errors)
+  useKeyboardShortcuts([
+    {
+      title: "Navigation",
+      shortcuts: [
+        {
+          key: "?",
+          description: "Show keyboard shortcuts",
+          action: () => setShowKeyboardHelp(true),
+        },
+        {
+          key: "r",
+          description: "Refresh dashboard",
+          action: handleRefresh,
+        },
+        {
+          key: "a",
+          description: "Toggle auto-refresh",
+          action: () => setAutoRefresh((prev) => !prev),
+        },
+      ],
+    },
+    {
+      title: "Tabs",
+      shortcuts: [
+        {
+          key: "1",
+          description: "Go to Overview tab",
+          action: () => {
+            // Tab switching would require ref management
+            console.log("Navigate to Overview tab");
+          },
+        },
+        {
+          key: "2",
+          description: "Go to Worker tab",
+          action: () => {
+            console.log("Navigate to Worker tab");
+          },
+        },
+        {
+          key: "3",
+          description: "Go to Cache tab",
+          action: () => {
+            console.log("Navigate to Cache tab");
+          },
+        },
+        {
+          key: "4",
+          description: "Go to Citations tab",
+          action: () => {
+            console.log("Navigate to Citations tab");
+          },
+        },
+        {
+          key: "5",
+          description: "Go to Logs tab",
+          action: () => {
+            console.log("Navigate to Logs tab");
+          },
+        },
+        {
+          key: "6",
+          description: "Go to Top Citations tab",
+          action: () => {
+            console.log("Navigate to Top Citations tab");
+          },
+        },
+      ],
+    },
+  ]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -231,7 +231,8 @@ const JITVerificationDashboardContent: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <React.Fragment>
+      <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -479,7 +480,7 @@ const JITVerificationDashboardContent: React.FC = () => {
         },
       ]}
     />
-  </>
+  </React.Fragment>
   );
 };
 

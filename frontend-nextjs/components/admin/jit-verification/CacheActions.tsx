@@ -4,24 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Database,
@@ -42,6 +30,7 @@ import { jitVerificationAPI } from "@/lib/api-admin";
 export const CacheActions: React.FC = () => {
   const { toast } = useToast();
   const [clearLoading, setClearLoading] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [warmLoading, setWarmLoading] = useState(false);
   const [warmLimit, setWarmLimit] = useState(100);
   const [warmDialogOpen, setWarmDialogOpen] = useState(false);
@@ -128,18 +117,22 @@ export const CacheActions: React.FC = () => {
       <CardContent className="space-y-4">
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          {/* Warm Cache Button with Dialog */}
+          {/* Warm Cache Button */}
+          <Button
+            variant="default"
+            disabled={warmLoading}
+            onClick={() => setWarmDialogOpen(true)}
+          >
+            {warmLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-2" />
+            )}
+            Warm Cache
+          </Button>
+
+          {/* Warm Cache Dialog */}
           <Dialog open={warmDialogOpen} onOpenChange={setWarmDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="default" disabled={warmLoading}>
-                {warmLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Zap className="h-4 w-4 mr-2" />
-                )}
-                Warm Cache
-              </Button>
-            </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Warm JIT Verification Cache</DialogTitle>
@@ -236,21 +229,11 @@ export const CacheActions: React.FC = () => {
           </Dialog>
 
           {/* Clear Cache with Confirmation */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={clearLoading}>
-                {clearLoading ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Database className="h-4 w-4 mr-2" />
-                )}
-                Clear All Caches
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear All JIT Verification Caches?</AlertDialogTitle>
-                <AlertDialogDescription>
+          <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Clear All JIT Verification Caches?</DialogTitle>
+                <DialogDescription>
                   <strong className="text-red-600">Warning:</strong> This will clear all cached verification results from both L1 memory cache and L2 Redis cache.
                   <br /><br />
                   <strong>Impact:</strong>
@@ -261,16 +244,39 @@ export const CacheActions: React.FC = () => {
                   </ul>
                   <br />
                   <strong>Recommendation:</strong> Only clear cache if you suspect stale data or need to force fresh verification.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleClearCache}>
-                  Clear Cache
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setClearDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleClearCache} disabled={clearLoading}>
+                  {clearLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Clearing...
+                    </>
+                  ) : (
+                    "Clear Cache"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Clear Cache Button */}
+          <Button
+            variant="destructive"
+            disabled={clearLoading}
+            onClick={() => setClearDialogOpen(true)}
+          >
+            {clearLoading ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4 mr-2" />
+            )}
+            Clear All Caches
+          </Button>
 
           {/* Export Metrics */}
           <Button
@@ -327,7 +333,7 @@ export const CacheActions: React.FC = () => {
             </p>
             <ul className="text-xs text-green-700 space-y-1">
               <li>• <strong>Warm cache</strong> during low-traffic periods</li>
-              <li>• <strong>Monitor hit rates</strong> - aim for >85% L1 hit rate</li>
+              <li>• <strong>Monitor hit rates</strong> - aim for &gt;85% L1 hit rate</li>
               <li>• <strong>Clear cache</strong> only when stale data is suspected</li>
               <li>• <strong>Export metrics</strong> weekly for performance tracking</li>
             </ul>
