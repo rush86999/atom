@@ -276,6 +276,33 @@ def db_session(worker_database):
     SessionLocal = worker_database
     session = SessionLocal()
 
+    # Create default tenant for tests (required by SocialPost foreign key)
+    from core.models import Tenant, Workspace
+    default_tenant = session.query(Tenant).filter(Tenant.id == "default").first()
+    if not default_tenant:
+        default_tenant = Tenant(
+            id="default",
+            name="Default Tenant",
+            subdomain="default",
+            edition="personal",
+            plan_type="free",
+            is_active=True
+        )
+        session.add(default_tenant)
+        session.commit()
+
+    # Create default workspace for tests (required by MetaAgent)
+    default_workspace = session.query(Workspace).filter(Workspace.id == "default").first()
+    if not default_workspace:
+        default_workspace = Workspace(
+            id="default",
+            tenant_id="default",
+            name="Default Workspace",
+            description="Test workspace"
+        )
+        session.add(default_workspace)
+        session.commit()
+
     # Start nested transaction for rollback
     from sqlalchemy import Connection
     if isinstance(session, Connection):
@@ -334,98 +361,6 @@ def unique_resource_name():
     worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
     unique_id = str(uuid.uuid4())[:8]
     return f"test_{worker_id}_{unique_id}"
-
-
-@pytest.fixture(scope="function")
-def db_session():
-    """
-    Standardized database session fixture for all tests.
-
-    Creates a fresh in-memory SQLite database for each test function.
-    This fixture is function-scoped to ensure complete test isolation.
-
-    Uses tempfile-based SQLite file for better compatibility with
-    SQLAlchemy multiprocessing and LanceDB integration tests.
-
-    Usage:
-        def test_my_feature(db_session):
-            agent = AgentRegistry(name="test", ...)
-            db_session.add(agent)
-            db_session.commit()
-    """
-    # Import here to avoid circular imports
-    from core.database import Base
-    import core.models # Ensure all models are registered
-
-    # Use file-based temp SQLite for tests (more stable than :memory:)
-    fd, db_path = tempfile.mkstemp(suffix='.db')
-    os.close(fd)
-
-    engine = create_engine(
-        f"sqlite:///{db_path}",
-        connect_args={"check_same_thread": False},
-        echo=False
-    )
-
-    # Store path for cleanup
-    engine._test_db_path = db_path
-
-    # Create tables using create_all with checkfirst
-    # This handles missing foreign key references gracefully
-    try:
-        Base.metadata.create_all(engine, checkfirst=True)
-    except Exception:
-        # If create_all fails, create tables individually
-        for table in Base.metadata.tables.values():
-            try:
-                table.create(engine, checkfirst=True)
-            except Exception:
-                # Skip tables that can't be created (missing FK refs, etc.)
-                continue
-
-    # Create session
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    session = TestingSessionLocal()
-
-    # Create default tenant for tests (required by SocialPost foreign key)
-    from core.models import Tenant
-    default_tenant = session.query(Tenant).filter(Tenant.id == "default").first()
-    if not default_tenant:
-        default_tenant = Tenant(
-            id="default",
-            name="Default Tenant",
-            subdomain="default",
-            edition="personal",
-            plan_type="free",
-            is_active=True
-        )
-        session.add(default_tenant)
-        session.commit()
-
-    # Create default workspace for tests (required by MetaAgent)
-    from core.models import Workspace
-    default_workspace = session.query(Workspace).filter(Workspace.id == "default").first()
-    if not default_workspace:
-        default_workspace = Workspace(
-            id="default",
-            tenant_id="default",
-            name="Default Workspace",
-            description="Test workspace"
-        )
-        session.add(default_workspace)
-        session.commit()
-
-    yield session
-
-    # Cleanup
-    session.close()
-    engine.dispose()
-    # Delete temp database file
-    if hasattr(engine, '_test_db_path'):
-        try:
-            os.unlink(engine._test_db_path)
-        except Exception:
-            pass
 
 
 @pytest.fixture(scope="function")
