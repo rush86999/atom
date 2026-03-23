@@ -1980,14 +1980,14 @@ Phases execute in numeric order: 222 → 223 → 224 → 225 → 225.1 → 226 �
   4. Failed tests capture screenshots and videos for debugging (Playwright artifacts)
   5. Test fixtures are reusable with factory-boy factories and pytest fixtures
   6. Unified test runner orchestrates web, mobile, and desktop tests with Allure reporting
-**Plans**: TBD
+**Plans**: 5 plans in 3 waves
 
 Plans:
-- [ ] 233-01: Test Data Manager with factory-boy factories (users, agents, workflows, canvas states)
-- [ ] 233-02: Database isolation infrastructure (worker-specific schemas, transaction rollbacks)
-- [ ] 233-03: Test fixtures and utilities (API-first auth, shared helpers, cleanup)
-- [ ] 233-04: Failure artifacts capture (screenshots, videos, traces on failure)
-- [ ] 233-05: Unified test runner with pytest orchestration and Allure reporting
+- [ ] 233-01-PLAN.md — Test data isolation enforcement (factory-boy _session parameter)
+- [ ] 233-02-PLAN.md — Database isolation with worker-specific schemas (PostgreSQL)
+- [ ] 233-03-PLAN.md — Test fixtures, utilities, and standards (API-first auth, shared helpers)
+- [ ] 233-04-PLAN.md — Failure artifacts capture (Allure screenshots/videos)
+- [ ] 233-05-PLAN.md — Unified test runner with Allure cross-platform reporting
 
 #### Phase 234: Authentication & Agent E2E
 **Goal**: Comprehensive E2E tests for authentication flows and agent execution critical paths across web, mobile (API-level), and desktop platforms
