@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** All LLM interactions flow through a single unified interface for consistency, observability, and maintainability
-**Current focus:** Phase 227 - Agent System Standardization
+**Current focus:** Phase 228 - API Routes Tools Standardization
 
 ## Current Position
 
-Phase: 227-agent-system-standardization (Agent System Standardization)
-Plan: 01 - Agent System Standardization
+Phase: 228-api-routes-tools-standardization (API Routes Tools Standardization)
+Plan: 01 - API Routes Migration to LLMService
 Status: Complete
-Last activity: 2026-03-23 — Plan 227-01 COMPLETE: Migrated atom_agent_endpoints.py WebSocket streaming endpoint from BYOKHandler to LLMService (2 files, 3 tasks, 398s duration)
+Last activity: 2026-03-23 — Plan 228-01 COMPLETE: Migrated competitor_analysis_routes.py and learning_plan_routes.py from BYOKHandler to LLMService (2 files, 3 tasks, 200s duration)
 
-Progress: [██████░░] 74% (32/42 plans complete)
+Progress: [██████░░] 75% (33/42 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
-- Average duration: ~5.2 minutes
-- Total execution time: 2.8 hours
+- Total plans completed: 33
+- Average duration: ~5.1 minutes
+- Total execution time: 2.9 hours
 
 **By Phase:**
 
@@ -38,17 +38,19 @@ Progress: [██████░░] 74% (32/42 plans complete)
 | 226.4 | 5/5 | 25 min | ~5 min |
 | 226 | 1/1 | 3 min | ~3 min |
 | 227 | 1/1 | 6 min | ~6 min |
-| 228 | 0/2 | TBD | - |
+| 228 | 1/2 | 3 min | ~3 min |
 | 229 | 0/2 | TBD | - |
 | 230 | 0/5 | TBD | - |
 | 231 | 0/4 | TBD | - |
 | 232 | 0/3 | TBD | - |
 
 **Recent Trend:**
-- Last 3 plans: 227-01 (~6 min), 226.4-05 (~5 min), 226-03 (~3 min)
+- Last 3 plans: 228-01 (~3 min), 227-01 (~6 min), 226.4-05 (~5 min)
 - Trend: Consistent velocity
 
 *Updated after each plan completion*
+| Phase 228 P01 | 200s | 3 tasks | 2 files |
+| Phase 227 P01 | 398 | 3 tasks | 2 files |
 | Phase 226.3-frontend-health-monitoring P01 | 138s | 4 tasks | 4 files |
 | Phase 226.4-registry-capabilities-sync P04 | 696s | 3 tasks | 2 files |
 | Phase 226.4-registry-capabilities-sync P03 | 360s | 2 tasks | 2 files |
@@ -77,6 +79,7 @@ Progress: [██████░░] 74% (32/42 plans complete)
 | Phase 225.1 P08 | 167 | 3 tasks | 3 files |
 | Phase 226 P01 | 362 | 4 tasks | 5 files |
 | Phase 227 P01 | 398 | 3 tasks | 2 files |
+| Phase 228 P01 | 200 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -185,6 +188,8 @@ Recent decisions affecting current work:
 - [Phase 226-03]: Created 11 integration tests for provider registry API endpoints
 - [Phase 226-03]: Provider sync runs in background task to avoid blocking HTTP response
 - [Phase 227]: Migrate atom_agent_endpoints.py WebSocket streaming to LLMService - Completes STD-03 for agent systems
+- [Phase 228]: Function-level LLMService instantiation with db session for API routes usage tracking
+- [Phase 228]: Use workspace_id='default' for API route LLM calls to enable BYOK key resolution
 
 ### Pending Todos
 
@@ -196,8 +201,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23 (plan 226.3-01 execution)
-Stopped at: Completed plan 226.3-01 - Provider Registry REST API and Security Fix
+Last session: 2026-03-23 (plan 228-01 execution)
+Stopped at: Completed plan 228-01 - API Routes Migration to LLMService
 Resume file: None
 
 ## Milestone Context
