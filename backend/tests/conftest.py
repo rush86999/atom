@@ -253,6 +253,46 @@ def worker_database():
         system_engine.dispose()
 
 
+@pytest.fixture(scope="function")
+def db_session(worker_database):
+    """
+    Function-scoped database session with transaction rollback.
+
+    Uses worker-specific schema from worker_database fixture.
+    All changes are rolled back after test (instant cleanup).
+
+    Args:
+        worker_database: Session-scoped worker database fixture
+
+    Yields:
+        Session: SQLAlchemy session for test
+
+    Example:
+        def test_agent_creation(db_session):
+            agent = AgentFactory.create(_session=db_session)
+            assert db_session.query(AgentRegistry).count() == 1
+            # Changes rolled back after test
+    """
+    SessionLocal = worker_database
+    session = SessionLocal()
+
+    # Start nested transaction for rollback
+    from sqlalchemy import Connection
+    if isinstance(session, Connection):
+        transaction = session.begin_nested()
+    else:
+        transaction = session.begin_nested()
+
+    yield session
+
+    # Rollback transaction (instant cleanup, no foreign key issues)
+    try:
+        session.rollback()
+    except Exception:
+        pass
+    session.close()
+
+
 @pytest.fixture(autouse=True)
 def reset_agent_task_registry(request):
     """
