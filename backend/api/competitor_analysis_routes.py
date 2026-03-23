@@ -15,16 +15,13 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.llm.byok_handler import BYOKHandler
+from core.llm_service import LLMService
 from core.models import User, CompetitorAnalysis, OAuthToken
 from core.security_dependencies import get_current_user
 from integrations.notion_service import NotionService
 
 router = BaseAPIRouter(prefix="/api/v1/analysis", tags=["competitor-analysis"])
 logger = logging.getLogger(__name__)
-
-# Initialize BYOK handler for LLM integration
-byok_handler = BYOKHandler()
 
 
 # Request/Response Models
@@ -119,11 +116,11 @@ async def fetch_competitor_data(competitor: str, focus_areas: List[str]) -> dict
         }
 
 
-async def analyze_with_llm(competitor_data: dict, focus_areas: List[str]) -> CompetitorInsight:
+async def analyze_with_llm(competitor_data: dict, focus_areas: List[str], db: Session) -> CompetitorInsight:
     """
     Analyze competitor data using LLM to generate insights.
 
-    Uses BYOK handler for cost-optimized provider selection.
+    Uses LLMService for cost-optimized provider selection with usage tracking.
     Falls back to simulated insights if LLM fails.
     """
     competitor_name = competitor_data.get("name", "Unknown")
@@ -152,8 +149,9 @@ async def analyze_with_llm(competitor_data: dict, focus_areas: List[str]) -> Com
     Your analysis is data-driven, strategic, and focused on business implications."""
 
     try:
-        # Use structured output with BYOK handler
-        result = await byok_handler.generate_structured_response(
+        # Use LLMService for structured output with usage tracking
+        llm = LLMService(workspace_id="default", db=db)
+        result = await llm.generate_structured(
             prompt=prompt,
             system_instruction=system_instruction,
             response_model=CompetitorInsight,
@@ -503,7 +501,7 @@ async def analyze_competitors(
                 competitor_data = await fetch_competitor_data(competitor, payload.focus_areas)
 
                 # Analyze with LLM
-                insight = await analyze_with_llm(competitor_data, payload.focus_areas)
+                insight = await analyze_with_llm(competitor_data, payload.focus_areas, db)
                 insights[competitor] = insight
 
             except Exception as e:
