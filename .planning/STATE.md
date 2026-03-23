@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 226.4-registry-capabilities-sync (Registry Capabilities Sync)
-Plan: 05 - Provider Health API and Scheduler Integration
+Phase: 226-llm-provider-registry (LLM Provider Registry)
+Plan: 02 - LUX BPC Integration Routing
 Status: Complete
-Last activity: 2026-03-22 — Phase 226.4-05 COMPLETE: Created provider health API endpoints and integrated ProviderScheduler into application startup with 8 integration tests
+Last activity: 2026-03-22 — Plan 226-02 COMPLETE: LUX computer use model integrated into BPC routing system (executed as sub-phase 226.2-01 with 10 integration tests, 100% pass rate)
 
-Progress: [██████░░] 71% (28/38 plans complete)
+Progress: [██████░░] 72% (29/40 plans complete)
 
 ## Performance Metrics
 
@@ -165,6 +165,11 @@ Recent decisions affecting current work:
 - [Phase 226.4-05]: Health endpoints don't require authentication (operational monitoring pattern)
 - [Phase 226.4-05]: Integration tests use real database for simplicity and better coverage
 - [Phase 226.4-05]: Created 8 integration tests with 100% pass rate (8/8 tests passing)
+- [Phase 226-02]: LUX computer use model integrated into BPC routing system with dual API key resolution (lux_config + BYOK fallback)
+- [Phase 226-02]: LUX quality score 88 matches minimax-m2.5 in Standard tier (between gemini-2.0-flash @ 86 and claude-3.5-sonnet @ 92)
+- [Phase 226-02]: All QueryComplexity levels map to lux-1.0 (single model for all tasks, specialized for computer use)
+- [Phase 226-02]: Created 10 comprehensive integration tests with 100% pass rate (10/10 tests passing in 8.94s)
+- [Phase 226-02]: LUX added to vision_models list for computer use task routing with capability-specific quality score (computer_use: 95)
 
 ### Pending Todos
 
@@ -176,8 +181,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 226.4-05 execution)
-Stopped at: Completed phase 226.4-05 - Provider health API and scheduler integration
+Last session: 2026-03-23 (plan 226-02 execution)
+Stopped at: Completed plan 226-02 - LUX BPC Integration Routing (executed as sub-phase 226.2-01)
 Resume file: None
 
 ## Milestone Context
