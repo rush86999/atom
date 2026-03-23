@@ -6,11 +6,13 @@ Uses the real airtable_service.py for all operations
 from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 # Import the real Airtable service
 from .airtable_service import AirtableService, airtable_service
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -119,8 +121,11 @@ async def get_record(base_id: str, table_name: str, record_id: str):
 
 
 @router.post("/records")
-async def create_record(request: AirtableRecordRequest):
-    """Create a new record in Airtable"""
+async def create_record(
+    request: AirtableRecordRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a new record in Airtable (requires authentication)"""
     try:
         record = await airtable_service.create_record(
             base_id=request.base_id,
@@ -140,8 +145,11 @@ async def create_record(request: AirtableRecordRequest):
 
 
 @router.patch("/records")
-async def update_record(request: AirtableUpdateRequest):
-    """Update a record in Airtable"""
+async def update_record(
+    request: AirtableUpdateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Update a record in Airtable (requires authentication)"""
     try:
         record = await airtable_service.update_record(
             base_id=request.base_id,
@@ -162,8 +170,13 @@ async def update_record(request: AirtableUpdateRequest):
 
 
 @router.delete("/records/{base_id}/{table_name}/{record_id}")
-async def delete_record(base_id: str, table_name: str, record_id: str):
-    """Delete a record from Airtable"""
+async def delete_record(
+    base_id: str,
+    table_name: str,
+    record_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a record from Airtable (requires authentication)"""
     try:
         result = await airtable_service.delete_record(
             base_id=base_id,
@@ -184,8 +197,11 @@ async def delete_record(base_id: str, table_name: str, record_id: str):
 
 
 @router.post("/search")
-async def airtable_search(request: AirtableSearchRequest):
-    """Search Airtable content"""
+async def airtable_search(
+    request: AirtableSearchRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Search Airtable content (requires authentication)"""
     logger.info(f"Searching Airtable for: {request.query}")
 
     # If base_id and table_name provided, search with filter formula

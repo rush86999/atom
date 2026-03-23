@@ -1,8 +1,12 @@
-# Roadmap: Atom Test Coverage Initiative
+# Roadmap: Atom Platform Development
 
 ## Overview
 
 Comprehensive cross-platform testing initiative to achieve 80% code coverage across all platforms (backend Python, frontend React/Next.js, mobile React Native, desktop Tauri/Rust). Starting from v5.2's baseline (backend: 26.15%, frontend: 65.85%, mobile: infrastructure foundation, desktop: 65-70%), this milestone focuses on filling coverage gaps with targeted test development, fixing failing tests, and enforcing quality gates to prevent regression.
+
+**Current Milestone:** v6.0 BYOK Migration to Unified LLMService API — Consolidate all LLM interactions to unified interface, eliminate fragmentation, add observability
+**Active Phase:** Phase 226: LLM Provider Registry & LUX Integration (3 sub-phases)
+**Previous Milestone:** v5.5 Test Coverage Expansion — Achieve 80% backend coverage through targeted testing (PAUSED after Phase 221)
 
 ## Milestones
 
@@ -14,6 +18,7 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - ✅ **v5.3 Coverage Expansion to 80% Targets** - Phases 153-162 (shipped 2026-03-11)
 - ✅ **v5.4 Backend 80% Coverage - Baseline & Plan** - Phases 163-171 (shipped 2026-03-11)
 - 🚧 **v5.5 Backend 80% Coverage - Execution** - Phases 172-193 (in progress)
+- 📋 **v6.0 BYOK Migration to Unified LLMService API** - Phases 222-232 (planned)
 
 ## Phases
 
@@ -1084,6 +1089,17 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 | 204. Coverage Push to 75-80% | v5.5 | 7/7 | ✅ Complete | 2026-03-17 |
 | 205. Coverage Quality & Target Achievement | v5.5 | 4/4 | Complete | 2026-03-18 |
 | 206. Coverage Push to 80% | v5.5 | TBD | Planning | - |
+| 222. LLMService Enhancement | v6.0 | 0/5 | Not started | - |
+| 223. Critical Migration Part 1 | v6.0 | 0/3 | Not started | - |
+| 224. Critical Migration Part 2 | v6.0 | 0/3 | Not started | - |
+| 225. Critical Migration Part 3 | v6.0 | 0/3 | Not started | - |
+| 226. Core Services Standardization | v6.0 | 0/1 | Not started | - |
+| 227. Agent System Standardization | v6.0 | 0/1 | Not started | - |
+| 228. API Routes & Tools Standardization | v6.0 | 0/2 | Not started | - |
+| 229. BYOKHandler Deprecation | v6.0 | 0/2 | Not started | - |
+| 230. Enhanced Observability | v6.0 | 0/5 | Not started | - |
+| 231. Comprehensive Testing | v6.0 | 0/4 | Not started | - |
+| 232. Documentation & Completion | v6.0 | 0/3 | Not started | - |
 
 ### Phase 205: Coverage Quality & Target Achievement ✅ COMPLETE
 **Status**: Complete (2026-03-18)
@@ -1592,4 +1608,333 @@ Phases execute in numeric order: 163 → 164 → 165 → 166 → 167 → 168 →
 - [x] FACT-03: Tests remain fast (no real S3/R2 calls)
 - [x] FACT-04: No production code changes (test-only fixes)
 - [x] FACT-05: Document S3/R2 mocking pattern for future tests
+
+### Phase 217: Fix Auth Routes Test Failures ✅ COMPLETE
+**Goal**: Fix 5 failing tests related to authentication routes (login, refresh, change password)
+**Status**: ✅ COMPLETE (2026-03-21)
+**Plans**: 3 plans
+
+**Problem**: 5 tests failing in `tests/api/test_auth_routes_coverage.py`:
+- **2 login endpoint tests**: UserRole enum references non-existent values
+- **2 refresh token tests**: Unreachable code due to exception handler placement
+- **1 change password test**: Missing locked user check
+
+**Root Causes**:
+1. **UserRole Enum Issues**: _get_user_permissions() referenced enum values that don't exist in models.py
+2. **Exception Handler Flow**: Refresh token exception always raised, making token generation unreachable
+3. **Missing Status Check**: Change password didn't verify user account status
+
+**Solution Applied**:
+- Removed non-existent roles, added OWNER and VIEWER roles
+- Moved token generation inside try block, fixed HTTPException handling
+- Added user.status == "locked" validation before password change
+
+**Results**:
+- 60/60 tests passing (100%)
+- 180/180 passing across 3 runs (100% stability)
+- Zero flakiness
+
+**Plans**:
+- [x] 217-01-PLAN.md — Debug Database State ✅
+- [x] 217-02-PLAN.md — Fix Mock Session Issue ✅
+- [x] 217-03-PLAN.md — Verify All Tests ✅
+
+### Phase 218: Fix Industry Workflow Test Collection ✅ COMPLETE
+**Goal**: Fix pytest collection errors caused by duplicate test file basenames for industry workflow
+**Status**: ✅ COMPLETE (2026-03-21)
+**Plans**: 2 plans
+
+**Problem**: Two test files with identical basenames for industry workflow endpoints:
+- `tests/unit/test_industry_workflow_endpoints.py` (358 lines, uses correct @patch pattern)
+- `tests/api/services/test_industry_workflow_endpoints.py` (441 lines, uses incorrect fixture pattern)
+
+**Root Causes**:
+1. **Duplicate File**: Phase 219-coverage-push created duplicate test file
+2. **Wrong Mocking Pattern**: Fixture-based mock doesn't intercept FastAPI dependency injection
+
+**Solution Applied**:
+- Deleted duplicate file at `tests/api/services/test_industry_workflow_endpoints.py`
+- Fixed remaining issues in `tests/unit/test_industry_workflow_endpoints.py`
+
+**Plans**:
+- [x] 218-01-PLAN.md — Remove duplicate test file ✅
+- [x] 218-02-PLAN.md — Fix unit test mock configuration ✅
+
+### Phase 219: Fix Industry Workflow Test Failures 🚧 PENDING
+**Goal**: Fix all failing industry workflow endpoint tests and remove duplicate test file
+**Status**: 🚧 PENDING (2026-03-21)
+**Plans**: 1 plan (219-01)
+
+**Problem**: 10 tests failing across two duplicate test files:
+- `tests/unit/test_industry_workflow_endpoints.py` (4 failures)
+- `tests/api/services/test_industry_workflow_endpoints.py` (14 failures, duplicate file)
+
+**Root Causes**:
+1. **Duplicate Test File**: Phase 219-coverage-push created duplicate test file
+2. **Wrong Mocking Pattern**: Fixture-based mock doesn't work with FastAPI dependency injection
+3. **Template ID Mismatch**: Tests expect "test_template_1" but real templates use IDs like "healthcare_patient_onboarding"
+4. **ROI Request Validation**: Pydantic 422 error on template_id in both path and body
+
+**Success Criteria**:
+- [ ] IND-01: All 17 industry workflow tests pass (0 failures)
+- [ ] IND-02: Duplicate test file removed
+- [ ] IND-03: Tests use correct @patch decorator pattern
+- [ ] IND-04: No regressions in other tests
+- [ ] IND-05: Overall test pass rate >= 98%
+
+**Plans**:
+- [ ] 219-01-PLAN.md — Remove duplicate test file and fix mock configuration
+
+### Phase 220: Fix Industry Workflow Test Failures 🚧 PENDING
+**Goal**: Fix all failing industry workflow endpoint tests (5 failures)
+**Status**: 🚧 PENDING (2026-03-22)
+**Plans**: 1 plan (220-01)
+
+**Problem**: 5 tests failing in `tests/unit/test_industry_workflow_endpoints.py`:
+1. test_get_industry_template_details_success - Template ID mismatch (404 instead of 200)
+2. test_calculate_template_roi_success - Pydantic 422 error (template_id in body + path)
+3. test_calculate_roi_template_not_found - Expects 400 but gets 422
+4. test_get_implementation_guide_success - Template ID mismatch (404 instead of 200)
+5. test_endpoint_exception_handling - Expects 500 but gets 200
+
+**Root Causes**:
+1. **Template ID Mismatch**: Tests use "test_template_1" but real templates use IDs like "healthcare_patient_onboarding"
+2. **ROI Request Validation**: ROICalculationRequest has template_id in body when it's in path
+3. **Exception Handling**: Mock side_effect not properly triggering exception
+
+**Success Criteria**:
+- [ ] IND-01: All 17 industry workflow tests pass (0 failures)
+- [ ] IND-02: Duplicate test file removed
+- [ ] IND-03: Tests use real template IDs (healthcare_patient_onboarding, etc.)
+- [ ] IND-04: ROI request validation fixed (template_id removed from body)
+- [ ] IND-05: Exception handling test properly triggers exceptions
+
+**Plans**:
+- [ ] 220-01-PLAN.md — Fix ROI request model and update tests with real template IDs
+
+
+### 📋 v6.0 BYOK Migration to Unified LLMService API (Phases 222-232)
+
+**Milestone Goal:** Consolidate all BYOK LLM interactions to unified LLMService API, eliminate fragmentation, add observability
+
+#### Phase 222: LLMService Enhancement
+**Goal**: LLMService provides unified interface with streaming, structured output, and cognitive tier routing
+**Depends on**: Nothing (first phase of v6.0)
+**Requirements**: LLM-01, LLM-02, LLM-03, LLM-04, LLM-05
+**Success Criteria** (what must be TRUE):
+  1. LLMService exposes stream_completion method for streaming LLM responses
+  2. LLMService exposes generate_structured method for structured output (JSON schema validation)
+  3. LLMService exposes generate_with_tier method for cognitive tier routing
+  4. LLMService exposes get_optimal_provider method for provider selection
+  5. LLMService maintains backward compatibility with existing BYOKHandler during transition
+**Plans**: 6 plans
+
+Plans:
+- [x] 222-01-PLAN.md — Add streaming response interface (stream_completion with AsyncGenerator, provider fallback) ✅ COMPLETE (2026-03-22)
+- [x] 222-02-PLAN.md — Add structured output interface (generate_structured with Pydantic validation, vision support) ✅ COMPLETE (2026-03-22)
+- [x] 222-03-PLAN.md — Add cognitive tier routing (generate_with_tier with 5-tier classification, escalation) ✅ COMPLETE (2026-03-22)
+- [x] 222-04-PLAN.md — Add provider selection utilities (get_optimal_provider, get_ranked_providers, get_routing_info) ✅ COMPLETE (2026-03-22)
+- [x] 222-05-PLAN.md — Verify backward compatibility (existing methods unchanged, compatibility tests) ✅ COMPLETE (2026-03-22)
+- [x] 222-06-PLAN.md — Create documentation and phase verification (API reference, migration guide, examples) ✅ COMPLETE (2026-03-22)
+
+#### Phase 223: Critical Migration Part 1
+**Goal**: Migrate embedding service, GraphRAG engine, and skill security scanner to LLMService
+**Depends on**: Phase 222
+**Requirements**: MIG-01, MIG-02, MIG-03
+**Success Criteria** (what must be TRUE):
+  1. embedding_service.py uses LLMService instead of AsyncOpenAI client
+  2. graphrag_engine.py uses LLMService instead of OpenAI client
+  3. skill_security_scanner.py uses LLMService for security-sensitive operations
+  4. All three files pass existing tests with LLMService integration
+  5. No regression in embedding generation, GraphRAG queries, or security scanning
+**Plans**: 4 plans
+
+Plans:
+- [ ] 223-01-PLAN.md — Add embedding generation to LLMService (generate_embedding, generate_embeddings_batch)
+- [ ] 223-02-PLAN.md — Migrate embedding_service.py to LLMService
+- [ ] 223-03-PLAN.md — Migrate graphrag_engine.py to LLMService
+- [ ] 223-04-PLAN.md — Migrate skill_security_scanner.py to LLMService
+
+#### Phase 224: Critical Migration Part 2
+**Goal**: Migrate security analyzers, LanceDB handler, and social post generator to LLMService
+**Depends on**: Phase 223
+**Requirements**: MIG-04, MIG-05, MIG-06
+**Success Criteria** (what must be TRUE):
+  1. atom_security/analyzers/llm.py uses LLMService instead of direct API calls
+  2. lancedb_handler.py uses LLMService for vector database embeddings
+  3. social_post_generator.py uses LLMService for content generation
+  4. All three files pass existing tests with LLMService integration
+  5. No regression in security analysis, vector embeddings, or social content generation
+**Plans**: 4 plans
+- [ ] 224-01-PLAN.md — Migrate atom_security/analyzers/llm.py to LLMService
+- [ ] 224-02-PLAN.md — Migrate lancedb_handler.py to LLMService for embeddings
+- [ ] 224-03-PLAN.md — Migrate social_post_generator.py to LLMService
+- [ ] 224-04-PLAN.md — Meta-verification and migration checklist
+
+Plans:
+- [ ] 224-01: Migrate atom_security/analyzers/llm.py to LLMService
+- [ ] 224-02: Migrate lancedb_handler.py to LLMService
+- [ ] 224-03: Migrate social_post_generator.py to LLMService
+
+#### Phase 225: Critical Migration Part 3
+**Goal**: Migrate voice service and verify agent system files using LLMService
+**Depends on**: Phase 224
+**Requirements**: MIG-07, MIG-08, MIG-09
+**Success Criteria** (what must be TRUE):
+  1. voice_service.py uses LLMService for voice processing operations
+  2. generic_agent.py verified using correct LLM integration pattern (BYOKHandler for agent classes is acceptable per architectural decision)
+  3. atom_meta_agent.py verified using LLMService (already using it)
+  4. All three files pass existing tests with LLMService integration
+  5. No regression in voice processing, agent execution, or meta-agent coordination
+**Plans**: 3 plans
+
+Plans:
+- [ ] 225-01-PLAN.md — Migrate voice_service.py to LLMService (remove BYOKManager, use LLMService for API key resolution)
+- [ ] 225-02-PLAN.md — Verify generic_agent.py BYOKHandler usage (internal layer pattern acceptable for agents)
+- [ ] 225-03-PLAN.md — Verify atom_meta_agent.py LLMService integration (already migrated)
+
+#### Phase 226: LLM Provider Registry & LUX Integration
+**Goal**: Create persistent provider registry system with auto-discovery, integrate LUX model into BPC routing, and secure API key management
+**Depends on**: Phase 225.1
+**Requirements**: New feature development
+**Success Criteria** (what must be TRUE):
+  1. ProviderRegistry and ModelCatalog database tables exist with auto-discovery sync
+  2. LUX model integrated into BPC routing with quality score 88
+  3. API keys submitted via POST body (not URL query params - security fix)
+  4. Provider registry CRUD endpoints accessible via REST API
+  5. All integration tests pass for provider registry and LUX routing
+**Sub-phases**: 4 sub-phases
+**Status**: 📋 PLANNED (2026-03-22)
+
+**Sub-phase 226.1: Provider Registry Foundation** (3-5 days)
+- Goal: Create persistent provider registry with auto-discovery from LiteLLM/OpenRouter
+- Success: ProviderRegistry/ModelCatalog tables, auto-discovery sync, CRUD operations
+- Plans:
+  - [ ] 226.1-01-PLAN.md — Create SQLAlchemy models, ProviderRegistryService, ProviderAutoDiscovery, migration, tests
+
+**Sub-phase 226.2: LUX Integration & Routing** (1-2 days)
+- Goal: Integrate LUX model into BPC routing system
+- Success: LUX in COST_EFFICIENT_MODELS, quality score 88, client initialization, tests
+- Status: ✅ COMPLETE (2026-03-22)
+- Plans:
+  - [x] 226.2-01-PLAN.md — Add LUX to BYOKHandler routing, benchmarks.py quality score, integration tests
+
+**Sub-phase 226.3: Frontend & Health Monitoring** (2-3 days)
+- Goal: Enhance UI and secure API key management
+- Success: POST body for API keys, provider registry API endpoints, frontend updates, tests
+- Plans:
+  - [ ] 226.3-01-PLAN.md — Create provider_registry_routes.py, fix byok_endpoints security, update BYOKManager.tsx
+
+**Sub-phase 226.4: Registry Capabilities & Auto-Sync** (2-3 days)
+- Goal: Enhance registry with capability-based routing, specialized provider access control, and auto-sync with latest models
+- Success: Capability tags in ModelCatalog, exclude_from_general_routing flag, auto-sync from provider APIs, provider health monitoring
+- Status: ✅ COMPLETE (2026-03-22)
+- Plans:
+  - [x] 226.4-01-PLAN.md — Add capabilities/exclude columns, migration, capability detection, MODEL_CAPABILITY_SCORES (4 tasks)
+  - [x] 226.4-02-PLAN.md — Implement ProviderHealthMonitor with EMA scoring and sliding window (2 tasks)
+  - [x] 226.4-03-PLAN.md — Implement ProviderScheduler with AsyncIOScheduler for 24-hour auto-sync (2 tasks)
+  - [x] 226.4-04-PLAN.md — Integrate capability filtering and health routing into BYOKHandler (3 tasks)
+  - [x] 226.4-05-PLAN.md — Create provider health API routes and integrate scheduler into startup (3 tasks)
+**Total:** 5 plans, 14 tasks, 3 waves (Wave 1: 01-02, Wave 2: 03-04, Wave 3: 05)
+
+#### Phase 227: Agent System Standardization
+**Goal**: Update atom_agent_endpoints.py to use LLMService instead of BYOKHandler
+**Depends on**: Phase 226.3
+**Requirements**: STD-03
+**Success Criteria** (what must be TRUE):
+  1. atom_agent_endpoints.py uses LLMService instead of importing BYOKHandler directly
+  2. WebSocket streaming endpoint passes db session to LLMService for usage tracking
+  3. stream_chat_agent function works with LLMService integration
+  4. No regression in WebSocket agent chat functionality
+  5. Direct BYOKHandler imports removed from agent systems
+**Plans**: 1 plan
+
+Plans:
+- [ ] 227-01-PLAN.md — Migrate atom_agent_endpoints.py WebSocket streaming to LLMService
+
+#### Phase 228: API Routes & Tools Standardization
+**Goal**: Update API routes to use LLMService instead of BYOKHandler
+**Depends on**: Phase 227
+**Requirements**: STD-04, STD-05
+**Success Criteria** (what must be TRUE):
+  1. All 3 API routes files use LLMService instead of importing BYOKHandler directly
+  2. Method names updated (generate_response → generate, generate_structured_response → generate_structured)
+  3. All 3 files pass existing tests with LLMService integration
+  4. No regression in API endpoints (competitor analysis, learning plans, mobile)
+  5. Direct BYOKHandler imports removed from API routes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 228-01-PLAN.md — Migrate competitor_analysis_routes.py and learning_plan_routes.py to LLMService
+- [ ] 228-02-PLAN.md — Migrate mobile_agent_routes.py to LLMService with WebSocket streaming
+
+#### Phase 229: BYOKHandler Deprecation
+**Goal**: Add deprecation warnings and migration documentation for BYOKHandler usage
+**Depends on**: Phase 228
+**Requirements**: STD-06, STD-07
+**Success Criteria** (what must be TRUE):
+  1. Deprecation warnings emitted when direct BYOKHandler usage detected
+  2. Migration documentation provides code examples and patterns for developers
+  3. Developers can easily understand how to migrate from BYOKHandler to LLMService
+  4. Migration guide covers common patterns and edge cases
+  5. No remaining direct BYOKHandler usage in codebase (all migrated to LLMService)
+**Plans**: TBD
+
+Plans:
+- [ ] 229-01: Add deprecation warnings to BYOKHandler usage
+- [ ] 229-02: Create migration documentation for developers
+
+#### Phase 230: Enhanced Observability
+**Goal**: Add monitoring, caching, and telemetry for LLM operations
+**Depends on**: Phase 229
+**Requirements**: OBS-01, OBS-02, OBS-03, OBS-04, OBS-05
+**Success Criteria** (what must be TRUE):
+  1. LLMService tracks all LLM calls (provider, model, tokens, cost)
+  2. Metrics aggregated by provider and model (usage, cost, latency)
+  3. Response caching implemented for common queries with cache invalidation
+  4. Cache-aware routing integrated with LLMService for cost optimization
+  5. Telemetry dashboard displays LLM operations monitoring in real-time
+**Plans**: TBD
+
+Plans:
+- [ ] 230-01: Add LLM call tracking to LLMService
+- [ ] 230-02: Add metrics aggregation by provider and model
+- [ ] 230-03: Implement response caching for common queries
+- [ ] 230-04: Integrate cache-aware routing with LLMService
+- [ ] 230-05: Create telemetry dashboard for LLM operations
+
+#### Phase 231: Comprehensive Testing
+**Goal**: Add unit, integration, and property-based tests for LLMService and migrations
+**Depends on**: Phase 230
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04
+**Success Criteria** (what must be TRUE):
+  1. Unit tests cover all LLMService methods (streaming, structured output, tiers)
+  2. Integration tests updated for each migrated file (39 test files updated)
+  3. Property-based tests validate LLM invariants (Hypothesis)
+  4. Performance benchmarks show before/after migration metrics
+  5. All tests pass with >98% pass rate across test suite
+**Plans**: TBD
+
+Plans:
+- [ ] 231-01: Add unit tests for all LLMService methods
+- [ ] 231-02: Update integration tests for migrated files
+- [ ] 231-03: Add property-based tests for LLM invariants
+- [ ] 231-04: Run performance benchmarks (before/after)
+
+#### Phase 232: Documentation & Completion
+**Goal**: Complete API reference, migration guide, and troubleshooting documentation
+**Depends on**: Phase 231
+**Requirements**: TEST-05, TEST-06, TEST-07
+**Success Criteria** (what must be TRUE):
+  1. API reference documentation complete for all LLMService methods
+  2. Migration guide provides code examples and patterns for developers
+  3. Troubleshooting guide covers common issues and resolutions
+  4. Documentation accessible in docs/ directory with clear navigation
+  5. Developers can self-service resolve common migration issues
+**Plans**: TBD
+
+Plans:
+- [ ] 232-01: Create API reference documentation for LLMService
+- [ ] 232-02: Create migration guide for developers
+- [ ] 232-03: Create troubleshooting guide for common issues
 

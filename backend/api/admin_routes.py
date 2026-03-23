@@ -576,11 +576,11 @@ class WebSocketToggleResponse(BaseModel):
 
 @router.get("/websocket/status", response_model=WebSocketStatusResponse)
 async def get_websocket_status(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db)
 ):
     """
-    Get WebSocket connection status
+    Get WebSocket connection status (ADMIN ONLY)
 
     Returns current WebSocket connection details including:
     - Connection status (connected/disconnected)
@@ -588,7 +588,7 @@ async def get_websocket_status(
     - Reconnect attempts and failure reasons
     - Fallback mode status
 
-    Requires AUTONOMOUS maturity.
+    **Security**: Requires super_admin role
     """
     # Check governance (AUTONOMOUS required)
     from core.agent_governance_service import GovernanceCache
@@ -636,17 +636,18 @@ async def get_websocket_status(
 )
 async def trigger_websocket_reconnect(
     http_request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    Force WebSocket reconnection
+    Force WebSocket reconnection (ADMIN ONLY)
 
     Triggers immediate WebSocket reconnection attempt.
     If currently connected, disconnects and reconnects.
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
     """
     # Log audit trail
     logger.info(f"WebSocket reconnect triggered by {current_user.id} (agent: {agent_id})")
@@ -680,17 +681,18 @@ async def trigger_websocket_reconnect(
 )
 async def disable_websocket(
     http_request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    Disable WebSocket (use polling only)
+    Disable WebSocket (use polling only) - ADMIN ONLY
 
     Disables WebSocket connection and switches to polling-only mode.
     Useful for troubleshooting or if WebSocket is causing issues.
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
     """
     # Log audit trail
     logger.info(f"WebSocket disabled by {current_user.id} (agent: {agent_id})")
@@ -723,17 +725,18 @@ async def disable_websocket(
 )
 async def enable_websocket(
     http_request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    Re-enable WebSocket
+    Re-enable WebSocket - ADMIN ONLY
 
     Re-enables WebSocket connection after it was disabled.
     System will attempt to reconnect to WebSocket server.
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
     """
     # Log audit trail
     logger.info(f"WebSocket enabled by {current_user.id} (agent: {agent_id})")
@@ -805,23 +808,22 @@ class RetryRatingUploadResponse(BaseModel):
 async def trigger_rating_sync(
     request: RatingSyncRequest,
     http_request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    Trigger manual rating sync with Atom SaaS
+    Trigger manual rating sync with Atom SaaS - ADMIN ONLY
 
     Manually trigger rating sync to upload pending ratings to Atom SaaS.
     Returns 503 if sync is already in progress.
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
-    - Manual sync is a high-complexity administrative action
-    - AUTONOMOUS maturity required for agents
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
 
     Args:
         request: Sync request with upload_all flag
-        current_user: Authenticated user
+        current_user: Authenticated super_admin user
         db: Database session
         agent_id: Agent ID if triggered by agent
 
@@ -875,16 +877,16 @@ async def trigger_rating_sync(
 
 @router.get("/ratings/failed-uploads", response_model=List[FailedRatingUploadResponse])
 async def get_failed_rating_uploads(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db)
 ):
     """
-    Get failed rating uploads (dead letter queue)
+    Get failed rating uploads (dead letter queue) - ADMIN ONLY
 
     Returns list of failed rating uploads for inspection and manual retry.
     Failed uploads are stored when rating sync encounters errors.
 
-    Requires AUTONOMOUS maturity.
+    **Security**: Requires super_admin role
     """
     from core.agent_governance_service import GovernanceCache
     governance_cache = GovernanceCache()
@@ -931,7 +933,7 @@ async def get_failed_rating_uploads(
 async def retry_failed_rating_upload(
     failed_id: str,
     http_request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
@@ -1087,17 +1089,18 @@ async def list_conflicts(
     conflict_type: Optional[str] = None,
     page: int = 1,
     page_size: int = 50,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    List unresolved conflicts
+    List unresolved conflicts - ADMIN ONLY
 
     Returns paginated list of unresolved skill sync conflicts.
     Can filter by severity and conflict type.
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
     """
     from core.models import ConflictLog
     from core.conflict_resolution_service import ConflictResolutionService
@@ -1154,17 +1157,18 @@ async def list_conflicts(
 )
 async def get_conflict(
     conflict_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    Get conflict details by ID
+    Get conflict details by ID - ADMIN ONLY
 
     Returns full conflict data including local/remote skill data
     and a diff summary of what changed.
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
     """
     from core.conflict_resolution_service import ConflictResolutionService
 
@@ -1204,12 +1208,12 @@ async def resolve_conflict(
     conflict_id: int,
     request: ResolveConflictRequest,
     http_request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    Resolve a conflict
+    Resolve a conflict - ADMIN ONLY
 
     Applies the specified resolution strategy to a conflict.
     Updates the ConflictLog and triggers cache update with resolved data.
@@ -1219,7 +1223,8 @@ async def resolve_conflict(
     - local_wins: Use local skill data
     - merge: Intelligently merge fields
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
     """
     from core.conflict_resolution_service import ConflictResolutionService
 
@@ -1290,19 +1295,20 @@ async def resolve_conflict(
 async def bulk_resolve_conflicts(
     request: BulkResolveConflictsRequest,
     http_request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_super_admin),
     db: Session = Depends(get_db),
     agent_id: Optional[str] = None
 ):
     """
-    Bulk resolve multiple conflicts
+    Bulk resolve multiple conflicts - ADMIN ONLY
 
     Applies the same resolution strategy to multiple conflicts.
     Uses transaction for atomicity (all or nothing).
 
     Max 100 conflicts per request.
 
-    **Governance**: Requires AUTONOMOUS maturity (HIGH).
+    **Security**: Requires super_admin role
+    **Governance**: Requires AUTONOMOUS maturity (HIGH) for AI agents
     """
     from core.conflict_resolution_service import ConflictResolutionService
 

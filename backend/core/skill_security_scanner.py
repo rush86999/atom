@@ -15,7 +15,7 @@ import logging
 import os
 from typing import Any, Dict, List
 
-from openai import OpenAI
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -68,24 +68,22 @@ class SkillSecurityScanner:
         "compile(",
     ]
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None, workspace_id: str = "default"):
         """
-        Initialize security scanner with OpenAI client.
+        Initialize security scanner with LLMService for semantic analysis.
 
         Args:
-            api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
+            api_key: Legacy parameter (unused, kept for backward compatibility)
+            workspace_id: Workspace ID for LLMService BYOK resolution
         """
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if self.api_key:
-            self.client = OpenAI(api_key=self.api_key)
-        else:
-            self.client = None
-            logger.warning("OpenAI API key not provided - security scanning limited to static analysis")
+        # Initialize LLMService for GPT-4 security scanning
+        self.llm_service = LLMService(workspace_id=workspace_id)
+        self.client_available = True  # LLMService handles availability
 
         # In-memory cache for scan results
         self._scan_cache: Dict[str, Dict[str, Any]] = {}
 
-    def scan_skill(self, skill_name: str, skill_content: str) -> Dict[str, Any]:
+    async def scan_skill(self, skill_name: str, skill_content: str) -> Dict[str, Any]:
         """
         Scan skill for malicious patterns using static + LLM analysis.
 
@@ -123,13 +121,13 @@ class SkillSecurityScanner:
             self._scan_cache[cache_key] = result
             return result
 
-        # Step 2: LLM semantic analysis (if OpenAI available)
-        if self.client:
-            llm_result = self._llm_scan(skill_name, skill_content)
+        # Step 2: LLM semantic analysis (if LLMService available)
+        if self.client_available:
+            llm_result = await self._llm_scan(skill_name, skill_content)
             self._scan_cache[cache_key] = llm_result
             return llm_result
         else:
-            # No OpenAI client - return safe result with warning
+            # No LLMService - return safe result with warning
             logger.warning(f"LLM scan skipped for '{skill_name}' (no API key)")
             result = {
                 "safe": True,
@@ -160,7 +158,7 @@ class SkillSecurityScanner:
 
         return findings
 
-    def _llm_scan(self, skill_name: str, skill_content: str) -> Dict[str, Any]:
+    async def _llm_scan(self, skill_name: str, skill_content: str) -> Dict[str, Any]:
         """
         Use GPT-4 for semantic analysis of skill code.
 
@@ -172,8 +170,7 @@ class SkillSecurityScanner:
             Dict with safe, risk_level, findings
         """
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4",
+            response = await self.llm_service.generate_completion(
                 messages=[
                     {
                         "role": "system",
@@ -190,11 +187,12 @@ class SkillSecurityScanner:
                           f"[LOW/MEDIUM/HIGH/CRITICAL], then explain."
                     }
                 ],
+                model="gpt-4",
                 max_tokens=500,
                 temperature=0
             )
 
-            analysis = response.choices[0].message.content
+            analysis = response.get("content", "")
             logger.info(f"LLM scan completed for '{skill_name}'")
 
             # Parse LLM response for risk assessment

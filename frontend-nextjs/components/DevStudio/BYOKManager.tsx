@@ -25,6 +25,11 @@ interface Provider {
     is_active: boolean;
 }
 
+interface AddApiKeyRequest {
+    api_key: string;
+    key_name: string;
+}
+
 interface ProviderStatus {
     provider: Provider;
     usage: {
@@ -83,14 +88,24 @@ const BYOKManager = () => {
         }
 
         try {
-            // Using query params as per backend implementation
-            const url = `/api/ai/providers/${selectedProvider}/keys?api_key=${encodeURIComponent(apiKey)}&key_name=${keyName}`;
-            const res = await fetch(url, { method: 'POST' });
-            const data = await res.json();
+            // SECURE: Use POST body instead of query params
+            const response = await fetch(`/api/ai/providers/${selectedProvider}/keys`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    api_key: apiKey,
+                    key_name: keyName || 'default'
+                })
+            });
+
+            const data = await response.json();
 
             if (data.success) {
                 toast({
                     title: "API Key added",
+                    description: `Key '${data.key_name}' added for ${selectedProvider}`,
                     variant: "success",
                     duration: 3000,
                 });

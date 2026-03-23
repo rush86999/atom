@@ -61,7 +61,7 @@ class TestAtomMetaAgentInitialization:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     def test_agent_init_default_workspace(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
         """Test initialization with default workspace"""
@@ -76,7 +76,7 @@ class TestAtomMetaAgentInitialization:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     def test_agent_init_with_workspace_id(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model, mock_workspace):
         """Test initialization with custom workspace ID"""
@@ -87,7 +87,7 @@ class TestAtomMetaAgentInitialization:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     def test_agent_init_with_user(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model, mock_user):
         """Test initialization with user context"""
@@ -200,7 +200,7 @@ class TestAtomMetaAgentHelperMethods:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     def test_get_atom_registry(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
         """Test _get_atom_registry returns correct AgentRegistry"""
@@ -216,7 +216,7 @@ class TestAtomMetaAgentHelperMethods:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     def test_get_communication_instruction_no_user(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -229,7 +229,7 @@ class TestAtomMetaAgentHelperMethods:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     def test_get_communication_instruction_no_user_in_context(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -247,7 +247,7 @@ class TestAtomMetaAgentSpawnAgent:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_spawn_agent_from_template_finance_analyst(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -263,7 +263,7 @@ class TestAtomMetaAgentSpawnAgent:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_spawn_agent_from_template_sales_assistant(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -277,7 +277,7 @@ class TestAtomMetaAgentSpawnAgent:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_spawn_agent_unknown_template_raises_error(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -290,7 +290,7 @@ class TestAtomMetaAgentSpawnAgent:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_spawn_agent_ephemeral_stores_in_memory(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -308,7 +308,7 @@ class TestAtomMetaAgentQueryMemory:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_query_memory_all_scope(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -330,7 +330,7 @@ class TestAtomMetaAgentQueryMemory:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_query_memory_experiences_scope(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -351,7 +351,7 @@ class TestAtomMetaAgentQueryMemory:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_query_memory_knowledge_scope(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -432,7 +432,7 @@ class TestAtomMetaAgentExecuteDelegation:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_execute_delegation_unknown_agent(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -454,7 +454,7 @@ class TestAtomMetaAgentExecuteDelegation:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
     async def test_execute_delegation_specialized_not_found(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -480,7 +480,7 @@ class TestAtomMetaAgentExecuteToolGovernance:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -507,7 +507,7 @@ class TestAtomMetaAgentExecuteToolGovernance:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -538,7 +538,7 @@ class TestAtomMetaAgentWaitForApproval:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @patch('core.atom_meta_agent.asyncio.sleep')
@@ -559,7 +559,7 @@ class TestAtomMetaAgentWaitForApproval:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @patch('core.atom_meta_agent.asyncio.sleep')
@@ -584,7 +584,7 @@ class TestAtomMetaAgentRecordExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -612,7 +612,7 @@ class TestAtomMetaAgentRecordExecution:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -645,7 +645,7 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -675,7 +675,7 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -705,7 +705,7 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -735,7 +735,7 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -760,7 +760,7 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -813,7 +813,7 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -874,7 +874,7 @@ class TestAtomMetaAgentExecuteBasicCoverage:
     @patch('core.atom_meta_agent.WorldModelService')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.BYOKHandler')
+    @patch('core.atom_meta_agent.LLMService')
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio

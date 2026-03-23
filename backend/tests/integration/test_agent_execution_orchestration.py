@@ -132,19 +132,19 @@ class TestGovernanceValidation:
     @pytest.mark.asyncio
     async def test_governance_check_passes_for_authorized_agent(self, mock_autonomous_agent, db_session):
         """AUTONOMOUS agent passes governance check"""
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.SessionLocal', return_value=db_session):
                     with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
-                        byok = MagicMock()
-                        byok.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
-                        byok.get_optimal_provider.return_value = ("openai", "gpt-4")
+                        llm_instance = MagicMock()
+                        llm.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
+                        llm.get_optimal_provider.return_value = ("openai", "gpt-4")
 
                         async def mock_stream(**kwargs):
                             yield "Test response"
 
-                        byok.stream_completion = mock_stream
-                        mock_byok.return_value = byok
+                        llm.stream_completion = mock_stream
+                        mock_llm.return_value = llm_instance
 
                         resolver = MagicMock()
                         resolver.resolve_agent_for_request = AsyncMock(
@@ -198,17 +198,17 @@ class TestGovernanceValidation:
         """Emergency bypass disables governance checks"""
         monkeypatch.setenv("EMERGENCY_GOVERNANCE_BYPASS", "true")
 
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.ws_manager'):
-                byok = MagicMock()
-                byok.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
-                byok.get_optimal_provider.return_value = ("openai", "gpt-4")
+                llm_instance = MagicMock()
+                llm.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
+                llm.get_optimal_provider.return_value = ("openai", "gpt-4")
 
                 async def mock_stream(**kwargs):
                     yield "Bypass response"
 
-                byok.stream_completion = mock_stream
-                mock_byok.return_value = byok
+                llm.stream_completion = mock_stream
+                mock_llm.return_value = llm_instance
 
                 result = await execute_agent_chat(
                     agent_id=mock_student_agent.id,
@@ -224,17 +224,17 @@ class TestGovernanceValidation:
         """STREAMING_GOVERNANCE_ENABLED=false skips governance"""
         monkeypatch.setenv("STREAMING_GOVERNANCE_ENABLED", "false")
 
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.ws_manager'):
-                byok = MagicMock()
-                byok.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
-                byok.get_optimal_provider.return_value = ("openai", "gpt-4")
+                llm_instance = MagicMock()
+                llm.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
+                llm.get_optimal_provider.return_value = ("openai", "gpt-4")
 
                 async def mock_stream(**kwargs):
                     yield "Disabled governance response"
 
-                byok.stream_completion = mock_stream
-                mock_byok.return_value = byok
+                llm.stream_completion = mock_stream
+                mock_llm.return_value = llm_instance
 
                 result = await execute_agent_chat(
                     agent_id=mock_student_agent.id,
@@ -256,7 +256,7 @@ class TestLLMStreamingExecution:
     @pytest.mark.asyncio
     async def test_llm_streaming_accumulates_tokens(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Tokens are accumulated correctly from streaming"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -283,17 +283,17 @@ class TestLLMStreamingExecution:
     @pytest.mark.asyncio
     async def test_llm_provider_selection(self, mock_autonomous_agent, db_session):
         """Optimal provider is selected based on query complexity"""
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.ws_manager'):
-                byok = MagicMock()
-                byok.analyze_query_complexity.return_value = QueryComplexity.COMPLEX
-                byok.get_optimal_provider.return_value = ("anthropic", "claude-3-opus")
+                llm_instance = MagicMock()
+                llm.analyze_query_complexity.return_value = QueryComplexity.COMPLEX
+                llm.get_optimal_provider.return_value = ("anthropic", "claude-3-opus")
 
                 async def mock_stream(**kwargs):
                     yield "Complex query response"
 
-                byok.stream_completion = mock_stream
-                mock_byok.return_value = byok
+                llm.stream_completion = mock_stream
+                mock_llm.return_value = llm_instance
 
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -319,7 +319,7 @@ class TestLLMStreamingExecution:
     @pytest.mark.asyncio
     async def test_llm_streaming_with_conversation_history(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Conversation history is included in LLM context"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -350,7 +350,7 @@ class TestLLMStreamingExecution:
     @pytest.mark.asyncio
     async def test_llm_error_propagation(self, mock_autonomous_agent, db_session):
         """LLM streaming errors are handled gracefully"""
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                 resolver = MagicMock()
                 resolver.resolve_agent_for_request = AsyncMock(
@@ -362,14 +362,14 @@ class TestLLMStreamingExecution:
                 }
                 mock_resolver.return_value = resolver
 
-                byok = MagicMock()
-                byok.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
+                llm_instance = MagicMock()
+                llm.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
 
                 async def mock_stream_error(**kwargs):
                     raise Exception("LLM API error")
 
-                byok.stream_completion = mock_stream_error
-                mock_byok.return_value = byok
+                llm.stream_completion = mock_stream_error
+                mock_llm.return_value = llm_instance
 
                 result = await execute_agent_chat(
                     agent_id=mock_autonomous_agent.id,
@@ -391,7 +391,7 @@ class TestWebSocketStreaming:
     @pytest.mark.asyncio
     async def test_websocket_sends_start_message(self, mock_autonomous_agent, mock_byok_handler, mock_websocket_manager, db_session):
         """WebSocket sends streaming:start message"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager', mock_websocket_manager):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -429,7 +429,7 @@ class TestWebSocketStreaming:
     @pytest.mark.asyncio
     async def test_websocket_sends_update_messages(self, mock_autonomous_agent, mock_byok_handler, mock_websocket_manager, db_session):
         """WebSocket sends streaming:update messages for each token"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager', mock_websocket_manager):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -456,7 +456,7 @@ class TestWebSocketStreaming:
     @pytest.mark.asyncio
     async def test_websocket_sends_complete_message(self, mock_autonomous_agent, mock_byok_handler, mock_websocket_manager, db_session):
         """WebSocket sends streaming:complete message with full content"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager', mock_websocket_manager):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -487,7 +487,7 @@ class TestWebSocketStreaming:
     @pytest.mark.asyncio
     async def test_websocket_skipped_when_stream_false(self, mock_autonomous_agent, mock_byok_handler, mock_websocket_manager, db_session):
         """No WebSocket messages when stream=False"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager', mock_websocket_manager):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -522,7 +522,7 @@ class TestChatHistoryPersistence:
     @pytest.mark.asyncio
     async def test_chat_session_created_on_execution(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """New chat session is created if none provided"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -548,7 +548,7 @@ class TestChatHistoryPersistence:
     @pytest.mark.asyncio
     async def test_messages_saved_to_chat_history(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """User and assistant messages are saved to chat history"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -573,7 +573,7 @@ class TestChatHistoryPersistence:
     @pytest.mark.asyncio
     async def test_chat_history_persistence_error_doesnt_fail_execution(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Execution succeeds even if chat history persistence fails"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.get_chat_history_manager') as mock_history:
                     mock_history.side_effect = Exception("Chat history DB error")
@@ -601,7 +601,7 @@ class TestChatHistoryPersistence:
     @pytest.mark.asyncio
     async def test_existing_session_reused_for_continuity(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Existing session_id is reused for conversation continuity"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -637,7 +637,7 @@ class TestAgentExecutionAuditTrail:
     @pytest.mark.asyncio
     async def test_agent_execution_record_created(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """AgentExecution record is created on execution start"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -669,7 +669,7 @@ class TestAgentExecutionAuditTrail:
     @pytest.mark.asyncio
     async def test_execution_record_updated_on_completion(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """AgentExecution status updated to completed with output data"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -703,7 +703,7 @@ class TestAgentExecutionAuditTrail:
     @pytest.mark.asyncio
     async def test_execution_record_marked_failed_on_error(self, mock_autonomous_agent, db_session):
         """AgentExecution marked as failed on execution error"""
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                 resolver = MagicMock()
                 resolver.resolve_agent_for_request = AsyncMock(
@@ -715,14 +715,14 @@ class TestAgentExecutionAuditTrail:
                 }
                 mock_resolver.return_value = resolver
 
-                byok = MagicMock()
-                byok.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
+                llm_instance = MagicMock()
+                llm.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
 
                 async def mock_stream_error(**kwargs):
                     raise Exception("LLM API failure")
 
-                byok.stream_completion = mock_stream_error
-                mock_byok.return_value = byok
+                llm.stream_completion = mock_stream_error
+                mock_llm.return_value = llm_instance
 
                 result = await execute_agent_chat(
                     agent_id=mock_autonomous_agent.id,
@@ -742,7 +742,7 @@ class TestAgentExecutionAuditTrail:
     @pytest.mark.asyncio
     async def test_execution_metadata_includes_governance_context(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Execution metadata includes governance check details"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     resolver = MagicMock()
@@ -782,7 +782,7 @@ class TestEpisodeCreationTriggering:
     @pytest.mark.asyncio
     async def test_episode_creation_triggered_after_execution(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Episode creation is triggered after successful execution"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.trigger_episode_creation') as mock_episode:
                     mock_episode.return_value = None
@@ -810,7 +810,7 @@ class TestEpisodeCreationTriggering:
     @pytest.mark.asyncio
     async def test_episode_creation_error_doesnt_fail_execution(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Execution succeeds even if episode creation fails"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.trigger_episode_creation') as mock_episode:
                     mock_episode.side_effect = Exception("Episode service error")
@@ -838,7 +838,7 @@ class TestEpisodeCreationTriggering:
     @pytest.mark.asyncio
     async def test_episode_creation_with_session_context(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Episode creation includes session and agent context"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.trigger_episode_creation') as mock_episode:
                     mock_episode.return_value = None
@@ -906,7 +906,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_llm_failure_caught_and_logged(self, mock_autonomous_agent, db_session):
         """LLM provider failures are caught and returned as errors"""
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                 resolver = MagicMock()
                 resolver.resolve_agent_for_request = AsyncMock(
@@ -918,14 +918,14 @@ class TestErrorHandling:
                 }
                 mock_resolver.return_value = resolver
 
-                byok = MagicMock()
-                byok.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
+                llm_instance = MagicMock()
+                llm.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
 
                 async def mock_stream_error(**kwargs):
                     raise Exception("OpenAI API timeout")
 
-                byok.stream_completion = mock_stream_error
-                mock_byok.return_value = byok
+                llm.stream_completion = mock_stream_error
+                mock_llm.return_value = llm_instance
 
                 result = await execute_agent_chat(
                     agent_id=mock_autonomous_agent.id,
@@ -956,7 +956,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_websocket_disconnection_doesnt_affect_execution(self, mock_autonomous_agent, mock_byok_handler, db_session):
         """Execution completes even if WebSocket disconnects"""
-        with patch('core.agent_execution_service.BYOKHandler', return_value=mock_byok_handler):
+        with patch('core.agent_execution_service.LLMService', return_value=mock_llm_service):
             with patch('core.agent_execution_service.ws_manager') as mock_ws:
                 # Simulate WebSocket error
                 mock_ws.broadcast.side_effect = Exception("WebSocket disconnected")
@@ -996,7 +996,7 @@ class TestSyncExecutionWrapper:
 
     def test_sync_wrapper_creates_event_loop(self):
         """Sync wrapper creates event loop if none exists"""
-        with patch('core.agent_execution_service.BYOKHandler') as mock_byok:
+        with patch('core.agent_execution_service.LLMService') as mock_llm:
             with patch('core.agent_execution_service.ws_manager'):
                 with patch('core.agent_execution_service.AgentContextResolver') as mock_resolver:
                     # Mock agent
@@ -1014,15 +1014,15 @@ class TestSyncExecutionWrapper:
                     )
                     mock_resolver.return_value = resolver
 
-                    byok = MagicMock()
-                    byok.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
-                    byok.get_optimal_provider.return_value = ("openai", "gpt-4")
+                    llm_instance = MagicMock()
+                    llm.analyze_query_complexity.return_value = QueryComplexity.SIMPLE
+                    llm.get_optimal_provider.return_value = ("openai", "gpt-4")
 
                     async def mock_stream(**kwargs):
                         yield "Sync response"
 
-                    byok.stream_completion = mock_stream
-                    mock_byok.return_value = byok
+                    llm.stream_completion = mock_stream
+                    mock_llm.return_value = llm_instance
 
                     result = execute_agent_chat_sync(
                         agent_id="test_agent",

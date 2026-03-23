@@ -125,7 +125,7 @@ def segmentation_service_mocked(db_session, mock_lancedb_embeddings):
     Create EpisodeSegmentationService instance with mocked LanceDB.
     """
     # Mock BYOK handler and CanvasSummaryService
-    with patch('core.episode_segmentation_service.BYOKHandler') as mock_byok:
+    with patch('core.episode_segmentation_service.LLMService') as mock_llm:
         with patch('core.episode_segmentation_service.CanvasSummaryService') as mock_canvas:
             with patch('core.episode_segmentation_service.get_lancedb_handler', return_value=mock_lancedb_embeddings):
                 service = EpisodeSegmentationService(db_session)

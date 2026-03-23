@@ -200,6 +200,18 @@ async def lifespan(app: FastAPI):
             logger.info("✓ Intelligence Background Worker running")
         except Exception as e:
             logger.error(f"Failed to start intelligence worker: {e}")
+
+        # 5. Start Provider Scheduler (24-hour auto-sync)
+        try:
+            from core.provider_scheduler import get_provider_scheduler
+            provider_scheduler = get_provider_scheduler()
+            if provider_scheduler:
+                provider_scheduler.start()
+                logger.info("✓ ProviderScheduler started for 24-hour auto-sync")
+            else:
+                logger.info("ProviderScheduler disabled (PROVIDER_AUTO_SYNC_ENABLED=false)")
+        except Exception as e:
+            logger.error(f"Failed to start ProviderScheduler: {e}")
     else:
         logger.info("Skipping Scheduler startup (ENABLE_SCHEDULER=false)")
 
@@ -242,6 +254,15 @@ async def lifespan(app: FastAPI):
         logger.info("✓ Redis Event Bridge stopped")
     except Exception as e:
         logger.debug(f"Redis listener shutdown error: {e}")
+
+    try:
+        from core.provider_scheduler import get_provider_scheduler
+        provider_scheduler = get_provider_scheduler()
+        if provider_scheduler:
+            provider_scheduler.stop()
+            logger.info("✓ ProviderScheduler stopped")
+    except Exception as e:
+        logger.debug(f"ProviderScheduler shutdown error: {e}")
 
 
 # --- APP INITIALIZATION ---
@@ -415,6 +436,14 @@ try:
     except ImportError as e:
         logger.warning(f"Business Facts routes not found: {e}")
 
+    # 1.7 JIT Verification Routes (Safe Import)
+    try:
+        from api.admin.jit_verification_routes import router as jit_verification_router
+        app.include_router(jit_verification_router, prefix="") # Already has valid prefix
+        logger.info("✓ JIT Verification Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"JIT Verification routes not found: {e}")
+
     # 2. Workflow Engine
     try:
         from core.availability_endpoints import router as availability_router
@@ -515,6 +544,14 @@ try:
         logger.info("✓ Skill Composition Routes Loaded")
     except ImportError as e:
         logger.warning(f"Failed to load composition routes: {e}")
+
+    # Provider Registry Routes
+    try:
+        from api.provider_registry_routes import router as provider_registry_router
+        app.include_router(provider_registry_router)
+        logger.info("✓ Provider Registry Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load provider registry routes: {e}")
 
     try:
         from api.cognitive_tier_routes import router as cognitive_tier_router
@@ -1103,6 +1140,14 @@ try:
         logger.info("✓ Production Health Check Routes Loaded")
     except ImportError as e:
         logger.warning(f"Production health check routes not found: {e}")
+
+    # 15.1.f Provider Health Routes (Provider registry health monitoring)
+    try:
+        from api.provider_health_routes import router as provider_health_router
+        app.include_router(provider_health_router, tags=["Provider Health"])
+        logger.info("✓ Provider Health Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Provider health routes not found: {e}")
 
     # 15.1.e Mobile Canvas Routes (Mobile-optimized canvas access and offline sync)
     try:

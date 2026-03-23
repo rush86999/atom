@@ -4,8 +4,10 @@ import os
 import sys
 import subprocess
 import threading
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from core.base_routes import BaseAPIRouter
+from core.admin_endpoints import get_super_admin
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +17,13 @@ router = BaseAPIRouter(prefix="/api/v1/demo", tags=["Demo"])
 @router.get("/run")
 
 @router.post("/run")
-async def run_computer_use_demo():
-    """Trigger the real Computer Use (Selenium) demo script"""
+async def run_computer_use_demo(current_user: User = Depends(get_super_admin)):
+    """Trigger the real Computer Use (Selenium) demo script (super_admin only).
+
+    **SECURITY**: Requires super_admin authentication to prevent unauthorized
+    script execution. This executes arbitrary Python code with Selenium browser
+    automation capabilities.
+    """
     
     # Get the base directory of the backend
     # This file is in backend/api/demo_routes.py

@@ -14,6 +14,10 @@ from trello_enhanced_service import TrelloEnhancedService
 # Import TrelloService for health check compliance
 from .trello_service import TrelloService
 
+# Import authentication
+from core.auth import get_current_user
+from core.models import User
+
 # TrelloHandler is not available, using only TrelloEnhancedService
 
 
@@ -101,8 +105,9 @@ async def get_boards(
         ["name", "id", "desc", "url", "closed", "starred"],
         description="Fields to include",
     ),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get all boards for a user"""
+    """Get all boards for a user (requires authentication)"""
     try:
         logger.info(f"Fetching boards for user {user_id}")
 
@@ -139,8 +144,9 @@ async def get_board(
         ["name", "id", "desc", "url", "closed", "starred", "prefs"],
         description="Fields to include",
     ),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get specific board details"""
+    """Get specific board details (requires authentication)"""
     try:
         logger.info(f"Fetching board {board_id} for user {user_id}")
 
@@ -178,8 +184,9 @@ async def get_lists(
     fields: List[str] = Body(
         ["name", "id", "closed", "pos"], description="Fields to include"
     ),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get lists for a specific board"""
+    """Get lists for a specific board (requires authentication)"""
     try:
         logger.info(f"Fetching lists for board {board_id} and user {user_id}")
 
@@ -227,8 +234,9 @@ async def get_cards(
         ["name", "id", "desc", "due", "labels", "idList", "idBoard"],
         description="Fields to include",
     ),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get cards from a board or list"""
+    """Get cards from a board or list (requires authentication)"""
     try:
         logger.info(
             f"Fetching cards for user {user_id}, board {board_id}, list {list_id}"
@@ -276,8 +284,9 @@ async def get_card(
         ["name", "id", "desc", "due", "labels", "idList", "idBoard", "url"],
         description="Fields to include",
     ),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get specific card details"""
+    """Get specific card details (requires authentication)"""
     try:
         logger.info(f"Fetching card {card_id} for user {user_id}")
 
@@ -315,8 +324,9 @@ async def create_card(
     due: str = Body(None, description="Due date"),
     labels: List[str] = Body([], description="Label IDs"),
     card_type: str = Body("task", description="Card type (task, bug, feature, etc.)"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Create a new card"""
+    """Create a new card (requires authentication)"""
     try:
         logger.info(f"Creating card '{name}' in list {id_list} for user {user_id}")
 
@@ -366,8 +376,9 @@ async def update_card(
     due: str = Body(None, description="Due date"),
     id_list: str = Body(None, description="List ID"),
     labels: List[str] = Body(None, description="Label IDs"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Update an existing card"""
+    """Update an existing card (requires authentication)"""
     try:
         logger.info(f"Updating card {card_id} for user {user_id}")
 
@@ -410,8 +421,12 @@ async def update_card(
 
 
 @router.delete("/cards/{card_id}")
-async def delete_card(card_id: str, user_id: str = Body(..., description="User ID")):
-    """Delete a card"""
+async def delete_card(
+    card_id: str,
+    user_id: str = Body(..., description="User ID"),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete a card (requires authentication)"""
     try:
         logger.info(f"Deleting card {card_id} for user {user_id}")
 
@@ -448,8 +463,9 @@ async def get_members(
         ["fullName", "username", "id", "avatarUrl", "memberType"],
         description="Fields to include",
     ),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get members of a board"""
+    """Get members of a board (requires authentication)"""
     try:
         logger.info(f"Fetching members for board {board_id} and user {user_id}")
 
@@ -487,8 +503,11 @@ async def get_members(
 
 
 @router.post("/user/profile")
-async def get_user_profile(user_id: str = Body(..., description="User ID")):
-    """Get current user profile"""
+async def get_user_profile(
+    user_id: str = Body(..., description="User ID"),
+    current_user: User = Depends(get_current_user)
+):
+    """Get current user profile (requires authentication)"""
     try:
         logger.info(f"Fetching user profile for {user_id}")
 
@@ -527,8 +546,9 @@ async def search_cards(
     type: str = Body("global", description="Search type (global, board, card)"),
     limit: int = Body(50, description="Maximum number of results"),
     board_id: str = Body(None, description="Board ID for board-specific search"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Search for cards, boards, or members"""
+    """Search for cards, boards, or members (requires authentication)"""
     try:
         logger.info(f"Searching for '{query}' for user {user_id}")
 
@@ -570,8 +590,9 @@ async def get_board_activities(
     board_id: str = Body(..., description="Board ID"),
     limit: int = Body(50, description="Maximum number of activities"),
     since: str = Body(None, description="Filter activities since this date"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Get recent activities for a board"""
+    """Get recent activities for a board (requires authentication)"""
     try:
         logger.info(f"Fetching activities for board {board_id} and user {user_id}")
 

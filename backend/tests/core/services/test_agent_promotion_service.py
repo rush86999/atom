@@ -49,6 +49,9 @@ def test_agent(db_session):
     agent = AgentRegistry(
         id="test-agent-1",
         name="Test Agent",
+        category="general",
+        module_path="test.module",
+        class_name="TestClass",
         status=AgentStatus.INTERN.value,
         confidence_score=0.75,
     )
@@ -70,7 +73,7 @@ def test_feedback(db_session, test_agent):
             feedback_type="thumbs_up",
             created_at=datetime.now() - timedelta(days=i),
         )
-        db_session.add(feedding)
+        db_session.add(feedback)
 
     db_session.commit()
 
@@ -206,6 +209,9 @@ class TestIsAgentReadyForPromotion:
         agent = AgentRegistry(
             id="autonomous-agent",
             name="Autonomous Agent",
+        category="general",
+        module_path="test.module",
+        class_name="TestClass",
             status=AgentStatus.AUTONOMOUS.value,
             confidence_score=0.95,
         )
@@ -316,6 +322,9 @@ class TestEvaluateAgentForPromotion:
         agent = AgentRegistry(
             id="max-level-agent",
             name="Max Level Agent",
+        category="general",
+        module_path="test.module",
+        class_name="TestClass",
             status=AgentStatus.AUTONOMOUS.value,
             confidence_score=0.95,
         )
@@ -337,6 +346,9 @@ class TestGetPromotionPath:
         agent = AgentRegistry(
             id="student-agent",
             name="Student Agent",
+        category="general",
+        module_path="test.module",
+        class_name="TestClass",
             status=AgentStatus.STUDENT.value,
             confidence_score=0.4,
         )

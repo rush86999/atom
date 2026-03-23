@@ -346,12 +346,13 @@ def test_agent_governance_service_integration():
     assert AgentGovernanceService is not None
 
 
-def test_byok_handler_integration():
-    """Test BYOK handler integration."""
-    from api.mobile_agent_routes import BYOKHandler
+# Phase 228: Migrated from BYOKHandler to LLMService
+def test_llm_service_integration():
+    """Test LLMService integration."""
+    from api.mobile_agent_routes import LLMService
 
-    # Test that BYOK handler can be imported
-    assert BYOKHandler is not None
+    # Test that LLMService can be imported
+    assert LLMService is not None
 
 
 # ============================================================================

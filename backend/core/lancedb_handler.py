@@ -90,6 +90,12 @@ try:
 except ImportError:
     get_byok_manager = None
 
+# LLMService Integration for OpenAI embeddings
+try:
+    from core.llm_service import LLMService
+except ImportError:
+    LLMService = None
+
 
 
 
@@ -156,13 +162,22 @@ class LanceDBHandler:
             logger.error(f"Failed to initialize BYOK manager: {e}", exc_info=True)
             self.byok_manager = None
 
+        # Initialize LLMService for OpenAI embeddings (unified interface)
+        # LLMService handles BYOK API key resolution, cost tracking, and observability
+        # Used for OpenAI embeddings only (local embedder keeps sentence-transformers/fastembed)
+        if LLMService:
+            self.llm_service = LLMService(workspace_id=workspace_id or "default")
+        else:
+            logger.warning("LLMService not available, OpenAI embeddings disabled")
+            self.llm_service = None
+
         # Initialize LanceDB if available (LAZY LOAD)
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
         # if LANCEDB_AVAILABLE:
         #     self._initialize_db()
 
         # Initialize embedder (LAZY LOAD on first use to prevent import block)
-        # self._initialize_embedder() 
+        # self._initialize_embedder()
         self.embedder = None
 
     def _ensure_db(self):
@@ -214,28 +229,27 @@ class LanceDBHandler:
             self.db = None
     
     def _initialize_embedder(self):
-        """Initialize embedding provider"""
+        """
+        Initialize embedding provider
+
+        For OpenAI: LLMService handles client creation and API key resolution internally
+        For local: Uses sentence-transformers or fastembed
+        """
         try:
-            if self.embedding_provider == "openai" and OPENAI_AVAILABLE:
-                # BYOK Key Retrieval
-                api_key = self.openai_api_key
-                if self.byok_manager:
-                    byok_key = self.byok_manager.get_api_key("openai")
-                    if byok_key:
-                        api_key = byok_key
-                
-                if not api_key:
-                    logger.warning("OpenAI API key not found, falling back to local embeddings")
+            if self.embedding_provider == "openai":
+                # Check if LLMService is available
+                if not self.llm_service:
+                    logger.warning("LLMService not available, falling back to local embeddings")
                     self.embedding_provider = "local"
                     self._init_local_embedder()
                 else:
-                    # Lazy import OpenAI
-                    from openai import OpenAI
-                    self.openai_client = OpenAI(api_key=api_key)
-                    logger.info("OpenAI embeddings initialized (BYOK enabled)")
+                    # LLMService handles OpenAI client creation and API key resolution
+                    # No direct client needed - use llm_service.generate_embedding
+                    self.openai_client = None  # Deprecated, use llm_service instead
+                    logger.info("OpenAI embeddings initialized via LLMService (BYOK enabled)")
             else:
                 self._init_local_embedder()
-                
+
         except Exception as e:
             logger.error(f"Failed to initialize embedder: {e}")
             self.embedder = None
@@ -449,19 +463,52 @@ class LanceDBHandler:
             return False
     
     def embed_text(self, text: str) -> Optional[Any]:
-        """Embed text using configured provider"""
+        """
+        Embed text using configured provider
+
+        For OpenAI: Uses LLMService.generate_embedding (unified interface)
+        For local: Uses sentence-transformers or fastembed
+
+        Args:
+            text: Text to embed
+
+        Returns:
+            Embedding vector (numpy array or list) or None on failure
+        """
         self._ensure_embedder()
         try:
-            if self.embedding_provider == "openai" and self.openai_client:
-                response = self.openai_client.embeddings.create(
-                    input=text,
-                    model="text-embedding-3-small"
-                )
-                if NUMPY_AVAILABLE:
-                    import numpy as np  # Import locally if needed
-                    return np.array(response.data[0].embedding)
-                return response.data[0].embedding
-            
+            if self.embedding_provider == "openai" and self.llm_service:
+                # Use LLMService for unified embedding generation
+                # Note: embed_text is synchronous but LLMService.generate_embedding is async
+                # Use asyncio.run() when not in async context
+                try:
+                    import asyncio
+
+                    async def _get_embedding():
+                        return await self.llm_service.generate_embedding(
+                            text=text,
+                            model="text-embedding-3-small"  # 1536 dimensions
+                        )
+
+                    try:
+                        # Check if we're in an async context
+                        asyncio.get_running_loop()
+                        # We're in an async context, can't use asyncio.run()
+                        # Return None and let caller handle async properly
+                        logger.warning("embed_text called from async context - use async embedding methods")
+                        return None
+                    except RuntimeError:
+                        # No running event loop, safe to use asyncio.run()
+                        embedding = asyncio.run(_get_embedding())
+
+                    if NUMPY_AVAILABLE:
+                        import numpy as np
+                        return np.array(embedding)
+                    return embedding
+                except Exception as e:
+                    logger.error(f"LLMService embedding generation failed: {e}")
+                    raise
+
             elif self.embedder:
                 try:
                     if NUMPY_AVAILABLE:
@@ -472,11 +519,11 @@ class LanceDBHandler:
                 except Exception as e:
                     logger.error(f"embedder.encode failed: {e}")
                     raise e
-            
+
             else:
                 logger.error(f"No embedding provider available. Provider: {self.embedding_provider}, Embedder: {self.embedder}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Failed to embed text: {e}")
             return None

@@ -8,7 +8,7 @@ Reference: Phase 14 Plan 03 - Skills Registry & Security
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, AsyncMock
 
 from core.skill_security_scanner import SkillSecurityScanner
 
@@ -66,59 +66,56 @@ print(result)
 class TestLLMScan:
     """Test LLM-based semantic analysis."""
 
-    @patch('core.skill_security_scanner.OpenAI')
-    def test_llm_scan_returns_risk_assessment(self, mock_openai):
+    @patch('core.skill_security_scanner.LLMService')
+    async def test_llm_scan_returns_risk_assessment(self, mock_llm_service):
         """Mock GPT-4 call returns risk assessment."""
-        # Mock OpenAI client
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = "RISK LEVEL: LOW\nNo security concerns found."
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_openai.return_value = mock_client
+        # Mock LLMService
+        mock_llm_service.return_value.generate_completion = AsyncMock(
+            return_value={
+                "content": "RISK LEVEL: LOW\nNo security concerns found.",
+                "usage": {"total_tokens": 100}
+            }
+        )
 
         scanner = SkillSecurityScanner()
-        scanner.client = mock_client
 
-        result = scanner._llm_scan("test_skill", "print('hello')")
+        result = await scanner._llm_scan("test_skill", "print('hello')")
 
         assert "safe" in result
         assert "risk_level" in result
         assert "findings" in result
         assert result["risk_level"] == "LOW"
 
-    @patch('core.skill_security_scanner.OpenAI')
-    def test_llm_scan_detects_high_risk(self, mock_openai):
+    @patch('core.skill_security_scanner.LLMService')
+    async def test_llm_scan_detects_high_risk(self, mock_llm_service):
         """LLM detects high risk code."""
-        mock_client = Mock()
-        mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = (
-            "RISK LEVEL: HIGH\n"
-            "This code attempts data exfiltration and unauthorized access."
+        mock_llm_service.return_value.generate_completion = AsyncMock(
+            return_value={
+                "content": (
+                    "RISK LEVEL: HIGH\n"
+                    "This code attempts data exfiltration and unauthorized access."
+                ),
+                "usage": {"total_tokens": 100}
+            }
         )
-        mock_client.chat.completions.create.return_value = mock_response
-        mock_openai.return_value = mock_client
 
         scanner = SkillSecurityScanner()
-        scanner.client = mock_client
 
-        result = scanner._llm_scan("malicious", "suspicious_code")
+        result = await scanner._llm_scan("malicious", "suspicious_code")
 
         assert result["risk_level"] == "HIGH"
         assert result["safe"] == False
 
-    @patch('core.skill_security_scanner.OpenAI')
-    def test_llm_scan_fails_gracefully(self, mock_openai):
+    @patch('core.skill_security_scanner.LLMService')
+    async def test_llm_scan_fails_gracefully(self, mock_llm_service):
         """LLM scan failure returns safe result (fail-open)."""
-        mock_client = Mock()
-        mock_client.chat.completions.create.side_effect = Exception("API Error")
-        mock_openai.return_value = mock_client
+        mock_llm_service.return_value.generate_completion = AsyncMock(
+            side_effect=Exception("API Error")
+        )
 
         scanner = SkillSecurityScanner()
-        scanner.client = mock_client
 
-        result = scanner._llm_scan("test", "code")
+        result = await scanner._llm_scan("test", "code")
 
         # Fail-open behavior
         assert result["safe"] == True
@@ -178,7 +175,8 @@ class TestRiskAssessment:
 class TestCaching:
     """Test scan result caching."""
 
-    def test_scan_caches_results_by_sha(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_scan_caches_results_by_sha(self, monkeypatch):
         """Verify cache behavior with same content."""
         # Set dummy API key so scanner initializes with client
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key")
@@ -194,17 +192,18 @@ class TestCaching:
             }
 
             # First scan
-            result1 = scanner.scan_skill("test", "code_content")
+            result1 = await scanner.scan_skill("test", "code_content")
             assert mock_llm.call_count == 1
 
             # Second scan with same content
-            result2 = scanner.scan_skill("test", "code_content")
+            result2 = await scanner.scan_skill("test", "code_content")
             assert mock_llm.call_count == 1  # Should not increase
 
             # Results should be identical
             assert result1 == result2
 
-    def test_cache_can_be_cleared(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_cache_can_be_cleared(self, monkeypatch):
         """Cache can be cleared to force re-scanning."""
         # Set dummy API key so scanner initializes with client
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key")
@@ -219,7 +218,7 @@ class TestCaching:
             }
 
             # First scan
-            scanner.scan_skill("test", "code")
+            await scanner.scan_skill("test", "code")
             assert scanner.get_cache_stats()["cache_size"] == 1
 
             # Clear cache
@@ -227,41 +226,30 @@ class TestCaching:
             assert scanner.get_cache_stats()["cache_size"] == 0
 
             # Second scan should call LLM again
-            scanner.scan_skill("test", "code")
+            await scanner.scan_skill("test", "code")
             assert mock_llm.call_count == 2
 
 
 class TestFullScanWorkflow:
     """Test complete scan workflow."""
 
-    def test_scan_skill_critical_pattern_returns_immediately(self):
+    @pytest.mark.asyncio
+    async def test_scan_skill_critical_pattern_returns_immediately(self):
         """Critical patterns return CRITICAL without LLM scan."""
         scanner = SkillSecurityScanner()
 
         with patch.object(scanner, '_llm_scan') as mock_llm:
             malicious_code = "os.system('rm -rf /')"
 
-            result = scanner.scan_skill("malicious", malicious_code)
+            result = await scanner.scan_skill("malicious", malicious_code)
 
             # Should NOT call LLM for critical patterns
             assert mock_llm.call_count == 0
             assert result["risk_level"] == "CRITICAL"
             assert result["safe"] == False
 
-    def test_scan_skill_without_openai_key(self):
-        """Scanner works without OpenAI API key (static only)."""
-        # Create scanner without API key
-        scanner = SkillSecurityScanner(api_key=None)
-
-        safe_code = "print('hello world')"
-        result = scanner.scan_skill("test", safe_code)
-
-        # Should return safe but with UNKNOWN risk (no LLM)
-        assert result["safe"] == True
-        assert result["risk_level"] == "UNKNOWN"
-        assert "LLM scan unavailable" in result["findings"][0]
-
-    def test_scan_skill_integration(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_scan_skill_integration(self, monkeypatch):
         """Full integration test with static + LLM."""
         # Set dummy API key so scanner initializes with client
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test-dummy-key")
@@ -276,7 +264,7 @@ class TestFullScanWorkflow:
             }
 
             safe_code = "def calculate(x, y): return x + y"
-            result = scanner.scan_skill("calculator", safe_code)
+            result = await scanner.scan_skill("calculator", safe_code)
 
             assert result["safe"] == True
             assert result["risk_level"] == "LOW"

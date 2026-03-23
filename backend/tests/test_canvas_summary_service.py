@@ -14,15 +14,15 @@ import json
 class TestCanvasSummaryServiceInitialization:
     """Test CanvasSummaryService initialization"""
 
-    def test_initialization_with_byok_handler(self):
+    def test_initialization_with_llm_service(self):
         """Test service initializes with BYOK handler"""
         from core.llm.canvas_summary_service import CanvasSummaryService
-        from core.llm.byok_handler import BYOKHandler
+        from core.llm_service import LLMService
 
-        mock_byok = Mock(spec=BYOKHandler)
-        service = CanvasSummaryService(byok_handler=mock_byok)
+        mock_llm = Mock(spec=LLMService)
+        service = CanvasSummaryService(llm_service=mock_llm)
 
-        assert service.byok_handler == mock_byok
+        assert service.llm_service == mock_llm
         assert service._summary_cache == {}
         assert service._cost_tracker == {}
 
@@ -30,13 +30,13 @@ class TestCanvasSummaryServiceInitialization:
         """Test service creates BYOK handler if not provided"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        # Patch BYOKHandler creation
-        with patch('core.llm.canvas_summary_service.BYOKHandler') as mock_byok_class:
+        # Patch LLMService creation
+        with patch('core.llm.canvas_summary_service.LLMService') as mock_llm_class:
             mock_instance = Mock()
-            mock_byok_class.return_value = mock_instance
-            service = CanvasSummaryService(byok_handler=mock_instance)
+            mock_llm_class.return_value = mock_instance
+            service = CanvasSummaryService(llm_service=mock_instance)
 
-            assert service.byok_handler == mock_instance
+            assert service.llm_service == mock_instance
 
 
 class TestPromptBuilding:
@@ -45,8 +45,8 @@ class TestPromptBuilding:
     @pytest.fixture
     def service(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
-        mock_byok = Mock()
-        return CanvasSummaryService(byok_handler=mock_byok)
+        mock_llm = Mock()
+        return CanvasSummaryService(llm_service=mock_llm)
 
     @pytest.mark.parametrize("canvas_type", [
         "generic", "docs", "email", "sheets", "orchestration",
@@ -128,11 +128,11 @@ class TestSummaryGeneration:
     @pytest.fixture
     def service_with_mock_llm(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
-        mock_byok = Mock()
-        mock_byok.generate_response = AsyncMock(
+        mock_llm = Mock()
+        mock_llm.generate = AsyncMock(
             return_value="Agent presented Q4 revenue showing $1.2M with 15% growth."
         )
-        return CanvasSummaryService(byok_handler=mock_byok)
+        return CanvasSummaryService(llm_service=mock_llm)
 
     @pytest.mark.asyncio
     async def test_generate_summary_returns_llm_result(self, service_with_mock_llm):
@@ -144,7 +144,7 @@ class TestSummaryGeneration:
         )
 
         assert "revenue" in result.lower() or "1.2M" in result
-        assert service_with_mock_llm.byok_handler.generate_response.called
+        assert service_with_mock_llm.llm_service.generate.called
 
     @pytest.mark.asyncio
     async def test_generate_summary_uses_cache(self, service_with_mock_llm):
@@ -164,7 +164,7 @@ class TestSummaryGeneration:
         )
 
         # BYOK should only be called once
-        assert service_with_mock_llm.byok_handler.generate_response.call_count == 1
+        assert service_with_mock_llm.llm_service.generate.call_count == 1
         assert result1 == result2
 
     @pytest.mark.asyncio
@@ -172,12 +172,12 @@ class TestSummaryGeneration:
         """Test timeout triggers metadata fallback"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        mock_byok = Mock()
-        mock_byok.generate_response = AsyncMock(
+        mock_llm = Mock()
+        mock_llm.generate = AsyncMock(
             side_effect=asyncio.TimeoutError("LLM timeout")
         )
 
-        service = CanvasSummaryService(byok_handler=mock_byok)
+        service = CanvasSummaryService(llm_service=mock_llm)
 
         result = await service.generate_summary(
             canvas_type="terminal",
@@ -194,12 +194,12 @@ class TestSummaryGeneration:
         """Test LLM error triggers metadata fallback"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        mock_byok = Mock()
-        mock_byok.generate_response = AsyncMock(
+        mock_llm = Mock()
+        mock_llm.generate = AsyncMock(
             side_effect=Exception("LLM API error")
         )
 
-        service = CanvasSummaryService(byok_handler=mock_byok)
+        service = CanvasSummaryService(llm_service=mock_llm)
 
         result = await service.generate_summary(
             canvas_type="sheets",
@@ -214,8 +214,8 @@ class TestSummaryGeneration:
         """Test invalid canvas type raises ValueError"""
         from core.llm.canvas_summary_service import CanvasSummaryService
 
-        mock_byok = Mock()
-        service = CanvasSummaryService(byok_handler=mock_byok)
+        mock_llm = Mock()
+        service = CanvasSummaryService(llm_service=mock_llm)
 
         with pytest.raises(ValueError, match="Invalid canvas_type"):
             await service.generate_summary(
@@ -230,8 +230,8 @@ class TestMetadataFallback:
     @pytest.fixture
     def service(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
-        mock_byok = Mock()
-        return CanvasSummaryService(byok_handler=mock_byok)
+        mock_llm = Mock()
+        return CanvasSummaryService(llm_service=mock_llm)
 
     def test_fallback_extracts_visual_elements(self, service):
         """Test fallback extracts visual elements from components"""
@@ -273,8 +273,8 @@ class TestUtilityMethods:
     @pytest.fixture
     def service(self):
         from core.llm.canvas_summary_service import CanvasSummaryService
-        mock_byok = Mock()
-        return CanvasSummaryService(byok_handler=mock_byok)
+        mock_llm = Mock()
+        return CanvasSummaryService(llm_service=mock_llm)
 
     def test_get_cache_stats_empty(self, service):
         """Test cache stats on empty cache"""

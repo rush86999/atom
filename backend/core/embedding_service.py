@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 from functools import lru_cache
 from datetime import datetime
 from sqlalchemy.orm import Session
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,10 @@ class EmbeddingService:
         self._fastembed_cache = {}  # Simple dict cache (LRU logic manual)
         self._fastembed_cache_order = []  # Track access order for LRU eviction
         self._fastembed_cache_max = 1000  # Max cache size
+
+        # Initialize LLMService for OpenAI embeddings (unified interface)
+        # Note: FastEmbed and Cohere use their own clients (keep local)
+        self.llm_service = LLMService(workspace_id="default")
 
         logger.info(
             f"Initialized EmbeddingService: provider={self.provider}, model={self.model}"
@@ -642,50 +647,36 @@ class EmbeddingService:
     # ========================================================================
 
     async def _generate_openai_embedding(self, text: str) -> List[float]:
-        """Generate embedding using OpenAI API"""
+        """
+        Generate embedding using OpenAI API via LLMService.
+
+        Delegates to LLMService for unified OpenAI embedding generation with
+        BYOK support, cost tracking, and observability.
+        """
         try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(
-                api_key=self.config.get("api_key") or os.getenv("OPENAI_API_KEY")
+            embedding = await self.llm_service.generate_embedding(
+                text=text,
+                model=self.model
             )
-
-            response = await client.embeddings.create(
-                model=self.model,
-                input=text
-            )
-
-            return response.data[0].embedding
-
-        except ImportError:
-            raise Exception("OpenAI package not installed. Run: pip install openai")
+            return embedding
         except Exception as e:
             logger.error(f"OpenAI embedding generation failed: {e}")
             raise
 
     async def _generate_openai_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using OpenAI API (batch)"""
+        """
+        Generate embeddings using OpenAI API (batch) via LLMService.
+
+        Delegates to LLMService for unified batch embedding generation with
+        automatic batching, BYOK support, cost tracking, and observability.
+        LLMService handles 2048 batch limit internally.
+        """
         try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(
-                api_key=self.config.get("api_key") or os.getenv("OPENAI_API_KEY")
+            embeddings = await self.llm_service.generate_embeddings_batch(
+                texts=texts,
+                model=self.model
             )
-
-            # OpenAI supports up to 2048 texts per request
-            batch_size = 2048
-            all_embeddings = []
-
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                response = await client.embeddings.create(
-                    model=self.model,
-                    input=batch
-                )
-                all_embeddings.extend([item.embedding for item in response.data])
-
-            return all_embeddings
-
+            return embeddings
         except Exception as e:
             logger.error(f"OpenAI batch embedding generation failed: {e}")
             raise

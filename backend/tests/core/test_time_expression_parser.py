@@ -1,206 +1,187 @@
 """
-Tests for TimeExpressionParser
+Tests for Time Expression Parser
 
-Tests for time expression parsing including:
-- Time unit parsing (minutes, hours, days, weeks)
-- Expression validation
-- Duration calculation
+Tests for natural language time expression parsing including:
+- Pattern-based parsing (daily, hourly, weekly, monthly)
+- Time normalization (12h to 24h)
 - Error handling
 """
 
 import pytest
-from core.time_expression_parser import TimeExpressionParser, parse_time_expression, TimeUnit
+from core.time_expression_parser import parse_with_patterns, normalize_time_12h_to_24h, TIME_PATTERNS
 
 
-class TestTimeExpressionParserInit:
-    """Tests for TimeExpressionParser initialization."""
+class TestParseWithPatterns:
+    """Tests for parse_with_patterns function."""
 
-    def test_init_default(self):
-        """Test default initialization."""
-        parser = TimeExpressionParser()
-        assert parser is not None
+    def test_parse_every_day(self):
+        """Test parsing daily expressions."""
+        result = parse_with_patterns("every day")
+        assert result is not None
+        assert result["schedule_type"] == "cron"
+        assert "cron_expression" in result
 
+    def test_parse_every_day_at_time(self):
+        """Test parsing daily expressions with specific time."""
+        result = parse_with_patterns("every day at 9am")
+        assert result is not None
+        assert result["schedule_type"] == "cron"
+        assert "cron_expression" in result
 
-class TestParseTimeExpression:
-    """Tests for parse_time_expression function."""
+    def test_parse_every_minutes(self):
+        """Test parsing minute interval expressions."""
+        result = parse_with_patterns("every 5 minutes")
+        assert result is not None
+        assert result["schedule_type"] == "interval"
+        assert result["interval_minutes"] == 5
 
-    def test_parse_minutes(self):
-        """Test parsing minutes expressions."""
-        result = parse_time_expression("5min")
-        assert result["value"] == 5
-        assert result["unit"] == "minutes"
+    def test_parse_every_hours(self):
+        """Test parsing hour interval expressions."""
+        result = parse_with_patterns("every 2 hours")
+        assert result is not None
+        assert result["schedule_type"] == "interval"
+        assert result["interval_minutes"] == 120  # 2 hours = 120 minutes
 
-    def test_parse_minutes_abbrev(self):
-        """Test parsing abbreviated minutes."""
-        result = parse_time_expression("5m")
-        assert result["value"] == 5
-        assert result["unit"] == "minutes"
+    def test_parse_weekdays(self):
+        """Test parsing weekday expressions."""
+        result = parse_with_patterns("weekdays")
+        assert result is not None
+        assert result["schedule_type"] == "cron"
 
-    def test_parse_hours(self):
-        """Test parsing hours expressions."""
-        result = parse_time_expression("2h")
-        assert result["value"] == 2
-        assert result["unit"] == "hours"
+    def test_parse_weekends(self):
+        """Test parsing weekend expressions."""
+        result = parse_with_patterns("weekends")
+        assert result is not None
+        assert result["schedule_type"] == "cron"
 
-    def test_parse_hours_abbrev(self):
-        """Test parsing abbreviated hours."""
-        result = parse_time_expression("2hr")
-        assert result["value"] == 2
-        assert result["unit"] == "hours"
+    def test_parse_specific_day(self):
+        """Test parsing specific day expressions."""
+        result = parse_with_patterns("every monday")
+        assert result is not None
+        assert result["schedule_type"] == "cron"
 
-    def test_parse_days(self):
-        """Test parsing days expressions."""
-        result = parse_time_expression("3d")
-        assert result["value"] == 3
-        assert result["unit"] == "days"
+    def test_parse_first_day_of_month(self):
+        """Test parsing first day of month expressions."""
+        result = parse_with_patterns("first day of every month")
+        assert result is not None
+        assert result["schedule_type"] == "cron"
 
-    def test_parse_weeks(self):
-        """Test parsing weeks expressions."""
-        result = parse_time_expression("1w")
-        assert result["value"] == 1
-        assert result["unit"] == "weeks"
+    def test_parse_no_match(self):
+        """Test expression that doesn't match any pattern."""
+        result = parse_with_patterns("invalid expression")
+        assert result is None
 
-    def test_parse_complex_expression(self):
-        """Test parsing complex time expressions."""
-        result = parse_time_expression("1h 30min")
-        assert result["value"] == 90  # 90 minutes
-        assert result["unit"] == "minutes"
-
-    def test_parse_multiple_days(self):
-        """Test parsing multiple days."""
-        result = parse_time_expression("3d 12h")
-        # Should parse and convert to base unit
-        assert result["value"] is not None
-        assert result["unit"] in ["minutes", "hours", "days"]
-
-
-class TestTimeExpressionParser:
-    """Tests for TimeExpressionParser class methods."""
-
-    def test_validate_expression_valid(self):
-        """Test validating valid expressions."""
-        parser = TimeExpressionParser()
-        assert parser.validate_expression("5min") is True
-        assert parser.validate_expression("2h") is True
-        assert parser.validate_expression("1d") is True
-
-    def test_validate_expression_invalid(self):
-        """Test validating invalid expressions."""
-        parser = TimeExpressionParser()
-        assert parser.validate_expression("invalid") is False
-        assert parser.validate_expression("") is False
-
-    def test_extract_time_unit(self):
-        """Test extracting time unit from expression."""
-        parser = TimeExpressionParser()
-
-        unit = parser.extract_time_unit("5min")
-        assert unit == TimeUnit.MINUTE
-
-        unit = parser.extract_time_unit("2h")
-        assert unit == TimeUnit.HOUR
-
-        unit = parser.extract_time_unit("1d")
-        assert unit == TimeUnit.DAY
-
-    def test_extract_value(self):
-        """Test extracting numeric value from expression."""
-        parser = TimeExpressionParser()
-
-        value = parser.extract_value("5min")
-        assert value == 5
-
-        value = parser.extract_value("2h")
-        assert value == 2
-
-        value = parser.extract_value("1d")
-        assert value == 1
-
-    def test_normalize_to_minutes(self):
-        """Test normalizing different units to minutes."""
-        parser = TimeExpressionParser()
-
-        # 1 hour = 60 minutes
-        minutes = parser.normalize_to_minutes(1, TimeUnit.HOUR)
-        assert minutes == 60
-
-        # 1 day = 1440 minutes
-        minutes = parser.normalize_to_minutes(1, TimeUnit.DAY)
-        assert minutes == 1440
-
-        # Minutes stay as minutes
-        minutes = parser.normalize_to_minutes(30, TimeUnit.MINUTE)
-        assert minutes == 30
+    def test_parse_empty_string(self):
+        """Test empty string handling."""
+        result = parse_with_patterns("")
+        assert result is None
 
 
-class TestTimeUnit:
-    """Tests for TimeUnit enum."""
+class TestNormalizeTime12hTo24h:
+    """Tests for normalize_time_12h_to_24h function."""
 
-    def test_timeunit_values(self):
-        """Test TimeUnit enum values."""
-        assert TimeUnit.SECOND.value == "second"
-        assert TimeUnit.MINUTE.value == "minute"
-        assert TimeUnit.HOUR.value == "hour"
-        assert TimeUnit.DAY.value == "day"
-        assert TimeUnit.WEEK.value == "week"
+    def test_normalize_am_times(self):
+        """Test normalizing AM times."""
+        assert normalize_time_12h_to_24h(9, 0, "am") == (9, 0)
+        assert normalize_time_12h_to_24h(12, 0, "am") == (0, 0)  # Midnight
+        assert normalize_time_12h_to_24h(11, 30, "am") == (11, 30)
+
+    def test_normalize_pm_times(self):
+        """Test normalizing PM times."""
+        assert normalize_time_12h_to_24h(1, 0, "pm") == (13, 0)
+        assert normalize_time_12h_to_24h(12, 0, "pm") == (12, 0)  # Noon
+        assert normalize_time_12h_to_24h(11, 30, "pm") == (23, 30)
+
+    def test_normalize_no_period(self):
+        """Test normalization when no period is provided."""
+        assert normalize_time_12h_to_24h(9, 0, None) == (9, 0)
+        assert normalize_time_12h_to_24h(14, 30, None) == (14, 30)
+
+    def test_normalize_edge_cases(self):
+        """Test edge cases for time normalization."""
+        # 11:59 PM should be 23:59
+        assert normalize_time_12h_to_24h(11, 59, "pm") == (23, 59)
+        # 12:59 AM should be 0:59
+        assert normalize_time_12h_to_24h(12, 59, "am") == (0, 59)
+
+
+class TestTimePatterns:
+    """Tests for TIME_PATTERNS constant."""
+
+    def test_time_patterns_is_dict(self):
+        """Test that TIME_PATTERNS is a dictionary."""
+        assert isinstance(TIME_PATTERNS, dict)
+
+    def test_time_patterns_has_entries(self):
+        """Test that TIME_PATTERNS has pattern entries."""
+        assert len(TIME_PATTERNS) > 0
+
+    def test_time_patterns_structure(self):
+        """Test that TIME_PATTERNS entries have required keys."""
+        for pattern, config in TIME_PATTERNS.items():
+            assert "type" in config
+            assert config["type"] in ["cron", "interval"]
 
 
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_empty_expression(self):
-        """Test handling empty expression."""
-        with pytest.raises(ValueError):
-            parse_time_expression("")
-
-    def test_invalid_unit(self):
-        """Test expression with invalid unit."""
-        result = parse_time_expression("5x")
-        # Should handle gracefully or raise error
-        assert result is not None
-
-    def test_zero_value(self):
-        """Test zero time value."""
-        result = parse_time_expression("0min")
-        assert result["value"] == 0
-
-    def test_large_value(self):
-        """Test very large time values."""
-        result = parse_time_expression("365d")
-        assert result["value"] == 365
-
     def test_whitespace_variations(self):
         """Test expressions with different whitespace."""
-        result1 = parse_time_expression("5min")
-        result2 = parse_time_expression("5 min")
-        result3 = parse_time_expression("5  min")
+        result1 = parse_with_patterns("every 5 minutes")
+        result2 = parse_with_patterns("every  5  minutes")
+        # Both should parse successfully
+        assert result1 is not None
+        assert result2 is not None
 
-        # Should handle whitespace variations
-        assert result1["value"] == 5
+    def test_case_insensitive(self):
+        """Test that parsing is case insensitive."""
+        result1 = parse_with_patterns("EVERY DAY")
+        result2 = parse_with_patterns("every day")
+        result3 = parse_with_patterns("Every Day")
+        # All should parse successfully
+        assert result1 is not None
+        assert result2 is not None
+        assert result3 is not None
+
+    def test_zero_interval(self):
+        """Test zero value in interval expressions."""
+        # This may or may not match depending on pattern regex
+        result = parse_with_patterns("every 0 minutes")
+        # Just verify it doesn't crash
+        assert result is None or isinstance(result, dict)
 
 
 class TestIntegration:
     """Integration tests for time expression parsing."""
 
-    def test_parse_and_calculate_duration(self):
-        """Test parsing and calculating total duration."""
-        expr1 = parse_time_expression("1h")
-        expr2 = parse_time_expression("30min")
+    def test_multiple_time_expressions(self):
+        """Test parsing multiple different expressions."""
+        expressions = [
+            "every day",
+            "every 5 minutes",
+            "every 2 hours",
+            "weekdays",
+            "every monday",
+            "first day of every month"
+        ]
 
-        parser = TimeExpressionParser()
-        total_minutes = (
-            parser.normalize_to_minutes(expr1["value"], TimeUnit.HOUR) +
-            parser.normalize_to_minutes(expr2["value"], TimeUnit.MINUTE)
-        )
+        results = [parse_with_patterns(expr) for expr in expressions]
 
-        assert total_minutes == 90  # 60 + 30
+        # All should parse successfully
+        assert all(r is not None for r in results)
+        assert all("schedule_type" in r for r in results)
 
-    def test_batch_parse_expressions(self):
-        """Test parsing multiple expressions."""
-        expressions = ["5min", "2h", "1d"]
+    def test_cron_expressions_generated(self):
+        """Test that cron expressions are generated for cron-type schedules."""
+        result = parse_with_patterns("every day at 9am")
+        assert result["schedule_type"] == "cron"
+        assert "cron_expression" in result
+        assert isinstance(result["cron_expression"], str)
 
-        results = [parse_time_expression(expr) for expr in expressions]
-
-        assert len(results) == 3
-        assert all("value" in r for r in results)
-        assert all("unit" in r for r in results)
+    def test_intervals_generated(self):
+        """Test that intervals are generated for interval-type schedules."""
+        result = parse_with_patterns("every 15 minutes")
+        assert result["schedule_type"] == "interval"
+        assert "interval_minutes" in result
+        assert isinstance(result["interval_minutes"], int)

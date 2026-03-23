@@ -26,6 +26,8 @@ import {
     User,
     LogOut,
     FileText,
+    Shield,
+    CheckCircle,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -97,6 +99,13 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Calendar", icon: Calendar, path: "/calendar" },
                 { label: "Health", icon: Heart, path: "/health" },
                 { label: "Voice", icon: Mic, path: "/voice" },
+            ]
+        },
+        {
+            name: "GOVERNANCE",
+            items: [
+                { label: "JIT Verification", icon: Shield, path: "/admin/jit-verification" },
+                { label: "Business Facts", icon: CheckCircle, path: "/admin/business-facts" },
             ]
         },
         {

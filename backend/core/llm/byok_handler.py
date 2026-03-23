@@ -25,7 +25,7 @@ except ImportError:
 
 # Core imports (moved from inline for better testability)
 from core.agent_governance_service import AgentGovernanceService
-from core.benchmarks import get_quality_score
+from core.benchmarks import get_quality_score, get_capability_score
 from core.byok_endpoints import get_byok_manager
 from core.cost_config import (
     BYOK_ENABLED_PLANS,
@@ -41,7 +41,8 @@ from core.llm.cache_aware_router import CacheAwareRouter
 from core.llm.cognitive_tier_service import CognitiveTierService
 from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
 from core.llm_usage_tracker import llm_usage_tracker
-from core.models import AgentExecution, Tenant, Workspace
+from core.lux_config import lux_config
+from core.models import AgentExecution, Tenant, Workspace, ModelCatalog
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,12 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.MODERATE: "minimax-m2.5",
         QueryComplexity.COMPLEX: "minimax-m2.5",
         QueryComplexity.ADVANCED: "minimax-m2.5",
+    },
+    "lux": {  # LUX Computer Use (Claude 3.5 Sonnet based)
+        QueryComplexity.SIMPLE: "lux-1.0",
+        QueryComplexity.MODERATE: "lux-1.0",
+        QueryComplexity.COMPLEX: "lux-1.0",
+        QueryComplexity.ADVANCED: "lux-1.0",
     },
     "qwen": {
         QueryComplexity.SIMPLE: "qwen-plus",
@@ -188,6 +195,14 @@ class BYOKHandler:
 
         self.tier_service = tier_service or CognitiveTierService(workspace_id, self.db_session)
 
+        # Phase 226.4-04: Initialize excluded models cache
+        self.excluded_models = set()
+        self._refresh_excluded_cache()
+
+        # Phase 226.4-04: Initialize health monitor
+        from core.provider_health_monitor import get_provider_health_monitor
+        self.health_monitor = get_provider_health_monitor()
+
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """
         Get provider fallback order for resilience.
@@ -233,6 +248,58 @@ class BYOKHandler:
 
         return fallback_order
 
+    def _refresh_excluded_cache(self):
+        """Cache models with exclude_from_general_routing=True"""
+        try:
+            with get_db_session() as db:
+                excluded = db.query(ModelCatalog.model_id).filter(
+                    ModelCatalog.exclude_from_general_routing == True
+                ).all()
+                self.excluded_models = {m[0] for m in excluded}
+                logger.debug(f"Refreshed excluded models cache: {len(self.excluded_models)} models excluded")
+        except Exception as e:
+            logger.warning(f"Failed to refresh excluded models cache: {e}")
+            self.excluded_models = set()
+
+    def _filter_by_capabilities(self, model_id: str, required_capability: Optional[str]) -> bool:
+        """
+        Check if model has the required capability.
+
+        Args:
+            model_id: Model identifier
+            required_capability: Required capability (e.g., "computer_use", "vision", "tools")
+
+        Returns:
+            True if model has capability or no requirement, False otherwise
+        """
+        if not required_capability:
+            return True  # No capability requirement
+
+        try:
+            with get_db_session() as db:
+                model = db.query(ModelCatalog).filter_by(model_id=model_id).first()
+                if not model:
+                    return True  # Unknown models pass through
+                capabilities = model.capabilities or ["chat"]
+                return required_capability in capabilities
+        except Exception as e:
+            logger.warning(f"Failed to check capabilities for {model_id}: {e}")
+            return True  # Pass through on error
+
+    def _filter_by_health(self, provider_id: str) -> bool:
+        """
+        Check if provider is healthy enough for routing.
+
+        Args:
+            provider_id: Provider identifier
+
+        Returns:
+            True if provider is healthy (score >= 0.5) or unknown, False otherwise
+        """
+        if provider_id not in self.health_monitor.health_scores:
+            return True  # Unknown providers pass through
+        return self.health_monitor.get_health_score(provider_id) >= 0.5
+
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
         if not OpenAI:
@@ -246,11 +313,27 @@ class BYOKHandler:
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
             "minimax": {"base_url": "https://api.minimaxi.com/v1"},  # Phase 68-04: MiniMax M2.5 integration
+            "lux": {"base_url": None},  # Phase 226.2-01: LUX Computer Use (uses Anthropic API)
             "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
         }
 
         # Separate sync and async clients
         self.async_clients: Dict[str, Any] = {}
+
+        # Phase 226.2-01: Special handling for LUX provider (uses Anthropic API key via lux_config)
+        if "lux" in providers_config:
+            # LUX uses Anthropic API key via lux_config or BYOK fallback
+            api_key = lux_config.get_anthropic_key() or self.byok_manager.get_api_key("lux")
+            if api_key:
+                try:
+                    self.clients["lux"] = OpenAI(api_key=api_key)
+                    if AsyncOpenAI:
+                        self.async_clients["lux"] = AsyncOpenAI(api_key=api_key)
+                    logger.info("Initialized LUX provider with Anthropic client")
+                except Exception as e:
+                    logger.error(f"Failed to initialize LUX client: {e}")
+            # Remove lux from providers_config so it doesn't get processed in the loop below
+            del providers_config["lux"]
 
         for provider_id, config in providers_config.items():
             # Check if BYOK is configured for this provider and workspace
@@ -430,7 +513,8 @@ class BYOKHandler:
         requires_structured: bool = False, # Phase 6.6
         estimated_tokens: int = 1000, # Cache-aware routing
         workspace_id: str = "default", # Cache-aware routing
-        cognitive_tier: Optional[CognitiveTier] = None  # Phase 68: Cognitive tier system
+        cognitive_tier: Optional[CognitiveTier] = None,  # Phase 68: Cognitive tier system
+        required_capability: Optional[str] = None  # Phase 226.4-04: Capability-based routing
     ) -> List[tuple[str, str]]:
         """
         Get a ranked list of providers and models using the BPC (Benchmark-Price-Capability) algorithm.
@@ -444,6 +528,10 @@ class BYOKHandler:
         When cognitive_tier is provided, uses CognitiveTier-based quality filtering instead of
         QueryComplexity. This enables more granular 5-tier quality control.
 
+        Phase 226.4-04 Extension:
+        When required_capability is provided, filters models by capability (e.g., "computer_use", "vision", "tools")
+        and uses capability-specific quality scores. Also filters out excluded models and unhealthy providers.
+
         Args:
             complexity: Query complexity level
             task_type: Optional task type hint
@@ -455,6 +543,7 @@ class BYOKHandler:
             requires_structured: Whether model must support structured output
             estimated_tokens: Estimated input token count (for cache hit prediction)
             workspace_id: Workspace ID for cache history lookup
+            required_capability: Optional capability requirement (e.g., "computer_use", "vision", "tools")
 
         Returns:
             List of (provider, model) tuples ranked by value score
@@ -504,9 +593,25 @@ class BYOKHandler:
                 context_window = pricing.get("max_input_tokens") or pricing.get("max_tokens") or 0
                 if context_window < min_context:
                     continue
-                
-                # Check quality score
-                quality_score = get_quality_score(model_id)
+
+                # Phase 226.4-04: Check capability filter
+                if not self._filter_by_capabilities(model_id, required_capability):
+                    continue
+
+                # Phase 226.4-04: Check if model is excluded from general routing
+                if not required_capability and model_id in self.excluded_models:
+                    continue
+
+                # Phase 226.4-04: Check provider health
+                if not self._filter_by_health(active_provider):
+                    continue
+
+                # Check quality score (use capability-specific score if required)
+                if required_capability:
+                    quality_score = get_capability_score(model_id, required_capability)
+                else:
+                    quality_score = get_quality_score(model_id)
+
                 if quality_score < min_quality:
                     continue
 
@@ -756,7 +861,8 @@ class BYOKHandler:
                         logger.info(f"Prioritizing {preferred_ocr[0][0]} for PDF OCR task")
 
                 # 2. Naive filter: Only keep known vision models if not already specialized
-                vision_models = ["gpt-4o", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "claude-3-5-sonnet", "claude-3-opus", "gpt-4-turbo", "deepseek", "deepinfra"]
+                # Phase 226.2-01: Added "lux" for computer use tasks
+                vision_models = ["gpt-4o", "gemini-3-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "claude-3-5-sonnet", "claude-3-opus", "gpt-4-turbo", "deepseek", "deepinfra", "lux"]
                 vision_options = []
                 for prov, mod in options:
                     if any(v in mod.lower() for v in vision_models):
@@ -775,6 +881,8 @@ class BYOKHandler:
             last_error = None
             for provider_id, model in options:
                 try:
+                    import time
+                    request_start = time.time()
                     client = self.clients[provider_id]
                     
                     # Construct Messages (Phase 14: Multimodal)
@@ -868,11 +976,23 @@ class BYOKHandler:
 
                     # Log for analytics
                     logger.info(f"BYOK Logic: complexity={complexity.value}, provider={provider_id}, model={model}")
+
+                    # Phase 226.4-04: Record successful API call for health monitoring
+                    latency_ms = (time.time() - request_start) * 1000
+                    self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+
                     return result
-                
+
                 except Exception as attempt_err:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
+
+                    # Phase 226.4-04: Record failed API call for health monitoring
+                    try:
+                        latency_ms = (time.time() - request_start) * 1000
+                        self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
+                    except:
+                        pass  # Don't let health monitoring errors affect primary flow
                     continue # Try next provider
             
             return f"All providers failed. Last error: {str(last_error)}"
@@ -1462,6 +1582,8 @@ class BYOKHandler:
             logger.info(f"Attempting stream with provider: {attempt_provider_id} (requested: {provider_id})")
 
             try:
+                import time
+                request_start = time.time()
                 # Create execution record if agent_id provided (only on first attempt)
                 if agent_execution is None and agent_id and governance_enabled and db:
                     agent_execution = AgentExecution(
@@ -1510,12 +1632,23 @@ class BYOKHandler:
                     except Exception as tracking_error:
                         logger.error(f"Failed to track LLM stream completion: {tracking_error}")
 
+                # Phase 226.4-04: Record successful streaming API call for health monitoring
+                latency_ms = (time.time() - request_start) * 1000
+                self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+
                 # Success! Return from the function
                 return
 
             except Exception as e:
                 last_error = e
                 logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
+
+                # Phase 226.4-04: Record failed streaming API call for health monitoring
+                try:
+                    latency_ms = (time.time() - request_start) * 1000
+                    self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
+                except:
+                    pass  # Don't let health monitoring errors affect primary flow
 
                 # If this is not the last provider, try the next one
                 if attempt_provider_id != provider_order[-1]:

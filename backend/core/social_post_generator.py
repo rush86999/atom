@@ -12,11 +12,10 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 try:
-    import openai
-    from openai import AsyncOpenAI
-    OPENAI_AVAILABLE = True
+    from core.llm_service import LLMService
+    LLM_SERVICE_AVAILABLE = True
 except ImportError:
-    OPENAI_AVAILABLE = False
+    LLM_SERVICE_AVAILABLE = False
 
 from sqlalchemy.orm import Session
 from core.models import AgentOperationTracker, AgentRegistry
@@ -62,20 +61,22 @@ class SocialPostGenerator:
         # Rate limiting tracker: {agent_id: last_post_timestamp}
         self._rate_limit_tracker = {}  # type: Dict[str, datetime]
 
-        # Initialize OpenAI client if available
-        self._openai_client = None
-        if OPENAI_AVAILABLE and os.getenv("OPENAI_API_KEY"):
+        # Initialize LLMService for GPT-4.1 mini social content generation
+        self.llm_service = None
+        if LLM_SERVICE_AVAILABLE:
             try:
-                self._openai_client = AsyncOpenAI(
-                    api_key=os.getenv("OPENAI_API_KEY"),
-                    timeout=5.0
-                )
-                logger.info("SocialPostGenerator: GPT-4.1 mini client initialized")
+                self.llm_service = LLMService(workspace_id="default")
+                # Check if OpenAI provider is available
+                if self.llm_service.is_available():
+                    logger.info("SocialPostGenerator: LLMService initialized for GPT-4.1 mini")
+                else:
+                    logger.warning("SocialPostGenerator: No LLM providers available, using templates only")
+                    self.llm_service = None
             except Exception as e:
-                logger.warning("SocialPostGenerator: Failed to initialize OpenAI client")
-                self._openai_client = None
+                logger.warning(f"SocialPostGenerator: Failed to initialize LLMService: {e}")
+                self.llm_service = None
         else:
-            logger.warning("SocialPostGenerator: OPENAI_API_KEY not set, using templates only")
+            logger.warning("SocialPostGenerator: LLMService package not available, using templates only")
 
     def is_significant_operation(self, tracker: AgentOperationTracker) -> bool:
         """
@@ -165,7 +166,7 @@ class SocialPostGenerator:
             raise ValueError("what_explanation is required for post generation")
 
         # Try GPT-4.1 mini if enabled and available
-        if self.llm_enabled and self._openai_client:
+        if self.llm_enabled and self.llm_service:
             try:
                 return await self._generate_with_llm(tracker, agent)
             except asyncio.TimeoutError:
@@ -189,7 +190,7 @@ class SocialPostGenerator:
         agent: AgentRegistry
     ) -> str:
         """
-        Generate post using GPT-4.1 mini.
+        Generate post using GPT-4.1 mini via LLMService.
 
         Args:
             tracker: AgentOperationTracker instance
@@ -201,10 +202,10 @@ class SocialPostGenerator:
         Raises:
             asyncio.TimeoutError: If generation takes >5 seconds
         """
-        if not self._openai_client:
-            raise ValueError("OpenAI client not initialized")
+        if not self.llm_service:
+            raise ValueError("LLMService not initialized")
 
-        # Build prompt
+        # Build prompts
         system_prompt = """You are an AI agent posting to a team social feed. Your posts should:
 - Be casual and friendly (like a helpful teammate)
 - Use emoji if appropriate (max 2 per post)
@@ -223,21 +224,22 @@ Next steps: {tracker.next_steps or 'N/A'}
 Make it engaging and team-focused. Keep it under 280 characters."""
 
         try:
-            # Call GPT-4.1 mini with timeout
+            # Use LLMService with timeout wrapper
             response = await asyncio.wait_for(
-                self._openai_client.chat.completions.create(
-                    model="gpt-4.1-mini",  # $0.15/1M input, $0.60/1M output
+                self.llm_service.generate_completion(
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
+                    model="gpt-4o-mini",  # Cost-effective model
                     max_tokens=100,
-                    temperature=0.7  # Creative but consistent
+                    temperature=0.7
                 ),
-                timeout=5.0  # 5-second timeout
+                timeout=5.0
             )
 
-            content = response.choices[0].message.content.strip()
+            # Extract content from LLMService response format
+            content = response.get("content", "").strip()
 
             # Validate length
             if len(content) > 280:
@@ -248,11 +250,8 @@ Make it engaging and team-focused. Keep it under 280 characters."""
 
         except asyncio.TimeoutError:
             raise
-        except openai.APIError as e:
-            logger.error(f"OpenAI API error: {e}")
-            raise
         except Exception as e:
-            logger.error(f"Unexpected error during LLM generation: {e}")
+            logger.error(f"LLM generation failed: {e}")
             raise
 
     def generate_with_template(
@@ -331,7 +330,7 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         episode_context = self._format_episode_context(episodes)
 
         # Generate post with or without episode context
-        if episode_context and self._openai_client:
+        if episode_context and self.llm_service:
             # Use LLM with episode context
             content = await self._generate_with_llm_and_context(
                 operation, episode_context
@@ -441,8 +440,8 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         Returns:
             Generated post content (max 280 chars)
         """
-        if not self._openai_client:
-            raise RuntimeError("OpenAI client not initialized")
+        if not self.llm_service:
+            raise RuntimeError("LLMService not initialized")
 
         # Build system prompt with episode guidance
         system_prompt = self._build_system_prompt(with_episodes=True)
@@ -451,16 +450,18 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         user_prompt = self._build_user_prompt(operation, episode_context)
 
         try:
-            response = await self._openai_client.chat.completions.create(
-                model="gpt-4.1-mini",  # Cost-effective model
+            response = await self.llm_service.generate_completion(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
+                model="gpt-4o-mini",  # Cost-effective model
                 max_tokens=150,
-                timeout=5.0
+                temperature=0.7
             )
-            content = response.choices[0].message.content.strip()
+
+            # Extract content from LLMService response format
+            content = response.get("content", "").strip()
 
             # Validate length
             if len(content) > 280:

@@ -20,7 +20,8 @@ from sqlalchemy.orm import Session
 from core.database import get_db
 from core.models import User
 from core.oauth_handler import SLACK_OAUTH_CONFIG, OAuthHandler
-from core.token_storage import token_storage
+from core.oauth_state_manager import get_oauth_state_manager
+from core.auth import get_current_user
 from integrations.integration_helpers import (
     create_execution_record,
     standard_error_response,
@@ -121,9 +122,16 @@ async def slack_health(user_id: str = "test_user"):
 async def send_slack_message(
     request: SlackMessageRequest,
     agent_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Send a Slack message with governance check (complexity 2 - INTERN+)"""
+    """
+    Send a Slack message with governance check (complexity 2 - INTERN+).
+
+    **SECURITY**: Requires authentication to prevent unauthorized Slack messages.
+    Governance can still be bypassed with EMERGENCY_GOVERNANCE_BYPASS, but
+    authentication is always required.
+    """
     logger.info(f"Sending Slack message to channel: {request.channel}")
 
     # Governance check if enabled and agent_id provided
@@ -382,39 +390,105 @@ async def add_slack_reaction(
 
 
 @router.post("/callback")
-async def slack_oauth_callback(request: Request):
-    """Handle Slack OAuth callback"""
+async def slack_oauth_callback(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Handle Slack OAuth callback with CSRF protection.
+
+    Security measures:
+    - Requires state parameter to prevent CSRF attacks
+    - Requires user authentication
+    - Validates state checksum and expiry
+    - Stores tokens per-user instead of globally
+    """
     try:
         data = await request.json()
         code = data.get("code")
-        
+        state = data.get("state")
+
         if not code:
+            logger.warning("OAuth callback missing authorization code")
             raise HTTPException(status_code=400, detail="Authorization code is required")
 
+        if not state:
+            logger.warning("OAuth callback missing state parameter - possible CSRF attack")
+            raise HTTPException(
+                status_code=400,
+                detail="State parameter is required for CSRF protection"
+            )
+
+        # Validate state parameter
+        state_manager = get_oauth_state_manager()
+        try:
+            state_info = state_manager.validate_state(
+                state,
+                user_id=str(current_user.id),
+                require_user_match=True
+            )
+            logger.info(f"OAuth state validated for user {current_user.id}")
+        except ValueError as e:
+            logger.warning(f"OAuth state validation failed: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid state parameter: {str(e)}")
+
+        # Exchange code for tokens
         handler = OAuthHandler(SLACK_OAUTH_CONFIG)
         tokens = await handler.exchange_code_for_tokens(code)
-        
-        # Store tokens securely
-        token_storage.save_token("slack", tokens)
-        
-        logger.info("Slack OAuth successful - tokens received and stored")
-        return {"status": "success", "provider": "slack", "tokens": tokens}
-    
+
+        # Store tokens per-user using ConnectionService instead of global token_storage
+        from core.connection_service import ConnectionService
+        connection_service = ConnectionService()
+
+        connection = connection_service.save_connection(
+            user_id=str(current_user.id),
+            integration_id="slack",
+            name=f"Slack Integration ({current_user.email})",
+            credentials=tokens
+        )
+
+        logger.info(
+            f"Slack OAuth successful for user {current_user.id} - "
+            f"tokens stored in connection {connection.id}"
+        )
+
+        return {
+            "status": "success",
+            "provider": "slack",
+            "connection_id": connection.id,
+            "message": "Slack integration connected successfully"
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Slack OAuth callback error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Slack OAuth callback error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
 
 @router.get("/auth/url")
-async def get_auth_url():
-    """Get Slack OAuth URL"""
+async def get_auth_url(current_user: User = Depends(get_current_user)):
+    """
+    Get Slack OAuth URL with CSRF protection.
+
+    Generates a cryptographically secure state parameter and returns
+    the OAuth authorization URL. The state must be returned in the
+    callback for validation.
+    """
     try:
+        # Generate secure state parameter bound to current user
+        state_manager = get_oauth_state_manager()
+        state = state_manager.generate_state(user_id=str(current_user.id))
+
         handler = OAuthHandler(SLACK_OAUTH_CONFIG)
-        # Using a default state if not provided, though typically frontend should generate it
-        auth_url = handler.get_authorization_url(state="slack_init")
-        
+        auth_url = handler.get_authorization_url(state=state)
+
+        logger.info(f"Generated Slack OAuth URL for user {current_user.id} with state")
+
         return {
             "url": auth_url,
             "service": "slack",
+            "state": state,  # Frontend must return this in callback
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:

@@ -9,9 +9,9 @@ from core.generic_agent import GenericAgent
 from core.models import AgentRegistry, AgentStatus
 
 
-@patch('core.llm.byok_handler.BYOKHandler.__init__', return_value=None)
+@patch('core.generic_agent.LLMService')
 @pytest.mark.asyncio
-async def test_agent_governance_gating(mock_byok_init):
+async def test_agent_governance_gating(mock_llm):
     db = SessionLocal()
     try:
         # 1. Create a "Student" agent registry model in DB
@@ -28,7 +28,7 @@ async def test_agent_governance_gating(mock_byok_init):
         )
         db.add(agent_model)
         db.commit()
-        
+
         agent = GenericAgent(agent_model)
         
         # "delete_file" has complexity 4 (requires Autonomous)
@@ -42,16 +42,16 @@ async def test_agent_governance_gating(mock_byok_init):
         db.commit()
         db.close()
 
-@patch('core.llm.byok_handler.BYOKHandler.__init__', return_value=None)
+@patch('core.generic_agent.LLMService')
 @pytest.mark.asyncio
-async def test_agent_learning_progression(mock_byok_init):
+async def test_agent_learning_progression(mock_llm):
     # Note: This test requires a real DB entry because GenericAgent.execute
     # creates its own DB sessions to update registry via GovernanceService
     db = SessionLocal()
     try:
         # Cleanup if exists
         db.query(AgentRegistry).filter(AgentRegistry.id == "learning-agent-id").delete()
-        
+
         agent_model = AgentRegistry(
             id="learning-agent-id",
             name="Learning Agent",
@@ -64,11 +64,11 @@ async def test_agent_learning_progression(mock_byok_init):
         )
         db.add(agent_model)
         db.commit()
-        
+
         agent = GenericAgent(agent_model)
-        
+
         # Mock LLM to return final answer immediately
-        agent.llm.generate_response = AsyncMock(return_value="Thought: Done.\nFinal Answer: Task complete.")
+        agent.llm.generate = AsyncMock(return_value="Thought: Done.\nFinal Answer: Task complete.")
         
         # Execute task
         await agent.execute("Simple task")
