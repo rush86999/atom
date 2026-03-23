@@ -859,6 +859,8 @@ class BYOKHandler:
             last_error = None
             for provider_id, model in options:
                 try:
+                    import time
+                    request_start = time.time()
                     client = self.clients[provider_id]
                     
                     # Construct Messages (Phase 14: Multimodal)
@@ -952,11 +954,23 @@ class BYOKHandler:
 
                     # Log for analytics
                     logger.info(f"BYOK Logic: complexity={complexity.value}, provider={provider_id}, model={model}")
+
+                    # Phase 226.4-04: Record successful API call for health monitoring
+                    latency_ms = (time.time() - request_start) * 1000
+                    self.health_monitor.record_call(provider_id, success=True, latency_ms=latency_ms)
+
                     return result
-                
+
                 except Exception as attempt_err:
                     logger.warning(f"Attempt failed for {provider_id}/{model}: {attempt_err}")
                     last_error = attempt_err
+
+                    # Phase 226.4-04: Record failed API call for health monitoring
+                    try:
+                        latency_ms = (time.time() - request_start) * 1000
+                        self.health_monitor.record_call(provider_id, success=False, latency_ms=latency_ms)
+                    except:
+                        pass  # Don't let health monitoring errors affect primary flow
                     continue # Try next provider
             
             return f"All providers failed. Last error: {str(last_error)}"
@@ -1546,6 +1560,8 @@ class BYOKHandler:
             logger.info(f"Attempting stream with provider: {attempt_provider_id} (requested: {provider_id})")
 
             try:
+                import time
+                request_start = time.time()
                 # Create execution record if agent_id provided (only on first attempt)
                 if agent_execution is None and agent_id and governance_enabled and db:
                     agent_execution = AgentExecution(
@@ -1594,12 +1610,23 @@ class BYOKHandler:
                     except Exception as tracking_error:
                         logger.error(f"Failed to track LLM stream completion: {tracking_error}")
 
+                # Phase 226.4-04: Record successful streaming API call for health monitoring
+                latency_ms = (time.time() - request_start) * 1000
+                self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
+
                 # Success! Return from the function
                 return
 
             except Exception as e:
                 last_error = e
                 logger.warning(f"Streaming failed for {attempt_provider_id}/{model}: {e}")
+
+                # Phase 226.4-04: Record failed streaming API call for health monitoring
+                try:
+                    latency_ms = (time.time() - request_start) * 1000
+                    self.health_monitor.record_call(attempt_provider_id, success=False, latency_ms=latency_ms)
+                except:
+                    pass  # Don't let health monitoring errors affect primary flow
 
                 # If this is not the last provider, try the next one
                 if attempt_provider_id != provider_order[-1]:
