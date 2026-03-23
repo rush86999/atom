@@ -1838,19 +1838,19 @@ Plans:
 **Total:** 5 plans, 14 tasks, 3 waves (Wave 1: 01-02, Wave 2: 03-04, Wave 3: 05)
 
 #### Phase 227: Agent System Standardization
-**Goal**: Update 5 agent system files to use LLMService instead of BYOKHandler
+**Goal**: Update atom_agent_endpoints.py to use LLMService instead of BYOKHandler
 **Depends on**: Phase 226.3
 **Requirements**: STD-03
 **Success Criteria** (what must be TRUE):
-  1. All 5 agent system files use LLMService instead of importing BYOKHandler directly
-  2. Meta-agent, GraphRAG, and other agent systems work without BYOKHandler
-  3. All 5 files pass existing tests with LLMService integration
-  4. No regression in agent system functionality (reasoning, graph operations, etc.)
+  1. atom_agent_endpoints.py uses LLMService instead of importing BYOKHandler directly
+  2. WebSocket streaming endpoint passes db session to LLMService for usage tracking
+  3. stream_chat_agent function works with LLMService integration
+  4. No regression in WebSocket agent chat functionality
   5. Direct BYOKHandler imports removed from agent systems
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 227-01: Update agent system files to use LLMService (5 files)
+- [ ] 227-01-PLAN.md — Migrate atom_agent_endpoints.py WebSocket streaming to LLMService
 
 #### Phase 228: API Routes & Tools Standardization
 **Goal**: Update API routes and tools files to use LLMService instead of BYOKHandler
