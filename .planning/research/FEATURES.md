@@ -1,1001 +1,409 @@
 # Feature Landscape
 
-**Domain:** Frontend Testing Coverage (React/Next.js)
-**Researched:** March 3, 2026
+**Domain:** Cross-Platform E2E Testing & Bug Discovery
+**Researched:** March 23, 2026
 **Overall confidence:** HIGH
 
 ## Executive Summary
 
-Comprehensive frontend testing for consistent 80%+ coverage requires a systematic approach across multiple categories: component testing (leaf vs composite), state management testing (Redux/Context/hooks), API client testing (MSW, axios), form validation, error boundaries, routing, and accessibility. Based on analysis of React testing best practices, Testing Library patterns, and the current Atom codebase (89.84% overall coverage but inconsistent across modules), this document outlines table stakes features for achieving consistent coverage, differentiators that distinguish excellent test suites, and anti-patterns to avoid.
+Comprehensive cross-platform E2E testing and bug discovery for Atom requires a systematic approach across web (Playwright), mobile (React Native API-level), and desktop (Tauri) platforms. Based on analysis of existing v3.1 E2E implementation (30+ tests, Playwright basics, visual regression with Percy), E2E testing best practices, and the Atom codebase architecture, this document outlines table stakes features for production-ready testing, differentiators that distinguish excellent test suites, and anti-patterns to avoid.
 
 **Key Findings:**
-- **Current state**: Atom has 89.84% overall coverage with 1,004+ tests, FastCheck property tests (84 tests), but inconsistent coverage across modules
-- **Table stakes for 80% coverage**: Component rendering tests, state management tests, API mocking with MSW, form validation, error boundaries, routing tests
-- **Critical gaps**: Leaf component coverage, composite component integration tests, state machine tests, API contract tests, accessibility coverage
-- **Testing pyramid balance**: 70% unit tests, 20% integration tests, 10% E2E tests for optimal coverage
-- **Key anti-patterns**: Over-mocking, testing implementation details, brittle selectors, missing error path tests
+- **Current state**: Atom has v3.1 E2E with 30+ Playwright tests, Percy visual regression, API-first auth, database isolation, flaky test detection, but lacks stress testing, mobile E2E (Detox blocked), comprehensive cross-platform test reuse
+- **Table stakes for comprehensive E2E**: Critical path coverage (auth, agent execution, canvas), test isolation & reproducibility, parallel execution, screenshots/videos on failure, cross-platform workflow parity
+- **Critical gaps**: Stress testing for bug discovery, network simulation, mobile UI E2E (Detox blocked by expo-dev-client), desktop Tauri integration tests, cross-platform test reuse framework
+- **Testing balance**: 10% E2E (critical flows only), 20% integration, 70% unit for optimal coverage and feedback speed
+- **Key anti-patterns**: Brittle selectors (CSS classes), testing implementation details, shared state between tests, hard-coded waits, E2E tests for edge cases
 
 ## Table Stakes
 
-Features expected in ANY frontend codebase aiming for 80%+ coverage. Missing = inconsistent coverage or fragile test suite.
+Features expected in ANY production-ready E2E test suite covering cross-platform workflows. Missing = incomplete testing, missed bugs, slow feedback.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Leaf Component Tests** | Individual UI components must render correctly with props | Low | Button, Input, Card - test render, props, interactions |
-| **Composite Component Tests** | Component composition (parent-child) must work correctly | Medium | Forms, layouts, containers - test data flow, event propagation |
-| **State Rendering Tests** | Components must display state correctly (Redux/Context/hooks) | Medium | Test initial state, state updates, derived state |
-| **User Interaction Tests** | Buttons, forms, navigation must respond to user actions | Low | Click events, form input, keyboard shortcuts |
-| **API Mocking with MSW** | Tests must run without real backend, validate request/response shapes | Medium | Mock Service Worker for REST/GraphQL, test error handling |
-| **Form Validation Tests** | Forms must validate inputs and show errors | Low | Required fields, format validation, error messages |
-| **Async State Tests** | Loading/error/success states for async operations | Medium | Data fetching, mutations, optimistic updates |
-| **Error Boundary Tests** | React error boundaries must catch errors gracefully | Low | Test error fallback UI, error logging |
-| **Routing Tests** | Navigation must work correctly (Next.js/React Router) | Low | Mock router, test navigation, route params |
-| **Hook Tests** | Custom hooks must work correctly | Medium | renderHook for testing hook logic |
-| **Accessibility Tests** | Basic accessibility (ARIA, keyboard nav) must work | Low | jest-axe for automated a11y checks |
-| **Snapshot Tests** | Detect unintended UI changes | Low | Jest snapshots for component output (use sparingly) |
+| **Authentication Flow Tests** | Users must login securely across all platforms (web/mobile/desktop) | Medium | JWT token validation, session persistence, logout, token refresh across platforms |
+| **Agent Execution Critical Path** | Core product feature - agents must spawn, chat, stream responses | Medium | Spawn agent → send message → receive streaming response → verify output (happy path) |
+| **Canvas Presentation Tests** | Core differentiator - 7 canvas types (charts, sheets, forms, docs, email, terminal, coding) | High | Present canvas → verify rendering → verify interactivity → close canvas (all types) |
+| **Workflow Skill Execution** | Key feature - install skills, execute with parameters, verify output | Medium | Install skill → execute skill → parse output → verify business logic |
+| **Test Isolation & Reproducibility** | Parallel execution requires isolated test data (no collisions) | Medium | Unique IDs per test (UUID suffixes), database cleanup, fresh state per test |
+| **Parallel Test Execution** | CI/CD speed - 4 workers = 4x faster feedback | Low | pytest-xdist for web, separate worker schemas (gw0, gw1, gw2, gw3) |
+| **Failure Artifacts (Screenshots/Videos)** | Debugging failed tests requires visual evidence | Low | Playwright: `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'` |
+| **API-First Authentication** | UI login is slow (10-60s) vs API auth (100-500ms) | Low | Set JWT token directly in localStorage, bypass UI login flow |
+| **Database Isolation** | Parallel tests require separate data to avoid conflicts | Medium | Worker-specific schemas, transaction rollbacks, unique test data |
+| **Cross-Platform Workflow Parity** | Users expect identical workflows on web/mobile/desktop | High | Shared test logic, platform-specific adapters, consistent test IDs (data-testid/testID) |
+| **Smoke Tests** | Verify test infrastructure works before running full suite | Low | Fixtures loaded, browser launches, API works, DB connection valid |
+| **Flaky Test Detection** | Flaky tests destroy trust in test suite | Medium | Track test outcomes across CI runs, flag <80% pass rate tests |
 
 ## Differentiators
 
-Features that distinguish EXCELLENT test suites (80%+) from ADEQUATE ones. Not expected, but highly valuable.
+Features that distinguish EXCELLENT E2E test suites (comprehensive bug discovery) from ADEQUATE ones (basic happy path). Not expected, but highly valuable for finding edge cases and production bugs.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Property-Based Testing** | FastCheck generates hundreds of test cases, finds edge cases unit tests miss | High | State machine invariants, reducer purity, data transformation properties |
-| **State Machine Tests** | Explicit state transition validation catches state bugs | Medium | XState, custom state machines - test all transitions, invalid states unreachable |
-| **Visual Regression Tests** | Detect unintended CSS/layout changes | Medium | Percy, Chromatic, Playwright screenshots |
-| **Contract Testing** | Validate API contracts between frontend and backend | High | OpenAPI schema validation, MSW + TypedRequest |
-| **Mutation Testing** | Verify test quality by measuring what mutations tests catch | Medium | StrykerJS - identifies weak tests, dead code |
-| **Performance Tests** | Detect rendering performance regressions | Medium | Lighthouse CI, render time budgets, bundle size tracking |
-| **Cross-Browser Tests** | Verify consistent behavior across browsers | High | Playwright, BrowserStack - Chrome/Safari/Firefox/Edge |
-| **Network Failure Tests** | Test app behavior under poor network conditions | Medium | MSW slow responses, offline mode, retry logic |
-| **Memory Leak Tests** | Find memory leaks in long-running sessions | High | Test component unmount, cleanup, subscription disposal |
-| **Internationalization Tests** | Verify UI works across languages/locales | Medium | Test translations, date/currency formatting, RTL languages |
-| **E2E Critical Path Tests** | Test complete user workflows from UI to backend | High | Playwright, Cypress - 5-10 critical flows only |
-| **Component Contract Tests** | Verify props, events, behavior contracts | Medium | TypeScript type validation, prop-type error tests |
+| **Stress Testing for Bug Discovery** | Finds race conditions, memory leaks, resource exhaustion under load | High | Concurrent agent executions, rapid canvas present/close cycles, WebSocket connection churn |
+| **Network Simulation Testing** | Tests app behavior under poor network conditions (offline, slow, flaky) | Medium | Playwright `context.route()`, slow 3G, offline mode, packet loss simulation |
+| **Visual Regression Testing (Percy)** | Detects unintended CSS/layout changes across platforms | Medium | Automated screenshot comparison on every PR, review diffs in Percy dashboard |
+| **Cross-Platform Test Reuse** | Write test once, run on web/mobile/desktop with platform adapters | High | Shared workflow definitions, platform-specific execution (Playwright/Detox/Tauri) |
+| **Real User Interaction Simulation** | Finds bugs from realistic user behavior (mouse movement, typos, rapid clicks) | Medium | Playwright `userEvent` API (click, type, hover), realistic delays, keyboard navigation |
+| **WebSocket/Streaming Testing** | Validates real-time features (agent streaming, canvas updates) under stress | High | Multiple concurrent streams, connection drops, reconnection logic, message ordering |
+| **Canvas Accessibility Testing** | Ensures canvas state exposed to screen readers via hidden ARIA trees | Medium | `window.atom.canvas.getState()` API, accessibility tree validation |
+| **Error Boundary & Edge Case Testing** | Tests app behavior under failures (401, 500, timeouts, malformed data) | Medium | Network errors, server errors, timeout handling, malformed API responses |
+| **Performance Regression Testing** | Detects performance regressions (slow page loads, sluggish interactions) | Medium | Lighthouse CI, page load budgets, interaction timing thresholds |
+| **Memory Leak Detection** | Finds memory leaks in long-running sessions (agent chats, canvas viewing) | High | Chrome DevTools Protocol (CDP), heap snapshots before/after operations |
+| **Form Validation & Submission Testing** | Tests complex forms (agent creation, skill installation) with validation | Medium | Required fields, format validation, error messages, success states |
+| **Deep Link Testing** | Validates deep links work across platforms (`atom://agent/{id}`, workflows) | Medium | Deep link resolution, routing, parameter passing, authentication state |
 
 ## Anti-Features
 
-Testing approaches to explicitly AVOID. These create brittle, unmaintainable tests.
+Testing approaches to explicitly AVOID. These create brittle, unmaintainable, slow, or ineffective test suites.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| **Testing Implementation Details** | Tests break on refactoring, test internal state instead of behavior | Test user-facing behavior, use getByRole/getByLabelText over CSS selectors |
-| **Over-Mocking External Libraries** | Tests mock too much, don't validate real integration | Only mock network, device APIs, time - test real component logic |
-| **Brittle Selector Tests** | CSS classes break tests, deeply nested selectors fragile | Use data-testid attributes for stable selectors, semantic queries (getByRole) |
-| **Testing Third-Party Libraries** | Don't test what library authors already test | Trust React, Next.js, Chakra UI - test your code only |
-| **Shared State Between Tests** | Tests interfere with each other, non-deterministic failures | Isolate test data, cleanup after each test, use fixtures |
-| **Hardcoded Test Data** | Doesn't test edge cases, misses boundary conditions | Use property-based testing (FastCheck), data generators |
-| **Missing Error Path Tests** | Only testing happy path misses critical bugs | Test 401, 500, network errors, malformed responses, timeouts |
-| **Testing Browser APIs Directly** | Different browsers behave differently | Use jsdom for unit tests, Playwright for real browser validation |
-| **Flaky Async Tests** | Non-deterministic failures destroy trust in tests | Use proper async/await, waitFor, fake timers, clear async patterns |
-| **E2E Tests for Everything** | Slow, brittle, expensive to maintain | Use component/integration tests for speed, E2E for 5-10 critical paths |
-| **Snapshot Tests Without Review** | Snapshots checked in without review, test wrong behavior | Review snapshot diffs, ensure they capture intentional changes |
-| **Testing Private Methods** | Implementation detail, breaks on refactoring | Test public API only, behavior over implementation |
+| **Brittle Selector Tests (CSS Classes)** | CSS classes change on refactor, test breaks, maintenance nightmare | Use `data-testid` attributes (stable), semantic selectors (`getByRole`, `getByLabelText`) |
+| **Testing Implementation Details** | Tests break on internal refactoring, don't validate user behavior | Test user-facing behavior (what user sees/clicks), not internal state or component structure |
+| **Shared State Between Tests** | Tests interfere with each other, non-deterministic failures, order-dependent | Isolate test data (unique IDs), cleanup after each test, each test is independent |
+| **Hard-coded Waits (`time.sleep`)** | Unreliable (too short or too long), slow tests, flaky on slow CI | Use explicit waits (`wait_for_selector`, `wait_for_url`), Playwright auto-waiting |
+| **E2E Tests for Edge Cases** | Slow feedback loop (minutes vs seconds), better suited for unit/integration tests | Unit tests for edge cases, E2E for critical happy paths only (5-10 flows) |
+| **Over-Specific Selectors (Nested Paths)** | Brittle to DOM structure changes, breaks on layout refactor | Use stable selectors (`data-testid`, `aria-label`, text content) |
+| **Testing Third-Party Libraries** | Don't test what library authors already test (React, Next.js, Chakra UI) | Trust library tests, test your code only (business logic, integration) |
+| **Missing Error Path Tests** | Only testing happy path misses critical production bugs | Test 401 (auth expired), 500 (server error), network errors, timeouts, malformed responses |
+| **Flaky Tests Ignored** | Flaky tests destroy trust, team disables tests, false sense of security | Track flaky tests, fix root cause (race conditions, timing issues, missing waits) |
+| **E2E Tests Without Isolation** | Tests share database, conflicts cause random failures, can't run parallel | Database per worker, unique test data, cleanup fixtures, transaction rollbacks |
+| **Testing Private Methods/Internals** | Implementation detail, breaks on refactor, doesn't validate user behavior | Test public API only, behavior over implementation, user-facing outcomes |
+| **Mobile Detox E2E Without expo-dev-client** | BLOCKED - expo-dev-client requirement adds 15min CI time, complex setup | Use API-level mobile tests for Phase 148, defer Detox to Phase 150+ when infrastructure ready |
 
-## Component Coverage Patterns
+## Feature Categories
 
-### Leaf Components (Simple)
+### Authentication Testing
 
-**Definition**: Presentational components with no children, accept props, render UI.
+**Table Stakes:**
+- JWT token validation across platforms
+- Login/logout workflows (web UI, mobile API, desktop IPC)
+- Session persistence (refresh page, verify still logged in)
+- Token refresh on expiry
+- Protected route access (redirect to login if not authenticated)
 
-**Examples**: Button, Input, Card, Badge, Icon.
+**Differentiators:**
+- Biometric auth testing (mobile Face ID/Touch ID)
+- Session timeout handling (auto-logout after inactivity)
+- Multi-device session management
+- OAuth integration testing (Google, GitHub)
+- SSO (Single Sign-On) testing
 
-**Testing Approach**:
-```typescript
-// Example: Button component test
-describe('Button', () => {
-  it('renders with text', () => {
-    render(<Button>Click me</Button>);
-    expect(screen.getByRole('button', { name: 'Click me' })).toBeInTheDocument();
-  });
-
-  it('calls onClick when clicked', async () => {
-    const handleClick = jest.fn();
-    const user = userEvent.setup();
-
-    render(<Button onClick={handleClick}>Click me</Button>);
-    await user.click(screen.getByRole('button'));
-
-    expect(handleClick).toHaveBeenCalledTimes(1);
-  });
-
-  it('is disabled when disabled prop is true', () => {
-    render(<Button disabled>Click me</Button>);
-    expect(screen.getByRole('button')).toBeDisabled();
-  });
-});
-```
-
-**Coverage Targets**:
-- **Lines**: 90%+ (simple logic, easy to cover)
-- **Branches**: 80%+ (conditional rendering)
-- **Functions**: 100% (event handlers)
-
-**Test Count**: 3-5 tests per component (render, interactions, variants).
+**Complexity:** **Medium** - Auth flows are critical but straightforward to test with API-first approach
 
 ---
 
-### Composite Components (Complex)
+### Agent Execution Testing
 
-**Definition**: Components that compose other components, manage state, handle logic.
+**Table Stakes:**
+- Agent spawn workflow (create agent, verify in registry)
+- Agent chat interaction (send message, receive response)
+- Streaming response validation (chunks arrive in order)
+- Agent execution history (verify logged in DB)
+- Agent maturity enforcement (STUDENT/INTERN/SUPERVISED/AUTONOMOUS)
 
-**Examples**: Form, Modal, Table, List, Chart.
+**Differentiators:**
+- Concurrent agent execution stress test (spawn 10 agents simultaneously)
+- Streaming interruption handling (network drop, reconnection)
+- Agent timeout handling (long-running operations)
+- Agent cancellation (stop execution mid-stream)
+- Agent context switching (switch between agents, verify state isolation)
 
-**Testing Approach**:
-```typescript
-// Example: Form component test
-describe('LoginForm', () => {
-  it('renders form fields', () => {
-    render(<LoginForm onSubmit={jest.fn()} />);
-    expect(screen.getByLabelText('Email')).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toBeInTheDocument();
-  });
-
-  it('shows validation errors for empty fields', async () => {
-    const user = userEvent.setup();
-    render(<LoginForm onSubmit={jest.fn()} />);
-
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
-
-    expect(await screen.findByText('Email is required')).toBeInTheDocument();
-    expect(await screen.findByText('Password is required')).toBeInTheDocument();
-  });
-
-  it('submits form with valid data', async () => {
-    const handleSubmit = jest.fn();
-    const user = userEvent.setup();
-
-    render(<LoginForm onSubmit={handleSubmit} />);
-
-    await user.type(screen.getByLabelText('Email'), 'test@example.com');
-    await user.type(screen.getByLabelText('Password'), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
-
-    await waitFor(() => {
-      expect(handleSubmit).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-      });
-    });
-  });
-});
-```
-
-**Coverage Targets**:
-- **Lines**: 85%+ (complex logic)
-- **Branches**: 75%+ (multiple code paths)
-- **Functions**: 90%+ (lifecycle methods, handlers)
-
-**Test Count**: 5-10 tests per component (render, validation, submission, error states, edge cases).
+**Complexity:** **High** - Async operations, WebSocket streaming, concurrent executions
 
 ---
 
-### Container Components (Smart)
+### Canvas Presentation Testing
 
-**Definition**: Components that connect to state management (Redux/Context), fetch data, dispatch actions.
+**Table Stakes:**
+- All 7 canvas types (charts, sheets, forms, docs, email, terminal, coding)
+- Canvas rendering validation (verify DOM structure)
+- Canvas interactivity (form submission, chart interactions)
+- Canvas close workflow (verify cleanup)
+- Canvas state API (`window.atom.canvas.getState()`)
 
-**Examples**: AgentList, Dashboard, CanvasViewer.
+**Differentiators:**
+- Rapid canvas present/close stress test (memory leak detection)
+- Canvas accessibility testing (ARIA tree validation)
+- Visual regression for all canvas types (Percy screenshots)
+- Canvas streaming updates (real-time data changes)
+- Canvas error handling (malformed data, missing fields)
 
-**Testing Approach**:
-```typescript
-// Example: Container component with Redux
-import { renderWithProviders } from '@/tests/utils';
-import { store } from '@/store';
-
-describe('AgentList', () => {
-  it('renders loading state initially', () => {
-    renderWithProviders(<AgentList />);
-    expect(screen.getByText('Loading agents...')).toBeInTheDocument();
-  });
-
-  it('renders agents after fetching', async () => {
-    // Mock API response
-    jest.spyOn(api, 'getAgents').mockResolvedValue({
-      agents: [{ id: '1', name: 'Agent 1' }],
-    });
-
-    renderWithProviders(<AgentList />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Agent 1')).toBeInTheDocument();
-    });
-  });
-
-  it('dispatches deleteAgent action when delete clicked', async () => {
-    const user = userEvent.setup();
-    const mockStore = store;
-
-    renderWithProviders(<AgentList />, { store: mockStore });
-
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
-
-    const actions = mockStore.getActions();
-    expect(actions).toContainEqual(deleteAgent('1'));
-  });
-});
-```
-
-**Coverage Targets**:
-- **Lines**: 80%+ (integration logic)
-- **Branches**: 70%+ (async states)
-- **Functions**: 85%+ (thunks, selectors)
-
-**Test Count**: 8-15 tests per component (render, loading, success, error, interactions, state updates).
+**Complexity:** **High** - 7 canvas types, dynamic content, visual validation
 
 ---
 
-## State Management Testing
+### Workflow & Skill Automation Testing
 
-### Redux/Reducer Tests
+**Table Stakes:**
+- Skill marketplace browsing
+- Skill installation (verify in skill registry)
+- Skill execution with parameters
+- Skill output validation
+- Skill uninstallation
 
-**What to Test**:
-- Reducer purity (same input → same output)
-- State immutability (no mutations)
-- Action handling (all action types)
-- Initial state
-- Selector correctness
+**Differentiators:**
+- Skill dependency resolution (install skills with dependencies)
+- Skill version conflict detection
+- Skill composition (DAG workflows with multiple skills)
+- Skill execution under stress (concurrent skill execution)
+- Dynamic skill loading (hot-reload, watchdog detection)
 
-**Testing Approach**:
-```typescript
-describe('agents reducer', () => {
-  it('returns initial state', () => {
-    expect(reducer(undefined, { type: 'unknown' })).toEqual(initialState);
-  });
-
-  it('handles fetchAgents.pending', () => {
-    const state = reducer(initialState, fetchAgents.pending());
-    expect(state.loading).toBe(true);
-  });
-
-  it('handles fetchAgents.fulfilled', () => {
-    const agents = [{ id: '1', name: 'Agent 1' }];
-    const state = reducer(initialState, fetchAgents.fulfilled(agents));
-
-    expect(state.loading).toBe(false);
-    expect(state.agents).toEqual(agents);
-  });
-
-  it('handles deleteAgent', () => {
-    const stateWithAgents = {
-      ...initialState,
-      agents: [{ id: '1', name: 'Agent 1' }],
-    };
-
-    const state = reducer(stateWithAgents, deleteAgent('1'));
-    expect(state.agents).toEqual([]);
-  });
-});
-```
-
-**Complexity**: **Medium** - Reducers are pure functions, straightforward to test.
+**Complexity:** **High** - Dynamic skill system, dependency management, composition
 
 ---
 
-### Context Provider Tests
+### Stress Testing & Bug Discovery
 
-**What to Test**:
-- Context value correctness
-- Consumer receives updates
-- Provider renders children
-- Default values
+**Table Stakes:**
+- Concurrent agent executions (spawn 5-10 agents simultaneously)
+- Rapid canvas present/close cycles (100 iterations, memory leak check)
+- WebSocket connection churn (connect/disconnect rapidly)
+- Form submission spam (rapid submits, debounce validation)
 
-**Testing Approach**:
-```typescript
-describe('AuthContext', () => {
-  it('provides default auth state', () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    });
+**Differentiators:**
+- Memory leak detection (heap snapshots before/after operations)
+- Race condition detection (concurrent writes to same resource)
+- Resource exhaustion testing (database connection pool, file handles)
+- Network failure simulation (packet loss, high latency, offline mode)
+- Performance regression testing (Lighthouse CI, page load budgets)
 
-    expect(result.current.isAuthenticated).toBe(false);
-    expect(result.current.user).toBeNull();
-  });
-
-  it('updates auth state on login', async () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    });
-
-    await act(async () => {
-      await result.current.login('user@example.com', 'password');
-    });
-
-    expect(result.current.isAuthenticated).toBe(true);
-    expect(result.current.user).toEqual({
-      email: 'user@example.com',
-    });
-  });
-
-  it('clears auth state on logout', async () => {
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    });
-
-    await act(async () => {
-      await result.current.login('user@example.com', 'password');
-      await result.current.logout();
-    });
-
-    expect(result.current.isAuthenticated).toBe(false);
-    expect(result.current.user).toBeNull();
-  });
-});
-```
-
-**Complexity**: **Medium** - Requires renderHook wrapper for Context providers.
+**Complexity:** **High** - Requires specialized tooling, complex test scenarios, resource monitoring
 
 ---
 
-### Custom Hook Tests
-
-**What to Test**:
-- Hook returns correct values
-- Hook updates on dependency changes
-- Hook cleanup on unmount
-- Error handling
-
-**Testing Approach**:
-```typescript
-import { renderHook, act } from '@testing-library/react';
-
-describe('useWebSocket', () => {
-  it('connects to WebSocket on mount', () => {
-    const { result } = renderHook(() => useWebSocket('ws://localhost:3000'));
-
-    expect(result.current.connected).toBe(true);
-  });
-
-  it('sends messages', () => {
-    const { result } = renderHook(() => useWebSocket('ws://localhost:3000'));
-
-    act(() => {
-      result.current.send({ type: 'message', data: 'test' });
-    });
-
-    expect(WebSocket).toHaveBeenCalledWith('ws://localhost:3000');
-  });
-
-  it('disconnects on unmount', () => {
-    const { unmount } = renderHook(() => useWebSocket('ws://localhost:3000'));
-
-    unmount();
-
-    expect(mockWebSocket.close).toHaveBeenCalled();
-  });
-});
-```
-
-**Complexity**: **Medium** - Requires renderHook, act for state updates.
-
----
-
-## API Client Testing
-
-### MSW (Mock Service Worker) Setup
-
-**What to Test**:
-- Request serialization (body matches API schema)
-- Response deserialization (response matches expected types)
-- Error handling (401, 500, network errors, timeouts)
-- Retry logic
-- Loading states
-
-**Testing Approach**:
-```typescript
-import { rest } from 'msw';
-import { setupServer } from 'msw/node';
-
-const server = setupServer(
-  rest.get('/api/agents', (req, res, ctx) => {
-    return res(ctx.json({ agents: [] }));
-  }),
-
-  rest.post('/api/agents', (req, res, ctx) => {
-    return res(ctx.status(201), ctx.json({ id: '1', ...req.body }));
-  }),
-
-  rest.get('/api/agents/:id', (req, res, ctx) => {
-    const { id } = req.params;
-    if (id === '404') {
-      return res(ctx.status(404), ctx.json({ error: 'Agent not found' }));
-    }
-    return res(ctx.json({ id, name: 'Agent 1' }));
-  })
-);
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
-
-describe('agent API', () => {
-  it('fetches agents successfully', async () => {
-    const { result } = renderHook(() => useAgents());
-
-    await waitFor(() => expect(result.current.agents).toEqual([]));
-  });
-
-  it('handles 404 error', async () => {
-    const { result } = renderHook(() => useAgent('404'));
-
-    await waitFor(() => {
-      expect(result.current.error).toBe('Agent not found');
-    });
-  });
-
-  it('retries on failure', async () => {
-    let attemptCount = 0;
-    server.use(
-      rest.get('/api/agents', (req, res, ctx) => {
-        attemptCount++;
-        if (attemptCount < 3) {
-          return res(ctx.status(500));
-        }
-        return res(ctx.json({ agents: [] }));
-      })
-    );
-
-    const { result } = renderHook(() => useAgents());
-
-    await waitFor(() => expect(result.current.agents).toEqual([]));
-    expect(attemptCount).toBe(3);
-  });
-});
-```
-
-**Complexity**: **Medium** - Requires MSW setup, async handling, waitFor.
-
----
-
-### Axios Interceptor Tests
-
-**What to Test**:
-- Request interceptor modifies headers (auth tokens)
-- Response interceptor transforms data
-- Error interceptor handles errors globally
-- Interceptor order
-
-**Testing Approach**:
-```typescript
-describe('axios interceptors', () => {
-  it('adds auth token to requests', async () => {
-    const mockToken = 'test-token';
-    localStorage.setItem('token', mockToken);
-
-    const response = await api.get('/protected');
-
-    expect(api.defaults.headers.common.Authorization).toBe(`Bearer ${mockToken}`);
-  });
-
-  it('handles 401 errors globally', async () => {
-    const mockRefreshToken = jest.fn().mockResolvedValue('new-token');
-
-    server.use(
-      rest.get('/api/protected', (req, res, ctx) => {
-        return res(ctx.status(401));
-      })
-    );
-
-    await api.get('/protected');
-
-    expect(mockRefreshToken).toHaveBeenCalled();
-  });
-
-  it('transforms response data', async () => {
-    server.use(
-      rest.get('/api/agents', (req, res, ctx) => {
-        return res(ctx.json({ data: { agents: [] } }));
-      })
-    );
-
-    const response = await api.get('/agents');
-
-    expect(response.data).toEqual({ agents: [] });
-  });
-});
-```
-
-**Complexity**: **Medium** - Requires interceptor setup, global error handling.
-
----
-
-## Form Validation Testing
-
-**What to Test**:
-- Required field validation
-- Format validation (email, password strength)
-- Error message display
-- Successful submission
-- Real-time vs on-blur validation
-
-**Testing Approach**:
-```typescript
-describe('LoginForm validation', () => {
-  it('shows error for empty email on blur', async () => {
-    const user = userEvent.setup();
-    render(<LoginForm />);
-
-    const emailInput = screen.getByLabelText('Email');
-    await user.click(emailInput);
-    await user.tab(); // Blur
-
-    expect(await screen.findByText('Email is required')).toBeInTheDocument();
-  });
-
-  it('shows error for invalid email format', async () => {
-    const user = userEvent.setup();
-    render(<LoginForm />);
-
-    await user.type(screen.getByLabelText('Email'), 'invalid-email');
-    await user.tab();
-
-    expect(await screen.findByText('Invalid email format')).toBeInTheDocument();
-  });
-
-  it('shows error for weak password', async () => {
-    const user = userEvent.setup();
-    render(<LoginForm />);
-
-    await user.type(screen.getByLabelText('Password'), '123');
-    await user.tab();
-
-    expect(await screen.findByText('Password must be at least 8 characters')).toBeInTheDocument();
-  });
-
-  it('submits form with valid data', async () => {
-    const handleSubmit = jest.fn();
-    const user = userEvent.setup();
-
-    render(<LoginForm onSubmit={handleSubmit} />);
-
-    await user.type(screen.getByLabelText('Email'), 'test@example.com');
-    await user.type(screen.getByLabelText('Password'), 'password123');
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
-
-    await waitFor(() => {
-      expect(handleSubmit).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-      });
-    });
-  });
-});
-```
-
-**Complexity**: **Low** - Straightforward user interaction simulation.
-
----
-
-## Error Boundary Testing
-
-**What to Test**:
-- Error boundary catches child component errors
-- Fallback UI displays correctly
-- Error logging works
-- Production vs development behavior
-
-**Testing Approach**:
-```typescript
-describe('ErrorBoundary', () => {
-  // Mock console.error to avoid test noise
-  beforeEach(() => {
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-  });
-
-  it('renders fallback UI when error occurs', () => {
-    const ThrowError = () => {
-      throw new Error('Test error');
-    };
-
-    render(
-      <ErrorBoundary fallback={<div>Something went wrong</div>}>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-  });
-
-  it('logs error to error logging service', () => {
-    const mockLogError = jest.spyOn(logger, 'logError');
-
-    const ThrowError = () => {
-      throw new Error('Test error');
-    };
-
-    render(
-      <ErrorBoundary fallback={<div>Something went wrong</div>}>
-        <ThrowError />
-      </ErrorBoundary>
-    );
-
-    expect(mockLogError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Test error',
-      })
-    );
-  });
-
-  it('resets error state after retry', async () => {
-    const ThrowError = ({ shouldThrow }) => {
-      if (shouldThrow) throw new Error('Test error');
-      return <div>No error</div>;
-    };
-
-    const { rerender } = render(
-      <ErrorBoundary fallback={<div>Something went wrong</div>}>
-        <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-
-    // Reset and retry
-    rerender(
-      <ErrorBoundary fallback={<div>Something went wrong</div>}>
-        <ThrowError shouldThrow={false} />
-      </ErrorBoundary>
-    );
-
-    expect(screen.getByText('No error')).toBeInTheDocument();
-  });
-});
-```
-
-**Complexity**: **Low** - Component throws error, boundary catches it.
-
----
-
-## Routing Testing
-
-**What to Test**:
-- Navigation between pages
-- Route parameters passed correctly
-- Query string parsing
-- Deep links work correctly
-- 404 pages for unknown routes
-
-**Testing Approach (Next.js)**:
-```typescript
-import { useRouter } from 'next/router';
-
-jest.mock('next/router');
-
-describe('AgentDetailPage', () => {
-  it('renders agent from route param', () => {
-    (useRouter as jest.Mock).mockReturnValue({
-      query: { id: 'agent-1' },
-      push: jest.fn(),
-      pathname: '/agents/[id]',
-    });
-
-    render(<AgentDetailPage />);
-
-    expect(screen.getByText('Agent 1')).toBeInTheDocument();
-  });
-
-  it('navigates to agent list on back click', async () => {
-    const mockPush = jest.fn();
-    (useRouter as jest.Mock).mockReturnValue({
-      query: { id: 'agent-1' },
-      push: mockPush,
-    });
-
-    const user = userEvent.setup();
-    render(<AgentDetailPage />);
-
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-
-    expect(mockPush).toHaveBeenCalledWith('/agents');
-  });
-});
-```
-
-**Testing Approach (React Router)**:
-```typescript
-import { MemoryRouter } from 'react-router-dom';
-
-describe('AgentDetailPage', () => {
-  it('renders agent from route param', () => {
-    render(
-      <MemoryRouter initialEntries={['/agents/agent-1']}>
-        <AgentDetailPage />
-      </MemoryRouter>
-    );
-
-    expect(screen.getByText('Agent 1')).toBeInTheDocument();
-  });
-
-  it('navigates to agent list on back click', async () => {
-    const user = userEvent.setup();
-
-    render(
-      <MemoryRouter initialEntries={['/agents/agent-1']}>
-        <AgentDetailPage />
-      </MemoryRouter>
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-
-    expect(screen.getByText('Agent List')).toBeInTheDocument();
-  });
-
-  it('shows 404 for unknown route', () => {
-    render(
-      <MemoryRouter initialEntries={['/unknown-route']}>
-        <Routes>
-          <Route path="/agents/:id" element={<AgentDetailPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    expect(screen.getByText('Page not found')).toBeInTheDocument();
-  });
-});
-```
-
-**Complexity**: **Low** - Router mocking is straightforward.
-
----
-
-## Accessibility Testing
-
-**What to Test**:
-- ARIA roles and attributes
-- Keyboard navigation
-- Screen reader compatibility
-- Color contrast (automated)
-- Focus management
-
-**Testing Approach (jest-axe)**:
-```typescript
-import { axe, toHaveNoViolations } from 'jest-axe';
-
-expect.extend(toHaveNoViolations);
-
-describe('Button accessibility', () => {
-  it('has no accessibility violations', async () => {
-    const { container } = render(<Button>Click me</Button>);
-
-    const results = await axe(container);
-    expect(results).toHaveNoViolations();
-  });
-});
-
-describe('Form accessibility', () => {
-  it('has proper labels for all inputs', () => {
-    render(<LoginForm />);
-
-    expect(screen.getByLabelText('Email')).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toBeInTheDocument();
-  });
-
-  it('can be submitted with keyboard', async () => {
-    const handleSubmit = jest.fn();
-    const user = userEvent.setup();
-
-    render(<LoginForm onSubmit={handleSubmit} />);
-
-    await user.tab(); // Focus email
-    await user.keyboard('test@example.com');
-    await user.tab(); // Focus password
-    await user.keyboard('password123');
-    await user.keyboard('{Enter}'); // Submit
-
-    await waitFor(() => {
-      expect(handleSubmit).toHaveBeenCalled();
-    });
-  });
-});
-```
-
-**Complexity**: **Low** - jest-axe is straightforward, automated checks.
-
----
-
-## Testing Pyramid Balance
-
-**Recommended Distribution for 80% Coverage**:
-
-```
-▲
-│ E2E Tests (10%) - 5-10 critical user flows
-├────────────────────────────────────────────
-│ Integration Tests (20%) - Component + State + API
-├────────────────────────────────────────────
-│ Unit Tests (70%) - Components, hooks, utils, reducers
-└────────────────────────────────────────────
-```
-
-### Unit Tests (70%) - Target: <100ms runtime
-
-**Scope**: Individual functions, components, hooks in isolation.
-
-**What to Test**:
-- Pure functions (utils, formatters, validators)
-- Component rendering with props
-- Reducer logic
-- Custom hooks
-- Helper functions
-
-**Test Count**: 500-1000 tests for large app.
-
----
-
-### Integration Tests (20%) - Target: <5s runtime
-
-**Scope**: Multiple modules working together (component + state + API).
-
-**What to Test**:
-- Component + Redux/Context
-- Component + API calls (MSW)
-- Component + Routing
-- Form submission + API
-- Multi-step workflows
-
-**Test Count**: 100-200 tests for large app.
-
----
-
-### E2E Tests (10%) - Target: <15min runtime
-
-**Scope**: Complete user flows from UI to backend (real server).
-
-**What to Test**:
-- Login/logout flow
-- Critical business paths (checkout, agent creation)
-- Cross-page workflows
-- Third-party integrations (OAuth, payments)
-
-**Test Count**: 5-10 tests for large app.
-
----
-
-## Coverage Targets by Category
-
-| Category | Target Lines | Target Branches | Target Functions | Rationale |
-|----------|--------------|-----------------|------------------|-----------|
-| **Leaf Components** | 90%+ | 80%+ | 100% | Simple logic, easy to cover |
-| **Composite Components** | 85%+ | 75%+ | 90%+ | More complex, but still straightforward |
-| **Container Components** | 80%+ | 70%+ | 85%+ | Integration logic, harder to test |
-| **State Management** | 90%+ | 85%+ | 95%+ | Pure functions, critical to app behavior |
-| **API Layer** | 85%+ | 80%+ | 90%+ | Error handling, edge cases |
-| **Utilities/Helpers** | 95%+ | 90%+ | 100% | Pure functions, easy to test |
-| **Hooks** | 85%+ | 80%+ | 90%+ | Encapsulated logic, moderate complexity |
-| **Forms** | 85%+ | 75%+ | 85%+ | Validation logic, error paths |
-| **Routing** | 75%+ | 70%+ | 80%+ | Mostly navigation, some edge cases |
-
-**Overall Target**: 80% lines, 75% branches, 85% functions.
-
----
-
-## Complexity Assessment
-
-| Area | Complexity | Why |
-|------|------------|-----|
-| **Leaf Component Tests** | **Low** | Simple render/assert patterns, well-documented |
-| **Composite Component Tests** | **Medium** | Component composition, event propagation, data flow |
-| **State Management Tests** | **Medium** | Reducer purity, async actions, selector consistency |
-| **API Client Tests** | **Medium** | MSW setup, async handling, error scenarios |
-| **Form Validation Tests** | **Low** | Straightforward validation rules, user input simulation |
-| **Error Boundary Tests** | **Low** | Component throws error, boundary catches it |
-| **Routing Tests** | **Low** | Router mocking, navigation assertions |
-| **Hook Tests** | **Medium** | renderHook, act for state updates, cleanup |
-| **Accessibility Tests** | **Low** | jest-axe automated checks, keyboard nav |
-| **Property-Based Tests** | **High** | FastCheck learning curve, invariant identification, generator design |
-| **Visual Regression Tests** | **Medium** | Screenshot infrastructure, baseline management |
-| **Mutation Tests** | **Low** | StrykerJS setup easy, but requires good baseline tests |
+### Cross-Platform Test Reuse
+
+**Table Stakes:**
+- Shared workflow definitions (auth, agent execution, canvas)
+- Platform-specific adapters (web: Playwright, mobile: Detox/API, desktop: Tauri)
+- Consistent test IDs (web: `data-testid`, mobile: `testID`, desktop: `data-testid`)
+- Cross-platform feature parity tests
+
+**Differentiators:**
+- Single test file, multiple platforms (write once, run everywhere)
+- Platform-specific conditional logic (skip mobile-only features on web)
+- Cross-platform visual regression (same UI on all platforms)
+- Unified test reporting (aggregate web/mobile/desktop results)
+
+**Complexity:** **High** - Abstraction layer, platform differences, test synchronization
 
 ---
 
 ## Feature Dependencies
 
 ```
-Leaf Component Tests → Composite Component Tests (compose leaf components)
-Composite Component Tests → Container Component Tests (connect to state)
-API Client Tests → Integration Tests (component + API)
-State Management Tests → Container Component Tests (need state)
-Form Validation Tests → Integration Tests (form + API)
-Hook Tests → Component Tests (components use hooks)
-Error Boundary Tests → Integration Tests (error handling in flows)
-Routing Tests → E2E Tests (navigation flows)
-Property-Based Tests → State Management Tests (invariants)
+Authentication Testing
+    └──requires──> API-First Auth Fixtures
+                    └──requires──> Database Isolation
+
+Agent Execution Testing
+    └──requires──> Authentication Testing
+    └──requires──> WebSocket/Streaming Infrastructure
+    └──enhances──> Stress Testing (concurrent executions)
+
+Canvas Presentation Testing
+    └──requires──> Agent Execution Testing
+    └──enhances──> Visual Regression Testing
+    └──enhances──> Accessibility Testing
+
+Workflow & Skill Automation
+    └──requires──> Authentication Testing
+    └──requires──> Canvas Presentation Testing (skills present canvases)
+    └──enhances──> Stress Testing (concurrent skill execution)
+
+Stress Testing & Bug Discovery
+    └──requires──> Agent Execution Testing (baseline)
+    └──requires──> Canvas Presentation Testing (baseline)
+    └──requires──> Workflow & Skill Automation (baseline)
+    └──enhances──> All testing categories (finds race conditions, memory leaks)
+
+Cross-Platform Test Reuse
+    └──enhances──> All testing categories (write once, run everywhere)
+    └──requires──> Consistent Test IDs (data-testid/testID)
+
+Visual Regression Testing
+    └──requires──> Canvas Presentation Testing
+    └──requires──> Authentication Testing
+    └──enhances──> Cross-Platform Parity (consistent UI)
+
+Network Simulation Testing
+    └──requires──> Agent Execution Testing (WebSocket reconnection)
+    └──requires──> Canvas Presentation Testing (offline behavior)
+    └──enhances──> Stress Testing (failure scenarios)
 ```
 
----
+### Dependency Notes
 
-## MVP Recommendation for Consistent 80%+ Coverage
+- **Authentication Testing requires API-First Auth Fixtures:** UI login is too slow (10-60s) for E2E tests, need to set JWT token directly in localStorage for fast authentication
+- **Agent Execution Testing requires Authentication Testing:** Agent spawn requires authenticated user session
+- **Agent Execution Testing requires WebSocket/Streaming Infrastructure:** Streaming responses need WebSocket connection management, reconnection logic
+- **Canvas Presentation Testing requires Agent Execution Testing:** Canvas is presented by agent, need agent spawn first
+- **Stress Testing requires all baseline categories:** Stress tests build on happy path tests, add concurrent executions, rapid iterations
+- **Cross-Platform Test Reuse enhances all categories:** Shared workflow definitions reduce duplication, ensure parity
+- **Visual Regression Testing requires Canvas & Authentication:** Need authenticated user + canvas rendered to capture screenshots
 
-**Prioritize for v5.2 (Gap Closure):**
+## MVP Definition
 
-### Phase 1: Foundation (Week 1)
-- **Fix Failing Tests**: Resolve 21 failing frontend tests (40% → 100% pass rate)
-- **Leaf Component Coverage**: Add tests for all leaf components (Button, Input, Card, Badge, Icon)
-- **Utility Function Coverage**: Add tests for all utils/helpers (validators, formatters)
-- **Target**: 90%+ coverage for utilities and leaf components
+### Launch With (v7.0 - Cross-Platform E2E Testing & Bug Discovery)
 
-### Phase 2: Component Integration (Week 2-3)
-- **Composite Component Tests**: Add tests for all composite components (forms, modals, tables)
-- **Container Component Tests**: Add tests for all container components (AgentList, Dashboard, CanvasViewer)
-- **Hook Tests**: Add tests for all custom hooks (useCanvasState, useWebSocket, useAuth)
-- **Target**: 85%+ coverage for components and hooks
+Minimum viable E2E test suite for comprehensive bug discovery across platforms.
 
-### Phase 3: State & API (Week 4-5)
-- **State Management Tests**: Add tests for Redux reducers, Context providers, selectors
-- **API Client Tests**: Add MSW tests for all API endpoints (success, error, retry)
-- **Form Validation Tests**: Add tests for all forms (validation, submission, error handling)
-- **Target**: 90%+ coverage for state management, 85%+ for API layer
+- [ ] **Authentication Flow Tests** - Core foundation, all other tests depend on auth
+- [ ] **Agent Execution Critical Path** - Core product feature, must work end-to-end
+- [ ] **Canvas Presentation Tests (7 types)** - Core differentiator, complex UI components
+- [ ] **Test Isolation & Reproducibility** - Parallel execution, speed, reliability
+- [ ] **Failure Artifacts (Screenshots/Videos)** - Debugging failed tests
+- [ ] **API-First Authentication** - Speed (100-500ms vs 10-60s UI login)
+- [ ] **Database Isolation** - Parallel execution without conflicts
+- [ ] **Cross-Platform Workflow Parity (Web + Mobile API)** - Verify workflows work on web and mobile (API-level)
+- [ ] **Smoke Tests** - Verify test infrastructure works
+- [ ] **Flaky Test Detection** - Track test outcomes, flag unreliable tests
 
-### Phase 4: Edge Cases & Integration (Week 6)
-- **Error Boundary Tests**: Add tests for all error boundaries
-- **Routing Tests**: Add tests for all navigation flows
-- **Accessibility Tests**: Add jest-axe tests for all components
-- **Integration Tests**: Add component + state + API integration tests
-- **Target**: 80%+ overall coverage, consistent across all modules
+### Add After Validation (v7.1 - Advanced Bug Discovery)
 
-### Phase 5: Advanced Testing (Week 7-8) - Differentiators
-- **Property-Based Tests**: Add FastCheck tests for state machines, reducers, data transformations
-- **Contract Tests**: Add OpenAPI schema validation tests for all endpoints
-- **Mutation Tests**: Run StrykerJS to identify weak tests
-- **Target**: 20-30 property tests, 90%+ mutation score
+Features to add once core E2E is stable and passing.
 
----
+- [ ] **Stress Testing (Concurrent Executions)** - Trigger: E2E suite passing consistently, need to find race conditions
+- [ ] **Network Simulation Testing** - Trigger: Users reporting network-related bugs
+- [ ] **Visual Regression Testing (Percy)** - Trigger: UI changes causing unintended regressions
+- [ ] **Real User Interaction Simulation** - Trigger: E2E passing but users reporting UX bugs
+- [ ] **Error Boundary & Edge Case Testing** - Trigger: Production errors from unhandled edge cases
+- [ ] **WebSocket/Streaming Stress Tests** - Trigger: Streaming issues in production (dropouts, ordering)
 
-## Defer to Future Releases
+### Future Consideration (v8.0 - Full Cross-Platform Coverage)
 
-**Why defer**: These require additional infrastructure or are lower priority for achieving 80% coverage.
+Features to defer until E2E infrastructure is mature and stable.
 
-- **Visual Regression Testing** - Requires screenshot infrastructure, baseline management
-- **Performance Regression Testing** - Requires performance budgets, Lighthouse CI setup
-- **Cross-Browser Testing** - Requires BrowserStack/Playwright, higher maintenance
-- **E2E Testing** - Requires test environment setup, slow feedback loop (5-10 critical flows only)
-- **Memory Leak Testing** - Requires specialized tooling, complex setup
+- [ ] **Cross-Platform Test Reuse Framework** - Defer: Requires abstraction layer, platform-specific adapters
+- [ ] **Mobile Detox E2E (Full UI)** - Defer: BLOCKED by expo-dev-client requirement (15min CI overhead)
+- [ ] **Desktop Tauri Integration Tests** - Defer: Requires Tauri test infrastructure, GUI context in CI
+- [ ] **Performance Regression Testing (Lighthouse CI)** - Defer: Requires performance budgets, monitoring setup
+- [ ] **Memory Leak Detection (CDP)** - Defer: Requires specialized tooling, complex test scenarios
+- [ ] **Form Validation & Submission Testing** - Defer: Less critical than agent/canvas workflows
+- [ ] **Deep Link Testing** - Defer: Edge case, less critical than core workflows
 
----
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Authentication Flow Tests | HIGH | Medium | **P1** |
+| Agent Execution Critical Path | HIGH | Medium | **P1** |
+| Canvas Presentation Tests (7 types) | HIGH | High | **P1** |
+| Test Isolation & Reproducibility | HIGH | Medium | **P1** |
+| API-First Authentication | HIGH | Low | **P1** |
+| Database Isolation | HIGH | Medium | **P1** |
+| Failure Artifacts (Screenshots/Videos) | MEDIUM | Low | **P1** |
+| Cross-Platform Workflow Parity (Web + Mobile API) | HIGH | Medium | **P1** |
+| Smoke Tests | MEDIUM | Low | **P1** |
+| Flaky Test Detection | MEDIUM | Medium | **P1** |
+| Stress Testing (Concurrent Executions) | HIGH | High | **P2** |
+| Network Simulation Testing | MEDIUM | Medium | **P2** |
+| Visual Regression Testing (Percy) | MEDIUM | Medium | **P2** |
+| Real User Interaction Simulation | MEDIUM | Medium | **P2** |
+| Error Boundary & Edge Case Testing | HIGH | Medium | **P2** |
+| WebSocket/Streaming Stress Tests | MEDIUM | High | **P2** |
+| Cross-Platform Test Reuse Framework | HIGH | High | **P3** |
+| Mobile Detox E2E (Full UI) | MEDIUM | High | **P3** |
+| Desktop Tauri Integration Tests | MEDIUM | High | **P3** |
+| Performance Regression Testing | MEDIUM | Medium | **P3** |
+| Memory Leak Detection | MEDIUM | High | **P3** |
+| Form Validation & Submission Testing | LOW | Medium | **P3** |
+| Deep Link Testing | LOW | Medium | **P3** |
+
+**Priority key:**
+- **P1: Must have for v7.0 launch** - Core E2E testing for critical workflows
+- **P2: Should have for v7.1** - Advanced bug discovery techniques
+- **P3: Nice to have for v8.0+** - Full cross-platform coverage, specialized testing
+
+## Competitor Feature Analysis
+
+| Feature | Selenium/Cypress | Playwright | Detox | Our Approach (Atom) |
+|---------|-----------------|------------|-------|---------------------|
+| **Cross-browser testing** | Excellent (all browsers) | Excellent (Chrome, Firefox, Safari, Edge) | N/A (mobile only) | Playwright for web (Chromium v3.1, expand to Firefox/Safari v3.2) |
+| **Mobile testing** | Appium (complex setup) | N/A | Excellent (React Native) | API-level tests v7.0 (Detox BLOCKED, defer to v8.0) |
+| **Desktop testing** | N/A | N/A | N/A | Tauri integration tests (defer to v8.0) |
+| **Parallel execution** | Yes (with Selenium Grid) | Yes (built-in) | Yes | pytest-xdist (web), separate workers (mobile API, desktop) |
+| **Auto-waiting** | No (manual waits) | Yes (auto-wait for elements) | Yes (auto-wait) | Playwright auto-waiting (web), explicit waits (mobile/desktop) |
+| **Visual regression** | Third-party (Applitools) | Third-party (Percy) | Third-party (Detox screenshot) | Percy integration (v7.1) |
+| **Network simulation** | Yes (manual) | Yes (`context.route()`) | Limited | Playwright network simulation (v7.1) |
+| **Stress testing** | Manual (load testing tools) | Manual (k6, Artillery) | Manual | Custom stress tests (v7.1) |
+| **Flaky test detection** | Manual | Manual | Manual | Custom FlakyTestTracker (v7.0) |
+| **Test isolation** | Manual setup | Manual setup | Manual setup | Database per worker, unique IDs (v7.0) |
+
+## Existing Atom E2E Infrastructure (v3.1)
+
+**Already Implemented:**
+- ✅ Playwright configuration (`playwright.config.ts`, `backend/tests/e2e_ui/playwright.config.ts`)
+- ✅ 30+ E2E tests (auth, agent execution, canvas, skills, governance, WebSocket streaming)
+- ✅ API-first authentication (`fixtures/auth_fixtures.py`, JWT token in localStorage)
+- ✅ Database isolation (`fixtures/database_fixtures.py`, worker-specific schemas)
+- ✅ Test data factory (`fixtures/test_data_factory.py`, Factory Boy pattern)
+- ✅ Page Object Model (`pages/page_objects.py`, `pages/cross_platform_objects.py`)
+- ✅ Smoke tests (`tests/test_smoke.py`, infrastructure validation)
+- ✅ Flaky test detection (`scripts/detect_flaky_tests.py`, `scripts/flaky_test_tracker.py`)
+- ✅ Quality gates (`scripts/quality_gate.py`, `scripts/pass_rate_validator.py`)
+- ✅ Visual regression (Percy) (`tests/visual/test_visual_regression.py`)
+- ✅ Cross-platform workflow tests (`tests/cross-platform/test_shared_workflows.py`, `tests/cross-platform/test_feature_parity.py`)
+- ✅ CI/CD integration (`.github/workflows/e2e-unified.yml`, parallel platform jobs)
+
+**Gaps for v7.0:**
+- ❌ Stress testing for bug discovery (concurrent executions, rapid iterations)
+- ❌ Network simulation testing (offline, slow 3G, packet loss)
+- ❌ Real user interaction simulation (realistic delays, keyboard navigation)
+- ❌ Error boundary & edge case testing (401, 500, timeouts, malformed responses)
+- ❌ WebSocket/Streaming stress tests (connection churn, reconnection logic)
+- ❌ Canvas accessibility testing (ARIA tree validation for all 7 canvas types)
+- ❌ Memory leak detection (heap snapshots, long-running sessions)
+- ❌ Performance regression testing (Lighthouse CI, page load budgets)
+- ❌ Mobile Detox E2E (BLOCKED by expo-dev-client requirement)
+- ❌ Desktop Tauri integration tests (GUI context required in CI)
+- ❌ Cross-platform test reuse framework (shared test logic, platform adapters)
 
 ## Sources
 
-### High Confidence (Official Documentation & Best Practices)
-- **[React Testing Library Documentation](https://testing-library.com/docs/react-testing-library/intro/)** - Authoritative component testing patterns
-- **[Jest Documentation](https://jestjs.io/docs/getting-started)** - Test runner configuration, mocking, async testing
-- **[MSW (Mock Service Worker)](https://mswjs.io/)** - API mocking for integration tests
-- **[fast-check Documentation](https://fast-check.dev/)** - Property-based testing for TypeScript/JavaScript
-- **[jest-axe Documentation](https://github.com/nickcolley/jest-axe)** - Accessibility testing for React
+### High Confidence (Official Documentation & Implementation)
 
-### Medium Confidence (Industry Best Practices - WebSearch)
-- **[React-Boilerplate测试体系](https://m.blog.csdn.net/gitblog_00249/article/details/151083249)** - 98% coverage standards (Feb 2026)
-- **[NextUI组件测试覆盖率提升](https://m.blog.csdn.net/gitblog_00056/article/details/152686313)** - From 70% to 95% coverage improvements
-- **[Vitest Component Testing Guide](https://cn.vitest.dev/guide/browser/component-testing)** - Modern error boundary testing patterns (Jan 2026)
-- **[React Error Boundary Testing Guide](https://m.blog.csdn.net/gitblog_00277/article/details/154894355)** - Error boundary testing with React Testing Library (Feb 2026)
-- **[Frontend Testing Anti-Patterns](https://www.selenium.dev/documentation/test_design/avoid_couple_to_impl/)** - Brittle selectors, implementation details testing
+- **[Playwright Python Documentation](https://playwright.dev/python/)** - Authoritative E2E testing patterns, auto-waiting, selectors
+- **[Atom E2E Testing Guide](/Users/rushiparikh/projects/atom/docs/E2E_TESTING_GUIDE.md)** - Comprehensive E2E setup, patterns, troubleshooting (March 7, 2026)
+- **[Atom v3.1 E2E Implementation](/Users/rushiparikh/projects/atom/backend/tests/e2e_ui/)** - 30+ production E2E tests, fixtures, page objects, flaky test detection
+- **[Percy Documentation](https://docs.percy.io/)** - Visual regression testing best practices
+- **[pytest-xdist Documentation](https://pytest-xdist.readthedocs.io/)** - Parallel test execution, worker isolation
+- **[Factory Boy Documentation](https://factoryboy.readthedocs.io/)** - Test data factory patterns
 
-### Medium Confidence (Codebase Analysis - Atom)
-- **Atom Frontend Test Infrastructure** - Jest + React Testing Library configured, 1,004+ tests passing
-- **Atom Frontend Coverage** - 89.84% overall coverage (but inconsistent across modules)
-- **Atom Property Tests** - FastCheck property tests (84 tests) for state machines, reducers, validation
-- **Atom MSW Setup** - Mock Service Worker configured for API mocking
-- **Atom Test Configuration** - `jest.config.js`, `tests/setup.ts`, test utilities
+### Medium Confidence (Codebase Analysis & Best Practices)
 
-### Low Confidence (Limited WebSearch Verification - Needs Validation)
-- **Cross-platform testing patterns** - Limited patterns for shared test suites across web/mobile/desktop
-- **Visual regression testing** - Tool fragmentation (Percy vs Chromatic), unclear industry standards
-- **Performance regression testing** - Lighthouse CI patterns still evolving
-- **Mutation testing adoption** - StrykerJS usage patterns not widely documented
+- **Atom E2E Test Suite** - 30+ tests covering auth, agent execution, canvas, skills, governance, WebSocket streaming
+- **Atom Flaky Test Detection** - Custom FlakyTestTracker, detect_flaky_tests.py, quality gates, pass rate validation
+- **Atom Cross-Platform Tests** - test_shared_workflows.py, test_feature_parity.py, cross_platform_objects.py
+- **Atom Visual Regression Tests** - Percy integration, 5 critical pages (dashboard, agent chat, canvas sheets/charts/forms)
+- **E2E Testing Anti-Patterns** - Brittle selectors, testing implementation details, shared state, hard-coded waits (from codebase analysis)
+
+### Low Confidence (Industry Best Practices - Needs Validation)
+
+- **Stress testing patterns for E2E** - Limited examples of stress testing in E2E suites (most use separate load testing tools)
+- **Network simulation in E2E** - Playwright `context.route()` documented, but production patterns not widely available
+- **Cross-platform test reuse frameworks** - Emerging pattern, few production examples of shared test logic across platforms
+- **Mobile Detox E2E best practices** - BLOCKED by expo-dev-client requirement, deferred to Phase 150+
+- **Memory leak detection in E2E** - Specialized tooling (Chrome DevTools Protocol), complex test scenarios
 
 ### Gaps Identified
-- **Specific FastCheck patterns for React** - Limited adoption, few production examples
-- **Component contract testing** - TypeScript-based contract validation patterns not well-documented
-- **Testing Next.js Server Components** - Emerging patterns for Next.js 13+ App Router
-- **Accessibility testing coverage targets** - Unclear industry standards for a11y coverage percentages
+
+- **Stress testing for E2E** - Need patterns for concurrent agent executions, rapid canvas iterations, WebSocket churn
+- **Network simulation in production E2E** - Need examples of offline, slow 3G, packet loss testing in real apps
+- **Cross-platform test reuse abstractions** - Need to design framework for shared workflow definitions, platform adapters
+- **Mobile API-level testing patterns** - Need to validate API-level approach vs Detox E2E for mobile workflows
+- **Performance budgets for E2E** - Need to define page load thresholds, interaction timing budgets for E2E tests
 
 **Next Research Phases:**
-- Phase-specific research needed for property-based test design (which invariants matter most)
-- Investigation into FastCheck generator strategies for complex UI state
-- Deep dive on Next.js Server Component testing patterns
-- Research on component contract testing with TypeScript
+- Phase-specific research needed for stress test design (concurrent execution patterns, resource exhaustion scenarios)
+- Investigation into network simulation libraries (Playwright `context.route()` vs dedicated tools)
+- Deep dive on cross-platform test reuse patterns (shared test logic, platform adapters, test ID conventions)
+- Research on Mobile API-level testing vs Detox E2E tradeoffs (speed, coverage, maintenance)
 
 ---
 
-*Feature research for: Atom v5.2 Frontend Testing Coverage Expansion*
-*Researched: March 3, 2026*
-*Confidence: HIGH (mix of official docs, industry best practices, codebase analysis)*
+*Feature research for: Atom v7.0 Cross-Platform E2E Testing & Bug Discovery*
+*Researched: March 23, 2026*
+*Confidence: HIGH (mix of official docs, existing implementation, codebase analysis, industry best practices)*

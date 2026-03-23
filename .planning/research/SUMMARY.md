@@ -1,301 +1,272 @@
-# Backend Testing Research Summary
+# Project Research Summary
 
-**Project:** Atom Backend 80% Coverage Initiative
-**Domain:** Backend Testing Coverage Expansion (Existing Python System)
-**Researched:** March 11, 2026
-**Confidence:** HIGH
+**Project:** Atom v7.0 - Cross-Platform E2E Testing & Bug Discovery
+**Domain:** Cross-Platform End-to-End Testing & Quality Assurance
+**Researched:** March 23, 2026
+**Confidence:** HIGH (Web/pytest: HIGH, Mobile/Desktop/Stress: MEDIUM)
 
 ## Executive Summary
 
-Atom has a comprehensive and production-ready backend test infrastructure for achieving 80% coverage. The current stack includes pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92, pytest-xdist 3.6, and extensive fixture infrastructure (50+ fixtures in conftest.py, 1,492 lines). However, a critical methodology gap exists: reported service-level coverage (74.6%) masks actual line coverage (8.50%), revealing a 71.5 percentage point gap between estimates and reality.
+Atom is an AI-powered business automation platform requiring comprehensive cross-platform E2E testing across web (Next.js/Playwright), mobile (React Native/Detox), and desktop (Tauri) with a focus on stress testing and automated bug discovery. **Key insight**: Build on existing v3.1 E2E infrastructure (30+ Playwright tests, Percy visual regression, pytest backend tests) rather than replacing it. Add mobile/desktop testing layers and stress testing infrastructure incrementally for cost-effective bug discovery.
 
-The recommended approach is **no new tools**—use the existing pytest + pytest-cov + Hypothesis + pytest-xdist stack with focused test execution and gap closure. Key risks include coverage estimation false positives (service-level vs line coverage), fixture scope leaks in parallel execution, over-mocking external dependencies, and coverage gaming through exclusions. Mitigation strategies include requiring actual coverage.py JSON measurements, using function-scoped fixtures with cleanup, testing behavior not implementation, and auditing `# pragma: no cover` exclusions.
+The recommended approach leverages **Playwright for web** (already configured with v3.1 E2E), **Detox for React Native mobile** (available but requires expo-dev-client setup), **Tauri's built-in testing for desktop**, and **k6 for API stress testing**. Integrate all with pytest for unified orchestration and Allure for comprehensive reporting. This combination provides excellent cross-platform coverage with minimal tooling complexity, building on Atom's existing investment in Playwright and pytest.
 
-**Critical insight:** The obstacle isn't tooling—it's methodology. Atom needs to shift from service-level coverage estimates to actual line coverage execution data, then systematically close the 71.5 percentage point gap through gap-driven test writing.
+**Critical risks**: Mobile Detox testing is blocked by expo-dev-client requirement (15min CI overhead), cross-platform test reuse requires abstraction layer complexity, and stress testing patterns for E2E are not well-documented. Mitigation strategy: Start with web E2E expansion (300+ tests), add mobile API-level tests instead of Detox for Phase 148, implement cross-platform orchestration with shared test data management, and defer full mobile Detox UI tests to Phase 150+ when infrastructure is ready.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Summary from STACK.md:** Atom's test infrastructure is optimal for 80% coverage. No new tools needed. The stack supports parallel test execution, property-based testing, coverage measurement with line+branch tracking, and comprehensive mocking infrastructure.
+**Summary from STACK.md**: Atom requires a layered testing approach building on existing v3.1 E2E infrastructure. Playwright is the foundation for web testing (already installed), with Detox for mobile (available), Tauri for desktop (built-in), and k6 for stress testing. pytest orchestrates all runners with Allure for unified reporting.
 
 **Core technologies:**
-- **pytest 7.4+** — Test runner with extensive plugin ecosystem and fixture-based design — industry standard for Python testing
-- **pytest-cov 4.1+** — Coverage measurement with JSON/HTML reporting — integrates seamlessly with pytest, uses coverage.py engine
-- **pytest-xdist 3.6+** — Parallel test execution with worker isolation — enables fast feedback, prevents test interference
-- **Hypothesis 6.92+** — Property-based testing for invariants — finds edge cases unit tests miss through strategy-based data generation
-- **pytest-asyncio 0.21+** — Async test support with auto mode — native asyncio support for FastAPI endpoints
-- **factory-boy 3.3+** — Test data generation with SQLAlchemy integration — reduces fixture boilerplate
-- **freezegun 1.4+** — Time mocking for deterministic testing — critical for episodes/time-based logic
+- **Playwright (^1.57.0)** — Web E2E testing with auto-waiting, cross-browser support, tracing/debugging — Already configured with v3.1 E2E, excellent TypeScript support, built-in HTML reporter with traces
+- **Detox (^20.47.0)** — React Native mobile E2E testing — Gray-box testing framework faster than black-box tools, already in mobile package.json, but BLOCKED by expo-dev-client requirement
+- **k6 (^0.52.0)** — Load/stress testing — JS-based scripting, CI-friendly, supports HTTP/WebSocket, excellent for API stress testing, cost-effective bug discovery ($149/month for cloud scaling)
+- **pytest (^7.4.0)** — Cross-platform orchestration — Already installed for backend tests, can orchestrate all E2E runners with fixtures, parallel execution via pytest-xdist
+- **Allure Report (^2.27.0)** — Unified test reporting — Framework-agnostic, rich HTML reports with screenshots/videos, integrates with CI/CD, supports severity/suite/epic tags for bug tracking
 
-**Not recommended:** mutmut (mutation testing overkill), locust (load testing separate concern), testmon (xdist sufficient), vcrpy (responses library covers HTTP mocking).
+**Integration with existing Atom infrastructure:**
+- Backend API (FastAPI) for test data setup, agent operations
+- Authentication (JWT) with API-first approach (bypass UI login for speed)
+- Database (SQLite/PostgreSQL) with test isolation via worker-specific schemas
+- CI/CD (GitHub Actions) with matrix strategy for parallel platform execution
 
 ### Expected Features
 
-**Summary from FEATURES_BACKEND_TESTING.md:** Comprehensive backend testing for 80% coverage requires systematic approach across unit tests (70%), integration tests (20%), property-based tests (5%), and E2E tests (5%, deferred to Phase 148). Current state: 51.3% overall coverage, 285 tests created, quality infrastructure operational.
+**Summary from FEATURES.md**: Atom already has v3.1 E2E with 30+ tests covering auth, agent execution, canvas, skills, governance, and WebSocket streaming. Critical gaps include stress testing, network simulation, mobile Detox E2E (blocked), desktop Tauri tests, and cross-platform test reuse framework.
 
 **Must have (table stakes):**
-- **Unit Test Coverage** — 80% target requires unit tests for all business logic paths with function-scoped fixtures
-- **Integration Test Coverage** — Database (SQLite temp), API (TestClient), service integration testing required
-- **Line Coverage Measurement** — Standard coverage.py measurement with JSON output (EXISTING: trending infrastructure)
-- **Branch Coverage** — Decision path coverage (if/else, try/except) with `--cov-branch` flag (NEW: not yet enabled)
-- **Mock Infrastructure** — LLM, LanceDB, embeddings, HTTP clients for isolated testing (EXISTING: comprehensive mocks)
-- **Test Fixtures** — Isolated test data for agents, users, episodes (EXISTING: 1,492 lines in conftest.py)
-- **Error Path Testing** — Happy path insufficient; exceptions and edge cases required
-- **Coverage Reporting** — JSON/HTML reports with CI gates and trend tracking (EXISTING: operational)
-- **Database Testing** — CRUD operations, transactions, rollback patterns (EXISTING: SQLite temp DBs)
+- **Authentication Flow Tests** — Users expect secure login across all platforms (JWT validation, session persistence, logout, token refresh)
+- **Agent Execution Critical Path** — Core product feature (spawn agent → send message → receive streaming response → verify output)
+- **Canvas Presentation Tests** — Core differentiator (7 canvas types: charts, sheets, forms, docs, email, terminal, coding)
+- **Test Isolation & Reproducibility** — Parallel execution requires isolated test data (unique IDs, database cleanup, fresh state per test)
+- **API-First Authentication** — Speed optimization (100-500ms vs 10-60s UI login) by setting JWT token directly in localStorage
+- **Failure Artifacts (Screenshots/Videos)** — Debugging failed tests requires visual evidence (Playwright: `screenshot: 'only-on-failure'`)
+- **Database Isolation** — Parallel tests require separate data (worker-specific schemas, transaction rollbacks)
 
 **Should have (competitive):**
-- **Property-Based Testing** — Hypothesis for invariant testing (cache consistency, governance rules) — tests invariants like "STUDENT agents never perform delete actions"
-- **Maturity-Based Test Matrix** — Test all 4 maturity levels × 4 action complexities (EXISTING: 36 tests, parametrize matrix)
-- **Async Mock Testing** — AsyncMock for WebSocket, LLM streaming, LanceDB operations
-- **Semantic Similarity Testing** — Mock embeddings with known cosine similarities for episode segmentation
-- **Gap Closure Scripts** — Automated identification and targeting of missing lines (NEED: parse coverage.json)
-- **Flaky Test Detection** — Quality infrastructure operational from Phase 149
-- **Coverage-First Test Writing** — Write tests to cover specific missing lines (EXISTING: Phase 156 gap closure)
+- **Stress Testing for Bug Discovery** — Finds race conditions, memory leaks, resource exhaustion under load (concurrent agent executions, rapid canvas cycles, WebSocket churn)
+- **Network Simulation Testing** — Tests app behavior under poor network conditions (Playwright `context.route()`, slow 3G, offline mode)
+- **Visual Regression Testing (Percy)** — Detects unintended CSS/layout changes (already configured in v3.1 for 5 critical pages)
+- **Real User Interaction Simulation** — Finds bugs from realistic user behavior (Playwright `userEvent` API, realistic delays, keyboard navigation)
+- **WebSocket/Streaming Testing** — Validates real-time features under stress (multiple concurrent streams, connection drops, reconnection logic)
 
 **Defer (v2+):**
-- **E2E Testing** — Backend-focused milestone; E2E handled in Phase 148 (cross-platform orchestration)
-- **Performance Testing** — Load testing, stress testing out of scope (use existing monitoring.py metrics)
-- **Mutation Testing** — Too slow for CI; coverage + good test design sufficient
-- **Fuzz Testing** — Security testing separate; property-based testing for invariants instead
+- **Cross-Platform Test Reuse Framework** — Requires abstraction layer, platform-specific adapters
+- **Mobile Detox E2E (Full UI)** — BLOCKED by expo-dev-client requirement (15min CI overhead)
+- **Desktop Tauri Integration Tests** — Requires Tauri test infrastructure, GUI context in CI
+- **Performance Regression Testing (Lighthouse CI)** — Requires performance budgets, monitoring setup
 
 ### Architecture Approach
 
-**Summary from ARCHITECTURE.md:** Atom has sophisticated cross-platform test infrastructure with unified coverage aggregation, quality gate enforcement, coverage trending, and flaky test detection. The architecture for 80% coverage builds on existing infrastructure: cross-platform aggregation (`cross_platform_coverage_gate.py`), unified test workflows (`unified-tests.yml`), coverage trending (`coverage_trend_analyzer.py`), and property testing (Hypothesis). The expansion strategy focuses on incremental coverage tracking, coverage-driven development workflows, test prioritization by business impact, and integration with existing quality gates.
-
-**Key architectural insight:** Coverage expansion is not a separate initiative but an enhancement to existing test infrastructure. New components (coverage gap analysis, test generators, coverage prioritization) integrate with existing workflows through artifact passing, JSON report aggregation, and quality gate enforcement.
+**Summary from ARCHITECTURE.md**: Atom's existing architecture (Python backend, Next.js frontend, React Native mobile, Tauri desktop) provides solid foundation for E2E testing. Key components needed: test orchestration layer, shared test data management, stress testing infrastructure, and bug discovery tools.
 
 **Major components:**
-1. **Coverage Gap Analysis Tool** (`coverage_gap_analysis.py` — NEW) — Identify untested code, prioritize by business impact, generate test recommendations using business impact scoring and complexity estimation
-2. **Test Generator CLI** (`generate_test_stubs.py` — NEW) — Generate test stubs for uncovered code with testing patterns library, scaffold test files with placeholders
-3. **Coverage-Driven Development Workflow** (`coverage_driven_dev.sh` — NEW) — Pre-commit incremental coverage checks, pre-push regression prevention, CI/CD quality gate enforcement
-4. **Test Prioritization Service** (`test_prioritization_service.py` — NEW) — Generate phased expansion roadmap by business impact, dependencies, and risk using weighted scoring
-5. **Enhanced Quality Gate** (`cross_platform_coverage_gate.py` — ENHANCED) — Progressive thresholds (70% → 75% → 80%), new code enforcement (strict 80%), regression prevention
+1. **Unified Test Runner** — Orchestrates test execution across platforms, manages parallelization, aggregates results (custom Node.js CLI or Python orchestrator calling platform-specific runners)
+2. **Test Data Manager** — Creates, seeds, and cleans test data using fixtures, factories, and seed data (pytest fixtures + factory-boy + TestDataManager service)
+3. **Web E2E Runner** — Executes browser-based tests with Playwright multi-browser support (Chromium, Firefox, WebKit)
+4. **Mobile E2E Runner** — Executes React Native tests with Detox on iOS/Android simulators (gray-box testing, auto-wait mechanisms)
+5. **Desktop E2E Runner** — Executes Tauri desktop tests using Playwright WebDriver protocol or CDP connection
+6. **Stress Test Runner** — Generates load with k6/Locust, injects failures with chaos tools, validates performance degradation
+7. **Bug Discovery Engine** — Analyzes test failures, generates reproducible test cases, documents bugs via GitHub Issues integration
 
-**Existing infrastructure (already operational):**
-- `aggregate_coverage.py` — Unified coverage aggregation across platforms
-- `coverage_trend_analyzer.py` — Coverage regression detection
-- `update_cross_platform_trending.py` — Historical trend tracking
-- `generate_coverage_dashboard.py` — HTML trend visualization
-- `.github/workflows/unified-tests-parallel.yml` — Matrix-based parallel tests
-- `.github/workflows/coverage-trending.yml` — Automated trending on every push
+**Key architectural patterns:**
+- **Test Orchestration with Unified Runner**: Central coordination of cross-platform test execution with parallelization and result aggregation
+- **Shared Test Data Management**: Centralized fixtures, factories, and seed data used across all E2E test platforms
+- **Cross-Platform Test Reuse**: Share test logic across platforms using abstraction layers with platform-specific UI implementations
+- **Stress Testing with Load Generation**: Concurrent user simulation, failure injection, and performance baseline tracking
+- **Bug Discovery with Failure Analysis**: Automated analysis of test failures with GitHub Issues integration
 
 ### Critical Pitfalls
 
-**Top 5 from PITFALLS.md:**
+**Summary from PITFALLS.md**: Atom's existing backend testing has a 71.5 percentage point gap between service-level estimates (74.6%) and actual line coverage (8.50%), illustrating the critical methodology pitfall of coverage estimation without actual execution data. The highest-impact pitfalls focus on methodology errors, fixture leaks, testing anti-patterns, coverage gaming, and process failures.
 
-1. **Service-Level Coverage Estimation Masking True Gaps** — Calculate coverage by aggregating service-level estimates instead of measuring actual line execution creates false confidence. Atom's episode services appeared at 74.6% estimated but actual line coverage was 8.50% — a 71.5 percentage point gap. **Prevention:** ALWAYS use actual coverage.py execution data (`pytest --cov=backend --cov-report=json`), require coverage JSON as source of truth, calculate coverage at function/line level not service level.
+1. **Service-Level Coverage Estimation Masking True Gaps** — Atom's episode services appeared at 74.6% estimated but actual line coverage was only 8.50% (71.5 point gap). Prevention: **ALWAYS use actual coverage.py execution data** with `pytest --cov=backend --cov-report=json`, require coverage JSON as source of truth, calculate coverage at function/line level not service level.
 
-2. **Fixture Scope Leaks and Database Session Pollution** — Tests share database sessions, fixtures, or state due to incorrect pytest fixture scoping, causing tests to pass in isolation but fail in parallel runs. **Prevention:** Use `scope="function"` for all database fixtures, use `yield` fixtures with cleanup code after yield, implement transaction rollback in teardown, run tests with `pytest -x` to stop at first failure.
+2. **Fixture Scope Leaks and Database Session Pollution** — Tests share database sessions or state due to incorrect pytest fixture scoping, causing passes in isolation but failures in parallel. Prevention: Use `scope="function"` for all database fixtures, use `yield` fixtures with cleanup code after yield, implement transaction rollback in teardown.
 
-3. **Over-Mocking External Dependencies** — Tests mock everything (database, HTTP clients, LLM providers) and verify implementation details (method calls) rather than behavior, creating brittle tests that break on refactoring and don't catch real integration bugs. **Prevention:** Only mock external services (LLM providers, S3, external APIs), use real database (SQLite in-memory) for tests, test observable behavior (return values, database state), prefer state-based testing over interaction-based testing.
+3. **Over-Mocking External Dependencies** — Tests mock everything (database, HTTP, LLM) and verify implementation details rather than behavior, creating brittle tests. Prevention: Only mock external services (LLM providers, S3), use real database (SQLite in-memory), test observable behavior (return values, DB state) not call sequences.
 
-4. **Coverage Gaming - Excluding Untestable Code** — Adding `# pragma: no cover` or coverage exclusion patterns to avoid testing difficult code (error handlers, edge cases, async paths), inflating coverage percentages while leaving critical paths untested. **Prevention:** Audit coverage exclusions quarterly and remove outdated pragmas, only exclude genuinely untestable code (generated protocols, abstract methods), require PR review for any new `# pragma: no cover`, use `@pytest.mark.skipif` for platform-specific code instead.
+4. **Coverage Gaming - Excluding Untestable Code** — Adding `# pragma: no cover` to avoid testing difficult code (error handlers, async paths) inflates coverage while leaving critical paths untested. Prevention: Audit coverage exclusions quarterly, only exclude genuinely untestable code (generated protocols), require PR review for new pragmas.
 
-5. **Flaky Tests Masking Real Issues** — Tests that fail intermittently due to timing issues, race conditions, or async coordination problems are marked as `@pytest.mark.flaky` and auto-retried, masking real bugs. **Prevention:** Use `pytest-asyncio` with explicit event loop management, mock time-dependent code with `freezegun`, use unique resource names for parallel tests, avoid shared state, fix root cause of flakiness don't just add retries.
+5. **Flaky Tests Masking Real Issues** — Tests fail intermittently due to timing issues, race conditions, or async coordination but are marked as flaky and auto-retried. Prevention: Use `pytest-asyncio` with explicit event loop management, mock time-dependent code, use unique resource names for parallel tests, fix root cause don't add retries.
+
+6. **Wrong Coverage Metrics - Line vs Branch Coverage** — Focusing only on line coverage (80% target) while ignoring branch coverage creates false confidence. Line coverage measures "lines executed" but branch coverage measures "decision outcomes tested." Prevention: **ALWAYS enable branch coverage** with `pytest --cov=backend --cov-branch`, set separate targets (80% line, 70% branch as Atom does).
+
+7. **Async Testing Without Proper Event Loop Management** — Async tests without proper event loop configuration cause hangs or failures in parallel runs. Prevention: Use `pytest-asyncio` with `asyncio_mode = auto`, use `async def` for fixtures and tests, never manually create/close event loops.
+
+8. **Test Data Factories Creating Duplicate Records** — Factories using hardcoded names or sequential IDs cause unique constraint violations in parallel pytest-xdist runs. Prevention: Use UUIDs or random suffixes for all unique fields, include worker ID in parallel tests, use database transactions with rollback.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Baseline & Infrastructure Enhancement
-**Rationale:** Must establish accurate baseline with actual coverage.py measurement before any test writing. Current 74.6% estimate is false confidence; actual line coverage is 8.50%. Enable branch coverage and enhance quality gates to prevent regression during expansion.
+### Phase 1: Test Infrastructure Foundation
+**Rationale:** Must establish test data management, shared utilities, and unified reporting before expanding test coverage. Without proper fixtures, factories, and isolation, adding tests creates maintenance burden.
 
-**Delivers:**
-- Actual coverage baseline (line + branch) from coverage.py JSON
-- Branch coverage enabled with `--cov-branch` flag
-- Enhanced quality gate with progressive thresholds (70% → 75% → 80%)
-- Incremental coverage gate for new code (strict 80%)
+**Delivers:** Test data manager with factory-boy factories, shared test utilities for common operations, unified reporter foundation aggregating existing test reports.
 
-**Addresses:**
-- Line Coverage Measurement, Branch Coverage, Coverage Reporting (FEATURES.md)
-- Coverage Infrastructure (STACK.md)
+**Addresses:** Test Isolation & Reproducibility, Database Isolation, API-First Authentication
 
-**Avoids:**
-- Service-Level Coverage Estimation Masking True Gaps (PITFALLS.md #1)
+**Avoids:** Pitfall 2 (Fixture Scope Leaks), Pitfall 8 (Test Data Factories Creating Duplicates)
 
-### Phase 2: Gap Analysis & Prioritization
-**Rationale:** Cannot write tests effectively without knowing which lines are missing and which matter most. Gap analysis tool identifies untested code, prioritizes by business impact (governance > LLM > episodic memory), and estimates effort for roadmap planning.
+**Stack Elements:** pytest fixtures, factory-boy, SQLite in-memory, TestDataManager service
 
-**Delivers:**
-- `coverage_gap_analysis.py` — Identify untested code with business impact scoring
-- `test_prioritization_service.py` — Generate phased expansion roadmap
-- `coverage_priorities.json` — Ranked files by impact (critical → moderate → low)
-- `test_expansion_roadmap.json` — Phased plan with milestones to 80%
+**Implements:** Shared Test Data Management architecture pattern
 
-**Addresses:**
-- Gap Closure Scripts, Weighted Coverage (FEATURES.md)
-- Coverage Gap Analysis Tool, Test Prioritization Service (ARCHITECTURE.md)
+### Phase 2: Web E2E Expansion (300+ tests)
+**Rationale:** Web is most critical platform and has existing Playwright infrastructure. Expanding from 30+ to 300+ tests covers all critical user flows before adding mobile/desktop complexity.
 
-**Avoids:**
-- Ignoring Business Impact / Testing Low-Value Code First (PITFALLS.md #3)
+**Delivers:** Comprehensive web E2E test suite covering auth flows, agent interactions, workflow execution, canvas presentations (7 types), episodic memory flows.
 
-### Phase 3: Core Services Coverage (High Impact)
-**Rationale:** Focus on highest-impact services first (governance, LLM, episodic memory) to maximize business value. These services are critical to Atom's AI platform and have the most risk if untested.
+**Addresses:** Authentication Flow Tests, Agent Execution Critical Path, Canvas Presentation Tests, Workflow Skill Execution
 
-**Delivers:**
-- Agent Governance Service at 80%+ (maturity routing, permission checks, cache validation)
-- LLM Service at 80%+ (provider routing, cognitive tier classification, streaming, cache)
-- Episodic Memory Services at 80%+ (segmentation, retrieval modes, lifecycle, canvas/feedback integration)
+**Uses:** Playwright (existing), API-First Auth Fixtures, Test Data Manager
 
-**Addresses:**
-- Unit Test Coverage, Integration Test Coverage (FEATURES.md)
-- Property-Based Testing (Hypothesis for governance invariants, cache consistency)
+**Avoids:** Pitfall 3 (Over-Mocking), Pitfall 5 (Coverage Gaming), Anti-Pattern 1 (Testing Implementation Details)
 
-**Uses:**
-- pytest, pytest-cov, pytest-xdist, Hypothesis, factory-boy (STACK.md)
-- Existing fixtures (1,492 lines in conftest.py), mock infrastructure (MockLLMProvider, mock_lancedb_client)
+**Implements:** Web E2E Runner architecture pattern
 
-**Avoids:**
-- Over-Mocking External Dependencies (PITFALLS.md #3) — use real SQLite, mock only external services
-- Testing Implementation Details — test behavior (permissions, routing) not method calls
+### Phase 3: Mobile API-Level Testing (defer Detox UI)
+**Rationale:** Detox E2E is blocked by expo-dev-client requirement (15min CI overhead). API-level tests provide mobile workflow coverage without infrastructure complexity. Defer Detox UI tests to Phase 150+.
 
-### Phase 4: API & Database Layer Coverage
-**Rationale:** API routes and database models are foundational infrastructure. Covering these ensures request/response validation, ORM operations, relationships, and constraint handling are tested.
+**Delivers:** Mobile API-level test suite covering auth, agent execution, workflows, device features (camera, location, notifications) via backend API calls.
 
-**Delivers:**
-- API Routes at 75%+ (agent endpoints, canvas routes, browser routes, device capabilities, auth)
-- Database Models at 80%+ (ORM CRUD, relationships, FKs, cascades, transactions, constraints)
+**Addresses:** Cross-Platform Workflow Parity (Web + Mobile API), Authentication Flow Tests
 
-**Addresses:**
-- API Contract Testing, Database Testing (FEATURES.md)
-- API Client Testing with TestClient (ARCHITECTURE.md)
+**Uses:** pytest for backend API testing, existing mobile API endpoints
 
-**Uses:**
-- FastAPI TestClient for endpoint testing (STACK.md)
-- SQLite temp DBs with session-per-test isolation (EXISTING)
+**Avoids:** Pitfall 7 (Async Event Loop Issues), Detox expo-dev-client blocker
 
-**Avoids:**
-- Fixture Scope Leaks — use function-scoped db_session with rollback
-- Missing Error Path Tests — test 401, 500, constraint violations
+**Implements:** Mobile API test patterns (defer Mobile E2E Runner to Phase 150+)
 
-### Phase 5: Tools, Integrations & Edge Cases
-**Rationale:** Tools (browser automation, device capabilities) and integrations (LanceDB, WebSocket, HTTP clients) have unique testing challenges. Edge cases and error paths are often missed but critical for robustness.
+### Phase 4: Desktop Tauri Integration Tests
+**Rationale:** Desktop testing requires Tauri test infrastructure and GUI context in CI. Add after web and mobile foundations are stable.
 
-**Delivers:**
-- Tools at 75%+ (browser_tool.py, device_tool.py, canvas_tool.py, skill_adapter.py)
-- Integrations at 70%+ (LanceDB vector search, WebSocket connections, HTTP clients, package governance)
-- Error path systematization (network failures, timeouts, malformed responses)
-- Edge case coverage (boundary conditions, invalid inputs, state transitions)
+**Delivers:** Desktop E2E test suite covering window management, native features (file system, system tray), cross-platform behavior (Win/Mac/Linux).
 
-**Addresses:**
-- Error Path Testing, Async Mock Testing (FEATURES.md)
-- MSW for HTTP mocking, pytest-asyncio for async patterns (STACK.md)
+**Addresses:** Desktop Tauri Integration Tests, Cross-Platform Workflow Parity
 
-**Uses:**
-- responses library for HTTP mocking, AsyncMock for WebSocket/streaming (STACK.md)
-- freezegun for time mocking in time-based logic
+**Uses:** Tauri built-in testing (`cargo test`), Playwright with CDP connection or Tauri Driver
 
-**Avoids:**
-- Flaky Tests — mock time, use unique resource names, explicit event loop management
-- Missing Negative Test Cases — systematically test error handling
+**Implements:** Desktop E2E Runner architecture pattern
 
-### Phase 6: Gap Closure & Final Push
-**Rationale:** Target specific missing lines to reach 80%. Use gap analysis output to write focused tests for uncovered code paths. Focus on error paths, edge cases, and branch conditions.
+### Phase 5: Cross-Platform Orchestration
+**Rationale:** Once platform-specific tests exist, implement unified test runner for coordination, parallelization, and result aggregation. Doing this earlier would require constant refactoring as tests added.
 
-**Delivers:**
-- 80% overall line coverage achieved
-- 70%+ branch coverage achieved
-- All critical paths (governance, LLM, episodic) at >80%
-- Coverage exclusions audited and minimized
+**Delivers:** Unified test runner orchestrating web, mobile, and desktop tests with parallelization, cross-platform test reuse framework, CI/CD integration with GitHub Actions matrix strategy.
 
-**Addresses:**
-- Coverage-First Test Writing (FEATURES.md)
-- `generate_test_stubs.py` — Test file stub generator (ARCHITECTURE.md)
+**Addresses:** Cross-Platform Test Reuse Framework, Parallel Test Execution, Unified Reporting
 
-**Uses:**
-- Coverage reports (JSON with missing lines) to guide test writing
-- `generate_test_stubs.py` to scaffold test files for uncovered code
+**Uses:** Test Orchestrator, pytest for orchestration, GitHub Actions matrix strategy
 
-**Avoids:**
-- Coverage Gaming — audit `# pragma: no cover`, remove outdated exclusions
-- Coverage Measurement False Positives — verify tests actually execute code, not just import modules
+**Implements:** Test Orchestration with Unified Runner architecture pattern, Cross-Platform Test Reuse pattern
+
+**Avoids:** Pitfall 2 (Fixture Scope Leaks), Pitfall 8 (Test Data Duplicates), Anti-Pattern 2 (Shared State Between Tests)
+
+### Phase 6: Stress Testing & Bug Discovery
+**Rationale:** Stress testing requires stable baseline E2E tests. Building on phases 2-5, this phase adds load generation and failure injection to find race conditions and memory leaks.
+
+**Delivers:** Load generation with k6 (10, 50, 100 concurrent users), failure injection (network delays, DB drops), automated bug filing via GitHub Issues, performance degradation alerts.
+
+**Addresses:** Stress Testing for Bug Discovery, Network Simulation Testing, WebSocket/Streaming Testing, Real User Interaction Simulation
+
+**Uses:** k6 for load testing, Chaos tools for failure injection, Octokit for GitHub Issues integration
+
+**Implements:** Stress Testing with Load Generation pattern, Bug Discovery with Failure Analysis pattern
+
+**Avoids:** Pitfall 1 (Coverage Estimation False Positives), Pitfall 5 (Flaky Tests)
+
+### Phase 7: Advanced Bug Discovery (v7.1)
+**Rationale:** Once stress testing infrastructure is stable, add advanced bug discovery techniques for production-quality testing.
+
+**Delivers:** Visual regression testing with Percy (expanded from 5 to 20+ pages), error boundary testing (401, 500, timeouts), performance regression testing with Lighthouse CI, memory leak detection with CDP.
+
+**Addresses:** Visual Regression Testing, Error Boundary & Edge Case Testing, Performance Regression Testing, Memory Leak Detection
+
+**Uses:** Percy (existing), Lighthouse CI, Chrome DevTools Protocol (CDP)
 
 ### Phase Ordering Rationale
 
-- **Why this order:** Establish accurate baseline (Phase 1) → Identify what to test (Phase 2) → Test most critical services (Phase 3) → Test foundational infrastructure (Phase 4) → Test complex integrations (Phase 5) → Close remaining gaps (Phase 6). This order maximizes business value early, prevents regression, and ensures systematic coverage.
+- **Foundation first (Phase 1)**: Proper test data management, fixtures, and isolation prevents Pitfall 2 (fixture leaks) and Pitfall 8 (duplicate records) which cause flaky tests in parallel execution
+- **Web before mobile/desktop (Phase 2 → 3 → 4)**: Web has existing infrastructure, is most critical platform, and establishes test patterns that can be reused for mobile/desktop
+- **API-level mobile before Detox UI (Phase 3)**: Detox E2E blocked by expo-dev-client requirement, API-level tests provide mobile coverage without 15min CI overhead
+- **Orchestration after platform tests (Phase 5)**: Unified runner requires stable platform-specific tests to orchestrate, building it earlier would require constant refactoring
+- **Stress testing last (Phase 6)**: Stress testing requires stable baseline E2E tests, doing it earlier would waste effort on flaky tests
+- **Advanced features deferred (Phase 7)**: Visual regression, performance testing, memory leak detection are differentiators but not critical for v7.0 launch
 
-- **Why this grouping:** Core services (governance, LLM, episodic) grouped together because they're highest impact and have similar testing patterns (business logic, state management, external mocks). API & database grouped together as foundational infrastructure. Tools & integrations grouped together as more complex, external dependency-heavy testing.
-
-- **How this avoids pitfalls:**
-  - Phase 1 prevents Pitfall #1 (coverage estimation false positives) by requiring actual coverage.py measurement
-  - Phase 2 prevents Pitfall #3 (ignoring business impact) by prioritizing high-impact services first
-  - Phases 3-6 prevent Pitfall #3 (over-mocking) by using real databases and testing behavior not implementation
-  - All phases prevent Pitfall #5 (flaky tests) by using proper fixture scoping, async patterns, and unique test data
-  - Phase 6 prevents Pitfall #4 (coverage gaming) by auditing exclusions and focusing on actual line execution
+This order avoids Pitfall 5 (Flaky Tests Masking Real Issues) by establishing stable tests first, and Anti-Pattern 6 (E2E Tests for Everything) by focusing on critical paths only (10% E2E, 20% integration, 70% unit).
 
 ### Research Flags
 
 **Phases likely needing deeper research during planning:**
-- **Phase 3 (Core Services):** LLM service coverage limited by mocking strategy (37% with 174 tests passing). Need research on how to test LLM provider routing, cognitive tier classification, and streaming without over-mocking. Property-based testing for cache consistency and governance invariants needs specific invariant identification.
-
-- **Phase 4 (API & Database):** API contract testing patterns for FastAPI endpoints need research on TestClient vs httpx for async endpoints. Database relationship testing (FKs, cascades) needs specific test pattern identification for complex models in `core/models.py`.
-
-- **Phase 5 (Tools & Integrations):** LanceDB integration testing needs research on vector search mocking, semantic similarity testing with deterministic embeddings. WebSocket testing needs async pattern research (pytest-asyncio event loop management). Browser automation testing needs Playwright vs mocking strategy.
+- **Phase 3 (Mobile API Testing)**: Mobile API-level testing patterns vs Detox E2E tradeoffs (speed, coverage, maintenance) — MEDIUM confidence, needs validation
+- **Phase 4 (Desktop Tauri Tests)**: Tauri E2E testing patterns with Playwright CDP connection stability — MEDIUM confidence, limited production examples
+- **Phase 5 (Cross-Platform Orchestration)**: Cross-platform test reuse abstractions, shared test logic strategies — MEDIUM confidence, emerging pattern
+- **Phase 6 (Stress Testing)**: Stress test design patterns (concurrent execution scenarios, resource exhaustion), acceptable stress test failure rates — LOW confidence, industry standards unclear
 
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Baseline):** Well-documented pytest and coverage.py patterns. Existing infrastructure operational (Phase 149 quality infrastructure).
-
-- **Phase 2 (Gap Analysis):** Standard AST parsing for complexity estimation, business impact scoring based on file location and dependency depth. Existing coverage aggregation scripts provide patterns.
-
-- **Phase 6 (Gap Closure):** Standard gap-driven test writing. Coverage reports provide missing lines. Test stub generation is straightforward template filling.
+- **Phase 1 (Test Infrastructure)**: Well-documented pytest patterns, factory-boy documentation — HIGH confidence
+- **Phase 2 (Web E2E Expansion)**: Playwright official docs, existing Atom v3.1 E2E implementation — HIGH confidence
+- **Phase 7 (Advanced Bug Discovery)**: Percy, Lighthouse CI, CDP documentation — HIGH confidence
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All tools installed and verified in requirements.txt, pyproject.toml. pytest, pytest-cov, pytest-xdist, Hypothesis documented in official docs. Existing fixture infrastructure (1,492 lines) operational. |
-| Features | MEDIUM | Table stakes (unit tests, integration tests, coverage measurement) HIGH confidence based on existing Atom infrastructure (Phase 156: 51.3% coverage, 285 tests). Differentiators (property-based testing, gap closure scripts) MEDIUM confidence based on industry patterns. |
-| Architecture | HIGH | Based on verified existing Atom infrastructure files (cross_platform_coverage_gate.py, aggregate_coverage.py, unified-tests-parallel.yml, coverage-trending.yml). Integration points validated from actual GitHub Actions workflows and Python scripts. Build order logical (infrastructure → analysis → generation → execution). |
-| Pitfalls | HIGH | Based on pytest/coverage.py official docs (HIGH confidence) and existing Atom coverage analysis (74.6% estimated vs 8.50% actual). Fixture leaks, over-mocking, coverage gaming documented in pytest best practices and existing pytest.ini configuration. |
+| Stack | **HIGH** | Web/pytest: HIGH (Playwright official docs, existing v3.1 implementation). Mobile/Desktop/Stress: MEDIUM (limited by web search rate limiting, Detox expo-dev-client blocker) |
+| Features | **HIGH** | Based on official docs (Playwright, Detox, k6), existing Atom v3.1 E2E implementation (30+ tests, Percy), codebase analysis (61 shipped phases), industry best practices |
+| Architecture | **HIGH** | Based on official docs (Playwright, Detox, Tauri, GitHub Actions, k6, factory-boy), existing Atom architecture (Python backend, Next.js frontend, React Native mobile, Tauri desktop), industry best patterns |
+| Pitfalls | **HIGH** | Based on pytest/coverage.py official docs, existing Atom coverage analysis (71.5 point gap), Atom's pytest.ini configuration, conftest.py patterns, industry best practices |
 
-**Overall confidence:** HIGH
-
-Strong foundation from existing Atom infrastructure (Phase 156: 51.3% coverage, 285 tests; Phase 149: quality infrastructure operational; pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92 installed and verified). Some areas (property-based testing patterns, LLM service mocking strategies, LanceDB integration testing) based on industry patterns rather than existing Atom code, but core testing methodology and infrastructure is HIGH confidence.
+**Overall confidence:** **HIGH** (mix of official documentation, existing implementation verification, codebase analysis, industry best practices)
 
 ### Gaps to Address
 
-1. **LLM Service Mocking Strategy:** Current LLM service coverage at 37% with 174 tests passing — mocking strategy limits actual coverage. Need to research how to test provider routing, cognitive tier classification, streaming, and cache behavior without over-mocking. **Handle during planning:** Phase 3 research-phase to identify specific testing patterns for LLM services, potentially using property-based testing for cache invariants and contract testing for provider interfaces.
+- **Stress test design patterns**: Need patterns for concurrent agent executions, rapid canvas iterations, WebSocket churn scenarios — MEDIUM confidence, limited E2E stress testing examples
+- **Cross-platform test reuse abstractions**: Need to design framework for shared workflow definitions, platform adapters — MEDIUM confidence, emerging pattern with few production examples
+- **Mobile API-level testing vs Detox E2E**: Need to validate API-level approach tradeoffs (speed, coverage, maintenance) — MEDIUM confidence, defer Detox to Phase 150+ due to expo-dev-client blocker
+- **Tauri Playwright integration stability**: Need to validate CDP connection patterns for desktop E2E — MEDIUM confidence, limited production examples
+- **Automated bug filing thresholds**: Risk of GitHub Issues noise, false positives in automated bug filing — need to define reproduction criteria (2+ failures)
 
-2. **Property-Based Test Invariants:** Hypothesis is installed (6.92.0) but property-based testing patterns not well-defined. Need to identify which invariants matter most for governance rules, cache consistency, and embedding similarity. **Handle during planning:** Phase 3 research-phase to identify specific invariants (e.g., "STUDENT agents never perform delete actions", "cache get/set roundtrip invariant", "governance checks are transitive").
-
-3. **LanceDB Integration Testing:** Episodic memory coverage at 21.3% with model mismatches blocking progress. Need research on LanceDB vector search mocking, semantic similarity testing with deterministic embeddings. **Handle during planning:** Phase 5 research-phase to identify LanceDB testing patterns, potentially using `mock_lancedb_client` with deterministic vector search results.
-
-4. **Gap Closure Automation:** Need automated identification of missing lines and test stub generation. `generate_test_stubs.py` needs to be built. **Handle during planning:** Phase 2 involves building this tool, standard AST parsing and coverage.json reading patterns.
-
-5. **Branch Coverage Patterns:** Branch coverage not yet enabled (`--cov-branch` flag needed). Need to understand branch coverage implications for complex conditional logic in governance and episodic memory services. **Handle during planning:** Phase 1 enables branch coverage and establishes baseline, standard coverage.py patterns apply.
+**How to handle during planning/execution:**
+- Phase-specific `/gsd:research-phase` for stress test design (Phase 6), cross-platform test reuse (Phase 5), Tauri integration (Phase 4)
+- Validation spikes for mobile API-level testing patterns (Phase 3) before committing to approach
+- Conservative bug filing thresholds (require 3+ reproductions) to avoid GitHub Issues noise
+- Incremental implementation: start with web E2E (Phase 2) before adding cross-platform complexity
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- **pytest documentation** — https://docs.pytest.org/ — Fixture scopes, teardown, finalizers, yield patterns, async testing
-- **pytest-cov documentation** — https://pytest-cov.readthedocs.io/ — Coverage measurement, JSON reporting, branch coverage
-- **coverage.py documentation** — https://coverage.readthedocs.io/ — Line vs branch coverage, exclude patterns, reporting
-- **Hypothesis documentation** — https://hypothesis.readthedocs.io/ — Property-based testing, strategies, stateful testing
-- **pytest-xdist documentation** — https://pytest-xdist.readthedocs.io/ — Parallel test execution, worker isolation, loadscope distribution
-- **factory-boy documentation** — https://factoryboy.readthedocs.io/ — Test data generation, SQLAlchemy integration
+- [Playwright Python Documentation](https://playwright.dev/python/) - Authoritative E2E testing patterns, auto-waiting, selectors
+- [Atom E2E Testing Guide](/Users/rushiparikh/projects/atom/docs/E2E_TESTING_GUIDE.md) - Comprehensive E2E setup, patterns, troubleshooting (March 7, 2026)
+- [Atom v3.1 E2E Implementation](/Users/rushiparikh/projects/atom/backend/tests/e2e_ui/) - 30+ production E2E tests, fixtures, page objects, flaky test detection
+- [pytest Fixtures Documentation](https://docs.pytest.org/en/stable/how-to/fixtures.html) - Fixture scopes, teardown, finalizers, yield patterns
+- [Coverage.py Documentation](https://coverage.readthedocs.io/) - Line vs branch coverage, exclude patterns, reporting
+- [Atom Backend Coverage Reports](/Users/rushiparikh/projects/atom/backend/coverage.json) - Actual coverage data: episode_segmentation_service.py at 27.41% line coverage
+- [Atom pytest.ini Configuration](/Users/rushiparikh/projects/atom/backend/pytest.ini) - Flaky test reruns, branch coverage enabled
+- [Detox Documentation](https://wix.github.io/Detox/) - React Native gray-box E2E testing framework
+- [k6 Documentation](https://k6.io/docs/) - Load testing and stress testing framework
+- [Tauri Testing Guide](https://tauri.app/v1/guides/testing/) - Official Tauri testing documentation
 
 ### Secondary (MEDIUM confidence)
-- **Atom Existing Infrastructure** — Verified files:
-  - `/Users/rushiparikh/projects/atom/backend/pytest.ini` — Backend test configuration (80% fail_under, branch coverage enabled, flaky test reruns)
-  - `/Users/rushiparikh/projects/atom/backend/pyproject.toml` — Test quality dependencies (pytest-json-report, pytest-random-order, pytest-rerunfailures)
-  - `/Users/rushiparikh/projects/atom/backend/requirements.txt` — All testing dependencies installed (pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92, pytest-xdist 3.6)
-  - `/Users/rushiparikh/projects/atom/backend/tests/conftest.py` — Root fixtures (1,492 lines, environment isolation, numpy restoration, fixture patterns)
-  - `/Users/rushiparikh/projects/atom/backend/coverage.json` — Actual line coverage data (8.50% overall, episode_segmentation_service.py at 27.41%)
-  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/cross_platform_coverage_gate.py` — Cross-platform coverage enforcement (786 lines, platform-specific thresholds)
-  - `/Users/rushiparikh/projects/atom/backend/tests/scripts/aggregate_coverage.py` — Unified coverage aggregation (755 lines, 4 platforms)
-  - `/Users/rushiparikh/projects/atom/.github/workflows/unified-tests-parallel.yml` — Matrix-based parallel tests (Phase 149 quality infrastructure)
-  - `/Users/rushiparikh/projects/atom/.planning/phases/156-core-services-coverage-high-impact/156-VERIFICATION.md` — 51.3% overall coverage, 285 tests created
-  - `/Users/rushiparikh/projects/atom/.planning/phases/149-quality-infrastructure-parallel/149-RESEARCH.md` — Quality infrastructure operational
-
-- **Industry best practices** — Python testing with pytest and coverage.py, testing pyramid (70% unit, 20% integration, 10% E2E), property-based testing with Hypothesis, branch coverage for error path detection
+- Atom CI/CD Pipeline - GitHub Actions workflows, deployment automation, health checks
+- Atom Monitoring Setup - `/Users/rushiparikh/projects/atom/backend/docs/MONITORING_SETUP.md` - Health check endpoints, Prometheus metrics
+- Atom Deployment Runbook - `/Users/rushiparikh/projects/atom/backend/docs/DEPLOYMENT_RUNBOOK.md` - Deployment procedures, rollback strategies
+- Percy Documentation - Visual regression testing best practices
+- pytest-xdist Documentation - Parallel test execution, worker isolation
+- Factory Boy Documentation - Test data factory patterns
+- Cross-Platform Testing Patterns - Shared test logic across platforms, platform-specific abstractions
+- Stress Testing Best Practices - Load generation, failure injection, chaos engineering
 
 ### Tertiary (LOW confidence)
-- **Specific industry statistics** — Quantitative impact of coverage gaps (service-level vs line coverage estimates)
-- **Mutation testing tools validation** — `mutmut` or `pymut` for Python to verify branch coverage quality
-- **pytest-benchmark integration** — Performance regression testing patterns for test suite optimization
+- Stress testing patterns for E2E - Limited examples of stress testing in E2E suites (most use separate load testing tools)
+- Network simulation in E2E - Playwright `context.route()` documented, but production patterns not widely available
+- Cross-platform test reuse frameworks - Emerging pattern, few production examples of shared test logic across platforms
+- Mobile Detox E2E best practices - BLOCKED by expo-dev-client requirement, deferred to Phase 150+
+- Tauri Playwright integration - Tauri supports CDP but Playwright driver stability unknown
 
 ---
-*Research completed: March 11, 2026*
+*Research completed: March 23, 2026*
 *Ready for roadmap: yes*
