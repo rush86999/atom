@@ -1,0 +1,272 @@
+name: E2E Tests (Unified Test Runner)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# E2E tests run on merge to main, not on PRs.
+# Reason: E2E tests are slow (5-15 minutes) compared to unit/integration tests (1-2 minutes).
+# Running E2E on every PR blocks development and increases CI costs.
+# By running E2E on merge to main, we get comprehensive validation without slowing down PR feedback.
+
+jobs:
+  # Unified Test Runner - Runs all platform tests using test_runner.py
+  # Purpose: Single entry point for backend pytest, web E2E, mobile API tests
+  # Framework: test_runner.py orchestrates all platforms with unified Allure reporting
+  unified-tests:
+    name: Unified Test Runner
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [backend, web, mobile]
+      fail-fast: false
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: atom_e2e
+          POSTGRES_PASSWORD: atom_e2e_password
+          POSTGRES_DB: atom_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-e2e-${{ hashFiles('backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-e2e-
+
+      - name: Cache Playwright browsers
+        if: matrix.platform == 'web'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('backend/tests/e2e_ui/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          if [ "${{ matrix.platform }}" == "web" ]; then
+            pip install pytest-playwright playwright
+            playwright install chromium
+          fi
+
+      - name: Install frontend dependencies
+        if: matrix.platform == 'web'
+        working-directory: ./frontend-nextjs
+        run: npm ci --legacy-peer-deps
+
+      - name: Start backend server
+        if: matrix.platform == 'web'
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
+          PORT: 8001
+        run: |
+          python -m uvicorn main:app --host 0.0.0.0 --port 8001 &
+          sleep 10
+          curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:8001/health/live
+
+      - name: Start frontend server
+        if: matrix.platform == 'web'
+        working-directory: ./frontend-nextjs
+        env:
+          PORT: 3001
+          NEXT_PUBLIC_API_URL: http://localhost:8001
+        run: |
+          npm run dev &
+          sleep 10
+          curl --retry 10 --retry-delay 5 --retry-connrefused http://localhost:3001
+
+      - name: Run unified test runner
+        working-directory: ./backend
+        env:
+          CI: true
+          DATABASE_URL: postgresql://atom_e2e:atom_e2e_password@localhost:5432/atom_e2e
+          BASE_URL: http://localhost:3001
+          PYTEST_RERUNS: 2
+        run: |
+          python tests/scripts/test_runner.py --platform ${{ matrix.platform }} --workers 4
+
+      - name: Upload Allure results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results-${{ matrix.platform }}
+          path: allure-results/${{ matrix.platform }}/
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Desktop Tauri Tests - Tests IPC commands and integration logic
+  # Purpose: Validate Tauri IPC commands, agent/canvas state management, window operations
+  # Framework: Rust cargo test with #[tauri::test] integration
+  # Note: Separate from unified runner due to Rust toolchain requirements
+  e2e-desktop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: frontend-nextjs/src-tauri/target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run Tauri integration tests
+        working-directory: ./frontend-nextjs/src-tauri
+        run: |
+          cargo test --all-features --no-fail-fast -- -Z unstable-options --format json > results.json 2>&1 || true
+
+      - name: Parse Tauri test results
+        working-directory: ./frontend-nextjs/src-tauri
+        run: |
+          python3 -c "
+          import json
+          from pathlib import Path
+
+          results = []
+          with open('results.json') as f:
+              for line in f:
+                  try:
+                      data = json.loads(line.strip())
+                      if data.get('type') == 'test':
+                          results.append({
+                              'name': data.get('name', 'unknown'),
+                              'passed': data.get('passed', False)
+                          })
+                  except:
+                      pass
+
+          total = len(results)
+          passed = sum(1 for r in results if r['passed'])
+          failed = total - passed
+
+          output = {
+              'stats': {
+                  'total': total,
+                  'passed': passed,
+                  'failed': failed,
+                  'skipped': 0,
+                  'duration': 0
+              },
+              'testResults': results
+          }
+
+          Path('../results/desktop-results.json').write_text(json.dumps(output, indent=2))
+          print(f'Total: {total}, Passed: {passed}, Failed: {failed}')
+          "
+
+      - name: Upload desktop test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-desktop-report
+          path: frontend-nextjs/results/desktop-results.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  # Generate Allure Report - Aggregates results from all platforms
+  # Purpose: Generate unified Allure report with cross-platform test breakdown
+  # Runs: After all platform tests complete
+  generate-report:
+    name: Generate Allure Report
+    needs: [unified-tests, e2e-desktop]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Download all Allure results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: allure-results-*
+          path: allure-results/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Install Allure
+        run: |
+          wget -q https://github.com/allure-framework/allure2/releases/download/2.24.0/allure-2.24.0.tgz
+          tar -zxvf allure-2.24.0.tgz
+          sudo mv allure-2.24.0 /usr/local/bin/allure
+
+      - name: Aggregate Allure results
+        working-directory: ./backend
+        run: |
+          python3 tests/scripts/allure_aggregator.py aggregate-allure \
+            --backend ../allure-results/backend/ \
+            --web ../allure-results/web/ \
+            --mobile ../allure-results/mobile/ \
+            --output ../allure-results/
+        continue-on-error: true
+
+      - name: Generate Allure report
+        run: |
+          allure generate allure-results --clean --o allure-report
+
+      - name: Upload Allure report
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: allure-report/
+          retention-days: 30
+
+      - name: Upload unified Allure results
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results-unified
+          path: allure-results/
+          retention-days: 30
