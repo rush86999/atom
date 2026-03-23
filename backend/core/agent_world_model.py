@@ -383,32 +383,72 @@ class WorldModelService:
         )
 
     async def update_fact_verification(self, fact_id: str, status: str) -> bool:
-        """Update the verification status of a business fact"""
+        """
+        Update the verification status of a business fact.
+
+        This method deletes the old fact document and adds a new one with updated status.
+        Uses skip_ai_triggers=True to prevent infinite loops from system-generated updates.
+        """
         try:
+            # Search for the fact document
             results = self.db.search(
                 table_name=self.facts_table_name,
-                query="", 
+                query="",
                 limit=100
-            ) 
-            
+            )
+
+            fact_doc = None
             for res in results:
-                if res.get("metadata", {}).get("id") == fact_id: 
-                    meta = res.get("metadata", {})
-                    meta["verification_status"] = status
-                    meta["last_verified"] = datetime.now().isoformat()
-                    
-                    new_text = res["text"].replace(f"Status: {meta.get('verification_status')}", f"Status: {status}")
-                    
-                    self.db.add_document(
-                        table_name=self.facts_table_name,
-                        text=new_text,
-                        source=res.get("source"),
-                        metadata=meta,
-                        user_id="fact_system"
-                    )
-                    logger.info(f"Updated fact {fact_id} status to {status}")
-                    return True
-            return False
+                if res.get("metadata", {}).get("id") == fact_id:
+                    fact_doc = res
+                    break
+
+            if not fact_doc:
+                logger.warning(f"Fact {fact_id} not found for update")
+                return False
+
+            meta = fact_doc.get("metadata", {})
+            old_doc_id = fact_doc.get("id")
+            old_status = meta.get("verification_status", "unverified")
+
+            # Skip if status hasn't changed
+            if old_status == status:
+                return True
+
+            # Update metadata
+            meta["verification_status"] = status
+            meta["last_verified"] = datetime.now().isoformat()
+
+            # Update text with new status
+            new_text = fact_doc["text"].replace(f"Status: {old_status}", f"Status: {status}")
+
+            # Delete old document FIRST to prevent duplicates
+            if old_doc_id:
+                try:
+                    table = self.db.get_table(self.facts_table_name)
+                    if table:
+                        table.delete(f"id = '{old_doc_id}'")
+                        logger.debug(f"Deleted old fact document {old_doc_id}")
+                except Exception as delete_err:
+                    logger.warning(f"Failed to delete old document {old_doc_id}: {delete_err}")
+
+            # Add updated document with AI triggers skipped to prevent loops
+            success = self.db.add_document(
+                table_name=self.facts_table_name,
+                text=new_text,
+                source=fact_doc.get("source"),
+                metadata=meta,
+                user_id="fact_system",
+                extract_knowledge=False,
+                skip_ai_triggers=True  # Critical: prevents infinite loop
+            )
+
+            if success:
+                logger.info(f"Updated fact {fact_id} status to {status}")
+            else:
+                logger.error(f"Failed to add updated document for fact {fact_id}")
+
+            return success
         except Exception as e:
             logger.error(f"Failed to update fact verification: {e}")
             return False
@@ -422,11 +462,15 @@ class WorldModelService:
                 limit=limit
             )
 
-            facts = []
+            # Deduplicate by fact ID, keeping the most recent version
+            fact_map = {}  # fact_id -> (last_verified, BusinessFact)
+
             for res in results:
                 meta = res.get("metadata", {})
-                facts.append(BusinessFact(
-                    id=meta.get("id"),
+                fact_id = meta.get("id")
+
+                fact = BusinessFact(
+                    id=fact_id,
                     fact=meta.get("fact"),
                     citations=meta.get("citations", []),
                     reason=meta.get("reason"),
@@ -435,8 +479,14 @@ class WorldModelService:
                     last_verified=datetime.fromisoformat(meta.get("last_verified")),
                     verification_status=meta.get("verification_status", "unverified"),
                     metadata=meta
-                ))
-            return facts
+                )
+
+                # Keep only the most recent version of each fact
+                if fact_id not in fact_map or fact.last_verified > fact_map[fact_id][0]:
+                    fact_map[fact_id] = (fact.last_verified, fact)
+
+            # Return unique facts sorted by relevance (original search order)
+            return [fact for _, fact in list(fact_map.values())[:limit]]
         except Exception as e:
             logger.warning(f"Failed to retrieve business facts: {e}")
             return []
@@ -466,9 +516,13 @@ class WorldModelService:
                 limit=limit
             )
 
-            facts = []
+            # Deduplicate by fact ID, keeping the most recent version
+            # (necessary because update_fact_verification creates new documents)
+            fact_map = {}  # fact_id -> (last_verified, BusinessFact)
+
             for res in results:
                 meta = res.get("metadata", {})
+                fact_id = meta.get("id")
 
                 # Apply filters
                 if status and meta.get("verification_status") != status:
@@ -476,8 +530,8 @@ class WorldModelService:
                 if domain and meta.get("domain") != domain:
                     continue
 
-                facts.append(BusinessFact(
-                    id=meta.get("id"),
+                fact = BusinessFact(
+                    id=fact_id,
                     fact=meta.get("fact"),
                     citations=meta.get("citations", []),
                     reason=meta.get("reason"),
@@ -486,8 +540,14 @@ class WorldModelService:
                     last_verified=datetime.fromisoformat(meta.get("last_verified")),
                     verification_status=meta.get("verification_status", "unverified"),
                     metadata=meta
-                ))
-            return facts
+                )
+
+                # Keep only the most recent version of each fact
+                if fact_id not in fact_map or fact.last_verified > fact_map[fact_id][0]:
+                    fact_map[fact_id] = (fact.last_verified, fact)
+
+            # Return unique facts
+            return [fact for _, fact in fact_map.values()]
         except Exception as e:
             logger.warning(f"Failed to list business facts: {e}")
             return []
@@ -509,10 +569,14 @@ class WorldModelService:
                 limit=1000  # Higher limit to find the fact
             )
 
+            # Handle duplicates - return the most recent version
+            most_recent_fact = None
+            most_recent_verified = None
+
             for res in results:
                 meta = res.get("metadata", {})
                 if meta.get("id") == fact_id:
-                    return BusinessFact(
+                    fact = BusinessFact(
                         id=meta.get("id"),
                         fact=meta.get("fact"),
                         citations=meta.get("citations", []),
@@ -523,6 +587,13 @@ class WorldModelService:
                         verification_status=meta.get("verification_status", "unverified"),
                         metadata=meta
                     )
+
+                    # Keep the most recent version
+                    if most_recent_fact is None or fact.last_verified > most_recent_verified:
+                        most_recent_fact = fact
+                        most_recent_verified = fact.last_verified
+
+            return most_recent_fact
             return None
         except Exception as e:
             logger.warning(f"Failed to get fact by ID: {e}")

@@ -581,11 +581,25 @@ class LanceDBHandler:
             logger.error(f"Failed to add knowledge edge: {e}")
             return False
 
-    def add_document(self, table_name: str, text: str, source: str = "", 
+    def add_document(self, table_name: str, text: str, source: str = "",
                     metadata: Dict[str, Any] = None, user_id: str = "default_user",
                     extract_knowledge: bool = True, workspace_id: Optional[str] = None,
-                    doc_id: Optional[str] = None) -> bool:
-        """Add a single document to memory"""
+                    doc_id: Optional[str] = None, skip_ai_triggers: bool = False) -> bool:
+        """
+        Add a single document to memory
+
+        Args:
+            table_name: Name of the table to add document to
+            text: Document text content
+            source: Source of the document
+            metadata: Optional metadata dictionary
+            user_id: User ID who owns the document
+            extract_knowledge: Whether to extract knowledge (triggers AI)
+            workspace_id: Workspace ID
+            doc_id: Optional document ID (will generate if not provided)
+            skip_ai_triggers: If True, skip AI trigger coordinator and workflow triggers
+                             (Use for system-generated updates to prevent loops)
+        """
         if self.db is None:
             return False
         
@@ -665,44 +679,53 @@ class LanceDBHandler:
                     logger.warning(f"Failed to log user action for document upload: {e}")
                 
                 # Optional: Trigger knowledge extraction (non-blocking)
-                if extract_knowledge:
+                if extract_knowledge and not skip_ai_triggers:
                     from core.automation_settings import get_automation_settings
                     settings = get_automation_settings()
-                    
+
                     if settings.is_extraction_enabled():
                         from core.knowledge_ingestion import get_knowledge_ingestion
                         ingestor = get_knowledge_ingestion()
                         asyncio.create_task(ingestor.process_document(text, doc_id, source, user_id=user_id, workspace_id="default"))
                     else:
                         logger.info(f"Automatic knowledge extraction skipped for {doc_id} (disabled in settings)")
-                
-                # NEW: Trigger Workflow Events
-                try:
-                    from advanced_workflow_orchestrator import get_orchestrator
+                elif skip_ai_triggers:
+                    logger.info(f"AI triggers skipped for system document {doc_id}")
 
-                    # Non-blocking trigger
-                    asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", {
-                        "text": text,
-                        "doc_id": doc_id,
-                        "source": source,
-                        "metadata": metadata
-                    }))
-                except Exception as trigger_err:
-                    logger.warning(f"Failed to trigger workflow event: {trigger_err}")
-                
+                # NEW: Trigger Workflow Events (skip for system updates)
+                if not skip_ai_triggers:
+                    try:
+                        from advanced_workflow_orchestrator import get_orchestrator
+
+                        # Non-blocking trigger
+                        asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", {
+                            "text": text,
+                            "doc_id": doc_id,
+                            "source": source,
+                            "metadata": metadata
+                        }))
+                    except Exception as trigger_err:
+                        logger.warning(f"Failed to trigger workflow event: {trigger_err}")
+                else:
+                    logger.info(f"Workflow triggers skipped for system document {doc_id}")
+
                 # Phase 31: AI Universal Trigger Coordinator
                 # Route data through AI coordinator to decide if specialty agent should trigger
-                try:
-                    from core.ai_trigger_coordinator import on_data_ingested
-                    asyncio.create_task(on_data_ingested(
-                        data={"text": text, "doc_id": doc_id, "source": source, "metadata": metadata},
-                        source=source or "document_upload",
-                        workspace_id="default",
-                        user_id=user_id,
-                        metadata=metadata
-                    ))
-                except Exception as ai_trigger_err:
-                    logger.warning(f"Failed to invoke AI trigger coordinator: {ai_trigger_err}")
+                # Skip for system updates to prevent infinite loops
+                if not skip_ai_triggers:
+                    try:
+                        from core.ai_trigger_coordinator import on_data_ingested
+                        asyncio.create_task(on_data_ingested(
+                            data={"text": text, "doc_id": doc_id, "source": source, "metadata": metadata},
+                            source=source or "document_upload",
+                            workspace_id="default",
+                            user_id=user_id,
+                            metadata=metadata
+                        ))
+                    except Exception as ai_trigger_err:
+                        logger.warning(f"Failed to invoke AI trigger coordinator: {ai_trigger_err}")
+                else:
+                    logger.info(f"AI Trigger Coordinator skipped for system document {doc_id}")
                 
                 return True
             except Exception as e:
