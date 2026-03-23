@@ -8,14 +8,7 @@ const EmployeeDashboard = () => {
 
     if (isStarted) {
         return (
-            <Box minH="100vh" bg={{ base: 'white', _dark: 'gray.900' }}>
-                <Head>
-                    <title>AI Employee Workspace | ATOM</title>
-                </Head>
-                <Box borderBottom="1px solid" borderColor="gray.200" p={4} bg="white">
-                    <Heading size="md">AI Employee Workspace</Heading>
-                    <Text fontSize="xs" color="gray.500">Autonomous Mode: Supervised | Project: OpenClaw Competitor</Text>
-                </Box>
+            <Box p={0}>
                 <Workspace userId="user_123" workspaceId="workspace_456" />
             </Box>
         );

@@ -34,6 +34,21 @@ class EmployeeExecutor:
         plan = current_state.get("plan", [])
         deliverables = current_state.get("deliverables", [])
         
+        # AUTOMATED MARKET ANALYSIS (Phase 14 Mandate: Always include browser comparison)
+        if "brennan" in command.lower() or "market" in command.lower() or "price" in command.lower() or "urgency" in command.lower():
+            try:
+                # Default to brennan.ca for the mandate demo
+                analysis_res = EmployeeTools.perform_market_analysis("brennan.ca", "5-Axis CNC Mill")
+                if analysis_res.get("success"):
+                    views = current_state.get("views", [])
+                    # Avoid duplicates
+                    if not any(v.get("type") == "analysis" for v in views):
+                        views.append({"type": "analysis", "data": analysis_res.get("analysis")})
+                        current_state["views"] = views
+                        logs.append("> Auto-Analysis: Market comparison & urgency matrix generated.")
+            except Exception as e:
+                logger.error(f"Automated analysis failed: {e}")
+        
         # Start the task log in the editor
         new_content = editor_content + f"\n\n---\n**New Task:** {command}\n---\n"
         
@@ -55,7 +70,8 @@ Available Tools:
 4. write_excel(data, filename): Generates/Appends to a .xlsx file on Desktop. Use this for ALL math, quotes, and summaries.
 5. send_email_smtp(to_address, subject, body): Sends real email.
 6. schedule_meeting_ics(email_addr, topic, time_str): Sends meeting invite + ICS.
-7. append_to_google_sheet(spreadsheet_id, data, range_name): (DISABLED - Use write_excel instead).
+7. perform_market_analysis(client_url, product_name): Scrapes client site and compares with market (Price/Urgency). Use this when asked for "client analysis", "price comparison", or "urgency".
+8. append_to_google_sheet(spreadsheet_id, data, range_name): (DISABLED - Use write_excel instead).
 
 IMPORTANT: 
 - If you need to do math, do it internally and then use `write_excel` to save the results.
@@ -119,6 +135,14 @@ Respond in EXACT JSON:
                     tool_result = EmployeeTools.send_email_smtp(args.get("to_address"), args.get("subject"), args.get("body"))
                 elif action == "schedule_meeting_ics":
                     tool_result = EmployeeTools.schedule_meeting_ics(args.get("email_addr"), args.get("topic"), args.get("time_str"))
+                elif action == "perform_market_analysis":
+                    result_dict = EmployeeTools.perform_market_analysis(args.get("client_url"), args.get("product_name"))
+                    tool_result = json.dumps(result_dict)
+                    # Update views if analysis succeeded
+                    if result_dict.get("success"):
+                        views = current_state.get("views", [])
+                        views.append({"type": "analysis", "data": result_dict.get("analysis")})
+                        current_state["views"] = views
                 elif action == "append_to_google_sheet":
                     tool_result = EmployeeTools.append_to_google_sheet(
                         user_id=user_id,
