@@ -168,6 +168,11 @@
     "ua-parser-js": "^2.0.6",
     "uuid": "^9.0.0"
   },
+  "overrides": {
+    "react-native": {
+      "react": "^18.3.1"
+    }
+  },
   "devDependencies": {
     "@babel/core": "^7.21.3",
     "@babel/plugin-transform-modules-commonjs": "^7.21.2",
