@@ -369,10 +369,10 @@ class TestAgentChatEndpoints:
 class TestAgentChatStreaming:
     """Tests for POST /api/atom-agent/chat/stream endpoint."""
 
-    @patch('core.atom_agent_endpoints.BYOKHandler')
+    @patch('core.atom_agent_endpoints.LLMService')
     @patch('core.atom_agent_endpoints.AgentContextResolver')
     @patch('core.atom_agent_endpoints.AgentGovernanceService')
-    def test_streaming_success(self, mock_gov_class, mock_resolver_class, mock_byok_class, api_test_client: TestClient, db_session: Session):
+    def test_streaming_success(self, mock_gov_class, mock_resolver_class, mock_llm_class, api_test_client: TestClient, db_session: Session):
         """Test streaming endpoint yields Server-Sent Events."""
         # Create autonomous agent
         autonomous = AgentRegistry(
@@ -400,16 +400,16 @@ class TestAgentChatStreaming:
         )
         mock_gov_class.return_value = mock_gov
 
-        # Mock BYOK streaming
-        mock_byok = Mock()
+        # Mock LLMService streaming
+        mock_llm = Mock()
         async def mock_stream(**kwargs):
             tokens = ["Hello", " ", "world", "!"]
             for token in tokens:
                 yield token
-        mock_byok.stream_completion = mock_stream
-        mock_byok.analyze_query_complexity = Mock(return_value="standard")
-        mock_byok.get_optimal_provider = Mock(return_value=("openai", "gpt-3.5-turbo"))
-        mock_byok_class.return_value = mock_byok
+        mock_llm.stream_completion = mock_stream
+        mock_llm.analyze_query_complexity = Mock(return_value="standard")
+        mock_llm.get_optimal_provider = Mock(return_value=("openai", "gpt-3.5-turbo"))
+        mock_llm_class.return_value = mock_llm
 
         # Mock WebSocket manager
         with patch('core.atom_agent_endpoints.ws_manager') as mock_ws:
@@ -434,10 +434,10 @@ class TestAgentChatStreaming:
                 data = response.json()
                 assert "message_id" in data or "error" in data
 
-    @patch('core.atom_agent_endpoints.BYOKHandler')
+    @patch('core.atom_agent_endpoints.LLMService')
     @patch('core.atom_agent_endpoints.AgentContextResolver')
     @patch('core.atom_agent_endpoints.AgentGovernanceService')
-    def test_streaming_governance_blocked(self, mock_gov_class, mock_resolver_class, mock_byok_class, api_test_client: TestClient, db_session: Session):
+    def test_streaming_governance_blocked(self, mock_gov_class, mock_resolver_class, mock_llm_class, api_test_client: TestClient, db_session: Session):
         """Test streaming blocked by governance for student agents."""
         # Create student agent
         student = AgentRegistry(
