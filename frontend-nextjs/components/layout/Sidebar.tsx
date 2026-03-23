@@ -68,6 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 { label: "Tasks", icon: CheckSquare, path: "/tasks" },
                 { label: "Automations", icon: Play, path: "/automations" },
                 { label: "Agents", icon: Bot, path: "/agents" },
+                { label: "AI Employee", icon: Bot, path: "/employee" },
                 { label: "Marketplace", icon: Store, path: "/marketplace" },
             ]
         },

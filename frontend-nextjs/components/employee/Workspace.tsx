@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Flex, Text, VStack, Button, Center } from '@chakra-ui/react';
+import { Box, Flex, Text, VStack, Button, Center, Icon, Badge, HStack, Table, Thead, Tbody, Tr, Th, Td } from '@chakra-ui/react';
+import { FiActivity } from 'react-icons/fi';
 import { Editor } from './Editor';
 import { CommandBar } from './CommandBar';
 
@@ -148,14 +149,56 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
                             <Editor content={workspaceState.editorContent} onSave={(c) => setWorkspaceState(prev => ({ ...prev, editorContent: c }))} />
                         </Box>
                         <Box flex={2}>
-                            <Box height="100%" bg="white" _dark={{ bg: 'gray.900' }} border="1px solid" borderColor="gray.200" borderRadius="md" display="flex" flexDir="column">
-                                <Box p={2} borderBottom="1px solid" borderColor="gray.100" bg="gray.50" _dark={{ bg: 'gray.800', borderColor: 'gray.700' }}>
-                                    <Text fontSize="xs" fontWeight="bold">Browser Integration</Text>
+                            <Box height="100%" bg="white" _dark={{ bg: 'gray.900' }} border="1px solid" borderColor="gray.200" borderRadius="md" display="flex" flexDir="column" overflow="hidden">
+                                <Box p={2} borderBottom="1px solid" borderColor="gray.100" bg="gray.50" _dark={{ bg: 'gray.800', borderColor: 'gray.700' }} display="flex" justifyContent="space-between" alignItems="center">
+                                    <Text fontSize="xs" fontWeight="bold">Market Analysis & Comparison</Text>
+                                    {workspaceState.views?.find(v => v.type === 'analysis') && (
+                                        <Badge colorScheme="red" fontSize="2xs">Urgent Action Recommended</Badge>
+                                    )}
                                 </Box>
-                                <Center flex={1} flexDir="column">
-                                    <Text fontSize="sm" color="gray.400">Live Browser View</Text>
-                                    <Text fontSize="xs" color="gray.300">Scraping 'brennan.ca'...</Text>
-                                </Center>
+                                <Box flex={1} overflowY="auto" p={3}>
+                                    {workspaceState.views?.find(v => v.type === 'analysis') ? (
+                                        <VStack align="stretch" spacing={4}>
+                                            {workspaceState.views.filter(v => v.type === 'analysis').map((view, idx) => (
+                                                <Box key={idx} border="1px solid" borderColor="gray.100" borderRadius="md" p={3}>
+                                                    <Box p={3} bg="blue.50" _dark={{ bg: 'blue.900/20' }} borderRadius="md" mb={4}>
+                                                        <Flex justify="space-between" mb={1} align="center">
+                                                            <Text fontSize="sm" fontWeight="bold">Urgency Score: {view.data.urgency_score}%</Text>
+                                                            <Box w="100px" h="8px" bg="gray.200" borderRadius="full">
+                                                                <Box w={`${view.data.urgency_score}%`} h="100%" bg="red.500" borderRadius="full" />
+                                                            </Box>
+                                                        </Flex>
+                                                        <Text fontSize="xs">{view.data.urgency_reason}</Text>
+                                                    </Box>
+
+                                                    <VStack align="stretch" spacing={2} mb={4}>
+                                                        <Text fontSize="xs" fontWeight="bold" color="gray.500">MARKET COMPARISON</Text>
+                                                        {view.data.competitor_matrix.map((row: any, rIdx: number) => (
+                                                            <Flex key={rIdx} justify="space-between" p={2} bg={row.competitor.includes('Atom') ? 'green.50' : 'gray.50'} _dark={{ bg: row.competitor.includes('Atom') ? 'green.900/20' : 'gray.800' }} borderRadius="sm">
+                                                                <Text fontSize="xs" fontWeight={row.competitor.includes('Atom') ? 'bold' : 'normal'}>{row.competitor}</Text>
+                                                                <VStack align="end" spacing={0}>
+                                                                    <Text fontSize="xs" fontWeight="bold">{row.price}</Text>
+                                                                    <Text fontSize="2xs" color="gray.500">{row.lead_time}</Text>
+                                                                </VStack>
+                                                            </Flex>
+                                                        ))}
+                                                    </VStack>
+
+                                                    <Box p={2} borderLeft="4px solid" borderColor="green.400" bg="gray.50" _dark={{ bg: 'gray.800' }}>
+                                                        <Text fontSize="2xs" fontWeight="bold" color="green.600">Competitive Advantage:</Text>
+                                                        <Text fontSize="xs">{view.data.advantage}</Text>
+                                                    </Box>
+                                                </Box>
+                                            ))}
+                                        </VStack>
+                                    ) : (
+                                        <Center h="100%" flexDir="column">
+                                            <Box w={8} h={8} borderRadius="full" bg="gray.100" mb={2} />
+                                            <Text fontSize="sm" color="gray.400">Analysis Pending</Text>
+                                            <Text fontSize="xs" color="gray.300">Run 'Analyze Market' for Brennan.ca</Text>
+                                        </Center>
+                                    )}
+                                </Box>
                             </Box>
                         </Box>
                     </Flex>

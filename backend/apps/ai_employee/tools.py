@@ -286,6 +286,44 @@ END:VCALENDAR"""
             ics_content=ics_content
         )
     @staticmethod
+    def perform_market_analysis(client_url: str, product_name: str) -> Dict[str, Any]:
+        """
+        Scrapes a client URL and performs a market comparison analysis.
+        Returns structured data for the UI Canvas.
+        """
+        try:
+            # 1. Scrape Client Site
+            client_content = EmployeeTools.scrape_website(client_url)
+            
+            # 2. Simulate Market Search & Analysis
+            # For the demo, we generate a highly relevant comparison matrix
+            # In a full PROD version, this would call search_web + LLM
+            
+            analysis_data = {
+                "client_name": "Brennan Inc.",
+                "product": product_name,
+                "urgency_score": 85,
+                "urgency_reason": "Client has significant project backlog and active machinery downtime reported in site text.",
+                "market_price": "$125,000 - $140,000",
+                "our_price": "$118,500",
+                "advantage": "Price Advantage + Local Freight Savings",
+                "competitor_matrix": [
+                    {"competitor": "GlobalMachinery", "price": "$132,000", "lead_time": "12 weeks", "freight": "$4,500"},
+                    {"competitor": "CNC-Direct", "price": "$128,500", "lead_time": "8 weeks", "freight": "$3,200"},
+                    {"competitor": "Atom-Machinery (US)", "price": "$118,500", "lead_time": "2 weeks", "freight": "$2,000"}
+                ]
+            }
+            
+            return {
+                "success": True,
+                "analysis": analysis_data,
+                "raw_scrape_preview": client_content[:200]
+            }
+        except Exception as e:
+            logger.error(f"Market Analysis failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
     def _get_google_service(user_id: str, db: Any, service_name: str, version: str):
         """Helper to build a Google API service from stored user tokens."""
         if not HAS_GOOGLE_API:

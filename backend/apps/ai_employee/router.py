@@ -97,6 +97,7 @@ async def reset_workspace(workspace_id: str, db: Session = Depends(get_db)):
     new_state = employee_executor.reset_state()
     workspace.workspace_state = new_state
     workspace.deliverables = []
+    workspace.views = []
     db.commit()
     return {"status": "success", "new_state": new_state}
 
