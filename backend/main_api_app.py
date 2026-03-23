@@ -537,6 +537,14 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load composition routes: {e}")
 
+    # Provider Registry Routes
+    try:
+        from api.provider_registry_routes import router as provider_registry_router
+        app.include_router(provider_registry_router)
+        logger.info("✓ Provider Registry Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load provider registry routes: {e}")
+
     try:
         from api.cognitive_tier_routes import router as cognitive_tier_router
         app.include_router(cognitive_tier_router)
