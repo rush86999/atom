@@ -218,7 +218,8 @@ async def reauth_gmail():
                 self.wfile.write(b"<h1>Authentication Failed!</h1>")
 
     print(f"2. Waiting for callback on {redirect_uri}...")
-    with socketserver.TCPServer(("", PORT), OAuthCallbackHandler) as httpd:
+    # Bind to 127.0.0.1 only (localhost) to prevent external access - security fix
+    with socketserver.TCPServer(("127.0.0.1", PORT), OAuthCallbackHandler) as httpd:
         httpd.handle_request()
 
     if CODE:
