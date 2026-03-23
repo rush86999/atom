@@ -15,7 +15,7 @@ References:
 """
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from core.provider_health_monitor import get_provider_health_monitor
@@ -51,7 +51,7 @@ async def get_provider_health() -> Dict[str, Any]:
 
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_providers": len(providers),
         "healthy_providers": len(healthy_providers),
         "unhealthy_providers": len(providers) - len(healthy_providers),
@@ -136,7 +136,7 @@ async def trigger_provider_sync() -> Dict[str, Any]:
         logger.info(f"Manual sync completed: {result}")
         return {
             "success": True,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "providers_synced": result.get("providers_synced", 0),
             "models_synced": result.get("models_synced", 0)
         }
