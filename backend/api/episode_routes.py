@@ -8,7 +8,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.agent_context_resolver import AgentContextResolver
@@ -59,7 +59,7 @@ class ContextualRetrievalRequest(BaseModel):
 
 class EpisodeFeedbackRequest(BaseModel):
     episode_id: str
-    feedback_score: float  # -1.0 to 1.0
+    feedback_score: float = Field(ge=-1.0, le=1.0, description="Feedback score from -1.0 (negative) to 1.0 (positive)")
 
 
 class CanvasTypeRetrievalRequest(BaseModel):
@@ -219,9 +219,17 @@ async def list_episodes(
 async def submit_feedback(
     episode_id: str,
     request: EpisodeFeedbackRequest,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Submit feedback to update importance score"""
+    """
+    Submit feedback to update importance score (authenticated)
+
+    Updates episode importance based on user feedback.
+    Feedback score must be between -1.0 (negative) and 1.0 (positive).
+
+    **Security**: Requires authentication
+    """
     service = EpisodeLifecycleService(db)
     success = await service.update_importance_scores(
         episode_id, request.feedback_score
