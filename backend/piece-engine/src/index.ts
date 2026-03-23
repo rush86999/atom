@@ -1,15 +1,109 @@
 
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { Piece } from '@activepieces/pieces-framework';
-import { exec } from 'child_process';
-import util from 'util';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
-const execAsync = util.promisify(exec);
 const app = express();
 const PORT = process.env.PORT || 3003;
+
+// ============================================================================
+// SECURITY: Authentication Middleware
+// ============================================================================
+
+const PIECE_ENGINE_API_KEY = process.env.PIECE_ENGINE_API_KEY || '';
+const REQUIRE_AUTH = process.env.REQUIRE_AUTH === 'true' || PIECE_ENGINE_API_KEY.length > 0;
+
+/**
+ * Authentication middleware for management endpoints.
+ * Validates API key via X-API-Key header or Authorization: Bearer <key>
+ */
+function authenticateRequest(req: Request, res: Response, next: NextFunction): void {
+    // Skip authentication if not explicitly enabled
+    if (!REQUIRE_AUTH) {
+        next();
+        return;
+    }
+
+    // Try X-API-Key header first
+    const apiKey = req.headers['x-api-key'] as string;
+
+    // Try Authorization header (Bearer token)
+    const authHeader = req.headers['authorization'] as string;
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+
+    const token = apiKey || bearerToken;
+
+    if (!token) {
+        res.status(401).json({
+            success: false,
+            error: 'Authentication required. Provide X-API-Key header or Authorization: Bearer <key>.'
+        });
+        return;
+    }
+
+    if (token !== PIECE_ENGINE_API_KEY) {
+        res.status(403).json({
+            success: false,
+            error: 'Invalid API key'
+        });
+        return;
+    }
+
+    next();
+}
+
+// NPM package name validation (RFC compliance)
+// Based on: https://github.com/npm/validate-npm-package-name
+const VALID_PACKAGE_NAME_REGEX = /^(?:@([a-z0-9-~][a-z0-9-._~]*)\/)?([a-z0-9-~][a-z0-9-._~]*)$/;
+
+/**
+ * Validates an npm package name against RFC standards to prevent command injection.
+ * @param packageName - The package name to validate
+ * @returns True if the package name is valid, false otherwise
+ */
+function isValidPackageName(packageName: string): boolean {
+    if (!packageName || typeof packageName !== 'string') {
+        return false;
+    }
+
+    // Check length (npm limits to 214 chars)
+    if (packageName.length > 214) {
+        return false;
+    }
+
+    // Validate against RFC-compliant regex
+    return VALID_PACKAGE_NAME_REGEX.test(packageName);
+}
+
+/**
+ * Safely installs an npm package using spawn (no shell interpretation).
+ * @param packageName - The validated package name to install
+ * @returns Promise that resolves when installation completes
+ */
+function safeNpmInstall(packageName: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        // Use spawn with argument array to prevent shell injection
+        const process = spawn('npm', ['install', packageName, '--save'], {
+            stdio: 'inherit',
+            shell: false // Critical: Disable shell to prevent command injection
+        });
+
+        process.on('close', (code) => {
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(new Error(`npm install exited with code ${code}`));
+            }
+        });
+
+        process.on('error', (err) => {
+            reject(new Error(`Failed to spawn npm process: ${err.message}`));
+        });
+    });
+}
 
 app.use(express.json());
 app.use(cors());
@@ -22,13 +116,20 @@ const loadPiece = async (pieceName: string): Promise<Piece | null> => {
     try {
         console.log(`Attempting to load piece: ${pieceName}`);
 
+        // SECURITY: Validate package name before any operations
+        if (!isValidPackageName(pieceName)) {
+            console.error(`Invalid package name: ${pieceName}`);
+            return null;
+        }
+
         // Try to import directly
         let module;
         try {
             module = await import(pieceName);
         } catch (importErr) {
             console.log(`Module ${pieceName} not found. Attempting dynamic install...`);
-            await execAsync(`npm install ${pieceName} --save`);
+            // Use safe installation method with spawn instead of exec
+            await safeNpmInstall(pieceName);
             module = await import(pieceName);
         }
 
@@ -94,7 +195,8 @@ app.get('/pieces', (req: Request, res: Response) => {
 });
 
 // Endpoint to get full details for a specific piece
-app.get('/pieces/:name', async (req: Request, res: Response) => {
+// SECURITY: Require authentication for dynamic piece loading (can trigger npm install)
+app.get('/pieces/:name', authenticateRequest, async (req: Request, res: Response) => {
     const name = encodeURIComponent(req.params.name);
     // Explicitly allow dots and slashes in piece names if they aren't caught by express router correctly
     // but usually @activepieces/piece-foo works as req.params.name
@@ -123,7 +225,8 @@ app.get('/pieces/:name', async (req: Request, res: Response) => {
 });
 
 // Endpoint to execute an action
-app.post('/execute/action', async (req: Request, res: Response) => {
+// SECURITY: Require authentication for action execution
+app.post('/execute/action', authenticateRequest, async (req: Request, res: Response) => {
     try {
         const { pieceName, actionName, props, auth } = req.body;
 
@@ -170,13 +273,22 @@ app.post('/execute/action', async (req: Request, res: Response) => {
 });
 
 // Management: Install a piece
-app.post('/sys/install', async (req: Request, res: Response) => {
+// SECURITY: Require authentication for package installation
+app.post('/sys/install', authenticateRequest, async (req: Request, res: Response) => {
     const { packageName } = req.body;
+
+    // SECURITY: Validate package name before installation
+    if (!packageName || !isValidPackageName(packageName)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid package name. Package names must follow npm naming conventions.'
+        });
+    }
+
     try {
         console.log(`Installing ${packageName}...`);
-        // Use --no-save to avoid modifying package.json dynamically if preferred, 
-        // but here we might want to keep it.
-        await execAsync(`npm install ${packageName} --save`);
+        // Use safe installation method with spawn instead of exec
+        await safeNpmInstall(packageName);
 
         const piece = await loadPiece(packageName);
         if (piece) {
