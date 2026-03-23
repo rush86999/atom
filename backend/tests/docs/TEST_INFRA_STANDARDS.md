@@ -402,8 +402,68 @@ def test_something(db_session):
 - **Parallel Execution Guide**: `PARALLEL_EXECUTION_GUIDE.md`
 - **Coverage Guide**: `COVERAGE_GUIDE.md`
 
+## Unified Test Runner (INFRA-08, INFRA-09, INFRA-10)
+
+### Overview
+Single entry point for running all platform tests with unified Allure reporting.
+
+### Usage
+```bash
+# Run all platforms
+python backend/tests/scripts/test_runner.py
+
+# Run specific platform
+python backend/tests/scripts/test_runner.py --platform backend
+python backend/tests/scripts/test_runner.py --platform web
+python backend/tests/scripts/test_runner.py --platform mobile
+
+# Configure parallelism
+python backend/tests/scripts/test_runner.py --workers 8
+
+# Skip Allure report (faster iteration)
+python backend/tests/scripts/test_runner.py --no-report
+
+# Extra pytest arguments
+python backend/tests/scripts/test_runner.py --extra "-k test_agent"
+```
+
+### Platforms
+| Platform | Test Framework | Allure Directory |
+|----------|---------------|------------------|
+| Backend | pytest | allure-results/backend/ |
+| Web E2E | pytest-playwright | allure-results/web/ |
+| Mobile API | pytest | allure-results/mobile/ |
+| Desktop | cargo test | (separate workflow) |
+
+### Allure Report
+```bash
+# Generate report manually
+python backend/tests/scripts/allure_aggregator.py aggregate-allure \
+  --backend allure-results/backend/ \
+  --web allure-results/web/ \
+  --mobile allure-results/mobile/ \
+  --output allure-results/
+
+# View report (auto-refreshes)
+allure open allure-report
+
+# Serve report on port 8080
+allure serve allure-results
+```
+
+### CI Integration
+- GitHub Actions runs unified-tests job per platform
+- generate-report job aggregates results
+- Report uploaded as artifact for viewing
+
+### Output
+- Allure results: `allure-results/`
+- Allure report: `allure-report/index.html`
+- Screenshots: `artifacts/screenshots/` (on failure)
+- Videos: `artifacts/videos/` (on failure, CI only)
+
 ---
 
 *Last Updated: 2026-03-23*
 *Phase: 233 - Test Infrastructure Foundation*
-*Plan: 04 - Failure Artifact Capture with Allure Integration*
+*Plan: 05 - Unified Test Runner with Allure Cross-Platform Reporting*
