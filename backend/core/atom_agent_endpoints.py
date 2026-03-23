@@ -1663,7 +1663,7 @@ async def chat_stream_agent(request: ChatRequest):
         from core.agent_context_resolver import AgentContextResolver
         from core.agent_governance_service import AgentGovernanceService
         from core.database import get_db_session
-        from core.llm.byok_handler import BYOKHandler
+        from core.llm_service import LLMService
         from core.models import AgentExecution
         from core.websockets import manager as ws_manager
 
@@ -1719,8 +1719,8 @@ async def chat_stream_agent(request: ChatRequest):
 
                     logger.info(f"Agent execution {agent_execution.id} started for agent {agent.name}")
 
-        # Get BYOK handler
-        byok_handler = BYOKHandler(workspace_id=ws_id, provider_id="auto")
+        # Get LLM service
+        llm_service = LLMService(workspace_id=ws_id)
 
         # Prepare messages for LLM
         messages = []
@@ -1764,10 +1764,8 @@ Provide helpful, concise responses. When you need to take actions, describe what
         })
 
         # Get optimal provider for streaming
-        from core.llm.byok_handler import QueryComplexity
-
-        complexity = byok_handler.analyze_query_complexity(request.message, task_type="chat")
-        provider_id, model = byok_handler.get_optimal_provider(
+        complexity = llm_service.analyze_query_complexity(request.message, task_type="chat")
+        provider_id, model = llm_service.get_optimal_provider(
             complexity,
             task_type="chat",
             prefer_cost=True,
@@ -1812,7 +1810,7 @@ Provide helpful, concise responses. When you need to take actions, describe what
             if agent and governance_enabled:
                 stream_kwargs["agent_id"] = agent.id
 
-            async for token in byok_handler.stream_completion(**stream_kwargs):
+            async for token in llm_service.stream_completion(**stream_kwargs):
                 accumulated_content += token
                 tokens_count += 1
 
