@@ -153,8 +153,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 226.4-02 execution)
-Stopped at: Completed phase 226.4-02 - ProviderHealthMonitor with EMA scoring, sliding window, and 27 unit tests
+Last session: 2026-03-22 (plan 226.4-01 execution)
+Stopped at: Completed phase 226.4-01 - Capability-based routing infrastructure with auto-detection and specialized model exclusion
 Resume file: None
 
 ## Milestone Context
