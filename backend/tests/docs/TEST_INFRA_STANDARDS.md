@@ -1,220 +1,409 @@
 # Test Infrastructure Standards
 
-**Purpose**: Consistent, reliable test patterns across Atom codebase.
+**Purpose**: Comprehensive guide for test infrastructure standards and patterns in Atom.
 
-Last Updated: 2026-03-23
+**Last Updated**: 2026-03-23
 
-## data-testid Standard (INFRA-07)
+---
 
-### Why data-testid?
-- Stable selectors (don't change with CSS refactors)
-- Cross-platform (Web, Mobile, Desktop)
-- Semantic (describe element purpose)
+## Overview
 
-### Format
-- kebab-case: `submit-button`, `agent-card`, `email-input`
-- Descriptive: what element does, not how it looks
-- Unique within page
+This document outlines the test infrastructure standards for the Atom project, covering:
+- Test fixtures and patterns
+- Database isolation and test data management
+- Failure artifact capture (screenshots, videos)
+- Test reporting (Allure, HTML, JSON)
+- Parallel execution patterns
+- Test cleanup and teardown
 
-### Examples
-<!-- HTML -->
-<button data-testid="submit-button">Submit</button>
-<input data-testid="email-input" type="email" />
+**Target Audience**: Test engineers, developers writing tests, CI/CD engineers
 
-<!-- Test selector -->
-await click_element(page, "[data-testid='submit-button']")
+---
 
-### Cross-Platform Mapping
-| Platform | Attribute | Example |
-|----------|-----------|---------|
-| Web | data-testid | [data-testid='submit-button'] |
-| Mobile (React Native) | testID | testID='submit-button' |
-| Desktop (Tauri) | data-testid | [data-testid='submit-button'] |
+## Test Fixtures Standards
 
-## API-First Authentication
+### Fixture Scope
 
-### Performance Comparison
-- UI Login: 10-60 seconds (form fill, navigation, redirect)
-- API Login: 10-100 milliseconds (API call, localStorage injection)
-
-### Usage
+**Session-scoped fixtures** (expensive, shared):
 ```python
-def test_protected_route(authenticated_page_api):
-    # Already authenticated, no login overhead
-    authenticated_page_api.goto("/agents")
-    assert authenticated_page_api.locator("[data-testid='agent-list']").visible
+@pytest.fixture(scope="session")
+def browser():
+    """Shared browser instance for all tests."""
+    # Use for: Browser launch, server startup
 ```
 
-### When to Use UI Login
-- Testing login flow itself (validation, error messages)
-- Testing OAuth flows (can't bypass redirect)
-
-## Test Cleanup Patterns
-
-### Fixture Cleanup (Preferred)
+**Function-scoped fixtures** (default, isolated):
 ```python
-@pytest.fixture
-def temp_resource():
-    resource = create_resource()
-    try:
-        yield resource
-    finally:
-        # Always runs, even if test fails
-        cleanup_resource(resource)
+@pytest.fixture(scope="function")
+def page(browser):
+    """New page for each test."""
+    # Use for: Page objects, test data
 ```
 
-### Manual Cleanup
+**Autouse fixtures** (automatic):
 ```python
-def test_with_cleanup():
-    resource = create_resource()
-    try:
-        # Test code
-        pass
-    finally:
-        cleanup_resource(resource)
+@pytest.fixture(autouse=True)
+def track_page_for_screenshots(request, page):
+    """Track page for automatic screenshot capture."""
+    # Runs for every test automatically
 ```
 
-## Factory Usage (from 233-01)
+### Fixture Naming Conventions
 
-### Required _session Parameter
+- Descriptive names: `screenshot_page`, not `sp`
+- Return type hints in docstrings
+- Yield for cleanup, return for values
+
+---
+
+## Database Isolation Patterns
+
+### Worker-Specific Database Isolation
+
+All tests automatically get worker-specific database isolation via `db_session` fixture:
+
 ```python
-def test_agent_creation(db_session):
-    agent = AgentFactory.create(
-        _session=db_session,  # REQUIRED
-        id=unique_resource_name
+@pytest.fixture(scope="function")
+def db_session():
+    """
+    Worker-specific database session with automatic rollback.
+
+    Each pytest-xdist worker gets its own database file to prevent
+    test data collisions during parallel execution.
+    """
+    # Worker ID: gw0, gw1, gw2, etc.
+    # Database: atom_test_<worker_id>.db
+    # Automatic rollback after each test
+```
+
+**Key Benefits**:
+- No test data collisions between workers
+- No cleanup code needed in tests
+- Full parallel execution support
+
+**Usage**:
+```python
+def test_create_agent(db_session):
+    agent = AgentRegistry(id="test-agent", name="Test")
+    db_session.add(agent)
+    db_session.commit()
+
+    # Auto-rollback after test
+```
+
+---
+
+## Failure Artifacts (INFRA-04)
+
+### Automatic Capture
+
+Failed E2E tests automatically capture:
+- **Screenshot**: Full-page screenshot saved to `artifacts/screenshots/`
+- **Video**: Browser recording saved to `artifacts/videos/` (CI only)
+- **Allure Report**: Artifacts attached to test result for easy viewing
+
+### Screenshot Format
+
+- Filename: `{timestamp}_{test_name}.png`
+- Full page capture (includes scrolled content)
+- Available in: `artifacts/screenshots/`
+
+**Example**:
+```
+20260323_170120_test_login_success.png
+```
+
+### Video Recording
+
+- Enabled in CI only (GITHUB_ACTIONS=true)
+- Format: WEBM
+- Available in: `artifacts/videos/`
+- Accessed via: `page.video.path()`
+
+**Example**:
+```
+20260323_170120_test_login_success.webm
+```
+
+### Allure Integration
+
+```python
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Attach screenshots/videos to Allure on failure."""
+    outcome = yield
+    rep = outcome.get_result()
+
+    if rep.when == "call" and rep.failed:
+        # Capture and attach artifacts
+        allure.attach.file(screenshot_path, ...)
+        allure.attach.file(video_path, ...)
+```
+
+**Benefits**:
+- Artifacts embedded in test report
+- One-click viewing in Allure UI
+- No manual file searching
+
+### Viewing Artifacts
+
+```bash
+# Local: Check artifacts directory
+ls artifacts/screenshots/
+ls artifacts/videos/
+
+# CI: Download from workflow run artifacts
+# Allure: Open report and click failed test
+allure open allure-report
+```
+
+### Manual Screenshot Capture
+
+```python
+def test_manual_screenshot(page):
+    page.screenshot(path="custom-screenshot.png")
+
+    # Attach to Allure
+    allure.attach.file(
+        "custom-screenshot.png",
+        name="Custom Screenshot",
+        attachment_type=allure.attachment_type.PNG
     )
 ```
 
-## Parallel Execution
+---
 
-### Worker Isolation
-- Each worker gets own database (test_db_gw0, test_db_gw1, etc.)
-- Use unique_resource_name for unique IDs
-- No shared state between tests
+## Test Cleanup Patterns
 
-### Worker-Specific Fixtures
+### Automatic Cleanup
+
+Use fixtures with yield for cleanup:
+
 ```python
-# Each pytest-xdist worker gets isolated database
 @pytest.fixture(scope="function")
-def db_session(worker_schema, get_engine, init_db):
-    # Automatically uses worker-specific schema
-    # Transactions rolled back after test
-    yield session
-    session.rollback()
+def temp_file():
+    """Create temp file and clean up after test."""
+    path = "/tmp/test-file.txt"
+    with open(path, "w") as f:
+        f.write("test data")
+
+    yield path
+
+    # Cleanup
+    os.remove(path)
 ```
 
-## Shared Utilities
+### Database Cleanup
 
-### Import Common Helpers
+Use transaction rollback (automatic):
+
 ```python
-from tests.fixtures.shared_utilities import (
-    wait_for_selector,
-    click_element,
-    fill_input,
-    wait_for_text,
-    get_test_id
-)
+def test_create_agent(db_session):
+    agent = AgentRegistry(id="test", name="Test")
+    db_session.add(agent)
+    db_session.commit()
+    # Auto-rollback after test
 ```
 
-### Use data-testid Selectors
+### Resource Cleanup
+
 ```python
-# Preferred
-click_element(page, "[data-testid='submit-button']")
-
-# Avoid
-click_element(page, ".btn-primary")  # CSS class can change
-click_element(page, "//button[@type='submit']")  # XPath is brittle
+@pytest.fixture(scope="function")
+def server():
+    """Start server and stop after test."""
+    srv = start_server(port=8000)
+    yield srv
+    srv.stop()  # Cleanup
 ```
+
+---
+
+## Test Reporting Standards
+
+### Allure Reporting
+
+**Generate Report**:
+```bash
+pytest tests/ --alluredir=allure-results
+allure generate allure-results --clean -o allure-report
+allure open allure-report
+```
+
+**Benefits**:
+- Rich test report with screenshots/videos
+- Test history and trends
+- Suites, categories, and tags
+
+### HTML Reporting
+
+**Generate Report**:
+```bash
+pytest tests/ --html=report.html --self-contained-html
+```
+
+**Features**:
+- Embedded screenshots in failed tests
+- Test execution summary
+- Test duration and logs
+
+### JSON Reporting
+
+**Generate Report**:
+```bash
+pytest tests/ --json-report --json-report-file=report.json
+```
+
+**Use Case**: CI/CD pass rate parsing
+
+---
+
+## Parallel Execution Standards
+
+### pytest-xdist Configuration
+
+**Run tests in parallel**:
+```bash
+pytest -n auto  # Auto-detect CPU count
+pytest -n 4     # Use 4 workers
+```
+
+**Worker Isolation**:
+- Each worker gets own database file
+- Unique resource names via fixtures
+- No shared state between workers
+
+### Test Independence
+
+**Requirements**:
+- No hardcoded IDs (use fixtures)
+- No shared files (use temp files)
+- No hardcoded ports (use random ports)
+
+**Bad Example**:
+```python
+def test_create_agent():
+    agent = AgentRegistry(id="test-agent", ...)  # Collision!
+```
+
+**Good Example**:
+```python
+def test_create_agent(unique_name):
+    agent = AgentRegistry(id=unique_name(), ...)  # Safe
+```
+
+---
+
+## CI/CD Integration
+
+### CI-Specific Behavior
+
+**Video Recording**: Enabled in CI only
+```python
+if is_ci_environment():
+    context_args["record_video_dir"] = video_dir
+```
+
+**Test Retries**: Enabled in CI only
+```python
+if is_ci_environment():
+    sys.argv.extend(["--reruns", "2"])
+```
+
+**Artifact Upload**: Screenshots and videos uploaded as workflow artifacts
+
+### GitHub Actions Example
+
+```yaml
+- name: Run E2E tests
+  run: pytest tests/e2e_ui/ -n auto
+
+- name: Upload screenshots
+  if: failure()
+  uses: actions/upload-artifact@v3
+  with:
+    name: screenshots
+    path: backend/tests/e2e_ui/artifacts/screenshots/
+```
+
+---
 
 ## Best Practices
 
-### 1. Prefer API-First Setup
-```python
-# Good: 10-100ms
-def test_fast(authenticated_page_api):
-    authenticated_page_api.goto("/dashboard")
+### DO ✅
 
-# Slow: 10-60s
-def test_slow(authenticated_page):
-    # Fills login form, navigates, waits...
-    pass
+- Use fixtures for setup/teardown
+- Write isolated tests (no dependencies)
+- Use unique resource names
+- Leverage automatic rollback
+- Attach screenshots to Allure on failure
+
+### DON'T ❌
+
+- Hardcode IDs or ports
+- Share state between tests
+- Manually cleanup database
+- Skip fixture cleanup
+- Ignore flaky tests (fix them)
+
+---
+
+## Troubleshooting
+
+### Screenshots Not Capturing
+
+**Check**:
+1. Is `page` fixture available?
+2. Is `allure-pytest` installed?
+3. Is `allure-results` directory writable?
+
+**Fix**:
+```bash
+pip install allure-pytest
+mkdir -p allure-results
 ```
 
-### 2. Use Explicit Timeouts
-```python
-# Good
-wait_for_selector(page, "[data-testid='status']", timeout=5000)
+### Videos Not Recording
 
-# Bad (relies on global timeout)
-page.wait_for_selector(".status")
+**Check**:
+1. Is running in CI (GITHUB_ACTIONS=true)?
+2. Is video dir created?
+3. Is browser context configured for video?
+
+**Fix**:
+```python
+if is_ci_environment():
+    os.makedirs(video_dir, exist_ok=True)
+    context_args["record_video_dir"] = video_dir
 ```
 
-### 3. Prefer data-testid Over CSS/XPath
-```python
-# Good: Stable
-page.click("[data-testid='submit-button']")
+### Tests Failing in Parallel but Passing Sequentially
 
-# Bad: Brittle
-page.click(".btn.btn-primary")  # Changes if CSS refactored
-page.click("//button[contains(@class, 'btn')]")  # XPath is slow
+**Check**:
+1. Are resources uniquely named?
+2. Is database isolation enabled?
+3. Are ports hardcoded?
+
+**Fix**:
+```python
+# Use unique_name fixture
+agent = AgentRegistry(id=unique_name(), ...)
+
+# Use db_session fixture (auto-isolation)
+def test_something(db_session):
+    ...
 ```
 
-### 4. Always Clean Up Resources
-```python
-# Good: Explicit cleanup
-@pytest.fixture
-def temp_file():
-    path = create_temp_file()
-    try:
-        yield path
-    finally:
-        os.unlink(path)  # Always runs
+---
 
-# Bad: No cleanup
-def test_with_file():
-    path = create_temp_file()
-    # If test fails, file remains
-```
+## Additional Resources
 
-### 5. Use Transaction Rollback for Database
-```python
-# Good: Automatic rollback
-def test_database(db_session):
-    agent = Agent(name="test")
-    db_session.add(agent)
-    db_session.commit()
-    # Automatically rolled back after test
+- **Test Isolation Patterns**: `TEST_ISOLATION_PATTERNS.md`
+- **Flaky Test Guide**: `FLAKY_TEST_GUIDE.md`
+- **Parallel Execution Guide**: `PARALLEL_EXECUTION_GUIDE.md`
+- **Coverage Guide**: `COVERAGE_GUIDE.md`
 
-# Bad: Manual cleanup
-def test_database_manual(db_session):
-    agent = Agent(name="test")
-    db_session.add(agent)
-    db_session.commit()
-    db_session.delete(agent)  # Unnecessary
-    db_session.commit()
-```
+---
 
-## Quick Reference
-
-### Fixture Scopes
-- `function`: Clean state for every test (default)
-- `session`: Shared across all tests (use sparingly)
-- `module`: Shared across tests in same module
-
-### Common Fixtures
-- `db_session`: Database session with rollback
-- `authenticated_page_api`: Fast API-first authentication
-- `browser`: Playwright browser (session-scoped)
-- `base_url`: Test application base URL
-
-### Utility Functions
-- `get_test_id(id)`: Generate data-testid selector
-- `wait_for_selector(page, selector, timeout)`: Wait for element
-- `click_element(page, selector)`: Click element
-- `fill_input(page, selector, value)`: Fill input
-- `wait_for_text(page, selector, text)`: Wait for text content
-
-## See Also
-- [PARALLEL_EXECUTION_GUIDE.md](PARALLEL_EXECUTION_GUIDE.md): Worker isolation and parallel testing
-- [TEST_ISOLATION_PATTERNS.md](TEST_ISOLATION_PATTERNS.md): Database and resource isolation
-- [FLAKY_TEST_GUIDE.md](FLAKY_TEST_GUIDE.md): Dealing with flaky tests
+*Last Updated: 2026-03-23*
+*Phase: 233 - Test Infrastructure Foundation*
+*Plan: 04 - Failure Artifact Capture with Allure Integration*
