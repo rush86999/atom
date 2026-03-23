@@ -122,9 +122,16 @@ async def slack_health(user_id: str = "test_user"):
 async def send_slack_message(
     request: SlackMessageRequest,
     agent_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Send a Slack message with governance check (complexity 2 - INTERN+)"""
+    """
+    Send a Slack message with governance check (complexity 2 - INTERN+).
+
+    **SECURITY**: Requires authentication to prevent unauthorized Slack messages.
+    Governance can still be bypassed with EMERGENCY_GOVERNANCE_BYPASS, but
+    authentication is always required.
+    """
     logger.info(f"Sending Slack message to channel: {request.channel}")
 
     # Governance check if enabled and agent_id provided

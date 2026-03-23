@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 
 from integrations.auth_handler_dropbox import dropbox_auth_handler
 from integrations.dropbox_service import dropbox_service
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -169,8 +171,11 @@ async def get_dropbox_user():
 
 # File endpoints
 @router.post("/files/list", summary="List files and folders")
-async def list_files(request: FileListRequest):
-    """List files and folders with pagination"""
+async def list_files(
+    request: FileListRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """List files and folders with pagination (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         entries = await dropbox_service.list_folder(
@@ -193,8 +198,11 @@ async def list_files(request: FileListRequest):
 
 
 @router.post("/files/upload", summary="Upload file")
-async def upload_file(request: FileUploadRequest):
-    """Upload file to Dropbox"""
+async def upload_file(
+    request: FileUploadRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Upload file to Dropbox (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         import base64
@@ -221,8 +229,11 @@ async def upload_file(request: FileUploadRequest):
 
 
 @router.post("/files/download", summary="Download file")
-async def download_file(request: FileDownloadRequest):
-    """Download file from Dropbox"""
+async def download_file(
+    request: FileDownloadRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Download file from Dropbox (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         content = await dropbox_service.download_file(
@@ -249,8 +260,11 @@ async def download_file(request: FileDownloadRequest):
 
 
 @router.post("/files/search", summary="Search files")
-async def search_files(request: FileSearchRequest):
-    """Search files in Dropbox"""
+async def search_files(
+    request: FileSearchRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Search files in Dropbox (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         results = await dropbox_service.search(
@@ -274,8 +288,11 @@ async def search_files(request: FileSearchRequest):
 
 # Folder endpoints
 @router.post("/folders/create", summary="Create folder")
-async def create_folder(request: FolderCreateRequest):
-    """Create folder in Dropbox"""
+async def create_folder(
+    request: FolderCreateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create folder in Dropbox (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.create_folder(
@@ -297,8 +314,11 @@ async def create_folder(request: FolderCreateRequest):
 
 
 @router.post("/folders/list", summary="List folders")
-async def list_folders(request: FileListRequest):
-    """List folders with pagination"""
+async def list_folders(
+    request: FileListRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """List folders with pagination (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         entries = await dropbox_service.list_folder(
@@ -324,8 +344,11 @@ async def list_folders(request: FileListRequest):
 
 # Item management endpoints
 @router.post("/items/delete", summary="Delete item")
-async def delete_item(request: ItemDeleteRequest):
-    """Delete file or folder from Dropbox"""
+async def delete_item(
+    request: ItemDeleteRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Delete file or folder from Dropbox (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.delete_item(
@@ -345,8 +368,11 @@ async def delete_item(request: ItemDeleteRequest):
 
 
 @router.post("/items/move", summary="Move item")
-async def move_item(request: ItemMoveRequest):
-    """Move file or folder in Dropbox"""
+async def move_item(
+    request: ItemMoveRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Move file or folder in Dropbox (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.move_item(
@@ -368,8 +394,11 @@ async def move_item(request: ItemMoveRequest):
 
 
 @router.post("/items/copy", summary="Copy item")
-async def copy_item(request: ItemCopyRequest):
-    """Copy file or folder in Dropbox"""
+async def copy_item(
+    request: ItemCopyRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Copy file or folder in Dropbox (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.copy_item(
@@ -392,8 +421,11 @@ async def copy_item(request: ItemCopyRequest):
 
 # Sharing endpoints
 @router.post("/shared_links/create", summary="Create shared link")
-async def create_shared_link(request: SharedLinkCreateRequest):
-    """Create shared link for file or folder"""
+async def create_shared_link(
+    request: SharedLinkCreateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create shared link for file or folder (requires authentication)"""
     try:
         token = await dropbox_auth_handler.ensure_valid_token()
         result = await dropbox_service.create_shared_link(

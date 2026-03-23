@@ -6,8 +6,11 @@ Production-ready FastAPI routes for WhatsApp Business integration
 from datetime import datetime, timedelta
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Body, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
+
+from core.auth import get_current_user
+from core.models import User
 
 # Try to import WhatsApp components
 try:
@@ -114,8 +117,11 @@ async def initialize_service():
 
 
 @router.post("/send", summary="Send WhatsApp message")
-async def send_message(request: MessageRequest):
-    """Send a WhatsApp message to a single recipient"""
+async def send_message(
+    request: MessageRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Send a WhatsApp message to a single recipient (requires authentication)"""
     try:
         result = whatsapp_integration.send_message(
             to=request.to, message_type=request.type, content=request.content
@@ -130,9 +136,10 @@ async def send_message(request: MessageRequest):
 async def send_message_alias(
     to: str = Body(..., description="Recipient phone number"),
     message: str = Body(..., description="Message text"),
-    type: str = Body(default="text", description="Message type")
+    type: str = Body(default="text", description="Message type"),
+    current_user: User = Depends(get_current_user)
 ):
-    """Send a WhatsApp message (E2E test compatibility endpoint)"""
+    """Send a WhatsApp message (E2E test compatibility endpoint, requires authentication)"""
     try:
         content = {"text": message} if type == "text" else {"body": message}
         result = whatsapp_integration.send_message(
@@ -145,8 +152,11 @@ async def send_message_alias(
 
 
 @router.post("/send/batch", summary="Send batch WhatsApp messages")
-async def send_batch_messages(request: BatchMessageRequest):
-    """Send messages to multiple recipients with rate limiting"""
+async def send_batch_messages(
+    request: BatchMessageRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Send messages to multiple recipients with rate limiting (requires authentication)"""
     try:
         import time
 
@@ -358,8 +368,11 @@ async def get_all_messages(
 
 
 @router.post("/templates", summary="Create WhatsApp template")
-async def create_template(request: TemplateRequest):
-    """Create a message template for WhatsApp Business"""
+async def create_template(
+    request: TemplateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create a message template for WhatsApp Business (requires authentication)"""
     try:
         result = whatsapp_integration.create_template(
             template_name=request.template_name,
@@ -490,8 +503,11 @@ async def get_business_profile():
 
 
 @router.put("/configuration/business-profile", summary="Update business profile")
-async def update_business_profile(request: BusinessProfileUpdate):
-    """Update WhatsApp business profile settings"""
+async def update_business_profile(
+    request: BusinessProfileUpdate,
+    current_user: User = Depends(get_current_user)
+):
+    """Update WhatsApp business profile settings (requires authentication)"""
     try:
         profile_updates = request.business_profile
 

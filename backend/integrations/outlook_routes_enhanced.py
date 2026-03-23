@@ -18,6 +18,9 @@ from outlook_service_enhanced import (
 )
 from pydantic import BaseModel, Field
 
+from core.auth import get_current_user
+from core.models import User
+
 logger = logging.getLogger(__name__)
 
 # Initialize router
@@ -157,8 +160,11 @@ async def outlook_health_enhanced():
 
 
 @router.post("/emails/enhanced")
-async def get_emails_enhanced(request: EmailListEnhancedRequest):
-    """Get emails with enhanced filtering and options"""
+async def get_emails_enhanced(
+    request: EmailListEnhancedRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Get emails with enhanced filtering and options (requires authentication)"""
     try:
         logger.info(f"Fetching enhanced emails for user {request.user_id}")
 
@@ -197,8 +203,11 @@ async def get_emails_enhanced(request: EmailListEnhancedRequest):
 
 
 @router.post("/emails/send/enhanced")
-async def send_email_enhanced(request: EmailSendEnhancedRequest):
-    """Send email with enhanced options"""
+async def send_email_enhanced(
+    request: EmailSendEnhancedRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Send email with enhanced options (requires authentication)"""
     try:
         logger.info(f"Sending enhanced email for user {request.user_id}")
 
@@ -241,8 +250,11 @@ async def send_email_enhanced(request: EmailSendEnhancedRequest):
 
 
 @router.post("/calendar/events/enhanced")
-async def create_calendar_event_enhanced(request: CalendarEventEnhancedRequest):
-    """Create calendar event with enhanced options"""
+async def create_calendar_event_enhanced(
+    request: CalendarEventEnhancedRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create calendar event with enhanced options (requires authentication)"""
     try:
         logger.info(f"Creating enhanced calendar event for user {request.user_id}")
 
@@ -284,8 +296,11 @@ async def create_calendar_event_enhanced(request: CalendarEventEnhancedRequest):
 
 
 @router.post("/contacts/enhanced")
-async def create_contact_enhanced(request: ContactEnhancedRequest):
-    """Create contact with enhanced options"""
+async def create_contact_enhanced(
+    request: ContactEnhancedRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create contact with enhanced options (requires authentication)"""
     try:
         logger.info(f"Creating enhanced contact for user {request.user_id}")
 
@@ -325,8 +340,11 @@ async def create_contact_enhanced(request: ContactEnhancedRequest):
 
 
 @router.post("/tasks/enhanced")
-async def create_task_enhanced(request: TaskEnhancedRequest):
-    """Create task with enhanced options"""
+async def create_task_enhanced(
+    request: TaskEnhancedRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Create task with enhanced options (requires authentication)"""
     try:
         logger.info(f"Creating enhanced task for user {request.user_id}")
 
@@ -365,8 +383,11 @@ async def create_task_enhanced(request: TaskEnhancedRequest):
 
 
 @router.post("/folders")
-async def get_folders(request: FolderListRequest):
-    """Get email folders"""
+async def get_folders(
+    request: FolderListRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Get email folders (requires authentication)"""
     try:
         logger.info(f"Fetching folders for user {request.user_id}")
 
@@ -396,8 +417,11 @@ async def get_folders(request: FolderListRequest):
 
 
 @router.post("/search/enhanced")
-async def search_enhanced(request: SearchEnhancedRequest):
-    """Enhanced search across multiple entity types"""
+async def search_enhanced(
+    request: SearchEnhancedRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Enhanced search across multiple entity types (requires authentication)"""
     try:
         logger.info(f"Performing enhanced search for user {request.user_id}")
 
@@ -530,6 +554,7 @@ async def get_unread_email_count(user_id: str = Query(..., description="User ID"
 async def mark_emails_read(
     user_id: str = Body(..., description="User ID"),
     email_ids: List[str] = Body(..., description="Email IDs to mark as read"),
+    current_user: User = Depends(get_current_user)
 ):
     """Mark emails as read"""
     try:
