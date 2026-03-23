@@ -7,7 +7,7 @@ from datetime import datetime
 import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
-from fastapi import Query
+from fastapi import Query, Depends
 
 from core.base_routes import BaseAPIRouter
 from core.integration_dashboard import (
@@ -15,6 +15,8 @@ from core.integration_dashboard import (
     IntegrationStatus,
     get_integration_dashboard,
 )
+from core.auth import get_current_user
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -261,10 +263,13 @@ async def get_configuration(
 @router.post("/configuration/{integration}")
 async def update_configuration(
     integration: str,
-    request: ConfigurationUpdateRequest
+    request: ConfigurationUpdateRequest,
+    current_user: User = Depends(get_current_user)
 ) -> Dict[str, Any]:
     """
     Update configuration for an integration.
+
+    **SECURITY**: Requires authentication to prevent unauthorized configuration changes.
 
     Args:
         integration: Integration name (slack, teams, gmail, outlook)
@@ -305,9 +310,14 @@ async def update_configuration(
 
 
 @router.post("/metrics/reset")
-async def reset_metrics(request: MetricsResetRequest) -> Dict[str, Any]:
+async def reset_metrics(
+    request: MetricsResetRequest,
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
     """
     Reset metrics for integration(s).
+
+    **SECURITY**: Requires authentication to prevent unauthorized metrics reset.
 
     Args:
         request: Reset request with optional integration name
