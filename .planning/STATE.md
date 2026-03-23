@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** All LLM interactions flow through a single unified interface for consistency, observability, and maintainability
-**Current focus:** Phase 226.2 - LUX Integration Routing
+**Current focus:** Phase 226.4 - Registry Capabilities Sync
 
 ## Current Position
 
-Phase: 226.2-lux-integration-routing (LUX Integration Routing)
-Plan: 01 - LUX BPC Integration
+Phase: 226.4-registry-capabilities-sync (Registry Capabilities Sync)
+Plan: 01 - Capability Detection & Quality Scores
 Status: Complete
-Last activity: 2026-03-22 — Phase 226.2-01 COMPLETE: Integrated LUX computer use model into BPC routing system
+Last activity: 2026-03-22 — Phase 226.4-01 COMPLETE: Added capability-based routing infrastructure with auto-detection and specialized model exclusion
 
-Progress: [██████░░] 63% (23/34 plans complete)
+Progress: [██████░░] 66% (25/38 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 25
 - Average duration: ~5.3 minutes
-- Total execution time: 2.1 hours
+- Total execution time: 2.2 hours
 
 **By Phase:**
 
@@ -34,6 +34,7 @@ Progress: [██████░░] 63% (23/34 plans complete)
 | 225.1 | 8/8 | 32 min | ~4 min |
 | 226.1 | 1/1 | 12 min | ~12 min |
 | 226.2 | 1/1 | 2 min | ~2 min |
+| 226.4 | 2/5 | 13 min | ~6.5 min |
 | 226 | 0/1 | TBD | - |
 | 227 | 0/1 | TBD | - |
 | 228 | 0/2 | TBD | - |
@@ -43,10 +44,11 @@ Progress: [██████░░] 63% (23/34 plans complete)
 | 232 | 0/3 | TBD | - |
 
 **Recent Trend:**
-- Last 3 plans: 226.2-01 (~2 min), 226.1-01 (~12 min), 225.1-08 (~3 min)
+- Last 3 plans: 226.4-02 (~6 min), 226.4-01 (~7 min), 226.2-01 (~2 min)
 - Trend: Consistent velocity
 
 *Updated after each plan completion*
+| Phase 226.4-registry-capabilities-sync P02 | 390s | 2 tasks | 2 files |
 | Phase 226.2-lux-integration-routing P01 | 141s | 3 tasks | 3 files |
 | Phase 226.1-provider-registry-foundation P01 | 704s | 4 tasks | 5 files |
 | Phase 225.1-agent-llmservice-migration P02 | 163s | 5 tasks | 2 files |
@@ -125,8 +127,21 @@ Recent decisions affecting current work:
 - [Phase 226.2-01]: Added LUX provider configuration to BYOKHandler using lux_config.get_anthropic_key() with BYOK fallback
 - [Phase 226.2-01]: Added LUX quality score 88 to MODEL_QUALITY_SCORES (Standard tier, matches minimax-m2.5)
 - [Phase 226.2-01]: Added LUX to vision_models list for computer use task routing
+- [Phase 226.4-01]: Extended ModelCatalog with capabilities (JSON) and exclude_from_general_routing (Boolean) columns
+- [Phase 226.4-01]: Implemented capability auto-detection in ProviderAutoDiscovery (_detect_capabilities method)
+- [Phase 226.4-01]: LUX models auto-detected as computer_use/browser_use specialized (no chat capability, excluded from general routing)
+- [Phase 226.4-01]: GPT-4o auto-detected as chat/vision/tools general-purpose model
+- [Phase 226.4-01]: Added MODEL_CAPABILITY_SCORES with capability-specific quality scores (computer_use, vision, tools)
+- [Phase 226.4-01]: Added get_capability_score function with fallback to general quality scores
+- [Phase 226.4-01]: Created Alembic migration 226403220000 with SQLite-compatible column addition
+- [Phase 226.4-01]: exclude_from_general_routing automatically derived from lack of chat capability
 - [Phase 226.2-01]: Created 10 comprehensive integration tests with 100% pass rate
 - [Phase 226.2-01]: Fixed mock patch path for test reliability (core.llm.byok_handler.lux_config)
+- [Phase 226.4-02]: Implemented ProviderHealthMonitor service with EMA scoring (70% success, 30% latency)
+- [Phase 226.4-02]: Created 5-minute sliding window with automatic trimming using collections.deque
+- [Phase 226.4-02]: Default health score 1.0 for new providers (optimistic default)
+- [Phase 226.4-02]: Created 27 comprehensive unit tests with 100% pass rate
+- [Phase 226.4-02]: Singleton pattern with get_provider_health_monitor() for global access
 
 ### Pending Todos
 
@@ -138,8 +153,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-22 (plan 226.2-01 execution)
-Stopped at: Completed phase 226.2-01 - LUX BPC integration with provider configuration, quality scoring, and comprehensive tests
+Last session: 2026-03-22 (plan 226.4-02 execution)
+Stopped at: Completed phase 226.4-02 - ProviderHealthMonitor with EMA scoring, sliding window, and 27 unit tests
 Resume file: None
 
 ## Milestone Context
