@@ -112,6 +112,7 @@ const SupervisorIdentity: React.FC<Props> = ({
         </div>
       )}
 
+      {/* eslint-disable-next-line react/no-unknown-property */}
       <style jsx>{`
         .supervisor-identity {
           background: #f5f5f5;
