@@ -247,7 +247,71 @@ def test_agent_creation(db_session, unique_resource_name):
 
 ---
 
-### Pattern 3: Factory Pattern
+### Pattern 3: Worker-Specific Database Isolation
+
+**Purpose**: Enable parallel test execution without data conflicts.
+
+**Source**: `backend/tests/conftest.py`
+
+**Implementation**: Each pytest-xdist worker gets its own PostgreSQL database.
+
+**Worker Databases**:
+- gw0: `test_db_gw0`
+- gw1: `test_db_gw1`
+- gw2: `test_db_gw2`
+- gw3: `test_db_gw3`
+
+**For Local Development (SQLite)**:
+Uses in-memory database (no worker isolation needed):
+```python
+# DATABASE_URL=sqlite:///:memory:
+# No worker-specific schemas created
+```
+
+**For CI (PostgreSQL)**:
+Creates and drops worker databases:
+```python
+# DATABASE_URL=postgresql://user:pass@host/test_db
+# Creates: test_db_gw0, test_db_gw1, test_db_gw2, test_db_gw3
+```
+
+**Usage Example**:
+```python
+def test_parallel_isolation(unique_resource_name, db_session):
+    # Each worker (gw0, gw1, gw2, gw3) creates unique agent
+    agent = AgentFactory.create(
+        _session=db_session,
+        id=unique_resource_name  # test_gw0_a1b2c3d4
+    )
+
+    # Only this worker sees this agent (different database)
+    assert db_session.query(AgentRegistry).filter_by(id=agent.id).count() == 1
+```
+
+**Transaction Rollback**:
+- `db_session` fixture uses `begin_nested()` for instant rollback
+- Changes discarded after test (<1ms cleanup)
+- No foreign key cascade issues (transaction isolation)
+
+**Verification**:
+```bash
+# Run tests in parallel (4 workers)
+pytest tests/ -n auto -v
+
+# All workers pass (no data conflicts)
+# gw0: test_db_gw0
+# gw1: test_db_gw1
+# gw2: test_db_gw2
+# gw3: test_db_gw3
+```
+
+**Cleanup**:
+- Worker databases dropped after test session completes
+- No manual cleanup required
+
+---
+
+### Pattern 4: Factory Pattern
 
 **Purpose**: Generate dynamic test data with no hardcoded values.
 
@@ -318,7 +382,7 @@ def test_agent_governance(unique_resource_name):
 
 ---
 
-### Pattern 4: Mock External Dependencies
+### Pattern 5: Mock External Dependencies
 
 **Purpose**: Isolate tests from external systems (APIs, databases, file systems).
 
@@ -369,7 +433,7 @@ def test_external_api_call():
 
 ---
 
-### Pattern 5: Fixture Cleanup
+### Pattern 6: Fixture Cleanup
 
 **Purpose**: Ensure cleanup even if test fails.
 
