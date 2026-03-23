@@ -25,7 +25,7 @@ except ImportError:
 
 # Core imports (moved from inline for better testability)
 from core.agent_governance_service import AgentGovernanceService
-from core.benchmarks import get_quality_score
+from core.benchmarks import get_quality_score, get_capability_score
 from core.byok_endpoints import get_byok_manager
 from core.cost_config import (
     BYOK_ENABLED_PLANS,
@@ -42,7 +42,7 @@ from core.llm.cognitive_tier_service import CognitiveTierService
 from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
 from core.llm_usage_tracker import llm_usage_tracker
 from core.lux_config import lux_config
-from core.models import AgentExecution, Tenant, Workspace
+from core.models import AgentExecution, Tenant, Workspace, ModelCatalog
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +195,14 @@ class BYOKHandler:
 
         self.tier_service = tier_service or CognitiveTierService(workspace_id, self.db_session)
 
+        # Phase 226.4-04: Initialize excluded models cache
+        self.excluded_models = set()
+        self._refresh_excluded_cache()
+
+        # Phase 226.4-04: Initialize health monitor
+        from core.provider_health_monitor import get_provider_health_monitor
+        self.health_monitor = get_provider_health_monitor()
+
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """
         Get provider fallback order for resilience.
@@ -239,6 +247,58 @@ class BYOKHandler:
                 fallback_order.append(provider)
 
         return fallback_order
+
+    def _refresh_excluded_cache(self):
+        """Cache models with exclude_from_general_routing=True"""
+        try:
+            with get_db_session() as db:
+                excluded = db.query(ModelCatalog.model_id).filter(
+                    ModelCatalog.exclude_from_general_routing == True
+                ).all()
+                self.excluded_models = {m[0] for m in excluded}
+                logger.debug(f"Refreshed excluded models cache: {len(self.excluded_models)} models excluded")
+        except Exception as e:
+            logger.warning(f"Failed to refresh excluded models cache: {e}")
+            self.excluded_models = set()
+
+    def _filter_by_capabilities(self, model_id: str, required_capability: Optional[str]) -> bool:
+        """
+        Check if model has the required capability.
+
+        Args:
+            model_id: Model identifier
+            required_capability: Required capability (e.g., "computer_use", "vision", "tools")
+
+        Returns:
+            True if model has capability or no requirement, False otherwise
+        """
+        if not required_capability:
+            return True  # No capability requirement
+
+        try:
+            with get_db_session() as db:
+                model = db.query(ModelCatalog).filter_by(model_id=model_id).first()
+                if not model:
+                    return True  # Unknown models pass through
+                capabilities = model.capabilities or ["chat"]
+                return required_capability in capabilities
+        except Exception as e:
+            logger.warning(f"Failed to check capabilities for {model_id}: {e}")
+            return True  # Pass through on error
+
+    def _filter_by_health(self, provider_id: str) -> bool:
+        """
+        Check if provider is healthy enough for routing.
+
+        Args:
+            provider_id: Provider identifier
+
+        Returns:
+            True if provider is healthy (score >= 0.5) or unknown, False otherwise
+        """
+        if provider_id not in self.health_monitor.health_scores:
+            return True  # Unknown providers pass through
+        return self.health_monitor.get_health_score(provider_id) >= 0.5
 
     def _initialize_clients(self) -> None:
         """Initialize clients for all available providers"""
@@ -453,7 +513,8 @@ class BYOKHandler:
         requires_structured: bool = False, # Phase 6.6
         estimated_tokens: int = 1000, # Cache-aware routing
         workspace_id: str = "default", # Cache-aware routing
-        cognitive_tier: Optional[CognitiveTier] = None  # Phase 68: Cognitive tier system
+        cognitive_tier: Optional[CognitiveTier] = None,  # Phase 68: Cognitive tier system
+        required_capability: Optional[str] = None  # Phase 226.4-04: Capability-based routing
     ) -> List[tuple[str, str]]:
         """
         Get a ranked list of providers and models using the BPC (Benchmark-Price-Capability) algorithm.
@@ -467,6 +528,10 @@ class BYOKHandler:
         When cognitive_tier is provided, uses CognitiveTier-based quality filtering instead of
         QueryComplexity. This enables more granular 5-tier quality control.
 
+        Phase 226.4-04 Extension:
+        When required_capability is provided, filters models by capability (e.g., "computer_use", "vision", "tools")
+        and uses capability-specific quality scores. Also filters out excluded models and unhealthy providers.
+
         Args:
             complexity: Query complexity level
             task_type: Optional task type hint
@@ -478,6 +543,7 @@ class BYOKHandler:
             requires_structured: Whether model must support structured output
             estimated_tokens: Estimated input token count (for cache hit prediction)
             workspace_id: Workspace ID for cache history lookup
+            required_capability: Optional capability requirement (e.g., "computer_use", "vision", "tools")
 
         Returns:
             List of (provider, model) tuples ranked by value score
@@ -527,9 +593,25 @@ class BYOKHandler:
                 context_window = pricing.get("max_input_tokens") or pricing.get("max_tokens") or 0
                 if context_window < min_context:
                     continue
-                
-                # Check quality score
-                quality_score = get_quality_score(model_id)
+
+                # Phase 226.4-04: Check capability filter
+                if not self._filter_by_capabilities(model_id, required_capability):
+                    continue
+
+                # Phase 226.4-04: Check if model is excluded from general routing
+                if not required_capability and model_id in self.excluded_models:
+                    continue
+
+                # Phase 226.4-04: Check provider health
+                if not self._filter_by_health(active_provider):
+                    continue
+
+                # Check quality score (use capability-specific score if required)
+                if required_capability:
+                    quality_score = get_capability_score(model_id, required_capability)
+                else:
+                    quality_score = get_quality_score(model_id)
+
                 if quality_score < min_quality:
                     continue
 
