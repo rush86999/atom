@@ -404,7 +404,7 @@ const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                 💡 Human-in-the-loop:
               </p>
               <p style={{ fontSize: '11px', color: '#A0AEC0' }}>
-                The agent's browser window is visible locally so you can assist with MFA or initial logins. Results are saved to a persistent profile.
+                The agent&apos;s browser window is visible locally so you can assist with MFA or initial logins. Results are saved to a persistent profile.
               </p>
             </div>
             <p style={{ fontSize: '10px', color: '#666', marginTop: '5px' }}>
