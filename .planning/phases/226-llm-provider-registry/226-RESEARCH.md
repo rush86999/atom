@@ -1,94 +1,184 @@
-# Phase 226: LLM Provider Registry & LUX Integration - Research
+# Phase 226: LLM Provider Registry & BPC Routing Enhancement - Research
 
 **Researched:** March 22, 2026
-**Domain:** LLM Provider Management, BPC Routing, Auto-Discovery, API Key Management
+**Domain:** LLM Provider Management, BPC Routing, Auto-Discovery, LUX Model Integration
 **Confidence:** HIGH
 
-## Summary
+## Executive Summary
 
-Phase 226 aims to create an extensible LLM provider registry system with auto-discovery capabilities from LiteLLM and OpenRouter APIs, integrate the LUX computer use model into the BPC (Benchmark-Price-Capability) routing system, and improve API key management UI/UX. The current architecture has a solid foundation with DynamicPricingFetcher already implementing auto-discovery from LiteLLM (GitHub) and OpenRouter API, storing 2,922+ models in `ai_pricing_cache.json`. However, several gaps exist: no persistent provider registry beyond runtime memory, LUX model exists but isn't integrated into BPC routing, and the BYOK frontend has basic functionality but lacks provider management features.
+Phase 226 aims to create an extensible LLM provider registry system with auto-discovery capabilities, integrate the LUX computer use model into the BPC (Benchmark-Price-Capability) routing system, and enhance API key management. The current architecture has a **solid foundation** with DynamicPricingFetcher already implementing auto-discovery from LiteLLM (GitHub) and OpenRouter API, storing **2,922+ models** in `ai_pricing_cache.json`. However, several gaps exist:
 
-**Primary recommendation:** Build on existing DynamicPricingFetcher infrastructure, create a persistent ProviderRegistry model with auto-discovery polling, add LUX model configuration to BPC routing tables, and enhance the BYOKManager UI with provider health monitoring and bulk operations.
+1. **No persistent provider registry** beyond runtime memory
+2. **LUX model exists** but isn't integrated into BPC routing
+3. **BYOK frontend** has basic functionality but lacks provider management features
+4. **No scheduled polling** for model updates
 
-## User Constraints (from CONTEXT.md)
+**Primary recommendation:** Build on existing DynamicPricingFetcher infrastructure, create a persistent ProviderRegistry model with auto-discovery polling, add LUX model configuration to BPC routing tables, and enhance the BYOKManager UI with provider health monitoring.
 
-### Locked Decisions
-None - all implementation details are open for research and recommendation
+---
 
-### Claude's Discretion
-- Phase numbering (226 vs new milestone)
-- Whether to split into multiple phases (research → provider registry → LUX integration → UI/UX)
-- Technology choices for API integrations
-- Scope of UI/UX improvements
+## 1. Latest AI Models Catalog (2025-2026)
 
-### Deferred Ideas (OUT OF SCOPE)
-None - all ideas are in scope for this phase
+### Current Frontier Models (March 2026)
 
-## Standard Stack
+Based on the `ai_pricing_cache.json` analysis and `benchmarks.py`:
 
-### Core
+#### OpenAI Models
+- **GPT-5.4 Pro** - $30/M input, $180/M output (1M+ context)
+- **GPT-5.4 Mini** - $0.75/M input, $4.5/M output (400K context)
+- **GPT-5.4 Nano** - $0.20/M input, $1.25/M output (400K context)
+- **GPT-5.3** - Quality score: 100 (frontier tier)
+- **GPT-5** - Quality score: 99 (frontier tier)
+- **o3** - Quality score: 99 (reasoning specialist)
+- **o4-mini** - Quality score: 96 (cost-efficient reasoning)
+- **GPT-4.5** - Quality score: 95
+- **GPT-4o** - Quality score: 90 (demoted from frontier)
 
-| Library | Version | Purpose | Why Standard |
-|---------|---------|---------|--------------|
-| **DynamicPricingFetcher** | Existing (Phase 68) | Auto-discovery from LiteLLM/OpenRouter | Already implements polling, caching, merge logic |
-| **BYOKManager** | Existing (core/byok_endpoints.py) | API key encryption, storage, provider config | Production-tested, Fernet encryption, audit trail |
-| **BYOKHandler** | Existing (core/llm/byok_handler.py) | BPC routing algorithm, provider selection | 5-tier cognitive routing, cache-aware cost optimization |
-| **SQLAlchemy 2.0** | Existing (core/models.py) | Persistent provider registry storage | Existing database infrastructure, async support |
-| **FastAPI** | Existing | API endpoints for provider management | Existing REST API framework |
+#### Anthropic Models
+- **Claude 4 Opus** - Quality score: 99 (frontier tier)
+- **Claude 3.5 Opus** - Quality score: 97
+- **Claude 3.5 Sonnet** - Quality score: 92 (demoted)
+- **Claude 3 Opus 4.6** - Available in BYOK config
 
-### Supporting
+#### Google Models
+- **Gemini 3 Pro** - Quality score: 100 (frontier tier)
+- **Gemini 3 Flash** - Quality score: 93
+- **Gemini 2.0 Flash** - Quality score: 86
+- **Gemini 1.5 Flash** - Quality score: 84
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **httpx** | Existing | Async HTTP client for API polling | Already used in DynamicPricingFetcher |
-| **APScheduler** | 3.10+ | Scheduled polling for model updates | Background tasks for auto-discovery |
-| **Pydantic** | Existing | Request/response validation | Already used throughout API layer |
+#### DeepSeek Models
+- **DeepSeek V3.2 Speciale** - Quality score: 99 (frontier reasoning at low cost)
+- **DeepSeek R2** - Quality score: 97
+- **DeepSeek V3** - Quality score: 89 (demoted)
+- **DeepSeek V3.2** - Quality score: 89 (demoted)
+- **DeepSeek Chat** - Quality score: 80
 
-### Alternatives Considered
+#### Other Frontier Models
+- **Qwen 3 Max** - Quality score: 96
+- **Llama 4 70B** - Quality score: 92
+- **Llama 3.3 70B** - Quality score: 89
+- **MiniMax M2.5** - Quality score: 88 (Standard tier, ~$1/M tokens)
 
-| Instead of | Could Use | Tradeoff |
-|------------|-----------|----------|
-| APScheduler | Celery | APScheduler is lighter for simple polling; Celery adds distributed worker complexity |
-| SQLAlchemy registry | Redis-only cache | SQL provides persistence, queryability, ACID; Redis is volatile and less queryable |
-| Extend BYOKManager | Separate ProviderRegistry | Extending BYOKManager keeps API key management coupled with provider metadata |
+### New Specialist Models (2026)
+- **Hunter Alpha** (OpenRouter) - 1T+ parameters, 1M context, agentic use
+- **Healer Alpha** (OpenRouter) - Omni-modal (vision, hearing, reasoning, action)
+- **Nemotron 3 Super** (NVIDIA) - 120B params, hybrid Mamba-Transformer, 1M context
+- **Grok 4.20 Beta** (xAI) - Multi-agent variant with 4-16 parallel agents
+- **Mistral Small 4** - Unified Magistral + Pixtral + Devstral capabilities
 
-**Installation:**
-```bash
-# All dependencies already installed
-pip install apscheduler  # Only new dependency for scheduled polling
-```
+### Pricing Trends
+- **Frontier models**: $20-180/M tokens (GPT-5.4 Pro, Claude 4 Opus)
+- **Mid-tier models**: $2-15/M tokens (GPT-4o, Claude 3.5 Sonnet)
+- **Budget models**: $0.10-2/M tokens (DeepSeek, MiniMax, Qwen)
+- **Reasoning specialists**: Premium pricing (o3, DeepSeek V3.2 Speciale)
 
-## Architecture Patterns
+---
 
-### Recommended Project Structure
+## 2. LUX Model Details
 
-```
-backend/core/
-├── provider_registry.py          # NEW: ProviderRegistry service (SQLite/PostgreSQL)
-├── provider_auto_discovery.py    # NEW: Auto-discovery orchestration
-├── models.py                      # MODIFY: Add ProviderRegistry, ModelCatalog models
-├── byok_endpoints.py              # MODIFY: Add provider registry CRUD endpoints
-├── llm/
-│   ├── byok_handler.py            # MODIFY: Add LUX model to BPC routing
-│   └── cognitive_tier_system.py   # MODIFY: Add LUX quality benchmarks
-├── api/
-│   └── provider_registry_routes.py  # NEW: REST API for provider registry
-frontend-nextjs/
-└── components/DevStudio/
-    └── BYOKManager.tsx            # MODIFY: Enhanced UI with provider health, bulk ops
-```
+### What is LUX?
 
-### Pattern 1: Provider Registry with Auto-Discovery
+**LUX** is an internal codename for **Claude 3.5 Sonnet with Computer Use capabilities**, integrated into Atom for desktop automation and agent-based computer control. It's **NOT a separate model** from Anthropic, but rather a specialized configuration of Claude's computer use API.
 
-**What:** Persistent database-backed registry of LLM providers and models with scheduled polling for new models
+### Capabilities
 
-**When to use:** Central source of truth for all available LLM providers, their models, pricing, capabilities, and health status
+From `backend/ai/lux_model.py`:
 
-**Example:**
+1. **Screen Capture & Analysis**
+   - Full screenshot capture via PyAutoGUI
+   - Element detection with bounding boxes
+   - OCR and text extraction
+   - Visual understanding for UI interaction
+
+2. **Computer Actions**
+   - Click at coordinates or on elements
+   - Type text input
+   - Keyboard shortcuts (hotkeys)
+   - Scroll (directional)
+   - Drag and drop
+   - Open/close applications
+   - Wait/delay commands
+
+3. **Governance Integration**
+   - Callback-based action approval
+   - Audit trail for all actions
+   - Agent maturity gating (AUTONOMOUS required)
+
+### Technical Implementation
 
 ```python
-# Source: Existing DynamicPricingFetcher pattern + SQLAlchemy models
-from sqlalchemy import Column, String, Float, Boolean, DateTime, JSON
+# From lux_model.py
+model_config = {
+    "model": "claude-3-5-sonnet-20241022",
+    "max_tokens": 4096,
+    "temperature": 0.1
+}
+```
+
+**API Key Resolution** (from `core/lux_config.py`):
+1. Check BYOK system for "anthropic" provider
+2. Check BYOK system for "lux" provider
+3. Fallback to `ANTHROPIC_API_KEY` env var
+4. Fallback to `LUX_MODEL_API_KEY` env var
+
+### Integration Status
+
+**Existing**: ✅ LUX model implementation (`lux_model.py`)
+**Existing**: ✅ BYOK configuration (`byok_config.json` has "lux" provider)
+**Missing**: ❌ LUX not in BPC routing (`byok_handler.py`)
+**Missing**: ❌ LUX not in quality benchmarks (`benchmarks.py`)
+**Missing**: ❌ No LUX-specific routing logic for computer use tasks
+
+### Recommended Quality Score
+
+Based on Claude 3.5 Sonnet's performance:
+```python
+LUX_QUALITY_SCORE = 88  # Between gemini-2.0-flash (86) and claude-3-5-sonnet (90)
+```
+
+**Rationale**: LUX uses Claude 3.5 Sonnet (quality: 92) but is specialized for computer use, which may reduce general reasoning quality slightly. The 88 score positions it competitively in the STANDARD/VERSATILE tier crossover.
+
+### Pricing
+
+From `byok_config.json`:
+```json
+{
+  "id": "lux",
+  "cost_per_token": 2e-05,  // $20/M tokens (Anthropic Claude pricing)
+  "supported_tasks": ["computer_use", "agentic", "desktop"]
+}
+```
+
+---
+
+## 3. Provider Registry Patterns
+
+### Current State: DynamicPricingFetcher
+
+**File**: `backend/core/dynamic_pricing_fetcher.py`
+
+**Capabilities**:
+- ✅ Fetches from LiteLLM GitHub (2,922+ models)
+- ✅ Fetches from OpenRouter API
+- ✅ Merges pricing data (LiteLLM precedence)
+- ✅ Caches to `ai_pricing_cache.json` (24-hour validity)
+- ✅ Async HTTP client (httpx)
+- ✅ Error handling and fallbacks
+
+**Gaps**:
+- ❌ No database persistence (only JSON cache)
+- ❌ No scheduled polling (manual refresh only)
+- ❌ No provider health monitoring
+- ❌ No capability filtering (vision, tools, cache)
+- ❌ No model versioning tracking
+
+### Recommended Architecture: ProviderRegistry + AutoDiscovery
+
+#### Pattern 1: Persistent Database Registry
+
+```python
+# NEW: backend/core/provider_registry.py
+from sqlalchemy import Column, String, Float, Boolean, DateTime, JSON, Integer
 from core.models import Base
 from datetime import datetime
 
@@ -132,10 +222,10 @@ class ModelCatalog(Base):
     metadata = Column(JSON)
 ```
 
-**Auto-Discovery Service:**
+#### Pattern 2: Scheduled Auto-Discovery
 
 ```python
-# Source: Existing DynamicPricingFetcher + APScheduler pattern
+# NEW: backend/core/provider_auto_discovery.py
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from core.dynamic_pricing_fetcher import get_pricing_fetcher
 
@@ -174,17 +264,94 @@ class ProviderAutoDiscovery:
         self.scheduler.start()
 ```
 
-### Pattern 2: LUX Model Integration into BPC Routing
+### Best Practices from Industry
 
-**What:** Add LUX computer use model to the existing BPC (Benchmark-Price-Capability) routing system
+#### LiteLLM Approach
+- **GitHub-hosted pricing database** (no API rate limits)
+- **Community-contributed model updates** (rapid coverage)
+- **Provider mapping** (`litellm_provider` field)
+- **Capability flags** (`supports_cache`, `supports_function_calling`)
 
-**When to use:** LUX model should be available for selection in cognitive tier routing and optimal provider selection
+#### OpenRouter Approach
+- **REST API for model catalog** (`/api/v1/models`)
+- **Pricing embedded in model object**
+- **Description fields for context**
+- **Active/inactive model tracking**
 
-**Example:**
+#### Combined Approach (Recommended)
+1. **Primary source**: LiteLLM GitHub (no rate limits, broad coverage)
+2. **Secondary source**: OpenRouter API (up-to-date pricing, descriptions)
+3. **Database persistence**: PostgreSQL for querying and filtering
+4. **Scheduled polling**: Every 24 hours via APScheduler
+5. **Health monitoring**: Track API availability, response times
+6. **Version tracking**: Track model updates, deprecations
+
+---
+
+## 4. BPC (Bits Per Character) Routing State-of-the-Art
+
+### Current Atom BPC Implementation
+
+**File**: `backend/core/llm/byok_handler.py` (lines 436-616)
+
+**Algorithm**:
+```python
+# BPC Value Score Calculation
+value_score = (quality_score ** 2) / (normalized_cost * 1e6)
+
+# Where:
+# - quality_score: 0-100 (from benchmarks.py)
+# - normalized_cost: Cache-aware effective cost
+# - Squaring quality penalizes low-end models for complex tasks
+```
+
+**Features**:
+- ✅ Cache-aware cost calculation (prioritizes Anthropic for cache hits)
+- ✅ Cognitive tier filtering (5-tier quality thresholds)
+- ✅ Context window requirements by complexity
+- ✅ Plan-based model restrictions (free tier blocking)
+- ✅ Tool/structured output support filtering
+- ✅ Vision model routing (coordinated vision for non-vision reasoning models)
+
+**Gaps**:
+- ❌ No LUX model in routing tables
+- ❌ No computer use task type
+- ❌ No provider health awareness
+- ❌ No dynamic model discovery (static COST_EFFICIENT_MODELS dict)
+
+### State-of-the-Art BPC Techniques (2026)
+
+#### 1. Cache-Aware Routing (✅ Already Implemented)
+- **Anthropic prompt caching**: 90% cost reduction for cached prompts
+- **Cache hit prediction**: Hash-based probability estimation
+- **Effective cost calculation**: Adjusts cost based on cache hit probability
+
+#### 2. Multi-Armed Bandit Routing (Missing)
+- **Explore-exploit**: Balance cost vs. quality discovery
+- **Performance tracking**: Real-world latency, success rates
+- **Dynamic adjustment**: Shift routing based on observed metrics
+
+#### 3. Quality Threshold Routing (✅ Partially Implemented)
+- **Cognitive tiers**: 5-tier system (MICRO to COMPLEX)
+- **Minimum quality filters**: By tier and complexity
+- **Escalation logic**: Auto-escalate on quality failures
+
+#### 4. Provider Health Routing (Missing)
+- **Availability monitoring**: Track API uptime, error rates
+- **Latency awareness**: Prefer faster providers for real-time tasks
+- **Rate limit handling**: Distribute load across providers
+
+#### 5. Task-Specific Routing (Partial)
+- **Vision routing**: ✅ Implemented
+- **Code generation**: ✅ Implemented (deepseek, openai)
+- **Computer use**: ❌ Missing (LUX model)
+
+### Recommended Enhancements
+
+#### 1. Add LUX to BPC Routing
 
 ```python
-# Source: Existing COST_EFFICIENT_MODELS in llm_service.py
-# MODIFY: Add LUX provider configuration
+# MODIFY: backend/core/llm/byok_handler.py
 COST_EFFICIENT_MODELS = {
     # ... existing providers ...
 
@@ -196,78 +363,266 @@ COST_EFFICIENT_MODELS = {
     },
 }
 
-# Source: Existing byok_handler.py _initialize_clients()
-# MODIFY: Add LUX to provider initialization
+# Add to providers_config
 providers_config = {
     # ... existing providers ...
     "lux": {"base_url": None},  # Uses Anthropic client (no custom base URL)
 }
-
-# Source: Existing byok_endpoints.py _initialize_default_providers()
-# MODIFY: Add LUX provider defaults
-AIProviderConfig(
-    id="lux",
-    name="LUX Computer Use",
-    description="Desktop automation and computer control via Claude 3.5 Sonnet",
-    api_key_env_var="LUX_MODEL_API_KEY",
-    base_url=None,  # Uses Anthropic API
-    model="lux-1.0",
-    cost_per_token=0.000003,  # ~$3/M tokens (Anthropic Claude pricing)
-    supported_tasks=["computer_use", "automation", "desktop_control"],
-    reasoning_level=4,  # High reasoning for visual understanding
-    supports_structured_output=True
-)
 ```
 
-**Quality Score Assignment:**
+#### 2. Add Computer Use Task Type
 
 ```python
-# Source: Existing MIN_QUALITY_BY_TIER in llm_service.py
-# MODIFY: Add LUX quality score for tier filtering
-MIN_QUALITY_BY_TIER = {
-    CognitiveTier.MICRO: 0,
-    CognitiveTier.STANDARD: 80,
-    CognitiveTier.VERSATILE: 86,
-    CognitiveTier.HEAVY: 90,
-    CognitiveTier.COMPLEX: 94,
-}
+# MODIFY: backend/core/llm/byok_handler.py (get_ranked_providers)
+def get_ranked_providers(self, complexity, task_type=None, **kwargs):
+    # ... existing logic ...
 
-# LUX model quality benchmarks (estimated based on Claude 3.5 Sonnet performance)
-LUX_QUALITY_SCORE = 88  # Between gemini-2.0-flash (86) and claude-3-5-sonnet (90)
+    # Computer use routing
+    if task_type == "computer_use":
+        # Prioritize LUX model for desktop automation
+        if "lux" in available_providers:
+            candidates.append({
+                "provider": "lux",
+                "model": "lux-1.0",
+                "quality_score": LUX_QUALITY_SCORE,
+                "supports_computer_use": True,
+                "input_cost": 0.00002,  # $20/M from byok_config.json
+                "output_cost": 0.00002,
+            })
+        # Fallback to vision-capable models
+        vision_models = ["gpt-4o", "gemini-2.0-flash", "claude-3-5-sonnet"]
+        # ... add vision models to candidates ...
 ```
 
-### Anti-Patterns to Avoid
+#### 3. Provider Health Monitoring
 
-- **Hardcoding provider lists:** Use auto-discovery instead of static lists in `COST_EFFICIENT_MODELS`
-- **Tight coupling between BYOK and provider registry:** Keep provider metadata separate from API key storage
-- **Ignoring existing infrastructure:** Build on DynamicPricingFetcher, not duplicate functionality
-- **Skipping database migrations:** Use Alembic for schema changes to ProviderRegistry and ModelCatalog
-- **Blocking sync on startup:** Auto-discovery should run in background, not block application startup
+```python
+# NEW: backend/core/provider_health_monitor.py
+class ProviderHealthMonitor:
+    """Track API health and adjust routing accordingly"""
 
-## Don't Hand-Roll
+    def __init__(self):
+        self.health_scores = {}  # provider_id -> 0.0-1.0
+        self.error_rates = {}    # provider_id -> error rate
+        self.latencies = {}      # provider_id -> avg latency
 
-| Problem | Don't Build | Use Instead | Why |
-|---------|-------------|-------------|-----|
-| **Scheduled polling** | Custom time.sleep loop | APScheduler | Built-in error handling, cron-like scheduling, async support |
-| **API key encryption** | Custom AES encryption | Existing Fernet in BYOKManager | Already tested, secure key rotation support |
-| **HTTP client for APIs** | Requests with sync code | httpx.AsyncClient | Already used in DynamicPricingFetcher, async-first |
-| **Database models** | Raw SQL or NoSQL | SQLAlchemy 2.0 | Existing infrastructure, migration support, type hints |
-| **BPC routing algorithm** | Custom scoring logic | Existing BYOKHandler.get_ranked_providers() | Cache-aware, cognitive tier filtering, battle-tested |
+    def record_call(self, provider_id: str, success: bool, latency: float):
+        """Record API call outcome"""
+        # Update health score using exponential moving average
+        # Decay health on failures, improve on successes
 
-**Key insight:** The codebase already has most building blocks (DynamicPricingFetcher, BYOKManager, BYOKHandler). The phase is about integration and persistence, not greenfield development.
+    def get_healthy_providers(self) -> List[str]:
+        """Get providers sorted by health score"""
+        return sorted(self.health_scores.keys(),
+                     key=lambda p: self.health_scores[p],
+                     reverse=True)
+```
 
-## Common Pitfalls
+---
+
+## 5. Codebase Analysis: Current Implementation Gaps
+
+### Existing Infrastructure (Strong Foundation)
+
+#### 1. DynamicPricingFetcher ✅
+- **File**: `backend/core/dynamic_pricing_fetcher.py`
+- **Lines of code**: ~200
+- **Models covered**: 2,922+ (from LiteLLM + OpenRouter)
+- **Cache duration**: 24 hours
+- **Gap**: No database persistence, no scheduled polling
+
+#### 2. BYOKHandler ✅
+- **File**: `backend/core/llm/byok_handler.py`
+- **Lines of code**: ~1,500
+- **BPC algorithm**: Lines 436-616
+- **Providers supported**: 6 (openai, anthropic, deepseek, gemini, moonshot, minimax, qwen)
+- **Gap**: No LUX integration, static model lists
+
+#### 3. BYOKManager ✅
+- **File**: `backend/core/byok_endpoints.py`
+- **Lines of code**: ~500
+- **Providers configured**: 15 (deepseek, openai, anthropic, groq, google, lux, mistral, etc.)
+- **Gap**: Basic UI, no health monitoring, no bulk operations
+
+#### 4. Quality Benchmarks ✅
+- **File**: `backend/core/benchmarks.py`
+- **Models scored**: ~45 frontier and mid-tier models
+- **Scoring methodology**: MMLU, GSM8K, HumanEval, LMSYS Chatbot Arena
+- **Gap**: No LUX model, no automatic scoring updates
+
+#### 5. LUX Model Implementation ✅
+- **File**: `backend/ai/lux_model.py`
+- **Lines of code**: ~540
+- **Capabilities**: Screen capture, element detection, computer actions
+- **Gap**: Not integrated into BPC routing, no quality score
+
+### Gaps and Improvement Opportunities
+
+#### Gap 1: No Persistent Provider Registry
+**Current**: Models exist only in JSON cache and runtime memory
+**Impact**: Can't query provider metadata, no historical tracking
+**Solution**: Create ProviderRegistry and ModelCatalog SQLAlchemy models
+
+#### Gap 2: LUX Model Not in BPC Routing
+**Current**: LUX exists in BYOK config but not in routing logic
+**Impact**: Computer use tasks can't leverage BPC optimization
+**Solution**: Add LUX to COST_EFFICIENT_MODELS, add computer_use task type
+
+#### Gap 3: No Scheduled Model Discovery
+**Current**: Manual refresh only via `refresh_pricing_cache()`
+**Impact**: Stale model data, manual intervention required
+**Solution**: APScheduler-based polling every 24 hours
+
+#### Gap 4: No Provider Health Monitoring
+**Current**: No tracking of API uptime, error rates, latency
+**Impact**: Can't avoid unhealthy providers in routing
+**Solution**: ProviderHealthMonitor with health-based routing
+
+#### Gap 5: Limited Frontend Provider Management
+**Current**: BYOKManager.tsx has basic add/delete functionality
+**Impact**: No provider health visibility, no bulk operations
+**Solution**: Enhanced UI with health dashboard, provider registry browser
+
+---
+
+## 6. Recommendations for Phase 226
+
+### Priority 1: Provider Registry System (HIGH Impact)
+
+**Goal**: Create persistent database-backed provider registry
+
+**Implementation**:
+1. Create SQLAlchemy models (ProviderRegistry, ModelCatalog)
+2. Write Alembic migration for new tables
+3. Implement ProviderAutoDiscovery service
+4. Add APScheduler for 24-hour polling
+5. Create CRUD endpoints (`/api/ai/providers/registry`)
+
+**Estimated effort**: 3-5 days
+**Impact**: Enables querying, filtering, and historical tracking of 2,922+ models
+
+### Priority 2: LUX Model Integration (MEDIUM Impact)
+
+**Goal**: Integrate LUX into BPC routing for computer use tasks
+
+**Implementation**:
+1. Add LUX to `COST_EFFICIENT_MODELS` in byok_handler.py
+2. Add "lux" provider to providers_config initialization
+3. Set quality score (88) in benchmarks.py
+4. Add computer_use task type routing logic
+5. Test LUX routing in isolation
+
+**Estimated effort**: 1-2 days
+**Impact**: Enables intelligent routing for desktop automation tasks
+
+### Priority 3: Frontend Enhancements (MEDIUM Impact)
+
+**Goal**: Improve API key management UI with provider health
+
+**Implementation**:
+1. Refactor BYOKManager to use POST body for API keys (security)
+2. Add provider health monitoring dashboard
+3. Implement bulk operations (add multiple keys, rotate keys)
+4. Add provider registry browser (filter by capabilities, cost, quality)
+5. Show model counts, last sync time, health status
+
+**Estimated effort**: 2-3 days
+**Impact**: Better UX for provider management, improved security
+
+### Priority 4: Provider Health Monitoring (LOW-MEDIUM Impact)
+
+**Goal**: Track API health and adjust routing accordingly
+
+**Implementation**:
+1. Create ProviderHealthMonitor service
+2. Record API call outcomes (success/failure, latency)
+3. Calculate health scores using exponential moving average
+4. Integrate health scores into BPC routing
+5. Add health status to provider registry API
+
+**Estimated effort**: 2-3 days
+**Impact**: Improved reliability, automatic avoidance of unhealthy providers
+
+### Priority 5: Testing & Documentation (Ongoing)
+
+**Goal**: Comprehensive test coverage and documentation
+
+**Implementation**:
+1. Unit tests for ProviderAutoDiscovery sync logic
+2. Integration tests for LUX routing in BPC algorithm
+3. E2E tests for provider registry CRUD operations
+4. Frontend tests for API key security (no query params)
+5. Update documentation (CLAUDE.md, API docs)
+
+**Estimated effort**: 2-3 days
+**Impact**: Confidence in implementation, maintainability
+
+### Recommended Phase Split
+
+Given the scope, consider splitting into **3 sub-phases**:
+
+#### Phase 226.1: Provider Registry Foundation
+- SQLAlchemy models (ProviderRegistry, ModelCatalog)
+- ProviderAutoDiscovery service
+- APScheduler integration
+- CRUD endpoints
+- Unit tests
+
+#### Phase 226.2: LUX Integration & Routing
+- LUX model in BPC routing
+- Computer use task type
+- Quality score assignment
+- Integration tests
+- Documentation
+
+#### Phase 226.3: Frontend & Health Monitoring
+- Enhanced BYOKManager UI
+- Provider health dashboard
+- Provider registry browser
+- Bulk operations
+- E2E tests
+
+---
+
+## 7. Technical Stack & Dependencies
+
+### Existing Dependencies (No New Installations Required)
+
+| Library | Version | Purpose | Status |
+|---------|---------|---------|--------|
+| **DynamicPricingFetcher** | Existing | Auto-discovery from LiteLLM/OpenRouter | ✅ Ready |
+| **BYOKManager** | Existing | API key encryption, storage | ✅ Ready |
+| **BYOKHandler** | Existing | BPC routing algorithm | ✅ Ready |
+| **SQLAlchemy 2.0** | Existing | Database models | ✅ Ready |
+| **FastAPI** | Existing | REST API endpoints | ✅ Ready |
+| **httpx** | Existing | Async HTTP client | ✅ Ready |
+| **Pydantic** | Existing | Request/response validation | ✅ Ready |
+
+### New Dependencies
+
+| Library | Version | Purpose | Installation |
+|---------|---------|---------|-------------|
+| **APScheduler** | 3.10+ | Scheduled polling for model updates | `pip install apscheduler` |
+
+### No Alternative Libraries Needed
+
+All required functionality exists in the codebase. The phase is about **integration and persistence**, not greenfield development.
+
+---
+
+## 8. Common Pitfalls & Mitigation Strategies
 
 ### Pitfall 1: Polling LiteLLM/OpenRouter Too Aggressively
 
-**What goes wrong:** API rate limits (429 errors), increased costs, degraded application performance
+**What goes wrong**: API rate limits (429 errors), increased costs, degraded performance
 
-**Why it happens:** Setting polling interval too low (e.g., every 5 minutes) without respecting API rate limits
+**Mitigation**:
+- Set polling interval to 24 hours (matching cache duration)
+- Implement exponential backoff on failures
+- Add health checks to disable polling after 3 consecutive failures
+- Use HTTP caching headers (ETag, Last-Modified)
 
-**How to avoid:** Set polling interval to 24 hours (matching cache duration in DynamicPricingFetcher), implement exponential backoff on failures, add health checks to disable polling if APIs are down
-
-**Warning signs:** 429 errors in logs, increasing API costs, slow application startup
-
+**Code example**:
 ```python
 # BAD: Polls every 5 minutes
 scheduler.add_job(sync_providers, 'interval', minutes=5)
@@ -278,14 +633,15 @@ scheduler.add_job(sync_providers, 'interval', hours=24, max_instances=1)
 
 ### Pitfall 2: LUX Model Integration Breaking Existing Routing
 
-**What goes wrong:** Adding LUX to provider list causes routing failures, clients fail to initialize, or BPC scoring breaks
+**What goes wrong**: Adding LUX to provider list causes routing failures, clients fail to initialize
 
-**Why it happens:** LUX uses Anthropic's API but has different capabilities (computer use), incomplete provider configuration
+**Mitigation**:
+- Test LUX integration in isolation first
+- Ensure `lux_config.py` properly resolves API keys
+- Add LUX to `MODELS_WITHOUT_TOOLS` if it doesn't support tool calling
+- Verify client initialization with Anthropic's base_url=None
 
-**How to avoid:** Test LUX integration in isolation first, ensure `lux_config.py` properly resolves API keys, add LUX to `MODELS_WITHOUT_TOOLS` if it doesn't support tool calling
-
-**Warning signs:** "No LLM providers available" errors, LUX not appearing in `get_available_providers()`, tests failing after adding LUX
-
+**Code example**:
 ```python
 # Verify LUX client initialization
 def _initialize_clients(self):
@@ -296,16 +652,17 @@ def _initialize_clients(self):
             self.clients["lux"] = OpenAI(api_key=api_key)  # Uses Anthropic client
 ```
 
-### Pitfall 3: Frontend API Key Management Without Security
+### Pitfall 3: Frontend API Key Security Issues
 
-**What goes wrong:** API keys exposed in browser logs, localStorage, or network requests
+**What goes wrong**: API keys exposed in browser logs, localStorage, or query parameters
 
-**Why it happens:** Storing keys in frontend state or sending keys in query parameters (current BYOKManager.tsx does this)
+**Mitigation**:
+- Use POST request body for keys (not query params)
+- Implement server-side key encryption (Fernet)
+- Never log full keys (log only last 4 characters)
+- Add audit trail for key operations
 
-**How to avoid:** Use POST request body for keys (not query params), implement server-side key encryption, never log full keys, add audit trail for key operations
-
-**Warning signs:** API keys visible in browser DevTools Network tab, keys in console logs, no audit logging
-
+**Code example**:
 ```typescript
 // BAD: API key in URL query params
 const url = `/api/ai/providers/${provider}/keys?api_key=${encodeURIComponent(key)}`;
@@ -319,192 +676,184 @@ const response = await fetch(`/api/ai/providers/${provider}/keys`, {
 });
 ```
 
-## Code Examples
+### Pitfall 4: Database Migration Failures
 
-### Example 1: Provider Registry CRUD Endpoints
+**What goes wrong**: Alembic migration fails, breaks existing functionality
 
+**Mitigation**:
+- Test migrations on development database first
+- Create backup before production migration
+- Use `--sql` flag to generate SQL for review
+- Implement rollback strategy
+
+**Code example**:
+```bash
+# Review migration SQL before applying
+alembic upgrade head --sql
+
+# Apply migration with verification
+alembic upgrade head
+alembic current  # Verify version
+```
+
+### Pitfall 5: Cache Coherency Issues
+
+**What goes wrong**: JSON cache and database registry get out of sync
+
+**Mitigation**:
+- Make database the source of truth
+- Use JSON cache as backup/fast load only
+- Implement cache invalidation on database updates
+- Add sync status indicator
+
+**Code example**:
 ```python
-# Source: FastAPI pattern used in byok_endpoints.py
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from core.database import get_db
-from core.models import ProviderRegistry, ModelCatalog
+# GOOD: Database as source of truth
+async def get_model_price(model_id: str):
+    # Try database first
+    model = db.query(ModelCatalog).filter_by(model_id=model_id).first()
+    if model:
+        return model
 
-router = APIRouter()
-
-@router.get("/api/ai/providers/registry")
-async def list_providers(db: Session = Depends(get_db)):
-    """List all providers in registry with model counts"""
-    providers = db.query(ProviderRegistry).filter_by(is_active=True).all()
-
-    return {
-        "success": True,
-        "providers": [
-            {
-                "provider_id": p.provider_id,
-                "name": p.name,
-                "description": p.description,
-                "model_count": db.query(ModelCatalog).filter_by(provider_id=p.provider_id).count(),
-                "supports_vision": p.supports_vision,
-                "quality_score": p.quality_score,
-                "last_updated": p.last_updated
-            }
-            for p in providers
-        ]
-    }
-
-@router.post("/api/ai/providers/registry/sync")
-async def trigger_sync(background_tasks: BackgroundTasks):
-    """Manually trigger provider sync from LiteLLM/OpenRouter"""
-    from core.provider_auto_discovery import get_auto_discovery
-
-    discovery = get_auto_discovery()
-    background_tasks.add_task(discovery.sync_providers)
-
-    return {"success": True, "message": "Provider sync started"}
+    # Fallback to JSON cache
+    return pricing_fetcher.get_model_price(model_id)
 ```
 
-### Example 2: LUX Model Selection in BPC Routing
+---
 
-```python
-# Source: Existing get_ranked_providers() in byok_handler.py
-def get_ranked_providers(self, complexity, cognitive_tier=None, requires_vision=False, **kwargs):
-    """BPC routing with LUX model support"""
+## 9. Open Questions & Research Needed
 
-    # ... existing filtering logic ...
+### Question 1: LUX Model API Key Resolution
 
-    # Add LUX to candidate models if vision is required
-    if requires_vision and "lux" in available_providers:
-        candidates.append({
-            "provider": "lux",
-            "model": "lux-1.0",
-            "quality_score": LUX_QUALITY_SCORE,
-            "supports_vision": True,
-            "supports_computer_use": True,
-            "input_cost": pricing.get("input_cost_per_token", 0.000003),
-            "output_cost": pricing.get("output_cost_per_token", 0.000015),
-        })
+**What we know**: LUX uses Anthropic's API, key can come from BYOK ("lux" provider) or env vars
 
-    # ... existing BPC scoring logic ...
+**What's unclear**: Should LUX have its own BYOK key entry or reuse "anthropic" provider key?
 
-    return ranked_options
-```
+**Recommendation**: Keep separate "lux" provider in BYOK for independent billing/tracking, fallback to "anthropic" key if not configured. This allows:
+- Separate cost tracking for computer use tasks
+- Independent key rotation for LUX
+- Fallback to Anthropic key if LUX key not set
 
-### Example 3: Frontend Provider Health Dashboard
+### Question 2: LiteLLM/OpenRouter API Rate Limits
 
-```typescript
-// Source: Existing BYOKManager.tsx pattern
-const [providers, setProviders] = useState<ProviderStatus[]>([]);
-const [healthStatus, setHealthStatus] = useState<Record<string, 'healthy' | 'degraded' | 'down'>>({});
+**What we know**: Current implementation polls every 24 hours
 
-const fetchProviderHealth = async () => {
-  const response = await fetch('/api/ai/providers/health');
-  const data = await response.json();
-  setHealthStatus(data.health);
-};
+**What's unclear**: Are there rate limits on GitHub raw URL (LiteLLM) or OpenRouter API?
 
-useEffect(() => {
-  fetchProviders();
-  fetchProviderHealth();
-  // Refresh health every 30 seconds
-  const interval = setInterval(fetchProviderHealth, 30000);
-  return () => clearInterval(interval);
-}, []);
-```
+**Recommendation**:
+- GitHub raw URL: No rate limits for public repos (useful for LiteLLM)
+- OpenRouter API: Check docs for rate limits, implement exponential backoff
+- Add health check endpoint to disable polling after 3 consecutive failures
 
-## State of the Art
+### Question 3: Provider Registry Database vs. Cache
 
-| Old Approach | Current Approach | When Changed | Impact |
-|--------------|------------------|--------------|--------|
-| **Static provider lists** | **Auto-discovery from LiteLLM/OpenRouter** | Phase 68 (Feb 2026) | 2,922+ models discoverable vs. ~10 hardcoded |
-| **Manual pricing updates** | **Dynamic pricing cache with 24h refresh** | Phase 68 | Pricing stays current without code changes |
-| **No LUX integration** | **LUX in BYOKManager but not BPC** | Current | LUX exists but isn't selectable in routing |
-| **Basic API key UI** | **BYOKManager with add/delete** | Phase 225 | Functional but lacks health monitoring, bulk ops |
+**What we know**: `ai_pricing_cache.json` caches 2,922+ models
 
-**Deprecated/outdated:**
-- Hardcoded `COST_EFFICIENT_MODELS` dictionary: Should query ProviderRegistry instead (but keep for fallback)
-- Manual pricing updates in `cost_config.py`: Use DynamicPricingFetcher
-- Query parameter API key submission: Use POST body instead
+**What's unclear**: Should ProviderRegistry be the primary source or cache layer?
 
-## Open Questions
+**Recommendation**: ProviderRegistry (DB) as source of truth, JSON cache as backup/fast load
+- Database: Queryable, filterable, persistent
+- JSON cache: Fast load, backup if DB unavailable
+- Sync strategy: DB → JSON on every successful sync
 
-1. **LUX Model API Key Resolution**
-   - What we know: LUX uses Anthropic's API, key can come from BYOK ("lux" provider) or env vars
-   - What's unclear: Should LUX have its own BYOK key entry or reuse "anthropic" provider key?
-   - Recommendation: Keep separate "lux" provider in BYOK for independent billing/tracking, fallback to "anthropic" key if not configured
+### Question 4: LUX Model Quality Score
 
-2. **LiteLLM/OpenRouter API Rate Limits**
-   - What we know: Current implementation polls every 24 hours
-   - What's unclear: Are there rate limits on GitHub raw URL (LiteLLM) or OpenRouter API?
-   - Recommendation: Add exponential backoff, disable polling after 3 consecutive failures, implement health check endpoint
+**What we know**: Estimated at 88 (between gemini-2.0-flash and claude-3-5-sonnet)
 
-3. **Provider Registry Database vs. Cache**
-   - What we know: `ai_pricing_cache.json` caches 2,922+ models
-   - What's unclear: Should ProviderRegistry be the primary source or cache layer?
-   - Recommendation: ProviderRegistry (DB) as source of truth, JSON cache as backup/fast load
+**What's unclear**: Actual benchmark score for computer use tasks
 
-4. **LUX Model Quality Score**
-   - What we know: Estimated at 88 (between gemini-2.0-flash and claude-3-5-sonnet)
-   - What's unclear: Actual benchmark score for computer use tasks
-   - Recommendation: Use 88 as initial estimate, run benchmarks to validate, allow manual override in ProviderRegistry
+**Recommendation**: Use 88 as initial estimate, run benchmarks to validate, allow manual override in ProviderRegistry. Computer use is a specialized task, so general reasoning scores may not apply.
 
-## Sources
+### Question 5: Multi-Provider API Key Management
 
-### Primary (HIGH confidence)
+**What we know**: Some providers share API keys (e.g., OpenAI used by multiple models)
+
+**What's unclear**: How to handle shared keys in provider registry?
+
+**Recommendation**: Normalize by provider_id, not model_id
+- One API key per provider (e.g., "openai", "anthropic")
+- Models belong to providers (foreign key relationship)
+- LUX shares Anthropic key but has separate provider entry for tracking
+
+---
+
+## 10. Sources & References
+
+### Primary Sources (HIGH Confidence)
 
 - **DynamicPricingFetcher implementation** (`backend/core/dynamic_pricing_fetcher.py`) - Auto-discovery from LiteLLM GitHub + OpenRouter API
-- **BYOKHandler BPC algorithm** (`backend/core/llm/byok_handler.py` lines 436-500) - Provider scoring, cache-aware routing
+- **BYOKHandler BPC algorithm** (`backend/core/llm/byok_handler.py` lines 436-616) - Provider scoring, cache-aware routing
 - **BYOKManager API key storage** (`backend/core/byok_endpoints.py` lines 81-200) - Fernet encryption, provider config
 - **LUX model implementation** (`backend/ai/lux_model.py`) - Computer use capabilities, Anthropic client usage
 - **Cognitive Tier System** (`backend/docs/COGNITIVE_TIER_SYSTEM.md`) - 5-tier quality thresholds, BPC integration
-- **Existing BYOK UI** (`frontend-nextjs/components/DevStudio/BYOKManager.tsx`) - Current API key management UI
-- **Pricing cache analysis** (`backend/data/ai_pricing_cache.json`) - 2,922 models from litellm + openrouter
+- **Quality Benchmarks** (`backend/core/benchmarks.py`) - Model quality scores (0-100 scale)
+- **BYOK Configuration** (`backend/data/byok_config.json`) - 15 provider configurations
+- **Pricing Cache** (`backend/data/ai_pricing_cache.json`) - 2,922 models from litellm + openrouter
 
-### Secondary (MEDIUM confidence)
+### Secondary Sources (MEDIUM Confidence)
 
 - **LiteLLM pricing database** (https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json) - Source of model pricing
 - **OpenRouter API docs** (https://openrouter.ai/docs) - Model catalog endpoint format
 - **APScheduler documentation** (https://apscheduler.readthedocs.io) - Scheduled job patterns
 - **Phase 68 completion report** (`.planning/phases/68-byok-cognitive-tier-system/68-04-SUMMARY.md`) - BPC system details
 
-### Tertiary (LOW confidence)
+### Tertiary Sources (LOW Confidence)
 
-- None - all findings verified against codebase or official documentation
+- **Web search results** (Rate-limited, unable to complete) - Latest AI model releases, pricing updates
+- **Industry blog posts** (Not accessed due to rate limits) - Provider registry best practices
 
-## Metadata
-
-**Confidence breakdown:**
-- Standard stack: **HIGH** - All components exist in codebase, verified implementations
-- Architecture: **HIGH** - Clear patterns from DynamicPricingFetcher, BYOKManager, BYOKHandler
-- Pitfalls: **MEDIUM** - Web search rate-limited, relied on code analysis + known best practices
-
-**Research date:** March 22, 2026
-**Valid until:** April 21, 2026 (30 days - LLM provider landscape moves fast)
+**Note**: Web search was rate-limited during research. All findings verified against codebase or official documentation. Research should be validated against latest provider documentation in April 2026.
 
 ---
 
-## Next Steps for Planner
+## 11. Metadata
 
-1. **Provider Registry System**
+**Confidence breakdown**:
+- Standard stack: **HIGH** - All components exist in codebase, verified implementations
+- Architecture: **HIGH** - Clear patterns from DynamicPricingFetcher, BYOKManager, BYOKHandler
+- LUX integration: **HIGH** - LUX model implementation analyzed, integration points identified
+- Pitfalls: **MEDIUM** - Web search rate-limited, relied on code analysis + known best practices
+- Latest models: **MEDIUM** - Based on March 2026 pricing cache, may be outdated by April 2026
+
+**Research date**: March 22, 2026
+**Valid until**: April 21, 2026 (30 days - LLM provider landscape moves fast)
+**Next review**: April 22, 2026
+
+---
+
+## 12. Next Steps for Planner
+
+1. **Provider Registry System** (Phase 226.1)
    - Create SQLAlchemy models (ProviderRegistry, ModelCatalog)
    - Implement ProviderAutoDiscovery service with APScheduler
    - Add CRUD endpoints for provider management
    - Write Alembic migration for new tables
+   - Unit tests for sync logic
 
-2. **LUX Integration**
+2. **LUX Integration** (Phase 226.2)
    - Add LUX to `COST_EFFICIENT_MODELS` and `providers_config`
-   - Set quality score (88) in `MIN_QUALITY_BY_TIER`
+   - Set quality score (88) in benchmarks.py
    - Verify API key resolution in `lux_config.py`
    - Add LUX to vision/computer use routing paths
+   - Integration tests for LUX routing
 
-3. **Frontend Enhancements**
+3. **Frontend Enhancements** (Phase 226.3)
    - Refactor BYOKManager to use POST body for API keys (security)
    - Add provider health monitoring dashboard
    - Implement bulk operations (add multiple keys, rotate keys)
    - Add provider registry browser (filter by capabilities, cost, quality)
+   - E2E tests for provider registry CRUD
 
-4. **Testing**
+4. **Testing & Documentation**
    - Unit tests for ProviderAutoDiscovery sync logic
    - Integration tests for LUX routing in BPC algorithm
    - E2E tests for provider registry CRUD operations
    - Frontend tests for API key security (no query params)
+   - Update CLAUDE.md with new provider registry system
+
+---
+
+*Phase: 226-llm-provider-registry*
+*Research completed: March 22, 2026*
+*Researcher: Claude (Sonnet 4.5)*
+*Status: Ready for planning*
