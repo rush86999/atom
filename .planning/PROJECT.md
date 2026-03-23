@@ -1,21 +1,21 @@
 # Atom AI-Powered Business Automation Platform
 
-## Current Milestone: v6.5 World Model Performance - JIT Fact Caching
+## Current Milestone: v7.0 Cross-Platform E2E Testing & Bug Discovery
 
-**Goal:** Optimize business policy verification performance by adding caching layer for JIT fact/citation verification results, reducing R2/S3 storage check latency.
+**Goal:** Comprehensive end-to-end testing across all platforms (web, mobile, desktop) to discover hidden bugs through real user flow validation, stress testing, and cross-platform consistency verification.
 
 **Target features:**
-- Verification result cache (boolean: is this fact/citation valid?)
-- Cache pre-warming on application startup (load frequently accessed facts)
-- TTL-based cache invalidation
-- Background worker for cache pre-warming
-- Cache hit/miss metrics for observability
+- Authentication E2E flows (signup, login, logout, password reset, session management)
+- Agent execution E2E (chat interactions, streaming responses, canvas presentations)
+- Workflow & skill E2E (create workflows, add skills, test triggers, verify automation)
+- Stress testing (API reliability under load, failure scenarios, edge cases)
+- Cross-platform consistency (shared user flows work identically on web/mobile/desktop)
 
-**Strategy:** Cache-first verification → Pre-warm on startup → Background refresh (future v6.6)
+**Strategy:** E2E test creation → Bug discovery → Documentation → Fix verification
 
-**Timeline:** 1-2 weeks (focused performance optimization)
+**Timeline:** 2-3 weeks (comprehensive E2E suite development)
 
-**Current State:** JIT fact verification system exists in core/policy_fact_extractor.py, but each verification hits R2/S3 storage (slow)
+**Current State:** v3.1 E2E UI Testing shipped (61 phases, Playwright basics), need cross-platform expansion
 
 ---
 
@@ -27,13 +27,13 @@ Current focus: v6.5 World Model Performance - optimizing JIT fact/citation verif
 
 ## Core Value
 
-**World Model queries return verified business facts with minimal latency through intelligent caching and pre-warming.**
+**Cross-platform user flows work reliably across web, mobile, and desktop with comprehensive bug discovery through E2E testing.**
 
-If everything else fails, business policy verification must:
-- Cache verification results to avoid repeated R2/S3 checks
-- Pre-warm cache on startup with frequently accessed facts
-- Provide observability for cache hit/miss metrics
-- Maintain fact validity with TTL-based invalidation
+If everything else fails, E2E testing must:
+- Validate critical user paths (auth, agents, workflows) on all platforms
+- Discover hidden bugs through stress testing and edge cases
+- Ensure cross-platform consistency (same behavior on web/mobile/desktop)
+- Provide reproducible test cases for every bug found
 
 ## Requirements
 
@@ -151,22 +151,27 @@ If everything else fails, business policy verification must:
 
 ### Active
 
-**v5.5 Backend 80% Coverage - Clean Slate (2026-03-20):** 🚧 **NEW MILESTONE**
-- [ ] Wave 1: Highest-Impact Modules — Governance, LLM, episodic memory, API routes (80% target) — v5.5
-- [ ] Wave 2: Core Services — Canvas, browser, device, skills, training (80% target) — v5.5
-- [ ] Wave 3: Database & Integration — Models, migrations, external services (80% target) — v5.5
-- [ ] Wave 4: Edge Cases & Property Tests — Invariants, error paths, security validation — v5.5
-- [ ] Daily Coverage Verification — pytest --cov reports, trend tracking, gap analysis — v5.5
-- [ ] Property-Based Testing — Hypothesis tests for critical invariants (1000+ examples) — v5.5
-- [ ] Integration Testing — External services, browser automation, device capabilities — v5.5
-- [ ] CI Re-enablement — Re-enable workflows only after 80% target achieved — v5.5
+**v7.0 Cross-Platform E2E Testing & Bug Discovery (2026-03-23):** 🚧 **NEW MILESTONE**
+- [ ] Authentication E2E Flows — Signup, login, logout, password reset, session management across all platforms — v7.0
+- [ ] Agent Execution E2E — Chat interactions, streaming responses, canvas presentations, error handling — v7.0
+- [ ] Workflow & Skill E2E — Create workflows, add skills, test triggers, verify automation end-to-end — v7.0
+- [ ] Stress Testing — API reliability under load, failure scenarios, edge cases, race conditions — v7.0
+- [ ] Cross-Platform Consistency — Verify shared user flows work identically on web/mobile/desktop — v7.0
+- [ ] Bug Discovery & Documentation — Document all bugs found with reproducible test cases — v7.0
+- [ ] Bug Fix Verification — Re-run E2E tests after fixes to confirm resolution — v7.0
 
 **Strategy:**
-1. **Highest-Impact First**: Rank modules by (coverage gap × criticality × complexity)
-2. **Wave-Based Parallelism**: Execute independent test waves in parallel
-3. **Daily Verification**: Measure coverage every day with `pytest --cov --cov-report=html`
-4. **Property Tests**: Add Hypothesis tests for critical invariants
-5. **Re-enable CI**: Only when 80% coverage is achieved and all tests passing
+1. **Platform-First E2E**: Write tests once, run on all three platforms (Playwright web, Detox mobile, Tauri desktop)
+2. **Critical User Paths**: Focus on authentication, agent execution, and workflow automation (highest business value)
+3. **Stress Testing**: Push the system to its limits (concurrent users, large datasets, network failures)
+4. **Bug Documentation**: Every bug found gets a reproducible test case filed in issues
+5. **Fix Verification**: E2E tests must pass after bug fixes before closing the issue
+
+**Test Infrastructure:**
+- **Web**: Playwright (Chrome, Firefox, Safari) — 300+ tests planned
+- **Mobile**: Detox (iOS, Android) — 200+ tests planned
+- **Desktop**: Tauri (macOS, Windows, Linux) — 100+ tests planned
+- **Total**: 600+ cross-platform E2E tests for comprehensive coverage
 
 ### Out of Scope
 
@@ -252,4 +257,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-03-23 after Phase 228 completion, starting v6.5 (World Model Performance)*
+*Last updated: 2026-03-23 after starting v7.0 (Cross-Platform E2E Testing)*

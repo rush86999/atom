@@ -4,15 +4,15 @@
 
 See: .planning/PROJECT.md (updated 2026-03-22)
 
-**Core value:** All LLM interactions flow through a single unified interface for consistency, observability, and maintainability
-**Current focus:** Phase 228 - API Routes Tools Standardization
+**Core value:** Cross-platform user flows work reliably across web, mobile, and desktop with comprehensive bug discovery through E2E testing
+**Current focus:** Milestone v7.0 - Cross-Platform E2E Testing & Bug Discovery
 
 ## Current Position
 
 Phase: Not started (defining requirements)
 Plan: —
 Status: Defining requirements
-Last activity: 2026-03-23 — Milestone v6.5 started - World Model Performance with JIT Fact Caching
+Last activity: 2026-03-23 — Milestone v7.0 started - Cross-Platform E2E Testing & Bug Discovery
 
 ## Performance Metrics
 
