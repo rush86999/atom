@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Root conftest.py for test suite configuration
 
@@ -162,6 +163,94 @@ def setup_byok_test_env():
         
         # Env vars will be popped/restored by isolate_environment fixture if it was used,
         # but setup_byok_test_env is session-scoped, so it sets them for everyone.
+
+
+@pytest.fixture(scope="session")
+def worker_database():
+    """
+    Create worker-specific PostgreSQL schema for parallel test isolation.
+
+    Each pytest-xdist worker (gw0, gw1, gw2, gw3) gets its own database:
+    - gw0: {original_db}_gw0
+    - gw1: {original_db}_gw1
+    - gw2: {original_db}_gw2
+    - gw3: {original_db}_gw3
+
+    For SQLite: uses in-memory database (no worker isolation needed).
+
+    Yields:
+        SessionLocal: SQLAlchemy session factory for worker database
+
+    Example:
+        def test_something(worker_database):
+            db = worker_database()
+            # Use db for database operations
+    """
+    from core.database import DATABASE_URL
+    from sqlalchemy.engine.url import make_url
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
+
+    # For SQLite: use in-memory (no worker isolation needed)
+    if DATABASE_URL.startswith('sqlite'):
+        from core.models import Base
+        engine = create_engine(DATABASE_URL)
+        Base.metadata.create_all(engine)
+        SessionLocal = sessionmaker(bind=engine)
+        yield SessionLocal
+        engine.dispose()
+        return
+
+    # For PostgreSQL: create worker-specific database
+    db_url = make_url(DATABASE_URL)
+    worker_db_name = f"{db_url.database}_{worker_id}"
+
+    # Connect to system database (postgres) to create worker database
+    system_engine = create_engine(
+        f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}/postgres",
+        echo=False
+    )
+
+    # Drop worker database if exists (from previous test runs)
+    try:
+        with system_engine.connect() as conn:
+            conn.execute(f"DROP DATABASE IF EXISTS {worker_db_name}")
+            conn.execute(f"CREATE DATABASE {worker_db_name}")
+            conn.commit()
+    except Exception as e:
+        print(f"Warning: Could not create worker database: {e}")
+        system_engine.dispose()
+        raise
+
+    system_engine.dispose()
+
+    # Create engine for worker database
+    from core.models import Base
+    worker_engine = create_engine(
+        f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}/{worker_db_name}",
+        echo=False
+    )
+
+    # Create tables
+    Base.metadata.create_all(worker_engine)
+    SessionLocal = sessionmaker(bind=worker_engine)
+
+    yield SessionLocal
+
+    # Cleanup: drop worker database
+    worker_engine.dispose()
+    system_engine = create_engine(
+        f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}/postgres",
+        echo=False
+    )
+    try:
+        with system_engine.connect() as conn:
+            conn.execute(f"DROP DATABASE IF EXISTS {worker_db_name}")
+            conn.commit()
+    except Exception as e:
+        print(f"Warning: Could not drop worker database: {e}")
+    finally:
+        system_engine.dispose()
 
 
 @pytest.fixture(autouse=True)
