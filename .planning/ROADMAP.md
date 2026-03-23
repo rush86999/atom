@@ -1828,13 +1828,13 @@ Plans:
 **Sub-phase 226.4: Registry Capabilities & Auto-Sync** (2-3 days)
 - Goal: Enhance registry with capability-based routing, specialized provider access control, and auto-sync with latest models
 - Success: Capability tags in ModelCatalog, exclude_from_general_routing flag, auto-sync from provider APIs, provider health monitoring
-- Status: 📋 PLANNED (2026-03-22)
+- Status: ✅ COMPLETE (2026-03-22)
 - Plans:
-  - [ ] 226.4-01-PLAN.md — Add capabilities/exclude columns, migration, capability detection, MODEL_CAPABILITY_SCORES (4 tasks)
-  - [ ] 226.4-02-PLAN.md — Implement ProviderHealthMonitor with EMA scoring and sliding window (2 tasks)
-  - [ ] 226.4-03-PLAN.md — Implement ProviderScheduler with AsyncIOScheduler for 24-hour auto-sync (2 tasks)
-  - [ ] 226.4-04-PLAN.md — Integrate capability filtering and health routing into BYOKHandler (3 tasks)
-  - [ ] 226.4-05-PLAN.md — Create provider health API routes and integrate scheduler into startup (3 tasks)
+  - [x] 226.4-01-PLAN.md — Add capabilities/exclude columns, migration, capability detection, MODEL_CAPABILITY_SCORES (4 tasks)
+  - [x] 226.4-02-PLAN.md — Implement ProviderHealthMonitor with EMA scoring and sliding window (2 tasks)
+  - [x] 226.4-03-PLAN.md — Implement ProviderScheduler with AsyncIOScheduler for 24-hour auto-sync (2 tasks)
+  - [x] 226.4-04-PLAN.md — Integrate capability filtering and health routing into BYOKHandler (3 tasks)
+  - [x] 226.4-05-PLAN.md — Create provider health API routes and integrate scheduler into startup (3 tasks)
 **Total:** 5 plans, 14 tasks, 3 waves (Wave 1: 01-02, Wave 2: 03-04, Wave 3: 05)
 
 #### Phase 227: Agent System Standardization
