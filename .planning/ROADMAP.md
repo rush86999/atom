@@ -1853,20 +1853,20 @@ Plans:
 - [ ] 227-01-PLAN.md — Migrate atom_agent_endpoints.py WebSocket streaming to LLMService
 
 #### Phase 228: API Routes & Tools Standardization
-**Goal**: Update API routes and tools files to use LLMService instead of BYOKHandler
+**Goal**: Update API routes to use LLMService instead of BYOKHandler
 **Depends on**: Phase 227
 **Requirements**: STD-04, STD-05
 **Success Criteria** (what must be TRUE):
   1. All 3 API routes files use LLMService instead of importing BYOKHandler directly
-  2. Platform management tool uses LLMService instead of BYOKHandler
-  3. All 4 files pass existing tests with LLMService integration
+  2. Method names updated (generate_response → generate, generate_structured_response → generate_structured)
+  3. All 3 files pass existing tests with LLMService integration
   4. No regression in API endpoints (competitor analysis, learning plans, mobile)
-  5. Direct BYOKHandler imports removed from API routes and tools
-**Plans**: TBD
+  5. Direct BYOKHandler imports removed from API routes
+**Plans**: 2 plans
 
 Plans:
-- [ ] 228-01: Update API routes files to use LLMService (3 files)
-- [ ] 228-02: Update tools files to use LLMService (1 file)
+- [ ] 228-01-PLAN.md — Migrate competitor_analysis_routes.py and learning_plan_routes.py to LLMService
+- [ ] 228-02-PLAN.md — Migrate mobile_agent_routes.py to LLMService with WebSocket streaming
 
 #### Phase 229: BYOKHandler Deprecation
 **Goal**: Add deprecation warnings and migration documentation for BYOKHandler usage
