@@ -7,9 +7,13 @@ from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
+from core.database import get_db
+from core.models import User
 from .lancedb_handler import get_lancedb_handler
 
 logger = logging.getLogger(__name__)
@@ -65,9 +69,14 @@ class HealthResponse(BaseModel):
     db_path: Optional[str] = None
 
 @router.post("/hybrid", response_model=SearchResponse)
-async def hybrid_search(request: SearchRequest):
+async def hybrid_search(
+    request: SearchRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Perform hybrid search combining semantic and keyword matching using LanceDB.
+    Requires authentication.
     """
     try:
         handler = get_lancedb_handler(request.workspace_id)
@@ -188,10 +197,13 @@ async def get_suggestions(
     query: str = Query(..., min_length=1),
     user_id: Optional[str] = Query(None),
     workspace_id: Optional[str] = Query(None),
-    limit: int = Query(default=5, ge=1, le=10)
+    limit: int = Query(default=5, ge=1, le=10),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Get search suggestions based on partial query.
+    Requires authentication.
     """
     try:
         # Check environment to disable suggestions if needed or use real data source

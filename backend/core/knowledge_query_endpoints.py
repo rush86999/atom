@@ -1,10 +1,14 @@
 import json
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from core.auth import get_current_user
+from core.database import get_db
 from core.lancedb_handler import get_lancedb_handler
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -84,9 +88,14 @@ def get_knowledge_query_manager(workspace_id: Optional[str] = None) -> Knowledge
 knowledge_query_manager = get_knowledge_query_manager()
 
 @router.post("/query")
-async def knowledge_query(request: KnowledgeQueryRequest):
+async def knowledge_query(
+    request: KnowledgeQueryRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """
     Natural language query endpoint for the knowledge graph.
+    Requires authentication.
     """
     try:
         manager = get_knowledge_query_manager(request.workspace_id)
