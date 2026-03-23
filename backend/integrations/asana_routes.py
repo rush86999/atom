@@ -18,6 +18,8 @@ router = APIRouter(prefix="/api/asana", tags=["asana"])
 
 from core.oauth_handler import ASANA_OAUTH_CONFIG, OAuthHandler
 from core.token_storage import token_storage
+from core.admin_endpoints import get_super_admin
+from core.models import User
 
 
 # Pydantic models for request/response
@@ -112,9 +114,35 @@ async def get_access_token(user_id: Optional[str] = Query(None, description="Use
         )
 
 @router.post("/auth/token")
-async def set_access_token(token: str = Body(..., embed=True), user_id: str = Body(None, embed=True)):
-    """Set access token for a user (for testing/development)"""
-    token_storage.save_token("asana", {"access_token": token, "user_id": user_id})
+async def set_access_token(
+    token: str = Body(..., embed=True, min_length=1, max_length=5000),
+    user_id: str = Body(None, embed=True),
+    current_user: User = Depends(get_super_admin)
+):
+    """
+    Set access token for Asana integration (super_admin only).
+
+    This endpoint requires super_admin authorization because it overwrites
+    the global Asana API token used by the entire application.
+    """
+    # Input validation for token
+    if not token or not isinstance(token, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Token must be a non-empty string"
+        )
+
+    # Store token with audit trail
+    token_data = {
+        "access_token": token,
+        "user_id": user_id,
+        "set_by": str(current_user.id),
+        "set_by_email": current_user.email
+    }
+    token_storage.save_token("asana", token_data)
+
+    logger.warning(f"Asana access token updated by super_admin: {current_user.email}")
+
     return {"status": "success", "message": "Token stored successfully"}
 
 
