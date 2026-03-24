@@ -1989,8 +1989,9 @@ Plans:
 - [ ] 233-04-PLAN.md — Failure artifacts capture (Allure screenshots/videos)
 - [ ] 233-05-PLAN.md — Unified test runner with Allure cross-platform reporting
 
-#### Phase 234: Authentication & Agent E2E
+#### Phase 234: Authentication & Agent E2E ✅
 **Goal**: Comprehensive E2E tests for authentication flows and agent execution critical paths across web, mobile (API-level), and desktop platforms
+**Status**: Complete (2026-03-24)
 **Depends on**: Phase 233
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05, AGNT-06, AGNT-07, AGNT-08
 **Success Criteria** (what must be TRUE):
@@ -2003,15 +2004,15 @@ Plans:
   7. Multiple agents can be spawned concurrently with parallel execution
   8. WebSocket reconnection logic works on connection drop (error handling)
   9. Authentication and agent tests work across web, mobile (API), and desktop platforms
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 234-01: Web authentication E2E tests (login, logout, session persistence, token refresh, protected routes)
-- [ ] 234-02: API-first authentication fixtures (JWT token injection, localStorage manipulation)
-- [ ] 234-03: Agent creation and registry verification tests (web UI, API validation)
-- [ ] 234-04: Agent chat streaming and WebSocket tests (response validation, reconnection logic)
-- [ ] 234-05: Concurrent agent execution tests (parallel execution, resource isolation)
-- [ ] 234-06: Cross-platform auth and agent tests (mobile API-level, desktop Tauri)
+- [x] 234-01-PLAN.md — Web authentication E2E tests (login, logout, JWT validation, session persistence, protected routes)
+- [x] 234-02-PLAN.md — Token refresh, API-first auth validation, mobile auth (AUTH-04, AUTH-06, AUTH-07)
+- [x] 234-03-PLAN.md — Agent creation and registry verification tests (web UI, API validation)
+- [x] 234-04-PLAN.md — Agent chat streaming and WebSocket reconnection tests (progressive display, reconnection logic)
+- [x] 234-05-PLAN.md — Concurrent execution and governance enforcement tests (parallel users/agents, maturity levels)
+- [x] 234-06-PLAN.md — Agent lifecycle and cross-platform consistency tests (activation/deactivation, API schema)
 
 #### Phase 235: Canvas & Workflow E2E
 **Goal**: E2E tests for all 7 canvas types (chart, sheet, form, docs, email, terminal, coding) and workflow automation with skill execution and triggers
