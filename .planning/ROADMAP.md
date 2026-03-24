@@ -2014,8 +2014,9 @@ Plans:
 - [x] 234-05-PLAN.md — Concurrent execution and governance enforcement tests (parallel users/agents, maturity levels)
 - [x] 234-06-PLAN.md — Agent lifecycle and cross-platform consistency tests (activation/deactivation, API schema)
 
-#### Phase 235: Canvas & Workflow E2E
+#### Phase 235: Canvas & Workflow E2E ✅
 **Goal**: E2E tests for all 7 canvas types (chart, sheet, form, docs, email, terminal, coding) and workflow automation with skill execution and triggers
+**Status**: Complete (2026-03-24)
 **Depends on**: Phase 234
 **Requirements**: CANV-01, CANV-02, CANV-03, CANV-04, CANV-05, CANV-06, CANV-07, CANV-08, CANV-09, CANV-10, CANV-11, WORK-01, WORK-02, WORK-03, WORK-04, WORK-05, WORK-06, WORK-07, WORK-08, WORK-09, WORK-10
 **Success Criteria** (what must be TRUE):
@@ -2029,16 +2030,16 @@ Plans:
   8. Workflow executes skills in correct order with orchestration verification
   9. Workflow triggers fire correctly (manual, scheduled, event-based)
   10. Canvas and workflow tests work across web, mobile (API), and desktop platforms
-**Plans**: TBD
+**Plans**: 7 plans
 
 Plans:
-- [ ] 235-01: Canvas type rendering tests (chart, sheet, form, docs, email, terminal, coding)
-- [ ] 235-02: Canvas interaction and validation tests (input validation, form submission, ARIA trees)
-- [ ] 235-03: Canvas stress testing (rapid present/close cycles, memory leak detection)
-- [ ] 235-04: Skill installation and execution tests (web UI flow, API validation, JSON parsing)
-- [ ] 235-05: Workflow creation and DAG validation tests (workflow composition, acyclic graph verification)
-- [ ] 235-06: Workflow execution and trigger tests (skill order, manual/scheduled/event-based triggers)
-- [ ] 235-07: Cross-platform canvas and workflow tests (mobile API-level, desktop Tauri)
+- [x] 235-01: Canvas type rendering tests (chart, sheet, form, docs, email, terminal, coding)
+- [x] 235-02: Canvas interaction and validation tests (input validation, form submission, ARIA trees)
+- [x] 235-03: Canvas stress testing (rapid present/close cycles, memory leak detection)
+- [x] 235-04: Skill installation and execution tests (web UI flow, API validation, JSON parsing)
+- [x] 235-05: Workflow creation and DAG validation tests (workflow composition, acyclic graph verification)
+- [x] 235-06: Workflow execution and trigger tests (skill order, manual/scheduled/event-based triggers)
+- [x] 235-07: Cross-platform canvas and workflow tests (mobile API-level, desktop Tauri)
 
 #### Phase 236: Cross-Platform & Stress Testing
 **Goal**: Mobile/desktop testing expansion, load testing with k6 (10/50/100 concurrent users), network simulation, failure injection, visual regression (Percy), accessibility (WCAG 2.1 AA), and automated bug discovery
