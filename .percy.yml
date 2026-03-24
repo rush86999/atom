@@ -1,0 +1,28 @@
+version: 2
+snapshot:
+  widths: [375, 768, 1280]  # Mobile, tablet, desktop
+  min-height: 1024
+  percy-css: |
+    /* Hide dynamic content */
+    .timestamp { display: none !important; }
+    .session-id { display: none !important; }
+    .relative-time { display: none !important; }
+    [data-timestamp] { display: none !important; }
+    .loading-spinner { opacity: 0 !important; }
+    .skeleton { opacity: 0 !important; }
+  ignore:
+    - '.timestamp'
+    - '.session-id'
+    - '.relative-time'
+    - '[data-timestamp]'
+    - '.loading-spinner'
+    - '.skeleton'
+discovery:
+  allowed-hostnames:
+    - localhost
+    - localhost:3000
+    - 127.0.0.1
+    - 127.0.0.1:3000
+agent:
+  asset-discovery:
+    network-idle-timeout: 100
