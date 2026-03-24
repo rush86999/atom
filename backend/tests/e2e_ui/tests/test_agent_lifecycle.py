@@ -18,7 +18,7 @@ from typing import Dict, Any
 # Add backend to path for imports
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from core.models import AgentRegistry, AgentStatus
 from tests.e2e_ui.fixtures.api_fixtures import create_test_agent_direct
