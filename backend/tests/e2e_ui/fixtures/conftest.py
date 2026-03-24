@@ -9,5 +9,6 @@ from . import database_fixtures
 from . import auth_fixtures
 from . import api_fixtures
 from . import test_data_factory
+from . import network_fixtures
 
-__all__ = ['database_fixtures', 'auth_fixtures', 'api_fixtures', 'test_data_factory']
+__all__ = ['database_fixtures', 'auth_fixtures', 'api_fixtures', 'test_data_factory', 'network_fixtures']
