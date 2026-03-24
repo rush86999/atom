@@ -1,0 +1,18 @@
+# Ignore crash artifacts (large binary files)
+*.input
+*.log
+
+# Ignore crash subdirectories (timestamped per campaign)
+crashes/*/
+
+# Keep corpus but ignore large files
+corpus/*.input
+corpus/*.corpus
+
+# Keep README and .gitkeep files
+!README.md
+!.gitkeep
+!corpus/README.md
+!corpus/.gitkeep
+!crashes/README.md
+!crashes/.gitkeep
