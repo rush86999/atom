@@ -2993,20 +2993,438 @@ Property tests use `max_examples` based on invariant criticality:
 
 ---
 
+## State Machine Invariants
+
+State machine invariants ensure agent graduation, training sessions, and lifecycle transitions operate correctly. These are **CRITICAL** for system correctness and security.
+
+### Agent Graduation State Machine Invariants
+
+#### Invariant: Agent Graduation Is Monotonic
+
+**Formal Specification:**
+```
+For all maturity transitions (current_maturity → next_maturity):
+  order(next) >= order(current)
+
+Where:
+  order(STUDENT) = 0
+  order(INTERN) = 1
+  order(SUPERVISED) = 2
+  order(AUTONOMOUS) = 3
+
+Invalid transitions (NEVER allowed):
+  AUTONOMOUS → SUPERVISED, INTERN, STUDENT
+  SUPERVISED → INTERN, STUDENT
+  INTERN → STUDENT
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Agent maturity is monotonic - agents only gain capabilities through learning. Decreasing maturity violates constitutional compliance and indicates data corruption.
+
+**Test Location:** `test_graduation_state_machine.py::test_agent_graduation_monotonic_state_machine`
+
+**Mathematical Definition:**
+```
+Let M = {STUDENT, INTERN, SUPERVISED, AUTONOMOUS}
+Let order: M → {0, 1, 2, 3}
+
+∀ current, next ∈ M:
+  valid_transition(current, next) ⟺ order(next) ≥ order(current)
+```
+
+---
+
+#### Invariant: Graduation Requirements Satisfied Before Promotion
+
+**Formal Specification:**
+```
+For all promotion attempts (current_maturity → target_maturity):
+  promotion_allowed ⟺ (
+    episode_count >= min_episodes(target_maturity) AND
+    intervention_rate <= max_intervention_rate(target_maturity) AND
+    constitutional_score >= min_constitutional_score(target_maturity)
+  )
+
+Where:
+  STUDENT → INTERN: episode_count >= 10, intervention_rate <= 0.5, score >= 0.70
+  INTERN → SUPERVISED: episode_count >= 25, intervention_rate <= 0.2, score >= 0.85
+  SUPERVISED → AUTONOMOUS: episode_count >= 50, intervention_rate <= 0.0, score >= 0.95
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Promotion only occurs if all requirements met. Premature promotion of underperforming agents breaks governance.
+
+**Test Location:** `test_graduation_state_machine.py::test_graduation_requirements_satisfied_before_promotion`
+
+**Mathematical Definition:**
+```
+Let requirements(target) = (min_episodes, max_intervention, min_score)
+
+∀ target ∈ {INTERN, SUPERVISED, AUTONOMOUS}:
+  promoted(current → target) ⟺ (
+    episode_count >= requirements(target).min_episodes ∧
+    intervention_rate <= requirements(target).max_intervention ∧
+    constitutional_score >= requirements(target).min_score
+  )
+```
+
+---
+
+### Training Session State Machine Invariants
+
+#### Invariant: Training Session Transitions Are Valid
+
+**Formal Specification:**
+```
+States = {PENDING, IN_PROGRESS, COMPLETED, CANCELLED}
+Valid transitions = {
+  PENDING → {IN_PROGRESS, CANCELLED},
+  IN_PROGRESS → {COMPLETED, CANCELLED},
+  COMPLETED → {},  # Terminal state
+  CANCELLED → {}   # Terminal state
+}
+
+Invalid transitions (NEVER allowed):
+  PENDING → COMPLETED (must go through IN_PROGRESS)
+  COMPLETED → any state
+  CANCELLED → any state
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Training sessions must follow valid state transitions. Invalid transitions (e.g., PENDING → COMPLETED) break lifecycle management.
+
+**Test Location:** `test_graduation_state_machine.py::test_training_session_state_transitions`
+
+**Mathematical Definition:**
+```
+Let G = (V, E) be state machine graph where V = States, E = Valid transitions
+
+∀ current, next ∈ V:
+  valid_transition(current, next) ⟺ next ∈ Valid_transitions[current]
+
+∄ path p = [v₁, v₂, ..., vₖ] in G:
+  v₁ ∈ {COMPLETED, CANCELLED} ∧ k > 1
+```
+
+---
+
+## Security Invariants
+
+Security invariants ensure SQL injection, XSS, and CSRF protections operate correctly. These are **CRITICAL** for system security and user safety.
+
+### SQL Injection Prevention Invariants
+
+#### Invariant: SQL Injection Sanitized in Queries
+
+**Formal Specification:**
+```
+For all malicious SQL inputs (e.g., "' OR '1'='1", "'; DROP TABLE users; --"):
+  query_result = execute_query("SELECT * FROM agents WHERE name = ?", malicious_input)
+
+  query_result.count == 0  # No matches (sanitized)
+  NOT (query_result.count == all_records_count)  # Not bypassing WHERE clause
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** SQL injection attempts must be sanitized by ORM. Malicious input should return 0 results, not all records.
+
+**Test Location:** `test_sql_injection.py::test_sql_injection_sanitized_in_queries`
+
+**Mathematical Definition:**
+```
+Let malicious_input ∈ {"' OR '1'='1", "'; DROP TABLE users; --", ...}
+Let result = query(field=malicious_input)
+
+|result| = 0 (no matches)
+NOT (|result| = |all_records|) (not bypassing WHERE clause)
+```
+
+---
+
+#### Invariant: SQL Injection in Agent Creation
+
+**Formal Specification:**
+```
+For all agent creation attempts with malicious SQL in name:
+  agent = create_agent(name="'; DROP TABLE agents; --", ...)
+
+  agent.name == "'; DROP TABLE agents; --"  # Literal string
+  agents_table.exists == True  # Table not dropped
+  NOT (executed_arbitrary_sql(agent.name))  # SQL not executed
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Agent creation with malicious SQL must treat input as literal string, not executable SQL.
+
+**Test Location:** `test_sql_injection.py::test_sql_injection_in_agent_creation`
+
+**Mathematical Definition:**
+```
+Let malicious_name ∈ {"'; DROP TABLE agents; --", ...}
+Let agent = create_agent(name=malicious_name)
+
+agent.name = malicious_name (literal)
+NOT (DROP TABLE executed)
+agents_table.exists = True
+```
+
+---
+
+#### Invariant: SQL Injection in Filter Clauses
+
+**Formal Specification:**
+```
+For all filter operations with SQL metacharacters:
+  filter_values = ["'", ";", "--", "/*", ...]
+
+  For each malicious_value in filter_values:
+    result = filter(field=malicious_value)
+    NOT (syntax_error_in_result)
+    NOT (result.includes_unintended_records)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Filter clauses must sanitize SQL metacharacters to prevent injection via WHERE clauses.
+
+**Test Location:** `test_sql_injection.py::test_sql_injection_in_filter_clauses`
+
+**Mathematical Definition:**
+```
+Let metacharacters = {"'", ";", "--", "/*"}
+
+∀ char ∈ metacharacters:
+  result = filter(field=contains(char))
+  NOT (syntax_error(result))
+  NOT (bypassed_filter(result))
+```
+
+---
+
+### XSS Prevention Invariants
+
+#### Invariant: XSS Payloads Escaped in Response
+
+**Formal Specification:**
+```
+For all XSS payloads (e.g., "<script>alert('XSS')</script>"):
+  agent = create_agent(name="<script>alert('XSS')</script>", ...)
+  response = get_agent(agent.id)
+
+  response.text contains "&lt;script&gt;"  # Escaped
+  NOT (response.text contains unescaped "<script>")
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** XSS payloads must be HTML-escaped in responses. Unescaped tags allow script execution in user browsers.
+
+**Test Location:** `test_xss_prevention.py::test_xss_payloads_escaped_in_response`
+
+**Mathematical Definition:**
+```
+Let xss_payload = "<script>alert('XSS')</script>"
+Let response = get(agent_with_xss_name)
+
+"&lt;script&gt;" ∈ response.text (escaped)
+"<script>" ∉ response.data.name (no unescaped tag)
+```
+
+---
+
+#### Invariant: XSS in Canvas Content
+
+**Formal Specification:**
+```
+For all canvas content with XSS payloads:
+  canvas = create_canvas(title="<script>alert('XSS')</script>", ...)
+  response = get_canvas(canvas.id)
+
+  response.content is escaped OR sanitized
+  NOT (response.content contains unescaped "<script>")
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Canvas content must escape or sanitize HTML tags to prevent XSS via user-generated content.
+
+**Test Location:** `test_xss_prevention.py::test_xss_in_canvas_content`
+
+**Mathematical Definition:**
+```
+Let canvas = create(title=xss_payload)
+Let response = get(canvas.id)
+
+escaped(response.content) OR sanitized(response.content)
+"<script>" ∉ response.rendered_content
+```
+
+---
+
+#### Invariant: XSS in User-Generated Content
+
+**Formal Specification:**
+```
+For all user-generated content fields (name, description, content):
+  content = "<script>alert('XSS')</script>"
+
+  HTML special chars must be escaped:
+    '<' → '&lt;'
+    '>' → '&gt;'
+    '&' → '&amp;'
+    '"' → '&quot;'
+    "'" → '&#x27;'
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** All user-generated content fields must escape HTML special characters to prevent XSS.
+
+**Test Location:** `test_xss_prevention.py::test_xss_in_user_generated_content`
+
+**Mathematical Definition:**
+```
+Let special_chars = {'<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#x27;'}
+
+∀ char, escaped in special_chars.items():
+  input_contains(char) ⟹ response_contains(escaped)
+```
+
+---
+
+### CSRF Protection Invariants
+
+#### Invariant: CSRF Token Required on State-Changing Requests
+
+**Formal Specification:**
+```
+For all state-changing HTTP methods (POST, DELETE, PUT, PATCH):
+  request_without_csrf_token = execute_request(method, ...)
+
+  expected_response = 403 Forbidden
+  NOT (expected_response == 200 OK)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** State-changing requests must require valid CSRF token. Requests without token must be rejected.
+
+**Test Location:** `test_csrf_protection.py::test_csrf_token_required_on_state_changing_requests`
+
+**Mathematical Definition:**
+```
+Let state_changing_methods = {POST, DELETE, PUT, PATCH}
+
+∀ method ∈ state_changing_methods:
+  request(method, csrf_token=None) → 403 Forbidden
+  NOT (request(method, csrf_token=None) → 200 OK)
+```
+
+---
+
+#### Invariant: CSRF Token Validated on Mutating Operations
+
+**Formal Specification:**
+```
+For all invalid CSRF tokens ("", "invalid", "null", random_32_char):
+  request_with_invalid_token = execute_request(method, csrf_token=invalid_token)
+
+  expected_response = 403 Forbidden
+  NOT (expected_response == 200 OK)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Invalid CSRF tokens must be rejected. Only valid tokens allow state-changing operations.
+
+**Test Location:** `test_csrf_protection.py::test_csrf_token_validated_on_mutating_operations`
+
+**Mathematical Definition:**
+```
+Let invalid_tokens = {"", "invalid", "null", random_32_char}
+
+∀ token ∈ invalid_tokens:
+  request(POST, csrf_token=token) → 403 Forbidden
+  NOT (request(POST, csrf_token=token) → 200 OK)
+```
+
+---
+
+#### Invariant: Safe Methods Exempt from CSRF
+
+**Formal Specification:**
+```
+For all safe HTTP methods (GET, HEAD, OPTIONS):
+  request_without_csrf_token = execute_request(method, ...)
+
+  expected_response != 403 Forbidden
+  Safe methods work without CSRF token
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Safe methods (GET, HEAD, OPTIONS) don't modify state and don't require CSRF token (OWASP recommendation).
+
+**Test Location:** `test_csrf_protection.py::test_safe_methods_exempt_from_csrf`
+
+**Mathematical Definition:**
+```
+Let safe_methods = {GET, HEAD, OPTIONS}
+
+∀ method ∈ safe_methods:
+  request(method, csrf_token=None) ≠ 403 Forbidden
+  request(method, csrf_token=None) → 200 OK or other non-403 response
+```
+
+---
+
+## Phase 238 Summary
+
+**Added:** 2026-03-24 (Phase 238 Plan 05)
+
+**New Test Files:**
+- `tests/property_tests/state_machines/test_graduation_state_machine.py`
+- `tests/property_tests/security/test_sql_injection.py`
+- `tests/property_tests/security/test_xss_prevention.py`
+- `tests/property_tests/security/test_csrf_protection.py`
+
+**New Invariants Added:** 12 invariants
+- State Machine Invariants: 3 invariants (agent graduation monotonicity, graduation requirements, training session transitions)
+- Security Invariants: 9 invariants (3 SQL injection, 3 XSS, 3 CSRF)
+
+**Total Phase 238 Invariants:** 50+ invariants across 5 plans (238-01 through 238-05)
+
+---
+
 ## Summary
 
-**Total Invariants Documented:** 50+
+**Total Invariants Documented:** 113+ invariants
 
 **Distribution:**
 - Governance: 20 invariants
-- Episodes: 18 invariants
-- Financial: 10+ invariants
+- Episodes: 31 invariants (18 existing + 13 Phase 238)
+- Financial: 34 invariants
 - Canvas: 2+ invariants
+- Agent Execution: 11 invariants
+- LLM Routing: 15 invariants
+- State Machines: 3 invariants (NEW - Phase 238)
+- Security: 9 invariants (NEW - Phase 238)
 
 **Criticality Distribution:**
-- CRITICAL (max_examples=200): 20 invariants
-- STANDARD (max_examples=100): 22 invariants
-- IO_BOUND (max_examples=50): 8 invariants
+- CRITICAL (max_examples=200): 45 invariants
+- STANDARD (max_examples=100): 48 invariants
+- IO_BOUND (max_examples=50): 20 invariants
+
+**Phase 238 Additions:**
+- 50+ new property tests across 5 plans (238-01 through 238-05)
+- State machine invariants: Agent graduation monotonicity, training session transitions
+- Security invariants: SQL injection prevention, XSS prevention, CSRF protection
+- All tests follow invariant-first pattern (PROP-05 compliant)
 
 **Validation Status:**
 - All invariants validated by property tests
@@ -3016,8 +3434,8 @@ Property tests use `max_examples` based on invariant criticality:
 ---
 
 *Document maintained by: Backend Property Testing Team*
-*Last review: 2026-02-28*
-*Next review: After Phase 103 completion*
+*Last review: 2026-03-24*
+*Next review: After Phase 238 completion*
 
 ## LLM Routing Invariants
 
