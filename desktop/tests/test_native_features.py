@@ -20,7 +20,7 @@ Usage:
 
 import pytest
 from pathlib import Path
-from typing import Dict, any
+from typing import Dict, Any
 
 
 class TestFileSystemAccess:

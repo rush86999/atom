@@ -21,7 +21,7 @@ Usage:
 import pytest
 import platform
 from pathlib import Path
-from typing import Dict, any
+from typing import Dict, Any
 from desktop.tests.fixtures.desktop_fixtures import get_platform_specific_path, skip_if_platform_not
 
 
@@ -78,7 +78,7 @@ class TestPlatformPaths:
         Expected:
         - macOS: ~/Library/Caches/Atom
         - Linux: ~/.cache/atom
-        - Windows: %LOCALAPPDATA%\Atom\cache
+        - Windows: %LOCALAPPDATA%\\Atom\\cache
         """
         current_platform = platform_info["platform"]
         
@@ -109,7 +109,7 @@ class TestPlatformPaths:
         Expected:
         - macOS: ~/Library/Preferences/ or ~/Library/Application Support/
         - Linux: ~/.config/atom
-        - Windows: %APPDATA%\Atom\config
+        - Windows: %APPDATA%\\Atom\\config
         """
         current_platform = platform_info["platform"]
         
