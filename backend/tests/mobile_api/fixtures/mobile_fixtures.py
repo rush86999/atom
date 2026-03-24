@@ -31,7 +31,7 @@ from core.auth import get_password_hash, create_access_token
 
 
 @pytest.fixture(scope="function")
-def mobile_test_user(db_session: Session) -> User:
+def mobile_test_user(db_session) -> User:
     """Create a test user with UUID v4 email for uniqueness.
 
     The email uses UUID v4 to prevent collisions in parallel test execution.
@@ -136,7 +136,7 @@ def mobile_api_client():
             assert response.status_code == 200
     """
     # Import FastAPI app
-    from core.main import app
+    from main_api_app import app
 
     # Create test client
     client = TestClient(app)
@@ -184,7 +184,7 @@ def mobile_authenticated_client(mobile_api_client: TestClient, mobile_auth_heade
 
 
 @pytest.fixture(scope="function")
-def mobile_admin_user(db_session: Session) -> Tuple[User, str]:
+def mobile_admin_user(db_session) -> Tuple[User, str]:
     """Create an admin user with elevated permissions.
 
     This fixture creates a user with superuser privileges for testing
