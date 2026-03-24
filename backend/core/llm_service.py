@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from core.llm.byok_handler import BYOKHandler, QueryComplexity
 from core.llm.cognitive_tier_system import CognitiveTier
 from core.llm_usage_tracker import llm_usage_tracker
+from core.continuous_learning_service import ContinuousLearningService
 
 logger = logging.getLogger(__name__)
 
@@ -69,18 +70,30 @@ class LLMService:
     Harmonized with SaaS version for feature parity.
     """
 
-    def __init__(self, db=None, tenant_id: Optional[str] = None):
+    def __init__(self, db=None, tenant_id: Optional[str] = None, workspace_id: Optional[str] = None):
         """
         Args:
             db: Optional SQLAlchemy session.
             tenant_id: Optional Tenant ID (maps to workspace_id in OS).
+            workspace_id: Alias for tenant_id (OS convention).
         """
         self._db = db
-        self._tenant_id = tenant_id or "default"
+        self._tenant_id = tenant_id or workspace_id or "default"
         self._handler: Optional[BYOKHandler] = None
         
         # Pre-initialize handler if tenant_id provided
         self._handler = BYOKHandler(workspace_id=self._tenant_id, db_session=db)
+        self.continuous_learning = ContinuousLearningService(db) if db else None
+
+    @property
+    def handler(self) -> BYOKHandler:
+        """Alias for _handler (parity with some callers)."""
+        return self._handler
+
+    @property
+    def workspace_id(self) -> str:
+        """Alias for _tenant_id (parity with OS convention)."""
+        return self._tenant_id
 
     def _get_handler(self, tenant_id: Optional[str] = None) -> BYOKHandler:
         """Helper to get or create a BYOKHandler for a specific tenant."""
@@ -124,7 +137,18 @@ class LLMService:
         **kwargs
     ) -> str:
         """Simple text generation interface."""
-        handler = self._get_handler(tenant_id)
+        # Personalization
+        agent_id = kwargs.get("agent_id")
+        user_id = kwargs.get("user_id")
+        if agent_id and self.continuous_learning:
+            params = self.continuous_learning.get_personalized_parameters(
+                tenant_id=tenant_id or self._tenant_id,
+                agent_id=agent_id,
+                user_id=user_id
+            )
+            if "temperature" in params and "temperature" not in kwargs:
+                temperature = params["temperature"]
+
         return await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
@@ -197,6 +221,19 @@ class LLMService:
     ) -> Any:
         """Generate structured response using Pydantic model."""
         handler = self._get_handler(tenant_id)
+
+        # Personalization
+        agent_id = kwargs.get("agent_id")
+        user_id = kwargs.get("user_id")
+        if agent_id and self.continuous_learning:
+            params = self.continuous_learning.get_personalized_parameters(
+                tenant_id=tenant_id or self._tenant_id,
+                agent_id=agent_id,
+                user_id=user_id
+            )
+            if "temperature" in params and "temperature" not in kwargs:
+                kwargs["temperature"] = params["temperature"]
+
         return await handler.generate_structured_response(
             prompt=prompt,
             system_instruction=system_instruction,

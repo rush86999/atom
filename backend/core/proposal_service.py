@@ -24,6 +24,7 @@ from core.models import (
     ProposalStatus,
     ProposalType,
 )
+from core.agent_learning_enhanced import AgentLearningEnhanced
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +141,8 @@ Please review and approve or reject this proposal.
         Returns:
             Execution result
         """
+        learning = AgentLearningEnhanced(self.db)
+        
         proposal = self.db.query(AgentProposal).filter(
             AgentProposal.id == proposal_id
         ).first()
@@ -158,6 +161,9 @@ Please review and approve or reject this proposal.
         proposal.approved_at = datetime.now()
 
         if modifications:
+            # Capture original for learning record
+            original_action = proposal.proposed_action.copy() if proposal.proposed_action else {}
+            
             # Apply modifications to proposed action
             if proposal.proposed_action:
                 proposal.proposed_action.update(modifications)
@@ -182,6 +188,16 @@ Please review and approve or reject this proposal.
             execution_result=execution_result
         )
 
+        # NEW: Record correction if modifications were made
+        if modifications:
+            await learning.record_user_correction(
+                agent_id=proposal.agent_id,
+                tenant_id=getattr(proposal, 'tenant_id', 'default'),
+                original_action=original_action, # Captured before update
+                corrected_action=proposal.proposed_action, # Current updated action
+                context=f"Modification during proposal {proposal.id} approval"
+            )
+
         logger.info(
             f"Approved and executed proposal {proposal_id} by user {user_id}"
         )
@@ -202,6 +218,7 @@ Please review and approve or reject this proposal.
             user_id: User rejecting the proposal
             reason: Reason for rejection
         """
+        learning = AgentLearningEnhanced(self.db)
         proposal = self.db.query(AgentProposal).filter(
             AgentProposal.id == proposal_id
         ).first()
@@ -228,6 +245,16 @@ Please review and approve or reject this proposal.
             proposal=proposal,
             outcome="rejected",
             rejection_reason=reason
+        )
+
+        # NEW: Record rejection for learning
+        await learning.record_rejection(
+            agent_id=proposal.agent_id,
+            tenant_id=getattr(proposal, 'tenant_id', 'default'),
+            action_type=proposal.proposed_action.get("action_type", "unknown") if proposal.proposed_action else "unknown",
+            action_data=proposal.proposed_action or {},
+            reason=reason,
+            context=f"Rejection of proposal {proposal.id}"
         )
 
         logger.info(
