@@ -2609,3 +2609,385 @@ Property tests use `max_examples` based on invariant criticality:
 *Document maintained by: Backend Property Testing Team*
 *Last review: 2026-02-28*
 *Next review: After Phase 103 completion*
+
+## LLM Routing Invariants
+
+LLM routing invariants ensure cognitive tier classification, cache-aware routing, and provider selection operate correctly. These are **CRITICAL** for cost optimization and quality assurance.
+
+### Routing Consistency Invariants
+
+#### Invariant: Same Prompt Routes to Same Tier
+
+**Formal Specification:**
+```
+For all prompts p:
+  classify(p) = classify(p) = classify(p) (n times)
+
+All classifications of identical prompt return same cognitive tier.
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Routing must be deterministic. Non-deterministic routing causes unpredictable costs and quality for identical queries.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_same_prompt_routes_to_same_tier`
+
+**Mathematical Definition:**
+```
+∀ prompt p:
+  classify(p)₁ = classify(p)₂ = ... = classify(p)ₙ
+```
+
+---
+
+#### Invariant: Token Count Variance Within Tier Maps Consistently
+
+**Formal Specification:**
+```
+For all token counts in same tier range:
+  tokens_a, tokens_b ∈ [tier_min, tier_max]
+  tier(classify(prompt_a)) ≈ tier(classify(prompt_b))
+
+Token count variance within tier maps to same or adjacent tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Token count determines base tier (before complexity adjustments). Consistent mapping ensures predictable routing.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_routing_invariant_under_token_count_variance`
+
+**Mathematical Definition:**
+```
+Let tier_boundaries = {100, 500, 2000, 5000}
+Let classify(prompt) = tier
+
+∀ tokens_a, tokens_b ∈ [min, max]:
+  |tier(tier_a) - tier(tier_b)| ≤ 1
+```
+
+---
+
+#### Invariant: Semantic Complexity Classification Consistent
+
+**Formal Specification:**
+```
+For all structured prompts with same complexity patterns:
+  classify(structure_a) = classify(structure_b)
+
+Same semantic patterns (code, technical terms) produce same tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Semantic complexity must be consistently detected. Inconsistent detection breaks cost optimization.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_routing_preserves_complexity_classification`
+
+**Mathematical Definition:**
+```
+Let structure = dict(keys, values)
+Let complexity = detect_semantic_patterns(structure)
+
+∀ structure₁, structure₂ where patterns₁ = patterns₂:
+  tier(structure₁) = tier(structure₂)
+```
+
+---
+
+#### Invariant: Provider Fallback Maintains Tier Selection
+
+**Formal Specification:**
+```
+For all providers and prompts:
+  tier(classify(prompt, provider_a)) = tier(classify(prompt, provider_b))
+
+Cognitive tier classification is provider-independent.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Tier classification happens before provider selection. Provider failures shouldn't affect tier decision.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_provider_fallback_consistency`
+
+**Mathematical Definition:**
+```
+∀ prompt p, ∀ provider₁, provider₂:
+  tier(classify(p, provider₁)) = tier(classify(p, provider₂))
+```
+
+---
+
+### Cognitive Tier Mapping Invariants
+
+#### Invariant: Tier Boundary Conditions Map Correctly
+
+**Formal Specification:**
+```
+For token count at tier boundaries:
+  1-99 tokens → Micro tier
+  100-500 tokens → Standard tier
+  501-2000 tokens → Versatile tier
+  2001-5000 tokens → Heavy tier
+  5001+ tokens → Complex tier
+
+Note: Semantic complexity can increase tier beyond token count.
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Boundary bugs cause over-provisioning (wasted cost) or under-provisioning (poor quality). Exact boundaries tested with @example().
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_tier_boundary_conditions`
+
+**Mathematical Definition:**
+```
+Let boundaries = {100, 500, 2000, 5000}
+Let tokens = estimated token count
+
+tokens < 100 ⟹ tier = Micro (or higher if complex)
+tokens ∈ [100, 500) ⟹ tier = Standard (or higher if complex)
+tokens ∈ [500, 2000) ⟹ tier = Versatile (or higher if complex)
+tokens ∈ [2000, 5000) ⟹ tier = Heavy (or Complex if complex)
+tokens ≥ 5000 ⟹ tier = Complex
+```
+
+---
+
+#### Invariant: Tier Mapping Monotonic
+
+**Formal Specification:**
+```
+For all token counts a < b:
+  tier(classify(a)) ≤ tier(classify(b))
+
+Higher token count never maps to lower tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Tier mapping must be monotonic non-decreasing. Violations indicate classification bugs.
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_tier_mapping_monotonic`
+
+**Mathematical Definition:**
+```
+Let order(tier) = {MICRO: 0, STANDARD: 1, VERSATILE: 2, HEAVY: 3, COMPLEX: 4}
+
+∀ tokens_a < tokens_b:
+  order(tier(tokens_a)) ≤ order(tier(tokens_b))
+```
+
+---
+
+#### Invariant: Semantic Complexity Increases Tier
+
+**Formal Specification:**
+```
+For prompts with same token count but different complexity:
+  complexity_low < complexity_high ⟹ tier_low ≤ tier_high
+
+High semantic complexity (code, technical terms) bumps tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Semantic patterns (code: +3, technical: +3, advanced: +5) must influence tier classification.
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_semantic_complexity_increases_tier`
+
+**Mathematical Definition:**
+```
+Let complexity_score = sum(pattern_weights)
+Let tier = classify(tokens, complexity)
+
+∀ (tokens, complexity₁) < (tokens, complexity₂):
+  order(tier₁) ≤ order(tier₂)
+```
+
+---
+
+#### Invariant: Task Type Influences Tier
+
+**Formal Specification:**
+```
+For different task types with same prompt:
+  task_type ∈ {code, analysis, reasoning} → tier_boost(+2)
+  task_type ∈ {chat, general} → tier_reduction(-1)
+
+Certain tasks require minimum tier regardless of token count.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Code generation and complex reasoning require higher-quality models. Task type must influence tier selection.
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_task_type_influences_tier`
+
+**Mathematical Definition:**
+```
+Let task_adjustment(task_type) = {
+  code: +2,
+  analysis: +2,
+  reasoning: +2,
+  agentic: +2,
+  chat: -1,
+  general: -1
+}
+
+∀ task_type:
+  tier(tokens, task_type) = classify(tokens, task_adjustment(task_type))
+```
+
+---
+
+### Cache-Aware Routing Invariants
+
+#### Invariant: Cached Prompts Skip Classification
+
+**Formal Specification:**
+```
+For all cached prompts:
+  first_route → classify + cache
+  second_route → use cache (skip classification)
+
+Cache hit probability > 0.9 → use cached tier.
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Caching improves performance (90% cost reduction). Cache hits must skip classification.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cached_prompts_skip_classification`
+
+**Mathematical Definition:**
+```
+Let cache_hit_probability = 0.9
+Let first_call = route(prompt)
+Let second_call = route(prompt)
+
+second_call ≈ cached_result(first_call)
+classification_count(second_call) ≤ classification_count(first_call)
+```
+
+---
+
+#### Invariant: Cache Invalidation Propagates
+
+**Formal Specification:**
+```
+For all cached prompts after invalidation:
+  clear_cache(prompt_hash)
+  subsequent_route → fresh classification (no cached data)
+
+Cache invalidation removes all cached entries.
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache invalidation must trigger reclassification. Stale cache causes incorrect routing.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cache_invalidation_propagates`
+
+**Mathematical Definition:**
+```
+Let cache = {key: value}
+let cache' = clear_cache(cache)
+
+|cache'| = 0 (empty after clear)
+∀ prompt: route(prompt) uses fresh classification
+```
+
+---
+
+#### Invariant: Cache Key Consistency
+
+**Formal Specification:**
+```
+For all prompts p:
+  hash(p) = hash(p) = hash(p) (deterministic)
+
+Cache key generation is deterministic (SHA-256).
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Non-deterministic hashing causes cache misses. Hash collisions or encoding issues break caching.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cache_key_consistency`
+
+**Mathematical Definition:**
+```
+Let hash_fn(prompt) = SHA256(prompt.encode())[:16]
+
+∀ prompt p:
+  hash_fn(p)₁ = hash_fn(p)₂ = ... = hash_fn(p)ₙ
+```
+
+---
+
+#### Invariant: Cache Size Bounds Respected
+
+**Formal Specification:**
+```
+For all cache insert operations:
+  cache_size ≤ max_capacity
+  If cache_full: evict oldest entries (LRU)
+
+Current implementation: In-memory dict with no explicit limit.
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must handle arbitrary size without crashes. Future implementation should enforce limits with LRU eviction.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cache_size_bounds`
+
+**Mathematical Definition:**
+```
+Let cache_size = |cache|
+let max_capacity = ∞ (current implementation)
+
+∀ insert operations: cache_size ≤ max_capacity
+∀ key, value in cache: valid_structure(key, value)
+```
+
+---
+
+#### Invariant: Provider Cache Capability Detection
+
+**Formal Specification:**
+```
+For all providers:
+  capability = get_provider_cache_capability(provider)
+
+  capability.supports_cache ∈ {True, False}
+  capability.min_tokens ≥ 0
+  capability.cached_cost_ratio ∈ [0.0, 1.0]
+
+Cache capabilities correctly identified per provider.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Wrong cache capability detection causes incorrect cost calculations. Must match provider documentation.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_provider_cache_capability`
+
+**Mathematical Definition:**
+```
+Let providers = {
+  openai: {supports_cache: True, min_tokens: 1024},
+  anthropic: {supports_cache: True, min_tokens: 2048},
+  gemini: {supports_cache: True, min_tokens: 1024},
+  deepseek: {supports_cache: False, min_tokens: 0},
+  minimax: {supports_cache: False, min_tokens: 0}
+}
+
+∀ provider p ∈ providers:
+  get_capability(p) = providers[p]
+```
+
+---
+
