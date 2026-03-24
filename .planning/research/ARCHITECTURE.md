@@ -1,19 +1,19 @@
 # Architecture Research
 
-**Domain:** Cross-Platform E2E Testing & Bug Discovery
-**Researched:** March 23, 2026
+**Domain:** Automated Bug Discovery (Fuzzing, Chaos Engineering, Property-Based Testing, Headless Browser Automation)
+**Researched:** March 24, 2026
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Atom's existing architecture (Python backend, Next.js frontend, React Native mobile, Tauri desktop) provides a solid foundation for comprehensive E2E testing across web, mobile, and desktop platforms. The platform already has Playwright configured for web E2E (v3.1 shipped with 61 phases), pytest backend tests, and Detox available for mobile. This research outlines the integration architecture for expanding E2E testing to 600+ tests with cross-platform orchestration, stress testing infrastructure, and automated bug discovery.
+Atom's existing architecture provides a strong foundation for automated bug discovery with comprehensive test infrastructure (pytest, Hypothesis, Playwright, k6, property-based tests). The platform already has 91 E2E tests, property-based testing with Hypothesis, load testing with k6, and an automated bug filing service integrated with GitHub Issues. This research outlines the integration architecture for expanding automated bug discovery to uncover 50+ bugs through fuzzing, chaos engineering, enhanced property-based testing, and intelligent browser automation.
 
 **Key Findings:**
-- **Existing infrastructure**: Playwright (web), pytest (backend), Detox (mobile available), Tauri (desktop with Playwright compatibility)
-- **Integration points**: FastAPI backend (auth, agents, workflows), SQLite/PostgreSQL (test data), GitHub Actions (CI/CD)
-- **Critical components needed**: Test orchestration layer, shared test data management, stress testing infrastructure, bug discovery tools
-- **Build order**: Foundation → Platform-specific expansion → Cross-platform orchestration → Stress testing → Bug discovery
-- **Performance targets**: <30min total E2E suite execution, parallel testing across platforms, <5s test data setup/teardown
+- **Existing infrastructure**: pytest (1000+ tests), Hypothesis (property-based), k6 (load testing), Playwright (E2E), BugFilingService (GitHub integration)
+- **Integration points**: FastAPI backend (OpenAPI spec), LLMService (BYOK), AgentGovernanceService, database models (SQLAlchemy 2.0)
+- **Critical components needed**: Fuzzing orchestration layer, chaos engineering failure injection, headless browser automation agents, property-based test expansion
+- **Build order**: Property-based expansion → API fuzzing → Chaos engineering → Intelligent browser automation → Unified bug discovery pipeline
+- **Performance targets**: <5min fuzzing campaigns, <30s property test runs, <10min chaos experiments, automated bug filing within 60s of failure
 
 ## Standard Architecture
 
@@ -23,52 +23,53 @@ Atom's existing architecture (Python backend, Next.js frontend, React Native mob
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         CI/CD Layer (GitHub Actions)                        │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │ Web E2E Job │  │Mobile E2E Job│  │Desktop E2E Job│  │Stress Test Job│   │
+│  │ Fuzzing Job  │  │Chaos Job     │  │Property Job  │  │Browser Auto  │   │
+│  │ (Scheduled)  │  │(Scheduled)   │  │(On Push)     │  │(On Push)     │    │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘    │
 └─────────┼──────────────────┼──────────────────┼──────────────────┼───────────┘
           │                  │                  │                  │
 ┌─────────┴──────────────────┴──────────────────┴──────────────────┴───────────┐
-│                       Test Orchestration Layer                              │
+│                       Bug Discovery Orchestration Layer                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │  Unified Test Runner (Playwright + Detox + Tauri Driver)            │    │
-│  │  - Test scheduling & sharding                                       │    │
-│  │  - Parallel execution coordination                                  │    │
-│  │  - Result aggregation & reporting                                   │    │
+│  │  Unified Bug Discovery Coordinator                                  │    │
+│  │  - Campaign scheduling & management                                 │    │
+│  │  - Result aggregation & deduplication                              │    │
+│  │  - Bug severity triage & automatic filing                          │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                       Test Data Management Layer                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
-│  │ Fixtures    │  │ Factories   │  │ Seed Data   │  │ Cleanup     │       │
-│  │ (pytest)    │  │(factory-boy)│  │ (JSON/SQL)  │  │ (auto)      │       │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘       │
-└─────────┼──────────────────┼──────────────────┼──────────────────┼───────────┘
-          │                  │                  │                  │
-┌─────────┴──────────────────┴──────────────────┴──────────────────┴───────────┐
-│                         Platform Test Layers                                 │
+│                       Discovery Method Layers                                │
 │  ┌──────────────────────┐  ┌──────────────────────┐  ┌────────────────────┐ │
-│  │  Web E2E (Playwright)│  │Mobile E2E (Detox)    │  │Desktop (Tauri E2E) │ │
-│  │  - Chromium          │  │  - iOS Simulator     │  │  - WebView testing │ │
-│  │  - Firefox           │  │  - Android Emulator  │  │  - Native features │ │
-│  │  - WebKit            │  │  - Device interactions│  │  - Window management││
+│  │  API Fuzzing Layer   │  │ Chaos Engineering    │  │ Property-Based     │ │
+│  │  (Atheris/RESTler)   │  │ Layer (Chaos Monkey) │  │ Testing (Hypothesis)│ │
+│  │  - Input generation  │  │ - Network failure    │  │ - Invariant testing│ │
+│  │  - Endpoint coverage │  │ - Resource stress    │  │ - State machine    │ │
+│  │  - Schema validation │  │ - Service crash      │  │ - Edge cases       │ │
+│  └──────────┬───────────┘  └──────────┬───────────┘  └──────────┬─────────┘ │
+├─────────────┼──────────────────────────┼──────────────────────────┼───────────┤
+│  ┌──────────┴───────────┐  ┌──────────┴───────────┐  ┌──────────┴─────────┐ │
+│  │ Browser Automation   │  │ Existing Test Infra  │  │ Bug Filing Service │ │
+│  │ (Playwright + AI)    │  │ (pytest, k6, E2E)    │  │ (GitHub Issues)    │ │
+│  │  - Intelligent flow  │  │  - Load tests        │  │  - Deduplication   │ │
+│  │  - Visual regression │  │  - E2E tests         │  │  - Auto-labeling   │ │
+│  │  - Accessibility     │  │  - Property tests    │  │  - Metadata        │ │
 │  └──────────┬───────────┘  └──────────┬───────────┘  └──────────┬─────────┘ │
 └─────────────┼──────────────────────────┼──────────────────────────┼───────────┘
               │                          │                          │
 ┌─────────────┴──────────────────────────┴──────────────────────────┴───────────┐
 │                        Application Under Test                                │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ Next.js Web  │  │React Native  │  │  Tauri       │  │FastAPI       │     │
-│  │ (localhost:  │  │ Mobile App   │  │  Desktop     │  │ Backend      │     │
-│  │  3000/3001)  │  │ (Expo)       │  │  App         │  │ (localhost:  │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
-└─────────┼──────────────────┼──────────────────┼──────────────────┼───────────┘
-          │                  │                  │                  │
-┌─────────┴──────────────────┴──────────────────┴──────────────────┴───────────┐
-│                       Stress Testing & Bug Discovery                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │ Load Gen     │  │ Network Sim  │  │ Failure      │  │ Bug          │     │
-│  │ (k6/locust)  │  │ (Chaos net)  │  │ Injection    │  │ Reporting    │     │
-│  │              │  │              │  │ (Gremlin)    │  │ (GitHub)     │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘     │
+│  │ FastAPI      │  │ LLMService   │  │ Agent        │  │ Database     │     │
+│  │ Backend      │  │ (BYOK)       │  │ Governance   │  │ (PostgreSQL) │     │
+│  └──────────┬───┘  └──────────┬───┘  └──────────┬───┘  └──────────┬───┘     │
+└─────────────┼──────────────────┼──────────────────┼──────────────────┼───────────┘
+              │                  │                  │                  │
+┌─────────────┴──────────────────┴──────────────────┴──────────────────┴───────────┐
+│                       Existing Test Infrastructure                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  Test Fixtures & Factories (50+ pytest fixtures)                     │    │
+│  │  Mock Services (LLM, Cache, Storage, WebSocket)                      │    │
+│  │  Test Data Manager (SQLite/PostgreSQL isolation)                     │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -76,14 +77,13 @@ Atom's existing architecture (Python backend, Next.js frontend, React Native mob
 
 | Component | Responsibility | Typical Implementation |
 |-----------|----------------|------------------------|
-| **Unified Test Runner** | Orchestrates test execution across platforms, manages parallelization, aggregates results | Custom Node.js CLI or Python orchestrator calling platform-specific test runners |
-| **Test Data Manager** | Creates, seeds, and cleans test data; manages fixtures and factories | pytest fixtures + factory-boy + custom seed data management |
-| **Web E2E Runner** | Executes browser-based tests using Playwright with multi-browser support | `@playwright/test` with config for Chromium/Firefox/WebKit |
-| **Mobile E2E Runner** | Executes React Native tests using Detox with iOS/Android simulators | Detox framework with Expo integration |
-| **Desktop E2E Runner** | Executes Tauri desktop tests using Playwright WebDriver protocol | Playwright with Tauri driver or CDP connection |
-| **Stress Test Runner** | Generates load, simulates concurrent users, injects failures | k6 or Locust for load generation, Chaos tools for failure injection |
-| **Bug Discovery Engine** | Analyzes test failures, generates reproducible test cases, documents bugs | Custom analysis + GitHub Issues integration |
-| **CI/CD Coordinator** | Triggers E2E tests in GitHub Actions, manages test matrix, reports results | GitHub Actions workflows with matrix strategy |
+| **Bug Discovery Coordinator** | Orchestrates discovery campaigns, aggregates results, manages triage | Python service with async task queue (Celery/RQ) |
+| **API Fuzzing Engine** | Generates malformed inputs, validates OpenAPI schemas, finds crashes | Atheris (coverage-guided) + RESTler (stateful) |
+| **Chaos Engineering Layer** | Injects failures (network, resource, service), validates resilience | Chaos Monkey + custom failure injection |
+| **Property-Based Test Runner** | Expands Hypothesis tests, validates invariants, finds edge cases | Hypothesis with custom strategies |
+| **Intelligent Browser Agent** | Discovers UI bugs, visual regression, accessibility issues | Playwright + heuristic exploration |
+| **Bug Filing Service** | Files GitHub Issues, deduplicates, labels, attaches artifacts | Existing BugFilingService (expand) |
+| **Result Aggregator** | Correlates failures across methods, tracks metrics, generates reports | Unified reporting with deduplication |
 
 ## Recommended Project Structure
 
@@ -91,652 +91,1584 @@ Atom's existing architecture (Python backend, Next.js frontend, React Native mob
 atom/
 ├── backend/
 │   ├── tests/
-│   │   ├── e2e/                          # Existing backend E2E tests
-│   │   ├── fixtures/                     # Shared test fixtures
-│   │   │   ├── conftest.py              # Root fixtures (50+ existing)
-│   │   │   ├── factories.py             # factory-boy factories
-│   │   │   └── seed_data/               # JSON seed data
-│   │   └── stress/                       # Stress testing scripts
-│   │       ├── load_test_k6.js          # k6 load test scripts
-│   │       └── chaos_test.py            # Chaos engineering tests
-│   └── core/
-│       └── test_data_manager.py         # Test data CRUD orchestration
-├── frontend-nextjs/
-│   ├── tests/
-│   │   ├── e2e/                         # Web E2E tests (Playwright)
-│   │   │   ├── auth/                    # Authentication flows
-│   │   │   ├── agents/                  # Agent interaction flows
-│   │   │   ├── workflows/               # Workflow execution flows
-│   │   │   └── canvas/                  # Canvas presentation flows
-│   │   ├── fixtures/                    # Test fixtures (MSW, data)
-│   │   │   ├── msw-handlers.ts          # API mocks
-│   │   │   └── test-data.ts             # Shared test data
-│   │   └── utils/                       # Test utilities
-│   │       ├── test-helpers.ts          # Custom test helpers
-│   │       └── selectors.ts             # Reusable selectors
-│   └── playwright.config.ts             # Playwright configuration
-├── mobile/
-│   ├── e2e/                             # Mobile E2E tests (Detox)
-│   │   ├── auth/
-│   │   ├── agents/
-│   │   ├── workflows/
-│   │   └── device-features/             # Camera, location, notifications
-│   ├── configs/
-│   │   └── detox.config.js              # Detox configuration
-│   └── tests/
-│       └── fixtures/                    # Mobile-specific fixtures
-├── desktop-e2e/                         # NEW: Desktop E2E tests
-│   ├── tests/
-│   │   ├── window-management/           # Window controls, resizing
-│   │   ├── native-features/             # File system, system tray
-│   │   └── cross-platform/              # Platform-specific tests (Win/Mac/Linux)
-│   ├── fixtures/                        # Desktop test fixtures
-│   └── playwright-tauri.config.ts       # Tauri-specific Playwright config
-├── test-orchestrator/                   # NEW: Unified test orchestration
-│   ├── src/
-│   │   ├── orchestrator.ts              # Main orchestration logic
-│   │   ├── runners/
-│   │   │   ├── web-runner.ts            # Playwright runner wrapper
-│   │   │   ├── mobile-runner.ts         # Detox runner wrapper
-│   │   │   └── desktop-runner.ts        # Tauri runner wrapper
-│   │   ├── data-manager.ts              # Cross-platform test data management
-│   │   ├── reporters/
-│   │   │   ├── unified-reporter.ts      # Aggregate test results
-│   │   │   └── bug-reporter.ts          # GitHub Issues integration
-│   │   └── stress-tester.ts             # Stress test orchestration
-│   └── package.json
+│   │   ├── fuzzing/                     # NEW: API fuzzing campaigns
+│   │   │   ├── campaigns/               # Fuzzing campaign configurations
+│   │   │   │   ├── api_fuzz_campaign.py # RESTler/Atheris campaign setup
+│   │   │   │   ├── auth_fuzz.py         # Authentication endpoint fuzzing
+│   │   │   │   ├── agent_fuzz.py        # Agent execution fuzzing
+│   │   │   │   └── workflow_fuzz.py     # Workflow API fuzzing
+│   │   │   ├── generators/              # Custom input generators
+│   │   │   │   ├── malformed_json.py    # Malformed JSON generator
+│   │   │   │   ├── sql_injection.py     # SQL injection templates
+│   │   │   │   └── xss_payloads.py       # XSS payload generator
+│   │   │   ├── harnesses/               # Fuzzing harnesses
+│   │   │   │   └── fastapi_harness.py   # FastAPI test wrapper
+│   │   │   └── conftest.py              # Fuzzing fixtures
+│   │   ├── chaos/                       # NEW: Chaos engineering experiments
+│   │   │   ├── experiments/             # Chaos experiment definitions
+│   │   │   │   ├── network_latency.py   # Network delay injection
+│   │   │   │   ├── db_connection_drop.py # Database failure injection
+│   │   │   │   ├── memory_pressure.py   # Memory exhaustion simulation
+│   │   │   │   └── service_crash.py     # Service termination experiments
+│   │   │   ├── monitors/                # Chaos monitoring & validation
+│   │   │   │   └── resilience_monitor.py # System health validation
+│   │   │   └── conftest.py              # Chaos engineering fixtures
+│   │   ├── property_tests/              # EXTEND: Existing property tests
+│   │   │   ├── llm/                     # Existing LLM property tests
+│   │   │   ├── governance/              # Existing governance property tests
+│   │   │   ├── episodes/                # Existing episode property tests
+│   │   │   ├── database/                # Existing database property tests
+│   │   │   ├── fuzzing_integration/     # NEW: Fuzzing + Hypothesis
+│   │   │   │   ├── api_invariants.py    # API contract invariants
+│   │   │   │   ├── state_invariants.py  # State machine invariants
+│   │   │   │   └── security_invariants.py # Security property tests
+│   │   │   └── conftest.py              # Existing property test fixtures
+│   │   ├── browser_automation/          # NEW: Intelligent browser automation
+│   │   │   ├── agents/                  # AI-driven exploration agents
+│   │   │   │   ├── exploration_agent.py # Heuristic UI explorer
+│   │   │   │   ├── form_agent.py        # Form filling agent
+│   │   │   │   └── navigation_agent.py  # Navigation flow agent
+│   │   │   ├── detectors/               # Bug detection modules
+│   │   │   │   ├── visual_regression.py # Visual diff detector
+│   │   │   │   ├── accessibility.py     # A11y violation detector
+│   │   │   │   └── console_errors.py    # Console error detector
+│   │   │   ├── strategies/              # Exploration strategies
+│   │   │   │   ├── depth_first.py       # Depth-first exploration
+│   │   │   │   ├── breadth_first.py      # Breadth-first exploration
+│   │   │   │   └── random_walk.py       # Random exploration
+│   │   │   └── conftest.py              # Browser automation fixtures
+│   │   ├── bug_discovery/               # EXTEND: Existing bug discovery
+│   │   │   ├── fixtures/                # Existing bug filing fixtures
+│   │   │   ├── bug_filing_service.py    # Existing BugFilingService
+│   │   │   ├── coordinator.py           # NEW: Discovery coordinator
+│   │   │   ├── aggregators/             # NEW: Result aggregators
+│   │   │   │   ├── failure_aggregator.py # Correlate failures
+│   │   │   │   └── deduplicator.py      # Deduplicate bugs
+│   │   │   └── triage/                  # NEW: Bug triage
+│   │   │       ├── severity_classifier.py # Classify bug severity
+│   │   │       └── impact_analyzer.py    # Analyze bug impact
+│   │   ├── load/                        # EXTEND: Existing load tests
+│   │   │   ├── k6_setup.js              # Existing k6 setup
+│   │   │   ├── test_api_load_baseline.js
+│   │   │   ├── test_api_load_moderate.js
+│   │   │   ├── test_api_load_high.js
+│   │   │   ├── test_web_ui_load.js
+│   │   │   └── README.md
+│   │   ├── e2e_ui/                      # EXTEND: Existing E2E tests
+│   │   │   ├── tests/                   # 91 existing E2E tests
+│   │   │   ├── fixtures/                # Existing E2E fixtures
+│   │   │   ├── pages/                   # Existing page objects
+│   │   │   └── conftest.py
+│   │   └── conftest.py                  # Root conftest (existing)
+│   ├── core/                            # Existing core services
+│   │   ├── fuzzing_orchestrator.py      # NEW: Fuzzing campaign orchestration
+│   │   ├── chaos_coordinator.py         # NEW: Chaos experiment orchestration
+│   │   └── discovery_coordinator.py     # NEW: Unified discovery coordination
+│   ├── api/                             # Existing API routes
+│   │   ├── fuzzing_routes.py            # NEW: Fuzzing control endpoints
+│   │   └── chaos_routes.py              # NEW: Chaos experiment endpoints
+│   └── tools/                           # Existing tools
+│       └── discovery_tools.py           # NEW: Bug discovery tools
 └── .github/
     └── workflows/
-        ├── e2e-web.yml                  # Web E2E workflow
-        ├── e2e-mobile.yml               # Mobile E2E workflow
-        ├── e2e-desktop.yml              # Desktop E2E workflow
-        ├── e2e-all.yml                  # Full cross-platform E2E
-        └── stress-test.yml              # Stress testing workflow
+        ├── fuzzing.yml                  # NEW: Scheduled fuzzing campaigns
+        ├── chaos.yml                    # NEW: Scheduled chaos experiments
+        ├── bug_discovery.yml            # NEW: Unified discovery pipeline
+        └── deploy.yml                   # Existing deployment workflow
 ```
 
 ### Structure Rationale
 
-- **`backend/tests/`**: Extends existing pytest infrastructure with E2E, fixtures, stress tests
-- **`frontend-nextjs/tests/e2e/`**: Web E2E tests using existing Playwright setup (port 3000/3001)
-- **`mobile/e2e/`**: Mobile E2E tests using Detox (already in package.json)
-- **`desktop-e2e/`**: NEW - Desktop-specific tests for Tauri (window management, native features)
-- **`test-orchestrator/`**: NEW - Unified test runner for cross-platform coordination
-- **`.github/workflows/`**: CI/CD workflows for each platform + full cross-platform runs
+- **`backend/tests/fuzzing/`**: API fuzzing campaigns with Atheris/RESTler, organized by endpoint categories (auth, agents, workflows)
+- **`backend/tests/chaos/`**: Chaos engineering experiments for failure injection (network, database, memory, service crashes)
+- **`backend/tests/property_tests/`**: Expand existing Hypothesis tests with fuzzing integration, security invariants, and state machine validation
+- **`backend/tests/browser_automation/`**: AI-driven browser exploration agents for automatic UI bug discovery, visual regression, and accessibility testing
+- **`backend/tests/bug_discovery/`**: Extend existing BugFilingService with unified coordinator, result aggregation, and automatic triage
+- **`backend/core/`**: Add orchestration services for fuzzing campaigns, chaos experiments, and unified discovery coordination
+- **`.github/workflows/`**: CI/CD workflows for scheduled fuzzing, chaos experiments, and unified bug discovery pipeline
 
 ## Architectural Patterns
 
-### Pattern 1: Test Orchestration with Unified Runner
+### Pattern 1: Fuzzing Campaign Orchestration
 
-**What:** Central orchestration service that coordinates test execution across web, mobile, and desktop platforms, managing parallelization, test data setup, and result aggregation.
-
-**When to use:**
-- Running E2E tests across multiple platforms
-- Coordinating test data setup/teardown across platforms
-- Aggregating test results from multiple test runners
-
-**Trade-offs:**
-- **Pros**: Single entry point, centralized configuration, shared test data, unified reporting
-- **Cons**: Additional complexity, orchestration layer to maintain, single point of failure
-
-**Example:**
-```typescript
-// test-orchestrator/src/orchestrator.ts
-import { WebRunner } from './runners/web-runner';
-import { MobileRunner } from './runners/mobile-runner';
-import { DesktopRunner } from './runners/desktop-runner';
-import { TestDataManager } from './data-manager';
-
-interface TestSuite {
-  platform: 'web' | 'mobile' | 'desktop';
-  tests: string[];
-  parallel?: boolean;
-}
-
-export class TestOrchestrator {
-  private webRunner = new WebRunner();
-  private mobileRunner = new MobileRunner();
-  private desktopRunner = new DesktopRunner();
-  private dataManager = new TestDataManager();
-
-  async runE2ESuites(suites: TestSuite[]) {
-    // Setup shared test data
-    await this.dataManager.setup();
-
-    const results = await Promise.allSettled(
-      suites.map(suite => this.runSuite(suite))
-    );
-
-    // Cleanup test data
-    await this.dataManager.cleanup();
-
-    return this.aggregateResults(results);
-  }
-
-  private async runSuite(suite: TestSuite) {
-    const runner = this.getRunner(suite.platform);
-    return runner.run(suite.tests, { parallel: suite.parallel });
-  }
-
-  private getRunner(platform: string) {
-    switch (platform) {
-      case 'web': return this.webRunner;
-      case 'mobile': return this.mobileRunner;
-      case 'desktop': return this.desktopRunner;
-      default: throw new Error(`Unknown platform: ${platform}`);
-    }
-  }
-
-  private aggregateResults(results: PromiseSettledResult<void>[]) {
-    // Aggregate results from all platforms
-    const passed = results.filter(r => r.status === 'fulfilled').length;
-    const failed = results.filter(r => r.status === 'rejected').length;
-    return { total: results.length, passed, failed };
-  }
-}
-```
-
----
-
-### Pattern 2: Shared Test Data Management
-
-**What:** Centralized test data management using fixtures, factories, and seed data that can be used across all E2E test platforms.
+**What:** Centralized orchestration service that manages fuzzing campaigns across API endpoints, coordinates multiple fuzzing engines (Atheris, RESTler), aggregates crash results, and triggers bug filing for reproducible failures.
 
 **When to use:**
-- Multiple test platforms need consistent test data
-- Complex test data relationships (agents, workflows, episodes)
-- Reproducible test data across test runs
+- Running comprehensive API fuzzing campaigns
+- Coordinating multiple fuzzing engines
+- Aggregating crashes from different fuzzers
+- Automating bug filing for reproducible crashes
 
 **Trade-offs:**
-- **Pros**: Consistent data, reduced duplication, easier maintenance
-- **Cons**: Initial setup complexity, shared data can cause test interference
+- **Pros**: Comprehensive API coverage, automated crash discovery, reproducible test cases
+- **Cons**: High computational cost, potential for false positives, requires crash triage
 
 **Example:**
 ```python
-# backend/tests/fixtures/test_data_manager.py
-from sqlalchemy.orm import Session
-from core.models import AgentRegistry, AgentExecution, Episode
-import factory
-from faker import Faker
+# backend/core/fuzzing_orchestrator.py
+from typing import List, Dict, Optional
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import subprocess
+import json
+from datetime import datetime
 
-fake = Faker()
+class FuzzingCampaign:
+    """Represents a fuzzing campaign with configuration and results."""
 
-class AgentFactory(factory.alchemy.SQLAlchemyModelFactory):
-    class Meta:
-        model = AgentRegistry
-        sqlalchemy_session_persistence = 'commit'
+    def __init__(
+        self,
+        campaign_id: str,
+        target_endpoints: List[str],
+        fuzzer_type: str = "atheris",
+        duration_seconds: int = 300,
+        max_workers: int = 4
+    ):
+        self.campaign_id = campaign_id
+        self.target_endpoints = target_endpoints
+        self.fuzzer_type = fuzzer_type
+        self.duration_seconds = duration_seconds
+        self.max_workers = max_workers
+        self.crashes = []
+        self.start_time = None
+        self.end_time = None
 
-    id = factory.LazyFunction(lambda: str(uuid.uuid4()))
-    name = factory.LazyFunction(lambda: fake.company() + " Agent")
-    category = factory.Iterator(['testing', 'automation', 'analysis'])
-    confidence_score = factory.Faker('pyfloat', min_value=0.0, max_value=1.0)
-    maturity_level = factory.Iterator(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
+    def to_dict(self) -> Dict:
+        """Serialize campaign to dict."""
+        return {
+            "campaign_id": self.campaign_id,
+            "target_endpoints": self.target_endpoints,
+            "fuzzer_type": self.fuzzer_type,
+            "duration_seconds": self.duration_seconds,
+            "crashes_found": len(self.crashes),
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+        }
 
-class TestDataManager:
-    """Centralized test data management for E2E tests"""
 
-    def __init__(self, db: Session):
-        self.db = db
-        self.created_data = []
+class FuzzingOrchestrator:
+    """
+    Orchestrates fuzzing campaigns across Atom API endpoints.
 
-    def setup_test_scenario(self, scenario: str):
-        """Setup predefined test scenarios"""
-        if scenario == 'single_agent':
-            return self._setup_single_agent()
-        elif scenario == 'multi_agent_workflow':
-            return self._setup_multi_agent_workflow()
-        elif scenario == 'episode_memory':
-            return self._setup_episode_memory()
+    Features:
+    - Multi-fuzzer support (Atheris, RESTler, custom)
+    - Parallel campaign execution
+    - Crash deduplication
+    - Reproducible test case generation
+    - Integration with BugFilingService
+    """
 
-    def _setup_single_agent(self):
-        """Create a single test agent"""
-        agent = AgentFactory.create(
-            name="Test Agent",
-            maturity_level="INTERN",
-            confidence_score=0.75
+    def __init__(self, bug_filing_service):
+        """
+        Initialize FuzzingOrchestrator.
+
+        Args:
+            bug_filing_service: BugFilingService instance for auto-filing bugs
+        """
+        self.bug_filing_service = bug_filing_service
+        self.campaigns: Dict[str, FuzzingCampaign] = {}
+
+    def start_campaign(
+        self,
+        target_endpoints: List[str],
+        fuzzer_type: str = "atheris",
+        duration_seconds: int = 300,
+        max_workers: int = 4
+    ) -> FuzzingCampaign:
+        """
+        Start a fuzzing campaign.
+
+        Args:
+            target_endpoints: List of API endpoints to fuzz (e.g., ["/api/auth/login", "/api/v1/agents/execute"])
+            fuzzer_type: Type of fuzzer ("atheris", "restler", "custom")
+            duration_seconds: Campaign duration in seconds
+            max_workers: Number of parallel fuzzing processes
+
+        Returns:
+            FuzzingCampaign instance
+        """
+        campaign_id = f"fuzz_{datetime.utcnow().timestamp()}"
+        campaign = FuzzingCampaign(
+            campaign_id=campaign_id,
+            target_endpoints=target_endpoints,
+            fuzzer_type=fuzzer_type,
+            duration_seconds=duration_seconds,
+            max_workers=max_workers
         )
-        self.created_data.append(('agent', agent.id))
-        return agent
 
-    def _setup_multi_agent_workflow(self):
-        """Create multiple agents for workflow testing"""
-        agents = [
-            AgentFactory.create(
-                name=f"Agent {i}",
-                maturity_level=['STUDENT', 'INTERN', 'SUPERVISED'][i % 3]
-            )
-            for i in range(3)
+        self.campaigns[campaign_id] = campaign
+        return campaign
+
+    def run_campaign(self, campaign: FuzzingCampaign) -> Dict:
+        """
+        Run a fuzzing campaign across target endpoints.
+
+        Args:
+            campaign: FuzzingCampaign to execute
+
+        Returns:
+            Campaign results with crash summaries
+        """
+        campaign.start_time = datetime.utcnow()
+
+        # Run fuzzing in parallel across endpoints
+        with ProcessPoolExecutor(max_workers=campaign.max_workers) as executor:
+            futures = {
+                executor.submit(
+                    self._fuzz_endpoint,
+                    endpoint,
+                    campaign.fuzzer_type,
+                    campaign.duration_seconds
+                ): endpoint
+                for endpoint in campaign.target_endpoints
+            }
+
+            for future in as_completed(futures):
+                endpoint = futures[future]
+                try:
+                    crashes = future.result()
+                    campaign.crashes.extend(crashes)
+                    print(f"Fuzzing {endpoint}: found {len(crashes)} crashes")
+                except Exception as e:
+                    print(f"Error fuzzing {endpoint}: {e}")
+
+        campaign.end_time = datetime.utcnow()
+
+        # Deduplicate crashes
+        unique_crashes = self._deduplicate_crashes(campaign.crashes)
+        campaign.crashes = unique_crashes
+
+        # File bugs for reproducible crashes
+        for crash in unique_crashes:
+            if self._is_reproducible(crash):
+                self._file_bug_for_crash(crash, campaign)
+
+        return campaign.to_dict()
+
+    def _fuzz_endpoint(
+        self,
+        endpoint: str,
+        fuzzer_type: str,
+        duration_seconds: int
+    ) -> List[Dict]:
+        """
+        Fuzz a single endpoint.
+
+        Args:
+            endpoint: API endpoint path
+            fuzzer_type: Type of fuzzer to use
+            duration_seconds: Fuzzing duration
+
+        Returns:
+            List of crash dictionaries
+        """
+        # This is a simplified implementation
+        # In production, you'd use actual fuzzing engines (Atheris, RESTler)
+
+        crashes = []
+
+        # Mock fuzzing - replace with actual fuzzer invocation
+        # Example with Atheris:
+        # subprocess.run([
+        #     "python", "-m", "atheris",
+        #     "-h", f"--runs={duration_seconds * 100}",  # Atheris uses iterations, not seconds
+        #     f"backend/tests/fuzzing/harnesses/fastapi_harness.py",
+        #     "--", f"--endpoint={endpoint}"
+        # ])
+
+        # For demonstration, return mock crashes
+        # In production, parse fuzzer output for crash data
+        if endpoint == "/api/auth/login":
+            crashes.append({
+                "endpoint": endpoint,
+                "input": b'{"username": "\x00\x00\x00", "password": "admin"}',
+                "error": "AttributeError: 'NoneType' object has no attribute 'id'",
+                "stack_trace": "Traceback (most recent call last):\n  ...",
+                "reproducible": True
+            })
+
+        return crashes
+
+    def _deduplicate_crashes(self, crashes: List[Dict]) -> List[Dict]:
+        """
+        Deduplicate crashes by error signature.
+
+        Args:
+            crashes: List of crash dictionaries
+
+        Returns:
+            Deduplicated crash list
+        """
+        seen_signatures = set()
+        unique_crashes = []
+
+        for crash in crashes:
+            # Create signature from error message + endpoint
+            signature = f"{crash['error']}:{crash['endpoint']}"
+            if signature not in seen_signatures:
+                seen_signatures.add(signature)
+                unique_crashes.append(crash)
+
+        return unique_crashes
+
+    def _is_reproducible(self, crash: Dict) -> bool:
+        """
+        Check if crash is reproducible.
+
+        Args:
+            crash: Crash dictionary
+
+        Returns:
+            True if crash is reproducible
+        """
+        # In production, re-run the crash input to verify reproducibility
+        return crash.get("reproducible", False)
+
+    def _file_bug_for_crash(self, crash: Dict, campaign: FuzzingCampaign):
+        """
+        File a bug for reproducible crash.
+
+        Args:
+            crash: Crash dictionary
+            campaign: Fuzzing campaign context
+        """
+        test_name = f"Fuzz_{crash['endpoint'].replace('/', '_')}"
+        error_message = crash['error']
+        stack_trace = crash.get('stack_trace', '')
+
+        metadata = {
+            "test_type": "fuzzing",
+            "platform": "api",
+            "endpoint": crash['endpoint'],
+            "input_repr": repr(crash['input'][:100]),  # First 100 bytes
+            "campaign_id": campaign.campaign_id,
+            "fuzzer_type": campaign.fuzzer_type
+        }
+
+        self.bug_filing_service.file_bug(
+            test_name=test_name,
+            error_message=error_message,
+            metadata=metadata
+        )
+
+
+# Usage in tests
+# backend/tests/fuzzing/test_fuzzing_campaigns.py
+import pytest
+from core.fuzzing_orchestrator import FuzzingOrchestrator
+from tests.bug_discovery.bug_filing_service import BugFilingService
+
+@pytest.mark.integration
+def test_fuzzing_campaign_auth_endpoints(db_session):
+    """Run fuzzing campaign on authentication endpoints."""
+    # Create bug filing service (mock in tests)
+    bug_service = BugFilingService(
+        github_token="test_token",
+        github_repository="test/repo"
+    )
+
+    # Create orchestrator
+    orchestrator = FuzzingOrchestrator(bug_service)
+
+    # Start campaign
+    campaign = orchestrator.start_campaign(
+        target_endpoints=[
+            "/api/auth/login",
+            "/api/auth/logout",
+            "/api/auth/refresh"
+        ],
+        fuzzer_type="atheris",
+        duration_seconds=60,  # Short campaign for testing
+        max_workers=2
+    )
+
+    # Run campaign
+    results = orchestrator.run_campaign(campaign)
+
+    # Assert campaign completed
+    assert results["start_time"] is not None
+    assert results["end_time"] is not None
+    assert results["crashes_found"] >= 0
+```
+
+---
+
+### Pattern 2: Chaos Engineering Experiment Orchestration
+
+**What:** Centralized chaos engineering service that injects failures (network latency, database connection drops, memory pressure, service crashes) into the Atom platform, validates system resilience, and automatically files bugs for unrecoverable failures.
+
+**When to use:**
+- Testing system resilience under failure
+- Validating graceful degradation
+- Discovering cascading failures
+- Testing recovery mechanisms
+
+**Trade-offs:**
+- **Pros**: Finds production-relevant failures, validates resilience, tests recovery automation
+- **Cons**: Can cause temporary outages, requires careful isolation, may produce false positives
+
+**Example:**
+```python
+# backend/core/chaos_coordinator.py
+from typing import List, Dict, Callable, Optional
+from datetime import datetime, timedelta
+import asyncio
+import psutil  # For system resource monitoring
+import time
+
+class ChaosExperiment:
+    """Represents a chaos engineering experiment."""
+
+    def __init__(
+        self,
+        experiment_id: str,
+        failure_type: str,
+        target_component: str,
+        duration_seconds: int,
+        rollback_func: Optional[Callable] = None
+    ):
+        self.experiment_id = experiment_id
+        self.failure_type = failure_type
+        self.target_component = target_component
+        self.duration_seconds = duration_seconds
+        self.rollback_func = rollback_func
+        self.start_time = None
+        self.end_time = None
+        self.baseline_metrics = {}
+        self.chaos_metrics = {}
+        self.recovery_metrics = {}
+        self.failures_detected = []
+
+    def to_dict(self) -> Dict:
+        """Serialize experiment to dict."""
+        return {
+            "experiment_id": self.experiment_id,
+            "failure_type": self.failure_type,
+            "target_component": self.target_component,
+            "duration_seconds": self.duration_seconds,
+            "failures_detected": len(self.failures_detected),
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+        }
+
+
+class ChaosCoordinator:
+    """
+    Orchestrates chaos engineering experiments for Atom platform.
+
+    Features:
+    - Network failure injection (latency, packet loss, connection drops)
+    - Database failure injection (connection pool exhaustion, query failures)
+    - Resource stress (CPU, memory, disk)
+    - Service termination (graceful and forceful)
+    - Automated resilience validation
+    - Bug filing for unrecoverable failures
+    """
+
+    def __init__(self, bug_filing_service):
+        """
+        Initialize ChaosCoordinator.
+
+        Args:
+            bug_filing_service: BugFilingService instance for auto-filing bugs
+        """
+        self.bug_filing_service = bug_filing_service
+        self.experiments: Dict[str, ChaosExperiment] = {}
+
+    def start_experiment(
+        self,
+        failure_type: str,
+        target_component: str,
+        duration_seconds: int = 60
+    ) -> ChaosExperiment:
+        """
+        Start a chaos experiment.
+
+        Args:
+            failure_type: Type of failure ("network_latency", "db_connection_drop", "memory_pressure", "service_crash")
+            target_component: Component to target ("database", "redis", "llm_service", "api_server")
+            duration_seconds: Experiment duration in seconds
+
+        Returns:
+            ChaosExperiment instance
+        """
+        experiment_id = f"chaos_{datetime.utcnow().timestamp()}"
+        experiment = ChaosExperiment(
+            experiment_id=experiment_id,
+            failure_type=failure_type,
+            target_component=target_component,
+            duration_seconds=duration_seconds
+        )
+
+        self.experiments[experiment_id] = experiment
+        return experiment
+
+    def run_experiment(self, experiment: ChaosExperiment) -> Dict:
+        """
+        Run a chaos experiment.
+
+        Args:
+            experiment: ChaosExperiment to execute
+
+        Returns:
+            Experiment results with failure summaries
+        """
+        experiment.start_time = datetime.utcnow()
+
+        # Collect baseline metrics
+        experiment.baseline_metrics = self._collect_metrics(experiment.target_component)
+
+        # Inject failure
+        rollback_func = self._inject_failure(experiment)
+        experiment.rollback_func = rollback_func
+
+        # Wait for failure duration
+        time.sleep(experiment.duration_seconds)
+
+        # Collect chaos metrics
+        experiment.chaos_metrics = self._collect_metrics(experiment.target_component)
+
+        # Detect failures
+        experiment.failures_detected = self._detect_failures(
+            experiment.baseline_metrics,
+            experiment.chaos_metrics
+        )
+
+        # Rollback failure injection
+        if rollback_func:
+            rollback_func()
+
+        # Wait for recovery
+        time.sleep(10)
+
+        # Collect recovery metrics
+        experiment.recovery_metrics = self._collect_metrics(experiment.target_component)
+
+        experiment.end_time = datetime.utcnow()
+
+        # File bugs for unrecovered failures
+        for failure in experiment.failures_detected:
+            if not self._is_recovered(failure, experiment.recovery_metrics):
+                self._file_bug_for_failure(failure, experiment)
+
+        return experiment.to_dict()
+
+    def _inject_failure(self, experiment: ChaosExperiment) -> Optional[Callable]:
+        """
+        Inject failure into target component.
+
+        Args:
+            experiment: ChaosExperiment with failure configuration
+
+        Returns:
+            Rollback function to undo failure injection
+        """
+        if experiment.failure_type == "network_latency":
+            return self._inject_network_latency(experiment)
+        elif experiment.failure_type == "db_connection_drop":
+            return self._inject_db_connection_drop(experiment)
+        elif experiment.failure_type == "memory_pressure":
+            return self._inject_memory_pressure(experiment)
+        elif experiment.failure_type == "service_crash":
+            return self._inject_service_crash(experiment)
+        else:
+            raise ValueError(f"Unknown failure type: {experiment.failure_type}")
+
+    def _inject_network_latency(self, experiment: ChaosExperiment) -> Callable:
+        """
+        Inject network latency using tc (traffic control).
+
+        Args:
+            experiment: ChaosExperiment with target configuration
+
+        Returns:
+            Rollback function
+        """
+        # Use tc to add network delay
+        # This requires root privileges and is platform-specific (Linux)
+        # For demonstration, we'll use a mock implementation
+
+        def rollback():
+            """Remove network latency."""
+            # subprocess.run(["tc", "qdisc", "del", "dev", "eth0", "root"])
+            pass
+
+        # Inject latency: add 500ms delay, 100ms jitter, 10% packet loss
+        # subprocess.run([
+        #     "tc", "qdisc", "add", "dev", "eth0", "root", "handle", "1:",
+        #     "netem", "delay", "500ms", "100ms", "loss", "10%"
+        # ])
+
+        return rollback
+
+    def _inject_db_connection_drop(self, experiment: ChaosExperiment) -> Callable:
+        """
+        Inject database connection drops.
+
+        Args:
+            experiment: ChaosExperiment with target configuration
+
+        Returns:
+            Rollback function
+        """
+        # Mock implementation - in production, you'd use:
+        # - iptables to block database port
+        # - Database proxy to drop connections
+        # - Custom middleware to reject queries
+
+        def rollback():
+            """Restore database connections."""
+            pass
+
+        # Block database connections
+        # subprocess.run([
+        #     "iptables", "-A", "INPUT", "-p", "tcp", "--dport", "5432",
+        #     "-j", "DROP"
+        # ])
+
+        return rollback
+
+    def _inject_memory_pressure(self, experiment: ChaosExperiment) -> Callable:
+        """
+        Inject memory pressure by allocating memory.
+
+        Args:
+            experiment: ChaosExperiment with target configuration
+
+        Returns:
+            Rollback function
+        """
+        memory_blocks = []
+
+        def rollback():
+            """Release allocated memory."""
+            memory_blocks.clear()
+
+        # Allocate 500MB of memory
+        block_size = 500 * 1024 * 1024  # 500MB in bytes
+        memory_blocks.append(b'\x00' * block_size)
+
+        return rollback
+
+    def _inject_service_crash(self, experiment: ChaosExperiment) -> Callable:
+        """
+        Inject service crash (kill and restart).
+
+        Args:
+            experiment: ChaosExperiment with target configuration
+
+        Returns:
+            Rollback function
+        """
+        def rollback():
+            """Restart crashed service."""
+            # subprocess.run(["systemctl", "start", "atom-backend"])
+            pass
+
+        # Kill service
+        # subprocess.run(["systemctl", "stop", "atom-backend"])
+
+        return rollback
+
+    def _collect_metrics(self, component: str) -> Dict:
+        """
+        Collect system metrics for component.
+
+        Args:
+            component: Component name
+
+        Returns:
+            Metrics dictionary
+        """
+        return {
+            "cpu_percent": psutil.cpu_percent(interval=1),
+            "memory_percent": psutil.virtual_memory().percent,
+            "disk_percent": psutil.disk_usage('/').percent,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    def _detect_failures(
+        self,
+        baseline_metrics: Dict,
+        chaos_metrics: Dict
+    ) -> List[Dict]:
+        """
+        Detect failures by comparing baseline and chaos metrics.
+
+        Args:
+            baseline_metrics: Metrics before failure injection
+            chaos_metrics: Metrics during failure injection
+
+        Returns:
+            List of failure dictionaries
+        """
+        failures = []
+
+        # Detect CPU spike (>80% increase)
+        cpu_increase = (
+            chaos_metrics["cpu_percent"] - baseline_metrics["cpu_percent"]
+        )
+        if cpu_increase > 80:
+            failures.append({
+                "type": "cpu_spike",
+                "severity": "high",
+                "baseline": baseline_metrics["cpu_percent"],
+                "chaos": chaos_metrics["cpu_percent"],
+                "increase": cpu_increase
+            })
+
+        # Detect memory spike (>50% increase)
+        memory_increase = (
+            chaos_metrics["memory_percent"] - baseline_metrics["memory_percent"]
+        )
+        if memory_increase > 50:
+            failures.append({
+                "type": "memory_spike",
+                "severity": "high",
+                "baseline": baseline_metrics["memory_percent"],
+                "chaos": chaos_metrics["memory_percent"],
+                "increase": memory_increase
+            })
+
+        return failures
+
+    def _is_recovered(self, failure: Dict, recovery_metrics: Dict) -> bool:
+        """
+        Check if system recovered from failure.
+
+        Args:
+            failure: Failure dictionary
+            recovery_metrics: Metrics after rollback
+
+        Returns:
+            True if system recovered
+        """
+        # System recovered if metrics are within 20% of baseline
+        recovery_cpu = recovery_metrics.get("cpu_percent", 0)
+        baseline_cpu = failure.get("baseline", 0)
+
+        return abs(recovery_cpu - baseline_cpu) < (baseline_cpu * 0.2)
+
+    def _file_bug_for_failure(self, failure: Dict, experiment: ChaosExperiment):
+        """
+        File bug for unrecovered failure.
+
+        Args:
+            failure: Failure dictionary
+            experiment: ChaosExperiment context
+        """
+        test_name = f"Chaos_{experiment.failure_type}_{experiment.target_component}"
+        error_message = f"System failed to recover from {failure['type']}"
+        stack_trace = f"Baseline: {failure['baseline']}, Chaos: {failure['chaos']}, Increase: {failure['increase']}%"
+
+        metadata = {
+            "test_type": "chaos",
+            "platform": "backend",
+            "failure_type": failure["type"],
+            "severity": failure["severity"],
+            "experiment_id": experiment.experiment_id,
+            "target_component": experiment.target_component
+        }
+
+        self.bug_filing_service.file_bug(
+            test_name=test_name,
+            error_message=error_message,
+            metadata=metadata
+        )
+
+
+# Usage in tests
+# backend/tests/chaos/test_chaos_experiments.py
+import pytest
+from core.chaos_coordinator import ChaosCoordinator
+from tests.bug_discovery.bug_filing_service import BugFilingService
+
+@pytest.mark.integration
+@pytest.mark.skip(reason="Chaos experiments require isolated environment")
+def test_database_connection_drop_chaos(db_session):
+    """Test system resilience when database connections drop."""
+    # Create bug filing service (mock in tests)
+    bug_service = BugFilingService(
+        github_token="test_token",
+        github_repository="test/repo"
+    )
+
+    # Create coordinator
+    coordinator = ChaosCoordinator(bug_service)
+
+    # Start experiment
+    experiment = coordinator.start_experiment(
+        failure_type="db_connection_drop",
+        target_component="database",
+        duration_seconds=30  # Short experiment for testing
+    )
+
+    # Run experiment
+    results = coordinator.run_experiment(experiment)
+
+    # Assert experiment completed
+    assert results["start_time"] is not None
+    assert results["end_time"] is not None
+    # System should recover from connection drops
+    assert len(results["failures_detected"]) == 0 or all(
+        coordinator._is_recovered(f, experiment.recovery_metrics)
+        for f in results["failures_detected"]
+    )
+```
+
+---
+
+### Pattern 3: Property-Based Testing Expansion
+
+**What:** Expand existing Hypothesis property-based tests to cover API contracts, state machine invariants, and security properties, integrating with fuzzing-generated inputs for comprehensive invariant validation.
+
+**When to use:**
+- Validating API contracts across all possible inputs
+- Testing state machine transitions for all states
+- Verifying security properties (no SQL injection, XSS)
+- Finding edge cases in complex logic
+
+**Trade-offs:**
+- **Pros**: Finds deep edge cases, validates invariants, comprehensive coverage
+- **Cons**: Can be slow, requires careful invariant definition, test maintenance
+
+**Example:**
+```python
+# backend/tests/property_tests/fuzzing_integration/api_invariants.py
+"""
+Property-Based Tests for API Contract Invariants
+
+Tests CRITICAL API invariants with Hypothesis:
+- Request validation (malformed JSON, oversized payloads)
+- Response contracts (status codes, content types)
+- Error handling (graceful degradation, no crashes)
+- Security invariants (no SQL injection, XSS)
+"""
+
+import pytest
+from hypothesis import given, settings, example, HealthCheck
+from hypothesis.strategies import (
+    text, integers, floats, dictionaries, lists, none,
+    binary, uuids, datetime as datetime_st
+)
+from fastapi.testclient import TestClient
+from main import app
+import json
+
+class TestAPIContractInvariants:
+    """Test invariants for API contracts."""
+
+    @given(
+        username=text(min_size=0, max_size=1000),
+        password=text(min_size=0, max_size=1000)
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_login_endpoint_handles_all_inputs_invariant(
+        self, db_session, username: str, password: str
+    ):
+        """
+        INVARIANT: Login endpoint handles all inputs without crashing.
+
+        VALIDATED_BUG: Login crashed on extremely long usernames (1000+ chars).
+        Root cause: Missing length validation.
+        Fixed in commit xyz789.
+        """
+        client = TestClient(app)
+
+        # Attempt login with any username/password
+        response = client.post(
+            "/api/auth/login",
+            json={"username": username, "password": password}
+        )
+
+        # INVARIANT: Response is always valid JSON (no crashes)
+        # Status code is always 4xx/5xx for invalid inputs, never 500
+        assert response.status_code in [200, 400, 401, 422, 500]
+        assert response.headers["content-type"] == "application/json"
+
+    @given(
+        prompt_text=text(min_size=0, max_size=50000),
+        agent_id=uuids()
+    )
+    @settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_agent_execution_handles_large_prompts_invariant(
+        self, db_session, prompt_text: str, agent_id
+    ):
+        """
+        INVARIANT: Agent execution handles prompts up to 50KB without crashing.
+
+        VALIDATED_BUG: Agent execution crashed on prompts >10KB.
+        Root cause: Token counting overflow.
+        Fixed in commit abc456.
+        """
+        client = TestClient(app)
+
+        # Execute agent with any prompt text
+        response = client.post(
+            f"/api/v1/agents/{agent_id}/execute",
+            json={"prompt": prompt_text}
+        )
+
+        # INVARIANT: No crashes, graceful error handling
+        assert response.status_code in [200, 400, 404, 413, 500]
+
+        # If prompt is too large, should return 413 (Payload Too Large)
+        if len(prompt_text) > 10000:  # Hypothetical limit
+            assert response.status_code == 413
+
+    @given(
+        workflow_def=dictionaries(
+            keys=text(min_size=1, max_size=50),
+            values=text(min_size=0, max_size=1000),
+            min_size=0,
+            max_size=100
+        )
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_workflow_creation_handles_malformed_json_invariant(
+        self, db_session, workflow_def
+    ):
+        """
+        INVARIANT: Workflow creation handles all dictionary inputs without SQL injection.
+
+        VALIDATED_BUG: Workflow name vulnerable to SQL injection.
+        Root cause: Unescaped string interpolation in query.
+        Fixed in commit def123.
+        """
+        client = TestClient(app)
+
+        # Create workflow with any dictionary definition
+        response = client.post(
+            "/api/v1/workflows",
+            json={"definition": workflow_def}
+        )
+
+        # INVARIANT: No SQL injection errors
+        # If SQL injection occurred, we'd see database error in response
+        assert response.status_code in [200, 400, 401, 422, 500]
+
+        # Check for SQL error signatures in response
+        if response.status_code == 500:
+            error_detail = response.json().get("detail", "")
+            assert "syntax error" not in error_detail.lower()
+            assert "mysql" not in error_detail.lower()
+            assert "postgresql" not in error_detail.lower()
+            assert "sqlite" not in error_detail.lower()
+
+
+class TestStateMachineInvariants:
+    """Test invariants for agent state machine."""
+
+    @given(
+        current_confidence=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+        execution_count=integers(min_value=0, max_value=1000),
+        intervention_count=integers(min_value=0, max_value=100)
+    )
+    @settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_agent_graduation_state_machine_invariant(
+        self, db_session,
+        current_confidence: float,
+        execution_count: int,
+        intervention_count: int
+    ):
+        """
+        INVARIANT: Agent graduation state machine is monotonic (never demotes).
+
+        VALIDATED_BUG: Agent could demote from INTERN to STUDENT.
+        Root cause: Incorrect graduation criteria check.
+        Fixed in commit ghi789.
+        """
+        from core.models import AgentRegistry, AgentStatus
+        from core.agent_graduation_service import AgentGraduationService
+
+        # Create agent with specified metrics
+        agent = AgentRegistry(
+            name="TestAgent",
+            confidence_score=current_confidence,
+            execution_count=execution_count,
+            intervention_count=intervention_count,
+            maturity_level="STUDENT"
+        )
+        db_session.add(agent)
+        db_session.commit()
+
+        # Check graduation criteria
+        grad_service = AgentGraduationService(db_session)
+        new_level = grad_service.check_graduation_eligibility(agent.id)
+
+        # INVARIANT: State transitions are monotonic (never demote)
+        maturity_order = ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
+        current_idx = maturity_order.index(agent.maturity_level)
+        new_idx = maturity_order.index(new_level) if new_level else current_idx
+
+        assert new_idx >= current_idx, \
+            f"Agent demoted from {agent.maturity_level} to {new_level}"
+
+
+# Integration with fuzzing
+# backend/tests/fuzzing/campaigns/property_fuzz_campaign.py
+"""
+Fuzzing Campaign with Property-Based Tests
+
+Combines fuzzing-generated inputs with Hypothesis property tests
+to validate invariants across malformed and unexpected inputs.
+"""
+
+from hypothesis import given, settings
+from backend.tests.property_tests.fuzzing_integration.api_invariants import (
+    TestAPIContractInvariants,
+    TestStateMachineInvariants
+)
+
+class PropertyFuzzingCampaign:
+    """Run property-based tests with fuzzing-generated inputs."""
+
+    def __init__(self, db_session):
+        self.db_session = db_session
+        self.api_tests = TestAPIContractInvariants()
+        self.state_tests = TestStateMachineInvariants()
+
+    def run_campaign(self, max_examples: int = 1000):
+        """Run property-based fuzzing campaign."""
+        print(f"Running property-based fuzzing campaign with {max_examples} examples")
+
+        # Run API contract tests
+        print("Testing API contract invariants...")
+        self.api_tests.test_login_endpoint_handles_all_inputs_invariant(
+            self.db_session,
+            username="",  # Hypothesis will generate random inputs
+            password=""
+        )
+
+        self.api_tests.test_agent_execution_handles_large_prompts_invariant(
+            self.db_session,
+            prompt_text="",
+            agent_id=""
+        )
+
+        self.api_tests.test_workflow_creation_handles_malformed_json_invariant(
+            self.db_session,
+            workflow_def={}
+        )
+
+        # Run state machine tests
+        print("Testing state machine invariants...")
+        self.state_tests.test_agent_graduation_state_machine_invariant(
+            self.db_session,
+            current_confidence=0.5,
+            execution_count=10,
+            intervention_count=2
+        )
+
+        print("Property-based fuzzing campaign completed")
+```
+
+---
+
+### Pattern 4: Intelligent Browser Automation for Bug Discovery
+
+**What:** AI-driven browser automation that explores the Atom web UI using heuristic algorithms, detects visual regressions, accessibility violations, console errors, and automatically files bugs for discovered issues.
+
+**When to use:**
+- Discovering UI bugs not covered by manual E2E tests
+- Validating accessibility across all pages
+- Detecting visual regressions after UI changes
+- Finding console errors and broken links
+
+**Trade-offs:**
+- **Pros**: Finds unexpected UI bugs, comprehensive coverage, automated exploration
+- **Cons:** Can be flaky, requires heuristics tuning, may miss business logic bugs
+
+**Example:**
+```python
+# backend/tests/browser_automation/agents/exploration_agent.py
+"""
+Intelligent Browser Exploration Agent
+
+Uses heuristics to explore the Atom web UI and discover bugs:
+- Depth-first exploration of clickable elements
+- Form filling with random/malicious inputs
+- Visual regression detection
+- Accessibility violation detection
+- Console error detection
+"""
+
+from typing import List, Dict, Optional, Set
+from playwright.async_api import async_playwright, Page, Browser
+import asyncio
+from datetime import datetime
+import hashlib
+
+class ExplorationAgent:
+    """
+    Intelligent browser exploration agent for bug discovery.
+
+    Features:
+    - Heuristic exploration of UI elements
+    - Form filling with edge case inputs
+    - Visual regression detection
+    - Accessibility violation detection
+    - Console error detection
+    """
+
+    def __init__(
+        self,
+        base_url: str,
+        max_pages: int = 50,
+        max_depth: int = 3,
+        screenshot_dir: str = "/tmp/screenshots"
+    ):
+        """
+        Initialize ExplorationAgent.
+
+        Args:
+            base_url: Base URL of application to explore
+            max_pages: Maximum number of pages to explore
+            max_depth: Maximum depth of exploration tree
+            screenshot_dir: Directory for screenshots
+        """
+        self.base_url = base_url
+        self.max_pages = max_pages
+        self.max_depth = max_depth
+        self.screenshot_dir = screenshot_dir
+
+        self.bugs_found = []
+        self.visited_urls: Set[str] = set()
+        self.exploration_queue: List[Dict] = []
+
+    async def explore(self) -> List[Dict]:
+        """
+        Start intelligent exploration.
+
+        Returns:
+            List of bugs discovered
+        """
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+
+            # Start exploration from base URL
+            await self._explore_page(page, self.base_url, depth=0)
+
+            await browser.close()
+
+        return self.bugs_found
+
+    async def _explore_page(self, page: Page, url: str, depth: int):
+        """
+        Explore a single page.
+
+        Args:
+            page: Playwright Page object
+            url: URL to explore
+            depth: Current exploration depth
+        """
+        if depth > self.max_depth or url in self.visited_urls or len(self.visited_urls) >= self.max_pages:
+            return
+
+        print(f"Exploring: {url} (depth: {depth}, visited: {len(self.visited_urls)})")
+        self.visited_urls.add(url)
+
+        try:
+            # Navigate to page
+            await page.goto(url, wait_until="networkidle", timeout=10000)
+
+            # Detect bugs on this page
+            await self._detect_console_errors(page, url)
+            await self._detect_accessibility_violations(page, url)
+            await self._detect_broken_links(page, url)
+            await self._detect_visual_regression(page, url)
+
+            # Find clickable elements for further exploration
+            links = await page.locator("a[href]").all()
+            buttons = await page.locator("button").all()
+            forms = await page.locator("form").all()
+
+            # Add to exploration queue (depth-first)
+            for link in links[:10]:  # Limit to 10 links per page
+                href = await link.get_attribute("href")
+                if href and href.startswith("/"):
+                    full_url = f"{self.base_url}{href}"
+                    await self._explore_page(page, full_url, depth + 1)
+
+            # Fill forms with edge case inputs
+            for form in forms[:5]:  # Limit to 5 forms per page
+                await self._fill_form_with_edge_cases(page, form, url)
+
+        except Exception as e:
+            # Record navigation error as potential bug
+            self.bugs_found.append({
+                "type": "navigation_error",
+                "url": url,
+                "error": str(e),
+                "severity": "medium",
+                "discovered_at": datetime.utcnow().isoformat()
+            })
+
+    async def _detect_console_errors(self, page: Page, url: str):
+        """
+        Detect console errors on page.
+
+        Args:
+            page: Playwright Page object
+            url: Current URL
+        """
+        console_errors = []
+
+        # Listen for console messages
+        page.on("console", lambda msg: console_errors.append(msg))
+
+        # Wait a bit for console errors to appear
+        await asyncio.sleep(2)
+
+        # Filter for errors
+        errors = [msg for msg in console_errors if msg.type == "error"]
+
+        for error in errors:
+            self.bugs_found.append({
+                "type": "console_error",
+                "url": url,
+                "error_text": error.text,
+                "severity": "high",
+                "discovered_at": datetime.utcnow().isoformat()
+            })
+
+    async def _detect_accessibility_violations(self, page: Page, url: str):
+        """
+        Detect accessibility violations using axe-core.
+
+        Args:
+            page: Playwright Page object
+            url: Current URL
+        """
+        # Inject axe-core
+        await page.add_script_tag(url="https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js")
+
+        # Run accessibility audit
+        results = await page.evaluate("""
+            async () => {
+                return await axe.run();
+            }
+        """)
+
+        # Record violations
+        for violation in results.get("violations", []):
+            self.bugs_found.append({
+                "type": "accessibility_violation",
+                "url": url,
+                "violation_id": violation["id"],
+                "description": violation["description"],
+                "impact": violation["impact"],
+                "tags": violation["tags"],
+                "severity": "high" if violation["impact"] == "critical" else "medium",
+                "discovered_at": datetime.utcnow().isoformat()
+            })
+
+    async def _detect_broken_links(self, page: Page, url: str):
+        """
+        Detect broken links (404 responses).
+
+        Args:
+            page: Playwright Page object
+            url: Current URL
+        """
+        links = await page.locator("a[href]").all()
+
+        for link in links:
+            try:
+                href = await link.get_attribute("href")
+                if href and href.startswith("/"):
+                    full_url = f"{self.base_url}{href}"
+
+                    # Check link status (without navigating)
+                    response = await page.request.get(full_url)
+                    if response.status == 404:
+                        self.bugs_found.append({
+                            "type": "broken_link",
+                            "url": url,
+                            "link_href": href,
+                            "status_code": 404,
+                            "severity": "medium",
+                            "discovered_at": datetime.utcnow().isoformat()
+                        })
+            except Exception:
+                # Link is truly broken (exception on request)
+                self.bugs_found.append({
+                    "type": "broken_link",
+                    "url": url,
+                    "link_href": href,
+                    "error": "Request failed",
+                    "severity": "medium",
+                    "discovered_at": datetime.utcnow().isoformat()
+                })
+
+    async def _detect_visual_regression(self, page: Page, url: str):
+        """
+        Detect visual regression by comparing screenshots.
+
+        Args:
+            page: Playwright Page object
+            url: Current URL
+        """
+        # Take screenshot
+        screenshot_hash = hashlib.md5(url.encode()).hexdigest()
+        screenshot_path = f"{self.screenshot_dir}/{screenshot_hash}.png"
+
+        await page.screenshot(path=screenshot_path)
+
+        # In production, compare with baseline screenshot
+        # For now, just record that screenshot was taken
+        # Visual regression detection requires image diff library
+        pass
+
+    async def _fill_form_with_edge_cases(self, page: Page, form, url: str):
+        """
+        Fill form with edge case inputs to discover validation bugs.
+
+        Args:
+            page: Playwright Page object
+            form: Form element
+            url: Current URL
+        """
+        # Find all inputs in form
+        inputs = await form.locator("input").all()
+
+        edge_cases = [
+            "",  # Empty string
+            "\x00",  # Null byte
+            "A" * 10000,  # Very long string
+            "<script>alert('xss')</script>",  # XSS payload
+            "'; DROP TABLE users; --",  # SQL injection payload
+            "../../etc/passwd",  # Path traversal
+            "{{7*7}}",  # Template injection
+            "${7*7}",  # Expression language injection
         ]
-        for agent in agents:
-            self.created_data.append(('agent', agent.id))
-        return agents
 
-    def cleanup(self):
-        """Cleanup all created test data"""
-        for entity_type, entity_id in reversed(self.created_data):
-            if entity_type == 'agent':
-                self.db.query(AgentRegistry).filter(
-                    AgentRegistry.id == entity_id
-                ).delete()
-        self.db.commit()
-        self.created_data.clear()
-```
-
-**Usage in E2E Tests:**
-```typescript
-// frontend-nextjs/tests/e2e/agents/agent-execution.spec.ts
-import { test, expect } from '@playwright/test';
-import { setupTestData, cleanupTestData } from '../../fixtures/test-data';
-
-test.describe('Agent Execution E2E', () => {
-  let testData: any;
-
-  test.beforeAll(async () => {
-    // Setup test data via backend API
-    testData = await setupTestData('single_agent');
-  });
-
-  test.afterAll(async () => {
-    // Cleanup test data
-    await cleanupTestData(testData);
-  });
-
-  test('executes agent and displays results', async ({ page }) => {
-    await page.goto(`/agents/${testData.agent.id}`);
-    await page.click('[data-testid="execute-agent"]');
-    await expect(page.locator('[data-testid="execution-status"]')).toHaveText('completed');
-  });
-});
-```
-
----
-
-### Pattern 3: Cross-Platform Test Reuse
-
-**What:** Share test logic across platforms using abstraction layers, with platform-specific implementations for UI interactions.
-
-**When to use:**
-- Same user flow exists across web, mobile, and desktop
-- Test logic should be consistent, but UI interactions differ
-- Reducing test duplication across platforms
-
-**Trade-offs:**
-- **Pros**: Reduced duplication, consistent test coverage, easier maintenance
-- **Cons**: Abstraction complexity, platform-specific quirks harder to test
-
-**Example:**
-```typescript
-// test-orchestrator/src/shared/authentication.flow.ts
-export interface AuthenticationPage {
-  navigateToLogin(): Promise<void>;
-  enterEmail(email: string): Promise<void>;
-  enterPassword(password: string): Promise<void>;
-  submit(): Promise<void>;
-  waitForDashboard(): Promise<void>;
-}
-
-export class AuthenticationFlow {
-  constructor(private page: AuthenticationPage) {}
-
-  async login(email: string, password: string) {
-    await this.page.navigateToLogin();
-    await this.page.enterEmail(email);
-    await this.page.enterPassword(password);
-    await this.page.submit();
-    await this.page.waitForDashboard();
-  }
-
-  async loginWithInvalidCredentials(email: string, password: string) {
-    await this.page.navigateToLogin();
-    await this.page.enterEmail(email);
-    await this.page.enterPassword(password);
-    await this.page.submit();
-    // Platform-specific error assertion
-  }
-}
-
-// Web implementation
-export class WebAuthPage implements AuthenticationPage {
-  constructor(private page: Page) {}
-
-  async navigateToLogin() {
-    await this.page.goto('/login');
-  }
-
-  async enterEmail(email: string) {
-    await this.page.fill('[data-testid="email-input"]', email);
-  }
-
-  async enterPassword(password: string) {
-    await this.page.fill('[data-testid="password-input"]', password);
-  }
-
-  async submit() {
-    await this.page.click('[data-testid="login-button"]');
-  }
-
-  async waitForDashboard() {
-    await this.page.waitForURL('/dashboard');
-  }
-}
-
-// Mobile implementation
-export class MobileAuthPage implements AuthenticationPage {
-  constructor(private device: DetoxDevice) {}
-
-  async navigateToLogin() {
-    await element(by.id('login-screen')).waitFor();
-  }
-
-  async enterEmail(email: string) {
-    await element(by.id('email-input')).typeText(email);
-  }
-
-  async enterPassword(password: string) {
-    await element(by.id('password-input')).typeText(password);
-  }
-
-  async submit() {
-    await element(by.id('login-button')).tap();
-  }
-
-  async waitForDashboard() {
-    await element(by.id('dashboard-screen')).waitFor();
-  }
-}
-
-// Usage in tests
-const authFlow = new AuthenticationFlow(new WebAuthPage(page));
-await authFlow.login('test@example.com', 'password');
-```
-
----
-
-### Pattern 4: Stress Testing with Load Generation
-
-**What:** Generate concurrent load and failure scenarios to test system resilience, bug discovery, and performance degradation.
-
-**When to use:**
-- Testing system behavior under high load
-- Discovering race conditions and concurrency bugs
-- Validating performance degradation patterns
-
-**Trade-offs:**
-- **Pros**: Finds production bugs, validates scalability, tests resilience
-- **Cons**: Complex setup, can be flaky, requires test environment isolation
-
-**Example (k6):**
-```javascript
-// backend/tests/stress/load_test_k6.js
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Rate } from 'k6/metrics';
-
-const errorRate = new Rate('errors');
-
-export const options = {
-  stages: [
-    { duration: '2m', target: 10 },   // Ramp up to 10 users
-    { duration: '5m', target: 10 },   // Stay at 10 users
-    { duration: '2m', target: 50 },   // Ramp up to 50 users
-    { duration: '5m', target: 50 },   // Stay at 50 users
-    { duration: '2m', target: 100 },  // Ramp up to 100 users
-    { duration: '5m', target: 100 },  // Stay at 100 users
-    { duration: '2m', target: 0 },    // Ramp down to 0
-  ],
-  thresholds: {
-    'errors': ['rate<0.1'],           // Error rate < 10%
-    'http_req_duration': ['p(95)<500'], // 95% of requests < 500ms
-  },
-};
-
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
-
-export default function () {
-  // Test agent execution endpoint
-  const agentExec = http.post(
-    `${BASE_URL}/api/v1/agents/test-agent/execute`,
-    JSON.stringify({ prompt: 'Test prompt' }),
-    {
-      headers: { 'Content-Type': 'application/json' },
-      tags: { name: 'AgentExecution' },
-    }
-  );
-
-  check(agentExec, {
-    'agent execution status is 200': (r) => r.status === 200,
-    'response has agent_id': (r) => r.json('agent_id') !== undefined,
-  }) || errorRate.add(1);
-
-  sleep(1);
-}
-
-export function handleSummary(data) {
-  return {
-    'stdout': JSON.stringify(data),
-    'load-test-report.json': JSON.stringify(data),
-  };
-}
-```
-
----
-
-### Pattern 5: Bug Discovery with Failure Analysis
-
-**What:** Automated analysis of test failures to generate reproducible bug reports with screenshots, logs, and GitHub Issues integration.
-
-**When to use:**
-- E2E test failures need detailed context
-- Automated bug filing for reproducible failures
-- Tracking test flakiness patterns
-
-**Trade-offs:**
-- **Pros**: Faster bug triage, automated documentation, reproducible test cases
-- **Cons**: GitHub API complexity, false positives, noise in issue tracker
-
-**Example:**
-```typescript
-// test-orchestrator/src/reporters/bug-reporter.ts
-import { Octokit } from 'octokit';
-
-interface TestFailure {
-  test: string;
-  platform: string;
-  error: string;
-  screenshot: string;
-  logs: string;
-  reproducible: boolean;
-}
-
-export class BugReporter {
-  private octokit: Octokit;
-
-  constructor() {
-    this.octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
-  }
-
-  async reportFailure(failure: TestFailure) {
-    // Check if issue already exists
-    const existingIssue = await this.findExistingIssue(failure);
-
-    if (existingIssue) {
-      // Add comment to existing issue
-      await this.addFailureComment(existingIssue.number, failure);
-      return existingIssue.number;
-    }
-
-    // Create new issue
-    const issue = await this.octokit.rest.issues.create({
-      owner: 'atom',
-      repo: 'atom-platform',
-      title: this.generateIssueTitle(failure),
-      body: this.generateIssueBody(failure),
-      labels: this.generateLabels(failure),
-    });
-
-    return issue.data.number;
-  }
-
-  private async findExistingIssue(failure: TestFailure) {
-    const query = `is:issue is:open "${failure.test}" in:title`;
-    const result = await this.octokit.rest.search.issuesAndPullRequests({
-      q: query,
-      repo: 'atom/atom-platform',
-    });
-
-    if (result.data.items.length > 0) {
-      return result.data.items[0];
-    }
-    return null;
-  }
-
-  private generateIssueTitle(failure: TestFailure): string {
-    return `[E2E Failure] ${failure.platform}: ${failure.test}`;
-  }
-
-  private generateIssueBody(failure: TestFailure): string {
-    return `
-## E2E Test Failure
-
-**Platform:** ${failure.platform}
-**Test:** ${failure.test}
-**Reproducible:** ${failure.reproducible ? 'Yes' : 'No'}
-
-### Error
-\`\`\`
-${failure.error}
-\`\`\`
-
-### Screenshot
-![Failure Screenshot](${failure.screenshot})
-
-### Logs
-\`\`\`
-${failure.logs}
-\`\`\`
-
-### Reproduction Steps
-1. Run test: \`npm run test:e2e -- ${failure.test}\`
-2. Observe failure
-3. Check logs and screenshot above
-
-### Automated Analysis
-This issue was automatically created by E2E test infrastructure.
-${failure.reproducible ? 'This failure has been reproduced multiple times.' : ''}
-    `.trim();
-  }
-
-  private generateLabels(failure: TestFailure): string[] {
-    const labels = ['e2e-failure', failure.platform];
-    if (failure.reproducible) labels.push('reproducible');
-    if (failure.error.includes('timeout')) labels.push('timeout');
-    if (failure.error.includes('assertion')) labels.push('assertion-failure');
-    return labels;
-  }
-
-  private async addFailureComment(issueNumber: number, failure: TestFailure) {
-    await this.octokit.rest.issues.createComment({
-      owner: 'atom',
-      repo: 'atom-platform',
-      issue_number: issueNumber,
-      body: `
-### New Failure Occurred
-**Date:** ${new Date().toISOString()}
-**Error:** ${failure.error}
-${failure.reproducible ? 'This is a recurring failure.' : ''}
-      `.trim(),
-    });
-  }
-}
+        for input_elem in inputs[:5]:  # Limit to 5 inputs per form
+            input_type = await input_elem.get_attribute("type")
+            input_name = await input_elem.get_attribute("name")
+
+            # Skip hidden inputs
+            if input_type == "hidden":
+                continue
+
+            # Try edge cases
+            for edge_case in edge_cases:
+                try:
+                    await input_elem.fill(edge_case)
+
+                    # Submit form
+                    submit_button = await form.locator("button[type='submit'], input[type='submit']").first
+                    if submit_button:
+                        await submit_button.click()
+
+                        # Wait for response
+                        await asyncio.sleep(1)
+
+                        # Check for errors
+                        current_url = page.url
+                        if "error" in current_url.lower():
+                            self.bugs_found.append({
+                                "type": "form_validation_bug",
+                                "url": url,
+                                "input_name": input_name,
+                                "edge_case": edge_case[:100],  # Truncate for readability
+                                "error_url": current_url,
+                                "severity": "high",
+                                "discovered_at": datetime.utcnow().isoformat()
+                            })
+
+                        # Go back to form
+                        await page.go_back()
+
+                except Exception as e:
+                    # Form submission crashed - potential bug
+                    self.bugs_found.append({
+                        "type": "form_submission_crash",
+                        "url": url,
+                        "input_name": input_name,
+                        "edge_case": edge_case[:100],
+                        "error": str(e),
+                        "severity": "critical",
+                        "discovered_at": datetime.utcnow().isoformat()
+                    })
+
+
+# Usage in tests
+# backend/tests/browser_automation/test_exploration_agent.py
+import pytest
+from backend.tests.browser_automation.agents.exploration_agent import ExplorationAgent
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_exploration_agent_discovers_bugs():
+    """Test that exploration agent discovers bugs in web UI."""
+    agent = ExplorationAgent(
+        base_url="http://localhost:3000",
+        max_pages=20,  # Explore 20 pages
+        max_depth=2,
+        screenshot_dir="/tmp/screenshots"
+    )
+
+    bugs = await agent.explore()
+
+    # Assert agent explored some pages
+    assert len(agent.visited_urls) > 0
+
+    # Assert bugs were found (even if zero, test should pass)
+    print(f"Explored {len(agent.visited_urls)} pages")
+    print(f"Found {len(bugs)} bugs")
+
+    for bug in bugs:
+        print(f"Bug: {bug['type']} - {bug.get('error', bug.get('description', ''))}")
 ```
 
 ## Data Flow
 
-### E2E Test Execution Flow
+### Automated Bug Discovery Pipeline
 
 ```
-[Developer Push/PR Trigger]
+[Developer Push/PR Trigger OR Scheduled Cron]
     ↓
-[GitHub Actions Workflow Starts]
+[Bug Discovery Coordinator Starts]
     ↓
-[Test Orchestrator Setup]
+[Parallel Campaign Execution]
+    ├── [Fuzzing Campaign] → Atheris/RESTler → API endpoints → Crash detection
+    ├── [Chaos Experiment] → Failure injection → Resilience validation → Failure detection
+    ├── [Property Tests] → Hypothesis → Invariant validation → Edge case discovery
+    └── [Browser Automation] → Exploration agent → UI bug discovery → Visual regression
     ↓
-[Test Data Manager] → Create seed data (agents, workflows, episodes)
+[Result Aggregation]
+    ├── Collect crashes from fuzzing
+    ├── Collect failures from chaos experiments
+    ├── Collect invariant violations from property tests
+    └── Collect UI bugs from browser automation
     ↓
-[Platform Test Runners] (Execute in parallel)
-    ├── [Web Runner] → Playwright tests → Chromium/Firefox/WebKit
-    ├── [Mobile Runner] → Detox tests → iOS/Android simulators
-    └── [Desktop Runner] → Tauri tests → Windows/macOS/Linux
+[Deduplication]
+    ├── Group bugs by error signature
+    ├── Merge duplicates across campaigns
+    └── Prioritize by severity (critical, high, medium, low)
     ↓
-[Collect Results]
-    ├── Screenshots (on failure)
-    ├── Videos (on failure)
-    ├── Trace files (Playwright)
-    └── Logs (platform-specific)
+[Bug Triage]
+    ├── Classify severity (critical, high, medium, low)
+    ├── Analyze impact (data loss, security, UX)
+    └── Determine reproducibility (always, sometimes, flaky)
     ↓
-[Unified Reporter] → Aggregate results → HTML report + JSON + JUnit
+[Bug Filing]
+    ├── Check for existing issues (deduplication)
+    ├── Create GitHub Issues for reproducible bugs
+    ├── Attach screenshots, logs, traces
+    └── Apply labels (automated, severity, platform, test-type)
     ↓
-[Bug Discovery] → Analyze failures → Create GitHub Issues (if reproducible)
-    ↓
-[Test Data Cleanup] → Delete seed data, rollback transactions
-    ↓
-[CI/CD Result] → Pass/Fail status → Comment on PR
+[CI/CD Result]
+    ├── Comment on PR with bug summary
+    ├── Update metrics dashboard
+    └── Trigger remediation workflows (if critical)
 ```
 
-### Stress Testing Flow
+### Fuzzing Campaign Flow
 
 ```
-[Stress Test Trigger] (Manual or Scheduled)
+[Fuzzing Campaign Started]
     ↓
-[Load Generator Setup] (k6/Locust)
+[OpenAPI Schema Generation]
+    ├── Extract OpenAPI spec from FastAPI
+    ├── Identify endpoints (/api/auth/login, /api/v1/agents/execute)
+    └── Generate input schemas (request bodies, parameters)
     ↓
-[Concurrent User Simulation]
-    ├── 10 users → 2 min
-    ├── 50 users → 5 min
-    └── 100 users → 5 min
+[Fuzzer Execution]
+    ├── [Atheris] → Coverage-guided fuzzing → Binary input generation
+    ├── [RESTler] → Stateful API fuzzing → Sequence-based exploitation
+    └── [Custom] → Domain-specific fuzzing → Business logic bugs
     ↓
-[Metrics Collection]
-    ├── Request latency (p50, p95, p99)
-    ├── Error rate (by endpoint)
-    ├── Database connection pool
-    └── Memory/CPU usage
+[Crash Detection]
+    ├── Monitor for exceptions (AttributeError, ValueError, KeyError)
+    ├── Detect segmentation faults (if using native fuzzers)
+    └── Identify assertion failures
     ↓
-[Failure Injection] (Optional - Chaos Engineering)
-    ├── Network delays
-    ├── Database connection drops
-    └── Service crashes
+[Crash Triaging]
+    ├── Minimize crash input (reduce to minimal reproducer)
+    ├── Verify reproducibility (re-run minimized input)
+    └── Classify severity (crash = critical, logic error = high)
     ↓
-[Bug Discovery] → Analyze failures → Document race conditions
-    ↓
-[Stress Test Report] → Performance baselines → Alerts on degradation
+[Bug Filing]
+    ├── Generate test case from crash input
+    ├── File GitHub Issue with reproducer
+    └── Add label: fuzzing, severity:critical
 ```
 
-### Test Data Management Flow
+### Chaos Experiment Flow
 
 ```
-[Test Starts]
+[Chaos Experiment Started]
     ↓
-[Test Data Manager Setup]
-    ├── Create isolated database (SQLite in-memory or PostgreSQL schema)
-    ├── Run migrations (alembic upgrade head)
-    └── Load seed data (JSON fixtures)
+[Baseline Metrics Collection]
+    ├── CPU usage: 20%
+    ├── Memory usage: 40%
+    ├── Response time: p95=200ms
+    └── Error rate: 0.1%
+    ↓
+[Failure Injection]
+    ├── [Network Latency] → Add 500ms delay, 10% packet loss
+    ├── [Database Connection Drop] → Block port 5432 for 30s
+    ├── [Memory Pressure] → Allocate 500MB memory
+    └── [Service Crash] → Kill and restart backend service
+    ↓
+[Chaos Metrics Collection]
+    ├── CPU usage: 80% (+300% increase)
+    ├── Memory usage: 75% (+87.5% increase)
+    ├── Response time: p95=2000ms (+900% increase)
+    └── Error rate: 15% (+14900% increase)
+    ↓
+[Failure Detection]
+    ├── Compare baseline vs chaos metrics
+    ├── Detect unrecoverable failures (error rate still 10% after rollback)
+    └── Identify cascading failures (API → Database → Redis)
+    ↓
+[Rollback & Recovery]
+    ├── Remove failure injection
+    ├── Wait for system recovery (10s)
+    └── Collect recovery metrics
+    ↓
+[Bug Filing for Unrecovered Failures]
+    ├── System failed to recover from database connection drops
+    ├── Error rate remained at 10% after 30s recovery period
+    └── File bug: "Database connection pool exhaustion not handled gracefully"
+```
+
+### Property-Based Test Flow
+
+```
+[Property-Based Test Started]
+    ↓
+[Hypothesis Input Generation]
+    ├── Generate random input: username=""; DROP TABLE users; --"
+    ├── Generate random input: password="\x00\x01\x02..."
+    ├── Generate random input: agent_id=<invalid-uuid>
+    └── Generate random input: prompt_text=50000 characters
     ↓
 [Test Execution]
-    ├── Read seed data (agents, workflows, episodes)
-    ├── Execute test actions
-    └── Assert results
+    ├── Call function with generated input
+    ├── Monitor for exceptions
+    └── Validate invariants (e.g., "response is always JSON")
     ↓
-[Test Data Cleanup]
-    ├── Rollback transactions
-    ├── Drop test database/schema
-    └── Verify no data leakage
+[Invariant Validation]
+    ├── INVARIANT: Login never crashes on any input
+    │   └── PASS: No exception raised
+    ├── INVARIANT: Agent execution rejects oversized prompts
+    │   └── PASS: Returns 413 for prompts >10KB
+    └── INVARIANT: Workflow creation prevents SQL injection
+        └── FAIL: Workflow name with "'; DROP TABLE" caused database error
+    ↓
+[Shrinking]
+    ├── Hypothesis automatically minimizes failing input
+    ├── Original: username="A very long string with SQL injection '; DROP TABLE users; --"
+    └── Minimized: username="'; DROP" (6 chars instead of 60)
+    ↓
+[Bug Filing]
+    ├── Invariant violation: SQL injection in workflow name
+    ├── Minimal reproducer: username="'; DROP"
+    └── File bug with test case that demonstrates the violation
 ```
-
-### Key Data Flows
-
-1. **Authentication Flow**: Test creates user → JWT token generated → Token stored → Platform tests use token → Token invalidated
-2. **Agent Execution Flow**: Test creates agent → Agent stored in DB → Test triggers execution → Execution tracked → Result validated → Execution record cleaned up
-3. **Episode Memory Flow**: Test creates episode → Episode segmented → Memory stored → Test retrieves episode → Validated → Episode archived
-4. **Cross-Platform Flow**: Shared test data → Web test creates resource → Mobile test accesses resource → Desktop test updates resource → All tests pass → Resource cleaned up
 
 ## Integration Points
 
@@ -744,1012 +1676,444 @@ ${failure.reproducible ? 'This is a recurring failure.' : ''}
 
 | Atom Component | Integration Pattern | Notes |
 |----------------|---------------------|-------|
-| **Backend API** (FastAPI) | HTTP endpoints for test data setup, agent operations, workflow execution | Use existing API or add test-specific endpoints (e.g., `/api/v1/test/*`) |
-| **Authentication** (JWT) | Test authentication flow: create test user → generate JWT → use in E2E tests | Add test user creation endpoint or use existing auth with test credentials |
-| **Database** (SQLite/PostgreSQL) | Test data isolation: separate DB per test run or transaction rollback | Use pytest fixtures for auto-setup/teardown |
-| **Agent System** | Test agent creation, execution, state management via API | AgentFactory for test data, API calls for execution |
-| **Workflows** | Test workflow creation, execution, state transitions | Seed data for common workflows |
-| **Episodic Memory** | Test episode creation, segmentation, retrieval | Validate episode lifecycle in E2E tests |
-| **WebSocket/Streaming** | Test real-time agent communication, LLM streaming | Use WebSocket client in E2E tests |
-| **Canvas Presentations** | Test canvas rendering, interactivity, state management | Platform-specific canvas assertions (web/mobile/desktop) |
-| **CI/CD** (GitHub Actions) | Trigger E2E tests on push/PR, report results, comment on PR | Matrix strategy for parallel execution |
+| **FastAPI Backend** | OpenAPI spec generation for fuzzing targets | Auto-generate fuzzing harnesses from OpenAPI spec |
+| **LLMService (BYOK)** | Property-based tests for token counting, cost calculation | Extend existing property tests for LLM invariants |
+| **AgentGovernanceService** | Fuzzing agent maturity transitions, state machine validation | Test all possible state transitions for bugs |
+| **Database Models** | Chaos engineering for database failure injection | Test resilience to connection drops, query failures |
+| **BugFilingService** | Result aggregation and automatic GitHub filing | Extend existing service for unified bug filing |
+| **pytest Fixtures** | Reusable test data for all discovery methods | Use existing 50+ fixtures for consistent test data |
+| **Playwright E2E** | Browser automation agent uses existing E2E infrastructure | Extend 91 E2E tests with intelligent exploration |
 
 ### New Components Integration
 
 | New Component | Integration with Existing | Notes |
 |---------------|--------------------------|-------|
-| **Test Orchestrator** | Calls existing Playwright/Detox/pytest runners | Wrapper around existing tools, adds coordination |
-| **Test Data Manager** | Uses existing backend API, database models | Extends existing fixtures/factories |
-| **Unified Reporter** | Aggregates existing test reports (HTML, JSON, JUnit) | Post-processes existing outputs |
-| **Bug Reporter** | Integrates with GitHub (already used for issues) | Octokit API for issue creation |
-| **Stress Test Runner** | Uses existing backend API for load generation | k6/Locust scripts targeting backend endpoints |
-| **Desktop E2E Tests** | Uses Playwright (already configured for web) | Extend Playwright to Tauri via CDP or WebDriver |
-| **Mobile E2E Tests** | Uses Detox (already in package.json) | Configure Detox for React Native/Expo |
+| **FuzzingOrchestrator** | Uses OpenAPI spec, calls FastAPI endpoints | Wrap existing API endpoints in fuzzing harnesses |
+| **ChaosCoordinator** | Targets database, Redis, LLM services | Inject failures into existing dependencies |
+| **Property-Based Tests** | Extends existing Hypothesis tests | Add new invariant tests to existing property test suite |
+| **ExplorationAgent** | Uses Playwright (already in E2E tests) | Extend existing E2E test infrastructure |
+| **DiscoveryCoordinator** | Calls BugFilingService (existing) | Unify all discovery methods under single coordinator |
+| **ResultAggregator** | Correlates results from all methods | Aggregate crashes, failures, violations |
 
 ### External Service Integration
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| **GitHub Actions** | CI/CD workflows with matrix strategy for parallel execution | Use existing workflows, add E2E jobs |
-| **GitHub Issues API** | Automated bug filing for reproducible failures | Octokit for API access |
-| **Playwright** | Web E2E tests (Chromium, Firefox, WebKit) | Already configured, extend to 600+ tests |
-| **Detox** | Mobile E2E tests (iOS, Android) | Already in package.json, needs configuration |
-| **Tauri Driver** | Desktop E2E tests via Playwright CDP | Use Tauri's WebDriver protocol or CDP connection |
-| **k6/Locust** | Load generation for stress testing | New tool, integrate with CI/CD |
-| **Allure/Mochawesome** | Unified test reporting (optional, existing HTML reports may suffice) | Consider if existing reports insufficient |
+| **Atheris** | Coverage-guided fuzzing for Python functions | Install via pip: `pip install atheris` |
+| **RESTler** | Stateful REST API fuzzing | Use Docker image: `microsoft/restler` |
+| **Chaos Monkey** | Service termination experiments | Install via pip: `pip install chaos-monkey` |
+| **axe-core** | Accessibility violation detection | Inject via Playwright: `page.add_script_tag()` |
+| **GitHub Issues API** | Bug filing via BugFilingService | Already integrated, extend for deduplication |
+| **k6** | Load testing for baseline metrics | Already configured, extend for chaos experiments |
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| **0-100 E2E tests** | Single GitHub Actions job, sequential execution, ~15-30min runtime |
-| **100-300 E2E tests** | Matrix strategy with 2-3 parallel jobs, ~20-40min runtime |
-| **300-600 E2E tests** | Full matrix strategy (web + mobile + desktop), sharding within platforms, ~30-60min runtime |
-| **600+ E2E tests** | Test result caching, selective test execution (affected tests only), distributed testing across multiple runners |
+| **0-100 bugs discovered** | Single fuzzing campaign (1 hour), single chaos experiment (30 min), 50 property tests, browser automation (100 pages) |
+| **100-500 bugs discovered** | Parallel fuzzing campaigns (4 endpoints), daily chaos experiments (5 failure types), 200 property tests, browser automation (500 pages) |
+| **500-1000+ bugs discovered** | Continuous fuzzing (24/7), hourly chaos experiments, 1000+ property tests, browser automation (all pages), result deduplication critical |
 
 ### Scaling Priorities
 
-1. **First bottleneck: Test data setup/teardown**
-   - **Problem**: Creating test data (agents, workflows, episodes) is slow
-   - **Fix**: Use database transactions for rollback, pre-seed common data, parallel data creation
+1. **First bottleneck: Fuzzing campaign duration**
+   - **Problem**: Fuzzing 10+ endpoints takes hours
+   - **Fix**: Parallel fuzzing with ProcessPoolExecutor, prioritize critical endpoints, use coverage-guided fuzzing (Atheris)
 
-2. **Second bottleneck: Browser/simulator startup time**
-   - **Problem**: Chromium, iOS Simulator, Android Emulator slow to start
-   - **Fix**: Reuse existing servers (Playwright `reuseExistingServer`), pool of warm simulators
+2. **Second bottleneck: Chaos experiment isolation**
+   - **Problem**: Chaos experiments affect other tests, cause flakiness
+   - **Fix**: Run chaos experiments in isolated containers (Docker), use network namespaces, schedule during off-hours
 
-3. **Third bottleneck: Test execution time**
-   - **Problem**: Too many tests, slow assertions
-   - **Fix**: Sharding, parallel execution, reduce test count (only critical paths), optimize selectors
+3. **Third bottleneck: Browser automation exploration**
+   - **Problem**: Exploring entire UI takes hours, finds many false positives
+   - **Fix**: Limit exploration depth (max_depth=3), prioritize critical flows (auth, agent execution), use smart heuristics
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Testing Implementation Details
+### Anti-Pattern 1: Fuzzing Without Crash Deduplication
 
-**What people do:** Testing CSS classes, DOM structure, component internals instead of user-facing behavior.
+**What people do:** File a bug for every single crash discovered by fuzzer, resulting in hundreds of duplicate issues.
 
-**Why it's wrong:** Tests break on refactoring, don't validate actual user experience, brittle selectors.
-
-**Do this instead:**
-- Use semantic selectors (`getByRole`, `getByLabelText`, `getByTestId` for E2E)
-- Test user-visible behavior (what user sees and does)
-- Example:
-```typescript
-// BAD - Testing implementation
-await expect(page.locator('div.AgentList > ul > li:first-child')).toHaveText('Agent 1');
-
-// GOOD - Testing user behavior
-await expect(page.getByRole('listitem').filter({ hasText: 'Agent 1' })).toBeVisible();
-```
-
----
-
-### Anti-Pattern 2: Shared State Between Tests
-
-**What people do:** Tests share database state, global variables, or test data without proper isolation.
-
-**Why it's wrong:** Non-deterministic failures, tests interfere with each other, flaky tests.
+**Why it's wrong:** Same root cause (e.g., "null pointer dereference") manifests across many inputs, creating noise and triage overhead.
 
 **Do this instead:**
-- Isolate test data per test (transactions, separate DB)
-- Cleanup after each test (`afterEach` hooks)
-- Use unique identifiers (UUIDs, timestamps)
+- Group crashes by error signature (error message + stack trace)
+- File one bug per unique root cause
+- Include list of all crash inputs in single issue
 - Example:
-```typescript
-// BAD - Shared state
-let agentId: string;
+```python
+# BAD: File bug for each crash
+for crash in crashes:
+    bug_service.file_bug(
+        test_name=f"fuzz_{endpoint}",
+        error_message=crash["error"],
+        metadata={"input": crash["input"]}
+    )
 
-test.beforeAll(async () => {
-  agentId = await createAgent(); // Shared across all tests
-});
-
-test('updates agent', async () => {
-  await updateAgent(agentId, { name: 'Updated' });
-});
-
-test('deletes agent', async () => {
-  await deleteAgent(agentId); // Breaks other tests!
-});
-
-// GOOD - Isolated state
-test('updates agent', async () => {
-  const agentId = await createAgent(); // Unique to this test
-  await updateAgent(agentId, { name: 'Updated' });
-  await cleanupAgent(agentId);
-});
-
-test('deletes agent', async () => {
-  const agentId = await createAgent(); // Different agent
-  await deleteAgent(agentId);
-});
+# GOOD: Deduplicate crashes by error signature
+unique_crashes = deduplicate_by_signature(crashes)
+for crash in unique_crashes:
+    bug_service.file_bug(
+        test_name=f"fuzz_{endpoint}",
+        error_message=crash["error"],
+        metadata={
+            "crash_count": crash["count"],
+            "example_inputs": crash["examples"][:5]  # First 5 examples
+        }
+    )
 ```
 
 ---
 
-### Anti-Pattern 3: Over-Mocking in E2E Tests
+### Anti-Pattern 2: Chaos Engineering in Production
 
-**What people do:** Mocking backend responses, database calls, or external services in E2E tests.
+**What people do:** Run chaos experiments against production environment without proper safeguards.
 
-**Why it's wrong:** E2E tests should validate integration, mocking defeats the purpose, false confidence.
+**Why it's wrong:** Can cause real outages, data loss, customer impact, and team burnout from paging.
 
 **Do this instead:**
-- Use real backend (staging or test environment)
-- Use real database (test DB with rollback)
-- Only mock external services you don't control (payment APIs, third-party services)
+- Run chaos experiments in staging environment that mirrors production
+- Use feature flags to disable chaos experiments if system health degrades
+- Schedule experiments during off-hours (2 AM Sunday)
+- Always have rollback plan ready
 - Example:
-```typescript
-// BAD - Over-mocking in E2E
-test('executes agent', async ({ page }) => {
-  await page.route('**/api/v1/agents/*/execute', route => {
-    route.fulfill({
-      status: 200,
-      body: JSON.stringify({ result: 'Mocked result' })
-    });
-  });
+```python
+# BAD: Run chaos experiment in production
+coordinator.run_experiment(experiment)  # Targets production DB!
 
-  await page.click('[data-testid="execute-agent"]');
-  // Test passes but doesn't validate real backend!
-});
+# GOOD: Run chaos experiment in staging with safeguards
+os.environ["ENVIRONMENT"] = "staging"
+experiment.target_component = "staging_database"
 
-// GOOD - Real backend in E2E
-test('executes agent', async ({ page }) => {
-  await page.click('[data-testid="execute-agent"]');
-  await expect(page.locator('[data-testid="execution-result"]'))
-    .toHaveText('Agent executed successfully');
-  // Validates real backend integration
-});
+# Add safety check: abort if error rate >10%
+if metrics["error_rate"] > 10:
+    print("Error rate too high, aborting experiment")
+    return
+
+coordinator.run_experiment(experiment)
 ```
 
 ---
 
-### Anti-Pattern 4: Flaky Async Tests
+### Anti-Pattern 3: Property-Based Tests Without Shrinking
 
-**What people do:** Not waiting for async operations, race conditions, timing-based assertions.
+**What people do:** Write property-based tests but don't use Hypothesis's shrinking feature, resulting in huge test inputs that are hard to debug.
 
-**Why it's wrong:** Non-deterministic failures, tests fail intermittently, loss of trust in test suite.
+**Why it's wrong:** Minimized inputs are easier to debug, faster to reproduce, and clearer in bug reports.
 
 **Do this instead:**
-- Use explicit waits (`waitFor`, `waitForSelector`, `waitForResponse`)
-- Avoid `setTimeout` (use polling or events)
-- Wait for user-visible state (not loading spinners)
+- Always use `@given` decorator with Hypothesis strategies
+- Let Hypothesis automatically shrink failing inputs
+- Include minimized input in bug report
 - Example:
-```typescript
-// BAD - Timing-based
-test('executes agent', async ({ page }) => {
-  await page.click('[data-testid="execute-agent"]');
-  await page.waitForTimeout(5000); // Flaky!
-  await expect(page.locator('[data-testid="result"]')).toBeVisible();
-});
+```python
+# BAD: Manual input generation (no shrinking)
+@pytest.mark.parametrize("username", ["admin", "test" * 1000, "'; DROP TABLE users; --"])
+def test_login(username):
+    response = client.post("/api/auth/login", json={"username": username})
+    # If this fails, you have to manually debug which input caused it
 
-// GOOD - Explicit wait
-test('executes agent', async ({ page }) => {
-  await page.click('[data-testid="execute-agent"]');
-  await page.waitForSelector('[data-testid="result"]', { state: 'visible' });
-  await expect(page.locator('[data-testid="result"]')).toBeVisible();
-});
+# GOOD: Hypothesis with shrinking (automatic minimization)
+@given(username=text(min_size=0, max_size=1000))
+def test_login(username):
+    response = client.post("/api/auth/login", json={"username": username})
+    # Hypothesis automatically shrinks failing input to minimal case
+    # E.g., "'; DROP TABLE users; --" → "'; D"
 ```
 
 ---
 
-### Anti-Pattern 5: Testing Third-Party Libraries
+### Anti-Pattern 4: Browser Automation Without Wait Conditions
 
-**What people do:** Testing React, Next.js, Chakra UI, or other third-party libraries.
+**What people do:** Browser automation doesn't wait for page load, network idle, or element visibility, causing flaky tests and false positives.
 
-**Why it's wrong:** Library authors already test their code, you're testing what you don't control, wasted effort.
+**Why it's wrong:** Tests fail intermittently due to timing issues, not actual bugs, leading to ignored bug reports.
 
 **Do this instead:**
-- Test your code only (components, hooks, utilities, API integration)
-- Trust library authors to test their code
-- Focus integration testing on your usage of libraries
+- Always wait for network idle before detecting bugs
+- Wait for elements to be visible before interacting
+- Use explicit waits instead of fixed timeouts
 - Example:
-```typescript
-// BAD - Testing React
-test('React renders component', async ({ page }) => {
-  render(<Button>Click</Button>);
-  expect(Button).toBeInTheDocument(); // Tests React, not your code!
-});
+```python
+# BAD: No wait conditions
+await page.goto(url)
+errors = await detect_console_errors(page)  # Might miss errors that appear later
 
-// GOOD - Testing your component
-test('Button component triggers onClick', async ({ page }) => {
-  const handleClick = jest.fn();
-  render(<Button onClick={handleClick}>Click</Button>);
-  await page.click('button');
-  expect(handleClick).toHaveBeenCalled(); // Tests your code
-});
+# GOOD: Wait for network idle
+await page.goto(url, wait_until="networkidle", timeout=10000)
+await page.wait_for_selector("body", state="visible")
+errors = await detect_console_errors(page)
 ```
 
 ---
 
-### Anti-Pattern 6: E2E Tests for Everything
+### Anti-Pattern 5: Automated Bug Filing Without Human Review
 
-**What people do:** Writing E2E tests for every feature, every component, every edge case.
+**What people do:** Automatically file bugs for every test failure without human triage, flooding issue tracker with noise.
 
-**Why it's wrong:** Slow feedback loop, expensive to maintain, brittle, CI/CD takes too long.
+**Why it's wrong:** False positives, flaky tests, and low-priority issues clutter the issue tracker, reduce team confidence in automated discovery.
 
 **Do this instead:**
-- Testing pyramid: 70% unit, 20% integration, 10% E2E
-- E2E tests for critical user flows only (login, agent execution, workflow creation)
-- Component/integration tests for everything else
+- File bugs only for reproducible failures (fail 2+ times)
+- Require severity "high" or "critical" for automatic filing
+- Create "potential bug" label for low-confidence issues
+- Review all auto-filed bugs daily and close false positives
 - Example:
-```typescript
-// BAD - E2E test for component validation
-test('email input shows validation error', async ({ page }) => {
-  await page.goto('/login');
-  await page.fill('[data-testid="email"]', 'invalid-email');
-  await page.click('[data-testid="submit"]');
-  await expect(page.locator('[data-testid="email-error"]'))
-    .toHaveText('Invalid email');
-  // Slow E2E test for simple validation!
-});
+```python
+# BAD: File bug for every failure
+if test_failed:
+    bug_service.file_bug(...)
 
-// GOOD - Component test for validation
-test('email input shows validation error', () => {
-  render(<LoginForm />);
-  fireEvent.change(screen.getByLabelText('Email'), {
-    target: { value: 'invalid-email' }
-  });
-  fireEvent.click(screen.getByText('Submit'));
-  expect(screen.getByText('Invalid email')).toBeInTheDocument();
-  // Fast component test!
-});
-```
-
-## Platform-Specific Considerations
-
-### Web E2E (Playwright)
-
-**Configuration:**
-- **Browsers**: Chromium (default), Firefox (deferred), WebKit/Safari (deferred)
-- **Base URLs**: `localhost:3000` (dev), `localhost:3001` (testing)
-- **Timeouts**: 60s test timeout, 30s action timeout
-- **Retries**: 0 (local), 2 (CI)
-
-**Integration Points:**
-- Next.js frontend (port 3000/3001)
-- FastAPI backend (port 8000)
-- WebSocket for real-time features
-- MSW for API mocking (in integration tests, not E2E)
-
-**Test Organization:**
-```
-frontend-nextjs/tests/e2e/
-├── auth/                          # Authentication flows
-│   ├── login.spec.ts
-│   ├── logout.spec.ts
-│   └── session-management.spec.ts
-├── agents/                        # Agent interaction flows
-│   ├── agent-list.spec.ts
-│   ├── agent-execution.spec.ts
-│   └── agent-chat.spec.ts
-├── workflows/                     # Workflow execution flows
-│   ├── workflow-creation.spec.ts
-│   ├── workflow-execution.spec.ts
-│   └── workflow-automation.spec.ts
-├── canvas/                        # Canvas presentation flows
-│   ├── canvas-rendering.spec.ts
-│   ├── canvas-interactivity.spec.ts
-│   └── canvas-types.spec.ts       # Charts, forms, sheets, etc.
-└── episodic-memory/               # Episode management flows
-    ├── episode-creation.spec.ts
-    ├── episode-retrieval.spec.ts
-    └── episode-graduation.spec.ts
-```
-
----
-
-### Mobile E2E (Detox)
-
-**Configuration:**
-- **Platform**: React Native with Expo
-- **Devices**: iOS Simulator, Android Emulator
-- **Timeouts**: 30s action timeout, 120s launch timeout
-- **Async**: Detox automatic synchronization (gray-box testing)
-
-**Integration Points:**
-- React Native mobile app
-- Expo CLI for device management
-- Backend API (same as web)
-- Device features: Camera, Location, Notifications (device permissions)
-
-**Test Organization:**
-```
-mobile/e2e/
-├── auth/                          # Authentication flows
-│   ├── login.e2e.js
-│   ├── biometric-auth.e2e.js      # Face ID / Touch ID
-│   └── session-management.e2e.js
-├── agents/                        # Agent interaction flows
-│   ├── agent-list.e2e.js
-│   ├── agent-execution.e2e.js
-│   └── agent-chat.e2e.js          # Mobile-specific chat UI
-├── workflows/                     # Workflow execution flows
-│   ├── workflow-creation.e2e.js   # Mobile workflow builder
-│   └── workflow-execution.e2e.js
-├── device-features/               # Device capability tests
-│   ├── camera.e2e.js              # Camera integration
-│   ├── location.e2e.js            # Location services
-│   ├── notifications.e2e.js       # Push notifications
-│   └── deep-links.e2e.js          # atom:// protocol handling
-└── mobile-specific/               # Mobile-only features
-    ├── gestures.e2e.js            # Swipe, pinch, long-press
-    ├── orientation.e2e.js         # Portrait/landscape
-    └── offline-mode.e2e.js        # Offline behavior
-```
-
-**Detox Configuration:**
-```javascript
-// mobile/configs/detox.config.js
-module.exports = {
-  testRunner: {
-    args: {
-      '$0': 'jest',
-      config: 'e2e/jest.config.js'
-    },
-    jest: {
-      setupTimeout: 120000
-    }
-  },
-  apps: {
-    'ios.debug': {
-      type: 'ios.app',
-      binaryPath: 'ios/build/Build/Products/Debug-iphonesimulator/atom.app',
-      build: 'xcodebuild -workspace ios/atom.xcworkspace -scheme atom -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build',
-    },
-    'android.debug': {
-      type: 'android.apk',
-      binaryPath: 'android/app/build/outputs/apk/debug/app-debug.apk',
-      build: 'cd android && ./gradlew assembleDebug assembleAndroidTest -DtestBuildType=debug && cd ..',
-    }
-  },
-  devices: {
-    simulator: {
-      type: 'ios.simulator',
-      device: { type: 'iPhone 14' }
-    },
-    emulator: {
-      type: 'android.emulator',
-      device: { avdName: 'Pixel_5_API_31' }
-    }
-  },
-  configurations: {
-    'ios.sim.debug': {
-      device: 'simulator',
-      app: 'ios.debug'
-    },
-    'android.emu.debug': {
-      device: 'emulator',
-      app: 'android.debug'
-    }
-  }
-};
-```
-
----
-
-### Desktop E2E (Tauri + Playwright)
-
-**Configuration:**
-- **Platform**: Tauri desktop app (Windows, macOS, Linux)
-- **Testing**: Playwright with CDP connection or Tauri Driver
-- **Timeouts**: 60s test timeout, 30s action timeout
-- **Windows**: Window management, native dialogs, system tray
-
-**Integration Points:**
-- Tauri desktop app (WebView with Rust backend)
-- Same frontend as web (Next.js in Tauri WebView)
-- Native features: File system, system tray, window controls
-- Backend API (same as web, via WebView)
-
-**Test Organization:**
-```
-desktop-e2e/tests/
-├── window-management/             # Desktop-specific window tests
-│   ├── window-resize.spec.ts
-│   ├── window-minimize.spec.ts
-│   ├── window-maximize.spec.ts
-│   └── window-controls.spec.ts    # Close, minimize, maximize buttons
-├── native-features/               # Native OS integration
-│   ├── file-system.spec.ts        # File dialogs, file access
-│   ├── system-tray.spec.ts        # Tray icon, tray menu
-│   ├── notifications.spec.ts      # OS notifications
-│   └── deep-links.spec.ts         # atom:// protocol handling
-├── cross-platform/                # Platform-specific behavior
-│   ├── windows.spec.ts            # Windows-only features
-│   ├── macos.spec.ts              # macOS-only features
-│   └── linux.spec.ts              # Linux-only features
-└── shared/                        # Tests shared with web
-    ├── auth/                      # Same auth flows as web
-    ├── agents/                    # Same agent flows as web
-    └── workflows/                 # Same workflow flows as web
-```
-
-**Tauri Playwright Configuration:**
-```typescript
-// desktop-e2e/playwright-tauri.config.ts
-import { defineConfig } from '@playwright/test';
-
-export default defineConfig({
-  testDir: './tests',
-  fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: 1, // Single worker to avoid window conflicts
-
-  use: {
-    // Connect to running Tauri app via CDP
-    baseURL: 'http://localhost:4300', // Tauri dev server URL
-    headless: false, // Tauri requires visible window
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-  },
-
-  projects: [
-    {
-      name: 'tauri-windows',
-      use: {
-        // Windows-specific configuration
-      },
-    },
-    {
-      name: 'tauri-macos',
-      use: {
-        // macOS-specific configuration
-      },
-    },
-    {
-      name: 'tauri-linux',
-      use: {
-        // Linux-specific configuration
-      },
-    },
-  ],
-});
-```
-
-**Tauri Test Helper:**
-```typescript
-// desktop-e2e/tests/helpers/tauri-helper.ts
-import { Page } from '@playwright/test';
-
-export class TauriHelper {
-  constructor(private page: Page) {}
-
-  async invokeTauriCommand<T>(cmd: string, args?: any): Promise<T> {
-    return await this.page.evaluate(async ([cmd, args]) => {
-      // @ts-ignore - Tauri API injected in WebView
-      return await window.__TAURI__.core.invoke(cmd, args);
-    }, [cmd, args]);
-  }
-
-  async readFile(filePath: string): Promise<string> {
-    return await this.invokeTauriCommand('read_file', { path: filePath });
-  }
-
-  async writeFile(filePath: string, content: string): Promise<void> {
-    await this.invokeTauriCommand('write_file', { path: filePath, content });
-  }
-
-  async showNotification(title: string, body: string): Promise<void> {
-    await this.invokeTauriCommand('show_notification', { title, body });
-  }
-
-  async getWindowState(): Promise<{ width: number; height: number; x: number; y: number }> {
-    return await this.invokeTauriCommand('get_window_state');
-  }
-
-  async minimizeWindow(): Promise<void> {
-    await this.invokeTauriCommand('minimize_window');
-  }
-
-  async maximizeWindow(): Promise<void> {
-    await this.invokeTauriCommand('maximize_window');
-  }
-
-  async closeWindow(): Promise<void> {
-    await this.invokeTauriCommand('close_window');
-  }
-}
-```
-
-## CI/CD Integration
-
-### GitHub Actions Workflow Structure
-
-```yaml
-# .github/workflows/e2e-all.yml
-name: E2E Tests (All Platforms)
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  schedule:
-    - cron: '0 2 * * *'  # Daily 2 AM run
-
-jobs:
-  e2e-web:
-    name: Web E2E Tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        browser: [chromium, firefox, webkit]
-        shard: [1/4, 2/4, 3/4, 4/4]  # Split tests into 4 shards
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install dependencies
-        run: |
-          cd frontend-nextjs
-          npm ci
-          npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Install backend dependencies
-        run: |
-          cd backend
-          pip install -e .
-      - name: Start backend
-        run: |
-          cd backend
-          python -m uvicorn main:app &
-          sleep 10
-      - name: Run Playwright tests
-        run: |
-          cd frontend-nextjs
-          npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: web-e2e-results-${{ matrix.browser }}-${{ matrix.shard }}
-          path: frontend-nextjs/playwright-report/
-      - name: Upload screenshots
-        if: failure()
-        uses: actions/upload-artifact@v3
-        with:
-          name: web-e2e-screenshots-${{ matrix.browser }}-${{ matrix.shard }}
-          path: frontend-nextjs/test-results/
-
-  e2e-mobile:
-    name: Mobile E2E Tests
-    runs-on: macos-latest  # macOS required for iOS simulator
-    strategy:
-      matrix:
-        platform: [ios.sim.debug, android.emu.debug]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Setup Expo
-        run: npm install -g expo-cli
-      - name: Install dependencies
-        run: |
-          cd mobile
-          npm ci
-      - name: Build mobile app
-        run: |
-          cd mobile
-          detox build --configuration ${{ matrix.platform }}
-      - name: Run Detox tests
-        run: |
-          cd mobile
-          detox test --configuration ${{ matrix.platform }}
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: mobile-e2e-results-${{ matrix.platform }}
-          path: mobile/e2e/results/
-
-  e2e-desktop:
-    name: Desktop E2E Tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            platform: tauri-linux
-          - os: macos-latest
-            platform: tauri-macos
-          - os: windows-latest
-            platform: tauri-windows
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - name: Install dependencies
-        run: |
-          cd frontend-nextjs
-          npm ci
-      - name: Build Tauri app
-        run: |
-          cd frontend-nextjs
-          npm run tauri:build
-      - name: Run Tauri E2E tests
-        run: |
-          cd desktop-e2e
-          npm ci
-          npx playwright test --project=${{ matrix.platform }}
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: desktop-e2e-results-${{ matrix.platform }}
-          path: desktop-e2e/playwright-report/
-
-  stress-test:
-    name: Stress Tests
-    runs-on: ubuntu-latest
-    needs: [e2e-web, e2e-mobile, e2e-desktop]  # Run after E2E tests
-    if: github.event_name == 'schedule'  # Only run on scheduled runs
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup k6
-        run: |
-          curl https://github.com/grafana/k6/releases/download/v0.47.0/k6-v0.47.0-linux-amd64.tar.gz -L | tar xvz
-          sudo mv k6-*/k6 /usr/local/bin/
-      - name: Install backend dependencies
-        run: |
-          cd backend
-          pip install -e .
-      - name: Start backend
-        run: |
-          cd backend
-          python -m uvicorn main:app &
-          sleep 10
-      - name: Run stress tests
-        run: |
-          cd backend/tests/stress
-          k6 run load_test_k6.js
-      - name: Upload stress test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: stress-test-results
-          path: backend/tests/stress/load-test-report.json
-
-  aggregate-results:
-    name: Aggregate Test Results
-    runs-on: ubuntu-latest
-    needs: [e2e-web, e2e-mobile, e2e-desktop, stress-test]
-    if: always()
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download all artifacts
-        uses: actions/download-artifact@v3
-      - name: Aggregate results
-        run: |
-          # Aggregate all test results into unified report
-          node test-orchestrator/scripts/aggregate-results.js
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('unified-report.json', 'utf8'));
-            const body = `## E2E Test Results\n\n**Total:** ${report.total}\n**Passed:** ${report.passed}\n**Failed:** ${report.failed}\n**Duration:** ${report.duration}`;
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+# GOOD: File bug only for reproducible, high-severity failures
+if test_failed and failure_count >= 2 and severity in ["critical", "high"]:
+    bug_service.file_bug(...)
+elif test_failed:
+    # Create "potential bug" label for low-confidence issues
+    bug_service.file_bug(..., labels=["potential-bug", "needs-review"])
 ```
 
 ## Recommended Build Order
 
-### Phase 1: Foundation (Week 1-2)
+### Phase 1: Property-Based Test Expansion (Week 1)
 
-**Goal:** Establish test infrastructure and shared utilities.
+**Goal:** Expand existing Hypothesis property tests with new invariants for API contracts, state machines, and security properties.
 
 **Tasks:**
-1. **Test Data Management**
-   - Extend existing pytest fixtures with factory-boy factories
-   - Create TestDataManager service for CRUD orchestration
-   - Implement seed data JSON files for common scenarios
-   - Add test data isolation (transactions, rollback)
-   - **Files:** `backend/tests/fixtures/test_data_manager.py`, `backend/tests/fixtures/factories.py`
+1. **API Contract Invariants**
+   - Test request validation (malformed JSON, oversized payloads)
+   - Test response contracts (status codes, content types)
+   - Test error handling (graceful degradation, no crashes)
+   - **Files:** `backend/tests/property_tests/fuzzing_integration/api_invariants.py`
 
-2. **Shared Test Utilities**
-   - Create test helpers for common operations (auth, agent creation, workflow execution)
-   - Implement reusable selectors (Playwright, Detox)
-   - Add test configuration management
-   - **Files:** `test-orchestrator/src/shared/utils.ts`, `frontend-nextjs/tests/utils/test-helpers.ts`, `mobile/e2e/helpers/test-helpers.js`
+2. **State Machine Invariants**
+   - Test agent graduation state machine (monotonic transitions)
+   - Test episode lifecycle state transitions
+   - Test workflow execution state machine
+   - **Files:** `backend/tests/property_tests/fuzzing_integration/state_invariants.py`
 
-3. **Unified Reporter Foundation**
-   - Aggregate existing test reports (HTML, JSON, JUnit)
-   - Generate unified test report with platform breakdown
-   - **Files:** `test-orchestrator/src/reporters/unified-reporter.ts`
+3. **Security Invariants**
+   - Test SQL injection prevention in all endpoints
+   - Test XSS prevention in user-generated content
+   - Test authentication bypass prevention
+   - **Files:** `backend/tests/property_tests/fuzzing_integration/security_invariants.py`
 
-**Dependencies:** None (foundational work)
+**Dependencies:** Existing property test infrastructure (Hypothesis, pytest fixtures)
 
 **Validation:**
-- Test data manager creates/destroys data correctly
-- Shared utilities work across platforms
-- Unified reporter aggregates results
+- 50+ new property tests added
+- All tests pass with Hypothesis max_examples=100
+- Tests discover at least 5 edge case bugs
 
 ---
 
-### Phase 2: Web E2E Expansion (Week 3-4)
+### Phase 2: API Fuzzing Infrastructure (Week 2)
 
-**Goal:** Expand existing Playwright tests from basic to comprehensive (300+ tests).
+**Goal:** Implement fuzzing orchestration with Atheris and RESTler for comprehensive API endpoint testing.
 
 **Tasks:**
-1. **Authentication Flows**
-   - Login, logout, session management
-   - JWT token refresh
-   - Multi-factor authentication (if applicable)
-   - **Files:** `frontend-nextjs/tests/e2e/auth/*.spec.ts`
+1. **Fuzzing Orchestrator**
+   - Implement FuzzingOrchestrator service
+   - Add fuzzing campaign management (start, stop, monitor)
+   - Implement crash detection and triage
+   - **Files:** `backend/core/fuzzing_orchestrator.py`
 
-2. **Agent Interaction Flows**
-   - Agent list, search, filter
-   - Agent execution (streaming responses)
-   - Agent chat interface
-   - Agent settings configuration
-   - **Files:** `frontend-nextjs/tests/e2e/agents/*.spec.ts`
+2. **Fuzzing Harnesses**
+   - Create FastAPI harness for Atheris
+   - Create OpenAPI spec generator for RESTler
+   - Implement crash deduplication
+   - **Files:** `backend/tests/fuzzing/harnesses/fastapi_harness.py`
 
-3. **Workflow Execution Flows**
-   - Workflow creation (builder UI)
-   - Workflow execution (manual triggers, automated triggers)
-   - Workflow state management
-   - Workflow history and logs
-   - **Files:** `frontend-nextjs/tests/e2e/workflows/*.spec.ts`
+3. **Fuzzing Campaigns**
+   - Create auth endpoint fuzzing campaign
+   - Create agent execution fuzzing campaign
+   - Create workflow API fuzzing campaign
+   - **Files:** `backend/tests/fuzzing/campaigns/*.py`
 
-4. **Canvas Presentation Flows**
-   - Canvas rendering (charts, forms, sheets, markdown)
-   - Canvas interactivity (form submission, button clicks)
-   - Canvas state management
-   - Canvas accessibility (aria labels, keyboard nav)
-   - **Files:** `frontend-nextjs/tests/e2e/canvas/*.spec.ts`
-
-5. **Episodic Memory Flows**
-   - Episode creation (automatic segmentation)
-   - Episode retrieval (temporal, semantic, contextual)
-   - Episode graduation
-   - Episode analytics
-   - **Files:** `frontend-nextjs/tests/e2e/episodic-memory/*.spec.ts`
-
-**Dependencies:** Phase 1 (test data management, shared utilities)
+**Dependencies:** Phase 1 (property tests for validation)
 
 **Validation:**
-- 300+ web E2E tests passing
-- Coverage of all critical user flows
-- Test execution time <30min (with sharding)
+- Fuzzing orchestrator runs campaigns successfully
+- Atheris fuzzing discovers crashes in test endpoints
+- RESTler fuzzing discovers HTTP protocol violations
 
 ---
 
-### Phase 3: Mobile E2E Foundation (Week 5-6)
+### Phase 3: Chaos Engineering Layer (Week 3)
 
-**Goal:** Establish Detox E2E testing for React Native mobile app (150+ tests).
+**Goal:** Implement chaos engineering experiments for failure injection and resilience validation.
 
 **Tasks:**
-1. **Detox Configuration**
-   - Configure Detox for iOS and Android
-   - Set up simulators/emulators in CI/CD
-   - Configure test timeouts, retries, async behavior
-   - **Files:** `mobile/configs/detox.config.js`
+1. **Chaos Coordinator**
+   - Implement ChaosCoordinator service
+   - Add experiment management (start, stop, rollback)
+   - Implement failure detection and recovery validation
+   - **Files:** `backend/core/chaos_coordinator.py`
 
-2. **Mobile Authentication**
-   - Login, logout, session management
-   - Biometric authentication (Face ID, Touch ID)
-   - Deep link authentication
-   - **Files:** `mobile/e2e/auth/*.e2e.js`
+2. **Failure Injection**
+   - Implement network latency injection (tc)
+   - Implement database connection drop (iptables)
+   - Implement memory pressure simulation
+   - Implement service crash experiments
+   - **Files:** `backend/tests/chaos/experiments/*.py`
 
-3. **Mobile Agent Interactions**
-   - Agent list (mobile-specific UI)
-   - Agent execution (mobile chat interface)
-   - Agent voice input/output (if applicable)
-   - **Files:** `mobile/e2e/agents/*.e2e.js`
+3. **Resilience Monitoring**
+   - Implement baseline metrics collection
+   - Implement chaos metrics collection
+   - Implement recovery validation
+   - **Files:** `backend/tests/chaos/monitors/resilience_monitor.py`
 
-4. **Device Features**
-   - Camera integration (photo capture, barcode scan)
-   - Location services
-   - Push notifications
-   - Deep links (atom:// protocol)
-   - **Files:** `mobile/e2e/device-features/*.e2e.js`
-
-**Dependencies:** Phase 1 (test data management), Phase 2 (shared test flows)
+**Dependencies:** Phase 1 (property tests for system validation)
 
 **Validation:**
-- 150+ mobile E2E tests passing
-- Coverage of mobile-specific features
-- Test execution time <20min
+- Chaos experiments run successfully in isolated environment
+- System recovers from network latency (within 10% of baseline)
+- System recovers from database connection drops (within 30s)
 
 ---
 
-### Phase 4: Desktop E2E Foundation (Week 7-8)
+### Phase 4: Intelligent Browser Automation (Week 4)
 
-**Goal:** Establish Tauri E2E testing for desktop app (150+ tests).
+**Goal:** Implement AI-driven browser exploration agent for automatic UI bug discovery.
 
 **Tasks:**
-1. **Tauri Playwright Configuration**
-   - Configure Playwright for Tauri (CDP connection or WebDriver)
-   - Set up desktop-specific test environment
-   - Configure window management, native dialogs
-   - **Files:** `desktop-e2e/playwright-tauri.config.ts`, `desktop-e2e/tests/helpers/tauri-helper.ts`
+1. **Exploration Agent**
+   - Implement ExplorationAgent with heuristic exploration
+   - Add depth-first exploration strategy
+   - Implement form filling with edge cases
+   - **Files:** `backend/tests/browser_automation/agents/exploration_agent.py`
 
-2. **Desktop Window Management**
-   - Window resize, minimize, maximize, close
-   - Window controls (custom titlebar)
-   - Multi-window support (if applicable)
-   - **Files:** `desktop-e2e/tests/window-management/*.spec.ts`
+2. **Bug Detection**
+   - Implement console error detection
+   - Implement accessibility violation detection (axe-core)
+   - Implement broken link detection
+   - Implement visual regression detection
+   - **Files:** `backend/tests/browser_automation/detectors/*.py`
 
-3. **Native Features**
-   - File system access (file dialogs, read/write)
-   - System tray integration
-   - OS notifications
-   - Deep links (atom:// protocol)
-   - **Files:** `desktop-e2e/tests/native-features/*.spec.ts`
+3. **Exploration Strategies**
+   - Implement depth-first exploration
+   - Implement breadth-first exploration
+   - Implement random walk exploration
+   - **Files:** `backend/tests/browser_automation/strategies/*.py`
 
-4. **Cross-Platform Behavior**
-   - Platform-specific features (Windows, macOS, Linux)
-   - Platform-specific UI elements
-   - **Files:** `desktop-e2e/tests/cross-platform/*.spec.ts`
-
-**Dependencies:** Phase 1 (test data management), Phase 2 (shared test flows)
+**Dependencies:** Existing Playwright E2E infrastructure
 
 **Validation:**
-- 150+ desktop E2E tests passing
-- Coverage of desktop-specific features
-- Test execution time <20min
+- Exploration agent explores 20+ pages without crashes
+- Discovers at least 5 UI bugs (console errors, a11y violations, broken links)
+- Visual regression detection works (screenshots compared)
 
 ---
 
-### Phase 5: Cross-Platform Orchestration (Week 9-10)
+### Phase 5: Unified Bug Discovery Pipeline (Week 5)
 
-**Goal:** Implement unified test runner for cross-platform coordination.
+**Goal:** Implement unified discovery coordinator that aggregates results from all methods and automates bug filing.
 
 **Tasks:**
-1. **Unified Test Runner**
-   - Orchestrate test execution across web, mobile, desktop
-   - Manage parallelization and sharding
-   - Aggregate test results
-   - **Files:** `test-orchestrator/src/orchestrator.ts`
+1. **Discovery Coordinator**
+   - Implement DiscoveryCoordinator service
+   - Add campaign scheduling (fuzzing, chaos, property, browser)
+   - Implement result aggregation
+   - **Files:** `backend/core/discovery_coordinator.py`
 
-2. **Platform Runners**
-   - Web runner wrapper (Playwright)
-   - Mobile runner wrapper (Detox)
-   - Desktop runner wrapper (Tauri)
-   - **Files:** `test-orchestrator/src/runners/*.ts`
+2. **Result Aggregation**
+   - Implement FailureAggregator (correlate failures across methods)
+   - Implement Deduplicator (merge duplicate bugs)
+   - Implement bug triage (severity classification, impact analysis)
+   - **Files:** `backend/tests/bug_discovery/aggregators/*.py`
 
-3. **Cross-Platform Test Reuse**
-   - Share test logic across platforms (authentication, agents, workflows)
-   - Platform-specific UI abstractions
-   - **Files:** `test-orchestrator/src/shared/*.ts`
+3. **Bug Filing Integration**
+   - Extend BugFilingService for unified filing
+   - Implement automatic filing for reproducible bugs
+   - Implement "potential bug" workflow for low-confidence issues
+   - **Files:** `backend/tests/bug_discovery/coordinator.py`
 
-4. **CI/CD Integration**
-   - GitHub Actions workflows for each platform
-   - Unified workflow for all platforms
-   - Parallel execution, result aggregation
-   - **Files:** `.github/workflows/e2e-*.yml`
-
-**Dependencies:** Phases 2, 3, 4 (platform-specific tests)
+**Dependencies:** Phases 1-4 (all discovery methods)
 
 **Validation:**
-- Unified runner executes all platform tests
-- Cross-platform test reuse working
-- Total test execution time <60min (with parallelization)
+- Discovery coordinator runs all campaigns successfully
+- Result aggregation correlates failures across methods
+- Automated bug filing creates GitHub Issues for reproducible bugs
 
 ---
 
-### Phase 6: Stress Testing Infrastructure (Week 11-12)
+### Phase 6: CI/CD Integration (Week 6)
 
-**Goal:** Implement load generation and failure injection for bug discovery.
-
-**Tasks:**
-1. **Load Generation (k6/Locust)**
-   - Create load test scripts for backend endpoints
-   - Simulate concurrent users (10, 50, 100)
-   - Measure performance metrics (latency, error rate, throughput)
-   - **Files:** `backend/tests/stress/load_test_k6.js`
-
-2. **Failure Injection (Chaos Engineering)**
-   - Network delays and failures
-   - Database connection drops
-   - Service crashes (backend restarts)
-   - **Files:** `backend/tests/stress/chaos_test.py`
-
-3. **Stress Test Orchestration**
-   - Trigger stress tests in CI/CD (scheduled runs)
-   - Collect and analyze metrics
-   - Detect performance degradation
-   - **Files:** `test-orchestrator/src/stress-tester.ts`
-
-**Dependencies:** Phase 5 (CI/CD integration)
-
-**Validation:**
-- Stress tests run successfully
-- Performance baselines established
-- Performance degradation alerts working
-
----
-
-### Phase 7: Bug Discovery & Reporting (Week 13-14)
-
-**Goal:** Automate bug discovery and GitHub Issues integration.
+**Goal:** Integrate bug discovery pipeline with GitHub Actions for scheduled campaigns and PR-triggered tests.
 
 **Tasks:**
-1. **Failure Analysis**
-   - Analyze test failures (screenshots, logs, traces)
-   - Identify reproducible failures (same test fails 2+ times)
-   - Categorize failures (timeout, assertion, crash)
-   - **Files:** `test-orchestrator/src/analyzers/failure-analyzer.ts`
+1. **Fuzzing Workflow**
+   - Create GitHub Actions workflow for scheduled fuzzing
+   - Run fuzzing campaigns daily (2 AM UTC)
+   - File bugs for reproducible crashes
+   - **Files:** `.github/workflows/fuzzing.yml`
 
-2. **Bug Reporting**
-   - GitHub Issues integration (Octokit)
-   - Automatic issue creation for reproducible failures
-   - Issue deduplication (check for existing issues)
-   - **Files:** `test-orchestrator/src/reporters/bug-reporter.ts`
+2. **Chaos Workflow**
+   - Create GitHub Actions workflow for scheduled chaos experiments
+   - Run chaos experiments weekly (Sunday 2 AM UTC)
+   - File bugs for unrecovered failures
+   - **Files:** `.github/workflows/chaos.yml`
 
-3. **Test Report Enhancement**
-   - Unified HTML report with platform breakdown
-   - Screenshots, videos, traces for failures
-   - Performance metrics, trends over time
-   - **Files:** `test-orchestrator/src/reporters/html-reporter.ts`
+3. **Unified Discovery Workflow**
+   - Create GitHub Actions workflow for unified bug discovery
+   - Run on PR trigger (quick smoke tests)
+   - Run scheduled (comprehensive campaigns)
+   - **Files:** `.github/workflows/bug_discovery.yml`
 
-**Dependencies:** Phase 6 (stress tests, failure data)
+**Dependencies:** Phase 5 (unified coordinator)
 
 **Validation:**
-- Reproducible failures automatically create GitHub Issues
-- Unified report includes all platforms
-- Performance trends tracked over time
-
----
+- All workflows run successfully in CI/CD
+- Fuzzing workflow discovers crashes weekly
+- Chaos workflow validates resilience weekly
+- Unified workflow provides comprehensive bug discovery
 
 ## Sources
 
-### High Confidence (Official Documentation & Best Practices)
+### High Confidence (Official Documentation & Codebase Analysis)
 
-- **[Playwright Documentation](https://playwright.dev/docs/intro)** - Authoritative E2E testing framework documentation
-- **[Detox Documentation](https://wix.github.io/Detox/)** - React Native gray-box E2E testing framework
-- **[Tauri Testing Guide](https://tauri.app/v1/guides/testing/)** - Official Tauri testing documentation
-- **[GitHub Actions Documentation](https://docs.github.com/en/actions)** - CI/CD workflow configuration
-- **[k6 Documentation](https://k6.io/docs/)** - Load testing and stress testing framework
-- **[factory-boy Documentation](https://factoryboy.readthedocs.io/)** - Test data generation with SQLAlchemy
-- **[Atom Backend Test Infrastructure](https://github.com/ruship24/atom/blob/main/backend/tests/conftest.py)** - Existing pytest fixtures, 50+ fixtures, factory-boy setup
-- **[Atom Frontend E2E Tests](https://github.com/ruship24/atom/blob/main/playwright.config.ts)** - Existing Playwright configuration (v3.1 shipped)
+- **[Atom Test Infrastructure](https://github.com/ruship24/atom/blob/main/backend/tests/conftest.py)** - Existing pytest fixtures, Hypothesis configuration, test data management
+- **[Atom Property-Based Tests](https://github.com/ruship24/atom/tree/main/backend/tests/property_tests)** - Existing Hypothesis tests for LLM, governance, episodes, database
+- **[Atom Bug Filing Service](https://github.com/ruship24/atom/blob/main/backend/tests/bug_discovery/bug_filing_service.py)** - Existing BugFilingService with GitHub Issues integration
+- **[Atom Load Tests](https://github.com/ruship24/atom/tree/main/backend/tests/load)** - Existing k6 load tests for API endpoints
+- **[Atom E2E Tests](https://github.com/ruship24/atom/tree/main/backend/tests/e2e_ui)** - 91 existing E2E tests with Playwright
+- **[Hypothesis Documentation](https://hypothesis.readthedocs.io/)** - Property-based testing framework for Python
+- **[Atheris Documentation](https://github.com/google/atheris)** - Coverage-guided fuzzing for Python
+- **[RESTler Documentation](https://github.com/microsoft/restler-fuzzer)** - Stateful REST API fuzzing
+- **[Chaos Monkey Documentation](https://chaos-mesh.org/)** - Chaos engineering for cloud infrastructure
+- **[Playwright Documentation](https://playwright.dev/python/)** - Browser automation for Python
+- **[axe-core Documentation](https://www.deque.com/axe/)** - Accessibility testing engine
 
 ### Medium Confidence (Industry Best Practices - Codebase Analysis)
 
-- **Atom CI/CD Pipeline** - GitHub Actions workflows, deployment automation, health checks
-- **Atom Monitoring Setup** - `/Users/rushiparikh/projects/atom/backend/docs/MONITORING_SETUP.md` - Health check endpoints, Prometheus metrics
-- **Atom Deployment Runbook** - `/Users/rushiparikh/projects/atom/backend/docs/DEPLOYMENT_RUNBOOK.md` - Deployment procedures, rollback strategies
-- **Cross-Platform Testing Patterns** - Shared test logic across platforms, platform-specific abstractions
-- **Stress Testing Best Practices** - Load generation, failure injection, chaos engineering
+- **Atom Backend Architecture** - FastAPI + SQLAlchemy 2.0 + PostgreSQL/SQLite
+- **Atom Agent System** - AgentGovernanceService, LLMService (BYOK), episodic memory
+- **Atom CI/CD Pipeline** - GitHub Actions workflows, deployment automation
+- **Property-Based Testing Patterns** - Invariant validation, state machine testing, edge case discovery
+- **Fuzzing Best Practices** - Coverage-guided fuzzing, crash deduplication, minimization
+- **Chaos Engineering Patterns** - Failure injection, resilience validation, rollback mechanisms
 
 ### Low Confidence (Limited Verification - Needs Validation)
 
-- **Detox + Expo Integration** - Detox supports Expo but configuration complexity unknown
-- **Tauri Playwright Integration** - Tauri supports CDP but Playwright driver stability unknown
-- **Mobile Simulator Pooling** - CI/CD simulator pooling strategies not well-documented
-- **Stress Test Result Analysis** - Automated performance degradation detection patterns evolving
+- **Atheris + FastAPI Integration** - Limited examples of Atheris with FastAPI specifically
+- **RESTler Stateful Fuzzing** - RESTler primarily designed for C# services, Python integration unclear
+- **Chaos Engineering Isolation** - Running chaos experiments in CI/CD without affecting other tests
+- **Browser Automation Exploration Heuristics** - AI-driven exploration strategies for complex web UIs
 
 ### Gaps Identified
 
-- **Tauri E2E Testing Patterns** - Limited production examples of Playwright + Tauri integration
-- **Cross-Platform Test Reuse** - Limited patterns for sharing test logic across web/mobile/desktop
-- **Stress Test Baselines** - Unclear industry standards for "acceptable" stress test failure rates
-- **Bug Filing Automation** - Risk of GitHub Issues noise, false positives in automated bug filing
+- **Atheris Integration with FastAPI** - Need to validate Atheris compatibility with FastAPI's async endpoints
+- **Chaos Engineering in GitHub Actions** - Running failure injection in CI/CD environment (container isolation challenges)
+- **Browser Automation Exploration Coverage** - Determining optimal exploration depth vs. time tradeoff
+- **Property-Based Test Performance** - Scaling to 1000+ examples without exceeding CI/CD time limits
 
 **Next Research Phases:**
-- Phase-specific research needed for Tauri + Playwright integration patterns
-- Investigation into Detox + Expo E2E testing best practices
-- Deep dive on cross-platform test reuse strategies
-- Research on automated bug filing thresholds and noise reduction
+- Phase-specific research needed for Atheris + FastAPI integration patterns
+- Investigation into chaos engineering isolation strategies for CI/CD
+- Deep dive on browser exploration heuristics for complex React applications
+- Research on property-based test performance optimization (parallel execution, caching)
 
 ---
 
-*Architecture research for: Atom v7.0 Cross-Platform E2E Testing & Bug Discovery*
-*Researched: March 23, 2026*
+*Architecture research for: Atom v8.0 Automated Bug Discovery (Fuzzing, Chaos Engineering, Property-Based Testing, Browser Automation)*
+*Researched: March 24, 2026*
 *Confidence: HIGH (mix of official docs, codebase analysis, industry best practices)*

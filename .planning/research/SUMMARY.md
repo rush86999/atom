@@ -1,272 +1,411 @@
 # Project Research Summary
 
-**Project:** Atom v7.0 - Cross-Platform E2E Testing & Bug Discovery
-**Domain:** Cross-Platform End-to-End Testing & Quality Assurance
-**Researched:** March 23, 2026
-**Confidence:** HIGH (Web/pytest: HIGH, Mobile/Desktop/Stress: MEDIUM)
+**Project:** Atom - Automated Bug Discovery (v8.0)
+**Domain:** Automated QA Testing & Bug Discovery for AI Automation Platform
+**Researched:** March 24, 2026
+**Confidence:** HIGH
 
 ## Executive Summary
 
-Atom is an AI-powered business automation platform requiring comprehensive cross-platform E2E testing across web (Next.js/Playwright), mobile (React Native/Detox), and desktop (Tauri) with a focus on stress testing and automated bug discovery. **Key insight**: Build on existing v3.1 E2E infrastructure (30+ Playwright tests, Percy visual regression, pytest backend tests) rather than replacing it. Add mobile/desktop testing layers and stress testing infrastructure incrementally for cost-effective bug discovery.
+Atom is an AI-powered business automation platform with comprehensive existing test infrastructure (495+ E2E tests, 239 property test files with 113K+ lines, k6 load testing, chaos engineering helpers). The goal for v8.0 is to add automated bug discovery capabilities to uncover 50+ bugs through fuzzing, chaos engineering, enhanced property-based testing, and intelligent browser automation.
 
-The recommended approach leverages **Playwright for web** (already configured with v3.1 E2E), **Detox for React Native mobile** (available but requires expo-dev-client setup), **Tauri's built-in testing for desktop**, and **k6 for API stress testing**. Integrate all with pytest for unified orchestration and Allure for comprehensive reporting. This combination provides excellent cross-platform coverage with minimal tooling complexity, building on Atom's existing investment in Playwright and pytest.
+**Recommended approach:** Integrate bug discovery into existing test infrastructure rather than creating separate silos. Atom already has Hypothesis (property-based testing), Atheris (fuzzing infrastructure), Playwright (E2E), k6 (load testing), and BugFilingService (GitHub integration). The primary needs are: (1) expanding property test coverage with invariant-first thinking, (2) adding API fuzzing with Atheris/RESTler, (3) implementing chaos engineering with proper blast radius controls, (4) enhancing headless browser automation with exploration agents, and (5) creating unified bug discovery orchestration.
 
-**Critical risks**: Mobile Detox testing is blocked by expo-dev-client requirement (15min CI overhead), cross-platform test reuse requires abstraction layer complexity, and stress testing patterns for E2E are not well-documented. Mitigation strategy: Start with web E2E expansion (300+ tests), add mobile API-level tests instead of Detox for Phase 148, implement cross-platform orchestration with shared test data management, and defer full mobile Detox UI tests to Phase 150+ when infrastructure is ready.
+**Key risks:** (1) creating noisy bug discovery that developers ignore, (2) slowing down existing fast test suites by running fuzzing/chaos on every PR, (3) generating false positives that waste investigation time, (4) breaking test isolation guarantees with chaos experiments, and (5) missing production-like patterns that lead to finding real bugs. Mitigation: separate CI pipelines (fast PR tests <10min vs. weekly bug discovery), enforce test quality standards (TQ-01 through TQ-05), integrate bug discovery into existing pytest infrastructure, and document all blast radius controls.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Summary from STACK.md**: Atom requires a layered testing approach building on existing v3.1 E2E infrastructure. Playwright is the foundation for web testing (already installed), with Detox for mobile (available), Tauri for desktop (built-in), and k6 for stress testing. pytest orchestrates all runners with Allure for unified reporting.
+Atom has solid testing infrastructure with most dependencies already installed. Primary needs are enhancements, not new tools.
 
 **Core technologies:**
-- **Playwright (^1.57.0)** — Web E2E testing with auto-waiting, cross-browser support, tracing/debugging — Already configured with v3.1 E2E, excellent TypeScript support, built-in HTML reporter with traces
-- **Detox (^20.47.0)** — React Native mobile E2E testing — Gray-box testing framework faster than black-box tools, already in mobile package.json, but BLOCKED by expo-dev-client requirement
-- **k6 (^0.52.0)** — Load/stress testing — JS-based scripting, CI-friendly, supports HTTP/WebSocket, excellent for API stress testing, cost-effective bug discovery ($149/month for cloud scaling)
-- **pytest (^7.4.0)** — Cross-platform orchestration — Already installed for backend tests, can orchestrate all E2E runners with fixtures, parallel execution via pytest-xdist
-- **Allure Report (^2.27.0)** — Unified test reporting — Framework-agnostic, rich HTML reports with screenshots/videos, integrates with CI/CD, supports severity/suite/epic tags for bug tracking
+- **Atheris 2.2.0+** — Coverage-guided fuzzing for Python — Already in requirements-testing.txt, Google's fuzzer with libFuzzer integration, best-in-class for finding crashes in parsing/validation code
+- **Hypothesis 6.151.5+** — Property-based testing — Already installed (239 test files), Python's leading PBT framework, generates edge cases automatically with shrinking
+- **Schemathesis 3.30.0+** — API contract testing via OpenAPI — Already in requirements-testing.txt, Hypothesis-powered API fuzzing, finds spec violations
+- **Percy 3.0+** — Visual regression testing — NEW addition for CI/CD integrated visual diffs, critical for canvas/workflow UI bugs
+- **memray 1.0+** — Memory leak detection (Python 3.11+) — Bloomberg's memory profiler, detects leaks in long-running agent executions
+- **Toxiproxy-Python 2.0+** — Network chaos simulation — Real network failure injection (latency, packet loss), not mocks
+- **pytest-benchmark 4.0.0+** — Performance benchmarking — Already in requirements-testing.txt, track performance over time
 
-**Integration with existing Atom infrastructure:**
-- Backend API (FastAPI) for test data setup, agent operations
-- Authentication (JWT) with API-first approach (bypass UI login for speed)
-- Database (SQLite/PostgreSQL) with test isolation via worker-specific schemas
-- CI/CD (GitHub Actions) with matrix strategy for parallel platform execution
+**Already have (no changes needed):**
+- Playwright 1.58.0+ (495+ E2E tests)
+- k6 (load testing scripts)
+- Custom chaos_helpers.py (failure simulators)
+- BugFilingService (GitHub integration)
 
 ### Expected Features
 
-**Summary from FEATURES.md**: Atom already has v3.1 E2E with 30+ tests covering auth, agent execution, canvas, skills, governance, and WebSocket streaming. Critical gaps include stress testing, network simulation, mobile Detox E2E (blocked), desktop Tauri tests, and cross-platform test reuse framework.
-
 **Must have (table stakes):**
-- **Authentication Flow Tests** — Users expect secure login across all platforms (JWT validation, session persistence, logout, token refresh)
-- **Agent Execution Critical Path** — Core product feature (spawn agent → send message → receive streaming response → verify output)
-- **Canvas Presentation Tests** — Core differentiator (7 canvas types: charts, sheets, forms, docs, email, terminal, coding)
-- **Test Isolation & Reproducibility** — Parallel execution requires isolated test data (unique IDs, database cleanup, fresh state per test)
-- **API-First Authentication** — Speed optimization (100-500ms vs 10-60s UI login) by setting JWT token directly in localStorage
-- **Failure Artifacts (Screenshots/Videos)** — Debugging failed tests requires visual evidence (Playwright: `screenshot: 'only-on-failure'`)
-- **Database Isolation** — Parallel tests require separate data (worker-specific schemas, transaction rollbacks)
+- **Fuzzing with Atheris** — Discovers crash-causing inputs in critical parsing/validation code (CSV, JSON, input sanitization)
+- **Property-Based Testing Expansion** — Validates system invariants across thousands of auto-generated inputs (239 files already exist)
+- **Load/Stress Testing with k6** — Identifies performance bottlenecks under load (baseline, moderate, high scripts exist)
+- **Network Failure Simulation** — Tests resilience to degraded network conditions (offline, 3G, timeout tests exist)
+- **Headless Browser Automation** — Validates UI workflows and discovers client-side bugs (495+ E2E tests exist)
+- **Automated Bug Reporting** — Captures and files bugs without manual intervention (BugFilingService exists)
 
 **Should have (competitive):**
-- **Stress Testing for Bug Discovery** — Finds race conditions, memory leaks, resource exhaustion under load (concurrent agent executions, rapid canvas cycles, WebSocket churn)
-- **Network Simulation Testing** — Tests app behavior under poor network conditions (Playwright `context.route()`, slow 3G, offline mode)
-- **Visual Regression Testing (Percy)** — Detects unintended CSS/layout changes (already configured in v3.1 for 5 critical pages)
-- **Real User Interaction Simulation** — Finds bugs from realistic user behavior (Playwright `userEvent` API, realistic delays, keyboard navigation)
-- **WebSocket/Streaming Testing** — Validates real-time features under stress (multiple concurrent streams, connection drops, reconnection logic)
+- **Multi-Agent Fuzzing Orchestration** — Uses AI agents to generate fuzzing strategies based on code coverage gaps
+- **Chaos Engineering for Distributed Systems** — Proactively injects failures to test resilience of agent orchestration, LLM routing, episodic memory
+- **Property-Based Testing with AI-Generated Invariants** — Uses LLM to analyze code and suggest properties to test
+- **Cross-Platform Bug Correlation** — Detects if bug manifests across web, mobile, desktop (495+ E2E tests provide foundation)
+- **Contract Fuzzing for API Routes** — Fuzzes OpenAPI contracts to find schema violations (Schemathesis ready to integrate)
 
 **Defer (v2+):**
-- **Cross-Platform Test Reuse Framework** — Requires abstraction layer, platform-specific adapters
-- **Mobile Detox E2E (Full UI)** — BLOCKED by expo-dev-client requirement (15min CI overhead)
-- **Desktop Tauri Integration Tests** — Requires Tauri test infrastructure, GUI context in CI
-- **Performance Regression Testing (Lighthouse CI)** — Requires performance budgets, monitoring setup
+- **Chaos Engineering** — Requires isolated environment to avoid disrupting developers, schedule for dedicated staging setup
+- **Multi-Agent Fuzzing Orchestration** — Requires training data on effective fuzzing strategies (100+ fuzzing runs)
+- **Semantic Bug Clustering** — Requires significant bug dataset (500+ filed bugs) for clustering accuracy
+- **Predictive Bug Discovery** — Requires ML model trained on historical bug locations (1000+ bugs)
 
 ### Architecture Approach
 
-**Summary from ARCHITECTURE.md**: Atom's existing architecture (Python backend, Next.js frontend, React Native mobile, Tauri desktop) provides solid foundation for E2E testing. Key components needed: test orchestration layer, shared test data management, stress testing infrastructure, and bug discovery tools.
+Recommended architecture extends existing test infrastructure rather than creating separate "bug discovery" silos.
 
 **Major components:**
-1. **Unified Test Runner** — Orchestrates test execution across platforms, manages parallelization, aggregates results (custom Node.js CLI or Python orchestrator calling platform-specific runners)
-2. **Test Data Manager** — Creates, seeds, and cleans test data using fixtures, factories, and seed data (pytest fixtures + factory-boy + TestDataManager service)
-3. **Web E2E Runner** — Executes browser-based tests with Playwright multi-browser support (Chromium, Firefox, WebKit)
-4. **Mobile E2E Runner** — Executes React Native tests with Detox on iOS/Android simulators (gray-box testing, auto-wait mechanisms)
-5. **Desktop E2E Runner** — Executes Tauri desktop tests using Playwright WebDriver protocol or CDP connection
-6. **Stress Test Runner** — Generates load with k6/Locust, injects failures with chaos tools, validates performance degradation
-7. **Bug Discovery Engine** — Analyzes test failures, generates reproducible test cases, documents bugs via GitHub Issues integration
+1. **FuzzingOrchestrator** — Manages fuzzing campaigns across API endpoints, coordinates Atheris/RESTler engines, aggregates crash results, triggers bug filing for reproducible failures
+2. **ChaosCoordinator** — Injects failures (network latency, database connection drops, memory pressure), validates resilience, rolls back failures, files bugs for unrecoverable failures
+3. **Property-Based Test Expansion** — Extends existing 239 Hypothesis test files with API contract invariants, state machine validation, security properties
+4. **Intelligent Browser Agent** — AI-driven exploration using heuristics (depth-first, breadth-first), detects console errors, accessibility violations (axe-core), broken links, visual regression
+5. **DiscoveryCoordinator** — Unified orchestration layer that aggregates results from all discovery methods, correlates failures, deduplicates bugs, triages severity
+6. **BugFilingService** — Already exists, extends for unified filing with deduplication, automatic labeling, metadata attachment
 
-**Key architectural patterns:**
-- **Test Orchestration with Unified Runner**: Central coordination of cross-platform test execution with parallelization and result aggregation
-- **Shared Test Data Management**: Centralized fixtures, factories, and seed data used across all E2E test platforms
-- **Cross-Platform Test Reuse**: Share test logic across platforms using abstraction layers with platform-specific UI implementations
-- **Stress Testing with Load Generation**: Concurrent user simulation, failure injection, and performance baseline tracking
-- **Bug Discovery with Failure Analysis**: Automated analysis of test failures with GitHub Issues integration
+**Integration points:**
+- FastAPI backend provides OpenAPI spec for fuzzing targets
+- Existing pytest fixtures (auth_fixtures.py, database_fixtures.py, page_objects.py) reused for bug discovery
+- BugFilingService integrates with GitHub Issues API
+- Separate CI pipelines: fast PR tests (<10min) vs. weekly bug discovery (2 hours)
 
 ### Critical Pitfalls
 
-**Summary from PITFALLS.md**: Atom's existing backend testing has a 71.5 percentage point gap between service-level estimates (74.6%) and actual line coverage (8.50%), illustrating the critical methodology pitfall of coverage estimation without actual execution data. The highest-impact pitfalls focus on methodology errors, fixture leaks, testing anti-patterns, coverage gaming, and process failures.
+**Top 5 pitfalls that cause rewrites or failed bug discovery initiatives:**
 
-1. **Service-Level Coverage Estimation Masking True Gaps** — Atom's episode services appeared at 74.6% estimated but actual line coverage was only 8.50% (71.5 point gap). Prevention: **ALWAYS use actual coverage.py execution data** with `pytest --cov=backend --cov-report=json`, require coverage JSON as source of truth, calculate coverage at function/line level not service level.
+1. **Treating Bug Discovery as Separate from Testing** — Team creates separate "bug discovery" infrastructure disconnected from existing 495+ E2E tests and property tests. Prevention: Integrate bug discovery into `pytest tests/`, reuse existing fixtures (auth_fixtures, page_objects), follow test quality standards (TQ-01 through TQ-05).
 
-2. **Fixture Scope Leaks and Database Session Pollution** — Tests share database sessions or state due to incorrect pytest fixture scoping, causing passes in isolation but failures in parallel. Prevention: Use `scope="function"` for all database fixtures, use `yield` fixtures with cleanup code after yield, implement transaction rollback in teardown.
+2. **Property-Based Testing Without Invariant-First Thinking** — Team adds property tests without defining invariants first, leading to weak properties (tautologies) that don't discover bugs. Prevention: Enforce invariant-first thinking (Pattern 1 from PROPERTY_TESTING_PATTERNS.md), document all VALIDATED_BUG findings, use pattern catalog (7 documented patterns).
 
-3. **Over-Mocking External Dependencies** — Tests mock everything (database, HTTP, LLM) and verify implementation details rather than behavior, creating brittle tests. Prevention: Only mock external services (LLM providers, S3), use real database (SQLite in-memory), test observable behavior (return values, DB state) not call sequences.
+3. **Chaos Engineering Without Blast Radius Controls** — Chaos experiments run in shared environments, affecting other tests or developers. Prevention: Implement blast radius controls (isolated test databases), environment tiers (never chaos in production), failure injection limits (max duration, max retries), separate CI schedule (weekly, not on PRs).
 
-4. **Coverage Gaming - Excluding Untestable Code** — Adding `# pragma: no cover` to avoid testing difficult code (error handlers, async paths) inflates coverage while leaving critical paths untested. Prevention: Audit coverage exclusions quarterly, only exclude genuinely untestable code (generated protocols), require PR review for new pragmas.
+4. **Headless Browser Automation Creating Flaky Tests** — Bug discovery using Playwright creates timing-dependent tests that fail intermittently. Prevention: Use API-first authentication (10-100x faster than UI login), explicit waits (no `time.sleep()`), data-testid selectors (not CSS classes), test isolation (worker-based DB isolation), run flaky test detection before merging.
 
-5. **Flaky Tests Masking Real Issues** — Tests fail intermittently due to timing issues, race conditions, or async coordination but are marked as flaky and auto-retried. Prevention: Use `pytest-asyncio` with explicit event loop management, mock time-dependent code, use unique resource names for parallel tests, fix root cause don't add retries.
-
-6. **Wrong Coverage Metrics - Line vs Branch Coverage** — Focusing only on line coverage (80% target) while ignoring branch coverage creates false confidence. Line coverage measures "lines executed" but branch coverage measures "decision outcomes tested." Prevention: **ALWAYS enable branch coverage** with `pytest --cov=backend --cov-branch`, set separate targets (80% line, 70% branch as Atom does).
-
-7. **Async Testing Without Proper Event Loop Management** — Async tests without proper event loop configuration cause hangs or failures in parallel runs. Prevention: Use `pytest-asyncio` with `asyncio_mode = auto`, use `async def` for fixtures and tests, never manually create/close event loops.
-
-8. **Test Data Factories Creating Duplicate Records** — Factories using hardcoded names or sequential IDs cause unique constraint violations in parallel pytest-xdist runs. Prevention: Use UUIDs or random suffixes for all unique fields, include worker ID in parallel tests, use database transactions with rollback.
+5. **Treating Fuzzing as "More Property Testing"** — Team tries to use Hypothesis for fuzzing, missing protocol-aware fuzzing (AFL, libFuzzer) that finds memory corruption bugs. Prevention: Understand difference between property testing (business logic invariants) and fuzzing (memory safety violations), use both techniques, create fuzz targets in `fuzz_targets/` (not `tests/`), separate CI pipeline for fuzzing (weekly, 1 hour runs).
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on research, suggested phase structure for automated bug discovery implementation:
 
-### Phase 1: Test Infrastructure Foundation
-**Rationale:** Must establish test data management, shared utilities, and unified reporting before expanding test coverage. Without proper fixtures, factories, and isolation, adding tests creates maintenance burden.
+### Phase 1: Foundation (Test Infrastructure Integration)
+**Rationale:** Must integrate bug discovery into existing test infrastructure first to avoid silos and ensure adoption. Addresses Pitfall 1 (separate bug discovery) and Pitfall 8 (fuzzing/chaos on every PR).
 
-**Delivers:** Test data manager with factory-boy factories, shared test utilities for common operations, unified reporter foundation aggregating existing test reports.
+**Delivers:**
+- Bug discovery integrated into `pytest tests/` (not separate `/bug-discovery/`)
+- Separate CI pipelines: fast PR tests (<10min) vs. weekly bug discovery (2 hours)
+- Documentation templates for all bug discovery categories
+- Enforced TEST_QUALITY_STANDARDS.md (TQ-01 through TQ-05)
 
-**Addresses:** Test Isolation & Reproducibility, Database Isolation, API-First Authentication
+**Addresses:**
+- Foundation infrastructure for all bug discovery methods
+- Documentation standards (blast radius, limits, verification steps)
 
-**Avoids:** Pitfall 2 (Fixture Scope Leaks), Pitfall 8 (Test Data Factories Creating Duplicates)
+**Avoids:**
+- Pitfall 1: Treating Bug Discovery as Separate from Testing
+- Pitfall 6: Ignoring Test Quality Standards
+- Pitfall 8: Fuzzing/Chaos Tests Running on Every PR
+- Pitfall 9: Missing Blast Radius Documentation
 
-**Stack Elements:** pytest fixtures, factory-boy, SQLite in-memory, TestDataManager service
+**Uses:**
+- Existing pytest fixtures (auth_fixtures, database_fixtures, page_objects)
+- Existing BugFilingService (GitHub integration)
+- Existing test infrastructure (495+ E2E tests, property tests)
 
-**Implements:** Shared Test Data Management architecture pattern
+### Phase 2: Property-Based Testing Expansion
+**Rationale:** Leverage existing 239 property test files with invariant-first thinking. Low-hanging fruit for bug discovery with minimal infrastructure changes.
 
-### Phase 2: Web E2E Expansion (300+ tests)
-**Rationale:** Web is most critical platform and has existing Playwright infrastructure. Expanding from 30+ to 300+ tests covers all critical user flows before adding mobile/desktop complexity.
+**Delivers:**
+- 50+ new property tests for critical paths (agent execution, LLM routing, episodic memory)
+- API contract invariants (malformed JSON, oversized payloads, response validation)
+- State machine invariants (agent graduation monotonic transitions, episode lifecycle)
+- Security invariants (SQL injection prevention, XSS prevention)
 
-**Delivers:** Comprehensive web E2E test suite covering auth flows, agent interactions, workflow execution, canvas presentations (7 types), episodic memory flows.
+**Addresses:**
+- Property-based testing expansion (table stakes feature)
+- API contract testing (should-have feature)
 
-**Addresses:** Authentication Flow Tests, Agent Execution Critical Path, Canvas Presentation Tests, Workflow Skill Execution
+**Avoids:**
+- Pitfall 2: Property-Based Testing Without Invariant-First Thinking
+- Pitfall 10: Property Tests Without Shrinking
 
-**Uses:** Playwright (existing), API-First Auth Fixtures, Test Data Manager
+**Uses:**
+- Hypothesis (already installed)
+- Existing property test patterns (PROPERTY_TESTING_PATTERNS.md)
+- Schemathesis for OpenAPI contract fuzzing (already in requirements-testing.txt)
 
-**Avoids:** Pitfall 3 (Over-Mocking), Pitfall 5 (Coverage Gaming), Anti-Pattern 1 (Testing Implementation Details)
+### Phase 3: API Fuzzing Infrastructure
+**Rationale:** Add coverage-guided fuzzing for memory safety bugs, distinct from property testing. Builds on property test expansion by adding fuzzing orchestration.
 
-**Implements:** Web E2E Runner architecture pattern
+**Delivers:**
+- FuzzingOrchestrator service for campaign management
+- Fuzzing harnesses for FastAPI endpoints (Atheris/RESTler)
+- Fuzzing campaigns for auth, agent execution, workflow APIs
+- Crash deduplication and bug filing for reproducible crashes
 
-### Phase 3: Mobile API-Level Testing (defer Detox UI)
-**Rationale:** Detox E2E is blocked by expo-dev-client requirement (15min CI overhead). API-level tests provide mobile workflow coverage without infrastructure complexity. Defer Detox UI tests to Phase 150+.
+**Addresses:**
+- Fuzzing with Atheris (table stakes feature)
+- Contract fuzzing for API routes (should-have feature)
 
-**Delivers:** Mobile API-level test suite covering auth, agent execution, workflows, device features (camera, location, notifications) via backend API calls.
+**Avoids:**
+- Pitfall 5: Treating Fuzzing as "More Property Testing"
+- Pitfall 11: Not Using Coverage-Guided Fuzzing
 
-**Addresses:** Cross-Platform Workflow Parity (Web + Mobile API), Authentication Flow Tests
+**Uses:**
+- Atheris (already in requirements-testing.txt)
+- RESTler (stateful REST API fuzzing)
+- OpenAPI spec from FastAPI backend
 
-**Uses:** pytest for backend API testing, existing mobile API endpoints
+### Phase 4: Headless Browser Bug Discovery
+**Rationale:** Extend existing 495+ E2E tests with intelligent exploration agents for automatic UI bug discovery. Builds on Playwright infrastructure.
 
-**Avoids:** Pitfall 7 (Async Event Loop Issues), Detox expo-dev-client blocker
+**Delivers:**
+- ExplorationAgent with heuristic exploration (depth-first, breadth-first, random walk)
+- Bug detection modules (console errors, accessibility violations with axe-core, broken links, visual regression)
+- Form filling with edge cases (null bytes, XSS payloads, SQL injection)
+- API-first authentication integration (10-100x faster)
 
-**Implements:** Mobile API test patterns (defer Mobile E2E Runner to Phase 150+)
+**Addresses:**
+- Headless browser automation (table stakes feature)
+- Visual regression testing (should-have feature)
 
-### Phase 4: Desktop Tauri Integration Tests
-**Rationale:** Desktop testing requires Tauri test infrastructure and GUI context in CI. Add after web and mobile foundations are stable.
+**Avoids:**
+- Pitfall 4: Headless Browser Automation Creating Flaky Tests
 
-**Delivers:** Desktop E2E test suite covering window management, native features (file system, system tray), cross-platform behavior (Win/Mac/Linux).
+**Uses:**
+- Playwright 1.58.0+ (already installed, 495+ E2E tests)
+- Existing E2E fixtures (auth_fixtures.py, page_objects.py)
+- API-first authentication pattern (from E2E_TESTING_PHASE_234.md)
+- Percy for visual regression (NEW addition)
 
-**Addresses:** Desktop Tauri Integration Tests, Cross-Platform Workflow Parity
+### Phase 5: Chaos Engineering Integration
+**Rationale:** Add chaos engineering for failure injection and resilience validation. Requires isolated environment setup to avoid disrupting developers.
 
-**Uses:** Tauri built-in testing (`cargo test`), Playwright with CDP connection or Tauri Driver
+**Delivers:**
+- ChaosCoordinator service for experiment orchestration
+- Failure injection modules (network latency, database connection drops, memory pressure, service crashes)
+- Blast radius controls (isolated test databases, failure injection limits)
+- Recovery validation (data integrity checks, rollback verification)
 
-**Implements:** Desktop E2E Runner architecture pattern
+**Addresses:**
+- Network failure simulation (table stakes feature)
+- Chaos engineering for distributed systems (should-have feature)
 
-### Phase 5: Cross-Platform Orchestration
-**Rationale:** Once platform-specific tests exist, implement unified test runner for coordination, parallelization, and result aggregation. Doing this earlier would require constant refactoring as tests added.
+**Avoids:**
+- Pitfall 3: Chaos Engineering Without Blast Radius Controls
+- Pitfall 12: Chaos Tests Without Verification Steps
 
-**Delivers:** Unified test runner orchestrating web, mobile, and desktop tests with parallelization, cross-platform test reuse framework, CI/CD integration with GitHub Actions matrix strategy.
+**Uses:**
+- Existing chaos_helpers.py (failure simulators)
+- Toxiproxy-Python for real network failures (NEW addition)
+- Isolated test database infrastructure
 
-**Addresses:** Cross-Platform Test Reuse Framework, Parallel Test Execution, Unified Reporting
+### Phase 6: Unified Bug Discovery Pipeline
+**Rationale:** Orchestrate all discovery methods with unified coordinator, result aggregation, and automated bug filing. Brings together all previous phases.
 
-**Uses:** Test Orchestrator, pytest for orchestration, GitHub Actions matrix strategy
+**Delivers:**
+- DiscoveryCoordinator service for unified orchestration
+- Result aggregation (correlate failures across methods)
+- Bug deduplication (merge duplicate bugs by signature)
+- Automated bug triage (severity classification, impact analysis)
+- Bug discovery dashboard (auto-generated weekly reports)
 
-**Implements:** Test Orchestration with Unified Runner architecture pattern, Cross-Platform Test Reuse pattern
+**Addresses:**
+- Automated bug reporting (table stakes feature)
+- Multi-agent fuzzing orchestration (should-have feature)
+- Semantic bug clustering (v2+ feature)
 
-**Avoids:** Pitfall 2 (Fixture Scope Leaks), Pitfall 8 (Test Data Duplicates), Anti-Pattern 2 (Shared State Between Tests)
+**Avoids:**
+- Pitfall 7: Not Creating Feedback Loop from Bugs to Tests
 
-### Phase 6: Stress Testing & Bug Discovery
-**Rationale:** Stress testing requires stable baseline E2E tests. Building on phases 2-5, this phase adds load generation and failure injection to find race conditions and memory leaks.
+**Uses:**
+- All previous phases (property tests, fuzzing, browser automation, chaos)
+- BugFilingService (extend for unified filing)
+- GitHub Issues API for bug filing
 
-**Delivers:** Load generation with k6 (10, 50, 100 concurrent users), failure injection (network delays, DB drops), automated bug filing via GitHub Issues, performance degradation alerts.
+### Phase 7: Memory & Performance Bug Discovery
+**Rationale:** Add specialized bug discovery for memory leaks and performance regressions. Builds on stress testing infrastructure from Phase 236.
 
-**Addresses:** Stress Testing for Bug Discovery, Network Simulation Testing, WebSocket/Streaming Testing, Real User Interaction Simulation
+**Delivers:**
+- Memory leak detection with memray (Python 3.11+)
+- Performance regression detection with pytest-benchmark
+- Heap snapshot comparison for agent execution loops
+- Lighthouse CI integration for web UI performance
 
-**Uses:** k6 for load testing, Chaos tools for failure injection, Octokit for GitHub Issues integration
+**Addresses:**
+- Memory leak detection (should-have feature)
+- Performance regression detection (should-have feature)
 
-**Implements:** Stress Testing with Load Generation pattern, Bug Discovery with Failure Analysis pattern
+**Uses:**
+- memray (Python 3.11+ memory profiler)
+- pytest-benchmark (already in requirements-testing.txt)
+- Existing k6 load testing scripts
+- Lighthouse CI for performance metrics
 
-**Avoids:** Pitfall 1 (Coverage Estimation False Positives), Pitfall 5 (Flaky Tests)
+### Phase 8: Feedback Loops & ROI Tracking
+**Rationale:** Close the loop by converting bug findings to regression tests, tracking effectiveness, demonstrating ROI to stakeholders.
 
-### Phase 7: Advanced Bug Discovery (v7.1)
-**Rationale:** Once stress testing infrastructure is stable, add advanced bug discovery techniques for production-quality testing.
+**Delivers:**
+- Automated regression test generation from bug findings
+- Bug discovery dashboard (weekly reports: bugs found, fixed, regression rate)
+- GitHub issue integration (auto-file issues for new bugs)
+- ROI tracking (time saved, bugs prevented, fix cost vs. discovery cost)
 
-**Delivers:** Visual regression testing with Percy (expanded from 5 to 20+ pages), error boundary testing (401, 500, timeouts), performance regression testing with Lighthouse CI, memory leak detection with CDP.
+**Addresses:**
+- Not creating feedback loop from bugs to tests (moderate pitfall)
 
-**Addresses:** Visual Regression Testing, Error Boundary & Edge Case Testing, Performance Regression Testing, Memory Leak Detection
-
-**Uses:** Percy (existing), Lighthouse CI, Chrome DevTools Protocol (CDP)
+**Uses:**
+- Bug findings from all previous phases
+- GitHub Issues API
+- `tests/regression/` directory for auto-generated tests
 
 ### Phase Ordering Rationale
 
-- **Foundation first (Phase 1)**: Proper test data management, fixtures, and isolation prevents Pitfall 2 (fixture leaks) and Pitfall 8 (duplicate records) which cause flaky tests in parallel execution
-- **Web before mobile/desktop (Phase 2 → 3 → 4)**: Web has existing infrastructure, is most critical platform, and establishes test patterns that can be reused for mobile/desktop
-- **API-level mobile before Detox UI (Phase 3)**: Detox E2E blocked by expo-dev-client requirement, API-level tests provide mobile coverage without 15min CI overhead
-- **Orchestration after platform tests (Phase 5)**: Unified runner requires stable platform-specific tests to orchestrate, building it earlier would require constant refactoring
-- **Stress testing last (Phase 6)**: Stress testing requires stable baseline E2E tests, doing it earlier would waste effort on flaky tests
-- **Advanced features deferred (Phase 7)**: Visual regression, performance testing, memory leak detection are differentiators but not critical for v7.0 launch
+**Why this order:**
+1. **Foundation first** (Phase 1) — Integrating bug discovery into existing test infrastructure prevents silos and ensures adoption. Must be done before adding new discovery methods.
+2. **Low-hanging fruit next** (Phases 2-3) — Property test expansion and API fuzzing build on existing infrastructure, provide quick wins, and establish bug discovery patterns.
+3. **UI bug discovery** (Phase 4) — Extends existing E2E tests, requires minimal new infrastructure, high visibility.
+4. **Chaos engineering** (Phase 5) — Requires isolated environment setup, deferred until foundation solid to avoid disruption.
+5. **Unification** (Phase 6) — Brings together all previous phases, requires all discovery methods working.
+6. **Specialization** (Phase 7) — Memory/performance testing builds on stress testing infrastructure, requires baseline metrics.
+7. **Close the loop** (Phase 8) — Feedback loops and ROI tracking require bug findings from previous phases.
 
-This order avoids Pitfall 5 (Flaky Tests Masking Real Issues) by establishing stable tests first, and Anti-Pattern 6 (E2E Tests for Everything) by focusing on critical paths only (10% E2E, 20% integration, 70% unit).
+**Why this grouping:**
+- Phases 1-3 focus on backend bug discovery (property tests, fuzzing)
+- Phases 4-5 focus on resilience and UI bug discovery (browser automation, chaos)
+- Phases 6-8 focus on orchestration, specialization, and continuous improvement
+
+**How this avoids pitfalls:**
+- Phase 1 addresses Pitfall 1 (separate bug discovery) and Pitfall 8 (fuzzing/chaos on every PR)
+- Phase 2 addresses Pitfall 2 (invariant-first thinking) and Pitfall 10 (shrinking)
+- Phase 3 addresses Pitfall 5 (fuzzing vs. property testing) and Pitfall 11 (coverage-guided fuzzing)
+- Phase 4 addresses Pitfall 4 (flaky browser tests)
+- Phase 5 addresses Pitfall 3 (chaos blast radius) and Pitfall 12 (recovery verification)
+- Phase 8 addresses Pitfall 7 (feedback loops)
 
 ### Research Flags
 
 **Phases likely needing deeper research during planning:**
-- **Phase 3 (Mobile API Testing)**: Mobile API-level testing patterns vs Detox E2E tradeoffs (speed, coverage, maintenance) — MEDIUM confidence, needs validation
-- **Phase 4 (Desktop Tauri Tests)**: Tauri E2E testing patterns with Playwright CDP connection stability — MEDIUM confidence, limited production examples
-- **Phase 5 (Cross-Platform Orchestration)**: Cross-platform test reuse abstractions, shared test logic strategies — MEDIUM confidence, emerging pattern
-- **Phase 6 (Stress Testing)**: Stress test design patterns (concurrent execution scenarios, resource exhaustion), acceptable stress test failure rates — LOW confidence, industry standards unclear
+
+- **Phase 3 (API Fuzzing Infrastructure)**: Atheris + FastAPI integration patterns need validation. Limited examples of Atheris with async endpoints. RESTler primarily designed for C# services, Python integration unclear. Action: Create spike for Atheris/FastAPI fuzzing harness, test crash deduplication strategies.
+
+- **Phase 5 (Chaos Engineering Integration)**: Chaos engineering in GitHub Actions requires container isolation challenges. Running failure injection in CI/CD environment without affecting other tests needs investigation. Action: Research Docker-based chaos isolation, validate Toxiproxy integration with existing chaos_helpers.py.
+
+- **Phase 6 (Unified Bug Discovery Pipeline)**: Result correlation across different discovery methods (fuzzing crashes, chaos failures, property test violations) needs investigation. Deduplication by error signature may miss cross-method duplicates. Action: Research bug signature normalization strategies, prototype result aggregator.
+
+- **Phase 7 (Memory & Performance Bug Discovery)**: memray requires Python 3.11+ only — verify CI/CD runner Python versions. Lighthouse CI integration with Next.js frontend needs validation. Action: Check CI/CD runner Python versions, test memray integration, validate Lighthouse CI setup.
 
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Test Infrastructure)**: Well-documented pytest patterns, factory-boy documentation — HIGH confidence
-- **Phase 2 (Web E2E Expansion)**: Playwright official docs, existing Atom v3.1 E2E implementation — HIGH confidence
-- **Phase 7 (Advanced Bug Discovery)**: Percy, Lighthouse CI, CDP documentation — HIGH confidence
+
+- **Phase 1 (Foundation)**: Well-documented pytest patterns, test quality standards established in TEST_QUALITY_STANDARDS.md. CI separation is standard practice (fast PR tests vs. slow scheduled tests).
+
+- **Phase 2 (Property-Based Testing Expansion)**: Hypothesis extensively documented, PROPERTY_TESTING_PATTERNS.md provides 7 documented patterns. Invariant-first thinking is established practice.
+
+- **Phase 4 (Headless Browser Bug Discovery)**: Playwright well-documented, 495+ E2E tests provide patterns. API-first authentication (10-100x faster) established in E2E_TESTING_PHASE_234.md.
+
+- **Phase 8 (Feedback Loops & ROI Tracking)**: Regression test generation is standard practice. Dashboard generation and GitHub issue integration are straightforward.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | Web/pytest: HIGH (Playwright official docs, existing v3.1 implementation). Mobile/Desktop/Stress: MEDIUM (limited by web search rate limiting, Detox expo-dev-client blocker) |
-| Features | **HIGH** | Based on official docs (Playwright, Detox, k6), existing Atom v3.1 E2E implementation (30+ tests, Percy), codebase analysis (61 shipped phases), industry best practices |
-| Architecture | **HIGH** | Based on official docs (Playwright, Detox, Tauri, GitHub Actions, k6, factory-boy), existing Atom architecture (Python backend, Next.js frontend, React Native mobile, Tauri desktop), industry best patterns |
-| Pitfalls | **HIGH** | Based on pytest/coverage.py official docs, existing Atom coverage analysis (71.5 point gap), Atom's pytest.ini configuration, conftest.py patterns, industry best practices |
+| Stack | HIGH | Based on existing Atom infrastructure analysis (495+ E2E tests, 239 property test files, k6 load testing, chaos_helpers.py). All recommendations are enhancements to existing tools, not new technology introductions. Official documentation verified for Atheris, Hypothesis, Schemathesis, Playwright. |
+| Features | HIGH | Based on comprehensive existing implementation analysis (v7.0 shipped March 24, 2026). Table stakes features already implemented (fuzzing, property tests, load testing, network simulation, browser automation, automated bug filing). Differentiators informed by AI automation platform domain patterns. |
+| Architecture | HIGH | Based on existing Atom architecture (FastAPI + SQLAlchemy 2.0 + PostgreSQL, agent governance, LLM routing, episodic memory). Integration points well-understood (OpenAPI spec, pytest fixtures, BugFilingService). Architectural patterns (orchestrators, coordinators, agents) follow established service-oriented patterns. |
+| Pitfalls | MEDIUM | Based on documented testing patterns (FLAKY_TEST_GUIDE.md, TEST_QUALITY_STANDARDS.md, PROPERTY_TESTING_PATTERNS.md) and general testing best practices. Web search unavailable due to rate limiting, some pitfalls based on general experience rather than Atom-specific validation. Chaos engineering pitfalls need team validation (isolated environment setup). |
 
-**Overall confidence:** **HIGH** (mix of official documentation, existing implementation verification, codebase analysis, industry best practices)
+**Overall confidence:** HIGH
+
+**Why HIGH despite MEDIUM pitfalls:**
+- Stack, Features, Architecture are HIGH confidence based on extensive existing implementation
+- Pitfalls are MEDIUM primarily due to web search rate limiting, not lack of domain knowledge
+- Existing test infrastructure documentation (FLAKY_TEST_GUIDE, TEST_QUALITY_STANDARDS, PROPERTY_TESTING_PATTERNS) provides HIGH-confidence patterns
+- All recommendations are incremental enhancements to existing infrastructure, not greenfield development
 
 ### Gaps to Address
 
-- **Stress test design patterns**: Need patterns for concurrent agent executions, rapid canvas iterations, WebSocket churn scenarios — MEDIUM confidence, limited E2E stress testing examples
-- **Cross-platform test reuse abstractions**: Need to design framework for shared workflow definitions, platform adapters — MEDIUM confidence, emerging pattern with few production examples
-- **Mobile API-level testing vs Detox E2E**: Need to validate API-level approach tradeoffs (speed, coverage, maintenance) — MEDIUM confidence, defer Detox to Phase 150+ due to expo-dev-client blocker
-- **Tauri Playwright integration stability**: Need to validate CDP connection patterns for desktop E2E — MEDIUM confidence, limited production examples
-- **Automated bug filing thresholds**: Risk of GitHub Issues noise, false positives in automated bug filing — need to define reproduction criteria (2+ failures)
+**Gaps identified during research:**
 
-**How to handle during planning/execution:**
-- Phase-specific `/gsd:research-phase` for stress test design (Phase 6), cross-platform test reuse (Phase 5), Tauri integration (Phase 4)
-- Validation spikes for mobile API-level testing patterns (Phase 3) before committing to approach
-- Conservative bug filing thresholds (require 3+ reproductions) to avoid GitHub Issues noise
-- Incremental implementation: start with web E2E (Phase 2) before adding cross-platform complexity
+1. **Atheris + FastAPI Integration Patterns**: Limited examples of Atheris with async FastAPI endpoints. **How to handle**: Create Phase 3 spike for Atheris/FastAPI fuzzing harness, test with 2-3 endpoints before full implementation. Verify crash deduplication strategies work with async code.
+
+2. **RESTler Python Integration**: RESTler primarily designed for C# services. **How to handle**: Evaluate RESTler vs. pure Python Atheris for API fuzzing. Consider using Schemathesis (already in requirements-testing.txt) for protocol-aware API fuzzing instead of RESTler.
+
+3. **Chaos Engineering Isolation in CI/CD**: Running failure injection in GitHub Actions without affecting other tests. **How to handle**: Research Docker-based chaos isolation for Phase 5. Consider using GitHub Actions `concurrency` locks to ensure only one chaos test run at a time. Validate Toxiproxy integration with existing chaos_helpers.py.
+
+4. **memray Python 3.11+ Requirement**: memray requires Python 3.11+ only. **How to handle**: Verify CI/CD runner Python versions before Phase 7. If runners use Python 3.10, fallback to tracemalloc (stdlib) for memory leak detection. Personal Edition defaults to Python 3.11 (verify).
+
+5. **Cross-Method Bug Deduplication**: Correlating failures across fuzzing crashes, chaos failures, and property test violations. **How to handle**: Research bug signature normalization strategies in Phase 6. Prototype result aggregator with sample bugs from each method. Consider LLM-based semantic deduplication (v2+ feature).
+
+6. **Percy Integration for Visual Regression**: Percy requires CI/CD setup and API token. **How to handle**: Sign up for Percy project during Phase 4 setup, add `PERCY_TOKEN` to GitHub secrets. Verify Percy works with Playwright screenshots (not Selenium-specific).
+
+**Low-priority gaps (can defer to v2+):**
+- Multi-agent fuzzing orchestration: Requires training data on effective fuzzing strategies
+- Semantic bug clustering: Requires 500+ filed bugs for clustering accuracy
+- Predictive bug discovery: Requires 1000+ bugs with code location metadata
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Playwright Python Documentation](https://playwright.dev/python/) - Authoritative E2E testing patterns, auto-waiting, selectors
-- [Atom E2E Testing Guide](/Users/rushiparikh/projects/atom/docs/E2E_TESTING_GUIDE.md) - Comprehensive E2E setup, patterns, troubleshooting (March 7, 2026)
-- [Atom v3.1 E2E Implementation](/Users/rushiparikh/projects/atom/backend/tests/e2e_ui/) - 30+ production E2E tests, fixtures, page objects, flaky test detection
-- [pytest Fixtures Documentation](https://docs.pytest.org/en/stable/how-to/fixtures.html) - Fixture scopes, teardown, finalizers, yield patterns
-- [Coverage.py Documentation](https://coverage.readthedocs.io/) - Line vs branch coverage, exclude patterns, reporting
-- [Atom Backend Coverage Reports](/Users/rushiparikh/projects/atom/backend/coverage.json) - Actual coverage data: episode_segmentation_service.py at 27.41% line coverage
-- [Atom pytest.ini Configuration](/Users/rushiparikh/projects/atom/backend/pytest.ini) - Flaky test reruns, branch coverage enabled
-- [Detox Documentation](https://wix.github.io/Detox/) - React Native gray-box E2E testing framework
-- [k6 Documentation](https://k6.io/docs/) - Load testing and stress testing framework
-- [Tauri Testing Guide](https://tauri.app/v1/guides/testing/) - Official Tauri testing documentation
+
+**Official Documentation:**
+- Atheris (https://github.com/google/atheris) — Coverage-guided fuzzing for Python
+- Hypothesis (https://hypothesis.works/) — Property-based testing framework for Python
+- Schemathesis (https://schemathesis.readthedocs.io/) — API contract testing via OpenAPI
+- Playwright (https://playwright.dev/python/) — Browser automation for Python
+- memray (https://bloomberg.github.io/memray/) — Memory profiler for Python 3.11+
+- Percy (https://percy.io/integrations/python) — Visual regression testing
+- pytest-benchmark (https://pytest-benchmark.readthedocs.io/) — Performance benchmarking
+- Toxiproxy (https://toxiproxy.io/) — Network chaos simulation
+
+**Internal Documentation:**
+- `CLAUDE.md` — Atom project architecture and features (1,692 test files, v7.0 milestone)
+- `backend/docs/TEST_QUALITY_STANDARDS.md` — TQ-01 through TQ-05 test quality standards
+- `backend/docs/PROPERTY_TESTING_PATTERNS.md` — Property testing patterns catalog (7 documented patterns)
+- `backend/tests/docs/FLAKY_TEST_GUIDE.md` — Flaky test prevention strategies
+- `backend/docs/E2E_TESTING_PHASE_234.md` — E2E testing infrastructure (91 tests, API-first auth)
+- `backend/docs/STRESS_TESTING_CI_CD.md` — Load testing and stress testing setup (k6 scripts)
+- `.planning/MILESTONES.md` — v7.0 milestone (495+ tests, bug discovery goals)
+
+**Existing Implementation Analysis:**
+- 239 property test files in `/backend/tests/property_tests/` (113,598 lines)
+- 495+ E2E tests in `/backend/tests/e2e_ui/` (Phase 236 v7.0)
+- `/backend/tests/fuzzy_tests/fuzz_helpers.py` — Atheris wrapper utilities
+- `/backend/tests/chaos/chaos_helpers.py` — Failure simulators
+- `/backend/tests/load/` — k6 load testing scripts (baseline, moderate, high, web UI)
+- `/backend/tests/bug_discovery/bug_filing_service.py` — BugFilingService with GitHub integration
 
 ### Secondary (MEDIUM confidence)
-- Atom CI/CD Pipeline - GitHub Actions workflows, deployment automation, health checks
-- Atom Monitoring Setup - `/Users/rushiparikh/projects/atom/backend/docs/MONITORING_SETUP.md` - Health check endpoints, Prometheus metrics
-- Atom Deployment Runbook - `/Users/rushiparikh/projects/atom/backend/docs/DEPLOYMENT_RUNBOOK.md` - Deployment procedures, rollback strategies
-- Percy Documentation - Visual regression testing best practices
-- pytest-xdist Documentation - Parallel test execution, worker isolation
-- Factory Boy Documentation - Test data factory patterns
-- Cross-Platform Testing Patterns - Shared test logic across platforms, platform-specific abstractions
-- Stress Testing Best Practices - Load generation, failure injection, chaos engineering
+
+**Industry Best Practices:**
+- Property-Based Testing: Finding bugs with random inputs (Hypothesis patterns)
+- Fuzzing: Coverage-guided fuzzing with AFL/libFuzzer (Atheris implementation)
+- Chaos Engineering: Principles of Chaos community (blast radius controls)
+- Test Quality Standards: Test independence, pass rate, performance, determinism
+
+**Experience-Based Analysis:**
+- Common pitfalls in adding automated bug discovery to existing platforms
+- Integration challenges when extending test infrastructure
+- Organizational resistance to "new" testing approaches
+- CI/CD separation patterns (fast PR tests vs. slow scheduled tests)
 
 ### Tertiary (LOW confidence)
-- Stress testing patterns for E2E - Limited examples of stress testing in E2E suites (most use separate load testing tools)
-- Network simulation in E2E - Playwright `context.route()` documented, but production patterns not widely available
-- Cross-platform test reuse frameworks - Emerging pattern, few production examples of shared test logic across platforms
-- Mobile Detox E2E best practices - BLOCKED by expo-dev-client requirement, deferred to Phase 150+
-- Tauri Playwright integration - Tauri supports CDP but Playwright driver stability unknown
+
+**Web Search Limited (Rate Limiting):**
+- 2026 fuzzing tool landscape updates (not verified)
+- Latest chaos engineering tools for Python/FastAPI (not verified)
+- Property-based testing adoption in AI/ML systems (not verified)
+- Competitor analysis for AI-enhanced bug discovery (not verified)
+
+**Action:** Verify with team before major decisions, especially fuzzing toolchain selection (Atheris vs. AFL++ vs. libFuzzer) and chaos engineering isolation strategies (Docker vs. network namespaces vs. separate VMs).
 
 ---
-*Research completed: March 23, 2026*
-*Ready for roadmap: yes*
+
+**Research completed:** March 24, 2026
+**Ready for roadmap:** yes
+**Synthesized by:** GSD research synthesizer agent
+**Synthesized from:** STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS_BUG_DISCOVERY.md
