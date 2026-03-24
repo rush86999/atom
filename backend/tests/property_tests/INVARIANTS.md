@@ -1037,6 +1037,302 @@ Let max_i = max(I)
 
 ---
 
+### Phase 238 Episodic Memory Property Tests (NEW)
+
+**Added:** 2026-03-24 (Phase 238 Plan 03)
+
+**Test Files:**
+- `tests/property_tests/episodic_memory/test_segmentation_contiguity.py`
+- `tests/property_tests/episodic_memory/test_retrieval_ranking.py`
+- `tests/property_tests/episodic_memory/test_lifecycle_transitions.py`
+
+#### Invariant: Segments Are Contiguous With No Gaps
+
+**Formal Specification:**
+```
+For episode with messages M = [m₁, m₂, ..., mₙ] sorted by timestamp:
+  Let segments = segment(M)
+  Let S = {s.start_time | s ∈ segments} ∪ {s.end_time | s ∈ segments}
+
+  Coverage: min(S) ≤ m₁.timestamp AND max(S) ≥ mₙ.timestamp
+  No gaps: ∀ consecutive segments seg_a, seg_b: seg_a.end ≥ seg_b.start
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Segments must cover full episode timeline with no gaps. Missing gaps cause context loss for agents.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segments_are_contiguous_no_gaps`
+
+**Mathematical Definition:**
+```
+Let segments = [s₁, s₂, ..., sₖ]
+Let timestamps = {s.start, s.end | s ∈ segments}
+
+min(timestamps) ≤ m₁.timestamp ∧ max(timestamps) ≥ mₙ.timestamp
+∀ i ∈ {1, ..., k-1}: segments[i].end ≥ segments[i+1].start
+```
+
+---
+
+#### Invariant: Segments Do Not Overlap
+
+**Formal Specification:**
+```
+For any two segments seg_a and seg_b where order(seg_a) < order(seg_b):
+  seg_a.end_time < seg_b.start_time (non-overlapping)
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Overlapping segments cause double-counting and unclear temporal boundaries.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segments_do_not_overlap`
+
+**Mathematical Definition:**
+```
+∀ seg_a, seg_b ∈ segments:
+  order(seg_a) < order(seg_b) ⟹ seg_a.end < seg_b.start
+```
+
+---
+
+#### Invariant: Segmentation Splits On Time Gaps
+
+**Formal Specification:**
+```
+For consecutive messages mᵢ, mᵢ₊₁ with gap g:
+  boundary_created(g) ⟺ g > THRESHOLD
+
+Where THRESHOLD = 30 minutes (exclusive)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Time gap boundary detection uses exclusive threshold to prevent over-segmentation.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segmentation_on_time_gaps`
+
+**Mathematical Definition:**
+```
+Let g = (mᵢ₊₁.timestamp - mᵢ.timestamp) in minutes
+Let T = 30
+
+boundary_at(i) ⟺ g > T
+```
+
+---
+
+#### Invariant: Segmentation Preserves Message Order
+
+**Formal Specification:**
+```
+For each segment S in episode:
+  Let messages = [m₁, m₂, ..., mₖ] from S
+
+  Monotonicity: sequence_id(m₁) < sequence_id(m₂) < ... < sequence_id(mₖ)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Message order must be preserved to maintain causality and conversation flow.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segmentation_preserves_message_order`
+
+**Mathematical Definition:**
+```
+∀ segment S:
+  ∀ i, j ∈ {1, ..., |S|}:
+    i < j ⟹ sequence_id(mᵢ) < sequence_id(mⱼ)
+```
+
+---
+
+#### Invariant: Semantic Retrieval Ranks Relevant Higher
+
+**Formal Specification:**
+```
+For semantic retrieval results R = [(e₁, s₁), (e₂, s₂), ..., (eₙ, sₙ)]:
+  Monotonic similarity: s₁ ≥ s₂ ≥ s₃ ≥ ... ≥ sₙ
+
+Where sᵢ = similarity_score(query, episodeᵢ.content)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Agents receive most relevant episodes first, improving context quality.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_semantic_retrieval_ranks_relevant_higher`
+
+**Mathematical Definition:**
+```
+Let ranked = sort_by_similarity(episodes, query)
+
+∀ i ∈ {1, ..., n-1}: similarity(ranked[i]) ≥ similarity(ranked[i+1])
+```
+
+---
+
+#### Invariant: Temporal Retrieval Sorts By Recency
+
+**Formal Specification:**
+```
+For temporal retrieval results R = [e₁, e₂, ..., eₙ]:
+  Temporal order: e₁.started_at ≥ e₂.started_at ≥ ... ≥ eₙ.started_at
+
+(Newest episodes first - descending timestamp order)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Most recent context is typically more relevant for task continuation.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_temporal_retrieval_sorts_by_recency`
+
+**Mathematical Definition:**
+```
+∀ i ∈ {1, ..., n-1}: episodes[i].started_at ≥ episodes[i+1].started_at
+```
+
+---
+
+#### Invariant: Retrieval Results Size Within Limit
+
+**Formal Specification:**
+```
+For retrieval with limit L and available episodes N:
+  |retrieved_episodes| ≤ L
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Prevents memory overload and ensures predictable response sizes.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_retrieval_results_size_within_limit`
+
+**Mathematical Definition:**
+```
+Let retrieved = retrieve(limit=L)
+
+|retrieved| ≤ L
+|retrieved| ≤ N (available episodes)
+```
+
+---
+
+#### Invariant: Contextual Retrieval Combines Temporal Semantic
+
+**Formal Specification:**
+```
+For contextual retrieval with similarity weight w:
+  Let score(e) = w * semantic_sim(e) + (1-w) * temporal_recency(e)
+
+  Bounded: 0.0 ≤ score(e) ≤ 1.0
+  Ranked: score(e₁) ≥ score(e₂) ≥ ... ≥ score(eₙ)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Balanced retrieval considers both relevance and freshness.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_contextual_retrieval_combines_temporal_semantic`
+
+**Mathematical Definition:**
+```
+Let score(e) = w * semantic(e) + (1-w) * temporal(e)
+
+∀ e: 0.0 ≤ score(e) ≤ 1.0
+∀ i, j: i < j ⟹ score(eᵢ) ≥ score(eⱼ)
+```
+
+---
+
+#### Invariant: Episode Lifecycle Is Valid DAG
+
+**Formal Specification:**
+```
+States = {ACTIVE, ARCHIVED, DELETED}
+Transitions = {
+  (ACTIVE, ARCHIVED),
+  (ACTIVE, DELETED),
+  (ARCHIVED, ACTIVE),
+  (ARCHIVED, DELETED)
+}
+
+No cycles: No path from DELETED back to ACTIVE/ARCHIVED
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Prevents data corruption and ensures clear lifecycle semantics.
+
+**Test Location:** `test_lifecycle_transitions.py::TestLifecycleTransitions::test_episode_lifecycle_is_valid_dag`
+
+**Mathematical Definition:**
+```
+Let G = (V, E) be lifecycle graph where V = States, E = Transitions
+
+∄ path p = [v₁, v₂, ..., vₖ] in G:
+  v₁ = DELETED ∧ vₖ ∈ {ACTIVE, ARCHIVED}
+```
+
+---
+
+#### Invariant: Archived Episodes Preserve Data
+
+**Formal Specification:**
+```
+For episode e with metadata M before archiving:
+  Let e_archived = archive(e)
+
+  Data preservation: e_archived.metadata = M
+                   e_archived.segments = e.segments
+                   e_archived.feedback = e.feedback
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Archiving must preserve all episode data for audit trails and recovery.
+
+**Test Location:** `test_lifecycle_transitions.py::TestLifecycleTransitions::test_archived_episodes_preserve_data`
+
+**Mathematical Definition:**
+```
+Let M = e.metadata (before archive)
+Let M' = archive(e).metadata (after archive)
+
+M = M' (exact equality, no data loss)
+```
+
+---
+
+#### Invariant: Deleted Episodes Are Soft Deleted
+
+**Formal Specification:**
+```
+For deleted episode e:
+  Soft deletion: e.deleted_at is not None
+                e.deleted_at >= deletion_time
+                e.id is not None (record exists)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Soft deletion enables audit trails and data recovery.
+
+**Test Location:** `test_lifecycle_transitions.py::TestLifecycleTransitions::test_deleted_episodes_are_soft_deleted`
+
+**Mathematical Definition:**
+```
+Let e' = delete(e)
+
+e'.deleted_at ≠ NULL
+e'.deleted_at ≥ deletion_time
+e'.id = e.id (record preserved)
+```
+
+---
+
 ## Financial Invariants
 
 Financial invariants ensure money calculations and accounting rules are correct. These are **CRITICAL** for business operations and regulatory compliance.
