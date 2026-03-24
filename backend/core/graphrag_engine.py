@@ -195,15 +195,16 @@ class GraphRAGEngine:
     ) -> tuple[List[Entity], List[Relationship]]:
         """
         Extract entities and relationships using LLMService.
-
-        Uses unified LLM interface for BYOK support, provider selection,
-        and cost tracking. JSON mode requested via system prompt.
-
-        Cost tracking consideration:
-        - GraphRAG entity/relationship extraction can be expensive (~$0.01-0.10 per document)
-        - LLMService.generate_completion tracks tokens/cost automatically via unified telemetry
-        - Consider adding monitoring alerts for high-cost GraphRAG operations
+        Dynamic: Includes user-defined entity types in the prompt.
         """
+        # Load custom entity types to guide extraction
+        custom_registry = self._load_custom_entity_types(workspace_id)
+        custom_types_info = ""
+        if custom_registry:
+            custom_types_info = "\nCustom Entity Types to also look for:\n"
+            for slug, info in custom_registry.items():
+                custom_types_info += f"- {info['display_name']} ({slug}): {info.get('description', 'Custom type')}\n"
+
         prompt = f"""Analyze the following text and extract knowledge graph elements.
 Respond with valid JSON only.
 
@@ -212,9 +213,16 @@ Text:
 {text[:6000]}
 \"\"\"
 
+{custom_types_info}
+
 JSON Schema:
 {{
-  "entities": [{{"name": "string", "type": "string", "description": "string", "canonical_type": "string (optional: user, workspace, goal, project, task)"}}],
+  "entities": [{{
+    "name": "string", 
+    "type": "string (One of the standard types or custom types above)", 
+    "description": "string", 
+    "canonical_type": "string (optional: user, workspace, goal, project, task, or any custom slug)"
+  }}],
   "relationships": [{{"from": "string", "to": "string", "type": "string", "description": "string"}}]
 }}"""
 
@@ -604,9 +612,11 @@ JSON Schema:
                 
                 session.commit()
                 logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges.")
+                return {"entities": len(entities), "relationships": len(relationships)}
             except Exception as e:
                 session.rollback()
                 logger.error(f"Structured ingestion failed: {e}")
+                return {"entities": 0, "relationships": 0}
 
     # ==================== READ OPERATIONS (SQL) ====================
 

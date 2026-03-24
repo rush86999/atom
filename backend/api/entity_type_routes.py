@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from core.base_routes import BaseAPIRouter
 from core.entity_type_service import get_entity_type_service
+from core.entity_schema_suggestion_service import get_entity_schema_suggestion_service
 
 router = BaseAPIRouter(prefix="/api/entity-types", tags=["Entity Types"])
 
@@ -26,6 +27,10 @@ class EntityTypeUpdate(BaseModel):
     json_schema: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
     available_skills: Optional[List[str]] = None
+
+class EntityTypeSuggestRequest(BaseModel):
+    display_name: str
+    description: str = ""
 
 # --- Route Handlers ---
 
@@ -106,3 +111,13 @@ async def update_entity_type(workspace_id: str, entity_type_id: str, request: En
         )
     except ValueError as e:
         raise router.validation_error("entity_type", str(e))
+
+@router.post("/suggest-schema")
+async def suggest_entity_schema(request: EntityTypeSuggestRequest):
+    """Suggest a JSON Schema for an entity type."""
+    service = get_entity_schema_suggestion_service()
+    schema = await service.suggest_schema(
+        display_name=request.display_name,
+        description=request.description
+    )
+    return router.success_response(data=schema)

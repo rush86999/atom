@@ -6,12 +6,15 @@ from typing import Any, Dict, List, Optional
 
 from core.byok_endpoints import get_byok_manager
 
+from core.database import get_db_session
+from core.models import EntityTypeDefinition
+
 logger = logging.getLogger(__name__)
 
 class KnowledgeExtractor:
     """
     Extracts structured entities and relationships from text using LLMs.
-    Targets Persons, Projects, Tasks, Files, and Decisions.
+    Targets canonical entities and user-defined custom entity types.
     SECURITY: Redacts secrets before processing to prevent leakage.
     """
     
@@ -26,29 +29,72 @@ class KnowledgeExtractor:
             self.redactor = None
             logger.warning("Secrets redactor not available in KnowledgeExtractor")
 
-    async def extract_knowledge(self, text: str, source: str = "unknown") -> Dict[str, Any]:
+    async def _get_custom_entity_types(self, tenant_id: Optional[str]) -> List[Dict[str, Any]]:
+        """Fetch active custom entity types for the tenant."""
+        if not tenant_id:
+            return []
+            
+        with get_db_session() as session:
+            try:
+                custom_types = session.query(EntityTypeDefinition).filter(
+                    EntityTypeDefinition.tenant_id == tenant_id,
+                    EntityTypeDefinition.is_active == True,
+                    EntityTypeDefinition.is_system == False
+                ).all()
+                return [
+                    {
+                        "slug": t.slug,
+                        "display_name": t.display_name,
+                        "description": t.description,
+                        "schema": t.json_schema
+                    }
+                    for t in custom_types
+                ]
+            except Exception as e:
+                logger.error(f"Failed to fetch custom entity types: {e}")
+                return []
+
+    async def extract_knowledge(self, text: str, tenant_id: Optional[str] = None, source: str = "unknown") -> Dict[str, Any]:
         """
         Processes text to extract a structured knowledge graph.
+        Dynamic: Includes user-defined entity types in the prompt.
         """
-        system_prompt = """
+        # Base entities
+        base_entities = [
+            "Person (name, role, organization, is_stakeholder: bool)",
+            "Project (name, status)",
+            "Task (description, status, owner)",
+            "File (filename, type)",
+            "Decision (summary, context, date, impact_level)",
+            "Organization (name)",
+            "Transaction (amount, currency, merchant, date, category)",
+            "Invoice (invoice_number, amount, recipient, status, due_date)",
+            "Lead (name, company, email, score, external_id)",
+            "Deal (name, value, stage, health_score, external_id)",
+            "Quote (id, amount, items, terms, status: [requested, offered])",
+            "PurchaseOrder (id, items, total_amount, vendor, shipping_address)",
+            "SalesOrder (id, order_number, total_amount, items)",
+            "Shipment (tracking_number, carrier, status, estimated_delivery)",
+            "BusinessRule (description, type, value, applies_to)"
+        ]
+
+        # Fetch and append custom entities
+        custom_types = await self._get_custom_entity_types(tenant_id)
+        for ct in custom_types:
+            type_desc = f"{ct['display_name']} ({ct['description'] or 'Custom entity type'})"
+            # Add schema hints if possible
+            if ct['schema'] and 'properties' in ct['schema']:
+                props = ", ".join(ct['schema']['properties'].keys())
+                type_desc += f" - Fields: [{props}]"
+            base_entities.append(type_desc)
+
+        entities_prompt = "\n        - ".join(base_entities)
+
+        system_prompt = f"""
         You are a Knowledge Graph Extraction Agent. Your goal is to analyze the provided text and extract a structured set of Entities and Relationships.
         
         **Target Entities:**
-        - Person (name, role, organization, is_stakeholder: bool)
-        - Project (name, status)
-        - Task (description, status, owner)
-        - File (filename, type)
-        - Decision (summary, context, date, impact_level)
-        - Organization (name)
-        - Transaction (amount, currency, merchant, date, category)
-        - Invoice (invoice_number, amount, recipient, status, due_date)
-        - Lead (name, company, email, score, external_id)
-        - Deal (name, value, stage, health_score, external_id)
-        - Quote (id, amount, items, terms, status: [requested, offered])
-        - PurchaseOrder (id, items, total_amount, vendor, shipping_address)
-        - SalesOrder (id, order_number, total_amount, items)
-        - Shipment (tracking_number, carrier, status, estimated_delivery)
-        - BusinessRule (description, type, value, applies_to)
+        - {entities_prompt}
         
         **Target Relationships & Intents:**
         - PARTICIPATED_IN (Person -> Meeting/Decision)
@@ -60,15 +106,15 @@ class KnowledgeExtractor:
         - LINKS_TO_EXTERNAL (Entity -> external_system_id): Map to CRM/ERP IDs if mentioned.
         
         **Output Format (JSON strictly):**
-        {
+        {{
           "entities": [
-            {"id": "unique_id", "type": "Person", "properties": {"name": "...", "role": "...", "is_stakeholder": true/false}}
+            {{"id": "unique_id", "type": "Person", "properties": {{"name": "...", "role": "...", "is_stakeholder": true/false}}}}
           ],
           "relationships": [
-            {"from": "id1", "to": "id2", "type": "OWNS", "properties": {}},
-            {"from": "msg_id", "to": "intent_type", "type": "INTENT", "properties": {"confidence": 0.9}}
+            {{"from": "id1", "to": "id2", "type": "OWNS", "properties": {{}}}},
+            {{"from": "msg_id", "to": "intent_type", "type": "INTENT", "properties": {{"confidence": 0.9}}}}
           ]
-        }
+        }}
         
         **Important:** Deduplicate entities. If "John" and "John Doe" refer to the same person, use a single ID. Correctly identify hierarchy (REPORTS_TO) and those with key roles (STAKEHOLDER_OF).
         """

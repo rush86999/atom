@@ -5,7 +5,16 @@ import { useSession } from 'next-auth/react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { EntityTypeCard } from './EntityTypeCard';
-import { Loader2, Search, AlertCircle, Type, RefreshCw } from 'lucide-react';
+import { Loader2, Search, AlertCircle, Type, RefreshCw, Plus, Download, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import EntityTypeForm from './EntityTypeForm';
+import { EntityTypeImportExport } from './EntityTypeImportExport';
 import { cn } from '@/lib/utils';
 
 interface EntityType {
@@ -25,7 +34,6 @@ interface EntityType {
 
 interface EntityTypeListProps {
   refreshTrigger?: number;
-  onSkillToggle?: (entityTypeId: string, skillId: string, enabled: boolean) => void;
 }
 
 /**
@@ -33,7 +41,6 @@ interface EntityTypeListProps {
  */
 export const EntityTypeList: React.FC<EntityTypeListProps> = ({
   refreshTrigger,
-  onSkillToggle,
 }) => {
   const { data: session } = useSession();
   const [entityTypes, setEntityTypes] = useState<EntityType[]>([]);
@@ -41,6 +48,10 @@ export const EntityTypeList: React.FC<EntityTypeListProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterSystem, setFilterSystem] = useState(false);
+  
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+  const [editingEntityType, setEditingEntityType] = useState<EntityType | null>(null);
 
   const workspaceId = (session as any)?.user?.workspace_id || 'default';
 
@@ -56,7 +67,6 @@ export const EntityTypeList: React.FC<EntityTypeListProps> = ({
         },
       });
 
-      // Handle both success structure and direct array
       const data = response.data.success ? response.data.data : response.data;
       setEntityTypes(Array.isArray(data) ? data : (data.entity_types || []));
     } catch (err) {
@@ -114,24 +124,53 @@ export const EntityTypeList: React.FC<EntityTypeListProps> = ({
           <span>Include System Types</span>
         </label>
 
-        {(search || filterSystem) && (
-          <button
-            onClick={handleClearFilters}
-            className="px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
-          >
-            Clear Filters
-          </button>
-        )}
+        <div className="flex gap-2">
+          {(search || filterSystem) && (
+            <button
+              onClick={handleClearFilters}
+              className="px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
+            >
+              Clear
+            </button>
+          )}
 
-        <button
-          onClick={fetchEntityTypes}
-          disabled={loading}
-          className="p-2 bg-white/5 border border-white/10 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
-          title="Refresh entity types"
-        >
-          <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
-        </button>
+          <button
+            onClick={fetchEntityTypes}
+            disabled={loading}
+            className="p-2 bg-white/5 border border-white/10 rounded-lg text-muted-foreground hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+            title="Refresh entity types"
+          >
+            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+          </button>
+
+          <Button
+            onClick={() => setIsImportExportOpen(true)}
+            variant="outline"
+            className="bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-primary text-xs font-bold gap-2 hover:bg-primary/10 transition-colors uppercase"
+          >
+            <Download className="w-4 h-4" />
+            Portability
+          </Button>
+
+          <Button
+            onClick={() => {
+              setEditingEntityType(null);
+              setIsFormOpen(true);
+            }}
+            className="bg-primary hover:bg-primary/90 text-white font-bold text-xs gap-2 shadow-lg shadow-primary/20 uppercase"
+          >
+            <Plus className="w-4 h-4" />
+            Create Entity Type
+          </Button>
+        </div>
       </div>
+
+      <EntityTypeImportExport
+        isOpen={isImportExportOpen}
+        onClose={() => setIsImportExportOpen(false)}
+        entityTypes={entityTypes}
+        onImportComplete={fetchEntityTypes}
+      />
 
       <div className="text-sm text-muted-foreground">
         Showing {filteredEntityTypes.length} of {entityTypes.length} entity type
@@ -176,20 +215,49 @@ export const EntityTypeList: React.FC<EntityTypeListProps> = ({
           {filteredEntityTypes.map((entityType) => (
             <EntityTypeCard
               key={entityType.id}
-              id={entityType.id}
-              slug={entityType.slug}
-              display_name={entityType.display_name}
-              description={entityType.description}
-              json_schema={entityType.json_schema}
-              is_system={entityType.is_system}
-              version={entityType.version}
-              created_at={entityType.created_at}
-              updated_at={entityType.updated_at}
-              available_skills={entityType.available_skills}
+              entityType={entityType}
+              onEdit={() => {
+                setEditingEntityType(entityType);
+                setIsFormOpen(true);
+              }}
             />
           ))}
         </div>
       )}
+
+      {/* Create/Edit Form Dialog */}
+      <Dialog 
+        open={isFormOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsFormOpen(false);
+            setEditingEntityType(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl bg-zinc-900 border-white/10 p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-xl font-bold text-white">
+              {editingEntityType ? 'Edit Entity Type' : 'Create New Entity Type'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-6">
+            <EntityTypeForm
+              entityType={editingEntityType}
+              workspaceId={workspaceId}
+              onSuccess={() => {
+                setIsFormOpen(false);
+                setEditingEntityType(null);
+                fetchEntityTypes();
+              }}
+              onCancel={() => {
+                setIsFormOpen(false);
+                setEditingEntityType(null);
+              }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
