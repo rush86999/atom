@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Automated bug discovery through comprehensive QA testing (fuzzing, chaos engineering, property-based testing, headless browser automation)
-**Current focus:** Phase 238 - Property-Based Testing Expansion
+**Current focus:** Phase 239 - API Fuzzing Infrastructure
 
 ## Current Position
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
-Phase: 238 of 245 (Property-Based Testing Expansion)
-Plan: 5 of 5 in current phase
-Status: Complete
-Last activity: 2026-03-24 — Phase 238 complete: 52 property tests (104% of 50+ target) covering agent execution, LLM routing, episodic memory, API contracts, state machines, and security
+Phase: 239 of 245 (API Fuzzing Infrastructure)
+Plan: 1 of 5 in current phase
+Status: In Progress
+Last activity: 2026-03-24 — Plan 239-01 complete: FuzzingOrchestrator service (507 lines) and CrashDeduplicator (202 lines) for centralized campaign management with SHA256-based crash deduplication and BugFilingService integration
 
-Progress: [█████░░░░] 62%
+Progress: [█████░░░░] 63%
 
 ## Performance Metrics
 
@@ -46,6 +46,7 @@ Progress: [█████░░░░] 62%
 | 236 | 8/9 | 41 min | ~5.1 min |
 | 237 | 5/5 | 14 min | ~2.8 min |
 | 238 | 5/5 | 27 min | ~5.4 min |
+| 239 | 1/5 | 3 min | ~3.0 min |
 | 237-01 | 3/3 | 4 min | ~1.3 min |
 | 237-02 | 5/5 | 7 min | ~1.4 min |
 | 237-03 | 4/4 | 5 min | ~1.3 min |
@@ -152,10 +153,20 @@ None yet.
 - [PROP-07]: Updated INVARIANTS.md with formal specifications for all 8 agent execution invariants with mathematical definitions
 - [PROP-08]: Established fixture reuse pattern for property tests (import from parent conftest.py)
 
+### Key Decisions (Phase 239)
+
+- [FUZZ-01]: FuzzingOrchestrator service created with campaign lifecycle management (start, stop, monitor) using subprocess.Popen for pytest execution
+- [FUZZ-02]: CrashDeduplicator created with SHA256-based crash deduplication using normalized stack traces (line numbers removed for stable hashing)
+- [FUZZ-03]: BugFilingService integration from Phase 236 for automated GitHub issue filing with crash metadata (target_endpoint, crash_input hex, crash_log, signature_hash)
+- [FUZZ-04]: Corpus/crashes directory structure with README.md documentation - corpus for re-seeding campaigns, crashes for artifact storage (*.input, *.log)
+- [FUZZ-05]: Graceful subprocess shutdown with SIGTERM (10s timeout) before SIGKILL to prevent orphaned processes
+- [FUZZ-06]: Environment variable injection (FUZZ_CAMPAIGN_ID, FUZZ_CRASH_DIR, FUZZ_ITERATIONS) for campaign context
+- [FUZZ-07]: Timestamped campaign IDs for artifact isolation: {endpoint}_{timestamp}
+
 ## Session Continuity
 
-Last session: 2026-03-24 (Phase 238-05 completion)
-Stopped at: Plan 238-05 completed - State machine and security property tests complete (12 new tests, 113+ total invariants)
+Last session: 2026-03-24 (Phase 239-01 completion)
+Stopped at: Plan 239-01 completed - FuzzingOrchestrator service (507 lines) and CrashDeduplicator (202 lines) with SHA256-based crash deduplication and BugFilingService integration
 Resume file: None
 
 ## Milestone Context
