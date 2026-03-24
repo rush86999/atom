@@ -63,7 +63,7 @@ class GenericAgent:
         # - Layer 2 (Middle): BYOKHandler (unified internal interface)
         # - Layer 3 (Top): LLMService (single source of truth for all code)
         # - All code: Uses Layer 3 (LLMService) for unified observability and management
-        self.llm = LLMService(workspace_id=workspace_id)
+        self.llm = LLMService(tenant_id=workspace_id)
         self.session_tools: List[Dict[str, Any]] = [] # Lazy-loaded tools
 
         
@@ -213,7 +213,7 @@ class GenericAgent:
             status = "failed"
             
         # 3. TRACE Framework Metrics (Phase 6.6)
-        complexity = self.llm.analyze_query_complexity(task_input)
+        complexity = self.llm._get_handler().analyze_query_complexity(task_input)
         
         # Heuristic for expected steps based on complexity
         # SIMPLE=1, MODERATE=3, COMPLEX=5, ADVANCED=8
@@ -385,7 +385,7 @@ What is your next step?"""
             system_instruction=system_prompt,
             response_model=ReActStep,
             temperature=0.2,
-            task_type="reasoning",
+            model="reasoning",
             agent_id=self.id,
             image_payload=image_payload
         )
@@ -400,7 +400,7 @@ What is your next step?"""
         raw_response = await self.llm.generate(
             prompt=user_prompt,
             system_instruction=system_prompt,
-            model_type="fast",
+            model="fast",
             temperature=0.3,
             agent_id=self.id
         )

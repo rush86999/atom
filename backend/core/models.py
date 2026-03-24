@@ -8185,3 +8185,96 @@ class ModelCatalog(Base):
 
     def __repr__(self):
         return f"<ModelCatalog(model_id={self.model_id}, provider_id={self.provider_id}, mode={self.mode})>"
+
+
+class EntityType(str, enum.Enum):
+    VENDOR = "vendor"
+    CUSTOMER = "customer"
+    BOTH = "both"
+
+class EntityTypeDefinition(Base):
+    """Dynamic entity type definitions with JSON Schema storage.
+
+    Stores tenant-customizable entity type schemas in JSONB format.
+    Enables runtime model generation without DDL operations.
+    """
+    __tablename__ = "entity_type_definitions"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Multi-tenancy
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Entity type identity
+    slug = Column(String(100), nullable=False)  # e.g., "invoice", "vendor"
+    display_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Schema definition (JSONB)
+    json_schema = Column(JSON, nullable=False)  # JSON Schema Draft 2020-12
+
+    # Skill bindings (array of skill IDs)
+    available_skills = Column(JSON, nullable=True)  # ["send_email", "generate_pdf"]
+
+    # Metadata
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_system = Column(Boolean, default=False)  # True for 20 canonical entities
+    version = Column(Integer, default=1, nullable=False)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    # Indexes for performance
+    __table_args__ = (
+        Index("ix_entity_types_tenant_slug", "tenant_id", "slug", unique=True),
+        Index("ix_entity_types_tenant_id", "tenant_id"),
+    )
+
+
+class SkillSuggestionFeedback(Base):
+    """Track user feedback on skill suggestions for learning.
+
+    Stores user actions (approved/rejected/dismissed) on AI-suggested skill bindings.
+    Enables the system to learn from feedback and improve future recommendations.
+    """
+    __tablename__ = "skill_suggestion_feedback"
+
+    # Primary key
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # Multi-tenancy
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Suggestion details
+    entity_type_id = Column(String, ForeignKey("entity_type_definitions.id", ondelete="CASCADE"), nullable=False, index=True)
+    skill_id = Column(String, nullable=False, index=True) # Direct skill_id reference
+
+    # Schema snapshot (what entity looked like when suggested)
+    schema_features = Column(JSON, nullable=False)  # {properties: [], domain_keywords: []}
+    schema_hash = Column(String(64), nullable=False, index=True)  # SHA-256 of json_schema for grouping
+
+    # User action
+    action = Column(String(20), nullable=False, index=True)  # approved, rejected, dismissed
+    confidence_score = Column(Float, nullable=True)  # System's confidence when suggested
+
+    # Outcome tracking (for approved suggestions)
+    usage_count = Column(Integer, default=0)  # How often the skill was used
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Performance
+    suggestion_quality = Column(Float, nullable=True)  # Calculated quality score (0-1)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="skill_feedback")
+    entity_type = relationship("EntityTypeDefinition", backref="skill_feedback")
+
+    # Indexes for performance
+    __table_args__ = (
+        Index("ix_skill_feedback_tenant_schema", "tenant_id", "schema_hash"),
+        Index("ix_skill_feedback_action", "action"),
+    )
