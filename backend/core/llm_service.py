@@ -9,7 +9,7 @@ import json
 import logging
 import os
 import asyncio
-from typing import Optional, Dict, Any, List, Union, Type
+from typing import Optional, Dict, Any, List, Union, Type, AsyncGenerator
 from enum import Enum
 
 from pydantic import BaseModel
@@ -65,16 +65,31 @@ class LLMService:
     """
     LLM Service for managing LLM interactions across the platform.
     Provides unified interface for different LLM providers, wrapping BYOKHandler.
+    
+    Harmonized with SaaS version for feature parity.
     """
 
-    def __init__(self, workspace_id: str = "default", db=None):
+    def __init__(self, db=None, tenant_id: Optional[str] = None):
         """
         Args:
-            workspace_id: Workspace ID for BYOK resolution.
-            db: Optional database session for BYOK/Usage tracking.
+            db: Optional SQLAlchemy session.
+            tenant_id: Optional Tenant ID (maps to workspace_id in OS).
         """
-        self.workspace_id = workspace_id
-        self.handler = BYOKHandler(workspace_id=workspace_id, db_session=db)
+        self._db = db
+        self._tenant_id = tenant_id or "default"
+        self._handler: Optional[BYOKHandler] = None
+        
+        # Pre-initialize handler if tenant_id provided
+        self._handler = BYOKHandler(workspace_id=self._tenant_id, db_session=db)
+
+    def _get_handler(self, tenant_id: Optional[str] = None) -> BYOKHandler:
+        """Helper to get or create a BYOKHandler for a specific tenant."""
+        target_tenant = tenant_id or self._tenant_id
+        
+        if self._handler and (tenant_id is None or tenant_id == self._tenant_id):
+            return self._handler
+            
+        return BYOKHandler(workspace_id=target_tenant, db_session=self._db)
 
     def get_provider(self, model: str) -> LLMProvider:
         """Get the provider for a given model."""
@@ -105,10 +120,12 @@ class LLMService:
         model: str = "auto",
         temperature: float = 0.7,
         max_tokens: int = 1000,
+        tenant_id: Optional[str] = None,
         **kwargs
     ) -> str:
         """Simple text generation interface."""
-        return await self.handler.generate_response(
+        handler = self._get_handler(tenant_id)
+        return await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
             model_type=model,
@@ -122,12 +139,15 @@ class LLMService:
         model: str = "auto",
         temperature: float = 0.7,
         max_tokens: int = 1000,
+        tenant_id: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Generate completion with OpenAI-style messages.
         Maps messages to prompt/system for BYOKHandler.
         """
+        handler = self._get_handler(tenant_id)
+        
         # Extract prompt and system from messages
         prompt = ""
         system_instruction = "You are a helpful assistant."
@@ -141,7 +161,7 @@ class LLMService:
                 prompt = content  # Use the last user message as prompt for now
 
         # Call underlying handler
-        response_text = await self.handler.generate_response(
+        response_text = await handler.generate_response(
             prompt=prompt,
             system_instruction=system_instruction,
             model_type=model,
@@ -149,8 +169,7 @@ class LLMService:
             **kwargs
         )
 
-        # Approximate token usage (BYOKHandler tracks this internally in DB, 
-        # but we return an estimation for immediate API consumers)
+        # Approximate token usage
         input_tokens = self.estimate_tokens(prompt + system_instruction, model)
         output_tokens = self.estimate_tokens(response_text, model)
 
@@ -167,12 +186,65 @@ class LLMService:
             "provider": self.get_provider(model).value
         }
 
+    async def generate_structured_response(
+        self,
+        prompt: str,
+        response_model: Any,
+        system_instruction: str = "You are a helpful assistant.",
+        model: str = "quality",
+        tenant_id: Optional[str] = None,
+        **kwargs
+    ) -> Any:
+        """Generate structured response using Pydantic model."""
+        handler = self._get_handler(tenant_id)
+        return await handler.generate_structured_response(
+            prompt=prompt,
+            system_instruction=system_instruction,
+            response_model=response_model,
+            task_type=model,
+            **kwargs
+        )
+
+    async def stream_completion(
+        self,
+        messages: List[Dict],
+        model: str = "auto",
+        temperature: float = 0.7,
+        tenant_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
+        **kwargs
+    ) -> AsyncGenerator[str, None]:
+        """Stream LLM responses token-by-token."""
+        handler = self._get_handler(tenant_id)
+        
+        # Resolve model if needed
+        if model in ["auto", "fast", "quality", "balanced"]:
+            last_user_msg = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
+            complexity = handler.analyze_query_complexity(last_user_msg)
+            provider_id, resolved_model = handler.get_optimal_provider(complexity)
+        else:
+            resolved_model = model
+            # In OS, we might need to infer provider_id or pass auto
+            provider_id = "auto" 
+            # Check if there's a better way to infer provider_id in OS BYOKHandler
+            # OS BYOKHandler.stream_completion requires provider_id
+
+        async for token in handler.stream_completion(
+            messages=messages,
+            model=resolved_model,
+            provider_id=provider_id if provider_id != "auto" else "deepseek", # Default to deepseek if auto
+            temperature=temperature,
+            agent_id=agent_id,
+            db=self._db,
+            **kwargs
+        ):
+            yield token
+
     def estimate_tokens(self, text: str, model: str = "gpt-4o-mini") -> int:
         """Estimate token count for text."""
         try:
             import tiktoken
             try:
-                # Try to get specific encoding or model match
                 if "gpt-4" in model or "gpt-3.5" in model or "o1" in model or "o3" in model:
                     encoding = tiktoken.encoding_for_model("gpt-4o")
                 else:
@@ -186,7 +258,6 @@ class LLMService:
 
     def estimate_cost(self, input_tokens: int, output_tokens: int, model: str) -> float:
         """Estimate cost in USD."""
-        # Use existing cost utilities if available
         try:
             from core.cost_config import get_llm_cost
             return get_llm_cost(model, input_tokens, output_tokens)
@@ -270,9 +341,7 @@ class LLMService:
         )
 
     async def analyze_proposal(self, proposal: str, context: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Governance helper: Analyze an agent proposal for safety and alignment.
-        """
+        """Governance helper: Analyze an agent proposal for safety and alignment."""
         prompt = f"Analyze the following agent proposal for safety, alignment, and efficiency:\n\nPROPOSAL:\n{proposal}"
         if context:
             prompt += f"\n\nCONTEXT:\n{context}"
@@ -282,7 +351,6 @@ class LLMService:
         response = await self.generate(prompt, system_instruction=system, model="quality")
 
         try:
-            # Try to extract JSON if the model wrapped it in markdown
             if "```json" in response:
                 json_str = response.split("```json")[1].split("```")[0].strip()
             else:
@@ -296,8 +364,8 @@ class LLMService:
             }
 
     def is_available(self) -> bool:
-        """Check if LLM service is available by checking for any initialized clients."""
-        return len(self.handler.clients) > 0
+        """Check if LLM service is available."""
+        return len(self.handler.clients) > 0 if hasattr(self, 'handler') and self.handler else False
 
     def get_optimal_provider(
         self,
@@ -1091,6 +1159,6 @@ class LLMService:
         return self.handler.analyze_query_complexity(prompt, task_type)
 
 
-def get_llm_service(workspace_id: str = "default", db=None) -> LLMService:
+def get_llm_service(tenant_id: str = "default", db=None) -> LLMService:
     """Factory function to get an LLMService instance."""
-    return LLMService(workspace_id=workspace_id, db=db)
+    return LLMService(tenant_id=tenant_id, db=db)

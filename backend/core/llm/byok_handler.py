@@ -171,7 +171,7 @@ class BYOKHandler:
         db_session=None,
         tier_service: Optional[CognitiveTierService] = None
     ):
-        self.workspace_id = "default" # Single-tenant: always use default
+        self.workspace_id = workspace_id
         self.default_provider_id = provider_id if provider_id != "auto" else None
         self.clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()

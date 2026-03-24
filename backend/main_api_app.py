@@ -591,6 +591,20 @@ try:
         logger.warning(f"Failed to load GraphRAG routes: {e}")
 
     try:
+        from api.entity_type_routes import router as entity_type_router
+        app.include_router(entity_type_router)
+        logger.info("✓ Entity Type Routes Loaded")
+    except Exception as e:
+        logger.warning(f"Failed to load entity type routes: {e}")
+
+    try:
+        from api.skill_suggestion_routes import router as skill_suggestion_router
+        app.include_router(skill_suggestion_router)
+        logger.info("✓ Skill Suggestion Routes Loaded")
+    except Exception as e:
+        logger.warning(f"Failed to load skill suggestion routes: {e}")
+
+    try:
         from api.project_routes import router as projects_router
         app.include_router(projects_router)
     except ImportError as e:
