@@ -104,7 +104,6 @@ def simulate_websocket_disconnect(page: Page):
 
 
 def test_websocket_connection_established(
-    browser,
     authenticated_page_api: Page,
     setup_test_user,
 ):
@@ -162,7 +161,6 @@ def test_websocket_connection_established(
 
 
 def test_websocket_reconnect_on_disconnect(
-    browser,
     authenticated_page_api: Page,
     setup_test_user,
 ):
@@ -233,7 +231,6 @@ def test_websocket_reconnect_on_disconnect(
 
 
 def test_websocket_message_queue_during_reconnect(
-    browser,
     authenticated_page_api: Page,
     setup_test_user,
 ):
@@ -320,7 +317,6 @@ def test_websocket_message_queue_during_reconnect(
 
 
 def test_websocket_reconnect_max_attempts(
-    browser,
     authenticated_page_api: Page,
     setup_test_user,
 ):

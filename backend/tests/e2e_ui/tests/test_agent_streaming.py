@@ -26,7 +26,6 @@ from tests.e2e_ui.pages.page_objects import ChatPage
 
 
 def test_token_streaming_displays_progressively(
-    browser,
     authenticated_page: Page,
     setup_test_user,
 ):
@@ -152,7 +151,6 @@ def test_token_streaming_displays_progressively(
 
 
 def test_full_response_shows_after_streaming(
-    browser,
     authenticated_page: Page,
     setup_test_user,
 ):
@@ -221,7 +219,6 @@ def test_full_response_shows_after_streaming(
 
 
 def test_streaming_indicator_visible_during_generation(
-    browser,
     authenticated_page: Page,
     setup_test_user,
 ):
@@ -306,7 +303,6 @@ def test_streaming_indicator_visible_during_generation(
 
 
 def test_streaming_with_multiple_messages(
-    browser,
     authenticated_page: Page,
     setup_test_user,
 ):
