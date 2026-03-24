@@ -10,6 +10,82 @@ env:
   NODE_VERSION: '18'
 
 jobs:
+  api-fuzzing:
+    name: API Fuzzing Campaigns (1 hour)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install -r requirements-testing.txt
+          pip install atheris  # Fuzzing support
+
+      - name: Run fuzzing campaigns
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          FUZZ_CAMPAIGN_DURATION: 3600
+          FUZZ_ITERATIONS: 10000
+        run: |
+          cd backend
+          python3 tests/fuzzing/scripts/run_fuzzing_campaigns.py --duration 3600
+        timeout-minutes: 60
+        continue-on-error: true
+
+      - name: Upload crash artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: fuzzing-crashes
+          path: backend/tests/fuzzing/campaigns/crashes/
+          retention-days: 90
+
+      - name: Upload corpus artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: fuzzing-corpus
+          path: backend/tests/fuzzing/campaigns/corpus/
+          retention-days: 90
+
+      - name: Aggregate crash reports
+        if: always()
+        run: |
+          cd backend
+          python3 tests/fuzzing/scripts/aggregate_crash_reports.py \
+            --crash-dirs "tests/fuzzing/campaigns/crashes/*" \
+            --output fuzzing-report.md
+
+      - name: Upload fuzzing reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: fuzzing-report
+          path: backend/fuzzing-report.md
+          retention-days: 90
+
+      - name: File bugs for crashes
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          cd backend
+          python3 tests/bug_discovery/file_bugs_from_artifacts.py
+        continue-on-error: true
+
   bug-discovery:
     name: Bug Discovery Tests (~2 hours)
     runs-on: ubuntu-latest
