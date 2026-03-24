@@ -111,6 +111,7 @@ Recent decisions affecting current work:
 - [Phase 236-03]: Memory leak detection with 5 tests covering agent execution (10 reps), canvas cycles (20 reps), session persistence (10 cycles), event listeners (20 cycles)
 - [Phase 236-03]: Lighthouse CI integration with 3 performance tests (scores >90, budgets: TTFB <600ms, FCP <1.5s, LCP <2.5s, TBT <300ms, CLS <0.1)
 - [Phase 236-03]: GitHub Actions workflow for automated Lighthouse testing on PR with treosh/lighthouse-ci-action@v9 and artifact upload
+- [Phase 236-06]: Percy visual regression testing with 26 tests across 5 page groups (login, dashboard, agents, canvas, workflows) - Multi-viewport snapshots (375, 768, 1280) for responsive testing with 78+ total screenshots
 - [Phase 236]: Use TypeScript jest-axe fixtures instead of Python pytest to match frontend Jest infrastructure
 - [Phase 236]: Adopt jest-axe with React Testing Library for WCAG 2.1 AA compliance testing (color contrast 4.5:1, keyboard navigation)
 - [Phase 236]: Create authenticatedAxeRender fixture for testing protected routes with mocked authentication
