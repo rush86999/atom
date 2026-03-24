@@ -1,0 +1,160 @@
+# Automated Bug Filing Workflow
+#
+# This workflow automatically files GitHub Issues when tests fail,
+# with complete metadata including screenshots, logs, and reproducible test cases.
+#
+# Triggers:
+# - workflow_run: Runs after test workflows complete (if they failed)
+# - workflow_dispatch: Manual trigger for on-demand bug filing
+#
+# Features:
+# - Downloads test artifacts (screenshots, logs, failure reports)
+# - Parses failure reports and files bugs via BugFilingService
+# - Comments bug links on the associated pull request
+# - Idempotent (no duplicate issues)
+
+name: Automated Bug Filing
+
+on:
+  # Run after test workflows complete (only if they failed)
+  workflow_run:
+    workflows:
+      - "Load Testing"
+      - "E2E Testing"
+      - "Mobile Testing"
+      - "Desktop Testing"
+      - "Visual Regression"
+      - "Accessibility Testing"
+      - "Network Simulation"
+      - "Memory Leak Detection"
+    types: [completed]
+    branches: [main, develop]
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write  # Required for filing GitHub Issues
+  pull-requests: write  # Required for commenting on PRs
+
+jobs:
+  file-bugs:
+    name: File Bugs for Test Failures
+    # Only run if the triggering workflow failed
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for better bug context
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests
+
+      - name: Download test artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: backend/tests/artifacts/
+          # Download all artifacts from the failed workflow run
+        continue-on-error: true
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find backend/tests/artifacts/ -type f 2>/dev/null || echo "No artifacts found"
+
+      - name: Parse failure reports and file bugs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          python backend/tests/bug_discovery/file_bugs_from_artifacts.py
+
+      - name: Comment on PR with bug links
+        if: github.event.workflow_run.event == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const bugLinksPath = 'backend/tests/artifacts/bug_links.txt';
+
+            if (fs.existsSync(bugLinksPath)) {
+              const bugLinks = fs.readFileSync(bugLinksPath, 'utf8');
+              const prNumber = context.payload.workflow_run.pull_requests[0]?.number;
+
+              if (prNumber) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: `## Automated Bug Filing\n\nThe following bugs were automatically filed for test failures:\n\n${bugLinks}`
+                });
+              }
+            }
+
+      - name: Upload bug filing summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: bug-filing-summary
+          path: |
+            backend/tests/artifacts/bug_links.txt
+            backend/tests/artifacts/filed_bugs.json
+          retention-days: 30
+
+  # Job for manual bug filing (workflow_dispatch)
+  file-bugs-manual:
+    name: File Bugs Manually
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests
+
+      - name: Download test artifacts (latest from main)
+        uses: actions/download-artifact@v3
+        with:
+          path: backend/tests/artifacts/
+        continue-on-error: true
+
+      - name: File bugs from artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python backend/tests/bug_discovery/file_bugs_from_artifacts.py
+
+      - name: Upload bug filing summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: bug-filing-summary-manual
+          path: |
+            backend/tests/artifacts/bug_links.txt
+            backend/tests/artifacts/filed_bugs.json
+          retention-days: 30
