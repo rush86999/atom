@@ -10,19 +10,43 @@ import shutil
 import sys
 from datetime import datetime
 
-import allure
 import pytest
 from playwright.sync_api import BrowserContext as SyncBrowserContext
+
+# Make allure optional - only import if available
+try:
+    import allure
+    ALLURE_AVAILABLE = True
+except ImportError:
+    ALLURE_AVAILABLE = False
 
 def is_ci_environment():
     """Detect if running in CI environment."""
     return os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true" or os.getenv("GITLAB_CI") == "true"
 
 # Import base fixtures for direct use (optional, fixtures available via plugins)
+from .fixtures import auth_fixtures
+from .fixtures import database_fixtures
+from .fixtures import api_fixtures
+from .fixtures import test_data_factory  # Factory functions module
+
+# Re-export commonly used fixtures for backward compatibility
 from .fixtures.auth_fixtures import authenticated_page, authenticated_page_api, test_user, authenticated_user
 from .fixtures.database_fixtures import db_session
 from .fixtures.api_fixtures import setup_test_user, setup_test_project
-from .fixtures import test_data_factory  # Factory functions module
+
+
+@pytest.fixture(scope="session")
+def worker_id():
+    """
+    Provide worker_id for pytest-xdist compatibility.
+
+    Returns 'master' when not running under xdist (single worker mode).
+
+    Yields:
+        str: Worker ID ('master' for single worker, 'gw0', 'gw1', etc. for xdist)
+    """
+    return "master"
 
 
 def pytest_configure(config):
@@ -101,9 +125,10 @@ def clean_allure_results():
     Yields:
         None: Allows test session to proceed
     """
-    allure_dir = "allure-results"
-    if os.path.exists(allure_dir):
-        shutil.rmtree(allure_dir)
+    if ALLURE_AVAILABLE:
+        allure_dir = "allure-results"
+        if os.path.exists(allure_dir):
+            shutil.rmtree(allure_dir)
     yield
     # Don't clean after (let user review results)
 
@@ -196,7 +221,7 @@ def video_page(browser, base_url, request):
 
 
 @pytest.fixture(autouse=True)
-def track_page_for_screenshots(request, page):
+def track_page_for_screenshots(request):
     """
     Track page object for automatic screenshot capture on test failure.
 
@@ -206,7 +231,6 @@ def track_page_for_screenshots(request, page):
 
     Args:
         request: Pytest request object
-        page: Playwright page fixture
 
     Yields:
         None: Allows test to execute
@@ -216,8 +240,11 @@ def track_page_for_screenshots(request, page):
         yield
         return
 
-    if hasattr(request, "node"):
-        request.node._page = page
+    # Only track if page fixture is available in the test
+    if hasattr(request, "funcargs"):
+        page = request.funcargs.get("page") or request.funcargs.get("authenticated_page") or request.funcargs.get("authenticated_page_api")
+        if page and hasattr(request, "node"):
+            request.node._page = page
     yield
 
 
@@ -268,14 +295,15 @@ def pytest_runtest_makereport(item, call):
             print(f"\nScreenshot saved: {screenshot_path}")
 
             # Attach screenshot to Allure report
-            try:
-                allure.attach.file(
-                    screenshot_path,
-                    name=f"Screenshot: {item.name}",
-                    attachment_type=allure.attachment_type.PNG
-                )
-            except Exception as e:
-                print(f"Failed to attach screenshot to Allure: {e}")
+            if ALLURE_AVAILABLE:
+                try:
+                    allure.attach.file(
+                        screenshot_path,
+                        name=f"Screenshot: {item.name}",
+                        attachment_type=allure.attachment_type.PNG
+                    )
+                except Exception as e:
+                    print(f"Failed to attach screenshot to Allure: {e}")
 
             # Save video if in CI environment
             if is_ci_environment():
@@ -289,14 +317,15 @@ def pytest_runtest_makereport(item, call):
                     print(f"\nVideo saved: {named_video_path}")
 
                     # Attach video to Allure report
-                    try:
-                        allure.attach.file(
-                            named_video_path,
-                            name=f"Video: {item.name}",
-                            attachment_type=allure.attachment_type.WEBM
-                        )
-                    except Exception as e:
-                        print(f"Failed to attach video to Allure: {e}")
+                    if ALLURE_AVAILABLE:
+                        try:
+                            allure.attach.file(
+                                named_video_path,
+                                name=f"Video: {item.name}",
+                                attachment_type=allure.attachment_type.WEBM
+                            )
+                        except Exception as e:
+                            print(f"Failed to attach video to Allure: {e}")
 
 
 # ============================================================================
