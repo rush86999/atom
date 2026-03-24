@@ -2,18 +2,20 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-23)
+See: .planning/PROJECT.md (updated 2026-03-24)
 
-**Core value:** Cross-platform user flows work reliably across web, mobile, and desktop with comprehensive bug discovery through E2E testing
-**Current focus:** Milestone v7.0 Complete!
+**Core value:** Automated bug discovery through comprehensive QA testing (fuzzing, chaos engineering, property-based testing, headless browser automation)
+**Current focus:** Phase 237 - Bug Discovery Infrastructure Foundation
 
 ## Current Position
 
-Milestone: v7.0 Cross-Platform E2E Testing & Bug Discovery
-Status: COMPLETE ✅
-Last activity: 2026-03-24 — Completed Phase 236: Cross-Platform & Stress Testing (9/9 plans, 282+ tests)
+Milestone: v8.0 Automated Bug Discovery & QA Testing
+Phase: 237 of 245 (Bug Discovery Infrastructure Foundation)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-03-24 — Roadmap created for v8.0 milestone
 
-Progress: [█████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -38,35 +40,17 @@ Progress: [█████████] 100%
 | 226 | 1/1 | 3 min | ~3 min |
 | 227 | 1/1 | 6 min | ~6 min |
 | 228 | 2/2 | 6 min | ~3 min |
-| 233. Test Infrastructure Foundation | 5/5 | 53 min | ~10.6 min |
-| 234. Authentication & Agent E2E | 6/6 | 37 min | ~6 min |
-| 235. Canvas & Workflow E2E | 7/7 | 33 min | ~4.7 min |
-| 236. Cross-Platform & Stress Testing | 8/9 | 41 min | ~5.1 min |
+| 233 | 5/5 | 53 min | ~10.6 min |
+| 234 | 6/6 | 37 min | ~6 min |
+| 235 | 7/7 | 33 min | ~4.7 min |
+| 236 | 8/9 | 41 min | ~5.1 min |
+| 237 | TBD | - | - |
 
 **Recent Trend:**
-- Last 3 plans from v6.0: 228-02 (~3 min), 228-01 (~3 min), 227-01 (~6 min)
+- Last 5 plans from v7.0: 236-09 (~5 min), 236-08 (~5 min), 236-07 (~4 min), 236-04 (~6 min), 236-03 (~5 min)
 - Trend: Consistent velocity (~5 min/plan)
 
 *Updated after each plan completion*
-| Phase 233-test-infrastructure-foundation P233-02 | 1245 | 3 tasks | 2 files |
-| Phase 233 P03 | 408 | 3 tasks | 4 files |
-| Phase 233 P04 | 341 | 3 tasks | 3 files |
-| Phase 233 P05 | 348 | 4 tasks | 4 files |
-| Phase 233 P05 | 348 | 4 tasks | 4 files |
-| Phase 234-authentication-and-agent-e2e P02 | 1105 | 3 tasks | 6 files |
-| Phase 234-authentication-and-agent-e2e P04 | 800 | 2 tasks | 2 files |
-| Phase 234-authentication-and-agent-e2e P05 | 823 | 2 tasks | 2 files |
-| Phase 234-authentication-and-agent-e2e P06 | 583 | 2 tasks | 2 files |
-| Phase 235-canvas-and-workflow-e2e P02 | 635 | 2 tasks | 3 files |
-| Phase 235 P01 | 827 | 3 tasks | 6 files |
-| Phase 235 P03 | 174 | 1 task | 1 file |
-| Phase 235 P05 | 184 | 2 tasks | 3 files |
-| Phase 235 P06 | 336 | 2 tasks | 2 files |
-| Phase 236 P01 | 557 | 5 tasks | 6 files |
-| Phase 236 P04 | 383 | 6 tasks | 7 files |
-| Phase 236 P03 | 292 | 5 tasks | 5 files |
-| Phase 236 P04 | 383 | 6 tasks | 7 files |
-| Phase 236 P07 | 456 | 5 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,48 +59,29 @@ Progress: [█████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-**From v6.0 Milestone (Completed):**
-- [Milestone v6.0]: Consolidate all BYOK LLM interactions to unified LLMService API
-- [Phase 222]: LLMService streaming interface with AsyncGenerator[str, None] return type
-- [Phase 222]: Auto provider selection using analyze_query_complexity and get_optimal_provider
-- [Phase 223-225]: Migrate critical files (embeddings, GraphRAG, security scanning) to LLMService
-- [Phase 225.1]: GenericAgent migrated to LLMService with method name changes (generate_response → generate)
-- [Phase 226]: Provider registry with database-backed model catalog and health monitoring
-- [Phase 227-228]: API routes and agent systems standardized to LLMService
-
-**For v7.0 Milestone (New):**
-- [Milestone v7.0]: Focus on E2E testing expansion from 30+ to 600+ tests across platforms
-- [Phase 233-01]: Enforce _session parameter in BaseFactory to prevent test data collisions during parallel execution
-- [Phase 233]: Build test infrastructure first (fixtures, factories, isolation) to prevent flaky tests
-- [Phase 234]: Authentication and agent critical paths before expanding to canvas/workflows
+**From v7.0 Milestone (Completed):**
+- [Milestone v7.0]: Cross-platform E2E testing expansion from 30+ to 495+ tests across web, mobile, desktop
+- [Phase 233]: Unified test runner with cross-platform Allure reporting - Single entry point for all platform tests
+- [Phase 234]: Authentication and agent critical paths with API-first auth (10-100x faster than UI login)
 - [Phase 235]: All 7 canvas types and workflow automation testing
-- [Phase 236]: Cross-platform expansion and stress testing for bug discovery
-- [Phase 233-test-infrastructure-foundation]: Replaced old SQLite-only db_session with worker-aware version - All 4527 tests now get worker isolation automatically without code changes
-- [Phase 233-04]: Added Allure reporting integration with automatic screenshot/video capture on test failure - Artifacts embedded in Allure reports for one-click viewing
-- [Phase 233-05]: Created unified test runner with cross-platform Allure reporting - Single entry point for backend, web, mobile, desktop tests with unified report generation
-- [Phase 233]: Unified test runner with cross-platform Allure reporting - Single entry point for all platform tests with unified report generation
-- [Phase 234-01]: Authentication E2E tests with JWT validation, session persistence, and protected routes - 20 tests covering AUTH-01, AUTH-02, AUTH-03, AUTH-05 using API-first auth fixtures
-- [Phase 235]: Fixed conftest.py to import api_client and test_user_data fixtures for authenticated_page_api to work
-- [Phase 235]: Install pytest-playwright v0.7.2 to enable browser fixtures for E2E tests
-- [Phase 235-03]: Memory leak detection with <50MB threshold for 50 rapid canvas present/close cycles using performance.memory API
-- [Phase 235-03]: DOM cleanup verification with 10% node count deviation threshold
-- [Phase 235-03]: Event listener leak detection with <1000 listeners heuristic threshold after 20 cycles
-- [Phase 235-03]: Graceful skip when memory API unavailable (requires Chrome with --enable-precise-memory-info)
-- [Phase 235-06]: Workflow execution E2E tests with freezegun time mocking for scheduled triggers and requests library for webhook simulation - 10 tests covering WORK-06, WORK-07, WORK-08
-- [Phase 235-06]: Helper functions for workflow execution (execute, wait, verify order) and triggers (create scheduled/webhook, fire scheduler, send webhook) - Graceful skip when Trigger model not implemented
-- [Phase 236-02]: Network simulation fixtures using Playwright context API (context.offline, context.route, CDP throttling) - 4 fixtures for slow 3G, offline, timeout, database drop
-- [Phase 236-02]: E2E network failure tests with 19 tests covering slow 3G (4), offline (4), database drop (5), API timeout (6) - Extended timeouts (15-30s) for slow network conditions
-- [Phase 236-03]: CDP heap snapshot fixtures for memory leak detection (Chromium-only with graceful skip for Firefox/Safari)
-- [Phase 236-03]: Memory leak detection with 5 tests covering agent execution (10 reps), canvas cycles (20 reps), session persistence (10 cycles), event listeners (20 cycles)
-- [Phase 236-03]: Lighthouse CI integration with 3 performance tests (scores >90, budgets: TTFB <600ms, FCP <1.5s, LCP <2.5s, TBT <300ms, CLS <0.1)
-- [Phase 236-03]: GitHub Actions workflow for automated Lighthouse testing on PR with treosh/lighthouse-ci-action@v9 and artifact upload
-- [Phase 236-06]: Percy visual regression testing with 26 tests across 5 page groups (login, dashboard, agents, canvas, workflows) - Multi-viewport snapshots (375, 768, 1280) for responsive testing with 78+ total screenshots
-- [Phase 236]: Use TypeScript jest-axe fixtures instead of Python pytest to match frontend Jest infrastructure
-- [Phase 236]: Adopt jest-axe with React Testing Library for WCAG 2.1 AA compliance testing (color contrast 4.5:1, keyboard navigation)
-- [Phase 236]: Create authenticatedAxeRender fixture for testing protected routes with mocked authentication
-- [Phase 236-09]: Scheduled CI/CD workflows for stress testing with cron-based triggers (nightly: 0 2 * * *, weekly: 0 3 * * 0) - Separate workflows for basic (30-45 min) and comprehensive (2-3 hours) test coverage
-- [Phase 236-09]: Stress test scheduler (Python CLI) for aggregating JUnit XML and k6 JSON results with trend analysis (pass rate, latency changes) - Automated Slack/email alerting and bug filing on failures
-- [Phase 236-09]: GitHub Actions integration with artifact aggregation (download results from multiple jobs, aggregate, report, alert) - Conditional alerting (email only for main branch failures) with graceful degradation (continue-on-error)
+- [Phase 236]: Cross-platform expansion, stress testing, visual regression, accessibility testing
+- [Phase 236-02]: Network simulation fixtures using Playwright context API (slow 3G, offline, timeout, database drop)
+- [Phase 236-03]: CDP heap snapshot fixtures for memory leak detection with Lighthouse CI integration
+- [Phase 236-06]: Percy visual regression testing with 26 tests across 5 page groups (78+ total screenshots)
+- [Phase 236-09]: Scheduled CI/CD workflows for stress testing (nightly/weekly) with automated bug filing
+
+**For v8.0 Milestone (New):**
+- [Milestone v8.0]: Automated bug discovery through fuzzing, chaos engineering, property-based testing expansion, and intelligent browser automation
+- [Phase 237]: Integrate bug discovery into existing pytest infrastructure (not separate /bug-discovery/ directory)
+- [Phase 237]: Separate CI pipelines (fast PR tests <10min vs weekly bug discovery ~2 hours)
+- [Phase 238]: Property-based testing expansion with invariant-first thinking (50+ new property tests)
+- [Phase 239]: API fuzzing with Atheris for coverage-guided crash discovery
+- [Phase 240]: Headless browser bug discovery with intelligent exploration agents
+- [Phase 241]: Chaos engineering with blast radius controls (isolated test databases, failure injection limits)
+- [Phase 242]: Unified bug discovery pipeline with result aggregation and automated triage
+- [Phase 243]: Memory & performance bug discovery with memray and pytest-benchmark
+- [Phase 244]: AI-enhanced bug discovery with multi-agent fuzzing orchestration
+- [Phase 245]: Feedback loops and ROI tracking with regression test generation
 
 ### Pending Todos
 
@@ -128,37 +93,44 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-24 (236-08 execution)
-Stopped at: Completed 236-08 (Automated Bug Discovery with BugFilingService, 30 tests, CI/CD workflow).
+Last session: 2026-03-24 (v7.0 completion, v8.0 roadmap creation)
+Stopped at: ROADMAP.md and STATE.md created for v8.0 milestone (9 phases: 237-245)
 Resume file: None
 
 ## Milestone Context
 
-**Current Milestone:** v7.0 Cross-Platform E2E Testing & Bug Discovery (Started: 2026-03-23)
+**Current Milestone:** v8.0 Automated Bug Discovery & QA Testing (Started: 2026-03-24)
 
-**Previous Milestone:** v6.0 BYOK Migration to Unified LLMService API (Completed: 2026-03-22)
+**Previous Milestone:** v7.0 Cross-Platform E2E Testing & Bug Discovery (Completed: 2026-03-24)
 
-**Milestone Goal:** Comprehensive cross-platform E2E testing expansion from 30+ to 600+ tests across web (Playwright), mobile (API-level), and desktop (Tauri) platforms to discover hidden bugs through real user flow validation, stress testing, and cross-platform consistency verification.
+**Milestone Goal:** Discover 50+ bugs through automated fuzzing, chaos engineering, property-based testing expansion, and intelligent browser automation with automated GitHub issue filing.
 
-**Strategy:** Test infrastructure → Critical paths (auth → agents → canvas → workflows) → Cross-platform expansion → Stress testing & bug discovery
+**Strategy:** Infrastructure foundation → Property tests → Fuzzing → Browser discovery → Chaos → Unification → Memory/perf → AI-enhancement → Feedback loops
 
-**Timeline:** 2-3 weeks (comprehensive E2E suite development)
+**Timeline:** 2-3 weeks (aggressive execution for comprehensive bug discovery)
 
 **Key Requirements:**
-- Authentication (AUTH-01 through AUTH-07): JWT auth flows, session management, API-first testing
-- Agent Execution (AGNT-01 through AGNT-08): Agent creation, chat streaming, WebSocket reconnection
-- Canvas & Presentation (CANV-01 through CANV-11): All 7 canvas types, accessibility, stress testing
-- Workflow & Skill Automation (WORK-01 through WORK-10): Skill installation, DAG validation, triggers
-- Cross-Platform Infrastructure (INFRA-01 through INFRA-10): Test data management, isolation, unified reporting
-- Stress Testing & Bug Discovery (STRESS-01 through STRESS-11): Load testing, failure injection, bug filing
-- Mobile & Desktop Testing (MOBILE-01 through MOBILE-07): API-level mobile, Tauri desktop tests
-- Visual Regression & Accessibility (A11Y-01 through A11Y-07): Percy, jest-axe, WCAG 2.1 AA
+- Test Infrastructure (INFRA-01 through INFRA-05): Integrate into existing pytest, separate CI pipelines, documentation templates
+- Property-Based Testing (PROP-01 through PROP-05): 50+ new property tests for critical paths, API contracts, state machines, security
+- API Fuzzing (FUZZ-01 through FUZZ-07): Atheris fuzzing for FastAPI endpoints, crash deduplication, automated bug filing
+- Headless Browser Automation (BROWSER-01 through BROWSER-07): Exploration agents, console errors, accessibility, broken links, visual regression
+- Chaos Engineering (CHAOS-01 through CHAOS-08): Network latency, database drops, memory pressure, service crashes, blast radius controls
+- Unified Bug Discovery Pipeline (PIPELINE-01 through PIPELINE-06): Result aggregation, deduplication, triage, dashboard, GitHub integration
+- Memory & Performance Discovery (PERF-01 through PERF-05): memray leak detection, heap snapshots, pytest-benchmark, Lighthouse CI
+- AI-Enhanced Discovery (AI-01 through AI-04): Multi-agent fuzzing, AI-generated invariants, cross-platform correlation, semantic clustering
+- Feedback Loops (FEEDBACK-01 through FEEDBACK-05): Regression test generation, dashboard, GitHub issues, ROI tracking, effectiveness metrics
 
 **Phase Breakdown:**
-- Phase 233: Test Infrastructure Foundation (5 plans) - Test data manager, database isolation, fixtures, artifacts
-- Phase 234: Authentication & Agent E2E (6 plans) - Auth flows, agent creation, chat streaming, cross-platform
-- Phase 235: Canvas & Workflow E2E (7 plans) - 7 canvas types, skills, workflows, DAG validation, triggers
-- Phase 236: Cross-Platform & Stress Testing (9 plans) - Load testing, failure injection, mobile/desktop, accessibility
+- Phase 237: Bug Discovery Infrastructure Foundation - Integrate into pytest, separate CI pipelines, quality standards
+- Phase 238: Property-Based Testing Expansion - 50+ new property tests with invariant-first thinking
+- Phase 239: API Fuzzing Infrastructure - Atheris fuzzing for FastAPI endpoints
+- Phase 240: Headless Browser Bug Discovery - Intelligent exploration agents and bug detection
+- Phase 241: Chaos Engineering Integration - Failure injection with blast radius controls
+- Phase 242: Unified Bug Discovery Pipeline - Orchestration, aggregation, deduplication, triage
+- Phase 243: Memory & Performance Bug Discovery - memray, pytest-benchmark, Lighthouse CI
+- Phase 244: AI-Enhanced Bug Discovery - Multi-agent fuzzing and AI-generated invariants
+- Phase 245: Feedback Loops & ROI Tracking - Regression tests, dashboard, effectiveness metrics
 
-**Total Plans:** 27 plans across 4 phases
-**Total Requirements:** 58 v1 requirements mapped (100% coverage)
+**Total Phases:** 9 phases (237-245)
+**Total Requirements:** 54 v8.0 requirements mapped (100% coverage)
+**Success Metric:** 50+ bugs discovered, documented, and filed with reproducible test cases
