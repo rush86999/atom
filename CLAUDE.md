@@ -258,6 +258,19 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Tests**: 82+ tests across 6 test files
 - **Docs**: `docs/ADVANCED_SKILL_EXECUTION.md`, `docs/SKILL_MARKETPLACE_GUIDE.md`, `docs/SKILL_COMPOSITION_PATTERNS.md`
 
+### 24. GraphRAG & Entity Types System ✨
+**Files**: `backend/core/graphrag_engine.py`, `backend/core/entity_type_service.py`, `backend/core/model_factory.py`
+- **PostgreSQL-backed GraphRAG V2**: Stateless recursive CTEs for high-performance traversal (<100ms)
+- **6 Canonical Entity Types**: user, workspace, team, task, ticket, formula with bidirectional sync
+- **Dynamic Custom Entity Types**: JSON Schema-based runtime model creation with validation
+- **LLM-Based Extraction**: Extract entities and relationships from unstructured text (documents, emails)
+- **Local & Global Search**: Neighborhood traversal (depth-based) and community-based summarization
+- **Entity Registry**: Centralized configuration for canonical-to-database mapping with field whitelisting
+- **Community Detection**: NetworkX + Leiden algorithm for graph clustering
+- **Performance**: Local search ~50-80ms, global search ~100-150ms, entity extraction ~2-3s
+- **Tests**: 40+ tests across 4 test files
+- **Docs**: `docs/GRAPHRAG_AND_ENTITY_TYPES.md`, `docs/GRAPHRAG_PORTED.md`, `docs/ai-world-model.md`
+
 ---
 
 ## Recent Major Changes
@@ -541,6 +554,9 @@ allure serve allure-results
 - `backend/core/llm/byok_handler.py` - LLM routing
 - `backend/core/models.py` - Database models
 - `backend/core/agent_world_model.py` - World Model & JIT Fact Provision
+- `backend/core/graphrag_engine.py` - GraphRAG V2 (PostgreSQL-backed)
+- `backend/core/entity_type_service.py` - Dynamic entity type management
+- `backend/core/model_factory.py` - Runtime model creation for custom entities
 
 **API Endpoints**:
 - `backend/core/atom_agent_endpoints.py` - Chat/streaming
@@ -549,6 +565,8 @@ allure serve allure-results
 - `backend/api/device_capabilities.py` - Device control
 - `backend/api/deeplinks.py` - Deep linking
 - `backend/api/admin/business_facts_routes.py` - Business Facts & JIT Citation Verification
+- `backend/api/entity_type_routes.py` - Entity type CRUD operations
+- `backend/api/graphrag_routes.py` - Graph search and ingestion
 
 **Canvas & Accessibility**:
 - `frontend-nextjs/hooks/useCanvasState.ts` - Canvas state hook
@@ -688,6 +706,12 @@ window.atom.canvas.getAllStates()
 python -c "from core.llm.cognitive_tier_system import CognitiveClassifier; print(CognitiveClassifier().classify('hello world'))"
 curl -X GET "/api/v1/cognitive-tier/compare-tiers"
 curl -X GET "/api/v1/cognitive-tier/estimate-cost?prompt=test&estimated_tokens=100"
+
+# GraphRAG & Entity Types
+python -c "from core.graphrag_engine import graphrag_engine; print(graphrag_engine.local_search('default', 'John Doe', depth=2))"
+curl -X POST "/api/v1/graph/search/local" -d '{"query": "Project Alpha", "depth": 2}'
+curl -X POST "/api/v1/entity-types" -d '{"slug": "invoice", "display_name": "Invoice", "json_schema": {...}}'
+curl -X GET "/api/v1/entity-types?is_active=true"
 
 # Playwright
 playwright install chromium
