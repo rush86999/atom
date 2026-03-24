@@ -13,16 +13,16 @@ Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 237 of 245 (Bug Discovery Infrastructure Foundation)
 Plan: 4 of 5 in current phase
 Status: In progress
-Last activity: 2026-03-24 — Plan 237-04 completed: Fixture reuse guide for bug discovery tests
+Last activity: 2026-03-24 — Plan 237-03 completed: Separate CI pipelines for fast PR tests and weekly bug discovery
 
 Progress: [████████░░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51 (from v6.0 milestone)
+- Total plans completed: 52 (from v6.0 milestone)
 - Average duration: ~5.5 minutes
-- Total execution time: 4.75 hours
+- Total execution time: 4.83 hours
 
 **By Phase:**
 
@@ -45,6 +45,9 @@ Progress: [████████░░░] 80%
 | 235 | 7/7 | 33 min | ~4.7 min |
 | 236 | 8/9 | 41 min | ~5.1 min |
 | 237 | 4/5 | 13 min | ~3 min |
+| 237-01 | 3/3 | 4 min | ~1.3 min |
+| 237-02 | 5/5 | 7 min | ~1.4 min |
+| 237-03 | 4/4 | 5 min | ~1.3 min |
 | 237-04 | 2/2 | 2 min | ~1 min |
 
 **Recent Trend:**
@@ -103,6 +106,7 @@ None yet.
 - [INFRA-04]: Created comprehensive test documentation templates (2435 lines) enforcing TEST_QUALITY_STANDARDS.md compliance
 - [INFRA-05]: Templates include invariant-first thinking (property tests), blast radius controls (chaos tests), API-first auth (browser tests)
 - [INFRA-06]: Created fixture reuse guide (1084 lines) documenting all reusable fixtures from e2e_ui/fixtures/ with import examples for all bug discovery test types
+- [INFRA-07]: Created separate CI pipelines for fast PR tests (<10 min) and weekly bug discovery (~2 hours) using pytest marker-based test selection, enabling fast PR feedback while preventing CI pipeline bloat
 
 ## Session Continuity
 
