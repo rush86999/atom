@@ -53,7 +53,7 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
 - [ ] 237-04-PLAN.md — Fixture reuse documentation and verification
 - [ ] 237-05-PLAN.md — Infrastructure verification and comprehensive documentation
 
-#### Phase 238: Property-Based Testing Expansion
+#### Phase 238: Property-Based Testing Expansion ✅
 **Goal**: 50+ new property tests validate critical invariants across agent execution, LLM routing, episodic memory, governance, and security
 **Depends on**: Phase 237
 **Requirements**: PROP-01, PROP-02, PROP-03, PROP-04, PROP-05
@@ -64,11 +64,12 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   4. Security property tests prevent SQL injection, XSS, and CSRF vulnerabilities
   5. All property tests follow invariant-first thinking (invariants documented before writing tests)
 **Plans**: 5 plans
-- [ ] 238-01-PLAN.md — Agent execution property tests (idempotence, termination, determinism)
-- [ ] 238-02-PLAN.md — LLM routing property tests (consistency, cognitive tier mapping, cache-aware)
-- [ ] 238-03-PLAN.md — Episodic memory property tests (segmentation, retrieval, lifecycle)
-- [ ] 238-04-PLAN.md — API contracts and governance expansion (malformed JSON, authorization, cache)
-- [ ] 238-05-PLAN.md — State machines and security property tests (graduation, SQL injection, XSS, CSRF)
+**Completed**: 2026-03-24
+- [x] 238-01-PLAN.md — Agent execution property tests (idempotence, termination, determinism)
+- [x] 238-02-PLAN.md — LLM routing property tests (consistency, cognitive tier mapping, cache-aware)
+- [x] 238-03-PLAN.md — Episodic memory property tests (segmentation, retrieval, lifecycle)
+- [x] 238-04-PLAN.md — API contracts and governance expansion (malformed JSON, authorization, cache)
+- [x] 238-05-PLAN.md — State machines and security property tests (graduation, SQL injection, XSS, CSRF)
 
 #### Phase 239: API Fuzzing Infrastructure
 **Goal**: Coverage-guided fuzzing for FastAPI endpoints discovers crashes in parsing/validation code
@@ -168,8 +169,8 @@ Phases execute in numeric order: 237 → 238 → 239 → 240 → 241 → 242 →
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 237. Bug Discovery Infrastructure Foundation | v8.0 | 0/TBD | Not started | - |
-| 238. Property-Based Testing Expansion | v8.0 | 0/TBD | Not started | - |
+| 237. Bug Discovery Infrastructure Foundation | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
+| 238. Property-Based Testing Expansion | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
 | 239. API Fuzzing Infrastructure | v8.0 | 0/TBD | Not started | - |
 | 240. Headless Browser Bug Discovery | v8.0 | 0/TBD | Not started | - |
 | 241. Chaos Engineering Integration | v8.0 | 0/TBD | Not started | - |
