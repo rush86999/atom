@@ -82,7 +82,12 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   4. Fuzzing campaigns cover chat streaming, canvas presentation, trigger execution, skill installation endpoints
   5. Reproducible crashes are deduplicated and filed automatically as GitHub issues
   6. Fuzzing runs in separate weekly CI pipeline (1 hour runs, not on PRs)
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 239-01-PLAN.md — FuzzingOrchestrator service and crash deduplication (FUZZ-01, FUZZ-06)
+- [ ] 239-02-PLAN.md — Auth endpoint fuzzing harnesses (FUZZ-03)
+- [ ] 239-03-PLAN.md — Agent execution and canvas presentation fuzzing (FUZZ-04)
+- [ ] 239-04-PLAN.md — Workflow and skill endpoint fuzzing (FUZZ-05)
+- [ ] 239-05-PLAN.md — Weekly CI pipeline integration and documentation (FUZZ-07)
 
 #### Phase 240: Headless Browser Bug Discovery
 **Goal**: Intelligent exploration agent discovers UI bugs through console errors, accessibility violations, broken links, visual regression
@@ -171,7 +176,7 @@ Phases execute in numeric order: 237 → 238 → 239 → 240 → 241 → 242 →
 |-------|-----------|----------------|--------|-----------|
 | 237. Bug Discovery Infrastructure Foundation | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
 | 238. Property-Based Testing Expansion | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
-| 239. API Fuzzing Infrastructure | v8.0 | 0/TBD | Not started | - |
+| 239. API Fuzzing Infrastructure | v8.0 | 0/5 | Not started | - |
 | 240. Headless Browser Bug Discovery | v8.0 | 0/TBD | Not started | - |
 | 241. Chaos Engineering Integration | v8.0 | 0/TBD | Not started | - |
 | 242. Unified Bug Discovery Pipeline | v8.0 | 0/TBD | Not started | - |
