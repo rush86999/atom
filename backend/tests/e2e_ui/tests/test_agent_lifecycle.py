@@ -292,7 +292,7 @@ class TestAgentLifecycleUI:
 
         # Try to select inactive agent (if agent selector exists)
         try:
-            agent_selector = authenticated_page_api.locator('[data-testid="agent-selector"]')
+            agent_selector = authenticated_page_api.locator("[data-testid='agent-selector']")
             agent_selector.select_option(agent_name)
 
             # Send message
@@ -491,7 +491,7 @@ class TestAgentLifecycleUI:
             authenticated_page_api.goto("http://localhost:3001/chat")
             authenticated_page_api.wait_for_load_state("networkidle")
 
-            agent_selector = authenticated_page_api.locator('[data-testid="agent-selector"]")
+            agent_selector = authenticated_page_api.locator("[data-testid='agent-selector']")
             options = agent_selector.locator('option').all()
 
             agent_names = [opt.text_content() for opt in options]
