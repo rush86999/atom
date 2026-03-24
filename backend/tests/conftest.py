@@ -1661,3 +1661,101 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             terminalreporter.write_sep("=", f"Coverage: {line_coverage:.1f}%", red=True)
     except Exception:
         pass
+
+
+# ============================================================================
+# BUG DISCOVERY AUTOMATIC BUG FILING HOOK (Phase 237)
+# ============================================================================
+
+def pytest_exception_interact(node, call, report):
+    """
+    File GitHub Issue when bug discovery test fails.
+
+    This hook automatically files bugs for tests marked with:
+    - @pytest.mark.fuzzing
+    - @pytest.mark.chaos
+    - @pytest.mark.browser
+    - @pytest.mark.discovery
+
+    Skips bug filing for:
+    - Local development (no GITHUB_TOKEN)
+    - Expected failures (xfail markers)
+    - Known flaky tests
+
+    Args:
+        node: Pytest test node
+        call: Pytest call info
+        report: Pytest test report
+
+    Example:
+        @pytest.mark.fuzzing
+        def test_api_fuzzing():
+            # This test will automatically file a bug on failure
+            assert fuzz_api_endpoint() is safe
+    """
+    from tests.bug_discovery.bug_filing_service import BugFilingService
+    import os
+
+    # Only file bugs for failed tests
+    if report.failed:
+        # Check if test is a bug discovery test
+        item = node.obj
+        if hasattr(item, 'pytestmark'):
+            markers = [marker.name for marker in item.pytestmark]
+            discovery_markers = ['fuzzing', 'chaos', 'browser', 'discovery']
+
+            if any(marker in markers for marker in discovery_markers):
+                # Check environment variables
+                github_token = os.getenv("GITHUB_TOKEN")
+                github_repository = os.getenv("GITHUB_REPOSITORY")
+
+                if github_token and github_repository:
+                    try:
+                        service = BugFilingService(
+                            github_token=github_token,
+                            github_repository=github_repository
+                        )
+
+                        # Determine test type from markers
+                        test_type = next(
+                            (m for m in markers if m in discovery_markers),
+                            'discovery'
+                        )
+
+                        # Extract stack trace
+                        stack_trace = ""
+                        if call.excinfo:
+                            stack_trace = "".join(
+                                traceback.format_exception(
+                                    type(call.excinfo.value),
+                                    call.excinfo.value,
+                                    call.excinfo.tb
+                                )
+                            )
+
+                        # File bug with test metadata
+                        service.file_bug(
+                            test_name=node.name,
+                            error_message=str(call.excinfo.value) if call.excinfo else "Test failed",
+                            metadata={
+                                "test_type": test_type,
+                                "test_file": str(node.fspath),
+                                "line_number": node.lineno,
+                                "python_version": platform.python_version(),
+                                "os_info": platform.platform(),
+                                "stack_trace": stack_trace,
+                                "ci_run_url": os.getenv("GITHUB_SERVER_URL", "") + "/" +
+                                              os.getenv("GITHUB_REPOSITORY", "") +
+                                              "/actions/runs/" +
+                                              os.getenv("GITHUB_RUN_ID", ""),
+                                "commit_sha": os.getenv("GITHUB_SHA", "unknown"),
+                                "branch_name": os.getenv("GITHUB_REF_NAME", "unknown"),
+                            }
+                        )
+                    except Exception as e:
+                        # Log error but don't fail the test run
+                        print(f"Bug filing failed: {e}")
+                else:
+                    # Local development - skip bug filing
+                    print(f"Skipping bug filing for {node.name} (no GITHUB_TOKEN)")
+
