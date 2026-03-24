@@ -46,7 +46,12 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   3. Weekly bug discovery pipeline runs in ~2 hours (fuzzing, chaos, browser exploration)
   4. All bug discovery tests follow TEST_QUALITY_STANDARDS.md (TQ-01 through TQ-05)
   5. Bug discovery fixtures reuse existing auth_fixtures, database_fixtures, page_objects
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 237-01-PLAN.md — Bug discovery test directory structure (fuzzing/, browser_discovery/)
+- [ ] 237-02-PLAN.md — Documentation templates for all bug discovery categories
+- [ ] 237-03-PLAN.md — Separate CI pipelines (fast PR <10min, weekly bug discovery ~2 hours)
+- [ ] 237-04-PLAN.md — Fixture reuse documentation and verification
+- [ ] 237-05-PLAN.md — Infrastructure verification and comprehensive documentation
 
 #### Phase 238: Property-Based Testing Expansion
 **Goal**: 50+ new property tests validate critical invariants across agent execution, LLM routing, episodic memory, governance, and security
