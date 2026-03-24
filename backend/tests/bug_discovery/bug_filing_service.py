@@ -173,6 +173,10 @@ class BugFilingService:
         """
         Generate bug title from test name and error type.
 
+        The title includes both error type and test name to make bugs
+        discoverable and searchable. Different error messages for the
+        same test will create different bugs (this is intentional).
+
         Args:
             test_name: Name of the failed test
             error_type: Type of error
@@ -185,7 +189,10 @@ class BugFilingService:
         clean_test_name = clean_test_name.replace("_", " ").replace("-", " ").strip()
         clean_test_name = clean_test_name.title()
 
-        return f"[Bug] {error_type}: {clean_test_name}"
+        # Create a short error identifier from error_type (first 50 chars)
+        error_identifier = error_type[:50] if len(error_type) > 50 else error_type
+
+        return f"[Bug] {error_identifier}: {clean_test_name}"
 
     def _generate_bug_body(
         self,
@@ -219,6 +226,19 @@ class BugFilingService:
         ci_run_url = metadata.get("ci_run_url", "")
         commit_sha = metadata.get("commit_sha", os.getenv("GITHUB_SHA", "unknown"))
         branch_name = metadata.get("branch_name", os.getenv("GITHUB_REF_NAME", "unknown"))
+
+        # Extract custom metadata fields for test-specific context
+        # These will be displayed in a custom metadata section
+        custom_metadata = {}
+        custom_fields = [
+            "network_condition", "memory_increase_mb", "iterations",
+            "endpoint", "status_code", "action", "percy_diff_url",
+            "pixel_diff_count", "violation_type", "violation_count", "wcag_level",
+            "device"
+        ]
+        for field in custom_fields:
+            if field in metadata:
+                custom_metadata[field] = metadata[field]
 
         # Build bug body
         body = f"""## Bug Description
@@ -274,6 +294,15 @@ class BugFilingService:
 """
             for metric_name, metric_value in performance_metrics.items():
                 body += f"- **{metric_name}:** {metric_value}\n"
+            body += "\n"
+
+        # Add custom metadata if available
+        if custom_metadata:
+            body += f"""## Test-Specific Metadata
+
+"""
+            for field_name, field_value in custom_metadata.items():
+                body += f"- **{field_name}:** {field_value}\n"
             body += "\n"
 
         # Add screenshot if available
