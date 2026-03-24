@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 239 of 245 (API Fuzzing Infrastructure)
-Plan: 2 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: In Progress
-Last activity: 2026-03-24 — Plan 239-02 complete: Authentication endpoint fuzzing harnesses (12 fuzz targets across 3 test files, 995 lines) covering login, signup, JWT validation, and password reset with TestClient pattern and fixture reuse from e2e_ui
+Last activity: 2026-03-24 — Plan 239-04 complete: Workflow/skill/trigger endpoint fuzzing harnesses (17 fuzz targets across 3 test files, 1622 lines) covering workflow create/update/trigger/schedule, skill import/execute/promote, trigger validate/execute/schedule/webhook/event with comprehensive security edge cases (code injection, typosquatting, path traversal, null bytes, XSS, SQLi, YAML parsing)
 
-Progress: [██████░░░] 65%
+Progress: [████████░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52 (from v6.0 milestone)
-- Average duration: ~5.5 minutes
-- Total execution time: 4.83 hours
+- Total plans completed: 55 (from v6.0 milestone)
+- Average duration: ~5.4 minutes
+- Total execution time: 4.99 hours
 
 **By Phase:**
 
@@ -46,7 +46,7 @@ Progress: [██████░░░] 65%
 | 236 | 8/9 | 41 min | ~5.1 min |
 | 237 | 5/5 | 14 min | ~2.8 min |
 | 238 | 5/5 | 27 min | ~5.4 min |
-| 239 | 1/5 | 3 min | ~3.0 min |
+| 239 | 3/5 | 10 min | ~3.3 min |
 | 237-01 | 3/3 | 4 min | ~1.3 min |
 | 237-02 | 5/5 | 7 min | ~1.4 min |
 | 237-03 | 4/4 | 5 min | ~1.3 min |
@@ -66,6 +66,7 @@ Progress: [██████░░░] 65%
 | Phase 238 P02 | 651 | 3 tasks | 6 files |
 | Phase 238 P04 | 740 | 15 tasks | 4 files |
 | Phase 239 P02 | 180 | 3 tasks | 3 files |
+| Phase 239 P03 | 474 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -166,11 +167,14 @@ None yet.
 - [FUZZ-05]: Graceful subprocess shutdown with SIGTERM (10s timeout) before SIGKILL to prevent orphaned processes
 - [FUZZ-06]: Environment variable injection (FUZZ_CAMPAIGN_ID, FUZZ_CRASH_DIR, FUZZ_ITERATIONS) for campaign context
 - [FUZZ-07]: Timestamped campaign IDs for artifact isolation: {endpoint}_{timestamp}
+- [FUZZ-08]: TestClient vs httpx pattern selection - TestClient for standard endpoints (agent, canvas) and httpx for streaming endpoints (WebSocket, SSE) with 6 TestClient usages per test file and 26 httpx usages in streaming tests
+- [FUZZ-09]: Timeout configuration strategy - Short timeouts (5-10s) to prevent hangs during fuzzing campaigns with 5s default timeout for httpx client, 5s WebSocket connection/close timeouts, and fuzzed timeout range 0.1s-300s for timeout testing
+- [FUZZ-10]: Edge case coverage strategy - Comprehensive edge case coverage beyond SQL injection/XSS including None/null values, empty strings, huge inputs (1000-10000000 chars), null bytes, path traversal, malformed JSON, nested structures, and cyclical references with 8+ SQL injection, 6+ XSS, and 4+ null byte test cases across all fuzzing harnesses
 
 ## Session Continuity
 
-Last session: 2026-03-24 (Phase 239-01 completion)
-Stopped at: Plan 239-01 completed - FuzzingOrchestrator service (507 lines) and CrashDeduplicator (202 lines) with SHA256-based crash deduplication and BugFilingService integration
+Last session: 2026-03-24 (Phase 239-03 completion)
+Stopped at: Plan 239-03 completed - Agent/canvas/streaming fuzzing harnesses (12 fuzz targets across 3 test files, 1411 lines) with TestClient/httpx patterns and comprehensive edge case coverage
 Resume file: None
 
 ## Milestone Context
