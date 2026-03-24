@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(backend_path, "tests", "e2e_ui"))
 from fixtures.database_fixtures import db_session
 
 # Import mobile fixtures
-from mobile_api.fixtures.mobile_fixtures import (
+from tests.mobile_api.fixtures.mobile_fixtures import (
     mobile_api_client,
     mobile_auth_token,
     mobile_auth_headers,
@@ -26,6 +26,3 @@ from mobile_api.fixtures.mobile_fixtures import (
     mobile_authenticated_client,
     mobile_admin_user,
 )
-
-# Make fixtures available to all tests in this directory
-pytest_plugins = ["mobile_api.fixtures.mobile_fixtures"]
