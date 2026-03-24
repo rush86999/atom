@@ -6,7 +6,7 @@
 
 **Invariant Definition:** An invariant is a formal property that must always hold true for all valid inputs. Property tests generate thousands of random inputs to verify these invariants, finding edge cases that example-based tests miss.
 
-**Last Updated:** 2026-03-24 (Phase 238 Plan 01)
+**Last Updated:** 2026-03-24 (Phase 238 Plan 04)
 
 ---
 
@@ -34,9 +34,12 @@
    - [Execution Idempotence Invariants](#execution-idempotence-invariants)
    - [Execution Termination Invariants](#execution-termination-invariants)
    - [Execution Determinism Invariants](#execution-determinism-invariants)
-6. [Criticality Categories](#criticality-categories)
-
----
+6. [API Contract Invariants](#api-contract-invariants)
+   - [Malformed JSON Handling Invariants](#malformed-json-handling-invariants)
+   - [Oversized Payload Handling Invariants](#oversized-payload-handling-invariants)
+   - [Authorization Invariants (Expansion)](#authorization-invariants-expansion)
+   - [Governance Cache Invariants (Expansion)](#governance-cache-invariants-expansion)
+7. [Criticality Categories](#criticality-categories)
 
 ## Governance Invariants
 
@@ -522,6 +525,412 @@ Let M = {STUDENT, INTERN, SUPERVISED, AUTONOMOUS}
 ```
 
 ---
+
+## API Contract Invariants
+
+API contract invariants ensure API endpoints handle malformed inputs, oversized payloads, and adhere to response schema specifications. These are **CRITICAL** for API robustness and preventing DoS vulnerabilities.
+
+### Malformed JSON Handling Invariants
+
+#### Invariant: Malformed JSON Returns Client Error (Not 500)
+
+**Formal Specification:**
+```
+For all malformed JSON payloads p:
+  response = POST /api/v1/agents/execute with p
+  response.status_code in [400, 422] (client error only)
+  response.status_code != 500 (never crash)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Malformed JSON is common (client bugs, network errors). API must handle gracefully without crashing. 500 errors on malformed input indicate poor error handling and potential DoS vulnerability.
+
+**Test Location:** `test_malformed_json.py::TestMalformedJSONHandling::test_api_rejects_malformed_json_gracefully`
+
+**Mathematical Definition:**
+```
+Let P be set of malformed JSON payloads:
+  - Random text (not valid JSON)
+  - Dict with None values (invalid JSON)
+  - Specifically malformed strings
+  - Empty/null payloads
+  - Invalid UTF-8 sequences
+
+∀ p ∈ P:
+  400 ≤ status_code(p) < 500
+  status_code(p) ≠ 500
+```
+
+---
+
+#### Invariant: Invalid UTF-8 Handled Gracefully
+
+**Formal Specification:**
+```
+For all invalid UTF-8 byte sequences b:
+  response = POST /api/v1/agents/execute with b
+  response.status_code in [400, 422] (client error only)
+  No exception raised during request
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Invalid UTF-8 sequences must not crash the API. Proper UTF-8 validation prevents encoding-related vulnerabilities.
+
+**Test Location:** `test_malformed_json.py::TestMalformedJSONHandling::test_api_handles_invalid_utf8`
+
+**Mathematical Definition:**
+```
+Let B be set of invalid UTF-8 byte sequences
+
+∀ b ∈ B:
+  400 ≤ status_code(b) < 500
+  status_code(b) ≠ 500
+```
+
+---
+
+#### Invariant: Injection Attempts Sanitized
+
+**Formal Specification:**
+```
+For all text inputs t (including null bytes, SQL injection, XSS):
+  response = POST /api/v1/agents/execute with t
+  response.status_code in [400, 422] (client error only)
+  Input is sanitized (no SQL injection, no XSS execution)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Injection attempts must be sanitized to prevent SQL injection, XSS, and command injection vulnerabilities. Null bytes must be handled to prevent string truncation attacks.
+
+**Test Location:** `test_malformed_json.py::TestMalformedJSONHandling::test_api_handles_null_bytes_and_injection`
+
+**Mathematical Definition:**
+```
+Let I be set of injection patterns:
+  - SQL injection: '; DROP TABLE--', '1' OR '1'='1
+  - XSS: <script>alert('xss')</script>
+  - Null bytes: \x00 embedded in strings
+
+∀ i ∈ I:
+  status_code(i) ≠ 500
+  sanitized(i) is safe
+```
+
+---
+
+### Oversized Payload Handling Invariants
+
+#### Invariant: Oversized Payloads Rejected Gracefully
+
+**Formal Specification:**
+```
+For all oversized payloads (size > limit):
+  response = POST /api/v1/agents/execute with oversized payload
+  response.status_code in [400, 413] (client error only)
+  response.status_code != 500 (never crash with OOM)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Oversized payloads must not cause Out of Memory errors or crashes. Proper size limits prevent DoS attacks via memory exhaustion.
+
+**Test Location:** `test_oversized_payloads.py::TestOversizedPayloadHandling::test_api_rejects_oversized_payloads`
+
+**Mathematical Definition:**
+```
+Let S be payload size
+Let LIMIT be maximum allowed payload size
+
+∀ S > LIMIT:
+  status_code(payload_with_size_S) in {400, 413}
+  status_code(payload_with_size_S) ≠ 500
+```
+
+---
+
+#### Invariant: Empty Payloads Handled Gracefully
+
+**Formal Specification:**
+```
+For all empty payloads e:
+  response = POST /api/v1/agents/execute with e
+  response.status_code in [400, 422] (client error only)
+  response.status_code != 500 (never crash)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Empty payloads are common (client bugs, validation failures). API must validate input before processing to prevent crashes.
+
+**Test Location:** `test_oversized_payloads.py::TestOversizedPayloadHandling::test_api_handles_empty_payloads`
+
+**Mathematical Definition:**
+```
+Let E = {'', '{}', '[]', None}
+
+∀ e ∈ E:
+  400 ≤ status_code(e) < 500
+  status_code(e) ≠ 500
+```
+
+---
+
+#### Invariant: Deeply Nested JSON Handled Safely
+
+**Formal Specification:**
+```
+For all deeply nested JSON structures (depth > 50):
+  response = POST /api/v1/agents/execute with nested JSON
+  response.status_code in [400, 422] (client error only)
+  response.status_code != 500 (never crash with stack overflow)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Deeply nested JSON can cause stack overflow errors during recursive parsing. Proper depth limits prevent recursion-based DoS attacks.
+
+**Test Location:** `test_oversized_payloads.py::TestOversizedPayloadHandling::test_api_handles_deeply_nested_json`
+
+**Mathematical Definition:**
+```
+Let D be nesting depth
+Let MAX_DEPTH = 50
+
+∀ D > MAX_DEPTH:
+  status_code(nested_json_with_depth_D) ≠ 500
+```
+
+---
+
+### Authorization Invariants (Expansion)
+
+#### Invariant: Authorization Monotonic with Maturity
+
+**Formal Specification:**
+```
+For all maturity levels (a, b) and action complexities c:
+  If order(a) > order(b) and permitted(b, c):
+    Then permitted(a, c) must be True
+
+Higher maturity cannot have fewer permissions than lower maturity.
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Authorization monotonicity is a security-critical invariant. Bugs here cause permission escalation vulnerabilities where higher maturity agents have fewer rights than lower maturity agents.
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_authorization_monotonic_with_maturity`
+
+**Mathematical Definition:**
+```
+Let M = {STUDENT, INTERN, SUPERVISED, AUTONOMOUS}
+Let order: M → {0, 1, 2, 3}
+
+∀ a, b ∈ M, ∀ c ∈ Complexity:
+  (order(a) > order(b) ∧ permitted(b, c)) ⟹ permitted(a, c)
+```
+
+---
+
+#### Invariant: Permission Check Idempotent
+
+**Formal Specification:**
+```
+For all agent_id and action:
+  permission_check(agent_id, action) = permission_check(agent_id, action)
+  (same inputs always produce same output)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Permission checks must be deterministic. Non-idempotent checks cause unpredictable behavior and break audit trails.
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_permission_check_idempotent`
+
+**Mathematical Definition:**
+```
+Let check(agent_id, action) be permission check function
+
+∀ agent_id, ∀ action:
+  check(agent_id, action) = check(agent_id, action)
+```
+
+---
+
+#### Invariant: Authorization Denied for Insufficient Maturity
+
+**Formal Specification:**
+```
+For all low maturity levels (STUDENT, INTERN) and high complexity (3-4):
+  permission_check(low_maturity, high_complexity) = False (denied)
+
+STUDENT cannot execute complexity 2+ actions.
+INTERN cannot execute complexity 3+ actions.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Low maturity agents must be denied high complexity actions to prevent unauthorized operations (state changes, deletions).
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_authorization_denied_for_insufficient_maturity`
+
+**Mathematical Definition:**
+```
+Let M = {STUDENT, INTERN}
+Let C = {3, 4}
+
+∀ m ∈ M, ∀ c ∈ C:
+  permitted(m, c) = False
+```
+
+---
+
+#### Invariant: Cross-Tenant Authorization Isolation
+
+**Formal Specification:**
+```
+For all agent_id and other_tenant_id (where agent.tenant_id != other_tenant_id):
+  permission_check(agent_id, action, other_tenant_id) = False (denied)
+
+Agents cannot access resources from other tenants.
+```
+
+**Criticality:** CRITICAL (max_examples=100)
+
+**Rationale:** Cross-tenant isolation is critical for multi-tenant security. Agents must not access resources from other tenants to prevent data leaks.
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_cross_tenant_authorization_isolation`
+
+**Mathematical Definition:**
+```
+Let agent ∈ Tenant₁
+Let resource ∈ Tenant₂
+Let Tenant₁ ≠ Tenant₂
+
+∀ agent, resource:
+  Tenant₁(agent) ≠ Tenant₂(resource) ⟹ ¬permitted(agent, resource)
+```
+
+---
+
+### Governance Cache Invariants (Expansion)
+
+#### Invariant: Cache Invalidation Propagates
+
+**Formal Specification:**
+```
+For all agent_id lists:
+  After cache warming → update agent → invalidate cache:
+    Cache returns fresh data (not stale)
+    Cached value matches updated database value
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache invalidation must remove stale entries. Stale cache data causes incorrect governance decisions (wrong permissions, outdated maturity levels).
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_invalidation_propagates`
+
+**Mathematical Definition:**
+```
+Let k be cache key
+Let v₀ be initial cached value
+Let v₁ be updated database value
+
+After invalidate(k):
+  cache.get(k) = v₁ (fresh data)
+  cache.get(k) ≠ v₀ (not stale)
+```
+
+---
+
+#### Invariant: Cache Consistency with Database
+
+**Formal Specification:**
+```
+For all agent counts:
+  After caching agents and updating DB:
+    Cached value == DB value (after invalidation)
+    No stale data remains in cache
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must be consistent with database. Inconsistent values cause incorrect permission decisions and data corruption.
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_consistency_with_database`
+
+**Mathematical Definition:**
+```
+Let k be cache key
+Let cache.get(k) = cached
+Let db.query(k) = db_value
+
+After invalidation:
+  cached ≅ db_value (consistent)
+```
+
+---
+
+#### Invariant: Cache Hit Rate Above Threshold
+
+**Formal Specification:**
+```
+For all repeated lookup patterns:
+  Let cache_hits = count(successful cache lookups)
+  Let total_lookups = count(all cache lookups)
+  
+  cache_hit_rate = cache_hits / total_lookups
+  cache_hit_rate > 0.90 (90% target)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must provide >90% hit rate for repeated lookups. Lower hit rates indicate cache inefficiency and degraded performance.
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_hit_rate_above_threshold`
+
+**Mathematical Definition:**
+```
+Let lookups = [k₁, k₂, ..., kₙ] be cache key lookups
+Let hits = count(cache.get(k) ≠ None for k in lookups)
+
+hit_rate = hits / n
+
+∀ lookup_patterns: hit_rate > 0.90
+```
+
+---
+
+#### Invariant: Cache Concurrent Access Safe
+
+**Formal Specification:**
+```
+For all concurrent access patterns:
+  No race conditions occur
+  No data corruption
+  No exceptions raised during concurrent access
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must handle concurrent access safely. Race conditions cause data corruption, incorrect permission decisions, and system crashes.
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_concurrent_access_safe`
+
+**Mathematical Definition:**
+```
+Let threads = [t₁, t₂, ..., tₙ] accessing cache concurrently
+
+∀ thread t:
+  cache.get(k) returns valid result OR None (no exception)
+  No data corruption occurs
+```
+
+
 
 ## Episode Invariants
 
