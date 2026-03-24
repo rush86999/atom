@@ -6,7 +6,7 @@
 
 **Invariant Definition:** An invariant is a formal property that must always hold true for all valid inputs. Property tests generate thousands of random inputs to verify these invariants, finding edge cases that example-based tests miss.
 
-**Last Updated:** 2026-02-28 (Phase 103 Plan 04)
+**Last Updated:** 2026-03-24 (Phase 238 Plan 01)
 
 ---
 
@@ -30,7 +30,11 @@
 4. [Canvas Invariants](#canvas-invariants)
    - [Canvas Audit Invariants](#canvas-audit-invariants)
    - [Chart Data Invariants](#chart-data-invariants)
-5. [Criticality Categories](#criticality-categories)
+5. [Agent Execution Invariants](#agent-execution-invariants)
+   - [Execution Idempotence Invariants](#execution-idempotence-invariants)
+   - [Execution Termination Invariants](#execution-termination-invariants)
+   - [Execution Determinism Invariants](#execution-determinism-invariants)
+6. [Criticality Categories](#criticality-categories)
 
 ---
 
@@ -1928,6 +1932,296 @@ D.labels ≠ None ∧
 |D.labels| > 0 ∧
 D.datasets ≠ None ∧
 |D.datasets| > 0
+```
+
+---
+
+## Agent Execution Invariants
+
+Agent execution invariants ensure agent execution lifecycle, idempotence, termination, and determinism operate correctly. These are **CRITICAL** for system correctness and reliability.
+
+### Execution Idempotence Invariants
+
+#### Invariant: Execution Idempotent for Same Inputs
+
+**Formal Specification:**
+```
+For all agent_id and params:
+  execution_1 = execute_agent(agent_id, params)
+  execution_2 = execute_agent(agent_id, params)
+
+  execution_1.agent_id == execution_2.agent_id
+  execution_1.status == execution_2.status
+  execution_1.output == execution_2.output
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Same inputs must produce identical outputs. Non-idempotent executions cause data corruption and unpredictable behavior.
+
+**Test Location:** `test_execution_idempotence.py::TestExecutionIdempotenceInvariants::test_execution_idempotent_for_same_inputs`
+
+**Mathematical Definition:**
+```
+Let f(agent_id, params) = execution
+
+∀ agent_id, params:
+  f(agent_id, params)₁ ≡ f(agent_id, params)₂
+```
+
+---
+
+#### Invariant: Execution Replay Produces Same Result
+
+**Formal Specification:**
+```
+For all execution_id:
+  original = get_execution(execution_id)
+  replay_1 = get_execution(execution_id)
+  replay_2 = get_execution(execution_id)
+
+  All replays return identical result, status, duration
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Replaying executions must produce consistent results. Inconsistent replays break reproducibility.
+
+**Test Location:** `test_execution_idempotence.py::TestExecutionIdempotenceInvariants::test_execution_replay_produces_same_result`
+
+**Mathematical Definition:**
+```
+Let replay(execution_id) = execution
+
+∀ execution_id, ∀ i, j ∈ {1, ..., n}:
+  replay(execution_id)ᵢ ≡ replay(execution_id)ⱼ
+```
+
+---
+
+#### Invariant: Concurrent Execution Handling
+
+**Formal Specification:**
+```
+For all concurrent executions of same agent_id:
+  execution_ids = [execute_agent(agent_id, params) for _ in range(n)]
+
+  len(execution_ids) == len(set(execution_ids)) (unique IDs)
+  All executions complete successfully
+  No race conditions or data corruption
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Concurrent executions must have unique IDs and complete without conflicts. Race conditions cause data corruption.
+
+**Test Location:** `test_execution_idempotence.py::TestExecutionIdempotenceInvariants::test_concurrent_execution_handling`
+
+**Mathematical Definition:**
+```
+Let E = [execute_agent(agent_id, params) for _ in range(n)]
+
+|E| = |set(E)| (uniqueness)
+∀ e ∈ E: e.status = COMPLETED (no failures)
+```
+
+---
+
+### Execution Termination Invariants
+
+#### Invariant: Execution Terminates Gracefully
+
+**Formal Specification:**
+```
+For all executions with deadline D:
+  execute_agent(agent_id, params)
+
+  execution.status ∈ {COMPLETED, FAILED, CANCELLED} (never PENDING/RUNNING)
+  execution.duration_seconds ≤ D
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** All executions must terminate within deadline. Infinite loops or hangs cause system unresponsiveness.
+
+**Test Location:** `test_execution_termination.py::TestExecutionTerminationInvariants::test_execution_terminates_gracefully`
+
+**Mathematical Definition:**
+```
+Let E = execute_agent(agent_id, params, deadline=D)
+
+E.status ∈ {COMPLETED, FAILED, CANCELLED}
+E.duration ≤ D
+```
+
+---
+
+#### Invariant: Large Payloads Handled Gracefully
+
+**Formal Specification:**
+```
+For all executions with payload_size S:
+  execute_agent(agent_id, large_payload)
+
+  execution completes (no OOM, no infinite loops)
+  execution.duration < 60s (reasonable time)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Large payloads must not cause OOM or infinite loops. Memory leaks cause system crashes.
+
+**Test Location:** `test_execution_termination.py::TestExecutionTerminationInvariants::test_execution_handles_large_payloads`
+
+**Mathematical Definition:**
+```
+Let payload_size ∈ [0, 10_000_000]
+Let E = execute_agent(agent_id, payload)
+
+E.status ∈ {COMPLETED, FAILED} (not hung)
+E.duration < 60s
+```
+
+---
+
+#### Invariant: Malformed Params Return Error
+
+**Formal Specification:**
+```
+For all malformed params (None, empty lists, invalid structures):
+  execution = execute_agent(agent_id, malformed_params)
+
+  execution.status ∈ {COMPLETED, FAILED}
+  If FAILED: execution.error_message is not None
+  Execution completes (no infinite loops)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Malformed params must return error, not hang. Infinite loops cause system unresponsiveness.
+
+**Test Location:** `test_execution_termination.py::TestExecutionTerminationInvariants::test_execution_handles_malformed_params`
+
+**Mathematical Definition:**
+```
+Let malformed ∈ {None, [], invalid}
+Let E = execute_agent(agent_id, malformed)
+
+E.status ∈ {COMPLETED, FAILED}
+(E.status = FAILED) ⟹ (E.error_message ≠ None)
+```
+
+---
+
+### Execution Determinism Invariants
+
+#### Invariant: Deterministic Output for Same Inputs
+
+**Formal Specification:**
+```
+For all agent_id and params:
+  executions = [execute_agent(agent_id, params) for _ in range(n)]
+
+  All execution.status values identical
+  All execution.result_summary values identical
+  All execution.error_message values identical (or all None)
+  All execution.duration_seconds within 100ms variance
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Same inputs must produce identical outputs. Non-determinism breaks reproducibility and debugging.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionDeterminismInvariants::test_deterministic_output_for_same_inputs`
+
+**Mathematical Definition:**
+```
+Let E = [execute(agent_id, params) for _ in range(n)]
+
+∀ eᵢ, eⱼ ∈ E:
+  eᵢ.status = eⱼ.status ∧
+  eᵢ.result = eⱼ.result ∧
+  |eᵢ.duration - eⱼ.duration| ≤ 0.1s
+```
+
+---
+
+#### Invariant: Deterministic State Transitions
+
+**Formal Specification:**
+```
+For all agent_id and params:
+  state_seq_1 = get_state_sequence(agent_id, params)
+  state_seq_2 = get_state_sequence(agent_id, params)
+
+  state_seq_1 == state_seq_2 (identical transitions)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Same inputs must produce same state transition path. Non-deterministic transitions break state machine correctness.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionDeterminismInvariants::test_deterministic_state_transitions`
+
+**Mathematical Definition:**
+```
+Let S(agent_id, params) = [state₀, state₁, ..., stateₙ]
+
+∀ agent_id, params:
+  S(agent_id, params)₁ = S(agent_id, params)₂
+```
+
+---
+
+#### Invariant: Deterministic Telemetry Recording
+
+**Formal Specification:**
+```
+For all agent executions:
+  executions = [execute_agent(agent_id, params) for _ in range(3)]
+
+  All execution.duration_seconds within 10% variance
+  All execution.metadata_json have same fields (token_count, error_count)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Telemetry must be consistent for same operations. Inconsistent telemetry breaks monitoring and debugging.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionDeterminismInvariants::test_deterministic_telemetry_recording`
+
+**Mathematical Definition:**
+```
+Let E = [execute(agent_id, params) for _ in range(3)]
+
+∀ eᵢ, eⱼ ∈ E:
+  |eᵢ.duration - eⱼ.duration| / eⱼ.duration ≤ 0.10
+  keys(eᵢ.metadata) = keys(eⱼ.metadata)
+```
+
+---
+
+#### Invariant: Execution Timestamps Consistent
+
+**Formal Specification:**
+```
+For all completed executions:
+  execution.started_at < execution.completed_at
+  execution.completed_at - execution.started_at ≈ execution.duration_seconds (within 100ms)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Timestamps must be consistent and ordered. Inconsistent timestamps break audit trails and duration tracking.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionTimestampInvariants::test_execution_timestamps_consistent`
+
+**Mathematical Definition:**
+```
+Let E be completed execution
+
+E.started_at < E.completed_at
+| (E.completed_at - E.started_at) - E.duration | ≤ 0.1s
 ```
 
 ---
