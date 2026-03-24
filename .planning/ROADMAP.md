@@ -63,7 +63,12 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   3. State machine tests enforce agent graduation monotonic transitions and episode lifecycle invariants
   4. Security property tests prevent SQL injection, XSS, and CSRF vulnerabilities
   5. All property tests follow invariant-first thinking (invariants documented before writing tests)
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 238-01-PLAN.md — Agent execution property tests (idempotence, termination, determinism)
+- [ ] 238-02-PLAN.md — LLM routing property tests (consistency, cognitive tier mapping, cache-aware)
+- [ ] 238-03-PLAN.md — Episodic memory property tests (segmentation, retrieval, lifecycle)
+- [ ] 238-04-PLAN.md — API contracts and governance expansion (malformed JSON, authorization, cache)
+- [ ] 238-05-PLAN.md — State machines and security property tests (graduation, SQL injection, XSS, CSRF)
 
 #### Phase 239: API Fuzzing Infrastructure
 **Goal**: Coverage-guided fuzzing for FastAPI endpoints discovers crashes in parsing/validation code
