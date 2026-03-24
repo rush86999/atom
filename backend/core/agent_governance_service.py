@@ -12,18 +12,23 @@ from core.models import (
     AgentRegistry,
     AgentStatus,
     FeedbackStatus,
+    GovernanceDocument,
+    GovernanceDocStatus,
+    GovernanceImpactLevel,
     HITLAction,
     HITLActionStatus,
     User,
     UserRole,
 )
 from core.rbac_service import Permission, RBACService
+from core.continuous_learning_service import ContinuousLearningService
 
 logger = logging.getLogger(__name__)
 
 class AgentGovernanceService:
     def __init__(self, db: Session):
         self.db = db
+        self.continuous_learning = ContinuousLearningService(db)
         
     def register_or_update_agent(
         self, 
@@ -148,6 +153,12 @@ class AgentGovernanceService:
             # So we can await it if we change signature? 
             # Wait, _adjudicate_feedback is defined as async on line 88. 
             await wm.record_experience(correction_exp)
+
+            # Continuous learning update
+            try:
+                self.continuous_learning.update_from_feedback(feedback)
+            except Exception as le:
+                logger.warning(f"Continuous learning update failed from governance: {le}")
              
         else:
             # Lower confidence users
@@ -795,6 +806,107 @@ class AgentGovernanceService:
             logger.error(f"Error suspending agent {agent_id}: {e}")
             self.db.rollback()
             return False
+
+    # ==================== MANUAL FACT MANAGEMENT ====================
+
+    def create_manual_fact(
+        self,
+        tenant_id: str,
+        user_id: str,
+        title: str,
+        content: str,
+        category: str = "general",
+        impact_level: str = GovernanceImpactLevel.MEDIUM.value,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a manual governance fact entry.
+        
+        Senior roles (CEO, Director, Admin) are auto-approved.
+        Managers and others require approval.
+        """
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise handle_not_found("User", user_id)
+
+        # Determine approval status based on role
+        # CEO, Director, Admin, Super Admin auto-approve
+        auto_approve_roles = [
+            UserRole.SUPER_ADMIN.value,
+            UserRole.OWNER.value, # Matches CEO/Director in SaaS
+            UserRole.WORKSPACE_ADMIN.value, # Matches Admin in SaaS
+        ]
+        
+        status = GovernanceDocStatus.PENDING.value
+        approved_by = None
+        approved_at = None
+        
+        if user.role in auto_approve_roles or user.role == "ceo" or user.role == "director":
+            status = GovernanceDocStatus.APPROVED.value
+            approved_by = user_id
+            approved_at = datetime.now(timezone.utc)
+            logger.info(f"Auto-approved fact '{title}' from trusted role: {user.role}")
+
+        doc = GovernanceDocument(
+            tenant_id=tenant_id,
+            title=title,
+            content=content,
+            category=category,
+            impact_level=impact_level,
+            source_type="manual",
+            status=status,
+            entered_by=user_id,
+            approved_by=approved_by,
+            approved_at=approved_at,
+            metadata_json=metadata or {}
+        )
+        
+        self.db.add(doc)
+        self.db.commit()
+        self.db.refresh(doc)
+        
+        return {
+            "id": doc.id,
+            "status": doc.status,
+            "message": "Fact created successfully" if status == GovernanceDocStatus.APPROVED.value else "Fact created, pending approval"
+        }
+
+    def approve_pending_fact(self, document_id: str, approver_id: str) -> bool:
+        """Approve a pending governance fact."""
+        doc = self.db.query(GovernanceDocument).filter(
+            GovernanceDocument.id == document_id
+        ).first()
+        
+        if not doc:
+            raise handle_not_found("GovernanceDocument", document_id)
+            
+        if doc.status != GovernanceDocStatus.PENDING.value:
+            return False
+            
+        doc.status = GovernanceDocStatus.APPROVED.value
+        doc.approved_by = approver_id
+        doc.approved_at = datetime.now(timezone.utc)
+        
+        self.db.commit()
+        logger.info(f"Manual fact {document_id} approved by {approver_id}")
+        return True
+
+    def list_pending_facts(self, tenant_id: str) -> List[GovernanceDocument]:
+        """List all pending facts for a tenant."""
+        return self.db.query(GovernanceDocument).filter(
+            GovernanceDocument.tenant_id == tenant_id,
+            GovernanceDocument.status == GovernanceDocStatus.PENDING.value
+        ).all()
+
+    def list_approved_facts(self, tenant_id: str, category: Optional[str] = None) -> List[GovernanceDocument]:
+        """List all active governance facts for a tenant."""
+        query = self.db.query(GovernanceDocument).filter(
+            GovernanceDocument.tenant_id == tenant_id,
+            GovernanceDocument.status == GovernanceDocStatus.APPROVED.value
+        )
+        if category:
+            query = query.filter(GovernanceDocument.category == category)
+        return query.all()
 
     def terminate_agent(self, agent_id: str, reason: str = None) -> bool:
         """

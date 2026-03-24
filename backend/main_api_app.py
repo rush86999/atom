@@ -836,6 +836,14 @@ try:
     except ImportError as e:
         logger.warning(f"Learning plan routes not found: {e}")
 
+    # Continuous Learning Routes
+    try:
+        from api.learning_routes import router as learning_router
+        app.include_router(learning_router)
+        logger.info("✓ Continuous Learning Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Continuous learning routes not found: {e}")
+
     try:
         from api.project_health_routes import router as project_health_router
         app.include_router(project_health_router)

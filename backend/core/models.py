@@ -2,7 +2,7 @@
 
 
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, UniqueConstraint, Enum as SQLEnum, Index, BigInteger, TypeDecorator, Numeric, Date
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 import uuid
 from decimal import Decimal
 
@@ -1511,6 +1511,90 @@ class AgentFeedback(Base):
     agent = relationship("AgentRegistry", backref="feedback_history")
     execution = relationship("AgentExecution", backref="feedback")
     user = relationship("User", backref="submitted_feedback")
+
+
+class AgentLearning(Base):
+    """
+    Summary model for agent performance and adaptive parameters.
+    Updated continuously by ContinuousLearningService.
+    """
+    __tablename__ = "agent_learning"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Aggregated Stats
+    total_feedback = Column(Integer, default=0)
+    positive_feedback = Column(Integer, default=0)
+    negative_feedback = Column(Integer, default=0)
+    avg_rating = Column(Float, nullable=True)
+
+    # Learning Parameters
+    learning_rate = Column(Float, default=0.01)
+    parameters_json = Column(JSONB, nullable=True)
+
+    last_updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref=backref("learning_summary", uselist=False))
+    tenant = relationship("Tenant", backref="agent_learning_records")
+
+
+class GovernanceDocStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+class GovernanceImpactLevel(str, enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class GovernanceDocument(Base):
+    """
+    Database model for governance documents (policies, contracts, compliance).
+    Tracks R2 metadata and manual fact entry status.
+    """
+    __tablename__ = "governance_documents"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    
+    # Document Metadata
+    title = Column(String(512), nullable=False)
+    content = Column(Text, nullable=False)
+    source_url = Column(String(1024), nullable=True) # e.g. R2 public URL
+    source_type = Column(String(50), default="manual") # manual, file_upload, url
+    
+    # Governance Context
+    impact_level = Column(String, default=GovernanceImpactLevel.MEDIUM.value)
+    category = Column(String(100), default="general") # security, finance, hr
+    
+    # Approval Flow
+    status = Column(String, default=GovernanceDocStatus.PENDING.value)
+    entered_by = Column(String, ForeignKey("users.id"), nullable=False)
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    
+    # Vector Embedding for RAG
+    if PGVECTOR_AVAILABLE:
+        embedding = Column(Vector(EMBEDDING_DIM), nullable=True)
+    else:
+        embedding = Column(JSON, nullable=True)
+        
+    # Metadata for filtering
+    metadata_json = Column(JSONB, default={})
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    author = relationship("User", foreign_keys=[entered_by], backref="entered_governance")
+    approver = relationship("User", foreign_keys=[approved_by], backref="approved_governance")
 
 
 class AgentFeedEvent(Base):
