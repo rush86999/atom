@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { useLiveKnowledge, KnowledgeItem, SmartInsight } from '@/hooks/useLiveKnowledge';
 import { useSession } from 'next-auth/react';
 import { EntityTypeList } from '@/components/entity/EntityTypeList';
+import { EntityTypeGraphView } from '@/components/entity/EntityTypeGraphView';
 import GraphVisualization from '@/src/components/Graph/GraphVisualization';
 
 export const KnowledgeCommandCenter: React.FC = () => {
@@ -32,6 +33,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
     const [activeType, setActiveType] = useState<string>('all');
     const [activePlatform, setActivePlatform] = useState<string>('all');
     const [activeTab, setActiveTab] = useState<string>('knowledge');
+    const [showTypeGraph, setShowTypeGraph] = useState(false);
     const { toast: uiToast } = useToast();
     const { data: session } = useSession();
     const workspaceId = (session as any)?.user?.workspace_id || 'default';
@@ -164,6 +166,25 @@ export const KnowledgeCommandCenter: React.FC = () => {
                         >
                             Graph View
                         </button>
+
+                        {activeTab === 'entity-types' && (
+                            <div className="h-4 w-[1px] bg-white/10 mx-1" />
+                        )}
+
+                        {activeTab === 'entity-types' && (
+                            <button
+                                onClick={() => setShowTypeGraph(!showTypeGraph)}
+                                className={cn(
+                                    "px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase flex items-center gap-2",
+                                    showTypeGraph
+                                        ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                                        : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-white"
+                                )}
+                            >
+                                <span className={cn("w-1.5 h-1.5 rounded-full", showTypeGraph ? "bg-emerald-400 animate-pulse" : "bg-white/20")} />
+                                Type Graph
+                            </button>
+                        )}
                     </div>
                     <button
                         className="flex items-center gap-2 px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-primary text-xs font-bold hover:bg-primary/10 transition-colors uppercase"
@@ -233,7 +254,11 @@ export const KnowledgeCommandCenter: React.FC = () => {
                 </div>
             ) : activeTab === 'entity-types' ? (
                 <div className="w-full">
-                    <EntityTypeList />
+                    {showTypeGraph ? (
+                        <EntityTypeGraphView workspaceId={workspaceId} />
+                    ) : (
+                        <EntityTypeList />
+                    )}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

@@ -3,39 +3,47 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Hash, Type } from 'lucide-react';
+import { Calendar, Hash, Type, Edit2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface EntityTypeCardProps {
-  id: string;
-  slug: string;
-  display_name: string;
-  description?: string;
-  json_schema: Record<string, any>;
-  is_system: boolean;
-  version: number;
-  created_at: string;
-  updated_at: string;
-  available_skills?: string[];
+  entityType: {
+    id: string;
+    slug: string;
+    display_name: string;
+    description?: string;
+    json_schema: Record<string, any>;
+    is_system: boolean;
+    version: number;
+    created_at: string;
+    updated_at: string;
+    available_skills?: string[];
+  };
+  onEdit?: () => void;
 }
 
 /**
  * Format date string to readable format
  */
 const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch (e) {
+    return 'Unknown Date';
+  }
 };
 
 /**
  * Get first few properties from JSON schema for preview
  */
 const getSchemaPreview = (schema: Record<string, any>): Array<{ name: string; type: string }> => {
-  if (!schema.properties) return [];
+  if (!schema || !schema.properties) return [];
 
   const properties = Object.entries(schema.properties).slice(0, 3);
   return properties.map(([name, def]: [string, any]) => ({
@@ -48,17 +56,22 @@ const getSchemaPreview = (schema: Record<string, any>): Array<{ name: string; ty
  * EntityTypeCard Component
  */
 export const EntityTypeCard: React.FC<EntityTypeCardProps> = ({
-  id,
-  slug,
-  display_name,
-  description,
-  json_schema,
-  is_system,
-  version,
-  created_at,
-  updated_at,
-  available_skills = [],
+  entityType,
+  onEdit,
 }) => {
+  const {
+    id,
+    slug,
+    display_name,
+    description,
+    json_schema,
+    is_system,
+    version,
+    created_at,
+    updated_at,
+    available_skills = [],
+  } = entityType;
+
   const schemaPreview = getSchemaPreview(json_schema);
 
   return (
@@ -90,6 +103,16 @@ export const EntityTypeCard: React.FC<EntityTypeCardProps> = ({
               </Badge>
             </div>
           </div>
+          {!is_system && onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-white hover:bg-white/5"
+              onClick={onEdit}
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
         {description && (
           <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{description}</p>

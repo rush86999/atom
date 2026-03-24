@@ -37,10 +37,7 @@ class KnowledgeIngestionManager:
         logger.info(f"Processing knowledge for document {doc_id} from {source} for user {user_id} in workspace {ws_id}")
         
         # 1. Extract knowledge
-        knowledge = await self.extractor.extract_knowledge(text, source)
-        
-        # 1. Extract knowledge (LLM-based)
-        knowledge = await self.extractor.extract_knowledge(text, source)
+        knowledge = await self.extractor.extract_knowledge(text, tenant_id=ws_id, source=source)
         
         # 2. Store entities and relationships in LanceDB
         entities = knowledge.get("entities", [])
@@ -78,8 +75,8 @@ class KnowledgeIngestionManager:
         if self.graphrag:
             try:
                 # Use the new structured ingestion method
-                graphrag_stats = self.graphrag.add_entities_and_relationships(user_id, entities, relationships)
-                logger.info(f"GraphRAG ingested {graphrag_stats['entities']} entities and {graphrag_stats['relationships']} relationships for user {user_id}")
+                graphrag_stats = self.graphrag.ingest_structured_data(ws_id, entities, relationships)
+                logger.info(f"GraphRAG ingested {graphrag_stats['entities']} entities and {graphrag_stats['relationships']} relationships for workspace {ws_id}")
             except Exception as e:
                 logger.warning(f"GraphRAG structured ingestion failed: {e}")
                 
