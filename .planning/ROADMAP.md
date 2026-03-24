@@ -2059,9 +2059,18 @@ Plans:
   11. Desktop tests work cross-platform (Windows, macOS, Linux)
   12. Automated bug filing creates GitHub Issues for reproducible failures
   13. Stress tests run on schedule (nightly/weekly CI jobs)
-**Plans**: TBD
+**Plans**: 9 plans
 
 Plans:
+- [x] 236-01: Load testing with k6 (baseline, moderate, high load scenarios)
+- [x] 236-02: Network simulation and failure injection (slow 3G, offline mode, database drops, API timeouts)
+- [x] 236-03: Memory leak detection and performance regression (CDP heap snapshots, Lighthouse CI)
+- [x] 236-04: Mobile API-level testing (authentication, agents, workflows, device features)
+- [x] 236-05: Desktop Tauri testing (window management, native features, cross-platform)
+- [x] 236-06: Visual regression testing with Percy (20+ critical pages)
+- [x] 236-07: Accessibility testing with jest-axe (WCAG 2.1 AA compliance, color contrast, keyboard navigation)
+- [x] 236-08: Automated bug discovery and filing (GitHub Issues integration, metadata collection)
+- [x] 236-09: Stress testing CI/CD integration (nightly/weekly jobs, result aggregation, alerting)
 - [ ] 236-01: Load testing with k6 (10/50/100 concurrent users, API reliability)
 - [ ] 236-02: Network simulation and failure injection tests (slow 3G, offline, DB drops, timeouts)
 - [ ] 236-03: Memory leak detection and performance regression testing (CDP snapshots, Lighthouse CI)
