@@ -11,7 +11,7 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 238 of 245 (Property-Based Testing Expansion)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: Complete
 Last activity: 2026-03-24 — Plan 238-03 completed: Episodic memory property tests (12 tests, 11 invariants)
 
@@ -45,6 +45,7 @@ Progress: [███░░░░░░] 60%
 | 235 | 7/7 | 33 min | ~4.7 min |
 | 236 | 8/9 | 41 min | ~5.1 min |
 | 237 | 5/5 | 14 min | ~2.8 min |
+| 238 | 5/5 | 27 min | ~5.4 min |
 | 237-01 | 3/3 | 4 min | ~1.3 min |
 | 237-02 | 5/5 | 7 min | ~1.4 min |
 | 237-03 | 4/4 | 5 min | ~1.3 min |
@@ -58,9 +59,11 @@ Progress: [███░░░░░░] 60%
 
 *Updated after each plan completion*
 | Phase 237 P05 | 70s | 3 tasks | 3 files |
+| Phase 238 P05 | 300s | 4 tasks | 11 files |
 | Phase 238 P01 | 507s | 3 tasks | 6 files |
 | Phase 238 P03 | 567s | 3 tasks | 6 files |
 | Phase 238 P02 | 651 | 3 tasks | 6 files |
+| Phase 238 P04 | 740 | 15 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -68,6 +71,18 @@ Progress: [███░░░░░░] 60%
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+**For v8.0 Milestone (New):**
+- [Milestone v8.0]: Automated bug discovery through fuzzing, chaos engineering, property-based testing expansion, and intelligent browser automation
+- [Phase 237]: Bug Discovery Infrastructure Foundation - Integrate into pytest, separate CI pipelines, quality standards
+- [Phase 238]: Property-Based Testing Expansion - 50+ new property tests with invariant-first thinking (5 plans complete)
+- [Phase 239]: API Fuzzing with Atheris for coverage-guided crash discovery
+- [Phase 240]: Headless Browser Bug Discovery - Intelligent exploration agents and bug detection
+- [Phase 241]: Chaos Engineering Integration - Failure injection with blast radius controls
+- [Phase 242]: Unified Bug Discovery Pipeline - Orchestration, aggregation, deduplication, triage
+- [Phase 243]: Memory & Performance Bug Discovery - memray, pytest-benchmark, Lighthouse CI
+- [Phase 244]: AI-Enhanced Bug Discovery - Multi-agent fuzzing and AI-generated invariants
+- [Phase 245]: Feedback Loops & ROI Tracking - Regression tests, dashboard, effectiveness metrics
 
 **From v7.0 Milestone (Completed):**
 - [Milestone v7.0]: Cross-platform E2E testing expansion from 30+ to 495+ tests across web, mobile, desktop
@@ -94,6 +109,9 @@ Recent decisions affecting current work:
 - [Phase 243]: Memory & performance bug discovery with memray and pytest-benchmark
 - [Phase 244]: AI-enhanced bug discovery with multi-agent fuzzing orchestration
 - [Phase 245]: Feedback loops and ROI tracking with regression test generation
+- [Phase 238]: Malformed JSON returns 400/422 (not 500) prevents DoS vulnerabilities
+- [Phase 238]: Oversized payloads return 413 (not OOM/crash) prevents memory exhaustion attacks
+- [Phase 238]: Authorization monotonicity invariant ensures higher maturity >= lower permissions
 
 ### Pending Todos
 
@@ -115,6 +133,11 @@ None yet.
 - [INFRA-08]: Created infrastructure verification checklist (244 lines) documenting production readiness verification for all INFRA-01 through INFRA-05 requirements with verification commands and success criteria
 - [INFRA-09]: Created comprehensive bug discovery infrastructure guide (359 lines) documenting architecture, directory structure, CI/CD pipeline separation, all 4 bug discovery categories with examples, fixture reuse, test quality standards, quick start, and troubleshooting
 - [INFRA-10]: Created test quality gate enforcement (257 lines) documenting TQ-01 through TQ-05 compliance with verification commands, common failures, quality gate scripts, CI/CD integration, and waiver process
+- [PROP-01]: Property-based testing expansion with 50+ new tests across agent execution, LLM routing, episodic memory, API contracts, state machines, and security (Phase 238 complete)
+- [PROP-02]: Critical paths covered with property tests - agent execution idempotence/termination/determinism, LLM routing consistency, episodic memory segmentation/retrieval, API contract validation, state machine monotonicity, security invariants
+- [PROP-03]: State machine testing with RuleBasedStateMachine for agent graduation monotonicity and training session transitions (200 examples for critical invariants)
+- [PROP-04]: Security property tests for SQL injection prevention (3 tests), XSS prevention (3 tests), CSRF protection (3 tests) - all with documented invariants and Hypothesis strategies
+- [PROP-05]: Invariant-first pattern enforced - all property tests document PROPERTY (what invariant), STRATEGY (Hypothesis strategy), INVARIANT (formal statement), RADII (why N examples sufficient) before test code
 
 ### Key Decisions (Phase 238)
 
