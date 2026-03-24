@@ -1,120 +1,109 @@
-# Requirements: Atom v7.0 - Cross-Platform E2E Testing & Bug Discovery
+# Requirements: Atom - Automated Bug Discovery & QA Testing
 
-**Defined:** 2026-03-23
-**Core Value:** Cross-platform user flows work reliably across web, mobile, and desktop with comprehensive bug discovery through E2E testing
+**Defined:** 2026-03-24
+**Core Value:** Automated bug discovery through comprehensive QA testing (fuzzing, chaos engineering, property-based testing, headless browser automation)
 
-## v1 Requirements
+## v8.0 Requirements
 
-Requirements for v7.0 milestone. Each maps to roadmap phases.
+Requirements for Milestone v8.0 - Automated Bug Discovery & QA Testing. Each requirement maps to roadmap phases.
 
-### Authentication (AUTH)
+### Test Infrastructure (INFRA)
 
-- [ ] **AUTH-01**: User can log in via web UI with email and password (JWT token validation)
-- [ ] **AUTH-02**: User session persists across browser refresh (localStorage JWT verification)
-- [ ] **AUTH-03**: User can log out via web UI (token invalidation)
-- [ ] **AUTH-04**: Protected routes redirect to login if not authenticated (web UI)
-- [ ] **AUTH-05**: JWT token refresh works on expiry (automatic re-authentication)
-- [ ] **AUTH-06**: API-first authentication bypasses UI login (100-500ms vs 10-60s)
-- [ ] **AUTH-07**: Authentication tests work across web, mobile (API-level), and desktop platforms
+- [ ] **INFRA-01**: Bug discovery integrates into existing pytest infrastructure (tests/ directory, not separate /bug-discovery/)
+- [ ] **INFRA-02**: Separate CI pipelines (fast PR tests <10min vs weekly bug discovery 2 hours)
+- [ ] **INFRA-03**: Documentation templates for all bug discovery categories (fuzzing, chaos, property tests, browser)
+- [ ] **INFRA-04**: Enforced TEST_QUALITY_STANDARDS.md (TQ-01 through TQ-05) for all bug discovery tests
+- [ ] **INFRA-05**: Bug discovery fixtures reuse existing auth_fixtures, database_fixtures, page_objects
 
-### Agent Execution (AGNT)
+### Property-Based Testing (PROP)
 
-- [ ] **AGNT-01**: User can spawn agent via web UI (agent creation flow)
-- [ ] **AGNT-02**: Agent appears in agent registry after creation (verification)
-- [ ] **AGNT-03**: User can send chat message to agent (web UI interaction)
-- [ ] **AGNT-04**: Agent returns streaming response (WebSocket validation)
-- [ ] **AGNT-05**: Agent output displays correctly in chat interface (rendering verification)
-- [ ] **AGNT-06**: Multiple agents can be spawned concurrently (parallel execution)
-- [ ] **AGNT-07**: Agent tests work on web (Playwright), mobile (API), and desktop (Tauri)
-- [ ] **AGNT-08**: WebSocket reconnection logic works on connection drop (error handling)
+- [ ] **PROP-01**: 50+ new property tests for critical paths (agent execution, LLM routing, episodic memory, governance)
+- [ ] **PROP-02**: API contract invariants (malformed JSON, oversized payloads, response validation)
+- [ ] **PROP-03**: State machine invariants (agent graduation monotonic transitions, episode lifecycle)
+- [ ] **PROP-04**: Security invariants (SQL injection prevention, XSS prevention, CSRF protection)
+- [ ] **PROP-05**: All property tests follow invariant-first thinking (document invariants before writing tests)
 
-### Canvas & Presentation (CANV)
+### API Fuzzing (FUZZ)
 
-- [ ] **CANV-01**: Chart canvas renders correctly (line, bar, pie charts)
-- [ ] **CANV-02**: Sheet canvas displays data grid (pagination, sorting)
-- [ ] **CANV-03**: Form canvas validates input and submits (required fields, error messages)
-- [ ] **CANV-04**: Docs canvas renders markdown content (formatting, links)
-- [ ] **CANV-05**: Email canvas drafts and sends (to, subject, body validation)
-- [ ] **CANV-06**: Terminal canvas executes commands (output verification)
-- [ ] **CANV-07**: Coding canvas displays code with syntax highlighting
-- [ ] **CANV-08**: All canvas types are interactive (click, type, close)
-- [ ] **CANV-09**: Canvas state is accessible via ARIA hidden trees (window.atom.canvas.getState())
-- [ ] **CANV-10**: Rapid canvas present/close cycles work (stress testing)
-- [ ] **CANV-11**: Canvas tests work across web, mobile (API), and desktop platforms
+- [ ] **FUZZ-01**: FuzzingOrchestrator service for campaign management (start, stop, monitor fuzzing runs)
+- [ ] **FUZZ-02**: Fuzzing harnesses for FastAPI endpoints using Atheris (coverage-guided fuzzing)
+- [ ] **FUZZ-03**: Fuzzing campaigns for auth endpoints (login, signup, password reset, JWT validation)
+- [ ] **FUZZ-04**: Fuzzing campaigns for agent execution endpoints (chat streaming, canvas presentation)
+- [ ] **FUZZ-05**: Fuzzing campaigns for workflow endpoints (trigger execution, skill installation)
+- [ ] **FUZZ-06**: Crash deduplication and bug filing for reproducible crashes
+- [ ] **FUZZ-07**: Fuzzing runs in separate CI pipeline (weekly, 1 hour runs, not on PRs)
 
-### Workflow & Skill Automation (WORK)
+### Headless Browser Automation (BROWSER)
 
-- [ ] **WORK-01**: User can install skill via web UI (skill installation flow)
-- [ ] **WORK-02**: Skill appears in skill registry after installation (verification)
-- [ ] **WORK-03**: User can execute skill with parameters (API-level testing)
-- [ ] **WORK-04**: Skill output parses correctly (JSON response validation)
-- [ ] **WORK-05**: Skill business logic executes correctly (side effects verification)
-- [ ] **WORK-06**: User can create workflow with multiple skills (workflow composition)
-- [ ] **WORK-07**: Workflow DAG validates correctly (acyclic graph verification)
-- [ ] **WORK-08**: Workflow executes skills in correct order (orchestration verification)
-- [ ] **WORK-09**: Workflow triggers fire correctly (manual, scheduled, event-based)
-- [ ] **WORK-10**: Workflow tests work on web, mobile (API), and desktop platforms
+- [ ] **BROWSER-01**: ExplorationAgent with heuristic exploration (depth-first, breadth-first, random walk)
+- [ ] **BROWSER-02**: Console error detection (JavaScript errors, unhandled exceptions)
+- [ ] **BROWSER-03**: Accessibility violation detection (axe-core integration, WCAG 2.1 AA)
+- [ ] **BROWSER-04**: Broken link detection (404 responses, redirect loops)
+- [ ] **BROWSER-05**: Visual regression testing with Percy integration (78+ snapshots from Phase 236)
+- [ ] **BROWSER-06**: Form filling with edge cases (null bytes, XSS payloads, SQL injection)
+- [ ] **BROWSER-07**: API-first authentication integration (10-100x faster than UI login)
 
-### Cross-Platform Infrastructure (INFRA)
+### Chaos Engineering (CHAOS)
 
-- [ ] **INFRA-01**: Tests have isolated data (unique IDs per test, UUID suffixes)
-- [ ] **INFRA-02**: Tests run in parallel (pytest-xdist, 4 workers)
-- [ ] **INFRA-03**: Database isolation works (worker-specific schemas, transaction rollbacks)
-- [ ] **INFRA-04**: Failed tests capture screenshots (Playwright screenshot: 'only-on-failure')
-- [ ] **INFRA-05**: Failed tests capture videos (Playwright video: 'retain-on-failure')
-- [ ] **INFRA-06**: Test fixtures are reusable (factory-boy factories, pytest fixtures)
-- [ ] **INFRA-07**: Test cleanup runs after each test (yield fixtures, teardown)
-- [ ] **INFRA-08**: Cross-platform tests use consistent test IDs (data-testid/testID)
-- [ ] **INFRA-09**: Unified test runner orchestrates web, mobile, and desktop tests
-- [ ] **INFRA-10**: Allure reporting aggregates results from all platforms
+- [ ] **CHAOS-01**: ChaosCoordinator service for experiment orchestration
+- [ ] **CHAOS-02**: Network latency injection (Toxiproxy integration, slow 3G simulation)
+- [ ] **CHAOS-03**: Database connection drop simulation (connection pool exhaustion)
+- [ ] **CHAOS-04**: Memory pressure injection (heap exhaustion testing)
+- [ ] **CHAOS-05**: Service crash simulation (LLM provider failures, Redis crashes)
+- [ ] **CHAOS-06**: Blast radius controls (isolated test databases, failure injection limits)
+- [ ] **CHAOS-07**: Recovery validation (data integrity checks, rollback verification)
+- [ ] **CHAOS-08**: Chaos experiments run in isolated environment (weekly, never on shared dev)
 
-### Stress Testing & Bug Discovery (STRESS)
+### Unified Bug Discovery Pipeline (PIPELINE)
 
-- [ ] **STRESS-01**: Load testing with k6 simulates 10 concurrent users (baseline)
-- [ ] **STRESS-02**: Load testing with k6 simulates 50 concurrent users (moderate load)
-- [ ] **STRESS-03**: Load testing with k6 simulates 100 concurrent users (high load)
-- [ ] **STRESS-04**: Network simulation tests slow 3G connection (Playwright context.route())
-- [ ] **STRESS-05**: Network simulation tests offline mode (app behavior without network)
-- [ ] **STRESS-06**: Failure injection tests database connection drops (error handling)
-- [ ] **STRESS-07**: Failure injection tests API timeouts (504 gateway timeout)
-- [ ] **STRESS-08**: Memory leak detection uses CDP heap snapshots (before/after comparison)
-- [ ] **STRESS-09**: Performance regression testing with Lighthouse CI (page load budgets)
-- [ ] **STRESS-10**: Automated bug filing creates GitHub Issues for reproducible failures
-- [ ] **STRESS-11**: Stress tests run on schedule (nightly/weekly CI jobs)
+- [ ] **PIPELINE-01**: DiscoveryCoordinator service for unified orchestration
+- [ ] **PIPELINE-02**: Result aggregation (correlate failures across fuzzing, chaos, property tests, browser)
+- [ ] **PIPELINE-03**: Bug deduplication (merge duplicate bugs by error signature)
+- [ ] **PIPELINE-04**: Automated bug triage (severity classification: critical/high/medium/low)
+- [ ] **PIPELINE-05**: Bug discovery dashboard (auto-generated weekly reports: bugs found, fixed, regression rate)
+- [ ] **PIPELINE-06**: Integration with existing BugFilingService (GitHub Issues API)
 
-### Mobile & Desktop Testing (MOBILE)
+### Memory & Performance Discovery (PERF)
 
-- [ ] **MOBILE-01**: Mobile API-level tests authenticate via backend endpoints
-- [ ] **MOBILE-02**: Mobile API-level tests execute agent operations (chat, streaming)
-- [ ] **MOBILE-03**: Mobile API-level tests execute workflow operations (install skills, trigger workflows)
-- [ ] **MOBILE-04**: Mobile device features work (camera, location, notifications - API-level)
-- [ ] **MOBILE-05**: Desktop Tauri tests verify window management (open, close, minimize, maximize)
-- [ ] **MOBILE-06**: Desktop Tauri tests verify native features (file system, system tray)
-- [ ] **MOBILE-07**: Desktop tests work cross-platform (Windows, macOS, Linux)
+- [ ] **PERF-01**: Memory leak detection with memray (Python 3.11+)
+- [ ] **PERF-02**: Heap snapshot comparison for agent execution loops (10MB+ increase threshold)
+- [ ] **PERF-03**: Performance regression detection with pytest-benchmark
+- [ ] **PERF-04**: Lighthouse CI integration for web UI performance (>20% regression alerts)
+- [ ] **PERF-05**: Performance baseline tracking (p(95) latency, throughput, error rates)
 
-### Visual Regression & Accessibility (A11Y)
+### AI-Enhanced Bug Discovery (AI)
 
-- [ ] **A11Y-01**: Percy visual regression tests cover 5 critical pages (existing from v3.1)
-- [ ] **A11Y-02**: Percy visual regression tests expand to 20+ pages (comprehensive coverage)
-- [ ] **A11Y-03**: Canvas accessibility trees expose state to screen readers (ARIA validation)
-- [ ] **A11Y-04**: jest-axe tests verify WCAG 2.1 AA compliance (frontend accessibility)
-- [ ] **A11Y-05**: Color contrast meets WCAG AA standards (4.5:1 for normal text)
-- [ ] **A11Y-06**: Keyboard navigation works for all interactive elements (Tab, Enter, Escape)
-- [ ] **A11Y-07**: Focus indicators are visible for all interactive elements
+- [ ] **AI-01**: Multi-agent fuzzing orchestration (AI generates fuzzing strategies from coverage gaps)
+- [ ] **AI-02**: AI-generated invariants (LLM analyzes code to suggest property tests)
+- [ ] **AI-03**: Cross-platform bug correlation (detect if bug manifests across web/mobile/desktop)
+- [ ] **AI-04**: Semantic bug clustering (LLM embeddings group similar bugs)
 
-## v2 Requirements
+### Feedback Loops (FEEDBACK)
 
-Deferred to v7.1+ milestone. Tracked but not in current roadmap.
+- [ ] **FEEDBACK-01**: Automated regression test generation from bug findings
+- [ ] **FEEDBACK-02**: Bug discovery dashboard (weekly reports: bugs found, fixed, regression rate)
+- [ ] **FEEDBACK-03**: GitHub issue integration (auto-file issues for new bugs)
+- [ ] **FEEDBACK-04**: ROI tracking (time saved, bugs prevented, fix cost vs. discovery cost)
+- [ ] **FEEDBACK-05**: Bug discovery effectiveness metrics (bugs found per hour, false positive rate)
 
-### Advanced Features
+### Success Metrics (SUCCESS)
 
-- **AUTH-08**: Biometric auth testing (Face ID/Touch ID on mobile)
-- **AUTH-09**: OAuth integration testing (Google, GitHub)
-- **AUTH-10**: SSO (Single Sign-On) testing
-- **MOBILE-08**: Detox E2E UI tests for React Native (deferred - expo-dev-client blocked)
-- **INFRA-11**: Cross-platform test reuse framework (shared workflow definitions, platform adapters)
-- **STRESS-12**: WebSocket stress testing with connection churn patterns
-- **STRESS-13**: Chaos engineering with random failure injection
+- [ ] **SUCCESS-01**: Discover and document 50+ bugs with reproducible test cases
+- [ ] **SUCCESS-02**: All bugs filed automatically via GitHub Issues integration
+- [ ] **SUCCESS-03**: Bug fix verification (re-run tests after fixes to confirm resolution)
+- [ ] **SUCCESS-04**: Test quality gates (98% pass rate, <5% flaky test rate)
+- [ ] **SUCCESS-05**: CI/CD performance (fast PR tests <10min, weekly bug discovery <2 hours)
+
+## v9.0 Requirements
+
+Deferred to future milestone. Tracked but not in current roadmap.
+
+### Future AI-Enhanced Features (FUTURE)
+
+- **FUTURE-01**: Predictive bug discovery (ML models predict high-risk areas from historical bug data)
+- **FUTURE-02**: Business logic fuzzing (domain-specific fuzz generators for agent governance, episodic memory)
+- **FUTURE-03**: Real-time bug discovery in CI/CD (discover bugs during pipeline execution)
+- **FUTURE-04**: Automated bug fixing (AI-generated fixes with human-in-the-loop review)
 
 ## Out of Scope
 
@@ -122,14 +111,13 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Mobile Detox E2E UI tests | BLOCKED by expo-dev-client requirement (15min CI overhead), deferred to Phase 150+ |
-| E2E tests for edge cases | Better suited for unit/integration tests (faster feedback loop) |
-| Testing third-party libraries | Don't test what React, Next.js, Chakra UI authors already test |
-| Brittle CSS selector tests | Use data-testid attributes instead (stable across refactors) |
-| Testing implementation details | Test user-facing behavior, not internal component structure |
-| Shared state between tests | Causes non-deterministic failures, each test must be isolated |
-| Hard-coded waits (time.sleep) | Use explicit waits and Playwright auto-waiting instead |
-| Performance regression budgets (v7.0) | Defer to v7.1+ after happy path E2E tests stable |
+| **Full System Chaos (Random Everything)** | Too noisy, generates false positives, targeted chaos engineering preferred |
+| **100% Code Coverage via Fuzzing** | Diminishing returns, slows down CI, focus on critical path coverage |
+| **Fuzzing in Production** | Too risky, can crash production systems, customer impact |
+| **Automated Bug Fixing** | AI-generated fixes often introduce new bugs, automated triage preferred |
+| **Fuzz All Third-Party Dependencies** | Not our responsibility, vendors should do their own testing |
+| **New Feature Development** | This milestone focuses on testing existing features, not building new ones |
+| **Production Deployment** | Infrastructure setup and deployment automation (separate initiative) |
 
 ## Traceability
 
@@ -137,30 +125,69 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 through AUTH-07 | Phase 234 | Pending |
-| AGNT-01 through AGNT-08 | Phase 234 | Pending |
-| CANV-01 through CANV-11 | Phase 235 | Pending |
-| WORK-01 through WORK-10 | Phase 235 | Pending |
-| INFRA-01 through INFRA-10 | Phase 233 | Pending |
-| STRESS-01 through STRESS-11 | Phase 236 | Pending |
-| MOBILE-01 through MOBILE-07 | Phase 236 | Pending |
-| A11Y-01 through A11Y-07 | Phase 236 | Pending |
+| INFRA-01 | Phase 237 | Pending |
+| INFRA-02 | Phase 237 | Pending |
+| INFRA-03 | Phase 237 | Pending |
+| INFRA-04 | Phase 237 | Pending |
+| INFRA-05 | Phase 237 | Pending |
+| PROP-01 | Phase 238 | Pending |
+| PROP-02 | Phase 238 | Pending |
+| PROP-03 | Phase 238 | Pending |
+| PROP-04 | Phase 238 | Pending |
+| PROP-05 | Phase 238 | Pending |
+| FUZZ-01 | Phase 239 | Pending |
+| FUZZ-02 | Phase 239 | Pending |
+| FUZZ-03 | Phase 239 | Pending |
+| FUZZ-04 | Phase 239 | Pending |
+| FUZZ-05 | Phase 239 | Pending |
+| FUZZ-06 | Phase 239 | Pending |
+| FUZZ-07 | Phase 239 | Pending |
+| BROWSER-01 | Phase 240 | Pending |
+| BROWSER-02 | Phase 240 | Pending |
+| BROWSER-03 | Phase 240 | Pending |
+| BROWSER-04 | Phase 240 | Pending |
+| BROWSER-05 | Phase 240 | Pending |
+| BROWSER-06 | Phase 240 | Pending |
+| BROWSER-07 | Phase 240 | Pending |
+| CHAOS-01 | Phase 241 | Pending |
+| CHAOS-02 | Phase 241 | Pending |
+| CHAOS-03 | Phase 241 | Pending |
+| CHAOS-04 | Phase 241 | Pending |
+| CHAOS-05 | Phase 241 | Pending |
+| CHAOS-06 | Phase 241 | Pending |
+| CHAOS-07 | Phase 241 | Pending |
+| CHAOS-08 | Phase 241 | Pending |
+| PIPELINE-01 | Phase 242 | Pending |
+| PIPELINE-02 | Phase 242 | Pending |
+| PIPELINE-03 | Phase 242 | Pending |
+| PIPELINE-04 | Phase 242 | Pending |
+| PIPELINE-05 | Phase 242 | Pending |
+| PIPELINE-06 | Phase 242 | Pending |
+| PERF-01 | Phase 243 | Pending |
+| PERF-02 | Phase 243 | Pending |
+| PERF-03 | Phase 243 | Pending |
+| PERF-04 | Phase 243 | Pending |
+| PERF-05 | Phase 243 | Pending |
+| AI-01 | Phase 244 | Pending |
+| AI-02 | Phase 244 | Pending |
+| AI-03 | Phase 244 | Pending |
+| AI-04 | Phase 244 | Pending |
+| FEEDBACK-01 | Phase 245 | Pending |
+| FEEDBACK-02 | Phase 245 | Pending |
+| FEEDBACK-03 | Phase 245 | Pending |
+| FEEDBACK-04 | Phase 245 | Pending |
+| FEEDBACK-05 | Phase 245 | Pending |
+| SUCCESS-01 | All Phases | Pending |
+| SUCCESS-02 | Phase 242 | Pending |
+| SUCCESS-03 | Phase 245 | Pending |
+| SUCCESS-04 | Phase 237 | Pending |
+| SUCCESS-05 | Phase 237 | Pending |
 
 **Coverage:**
-- v1 requirements: 58 total
-- Mapped to phases: 58
+- v8.0 requirements: 54 total
+- Mapped to phases: 54
 - Unmapped: 0 ✓
 
-**Requirement Count by Category:**
-- Authentication (AUTH): 7 requirements
-- Agent Execution (AGNT): 8 requirements
-- Canvas & Presentation (CANV): 11 requirements
-- Workflow & Skill Automation (WORK): 10 requirements
-- Cross-Platform Infrastructure (INFRA): 10 requirements
-- Stress Testing & Bug Discovery (STRESS): 11 requirements
-- Mobile & Desktop Testing (MOBILE): 7 requirements
-- Visual Regression & Accessibility (A11Y): 7 requirements
-
 ---
-*Requirements defined: 2026-03-23*
-*Last updated: 2026-03-23 after roadmap creation (v7.0)*
+*Requirements defined: 2026-03-24*
+*Last updated: 2026-03-24 after initial definition*
