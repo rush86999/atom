@@ -2041,8 +2041,9 @@ Plans:
 - [x] 235-06: Workflow execution and trigger tests (skill order, manual/scheduled/event-based triggers)
 - [x] 235-07: Cross-platform canvas and workflow tests (mobile API-level, desktop Tauri)
 
-#### Phase 236: Cross-Platform & Stress Testing
+#### Phase 236: Cross-Platform & Stress Testing ✅
 **Goal**: Mobile/desktop testing expansion, load testing with k6 (10/50/100 concurrent users), network simulation, failure injection, visual regression (Percy), accessibility (WCAG 2.1 AA), and automated bug discovery
+**Status**: Complete (2026-03-24)
 **Depends on**: Phase 235
 **Requirements**: STRESS-01, STRESS-02, STRESS-03, STRESS-04, STRESS-05, STRESS-06, STRESS-07, STRESS-08, STRESS-09, STRESS-10, STRESS-11, MOBILE-01, MOBILE-02, MOBILE-03, MOBILE-04, MOBILE-05, MOBILE-06, MOBILE-07, A11Y-01, A11Y-02, A11Y-03, A11Y-04, A11Y-05, A11Y-06, A11Y-07
 **Success Criteria** (what must be TRUE):
@@ -2071,13 +2072,4 @@ Plans:
 - [x] 236-07: Accessibility testing with jest-axe (WCAG 2.1 AA compliance, color contrast, keyboard navigation)
 - [x] 236-08: Automated bug discovery and filing (GitHub Issues integration, metadata collection)
 - [x] 236-09: Stress testing CI/CD integration (nightly/weekly jobs, result aggregation, alerting)
-- [ ] 236-01: Load testing with k6 (10/50/100 concurrent users, API reliability)
-- [ ] 236-02: Network simulation and failure injection tests (slow 3G, offline, DB drops, timeouts)
-- [ ] 236-03: Memory leak detection and performance regression testing (CDP snapshots, Lighthouse CI)
-- [ ] 236-04: Mobile API-level testing (auth, agents, workflows, device features)
-- [ ] 236-05: Desktop Tauri testing (window management, native features, cross-platform Win/Mac/Linux)
-- [ ] 236-06: Visual regression testing with Percy (expand from 5 to 20+ pages)
-- [ ] 236-07: Accessibility testing with jest-axe (WCAG 2.1 AA compliance, color contrast, keyboard nav)
-- [ ] 236-08: Automated bug discovery and filing (GitHub Issues integration, reproducible test cases)
-- [ ] 236-09: Stress testing CI/CD integration (nightly/weekly jobs, scheduled execution)
 
