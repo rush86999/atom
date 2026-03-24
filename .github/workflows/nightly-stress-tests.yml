@@ -240,6 +240,19 @@ jobs:
             --alert-type slack
         continue-on-error: true
 
+      - name: Send email alert on critical failure
+        if: failure() && github.ref == 'refs/heads/main'
+        env:
+          EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+        run: |
+          cd backend
+          python tests/stress/test_scheduler.py send_alert \
+            --results-file stress-test-summary.json \
+            --alert-type email
+        continue-on-error: true
+
       - name: File bugs for failures
         if: failure()
         env:
