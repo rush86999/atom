@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 241 of 245 (Chaos Engineering Integration)
-Plan: 2 of 7 in current phase
+Plan: 4 of 7 in current phase
 Status: In Progress
-Last activity: 2026-03-25 — Phase 241-02 complete: Network latency chaos tests with Toxiproxy integration (2000ms slow 3G simulation), graceful degradation validation, and recovery verification (±0.5s baseline tolerance)
+Last activity: 2026-03-25 — Phase 241-04 complete: Memory pressure injection chaos tests with psutil (1GB allocation limit, ±100MB recovery tolerance), 6 tests passing (83.2s execution)
 
-Progress: [██        ] 29%
+Progress: [████      ] 43%
 
 ## Performance Metrics
 
@@ -76,8 +76,10 @@ Progress: [██        ] 29%
 | Phase 240 P04 | 503s | 2 tasks | 2 files |
 | Phase 240 P05 | 180 | 3 tasks | 3 files |
 | Phase 241 P01 | 0 | 3 tasks | 4 files |
+| Phase 241 P04 | 7217s | 2 tasks | 2 files |
 | Phase 241 P03 | 180 | 2 tasks | 3 files |
 | Phase 241 P02 | 582 | 2 tasks | 3 files |
+| Phase 241-04 P04 | 7217 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
