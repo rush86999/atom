@@ -41,7 +41,11 @@ class DocumentLifecycleLearner:
             
         if content:
             # Pass to extractor
-            knowledge = await self.extractor.extract_knowledge(content, source=f"document_{os.path.basename(file_path)}")
+            knowledge = await self.extractor.extract_knowledge(
+                content, 
+                tenant_id=workspace_id, 
+                source=f"document_{os.path.basename(file_path)}"
+            )
             await self.biz_intel.process_extracted_events(knowledge, workspace_id)
 
     def _parse_excel(self, file_path: str) -> str:

@@ -20,7 +20,6 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 
 from core.models import Skill, SkillVersion, CanvasComponent
-from core.llm_router import LLMRouter
 from core.openclaw_parser import OpenClawParser
 
 logger = logging.getLogger(__name__)
@@ -38,9 +37,9 @@ class SkillCreationAgent:
     - Create matching canvas components
     """
 
-    def __init__(self, db: Session, llm_router: LLMRouter):
+    def __init__(self, db: Session, llm_service: Any):
         self.db = db
-        self.llm = llm_router
+        self.llm = llm_service  # Now unified LLMService
         self.client = httpx.AsyncClient(timeout=30.0)
         self.openclaw_parser = OpenClawParser()
 
@@ -369,7 +368,8 @@ Generate a Python function that:
 Return ONLY the Python code, no explanations."""
 
         try:
-            response = await self.llm.call(
+            # Standardize on unified LLMService.generate_response
+            content = await self.llm.generate_response(
                 tenant_id="system",
                 messages=[
                     {"role": "system", "content": "You are a Python developer. Generate clean, production-ready code."},
@@ -377,7 +377,7 @@ Return ONLY the Python code, no explanations."""
                 ]
             )
 
-            code = response.get("content", "")
+            code = content or ""
 
             # Extract code from markdown if present
             if "```python" in code:
@@ -559,7 +559,8 @@ Requirements:
 Return ONLY the TypeScript code, no explanations."""
 
         try:
-            response = await self.llm.call(
+            # Standardize on unified LLMService.generate_response
+            content = await self.llm.generate_response(
                 tenant_id="system",
                 messages=[
                     {"role": "system", "content": "You are a React/TypeScript developer. Generate clean, production-ready components."},
@@ -567,7 +568,7 @@ Return ONLY the TypeScript code, no explanations."""
                 ]
             )
 
-            code = response.get("content", "")
+            code = content or ""
 
             # Extract code from markdown if present
             if "```typescript" in code:

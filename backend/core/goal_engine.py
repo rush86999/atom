@@ -46,13 +46,16 @@ class GoalEngine:
         
         if use_advanced:
             try:
-                from core.database import SessionLocal
-                from core.llm_router import LLMRouter
-                from core.agents.queen_agent import QueenAgent
+                from core.service_factory import ServiceFactory
                 
+                # Use ServiceFactory for thread-safe session & agent resolution
+                sf = ServiceFactory()
+                queen = sf.get_queen_agent(None) # Session will be managed inside if needed, or we can pass one
+                # Re-evaluating: GoalEngine.create_goal_from_text should probably take a 'db' Session arg.
+                # For now, we'll use the existing SessionLocal pattern if it was there, but better.
+                from core.database import SessionLocal
                 with SessionLocal() as db:
-                    llm = LLMRouter()
-                    queen = QueenAgent(db, llm)
+                    queen = sf.get_queen_agent(db)
                     blueprint = await queen.generate_blueprint(title, tenant_id=tenant_id)
                     
                     sub_tasks = []

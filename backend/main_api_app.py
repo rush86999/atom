@@ -591,6 +591,20 @@ try:
         logger.warning(f"Failed to load GraphRAG routes: {e}")
 
     try:
+        from api.entity_type_routes import router as entity_type_router
+        app.include_router(entity_type_router)
+        logger.info("✓ Entity Type Routes Loaded")
+    except Exception as e:
+        logger.warning(f"Failed to load entity type routes: {e}")
+
+    try:
+        from api.skill_suggestion_routes import router as skill_suggestion_router
+        app.include_router(skill_suggestion_router)
+        logger.info("✓ Skill Suggestion Routes Loaded")
+    except Exception as e:
+        logger.warning(f"Failed to load skill suggestion routes: {e}")
+
+    try:
         from api.project_routes import router as projects_router
         app.include_router(projects_router)
     except ImportError as e:
@@ -616,13 +630,13 @@ try:
     except ImportError as e:
         logger.warning(f"Failed to load Episodic Memory routes: {e}")
 
-    # Canvas State Routes (NEW)
+    # Unified Canvas Routes (State, Context, Recording)
     try:
-        from api.canvas_state_routes import router as canvas_state_router
-        app.include_router(canvas_state_router)  # Prefix defined in router (/api/canvas)
-        logger.info("✓ Canvas State Routes Loaded")
+        from api.canvas_routes import router as canvas_router
+        app.include_router(canvas_router)
+        logger.info("✓ Unified Canvas Routes Loaded")
     except ImportError as e:
-        logger.warning(f"Failed to load Canvas State routes: {e}")
+        logger.warning(f"Failed to load Canvas routes: {e}")
 
     # Security Routes (NEW)
     try:
@@ -821,6 +835,14 @@ try:
         logger.info("✓ Learning Plan Routes Loaded")
     except ImportError as e:
         logger.warning(f"Learning plan routes not found: {e}")
+
+    # Continuous Learning Routes
+    try:
+        from api.learning_routes import router as learning_router
+        app.include_router(learning_router)
+        logger.info("✓ Continuous Learning Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Continuous learning routes not found: {e}")
 
     try:
         from api.project_health_routes import router as project_health_router
@@ -1252,6 +1274,23 @@ try:
         logger.info("✓ Canvas Collaboration Routes Loaded")
     except ImportError as e:
         logger.warning(f"Canvas collaboration routes not found: {e}")
+
+    # The following block for canvas_context_routes is being removed as per instruction.
+    # The instruction implies a unified canvas_router will handle this.
+    # try:
+    #     from api.canvas_context_routes import router as canvas_context_router
+    #     app.include_router(canvas_context_router, tags=["Canvas Context"])
+    #     logger.info("✓ Canvas Context Routes Loaded")
+    # except ImportError as e:
+    #     logger.warning(f"Canvas context routes not found: {e}")
+
+    # 15.10.1 Agent Coordination Routes
+    try:
+        from api.agent_coordination_routes import router as coordination_router
+        app.include_router(coordination_router, tags=["Agent Coordination"])
+        logger.info("✓ Agent Coordination Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Agent coordination routes not found: {e}")
 
     # 15.11 Custom Canvas Components Routes
     try:

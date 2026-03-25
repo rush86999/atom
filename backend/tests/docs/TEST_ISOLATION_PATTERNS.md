@@ -120,6 +120,35 @@ pytest tests/ -n auto -v
 
 ---
 
+### Factory Session Enforcement
+
+**Problem**: Forgetting to inject `db_session` into factory calls causes test data leaks.
+
+**Example**:
+```python
+# BAD: Factory uses default session (data persists across tests)
+def test_agent_creation():
+    agent = AgentFactory.create()  # No _session parameter!
+    # Data persists in database, affects other tests
+```
+
+**Root Cause**: BaseFactory doesn't enforce session injection, making it easy to forget.
+
+**Solution**: BaseFactory enforces `_session` parameter in test environment (Pattern 2).
+
+```python
+# GOOD: Factory uses test session (transaction rollback)
+def test_agent_creation(db_session):
+    agent = AgentFactory.create(_session=db_session)
+    # Data rolled back after test, no side effects
+```
+
+**Enforcement**: RuntimeError raised when `_session` missing in test environment.
+
+**Impact**: Prevents test data collisions, ensures parallel execution safety.
+
+---
+
 ## Isolation Patterns
 
 ### Pattern 1: unique_resource_name Fixture
@@ -172,7 +201,92 @@ def test_create_agent(unique_resource_name):
 
 ---
 
-### Pattern 2: Database Transaction Rollback
+### Pattern 2: Factory-Boy with Session Injection
+
+**Purpose**: Generate test data with proper database isolation.
+
+**Source**: `backend/tests/factories/base.py`
+
+**Enforcement**: BaseFactory requires `_session` parameter in test environment (detected by `PYTEST_XDIST_WORKER_ID`).
+
+**Implementation**:
+```python
+class BaseFactory(SQLAlchemyModelFactory):
+    class Meta:
+        abstract = True
+        sqlalchemy_session = None
+        sqlalchemy_session_persistence = "commit"
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        """Override to handle session injection with enforcement."""
+        session = kwargs.pop('_session', None)
+        is_test_env = os.environ.get('PYTEST_XDIST_WORKER_ID') is not None
+
+        # Enforce _session in test environment
+        if is_test_env and session is None:
+            raise RuntimeError(
+                "{0}.create() requires _session parameter in test environment. "
+                "Usage: {0}.create(_session=db_session, ...)".format(cls.__name__)
+            )
+
+        if session:
+            cls._meta.sqlalchemy_session = session
+            cls._meta.sqlalchemy_session_persistence = "flush"
+        else:
+            if cls._meta.sqlalchemy_session is None:
+                cls._meta.sqlalchemy_session = get_session()
+            cls._meta.sqlalchemy_session_persistence = "commit"
+        return super()._create(model_class, *args, **kwargs)
+```
+
+**How It Works**:
+1. Test environment detected by `PYTEST_XDIST_WORKER_ID` environment variable
+2. If `_session` not provided in test environment, raises `RuntimeError`
+3. Error message includes factory name and correct usage example
+4. When `_session` provided, uses "flush" mode (transaction rollback, not commit)
+
+**Usage Example**:
+```python
+def test_agent_creation(unique_resource_name, db_session):
+    # Each test gets isolated agent
+    agent = AgentFactory.create(
+        _session=db_session,  # REQUIRED in test environment
+        id=unique_resource_name,
+        name="Test Agent"
+    )
+
+    # Agent visible in test session
+    assert db_session.query(AgentRegistry).filter_by(id=agent.id).count() == 1
+```
+
+**Error Handling**:
+- Missing `_session` → `RuntimeError: AgentFactory.create() requires _session parameter`
+- Solution: Add `_session=db_session` to factory call
+
+**Why It Works**:
+- `db_session` fixture uses transaction rollback (instant cleanup)
+- Each worker (gw0, gw1, gw2, gw3) has separate database schema
+- No data conflicts between parallel tests
+- Enforcement prevents bugs from forgetting `_session` parameter
+
+**Before (Bad)**:
+```python
+def test_agent_creation():
+    agent = AgentFactory.create()  # RuntimeError in test environment!
+```
+
+**After (Good)**:
+```python
+def test_agent_creation(db_session):
+    agent = AgentFactory.create(_session=db_session)  # Explicit isolation
+```
+
+**See also**: `backend/tests/factories/README.md` for complete factory documentation.
+
+---
+
+### Pattern 3: Database Transaction Rollback
 
 **Purpose**: Isolate database operations with automatic cleanup.
 
@@ -247,7 +361,71 @@ def test_agent_creation(db_session, unique_resource_name):
 
 ---
 
-### Pattern 3: Factory Pattern
+### Pattern 4: Worker-Specific Database Isolation
+
+**Purpose**: Enable parallel test execution without data conflicts.
+
+**Source**: `backend/tests/conftest.py`
+
+**Implementation**: Each pytest-xdist worker gets its own PostgreSQL database.
+
+**Worker Databases**:
+- gw0: `test_db_gw0`
+- gw1: `test_db_gw1`
+- gw2: `test_db_gw2`
+- gw3: `test_db_gw3`
+
+**For Local Development (SQLite)**:
+Uses in-memory database (no worker isolation needed):
+```python
+# DATABASE_URL=sqlite:///:memory:
+# No worker-specific schemas created
+```
+
+**For CI (PostgreSQL)**:
+Creates and drops worker databases:
+```python
+# DATABASE_URL=postgresql://user:pass@host/test_db
+# Creates: test_db_gw0, test_db_gw1, test_db_gw2, test_db_gw3
+```
+
+**Usage Example**:
+```python
+def test_parallel_isolation(unique_resource_name, db_session):
+    # Each worker (gw0, gw1, gw2, gw3) creates unique agent
+    agent = AgentFactory.create(
+        _session=db_session,
+        id=unique_resource_name  # test_gw0_a1b2c3d4
+    )
+
+    # Only this worker sees this agent (different database)
+    assert db_session.query(AgentRegistry).filter_by(id=agent.id).count() == 1
+```
+
+**Transaction Rollback**:
+- `db_session` fixture uses `begin_nested()` for instant rollback
+- Changes discarded after test (<1ms cleanup)
+- No foreign key cascade issues (transaction isolation)
+
+**Verification**:
+```bash
+# Run tests in parallel (4 workers)
+pytest tests/ -n auto -v
+
+# All workers pass (no data conflicts)
+# gw0: test_db_gw0
+# gw1: test_db_gw1
+# gw2: test_db_gw2
+# gw3: test_db_gw3
+```
+
+**Cleanup**:
+- Worker databases dropped after test session completes
+- No manual cleanup required
+
+---
+
+### Pattern 5: Factory Pattern
 
 **Purpose**: Generate dynamic test data with no hardcoded values.
 
@@ -318,7 +496,7 @@ def test_agent_governance(unique_resource_name):
 
 ---
 
-### Pattern 4: Mock External Dependencies
+### Pattern 6: Mock External Dependencies
 
 **Purpose**: Isolate tests from external systems (APIs, databases, file systems).
 
@@ -369,7 +547,7 @@ def test_external_api_call():
 
 ---
 
-### Pattern 5: Fixture Cleanup
+### Pattern 7: Fixture Cleanup
 
 **Purpose**: Ensure cleanup even if test fails.
 

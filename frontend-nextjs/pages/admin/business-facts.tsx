@@ -43,38 +43,6 @@ function BusinessFactsPage() {
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const { toast } = useToast();
 
-  // Keyboard shortcuts
-  useKeyboardShortcuts([
-    {
-      title: "Actions",
-      shortcuts: [
-        {
-          key: "?",
-          description: "Show keyboard shortcuts",
-          action: () => setShowKeyboardHelp(true),
-        },
-        {
-          key: "n",
-          description: "Create new fact",
-          action: handleCreateFact,
-        },
-        {
-          key: "r",
-          description: "Refresh facts",
-          action: handleRefresh,
-        },
-        {
-          key: "/",
-          description: "Focus search",
-          action: () => {
-            const searchInput = document.querySelector("input[placeholder*='Search']") as HTMLInputElement;
-            searchInput?.focus();
-          },
-        },
-      ],
-    },
-  ]);
-
   const poller = new AdminPoller();
 
   // Fetch all facts
@@ -179,6 +147,38 @@ function BusinessFactsPage() {
     setEditingFact(null);
   };
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      title: "Actions",
+      shortcuts: [
+        {
+          key: "?",
+          description: "Show keyboard shortcuts",
+          action: () => setShowKeyboardHelp(true),
+        },
+        {
+          key: "n",
+          description: "Create new fact",
+          action: handleCreateFact,
+        },
+        {
+          key: "r",
+          description: "Refresh facts",
+          action: handleRefresh,
+        },
+        {
+          key: "/",
+          description: "Focus search",
+          action: () => {
+            const searchInput = document.querySelector("input[placeholder*='Search']") as HTMLInputElement;
+            searchInput?.focus();
+          },
+        },
+      ],
+    },
+  ]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -188,7 +188,7 @@ function BusinessFactsPage() {
   }
 
   return (
-    <>
+    <React.Fragment>
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -220,6 +220,28 @@ function BusinessFactsPage() {
               <Plus className="h-4 w-4 mr-2" />
               New Fact
             </Button>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search facts, domains, or reasons..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <FactFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            domains={Array.from(new Set(facts.map((f) => f.domain)))}
+          />
+        </div>
           </div>
         </div>
 
@@ -318,7 +340,7 @@ function BusinessFactsPage() {
           ]}
         />
         </div>
-      </>
+      </React.Fragment>
     );
 }
 
@@ -331,6 +353,7 @@ const BusinessFactsPageContent = dynamic(() => Promise.resolve(BusinessFactsPage
     </div>
   ),
 });
+
 
 // Wrapper with ErrorBoundary and OfflineIndicator
 const BusinessFactsPageWrapper: React.FC = () => {

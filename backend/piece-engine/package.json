@@ -10,28 +10,28 @@
         "install:piece": "npm install"
     },
     "dependencies": {
-        "@activepieces/pieces-framework": "*",
-        "@activepieces/shared": "*",
-        "express": "^4.18.2",
-        "cors": "^2.8.5",
-        "dotenv": "^16.3.1",
-        "@activepieces/piece-slack": "*",
+        "@activepieces/piece-asana": "*",
+        "@activepieces/piece-discord": "*",
+        "@activepieces/piece-github": "^0.6.6",
         "@activepieces/piece-gmail": "*",
         "@activepieces/piece-google-drive": "*",
         "@activepieces/piece-google-sheets": "*",
-        "@activepieces/piece-discord": "*",
+        "@activepieces/piece-http": "*",
         "@activepieces/piece-hubspot": "*",
         "@activepieces/piece-salesforce": "*",
+        "@activepieces/piece-slack": "*",
         "@activepieces/piece-trello": "*",
-        "@activepieces/piece-asana": "*",
-        "@activepieces/piece-github": "*",
-        "@activepieces/piece-http": "*"
+        "@activepieces/pieces-framework": "*",
+        "@activepieces/shared": "*",
+        "cors": "^2.8.5",
+        "dotenv": "^16.3.1",
+        "express": "^4.18.2"
     },
     "devDependencies": {
-        "@types/express": "^4.17.21",
         "@types/cors": "^2.8.17",
+        "@types/express": "^4.17.21",
         "@types/node": "^20.10.0",
-        "typescript": "^5.3.2",
-        "ts-node": "^10.9.1"
+        "ts-node": "^10.9.1",
+        "typescript": "^5.3.2"
     }
 }

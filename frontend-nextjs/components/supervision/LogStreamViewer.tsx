@@ -114,6 +114,7 @@ const LogStreamViewer: React.FC<Props> = ({ executionId, logs: providedLogs, aut
         )}
       </div>
 
+      {/* eslint-disable-next-line react/no-unknown-property */}
       <style jsx>{`
         .log-stream-viewer {
           background: #1e1e1e;

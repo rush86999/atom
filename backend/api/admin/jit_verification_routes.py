@@ -123,29 +123,33 @@ async def verify_citations(
     Set force_refresh=True to bypass cache and re-verify.
     """
     import time
-    cache = get_jit_verification_cache()
+    try:
+        cache = get_jit_verification_cache()
 
-    start_time = time.time()
+        start_time = time.time()
 
-    # Verify citations (uses cache automatically)
-    results = await cache.verify_citations_batch(
-        request.citations,
-        force_refresh=request.force_refresh
-    )
+        # Verify citations (uses cache automatically)
+        results = await cache.verify_citations_batch(
+            request.citations,
+            force_refresh=request.force_refresh
+        )
 
-    duration = time.time() - start_time
+        duration = time.time() - start_time
 
-    # Count results
-    verified_count = sum(1 for r in results if r.exists)
-    failed_count = len(results) - verified_count
+        # Count results
+        verified_count = sum(1 for r in results if r.exists)
+        failed_count = len(results) - verified_count
 
-    return VerificationResponse(
-        results=[r.to_dict() for r in results],
-        total_count=len(results),
-        verified_count=verified_count,
-        failed_count=failed_count,
-        duration_seconds=duration
-    )
+        return VerificationResponse(
+            results=[r.to_dict() for r in results],
+            total_count=len(results),
+            verified_count=verified_count,
+            failed_count=failed_count,
+            duration_seconds=duration
+        )
+    except Exception as e:
+        logger.error(f"Failed to verify citations: {e}")
+        raise HTTPException(status_code=500, detail=f"Citation verification failed: {str(e)}")
 
 
 @router.get("/worker/metrics", response_model=WorkerMetricsResponse)
@@ -158,10 +162,14 @@ async def get_worker_metrics(
 
     Returns worker status, verification counts, and performance metrics.
     """
-    worker = get_jit_verification_worker()
-    metrics = worker.get_metrics()
+    try:
+        worker = get_jit_verification_worker()
+        metrics = worker.get_metrics()
 
-    return WorkerMetricsResponse(**metrics)
+        return WorkerMetricsResponse(**metrics)
+    except Exception as e:
+        logger.error(f"Failed to get worker metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get worker metrics: {str(e)}")
 
 
 @router.post("/worker/start")

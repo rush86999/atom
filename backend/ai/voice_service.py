@@ -97,17 +97,34 @@ class DeepgramProvider(TextToSpeechProvider):
                 return None
 
 class VoiceService:
-    def __init__(self):
-        # In a real scenario, we'd inject configuration or fetch from DB credentials
-        # For now, we instantiate on demand or check env/db in methods
-        pass
+    def __init__(self, workspace_id: str = "default"):
+        self.workspace_id = workspace_id
+        try:
+            from core.llm_service import LLMService
+            self.llm_service = LLMService(workspace_id=workspace_id)
+        except ImportError:
+            self.llm_service = None
+            logger.warning("LLMService not available for VoiceService (TTS)")
 
-    async def text_to_speech(self, text: str, provider_name: str = "elevenlabs", api_key: Optional[str] = None) -> Optional[str]:
+    async def text_to_speech(self, text: str, provider_name: str = "openai", voice_id: Optional[str] = None, api_key: Optional[str] = None) -> Optional[str]:
         """
         Convert text to speech and return base64 encoded audio.
         """
         if not text:
             return None
+
+        # Try unified LLMService first if provider is openai
+        if (provider_name == "openai" or provider_name == "atom") and self.llm_service:
+            try:
+                audio_bytes = await self.llm_service.generate_speech(
+                    text=text,
+                    voice=voice_id or "alloy"
+                )
+                if audio_bytes:
+                    return base64.b64encode(audio_bytes).decode('utf-8')
+            except Exception as e:
+                logger.error(f"Unified TTS failed: {e}")
+                # Fall through to legacy providers if needed
 
         provider: Optional[TextToSpeechProvider] = None
 
@@ -124,7 +141,7 @@ class VoiceService:
             logger.warning(f"No valid TTS provider found for {provider_name}")
             return None
 
-        audio_bytes = await provider.generate_audio(text)
+        audio_bytes = await provider.generate_audio(text, voice_id=voice_id)
         if audio_bytes:
             return base64.b64encode(audio_bytes).decode('utf-8')
         

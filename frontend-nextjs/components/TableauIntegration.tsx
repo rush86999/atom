@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
     Search,
     Plus,
@@ -379,9 +380,9 @@ const TableauIntegration: React.FC = () => {
                 </div>
 
                 <nav className="flex text-sm text-muted-foreground">
-                    <a href="/integrations" className="hover:text-foreground">
+                    <Link href="/integrations" className="hover:text-foreground">
                         Integrations
-                    </a>
+                    </Link>
                     <span className="mx-2">/</span>
                     <span className="text-foreground">Tableau</span>
                 </nav>

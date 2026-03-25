@@ -1,5 +1,32 @@
 # Milestones
 
+## v7.0 Cross-Platform E2E Testing & Bug Discovery (Started: 2026-03-23)
+
+**Goal:** Comprehensive end-to-end testing across all platforms (web, mobile, desktop) to discover hidden bugs through real user flow validation, stress testing, and cross-platform consistency verification.
+
+**Target features:**
+- Authentication E2E flows (signup, login, logout, password reset, session management)
+- Agent execution E2E (chat interactions, streaming responses, canvas presentations)
+- Workflow & skill E2E (create workflows, add skills, test triggers, verify automation)
+- Stress testing (API reliability under load, failure scenarios, edge cases)
+- Cross-platform consistency (shared user flows work identically on web/mobile/desktop)
+
+**Strategy:** E2E test creation → Bug discovery → Documentation → Fix verification
+
+**Timeline:** 2-3 weeks (comprehensive E2E suite development)
+
+**Planned phases:** TBD (estimated 15-20 phases), TBD plans, TBD requirements
+
+**Status:** 🚧 READY TO START
+
+**Test Infrastructure:**
+- **Web**: Playwright (Chrome, Firefox, Safari) — 300+ tests planned
+- **Mobile**: Detox (iOS, Android) — 200+ tests planned
+- **Desktop**: Tauri (macOS, Windows, Linux) — 100+ tests planned
+- **Total**: 600+ cross-platform E2E tests for comprehensive coverage
+
+---
+
 ## v6.0 BYOK Migration to Unified LLMService API (Started: 2026-03-22)
 
 **Goal:** Consolidate all BYOK (Bring Your Own Key) LLM interactions to a single unified LLMService API, eliminating direct API calls and fragmented BYOKHandler usage.

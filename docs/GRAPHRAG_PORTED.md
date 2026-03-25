@@ -2,7 +2,9 @@
 
 The Atom Knowledge Graph provides a semantic layer over your existing database records, enabling high-order reasoning and visual relationship management.
 
-## Key Features
+> **📚 Comprehensive Documentation**: For detailed technical documentation including entity types, API endpoints, and implementation details, see [GRAPHRAG_AND_ENTITY_TYPES.md](./GRAPHRAG_AND_ENTITY_TYPES.md)
+
+## Quick Overview
 
 ### 1. Recursive GraphRAG
 Unlike flat vector search, GraphRAG can traverse relationships to find indirect connections (e.g., "Find all formulas used in tasks assigned to the support team"). 

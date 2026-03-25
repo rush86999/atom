@@ -167,7 +167,7 @@ async def execute_agent_chat(
         # ============================================
         # LLM: Initialize LLM Service
         # ============================================
-        llm_service = LLMService(workspace_id=workspace_id)
+        llm_service = LLMService(tenant_id=workspace_id, db=db_session)
 
         # Prepare messages for LLM
         messages = []
@@ -222,8 +222,7 @@ Provide helpful, concise responses. Be direct and practical."""
             await ws_manager.broadcast(user_channel, {
                 "type": "streaming:start",
                 "id": message_id,
-                "model": model,
-                "provider": provider_id,
+                "model": "auto",
                 "agent_id": agent.id if agent else None,
                 "agent_name": agent.name if agent else None,
                 "execution_id": execution_id
@@ -236,17 +235,14 @@ Provide helpful, concise responses. Be direct and practical."""
 
         stream_kwargs = {
             "messages": messages,
-            "model": model,
-            "provider_id": provider_id,
+            "model": "auto",
             "temperature": 0.7,
-            "max_tokens": 2000
+            "max_tokens": 2000,
+            "agent_id": agent.id if agent else None
         }
 
-        # Add agent context for governance tracking
-        if agent and governance_enabled:
-            stream_kwargs["agent_id"] = agent.id
-
         # Stream response
+        # Stream response via LLMService
         async for token in llm_service.stream_completion(**stream_kwargs):
             accumulated_content += token
             tokens_count += 1
@@ -260,7 +256,6 @@ Provide helpful, concise responses. Be direct and practical."""
                     "delta": token,
                     "complete": False,
                     "metadata": {
-                        "model": model,
                         "tokens_so_far": len(accumulated_content),
                         "execution_id": execution_id
                     }
@@ -311,8 +306,7 @@ Provide helpful, concise responses. Be direct and practical."""
                 agent_execution.output_data = {
                     "response": accumulated_content,
                     "tokens": tokens_count,
-                    "provider": provider_id,
-                    "model": model
+                    "model": "auto"
                 }
                 agent_execution.duration_ms = duration_ms
                 agent_execution.end_time = end_time
@@ -344,8 +338,7 @@ Provide helpful, concise responses. Be direct and practical."""
             "message_id": message_id,
             "session_id": session_id,
             "tokens": tokens_count,
-            "provider": provider_id,
-            "model": model
+            "model": "auto"
         }
 
     except Exception as e:

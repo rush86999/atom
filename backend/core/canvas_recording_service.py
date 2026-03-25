@@ -43,9 +43,24 @@ class CanvasRecordingService:
     - Training and improvement
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, tenant_id: str = "default"):
         self.db = db
-        self.governance = AgentGovernanceService(db)
+        self.tenant_id = tenant_id
+        self._governance = None
+        
+        # Local import to avoid circular dependency
+        from core.service_factory import ServiceFactory
+        self._governance = ServiceFactory.get_governance_service(self.db)
+
+    @property
+    def governance(self) -> AgentGovernanceService:
+        """Lazy-loaded governance service"""
+        if self._governance is None:
+            # This case should ideally not be hit if _governance is initialized in __init__
+            # but kept for robustness or if __init__ initialization is conditional.
+            from core.service_factory import ServiceFactory # Ensure ServiceFactory is available
+            self._governance = ServiceFactory.get_governance_service(self.db)
+        return self._governance
 
     async def start_recording(
         self,
@@ -91,6 +106,7 @@ class CanvasRecordingService:
             recording = CanvasRecording(
                 id=str(uuid.uuid4()),
                 recording_id=recording_id,
+                tenant_id=self.tenant_id,
                 agent_id=agent_id,
                 user_id=user_id,
                 canvas_id=canvas_id,
@@ -500,6 +516,7 @@ class CanvasRecordingService:
         try:
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
+                tenant_id=self.tenant_id,
                 workspace_id="default",
                 agent_id=agent_id,
                 agent_execution_id=None,
@@ -543,6 +560,6 @@ class CanvasRecordingService:
 
 
 # Singleton instance helper
-def get_canvas_recording_service(db: Session) -> CanvasRecordingService:
+def get_canvas_recording_service(db: Session, tenant_id: str = "default") -> CanvasRecordingService:
     """Get or create canvas recording service instance."""
-    return CanvasRecordingService(db)
+    return CanvasRecordingService(db, tenant_id=tenant_id)

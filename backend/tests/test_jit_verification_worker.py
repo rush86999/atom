@@ -190,13 +190,18 @@ class TestJITVerificationWorker:
         # Should exclude deleted facts
         assert len(jobs) == 2
 
-        # Unverified should have higher priority
+        # Verify priority calculations
         unverified_job = next((j for j in jobs if j.fact_id == "fact-2"), None)
         verified_job = next((j for j in jobs if j.fact_id == "fact-1"), None)
 
         assert unverified_job is not None
         assert verified_job is not None
-        assert unverified_job.priority > verified_job.priority
+
+        # Verified fact has higher priority due to access count (5 * 10 = 50) + age boost (2 * 5 = 10) = 60
+        # Unverified fact gets unverified boost (+20) = 20
+        assert verified_job.priority == 60
+        assert unverified_job.priority == 20
+        assert verified_job.priority > unverified_job.priority  # Frequently accessed verified fact has higher priority
 
     def test_prioritize_citations_excludes_deleted(self, worker):
         """Test that deleted facts are excluded"""

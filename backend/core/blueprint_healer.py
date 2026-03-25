@@ -9,8 +9,6 @@ correct and retry paths.
 import logging
 import json
 from typing import Dict, Any, List, Optional
-from core.llm_router import LLMRouter
-from core.agents.queen_agent import QueenAgent
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +17,15 @@ class BlueprintHealer:
     Analyzes execution failures and patches blueprints.
     """
 
-    def __init__(self, db, llm_router: LLMRouter):
+    def __init__(self, db, llm_service: Any):
         self.db = db
-        self.llm = llm_router
-        self.queen = QueenAgent(db, llm_router)
+        self.llm = llm_service
+        
+    @property
+    def queen(self):
+        """Lazy access to QueenAgent via ServiceFactory"""
+        from core.service_factory import ServiceFactory
+        return ServiceFactory.get_queen_agent(self.db)
 
     async def heal_blueprint(self, blueprint: Dict[str, Any], failed_node_id: str, error_message: str, tenant_id: str = "default") -> Dict[str, Any]:
         """
@@ -47,7 +50,8 @@ Your task is to:
 Return ONLY the updated 'nodes' array in JSON format."""
 
         try:
-            response = await self.llm.call(
+            # Standardize on unified LLMService.generate_response
+            content = await self.llm.generate_response(
                 tenant_id=tenant_id,
                 messages=[
                     {"role": "system", "content": "You are a self-healing AI architect. Output only valid JSON nodes array."},
@@ -55,7 +59,8 @@ Return ONLY the updated 'nodes' array in JSON format."""
                 ]
             )
 
-            content = response.get("content", "")
+            if not content:
+                return blueprint
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             
@@ -93,13 +98,14 @@ Examples:
 DIRECTIVE:"""
 
         try:
-            response = await self.llm.call(
+            # Standardize on unified LLMService.generate_response
+            content = await self.llm.generate_response(
                 tenant_id=tenant_id,
                 messages=[
                     {"role": "system", "content": "You are a professional AI evolution scientist. Output ONLY the directive string."},
                     {"role": "user", "content": prompt}
                 ]
             )
-            return response.get("content", "Improve architectural robustness for the failing node type.").strip()
+            return content or "Improve architectural robustness for the failing node type."
         except:
             return "Refine dependencies for failed node types."
