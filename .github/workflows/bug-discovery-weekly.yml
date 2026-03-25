@@ -35,12 +35,14 @@ jobs:
           pip install -e .
           pip install -r requirements-testing.txt
 
-      - name: Run unified bug discovery
+      - name: Run unified bug discovery with feedback loops
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           FRONTEND_URL: http://localhost:3000
           DATABASE_URL: sqlite:///./test_bug_discovery.db
+          ENABLE_REGRESSION_TESTS: "true"
+          ENABLE_ROI_TRACKING: "true"
         run: |
           cd backend
           python -c "
@@ -55,14 +57,42 @@ jobs:
           print(f'Unique bugs: {result[\"unique_bugs\"]}')
           print(f'Bugs filed: {result[\"filed_bugs\"]}')
           print(f'Report: {result[\"report_path\"]}')
+
+          # Print ROI metrics if available
+          if result.get('roi_data'):
+              roi = result['roi_data']
+              print(f'Hours saved: {roi.get(\"hours_saved\", 0):.0f}')
+              print(f'Cost saved: \${roi.get(\"cost_saved\", 0):,.0f}')
+              print(f'Bugs prevented: {roi.get(\"bugs_prevented\", 0)}')
+              print(f'ROI: {roi.get(\"roi_ratio\", 0):.1f}x')
+
+          # Print regression test count if available
+          if result.get('regression_tests'):
+              print(f'Regression tests generated: {len(result[\"regression_tests\"])}')
           "
 
       - name: Upload weekly report artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bug-discovery-reports
           path: |
             backend/tests/bug_discovery/storage/reports/*.html
             backend/tests/bug_discovery/storage/reports/*.json
+          retention-days: 90
+
+      - name: Upload regression tests
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regression-tests
+          path: backend/tests/bug_discovery/storage/regression_tests/test_regression_*.py
           retention-days: 30
+
+      - name: Upload ROI metrics database
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: roi-metrics-db
+          path: backend/tests/bug_discovery/storage/metrics.db
+          retention-days: 365
