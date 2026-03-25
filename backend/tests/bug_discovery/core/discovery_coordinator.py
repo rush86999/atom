@@ -488,12 +488,16 @@ class DiscoveryCoordinator:
 
         for bug in bugs:
             try:
+                # Handle both enum and string types (use_enum_values=True in BugReport)
+                discovery_method = bug.discovery_method if isinstance(bug.discovery_method, str) else bug.discovery_method.value
+                severity = bug.severity if isinstance(bug.severity, str) else bug.severity.value
+
                 result = self.bug_filing_service.file_bug(
                     test_name=bug.test_name,
                     error_message=bug.error_message,
                     metadata={
-                        "test_type": bug.discovery_method.value,
-                        "severity": bug.severity.value,
+                        "test_type": discovery_method,
+                        "severity": severity,
                         "error_signature": bug.error_signature,
                         "duplicate_count": bug.duplicate_count,
                         **bug.metadata
@@ -525,12 +529,20 @@ class DiscoveryCoordinator:
     def _count_by_severity(self, bugs: List[BugReport]) -> Dict[str, int]:
         """Count bugs by severity."""
         from collections import Counter
-        return dict(Counter(bug.severity.value for bug in bugs))
+        # Handle both enum and string types (use_enum_values=True in BugReport)
+        return dict(Counter(
+            bug.severity if isinstance(bug.severity, str) else bug.severity.value
+            for bug in bugs
+        ))
 
     def _count_by_method(self, bugs: List[BugReport]) -> Dict[str, int]:
         """Count bugs by discovery method."""
         from collections import Counter
-        return dict(Counter(bug.discovery_method.value for bug in bugs))
+        # Handle both enum and string types (use_enum_values=True in BugReport)
+        return dict(Counter(
+            bug.discovery_method if isinstance(bug.discovery_method, str) else bug.discovery_method.value
+            for bug in bugs
+        ))
 
 
 # Convenience function for CI/CD pipelines
