@@ -50,17 +50,20 @@ class BugDeduplicator:
         for bug in bug_reports:
             signature = bug.error_signature
 
+            # Get discovery method value (handle both enum and string)
+            method_value = bug.discovery_method.value if hasattr(bug.discovery_method, 'value') else bug.discovery_method
+
             # Track first occurrence
             if signature not in unique_bugs:
                 unique_bugs[signature] = bug
                 duplicate_counts[signature] = 1
-                discovery_methods[signature] = {bug.discovery_method.value}
+                discovery_methods[signature] = {method_value}
             else:
                 # Increment duplicate count
                 duplicate_counts[signature] += 1
 
                 # Track which discovery methods found this bug
-                discovery_methods[signature].add(bug.discovery_method.value)
+                discovery_methods[signature].add(method_value)
 
                 # Merge metadata if different discovery methods found same bug
                 existing_bug = unique_bugs[signature]
@@ -70,7 +73,8 @@ class BugDeduplicator:
                 existing_bug.metadata["discovery_methods"] = methods_list
 
                 # Update severity to max of duplicates (critical > high > medium > low)
-                existing_bug.severity = self._max_severity(existing_bug.severity, bug.severity)
+                max_sev = self._max_severity(existing_bug.severity, bug.severity)
+                existing_bug.severity = max_sev
 
         # Update unique bugs with duplicate counts
         for bug in unique_bugs.values():
