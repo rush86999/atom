@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 244 of 245 (AI-Enhanced Bug Discovery)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Complete
-Last activity: 2026-03-25 — Phase 244-02 complete: InvariantGenerator with AI-generated property test invariants from code analysis. 3 tasks, 3 commits, ~6 minutes execution.
+Last activity: 2026-03-25 — Phase 244-03 complete: CrossPlatformCorrelator with multi-platform bug correlation by error signature, API endpoint, and temporal patterns. 3 tasks, 3 commits, ~7 minutes execution.
 
-Progress: [██] 40% (2 of 5 plans estimated)
+Progress: [███] 60% (3 of 4 plans estimated)
 
 ## Performance Metrics
 
@@ -92,6 +92,7 @@ Progress: [██] 40% (2 of 5 plans estimated)
 | Phase 244 P01 | 418 | 3 tasks | 4 files |
 | Phase 244 P02 | 360 | 3 tasks | 4 files |
 | Phase 244 P02 | 360 | 3 tasks | 4 files |
+| Phase 244 P03 | 390s | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -167,6 +168,7 @@ Recent decisions affecting current work:
 - [Phase 243-04]: Memory leak bug filing integration with 7 canvas/episodic memory leak tests using memray for Python heap leak detection (complementing CDP browser tests), MemoryPerformanceFilingService extending BugFilingService with specialized severity classification (memory: critical >50MB, high >10MB; performance: critical >100%, high >50%), bug filing fixtures (file_memory_bug, file_performance_bug) with graceful degradation if GITHUB_TOKEN/GITHUB_REPOSITORY not set, flame graph artifact upload support, TQ-01 through TQ-05 compliance with invariant-first documentation (INVARIANT, STRATEGY, RADII)
 - [Phase 244]: FuzzingStrategyGenerator: AI-driven coverage-aware fuzzing with LLM integration
 - [Phase 244-02]: InvariantGenerator: AI-generated property test invariants from Python code analysis with AST fallback for graceful degradation, Hypothesis strategy inference from function arguments, and comprehensive validation (strategy, skeleton, criticality, examples) - 11 tests, 521 lines, 6 minutes execution
+- [Phase 244-03]: CrossPlatformCorrelator: Multi-platform bug correlation detecting bugs manifesting across web/mobile/desktop platforms by analyzing error signatures, API endpoints, and temporal patterns with 84% similarity scoring (60% endpoint match + 40% Jaccard similarity), platform-agnostic error normalization (aggressive file path removal), temporal proximity filtering (max 24 hours apart), suggested remediation actions (shared API, timeout, network, auth patterns), 13 comprehensive unit tests, and markdown report generation - 3 tasks, 3 commits, ~7 minutes execution
 
 ### Key Decisions (Phase 242)
 
@@ -257,10 +259,19 @@ None yet.
 - [BROWSER-19]: Percy token setup instructions with installation, configuration, and usage examples enable visual regression testing with graceful degradation if token missing
 - [BROWSER-20]: pytest_plugins registration in __init__.py ensures conftest.py fixtures are automatically loaded for all browser discovery tests
 
+### Key Decisions (Phase 244)
+
+- [AI-01]: FuzzingStrategyGenerator: AI-driven coverage-aware fuzzing strategy generation from coverage gap analysis with LLM integration for test target identification and payload generation
+- [AI-02]: InvariantGenerator: AI-generated property test invariants from Python code analysis with AST fallback for graceful degradation, Hypothesis strategy inference from function arguments, comprehensive validation (strategy, skeleton, criticality, examples)
+- [CORRELATION-01]: Platform-agnostic error signatures by aggressively removing all platform-specific details (file paths, line numbers, platform-specific error formats) before generating signatures, enabling semantic error matching across web/mobile/desktop platforms
+- [CORRELATION-02]: Similarity scoring weighting with 60% API endpoint match (strongest signal for shared root cause) + 40% Jaccard similarity (semantic error matching), balancing precision with flexibility
+- [CORRELATION-03]: Temporal proximity filtering with max_hours_apart (default 24.0) to avoid correlating bugs too far apart in time, reducing false positives in correlation results
+- [CORRELATION-04]: CrossPlatformCorrelator service with 8 methods (correlate_cross_platform_bugs, _generate_cross_platform_signatures, _normalize_error_for_cross_platform, _calculate_cross_platform_similarity, _create_correlation, _suggest_action, load_bugs_from_json, generate_correlation_report) for multi-platform bug correlation
+
 ## Session Continuity
 
-Last session: 2026-03-25 (Phase 244-02 completion)
-Stopped at: Plan 244-02 completed - InvariantGenerator with AI-generated property test invariants from code analysis, LLM integration with AST fallback, Hypothesis strategy inference, comprehensive validation, and 11 unit tests. 3 tasks, 3 commits, ~6 minutes execution.
+Last session: 2026-03-25 (Phase 244-03 completion)
+Stopped at: Plan 244-03 completed - CrossPlatformCorrelator with multi-platform bug correlation by error signature, API endpoint, and temporal patterns. Platform-agnostic error normalization, 84% similarity scoring (60% endpoint + 40% Jaccard), temporal proximity filtering, suggested remediation actions, 13 comprehensive unit tests, and markdown report generation. 3 tasks, 3 commits, ~7 minutes execution.
 Resume file: None
 
 ## Milestone Context
