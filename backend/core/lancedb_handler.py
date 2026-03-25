@@ -116,7 +116,7 @@ class MockEmbedder:
         hash_val = int(hashlib.sha256(text.encode('utf-8')).hexdigest(), 16)
         try:
             import numpy as np
-            np.random.seed(hash_val % 2**32)
+            np.random.seed(42)
             vec = np.random.rand(self.dim).astype(np.float32)
             # Normalize vector to unit length
             norm = np.linalg.norm(vec)
@@ -139,12 +139,15 @@ class LanceDBHandler:
 
     def __init__(self, db_path: str = None,
                  workspace_id: Optional[str] = None,
+                 tenant_id: Optional[str] = None,
                  embedding_provider: str = "local",
                  embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
 
         # Determine DB path (S3 or local)
         self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
-        self.workspace_id = "default" # Single-tenant: always use default
+        
+        self.workspace_id = workspace_id or "default"
+        self.tenant_id = tenant_id or "default"
 
         # Embedding configuration
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
@@ -165,7 +168,9 @@ class LanceDBHandler:
         if EmbeddingService:
             self.embedding_service = EmbeddingService(
                 provider=self.embedding_provider,
-                model=self.embedding_model
+                model=self.embedding_model,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id
             )
         else:
             logger.warning("EmbeddingService not available, using MockEmbedder fallback")

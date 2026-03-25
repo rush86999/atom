@@ -25,8 +25,8 @@ class KingAgent(AtomMetaAgent):
     blueprint is executed by the most capable available resource.
     """
     
-    def __init__(self, workspace_id: str = "default", user: Optional[User] = None):
-        super().__init__(workspace_id, user)
+    def __init__(self, workspace_id: str = "default", tenant_id: Optional[str] = None, user: Optional[User] = None):
+        super().__init__(workspace_id, tenant_id, user)
         # LLM initialized in AtomMetaAgent via ServiceFactory
         self.healer = BlueprintHealer(None, self.llm) # db will be injected in session
 

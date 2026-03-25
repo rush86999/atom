@@ -153,7 +153,10 @@ class SocialPostGenerator:
         # Try GPT-4.1 mini if enabled and available
         if self.llm_enabled and self.llm_service:
             try:
-                return await self._generate_with_llm(tracker, agent)
+                # Use IDs from agent/tracker context if available
+                workspace_id = getattr(agent, "workspace_id", "default")
+                tenant_id = getattr(agent, "tenant_id", "default")
+                return await self._generate_with_llm(tracker, agent, workspace_id=workspace_id, tenant_id=tenant_id)
             except asyncio.TimeoutError:
                 logger.warning("SocialPostGenerator: LLM timeout, using template fallback")
             except Exception as e:
@@ -172,7 +175,9 @@ class SocialPostGenerator:
     async def _generate_with_llm(
         self,
         tracker: AgentOperationTracker,
-        agent: AgentRegistry
+        agent: AgentRegistry,
+        workspace_id: str = "default",
+        tenant_id: str = "default"
     ) -> str:
         """
         Generate post using GPT-4.1 mini via LLMService.
@@ -209,11 +214,11 @@ Next steps: {tracker.next_steps or 'N/A'}
 Make it engaging and team-focused. Keep it under 280 characters."""
 
         try:
-            # Use unified LLMService generate_response
             content = await self.llm_service.generate_response(
                 prompt=user_prompt,
                 system_prompt=system_prompt,
-                tenant_id="default",  # Default to system level if not specified
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
                 temperature=0.7
             )
 

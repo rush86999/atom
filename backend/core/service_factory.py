@@ -62,11 +62,16 @@ class ServiceFactory:
     _cache_lock = threading.Lock()
 
     @classmethod
-    def get_governance_service(cls, db: Session) -> AgentGovernanceService:
+    def get_governance_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> AgentGovernanceService:
         """Get or create an AgentGovernanceService instance."""
         if not hasattr(cls._thread_local, 'governance_service'):
             publisher = cls.get_activity_publisher()
-            cls._thread_local.governance_service = AgentGovernanceService(db, activity_publisher=publisher)
+            cls._thread_local.governance_service = AgentGovernanceService(
+                db, 
+                workspace_id=workspace_id, 
+                tenant_id=tenant_id, 
+                activity_publisher=publisher
+            )
         return cls._thread_local.governance_service
 
     @classmethod
@@ -163,11 +168,11 @@ class ServiceFactory:
         return cls._thread_local.canvas_summary_service
 
     @classmethod
-    def get_episode_service(cls, db: Session, workspace_id: str = "default") -> EpisodeService:
+    def get_episode_service(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> EpisodeService:
         """Get or create EpisodeService instance."""
         if not hasattr(cls._thread_local, 'episode_service'):
             publisher = cls.get_activity_publisher()
-            cls._thread_local.episode_service = EpisodeService(db, workspace_id=workspace_id, activity_publisher=publisher)
+            cls._thread_local.episode_service = EpisodeService(db, workspace_id=workspace_id, tenant_id=tenant_id, activity_publisher=publisher)
         return cls._thread_local.episode_service
 
     @classmethod
@@ -179,92 +184,111 @@ class ServiceFactory:
         return cls._thread_local.activity_publisher
 
     @classmethod
-    def get_guardrails_service(cls, db: Session) -> Any:
+    def get_guardrails_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> Any:
         """Get or create AutonomousGuardrailService instance."""
         if not hasattr(cls._thread_local, 'guardrails_service'):
             from core.autonomous_guardrails import AutonomousGuardrailService
-            cls._thread_local.guardrails_service = AutonomousGuardrailService(db)
+            cls._thread_local.guardrails_service = AutonomousGuardrailService(
+                db, 
+                workspace_id=workspace_id, 
+                tenant_id=tenant_id
+            )
         return cls._thread_local.guardrails_service
 
     @classmethod
-    def get_memory_consolidation_service(cls) -> Any:
+    def get_memory_consolidation_service(cls, workspace_id: str = "default", tenant_id: Optional[str] = None) -> Any:
         """Get or create MemoryConsolidationService instance."""
         if not hasattr(cls._thread_local, 'memory_consolidation_service'):
-            from core.memory_consolidation import get_memory_consolidation_service
-            cls._thread_local.memory_consolidation_service = get_memory_consolidation_service()
+            from core.memory_consolidation import MemoryConsolidationService
+            cls._thread_local.memory_consolidation_service = MemoryConsolidationService(
+                workspace_id=workspace_id, 
+                tenant_id=tenant_id
+            )
         return cls._thread_local.memory_consolidation_service
 
     @classmethod
-    def get_world_model_service(cls, workspace_id: str = "default") -> WorldModelService:
+    def get_world_model_service(cls, workspace_id: str = "default", tenant_id: str = "default") -> WorldModelService:
         """Get or create WorldModelService instance."""
         if not hasattr(cls._thread_local, 'world_model_service'):
-            cls._thread_local.world_model_service = WorldModelService(workspace_id=workspace_id)
+            cls._thread_local.world_model_service = WorldModelService(workspace_id=workspace_id, tenant_id=tenant_id)
         return cls._thread_local.world_model_service
 
     @classmethod
-    def get_knowledge_extractor(cls, tenant_id: str = "default") -> KnowledgeExtractor:
+    def get_knowledge_extractor(cls, workspace_id: Optional[str] = None, 
+                                tenant_id: Optional[str] = None) -> KnowledgeExtractor:
         """Get or create KnowledgeExtractor instance."""
         if not hasattr(cls._thread_local, 'knowledge_extractor'):
-            cls._thread_local.knowledge_extractor = KnowledgeExtractor(tenant_id=tenant_id)
+            cls._thread_local.knowledge_extractor = KnowledgeExtractor(
+                workspace_id=workspace_id,
+                tenant_id=tenant_id
+            )
         return cls._thread_local.knowledge_extractor
 
     @classmethod
-    def get_graphrag_engine(cls, workspace_id: str = "default") -> GraphRAGEngine:
+    def get_graphrag_engine(cls, workspace_id: Optional[str] = None, 
+                           tenant_id: Optional[str] = None) -> GraphRAGEngine:
         """Get or create GraphRAGEngine instance."""
         if not hasattr(cls._thread_local, 'graphrag_engine'):
-            cls._thread_local.graphrag_engine = GraphRAGEngine(workspace_id=workspace_id)
+            cls._thread_local.graphrag_engine = GraphRAGEngine(
+                workspace_id=workspace_id,
+                tenant_id=tenant_id
+            )
         return cls._thread_local.graphrag_engine
 
     @classmethod
-    def get_llm_service(cls) -> LLMService:
+    def get_llm_service(cls, workspace_id: Optional[str] = None, 
+                        tenant_id: Optional[str] = None) -> LLMService:
         """Get or create the global unified LLMService instance."""
         if not hasattr(cls._thread_local, 'llm_service'):
-            cls._thread_local.llm_service = LLMService()
+            cls._thread_local.llm_service = LLMService(
+                workspace_id=workspace_id,
+                tenant_id=tenant_id
+            )
         return cls._thread_local.llm_service
 
     @classmethod
-    def get_social_post_generator(cls) -> SocialPostGenerator:
+    def get_social_post_generator(cls, workspace_id: str = "default", tenant_id: str = "default") -> SocialPostGenerator:
         """Get or create SocialPostGenerator instance."""
         if not hasattr(cls._thread_local, 'social_post_generator'):
-            cls._thread_local.social_post_generator = SocialPostGenerator()
+            cls._thread_local.social_post_generator = SocialPostGenerator(workspace_id=workspace_id, tenant_id=tenant_id)
         return cls._thread_local.social_post_generator
 
     @classmethod
-    def get_queen_agent(cls, db: Session) -> QueenAgent:
+    def get_queen_agent(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> QueenAgent:
         """Get or create QueenAgent instance."""
         if not hasattr(cls._thread_local, 'queen_agent'):
-            llm = cls.get_llm_service()
-            cls._thread_local.queen_agent = QueenAgent(db, llm)
+            llm = cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
+            cls._thread_local.queen_agent = QueenAgent(db, llm, workspace_id=workspace_id, tenant_id=tenant_id)
         return cls._thread_local.queen_agent
 
     @classmethod
-    def get_atom_meta_agent(cls, workspace_id: str = "default", user: Optional[User] = None) -> AtomMetaAgent:
+    def get_atom_meta_agent(cls, workspace_id: str = "default", tenant_id: str = "default", user: Optional[User] = None) -> AtomMetaAgent:
         """Get or create AtomMetaAgent instance."""
         if not hasattr(cls._thread_local, 'atom_meta_agent'):
-            cls._thread_local.atom_meta_agent = AtomMetaAgent(workspace_id=workspace_id, user=user)
+            cls._thread_local.atom_meta_agent = AtomMetaAgent(workspace_id=workspace_id, tenant_id=tenant_id, user=user)
         return cls._thread_local.atom_meta_agent
 
     @classmethod
-    def get_skill_creation_agent(cls, db: Session) -> SkillCreationAgent:
+    def get_skill_creation_agent(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> SkillCreationAgent:
         """Get or create SkillCreationAgent instance."""
         if not hasattr(cls._thread_local, 'skill_creation_agent'):
-            llm = cls.get_llm_service()
-            cls._thread_local.skill_creation_agent = SkillCreationAgent(db, llm)
+            llm = cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
+            cls._thread_local.skill_creation_agent = SkillCreationAgent(db, llm, workspace_id=workspace_id, tenant_id=tenant_id)
         return cls._thread_local.skill_creation_agent
 
     @classmethod
-    def get_king_agent(cls, workspace_id: str = "default", user: Optional[User] = None) -> KingAgent:
+    def get_king_agent(cls, workspace_id: str = "default", tenant_id: str = "default", user: Optional[User] = None) -> KingAgent:
         """Get or create KingAgent instance."""
         if not hasattr(cls._thread_local, 'king_agent'):
-            cls._thread_local.king_agent = KingAgent(workspace_id=workspace_id, user=user)
+            cls._thread_local.king_agent = KingAgent(workspace_id=workspace_id, tenant_id=tenant_id, user=user)
         return cls._thread_local.king_agent
 
     @classmethod
-    def get_autoresearch_agent(cls, db: Session) -> AutoresearchAgent:
+    def get_autoresearch_agent(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> AutoresearchAgent:
         """Get or create AutoresearchAgent instance."""
         if not hasattr(cls._thread_local, 'autoresearch_agent'):
-            llm = cls.get_llm_service()
-            cls._thread_local.autoresearch_agent = AutoresearchAgent(db, llm)
+            llm = cls.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
+            cls._thread_local.autoresearch_agent = AutoresearchAgent(db, llm, workspace_id=workspace_id, tenant_id=tenant_id)
         return cls._thread_local.autoresearch_agent
 
     @classmethod
@@ -273,6 +297,22 @@ class ServiceFactory:
         if not hasattr(cls._thread_local, 'group_reflection_service'):
             cls._thread_local.group_reflection_service = GroupReflectionService(db)
         return cls._thread_local.group_reflection_service
+
+    @classmethod
+    def get_push_notification_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> PushNotificationService:
+        """Get or create push notification service."""
+        if not hasattr(cls._thread_local, 'push_notification_service'):
+            from core.push_notifications import PushNotificationService
+            cls._thread_local.push_notification_service = PushNotificationService(db, workspace_id=workspace_id, tenant_id=tenant_id)
+        return cls._thread_local.push_notification_service
+
+    @classmethod
+    def get_workflow_analytics_engine(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> WorkflowAnalyticsEngine:
+        """Get or create WorkflowAnalyticsEngine instance."""
+        if not hasattr(cls._thread_local, 'workflow_analytics_engine'):
+            from core.workflow_analytics import WorkflowAnalyticsEngine
+            cls._thread_local.workflow_analytics_engine = WorkflowAnalyticsEngine(db, workspace_id=workspace_id, tenant_id=tenant_id)
+        return cls._thread_local.workflow_analytics_engine
 
     @classmethod
     def get_goal_engine(cls) -> GoalEngine:
@@ -301,24 +341,20 @@ class GovernanceServiceFactory:
     _lock = threading.Lock()
 
     @staticmethod
-    def create(db: Session) -> AgentGovernanceService:
+    def create(db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> AgentGovernanceService:
         """
         Create or reuse governance service instance for current thread.
-
-        DEPRECATED: Use ServiceFactory.get_governance_service() instead.
-
-        Args:
-            db: Database session
-
-        Returns:
-            AgentGovernanceService instance
         """
         thread_id = threading.current_thread().ident
         if thread_id not in GovernanceServiceFactory._instances:
             with GovernanceServiceFactory._lock:
                 # Double-check locking
                 if thread_id not in GovernanceServiceFactory._instances:
-                    GovernanceServiceFactory._instances[thread_id] = AgentGovernanceService(db)
+                    GovernanceServiceFactory._instances[thread_id] = AgentGovernanceService(
+                        db, 
+                        workspace_id=workspace_id, 
+                        tenant_id=tenant_id
+                    )
                     logger.debug(f"Created AgentGovernanceService for thread {thread_id}")
 
         return GovernanceServiceFactory._instances[thread_id]
@@ -336,21 +372,11 @@ class GovernanceServiceFactory:
 
 # Convenience functions for common service access patterns
 
-def get_governance_service(db: Session) -> AgentGovernanceService:
+def get_governance_service(db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> AgentGovernanceService:
     """
     Convenience function to get governance service.
-
-    Args:
-        db: Database session
-
-    Returns:
-        AgentGovernanceService instance
-
-    Example:
-        governance = get_governance_service(db)
-        can_execute = governance.can_execute_action(agent_id, 2)
     """
-    return ServiceFactory.get_governance_service(db)
+    return ServiceFactory.get_governance_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
 
 
 def get_context_resolver(db: Session) -> AgentContextResolver:
@@ -384,7 +410,7 @@ def get_governance_cache() -> GovernanceCache:
     return ServiceFactory.get_governance_cache()
 
 
-def get_episode_service(db: Session, workspace_id: str = "default") -> EpisodeService:
+def get_episode_service(db: Session, workspace_id: str = "default", tenant_id: str = "default") -> EpisodeService:
     """
     Convenience function to get episode service.
 
@@ -395,62 +421,63 @@ def get_episode_service(db: Session, workspace_id: str = "default") -> EpisodeSe
     Returns:
         EpisodeService instance
     """
-    return ServiceFactory.get_episode_service(db, workspace_id=workspace_id)
+    return ServiceFactory.get_episode_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
 
 
-def get_knowledge_extractor(tenant_id: str = "default") -> KnowledgeExtractor:
+def get_knowledge_extractor(workspace_id: Optional[str] = None, 
+                           tenant_id: Optional[str] = None) -> KnowledgeExtractor:
     """
     Convenience function to get knowledge extractor.
     """
-    return ServiceFactory.get_knowledge_extractor(tenant_id=tenant_id)
+    return ServiceFactory.get_knowledge_extractor(workspace_id=workspace_id, tenant_id=tenant_id)
 
 
-def get_graphrag_engine(workspace_id: str = "default") -> GraphRAGEngine:
+def get_graphrag_engine(workspace_id: Optional[str] = None, 
+                       tenant_id: Optional[str] = None) -> GraphRAGEngine:
     """
     Convenience function to get GraphRAG engine.
     """
-    return ServiceFactory.get_graphrag_engine(workspace_id=workspace_id)
+    return ServiceFactory.get_graphrag_engine(workspace_id=workspace_id, tenant_id=tenant_id)
 
 
-def get_llm_service() -> LLMService:
+def get_llm_service(workspace_id: Optional[str] = None, 
+                    tenant_id: Optional[str] = None) -> LLMService:
     """
     Convenience function to get unified LLM service.
     """
-    return ServiceFactory.get_llm_service()
+    return ServiceFactory.get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
 
 
-def get_social_post_generator() -> SocialPostGenerator:
+def get_social_post_generator(workspace_id: str = "default", tenant_id: str = "default") -> SocialPostGenerator:
     """
     Convenience function to get social post generator.
     """
-    return ServiceFactory.get_social_post_generator()
+    return ServiceFactory.get_social_post_generator(workspace_id=workspace_id, tenant_id=tenant_id)
 
 
-def get_queen_agent(db: Session) -> QueenAgent:
+def get_queen_agent(db: Session, workspace_id: str = "default", tenant_id: str = "default") -> QueenAgent:
     """
     Convenience function to get Queen Agent.
     """
-    return ServiceFactory.get_queen_agent(db)
+    return ServiceFactory.get_queen_agent(db, workspace_id=workspace_id, tenant_id=tenant_id)
 
 
-def get_atom_meta_agent(workspace_id: str = "default", user: Optional[User] = None) -> AtomMetaAgent:
+def get_atom_meta_agent(workspace_id: str = "default", tenant_id: str = "default", user: Optional[User] = None) -> AtomMetaAgent:
     """
     Convenience function to get Atom Meta-Agent.
     """
-    return ServiceFactory.get_atom_meta_agent(workspace_id=workspace_id, user=user)
+    return ServiceFactory.get_atom_meta_agent(workspace_id=workspace_id, tenant_id=tenant_id, user=user)
 
 
-def get_guardrails_service(db: Session) -> Any:
+def get_guardrails_service(db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> Any:
     """
     Convenience function to get autonomous guardrails service.
     """
-    from core.autonomous_guardrails import AutonomousGuardrailService
-    return AutonomousGuardrailService(db)
+    return ServiceFactory.get_guardrails_service(db, workspace_id=workspace_id, tenant_id=tenant_id)
 
 
-def get_memory_consolidation_service() -> Any:
+def get_memory_consolidation_service(workspace_id: str = "default", tenant_id: Optional[str] = None) -> Any:
     """
     Convenience function to get memory consolidation service.
     """
-    from core.memory_consolidation import get_memory_consolidation_service as get_service
-    return get_service()
+    return ServiceFactory.get_memory_consolidation_service(workspace_id=workspace_id, tenant_id=tenant_id)

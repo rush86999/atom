@@ -27,10 +27,18 @@ from core.activity_publisher import ActivityPublisher
 logger = logging.getLogger(__name__)
 
 class AgentGovernanceService:
-    def __init__(self, db: Session, activity_publisher: Optional[ActivityPublisher] = None):
+    def __init__(
+        self, 
+        db: Session, 
+        workspace_id: str = "default", 
+        tenant_id: Optional[str] = None,
+        activity_publisher: Optional[ActivityPublisher] = None
+    ):
         self.db = db
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         self.activity_publisher = activity_publisher
-        self.continuous_learning = ContinuousLearningService(db)
+        self.continuous_learning = ContinuousLearningService(db, workspace_id=workspace_id, tenant_id=tenant_id)
         
     def register_or_update_agent(
         self, 
@@ -42,6 +50,7 @@ class AgentGovernanceService:
     ) -> AgentRegistry:
         """Register a new agent or update existing definition"""
         agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == self.workspace_id,
             AgentRegistry.module_path == module_path,
             AgentRegistry.class_name == class_name
         ).first()
@@ -54,6 +63,8 @@ class AgentGovernanceService:
                 module_path=module_path,
                 class_name=class_name,
                 description=description,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
                 status=AgentStatus.STUDENT.value
             )
             self.db.add(agent)
@@ -80,13 +91,18 @@ class AgentGovernanceService:
         Submit user feedback for an agent's action.
         Triggers AI adjudication to check if the user is correct.
         """
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
 
         feedback = AgentFeedback(
             agent_id=agent_id,
             user_id=user_id,
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
             original_output=original_output,
             user_correction=user_correction,
             input_context=input_context,
@@ -105,7 +121,10 @@ class AgentGovernanceService:
         Judge the validity of the user's correction.
         """
         user = self.db.query(User).filter(User.id == feedback.user_id).first()
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == feedback.agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == feedback.agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         
         # Logic: "user confidence from the same role or admin"
         # 1. Admin/Super Admin are trusted.
@@ -145,7 +164,7 @@ class AgentGovernanceService:
             
             # EXPLICIT LEARNING: Record this correction in World Model
             from core.agent_world_model import AgentExperience, WorldModelService
-            wm = WorldModelService()
+            wm = WorldModelService(workspace_id=self.workspace_id, tenant_id=self.tenant_id)
             
             # Create a corrective experience
             # Determine outcome based on rating if available
@@ -216,7 +235,8 @@ class AgentGovernanceService:
             from core.models import AgentExecution
 
             execution = self.db.query(AgentExecution).filter(
-                AgentExecution.id == execution_id
+                AgentExecution.id == execution_id,
+                AgentExecution.workspace_id == self.workspace_id
             ).first()
 
             if not execution:
@@ -252,15 +272,14 @@ class AgentGovernanceService:
             logger.error(f"Failed to record intervention: {e}")
             return False
 
-    def apply_agent_patch(self, agent_id: str, tenant_id: Optional[str] = None) -> Dict[str, Any]:
+    def apply_agent_patch(self, agent_id: str) -> Dict[str, Any]:
         """
         Apply an evolutionary patch to an agent (manual confidence jump).
         """
-        query = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id)
-        if tenant_id:
-            query = query.filter(AgentRegistry.tenant_id == tenant_id)
-            
-        agent = query.first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
              return {"success": False, "error": "Agent not found"}
         
@@ -298,7 +317,7 @@ class AgentGovernanceService:
             # Get agent
             agent = self.db.query(AgentRegistry).filter(
                 AgentRegistry.id == agent_id,
-                AgentRegistry.tenant_id == tenant_id
+                AgentRegistry.workspace_id == self.workspace_id
             ).first()
 
             if not agent:
@@ -309,10 +328,11 @@ class AgentGovernanceService:
                 return None
 
             # Get readiness from EpisodeService
-            episode_service = EpisodeService(self.db)
+            from core.service_factory import ServiceFactory
+            episode_service = ServiceFactory.get_episode_service(self.db, workspace_id=self.workspace_id, tenant_id=self.tenant_id)
             readiness = episode_service.get_graduation_readiness(
                 agent_id=agent_id,
-                tenant_id=tenant_id,
+                tenant_id=self.tenant_id,
                 episode_count=episode_count
             )
 
@@ -346,7 +366,10 @@ class AgentGovernanceService:
         Update confidence and manage maturity transitions.
         Impact: high (0.05/0.1), low (0.01/0.02)
         """
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             return
 
@@ -384,7 +407,8 @@ class AgentGovernanceService:
             publisher = self.activity_publisher
             if publisher:
                 publisher.publish_activity(
-                    tenant_id=agent.tenant_id or "default",
+                    tenant_id=self.tenant_id or "default",
+                    workspace_id=self.workspace_id,
                     agent_id=agent_id,
                     activity_type='learning',
                     state='adapted',
@@ -413,7 +437,10 @@ class AgentGovernanceService:
         Update agent confidence based on rating and thumbs up/down feedback.
         Adapted from SaaS for Upstream metrics.
         """
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             return
 
@@ -469,7 +496,10 @@ class AgentGovernanceService:
         if not RBACService.check_permission(user, Permission.AGENT_MANAGE):
             raise handle_permission_denied("promote", "Agent")
 
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
             
@@ -487,7 +517,10 @@ class AgentGovernanceService:
 
     def pause_agent(self, agent_id: str) -> AgentRegistry:
         """Pause an agent's execution."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
         
@@ -504,7 +537,10 @@ class AgentGovernanceService:
 
     def resume_agent(self, agent_id: str) -> AgentRegistry:
         """Resume a paused agent, recalculating maturity based on confidence."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
         
@@ -534,7 +570,10 @@ class AgentGovernanceService:
 
     def stop_agent(self, agent_id: str) -> AgentRegistry:
         """Stop an agent permanently (until manually re-activated)."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
             
@@ -551,7 +590,10 @@ class AgentGovernanceService:
 
     def delete_agent(self, agent_id: str, permanent: bool = False) -> bool:
         """Delete an agent registry entry (soft delete by default)."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
             
@@ -571,7 +613,9 @@ class AgentGovernanceService:
 
     def list_agents(self, category: Optional[str] = None) -> List[AgentRegistry]:
         """List registered agents"""
-        query = self.db.query(AgentRegistry)
+        query = self.db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == self.workspace_id
+        )
         if category:
             query = query.filter(AgentRegistry.category == category)
         return query.all()
@@ -787,7 +831,10 @@ class AgentGovernanceService:
             return cached_result
 
         logger.debug(f"Cache MISS for governance check: {agent_id}:{action_type}")
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             return {
                 "allowed": False,

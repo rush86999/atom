@@ -32,7 +32,9 @@ class MemoryConsolidationService:
     COLD_DAYS = 90        # Delete low-importance memories after this
     IMPORTANCE_THRESHOLD = 0.3  # Delete memories below this score
 
-    def __init__(self):
+    def __init__(self, workspace_id: str = "default", tenant_id: Optional[str] = None):
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         self.consolidation_stats = {
             "sessions_archived": 0,
             "memories_archived": 0,
@@ -50,9 +52,8 @@ class MemoryConsolidationService:
         start_time = datetime.now()
         
         try:
-            # For open-source, we focus on the single 'default' tenant
-            tenant_id = "default"
-            stats = await self.consolidate_tenant(tenant_id)
+            # Consolidate our assigned tenant/workspace
+            stats = await self.consolidate_tenant(self.tenant_id or "default")
             
             duration = (datetime.now() - start_time).total_seconds()
             stats["duration_seconds"] = duration
@@ -107,9 +108,11 @@ class MemoryConsolidationService:
 
             # Get old memories that haven't been archived
             query = db.query(AgentMemory).filter(
-                AgentMemory.tenant_id == tenant_id,
+                AgentMemory.workspace_id == self.workspace_id,
                 AgentMemory.created_at < cutoff_date
             )
+            if tenant_id:
+                 query = query.filter(AgentMemory.tenant_id == tenant_id)
             
             # Use extra check for archival
             old_memories = [m for m in query.all() if not (m.metadata_json or {}).get("_archived")]

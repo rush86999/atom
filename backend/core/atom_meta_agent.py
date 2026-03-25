@@ -169,17 +169,21 @@ class AtomMetaAgent:
         "manage_team"
     ]
 
-    def __init__(self, workspace_id: str = "default", user: Optional[User] = None):
+    def __init__(self, workspace_id: str = "default", tenant_id: Optional[str] = None, user: Optional[User] = None):
         self.workspace_id = workspace_id
+        self.tenant_id = tenant_id or "default"
         self.user = user
-        self.world_model = WorldModelService(workspace_id)
+        self.world_model = WorldModelService(workspace_id=workspace_id, tenant_id=self.tenant_id)
         self.orchestrator = AdvancedWorkflowOrchestrator()
         self.spawned_agents: Dict[str, AgentRegistry] = {}
         self.mcp = mcp_service  # MCP access for tools
         
         # Access LLMService via ServiceFactory
         from core.service_factory import ServiceFactory
-        self.llm = ServiceFactory.get_llm_service()
+        self.llm = ServiceFactory.get_llm_service(
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id
+        )
         
         self.session_tools: List[Dict[str, Any]] = [] # Usage: Dynamically added tools
         self.canvas_provider = get_canvas_provider()  # Canvas context provider
@@ -218,6 +222,7 @@ class AtomMetaAgent:
                     raise HTTPException(status_code=404, detail="Workspace not found")
 
                 tenant_id = workspace.tenant_id or "default"
+                self.tenant_id = tenant_id # Sync if resolved later
 
                 # Create persistent execution record
                 execution = AgentExecution(
