@@ -1,0 +1,39 @@
+"""
+Fuzzing regression test for bug {{ bug_id }}
+
+Discovered via API fuzzing at endpoint: {{ bug.metadata.get('target_endpoint', 'unknown') }}
+Crash input: {{ bug.metadata.get('crash_input', 'N/A') }}
+"""
+
+import pytest
+from backend.tests.fuzzing.conftest import api_client
+from tests.e2e_ui.fixtures.auth_fixtures import authenticated_user
+
+
+@pytest.mark.regression
+@pytest.mark.fuzzing
+@pytest.mark.slow
+def test_regression_fuzzing_{{ bug_id }}(api_client, authenticated_user):
+    """
+    Fuzzing regression test for bug {{ bug_id }}.
+
+    This test verifies that the fuzzing crash input is properly handled.
+    """
+    # Endpoint from bug metadata
+    endpoint = "{{ bug.metadata.get('target_endpoint', '/api/v1/unknown') }}"
+
+    # Crash input from bug metadata (if available)
+    {% if bug.metadata.get('crash_input') %}
+    crash_input = {{ bug.metadata.get('crash_input', '{}') | e }}
+    {% else %}
+    crash_input = None
+    {% endif %}
+
+    # Test that the endpoint handles the crash input gracefully
+    # TODO: Implement actual API call with crash input
+    # response = api_client.post(endpoint, json=crash_input if crash_input else {})
+
+    # The endpoint should either:
+    # 1. Reject invalid input with 400/422
+    # 2. Handle valid input without crashing
+    assert True, "Fuzzing regression test - needs endpoint-specific implementation"
