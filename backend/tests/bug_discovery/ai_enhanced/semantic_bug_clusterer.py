@@ -193,7 +193,8 @@ class SemanticBugClusterer:
         text = re.sub(r':\d+', '', text)
 
         # Remove timestamps (ISO format and similar)
-        text = re.sub(r'\d{4}-\d{2}-\d{2}T?\d{2}:\d{2}:\d{2}.*?\d', '', text)
+        text = re.sub(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.*?\d', '', text)
+        text = re.sub(r'\d{4}-\d{2}-\d{2}T\d{2}Z', '', text)
         text = re.sub(r'\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2}', '', text)
 
         # Remove memory addresses (0x...)
@@ -493,10 +494,10 @@ Respond ONLY with the theme label, no explanation."""
             lines.append(f"**Discovery Methods**: {', '.join(cluster.discovery_methods)}")
 
             if cluster.severity_distribution:
-                lines.append(f"**Severity**: {cluster.severity_distribution}")
+                lines.append(f"**Severity**: {dict(cluster.severity_distribution)}")
 
             if cluster.platform_distribution:
-                lines.append(f"**Platforms**: {cluster.platform_distribution}")
+                lines.append(f"**Platforms**: {dict(cluster.platform_distribution)}")
 
             lines.append("**Bugs**:")
             for bug_id in cluster.bug_ids[:10]:  # Top 10

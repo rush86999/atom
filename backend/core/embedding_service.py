@@ -103,7 +103,7 @@ class EmbeddingService:
 
         # Initialize LLMService for OpenAI embeddings (unified interface)
         # Note: FastEmbed and Cohere use their own clients (keep local)
-        self.llm_service = LLMService(workspace_id="default")
+        self.llm_service = LLMService(tenant_id="default")
 
         logger.info(
             f"Initialized EmbeddingService: provider={self.provider}, model={self.model}"
