@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-03-25T00:00:00Z",
+  "baselines": {
+    "api_get_agents_latency": 0.050,
+    "api_health_check_latency": 0.005,
+    "api_agent_execute_latency": 0.200,
+    "api_canvas_create_latency": 0.100,
+    "db_agent_query": 0.010,
+    "db_episode_filter": 0.020,
+    "db_pagination": 0.015,
+    "cache_hit_rate": 0.95,
+    "cache_get_latency": 0.001,
+    "cache_set_latency": 0.001
+  }
+}
