@@ -15,8 +15,15 @@ than UI-based login.
 import pytest
 from playwright.sync_api import Page, expect
 
-# Import Percy snapshot function from frontend visual tests
-from frontend_nextjs.tests.visual.fixtures.percy_fixtures import percy_snapshot
+# Import Percy snapshot function from frontend visual tests (optional)
+try:
+    from frontend_nextjs.tests.visual.fixtures.percy_fixtures import percy_snapshot
+    PERCY_AVAILABLE = True
+except ImportError:
+    PERCY_AVAILABLE = False
+    # Create a dummy percy_snapshot function for when frontend is not available
+    def percy_snapshot(page, name, width=None):
+        pytest.skip(f"Percy not available (frontend_nextjs module not found). Skipped visual snapshot: {name}")
 
 
 class TestVisualRegression:
