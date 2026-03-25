@@ -25,6 +25,14 @@ from tests.bug_discovery.core.result_aggregator import ResultAggregator
 from tests.bug_discovery.core.bug_deduplicator import BugDeduplicator
 from tests.bug_discovery.core.severity_classifier import SeverityClassifier
 from tests.bug_discovery.core.dashboard_generator import DashboardGenerator
+from tests.bug_discovery.feedback_loops.roi_tracker import ROITracker
+
+# Optional import (requires jinja2)
+try:
+    from tests.bug_discovery.feedback_loops.regression_test_generator import RegressionTestGenerator
+    REGRESSION_TEST_GENERATOR_AVAILABLE = True
+except ImportError:
+    REGRESSION_TEST_GENERATOR_AVAILABLE = False
 
 
 class DiscoveryCoordinator:
@@ -54,7 +62,9 @@ class DiscoveryCoordinator:
         self,
         github_token: str,
         github_repository: str,
-        storage_dir: str = None
+        storage_dir: str = None,
+        enable_regression_tests: bool = True,
+        enable_roi_tracking: bool = True
     ):
         """
         Initialize DiscoveryCoordinator.
@@ -63,6 +73,8 @@ class DiscoveryCoordinator:
             github_token: GitHub Personal Access Token for bug filing
             github_repository: Repository in format "owner/repo"
             storage_dir: Directory for storing reports (default: backend/tests/bug_discovery/storage)
+            enable_regression_tests: Enable automatic regression test generation
+            enable_roi_tracking: Enable ROI metrics tracking
         """
         self.github_token = github_token
         self.github_repository = github_repository
@@ -79,13 +91,26 @@ class DiscoveryCoordinator:
         self.severity_classifier = SeverityClassifier()
         self.dashboard_generator = DashboardGenerator(storage_dir)
 
+        # Initialize feedback loop services
+        self.enable_regression_tests = enable_regression_tests and REGRESSION_TEST_GENERATOR_AVAILABLE
+        self.enable_roi_tracking = enable_roi_tracking
+
+        if self.enable_regression_tests:
+            self.regression_test_generator = RegressionTestGenerator()
+            print("[DiscoveryCoordinator] Regression test generation enabled")
+
+        if self.enable_roi_tracking:
+            self.roi_tracker = ROITracker(storage_dir=storage_dir)
+            print("[DiscoveryCoordinator] ROI tracking enabled")
+
     def run_full_discovery(
         self,
         duration_seconds: int = 3600,
         fuzzing_endpoints: List[str] = None,
         chaos_experiments: List[str] = None,
         run_property_tests: bool = True,
-        run_browser_discovery: bool = True
+        run_browser_discovery: bool = True,
+        generate_regression_tests: bool = True
     ) -> Dict[str, Any]:
         """
         Run all discovery methods and aggregate results.
@@ -96,11 +121,13 @@ class DiscoveryCoordinator:
             chaos_experiments: List of chaos experiments to run (default: standard experiments)
             run_property_tests: Whether to run property tests (default: True)
             run_browser_discovery: Whether to run browser discovery (default: True)
+            generate_regression_tests: Generate regression tests from discovered bugs (default: True)
 
         Returns:
-            Dict with aggregated results (bugs_found, unique_bugs, filed_bugs, report_path)
+            Dict with bugs_found, unique_bugs, filed_bugs, report_path, roi_data, regression_tests
         """
-        print(f"[DiscoveryCoordinator] Starting full bug discovery run at {datetime.utcnow().isoformat()}")
+        start_time = datetime.utcnow()
+        print(f"[DiscoveryCoordinator] Starting full bug discovery run at {start_time.isoformat()}")
         all_reports: List[BugReport] = []
 
         # 1. Run fuzzing discovery
@@ -148,26 +175,77 @@ class DiscoveryCoordinator:
         # 7. File unique bugs
         print("[DiscoveryCoordinator] Filing bugs to GitHub...")
         filed_bugs = self._file_bugs(unique_bugs)
-        print(f"[DiscoveryCoordinator] Filed {len(filed_bugs)} bugs to GitHub")
+        filed_count = len([b for b in filed_bugs if b.get("status") == "created"])
+        print(f"[DiscoveryCoordinator] Filed {filed_count} bugs to GitHub")
 
-        # 8. Generate weekly report
-        print("[DiscoveryCoordinator] Generating weekly report...")
-        report_path = self.dashboard_generator.generate_weekly_report(
-            bugs_found=len(all_reports),
-            unique_bugs=len(unique_bugs),
-            filed_bugs=len([b for b in filed_bugs if b.get("status") == "created"]),
-            reports=unique_bugs
-        )
-        print(f"[DiscoveryCoordinator] Report generated: {report_path}")
+        # 8. Record discovery run metrics for ROI tracking
+        if self.enable_roi_tracking:
+            print("[DiscoveryCoordinator] Recording ROI metrics...")
+            self.roi_tracker.record_discovery_run(
+                bugs_found=len(all_reports),
+                unique_bugs=len(unique_bugs),
+                filed_bugs=filed_count,
+                duration_seconds=duration_seconds,
+                by_method=self._count_by_method(all_reports),
+                by_severity=self._count_by_severity(all_reports)
+            )
+
+        # 9. Generate regression tests from discovered bugs
+        regression_test_paths = []
+        if generate_regression_tests and self.enable_regression_tests and unique_bugs:
+            print(f"[DiscoveryCoordinator] Generating regression tests for {len(unique_bugs)} bugs...")
+            regression_test_paths = self.regression_test_generator.generate_tests_from_bug_list(
+                bugs=list(unique_bugs),
+                output_dir=str(self.storage_dir / "regression_tests")
+            )
+            print(f"[DiscoveryCoordinator] Generated {len(regression_test_paths)} regression tests")
+
+        # 10. Generate ROI report
+        roi_data = {}
+        if self.enable_roi_tracking:
+            print("[DiscoveryCoordinator] Generating ROI report...")
+            roi_data = self.roi_tracker.generate_roi_report(weeks=4)
+
+        # 11. Save weekly summary
+        if self.enable_roi_tracking and roi_data:
+            print("[DiscoveryCoordinator] Saving weekly summary...")
+            self.roi_tracker.save_weekly_summary(roi_data)
+
+        # 12. Generate enhanced report
+        if roi_data:
+            print("[DiscoveryCoordinator] Generating enhanced weekly report with ROI data...")
+            report_path = self.dashboard_generator.generate_weekly_report_with_roi(
+                bugs_found=len(all_reports),
+                unique_bugs=len(unique_bugs),
+                filed_bugs=filed_count,
+                reports=unique_bugs,
+                roi_data=roi_data
+            )
+        else:
+            print("[DiscoveryCoordinator] Generating standard weekly report...")
+            report_path = self.dashboard_generator.generate_weekly_report(
+                bugs_found=len(all_reports),
+                unique_bugs=len(unique_bugs),
+                filed_bugs=filed_count,
+                reports=unique_bugs
+            )
+
+        # Calculate duration
+        actual_duration = (datetime.utcnow() - start_time).total_seconds()
+
+        print(f"[DiscoveryCoordinator] Discovery complete in {actual_duration:.1f}s")
+        print(f"[DiscoveryCoordinator] Report: {report_path}")
 
         return {
             "bugs_found": len(all_reports),
             "unique_bugs": len(unique_bugs),
-            "filed_bugs": len([b for b in filed_bugs if b.get("status") == "created"]),
+            "filed_bugs": filed_count,
             "report_path": report_path,
-            "timestamp": datetime.utcnow().isoformat(),
-            "severity_distribution": severity_counts,
-            "by_method": self._count_by_method(unique_bugs)
+            "duration_seconds": actual_duration,
+            "roi_data": roi_data,
+            "regression_tests": regression_test_paths,
+            "by_method": self._count_by_method(unique_bugs),
+            "by_severity": severity_counts
         }
 
     # ========================================================================
@@ -627,6 +705,40 @@ class DiscoveryCoordinator:
             bug.discovery_method if isinstance(bug.discovery_method, str) else bug.discovery_method.value
             for bug in bugs
         ))
+
+    # ========================================================================
+    # Feedback Loop Integration (Phase 245)
+    # ========================================================================
+
+    def get_roi_report(self, weeks: int = 4) -> Dict[str, Any]:
+        """
+        Get ROI report for the last N weeks.
+
+        Args:
+            weeks: Number of weeks to include
+
+        Returns:
+            ROI report dictionary
+        """
+        if not self.enable_roi_tracking:
+            return {}
+
+        return self.roi_tracker.generate_roi_report(weeks=weeks)
+
+    def get_weekly_trends(self, weeks: int = 12) -> List[Dict[str, Any]]:
+        """
+        Get weekly trend data for ROI charts.
+
+        Args:
+            weeks: Number of weeks to include
+
+        Returns:
+            List of weekly data points
+        """
+        if not self.enable_roi_tracking:
+            return []
+
+        return self.roi_tracker.get_weekly_trends(weeks=weeks)
 
 
 # Convenience function for CI/CD pipelines
