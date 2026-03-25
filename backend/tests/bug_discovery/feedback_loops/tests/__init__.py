@@ -1,3 +1,3 @@
 """
-Tests for feedback loops package.
+Tests for bug discovery feedback loops.
 """
