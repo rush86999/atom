@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 241 of 245 (Chaos Engineering Integration)
-Plan: 6 of 7 in current phase
-Status: In Progress
-Last activity: 2026-03-25 — Phase 241-06 complete: Blast radius control validation and recovery validation tests (24 tests: 17 blast radius + 7 recovery), 15 passing, 9 skipped (28 min execution)
+Plan: 7 of 7 in current phase
+Status: Complete
+Last activity: 2026-03-25 — Phase 241-07 complete: Weekly CI pipeline and documentation for chaos engineering tests (3 tasks: CI workflow, pytest.ini marker, comprehensive README 311 lines)
 
-Progress: [██████    ] 71%
+Progress: [█████████] 100%
 
 ## Performance Metrics
 
@@ -81,6 +81,7 @@ Progress: [██████    ] 71%
 | Phase 241 P02 | 582 | 2 tasks | 3 files |
 | Phase 241-04 P04 | 7217 | 2 tasks | 2 files |
 | Phase 241 P06 | 28 min | 2 tasks | 3 files |
+| Phase 241 P07 | 180 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,9 @@ Recent decisions affecting current work:
 - [Phase 241-06]: Fixed AgentRegistry model usage (maturity_level -> status, added required fields category/module_path/class_name) across all chaos tests
 - [Phase 241-06]: Added CPU load skip for tests affected by high CPU usage (baseline_cpu > 80%) to avoid false failures in ChaosCoordinator._verify_recovery()
 - [Phase 241-06]: Skipped flaky tests with clear documentation (memory GC delay, database fixture issue, toxiproxy not installed) instead of failing CI
+- [Phase 241]: Weekly CI pipeline for chaos engineering tests (Sunday 2 AM UTC, Toxiproxy, environment validation)
+- [Phase 241]: pytest.ini chaos marker enhanced with descriptive text (failure injection, isolated environment, slow, weekly only)
+- [Phase 241]: Comprehensive chaos testing README (311 lines, 29 sections) covering purpose, safety, requirements, fixtures, CI/CD, troubleshooting
 
 ### Pending Todos
 
