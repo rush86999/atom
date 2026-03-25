@@ -5,6 +5,12 @@ Fixtures for chaos engineering tests:
 - chaos_db_session: Isolated test database per test
 - bug_filing_service: BugFilingService for automated bug filing
 - chaos_coordinator: ChaosCoordinator instance
+- slow_database_proxy: Toxiproxy proxy for database latency injection
+- toxiproxy_server: Toxiproxy client for network chaos
+- memory_pressure_injector: Memory pressure injection fixture
+- system_memory_monitor: System memory monitoring fixture
+- heap_snapshot: Heap snapshot fixture for leak detection
+- memory_pressure_thresholds: Memory pressure threshold values
 """
 
 import os
@@ -15,6 +21,26 @@ from core.models import Base
 
 from tests.chaos.core.chaos_coordinator import ChaosCoordinator
 from tests.bug_discovery.bug_filing_service import BugFilingService
+
+# Import network chaos fixtures
+try:
+    from tests.chaos.fixtures.network_chaos_fixtures import toxiproxy_server, slow_database_proxy
+except ImportError:
+    # toxiproxy-python not installed, fixtures will skip tests
+    pass
+
+# Import memory chaos fixtures
+try:
+    from tests.chaos.fixtures.memory_chaos_fixtures import (
+        MemoryPressureInjector,
+        memory_pressure_injector,
+        system_memory_monitor,
+        heap_snapshot,
+        memory_pressure_thresholds,
+    )
+except ImportError:
+    # psutil not installed, fixtures will skip tests
+    pass
 
 
 @pytest.fixture(scope="function")
