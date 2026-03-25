@@ -161,11 +161,17 @@ class CrossPlatformCorrelator:
         """
         normalized = error_message
 
-        # Remove file paths (platform-specific)
-        # Unix-style paths
-        normalized = re.sub(r'/[a-zA-Z0-9_/\-\.]+/', '/', normalized)
+        # Remove file paths completely (platform-specific)
+        # Unix-style paths: /path/to/file.py
+        normalized = re.sub(r'[a-zA-Z0-9_/\-\.]+\.[a-z]{2,4}:\d+', 'FILE:LINE', normalized)
+        normalized = re.sub(r'[a-zA-Z0-9_/\-\.]+\.[a-z]{2,4}', 'FILE', normalized)
         # Windows-style paths
-        normalized = re.sub(r'\\\\[a-zA-Z0-9_\\\-\.]+\\\\', '\\\\', normalized)
+        normalized = re.sub(r'[a-zA-Z0-9_\\\-\.]+\.[a-z]{2,4}:\d+', 'FILE:LINE', normalized)
+        normalized = re.sub(r'[a-zA-Z0-9_\\\-\.]+\.[a-z]{2,4}', 'FILE', normalized)
+
+        # Remove remaining path-like patterns
+        normalized = re.sub(r'/[a-zA-Z0-9_/\-\.]+/', '/', normalized)
+        normalized = re.sub(r'\\+[a-zA-Z0-9_\\\-\.]+\\+', '\\\\', normalized)
 
         # Remove line numbers
         normalized = re.sub(r':\d+', ':LINE', normalized)
@@ -180,6 +186,9 @@ class CrossPlatformCorrelator:
         }
         for old, new in replacements.items():
             normalized = normalized.replace(old, new)
+
+        # Clean up multiple spaces
+        normalized = re.sub(r'\s+', ' ', normalized)
 
         return normalized.strip()
 
@@ -392,7 +401,9 @@ class CrossPlatformCorrelator:
 
         for i, correlation in enumerate(correlations, 1):
             lines.append(f"### {i}. {correlation.error_signature[:16]}...")
-            lines.append(f"**Platforms**: {', '.join([p.value for p in correlation.platforms])}")
+            # Handle both enum and string platforms (use_enum_values=True converts to strings)
+            platform_strs = [p.value if hasattr(p, 'value') else p for p in correlation.platforms]
+            lines.append(f"**Platforms**: {', '.join(platform_strs)}")
             lines.append(f"**Similarity**: {correlation.similarity_score:.2f}")
             lines.append(f"**API Endpoint**: {correlation.api_endpoint or 'N/A'}")
             lines.append(f"**Shared Root Cause**: {'Yes' if correlation.shared_root_cause else 'No'}")
