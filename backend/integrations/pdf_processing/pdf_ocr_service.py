@@ -30,62 +30,12 @@ except ImportError:
     np = None
     NUMPY_AVAILABLE = False
 
-# BYOK Integration
+# LLM Service Integration
 try:
-    from core.byok_endpoints import get_byok_manager
-    BYOK_AVAILABLE = True
+    from core.llm_service import LLMService
+    LLM_SERVICE_AVAILABLE = True
 except ImportError:
-    try:
-        from backend.core.byok_endpoints import get_byok_manager
-        BYOK_AVAILABLE = True
-    except ImportError:
-        BYOK_AVAILABLE = False
-        get_byok_manager = None
-
-try:
-    from core.llm.byok_handler import BYOKHandler
-    BYOK_HANDLER_AVAILABLE = True
-except ImportError:
-    try:
-        from backend.core.llm.byok_handler import BYOKHandler
-        BYOK_HANDLER_AVAILABLE = True
-    except ImportError:
-        BYOK_HANDLER_AVAILABLE = False
-        BYOKHandler = None
-
-# Docling integration (highest priority OCR - optional)
-try:
-    from core.docling_processor import get_docling_processor, is_docling_available
-    DOCLING_AVAILABLE = is_docling_available()
-except ImportError:
-    try:
-        from backend.core.docling_processor import get_docling_processor, is_docling_available
-        DOCLING_AVAILABLE = is_docling_available()
-    except ImportError:
-        DOCLING_AVAILABLE = False
-        get_docling_processor = None
-
-# Optional imports for advanced features
-try:
-    import pytesseract
-
-    TESSERACT_AVAILABLE = True
-except ImportError:
-    TESSERACT_AVAILABLE = False
-
-try:
-    import easyocr
-
-    EASYOCR_AVAILABLE = True
-except ImportError:
-    EASYOCR_AVAILABLE = False
-
-try:
-    from openai import OpenAI
-
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
+    LLM_SERVICE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -98,34 +48,27 @@ class PDFOCRService:
 
     def __init__(
         self,
-        openai_api_key: Optional[str] = None,
         tesseract_path: Optional[str] = None,
         easyocr_languages: List[str] = None,
-        use_byok: bool = True,
+        tenant_id: str = "default",
     ):
         """
         Initialize the PDF OCR service.
 
         Args:
-            openai_api_key: OpenAI API key for advanced image comprehension
             tesseract_path: Path to tesseract executable (if not in PATH)
             easyocr_languages: List of languages for EasyOCR (default: ['en'])
-            use_byok: Whether to use BYOK system for AI provider management
+            tenant_id: Tenant ID for metered AI operations
         """
-        self.openai_api_key = openai_api_key
         self.tesseract_path = tesseract_path
         self.easyocr_languages = easyocr_languages or ["en"]
-        self.use_byok = use_byok and BYOK_AVAILABLE
+        self.tenant_id = tenant_id
 
-        # Initialize BYOK manager if available
-        self.byok_manager = None
-        if self.use_byok:
-            try:
-                self.byok_manager = get_byok_manager()
-                logger.info("BYOK system initialized for PDF processing")
-            except Exception as e:
-                logger.warning(f"Failed to initialize BYOK system: {e}")
-                self.use_byok = False
+        # Use unified LLMService for AI vision/OCR
+        self.llm_service = None
+        if LLM_SERVICE_AVAILABLE:
+            self.llm_service = LLMService(tenant_id=tenant_id)
+            logger.info(f"PDF OCR Service initialized with LLMService for tenant: {tenant_id}")
 
         # Initialize OCR readers
         self._init_ocr_readers()
@@ -165,21 +108,10 @@ class PDFOCRService:
             except Exception as e:
                 logger.warning(f"Failed to initialize EasyOCR: {e}")
 
-        # AI Vision (for advanced image comprehension) - Using BYOKHandler
-        if BYOK_HANDLER_AVAILABLE:
-            try:
-                self.ocr_readers["ai_vision"] = BYOKHandler(workspace_id="default")
-                logger.info("AI Vision (BYOKHandler) initialized")
-            except Exception as e:
-                logger.warning(f"Failed to initialize AI Vision (BYOKHandler): {e}")
-        elif OPENAI_AVAILABLE:
-            openai_key = self._get_openai_api_key()
-            if openai_key:
-                try:
-                    self.ocr_readers["openai"] = OpenAI(api_key=openai_key)
-                    logger.info("OpenAI Vision initialized")
-                except Exception as e:
-                    logger.warning(f"Failed to initialize OpenAI Vision: {e}")
+        # AI Vision (for advanced image comprehension) - Using unified LLMService
+        if self.llm_service:
+            self.ocr_readers["ai_vision"] = self.llm_service
+            logger.info("AI Vision (LLMService) initialized")
 
     def _check_service_availability(self) -> Dict[str, bool]:
         """Check availability of different OCR services."""
@@ -188,9 +120,9 @@ class PDFOCRService:
             "docling": "docling" in self.ocr_readers,
             "tesseract": "tesseract" in self.ocr_readers,
             "easyocr": "easyocr" in self.ocr_readers,
-            "openai_vision": "openai" in self.ocr_readers or "ai_vision" in self.ocr_readers,
+            "openai_vision": "ai_vision" in self.ocr_readers,
             "fallback_available": len(self.ocr_readers) > 0,
-            "byok_integrated": self.use_byok and (self.byok_manager is not None or "ai_vision" in self.ocr_readers),
+            "byok_integrated": self.llm_service is not None,
         }
         return status
 
@@ -230,23 +162,12 @@ class PDFOCRService:
                 or len(basic_result["extracted_text"].strip()) < 100
             )
 
-            # Step 2.5: Optimize provider selection using BYOK if available
-            if self.use_byok and needs_ocr:
-                provider_optimization = await self._optimize_provider_selection(
-                    use_advanced_comprehension, fallback_strategy
-                )
-                logger.info(f"BYOK provider optimization: {provider_optimization}")
-
             # Step 3: Process with OCR if needed
             ocr_result = None
             if needs_ocr:
                 ocr_result = await self._process_with_ocr(
                     pdf_data, fallback_strategy, use_advanced_comprehension
                 )
-
-                # Track usage with BYOK if available
-                if self.use_byok and ocr_result:
-                    await self._track_byok_usage(ocr_result, use_advanced_comprehension)
 
             # Step 4: Extract and process images if requested
             image_results = None
@@ -539,9 +460,9 @@ class PDFOCRService:
             }
 
     async def _ocr_with_ai_vision(self, pdf_data: bytes) -> Dict[str, Any]:
-        """Extract text and comprehend images using AI Vision via BYOKHandler."""
-        if "ai_vision" not in self.ocr_readers and "openai" not in self.ocr_readers:
-            raise RuntimeError("AI Vision not available")
+        """Extract text and comprehend images using AI Vision via unified LLMService."""
+        if not self.llm_service:
+            raise RuntimeError("AI Vision (LLMService) not available")
 
         import base64
 
@@ -557,39 +478,35 @@ class PDFOCRService:
                 image.save(img_byte_arr, format="PNG")
                 img_byte_arr = img_byte_arr.getvalue()
 
-                # Use BYOKHandler if available
-                if "ai_vision" in self.ocr_readers:
-                    handler = self.ocr_readers["ai_vision"]
-                    page_text = await handler.generate_response(
-                        prompt="Extract all text from this image and describe any visual elements that might be important for understanding the document.",
-                        image_payload=[{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode('utf-8')}"}}],
-                        task_type="pdf_ocr",
-                        prefer_cost=True
-                    )
+                # Use LLMService for multimodal vision processing
+                response_data = await self.llm_service.generate_completion(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "Extract all text from this image and describe any visual elements that might be important for understanding the document.",
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode('utf-8')}"
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                    model="auto", # Multimodal capability resolved internally
+                    tenant_id=self.tenant_id
+                )
+                
+                if response_data.get("success"):
+                    page_text = response_data.get("content", "").strip()
                 else:
-                    # Legacy OpenAI fallback
-                    response = self.ocr_readers["openai"].chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "text",
-                                        "text": "Extract all text from this image and describe any visual elements that might be important for understanding the document.",
-                                    },
-                                    {
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode('utf-8')}"
-                                        },
-                                    },
-                                ],
-                            }
-                        ],
-                        max_tokens=2000,
-                    )
-                    page_text = response.choices[0].message.content
+                    logger.warning(f"AI Vision failed for page {page_num + 1}: {response_data.get('error')}")
+                    page_text = ""
+
                 text_content.append(
                     {
                         "page": page_num + 1,
@@ -604,7 +521,7 @@ class PDFOCRService:
                 )
 
             return {
-                "method": "openai_vision",
+                "method": "openai_vision", # Keeping method name for consistency in logs/UI
                 "extracted_text": "\n".join([p["text"] for p in text_content]),
                 "page_texts": text_content,
                 "page_count": len(images),
@@ -614,7 +531,7 @@ class PDFOCRService:
             }
 
         except Exception as e:
-            logger.error(f"OpenAI Vision failed: {e}")
+            logger.error(f"Unified AI Vision failed: {e}")
             return {
                 "method": "openai_vision",
                 "extracted_text": "",

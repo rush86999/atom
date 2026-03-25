@@ -9,13 +9,12 @@ orchestrating specialty agents and enforcing sovereign governance.
 import logging
 import asyncio
 from typing import Dict, Any, List, Optional
-from core.llm_router import LLMRouter
-from core.atom_meta_agent import AtomMetaAgent
 from core.agents.queen_agent import QueenAgent
 from core.blueprint_healer import BlueprintHealer
 from core.models import User, AgentTriggerMode, AgentEvolutionTrace
 from core.database import SessionLocal
-from core.canvas_tool import present_markdown, update_canvas
+from core.atom_meta_agent import AtomMetaAgent
+from tools.canvas_tool import present_markdown, update_canvas
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +27,8 @@ class KingAgent(AtomMetaAgent):
     
     def __init__(self, workspace_id: str = "default", user: Optional[User] = None):
         super().__init__(workspace_id, user)
-        # Use LLMRouter for Queen/Healer consistency
-        self.llm_router = LLMRouter()
-        self.healer = BlueprintHealer(None, self.llm_router) # db will be injected in session
+        # LLM initialized in AtomMetaAgent via ServiceFactory
+        self.healer = BlueprintHealer(None, self.llm) # db will be injected in session
 
     async def execute_blueprint(
         self, 

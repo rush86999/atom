@@ -267,39 +267,46 @@ class PDFMemoryIntegration:
             return {"success": False, "error": str(e), "doc_id": None}
 
     async def _store_in_lancedb(self, document_data: Dict[str, Any]):
-        """Store document in LanceDB with embeddings."""
+        """Store document in LanceDB with chunked embeddings for better coverage."""
         try:
-            # Generate embedding for the text content
-            text_for_embedding = document_data["extracted_text"]
-            if len(text_for_embedding) > 1000:
-                text_for_embedding = text_for_embedding[:1000]  # Limit for embedding
+            full_text = document_data["extracted_text"]
+            if not full_text:
+                logger.warning(f"No text extracted for document {document_data['doc_id']}")
+                return
 
-            embedding = self.lancedb_handler.embed_text(text_for_embedding)
+            # Robust sliding-window chunking
+            chunks = self._create_sliding_window_chunks(full_text, window_size=1000, overlap=200)
 
-            # Prepare data for LanceDB
-            lancedb_data = {
-                "doc_id": document_data["doc_id"],
-                "user_id": document_data["user_id"],
-                "filename": document_data["filename"],
-                "file_size": document_data["file_size"],
-                "page_count": document_data["page_count"],
-                "total_chars": document_data["total_chars"],
-                "processing_method": document_data["processing_method"],
-                "pdf_type": document_data["pdf_type"],
-                "extracted_text": document_data["extracted_text"],
-                "embedding": embedding,
-                "metadata": document_data["metadata"],
-                "created_at": document_data["created_at"],
-                "updated_at": document_data["updated_at"],
-                "source_uri": document_data["source_uri"],
-                "tags": document_data["tags"],
-            }
+            lancedb_chunks = []
+            for i, chunk_text in enumerate(chunks):
+                # Generate embedding for each chunk
+                embedding = self.lancedb_handler.embed_text(chunk_text)
+                
+                # Prepare chunk data for LanceDB
+                chunk_data = {
+                    "doc_id": document_data["doc_id"],
+                    "user_id": document_data["user_id"],
+                    "filename": document_data["filename"],
+                    "file_size": document_data["file_size"],
+                    "page_count": document_data["page_count"],
+                    "total_chars": document_data["total_chars"],
+                    "processing_method": document_data["processing_method"],
+                    "pdf_type": document_data["pdf_type"],
+                    "extracted_text": chunk_text,  # Store the chunk text for semantic retrieval
+                    "embedding": embedding,
+                    "metadata": document_data["metadata"],
+                    "created_at": document_data["created_at"],
+                    "updated_at": document_data["updated_at"],
+                    "source_uri": document_data["source_uri"],
+                    "tags": document_data["tags"],
+                }
+                lancedb_chunks.append(chunk_data)
 
-            # Add to LanceDB table
+            # Bulk add to LanceDB table
             table = self.lancedb_handler.get_table(self.table_name)
-            table.add([lancedb_data])
+            table.add(lancedb_chunks)
 
-            logger.debug(f"Stored document {document_data['doc_id']} in LanceDB")
+            logger.info(f"Stored document {document_data['doc_id']} in LanceDB with {len(chunks)} chunks")
 
         except Exception as e:
             logger.error(f"Failed to store in LanceDB: {e}")
@@ -462,29 +469,34 @@ class PDFMemoryIntegration:
                 if filters.get("pdf_type"):
                     filter_expr += f" AND pdf_type = '{filters['pdf_type']}'"
                 if filters.get("tags"):
-                    # This is simplified - in production would need proper array handling
-                    tag_filter = " OR ".join(
-                        [f"'{tag}' IN tags" for tag in filters["tags"]]
-                    )
-                    filter_expr += f" AND ({tag_filter})"
+                    # Robust array handling for tags using LanceDB collection membership
+                    tag_list = filters["tags"]
+                    if isinstance(tag_list, list):
+                        tag_conditions = [f"'{tag}' IN tags" for tag in tag_list]
+                        filter_expr += f" AND ({' OR '.join(tag_conditions)})"
 
             # Perform semantic search
             search_results = self.lancedb_handler.search(
                 table=table,
                 query_text=query,
-                limit=limit,
+                limit=limit * 2,  # Increase limit to allow for deduplication
                 filter_expr=filter_expr,
                 similarity_threshold=similarity_threshold,
             )
 
-            # Format results
-            formatted_results = []
+            # Format and deduplicate results by doc_id
+            unique_docs = {}
             for result in search_results:
-                formatted_results.append(
-                    {
-                        "doc_id": result.get("doc_id"),
+                doc_id = result.get("doc_id")
+                # LanceDB distance: 0.0 is perfect match, higher is worse.
+                score = result.get("_distance", float('inf'))
+                
+                # If doc not seen or this chunk has better score (lower distance)
+                if doc_id not in unique_docs or score < unique_docs[doc_id]["similarity_score"]:
+                    unique_docs[doc_id] = {
+                        "doc_id": doc_id,
                         "filename": result.get("filename"),
-                        "similarity_score": result.get("_distance", 0),
+                        "similarity_score": score,
                         "page_count": result.get("page_count", 0),
                         "total_chars": result.get("total_chars", 0),
                         "pdf_type": result.get("pdf_type"),
@@ -494,7 +506,12 @@ class PDFMemoryIntegration:
                         "created_at": result.get("created_at"),
                         "source_uri": result.get("source_uri"),
                     }
-                )
+
+            # Convert back to list and return top results up to requested limit
+            formatted_results = sorted(
+                unique_docs.values(), 
+                key=lambda x: x["similarity_score"]
+            )[:limit]
 
             return formatted_results
 
@@ -1182,7 +1199,7 @@ class PDFMemoryIntegration:
             Document statistics
         """
         try:
-            stats = {
+            stats: Dict[str, Any] = {
                 "total_documents": 0,
                 "total_pages": 0,
                 "total_characters": 0,
@@ -1251,3 +1268,19 @@ class PDFMemoryIntegration:
             "byok_manager_available": self.byok_manager is not None,
             "tracking_enabled": self.use_byok and self.byok_manager is not None,
         }
+
+    def _create_sliding_window_chunks(self, text: str, window_size: int = 1000, overlap: int = 200) -> List[str]:
+        """Helper to create sliding-window chunks from text."""
+        if not text:
+            return []
+        
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = min(start + window_size, len(text))
+            chunks.append(text[start:end])
+            if end == len(text):
+                break
+            # Advance start by window_size minus overlap
+            start += (window_size - overlap)
+        return chunks

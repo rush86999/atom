@@ -4,10 +4,9 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
-from core.byok_endpoints import get_byok_manager
-
 from core.database import get_db_session
 from core.models import EntityTypeDefinition
+from core.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +17,9 @@ class KnowledgeExtractor:
     SECURITY: Redacts secrets before processing to prevent leakage.
     """
     
-    def __init__(self, ai_service: Any = None):
-        self.ai_service = ai_service
-        self.byok = get_byok_manager()
+    def __init__(self, tenant_id: str = "default"):
+        self.tenant_id = tenant_id
+        self.llm_service = LLMService(tenant_id=tenant_id)
         # Initialize secrets redactor
         try:
             from core.secrets_redactor import get_secrets_redactor
@@ -129,19 +128,17 @@ class KnowledgeExtractor:
                     logger.warning(f"Redacted {len(redaction_result.redactions)} secrets before LLM extraction")
                     safe_text = redaction_result.redacted_text
             
-            # Use optimal AI provider
-            provider_id = self.byok.get_optimal_provider("chat")
+            # Use centralized LLMService
+            response = await self.llm_service.generate_completion(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Text to analyze:\n{safe_text[:10000]}"}
+                ],
+                temperature=0.1
+            )
             
-            # If our internal ai_service is a wrapper that supports multiple backends
-            if self.ai_service and hasattr(self.ai_service, 'analyze_text'):
-                result = await self.ai_service.analyze_text(safe_text, system_prompt=system_prompt)
-            else:
-                # Fallback to a direct call if we have to, but better to use the centralized service
-                logger.warning("No robust AI service provided to KnowledgeExtractor, extraction may be limited.")
-                return {"entities": [], "relationships": []}
-
-            if result and result.get("success"):
-                content = result.get("response", "{}")
+            if response and response.get("content"):
+                content = response.get("content", "{}")
                 # Attempt to find JSON in the content if the LLM was chatty
                 try:
                     # Clean up markdown code blocks if present
@@ -184,9 +181,24 @@ class KnowledgeExtractor:
         
         Output only JSON with "entities" and "relationships" keys.
         """
-        result = await self.ai_service.analyze_text(transcript, system_prompt=system_prompt)
-        if result and result.get("success"):
-            return json.loads(result.get("response", "{}"))
+        response = await self.llm_service.generate_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": transcript[:10000]}
+            ],
+            temperature=0.1
+        )
+        if response and response.get("content"):
+            content = response.get("content", "{}")
+            try:
+                # Clean up markdown code blocks
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0].strip()
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0].strip()
+                return json.loads(content)
+            except json.JSONDecodeError:
+                return {"entities": [], "relationships": []}
         return {"entities": [], "relationships": []}
 
     def merge_knowledge(self, existing: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:

@@ -51,8 +51,9 @@ class CanvasCollaborationService:
     proper coordination, conflict resolution, and permission management.
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, tenant_id: Optional[str] = None):
         self.db = db
+        self.tenant_id = tenant_id
 
     # ========================================================================
     # Session Management
@@ -85,6 +86,7 @@ class CanvasCollaborationService:
         collab_session = CanvasCollaborationSession(
             id=str(uuid.uuid4()),
             canvas_id=canvas_id,
+            tenant_id=self.tenant_id,
             session_id=session_id,
             user_id=user_id,
             collaboration_mode=collaboration_mode,
@@ -141,9 +143,12 @@ class CanvasCollaborationService:
             Participant data
         """
         # Validate session exists and is active
-        session = self.db.query(CanvasCollaborationSession).filter(
+        query = self.db.query(CanvasCollaborationSession).filter(
             CanvasCollaborationSession.id == collaboration_session_id
-        ).first()
+        )
+        if self.tenant_id:
+            query = query.filter(CanvasCollaborationSession.tenant_id == self.tenant_id)
+        session = query.first()
 
         if not session:
             return {
@@ -179,9 +184,12 @@ class CanvasCollaborationService:
             }
 
         # Validate agent exists
-        agent = self.db.query(AgentRegistry).filter(
+        query = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id
-        ).first()
+        )
+        if self.tenant_id:
+            query = query.filter(AgentRegistry.tenant_id == self.tenant_id)
+        agent = query.first()
 
         if not agent:
             return {
@@ -193,6 +201,7 @@ class CanvasCollaborationService:
             id=str(uuid.uuid4()),
             collaboration_session_id=collaboration_session_id,
             agent_id=agent_id,
+            tenant_id=self.tenant_id,
             user_id=user_id,
             role=role,
             permissions=permissions or self._get_default_permissions(role)
@@ -269,9 +278,12 @@ class CanvasCollaborationService:
         Returns:
             Session status with participants
         """
-        session = self.db.query(CanvasCollaborationSession).filter(
+        query = self.db.query(CanvasCollaborationSession).filter(
             CanvasCollaborationSession.id == collaboration_session_id
-        ).first()
+        )
+        if self.tenant_id:
+            query = query.filter(CanvasCollaborationSession.tenant_id == self.tenant_id)
+        session = query.first()
 
         if not session:
             return {
@@ -418,9 +430,12 @@ class CanvasCollaborationService:
         Returns:
             Conflict check result
         """
-        session = self.db.query(CanvasCollaborationSession).filter(
+        query = self.db.query(CanvasCollaborationSession).filter(
             CanvasCollaborationSession.id == collaboration_session_id
-        ).first()
+        )
+        if self.tenant_id:
+            query = query.filter(CanvasCollaborationSession.tenant_id == self.tenant_id)
+        session = query.first()
 
         if not session:
             return {
@@ -529,12 +544,16 @@ class CanvasCollaborationService:
         )
 
         # Get session for canvas_id
-        session = self.db.query(CanvasCollaborationSession).filter(
+        query = self.db.query(CanvasCollaborationSession).filter(
             CanvasCollaborationSession.id == collaboration_session_id
-        ).first()
+        )
+        if self.tenant_id:
+            query = query.filter(CanvasCollaborationSession.tenant_id == self.tenant_id)
+        session = query.first()
 
         if session:
             conflict.canvas_id = session.canvas_id
+            conflict.tenant_id = self.tenant_id
 
         self.db.add(conflict)
 
@@ -727,9 +746,12 @@ class CanvasCollaborationService:
         Returns:
             Completion summary
         """
-        session = self.db.query(CanvasCollaborationSession).filter(
+        query = self.db.query(CanvasCollaborationSession).filter(
             CanvasCollaborationSession.id == collaboration_session_id
-        ).first()
+        )
+        if self.tenant_id:
+            query = query.filter(CanvasCollaborationSession.tenant_id == self.tenant_id)
+        session = query.first()
 
         if not session:
             return {

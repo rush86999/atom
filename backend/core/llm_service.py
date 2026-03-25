@@ -62,6 +62,19 @@ class LLMModel(str, Enum):
     MINIMAX_2_5 = "minimax-m2.5"
 
 
+class LLMSentiment(BaseModel):
+    """Structured sentiment analysis output"""
+    score: float  # -1.0 to 1.0
+    label: str    # "positive", "neutral", "negative"
+    confidence: float
+
+
+class LLMTopics(BaseModel):
+    """Structured topic extraction output"""
+    topics: List[str]
+    confidence: float
+
+
 class LLMService:
     """
     LLM Service for managing LLM interactions across the platform.
@@ -70,19 +83,20 @@ class LLMService:
     Harmonized with SaaS version for feature parity.
     """
 
-    def __init__(self, db=None, tenant_id: Optional[str] = None, workspace_id: Optional[str] = None):
+    def __init__(self, db=None, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None):
         """
         Args:
             db: Optional SQLAlchemy session.
-            tenant_id: Optional Tenant ID (maps to workspace_id in OS).
-            workspace_id: Alias for tenant_id (OS convention).
+            workspace_id: Primary identifier for LLM configuration.
+            tenant_id: Alias for workspace_id (SaaS convention).
         """
         self._db = db
-        self._tenant_id = tenant_id or workspace_id or "default"
+        # Prioritize workspace_id for OS convention
+        self._workspace_id = workspace_id or tenant_id or "default"
         self._handler: Optional[BYOKHandler] = None
         
-        # Pre-initialize handler if tenant_id provided
-        self._handler = BYOKHandler(workspace_id=self._tenant_id, db_session=db)
+        # Pre-initialize handler if workspace_id provided
+        self._handler = BYOKHandler(workspace_id=self._workspace_id, db_session=db)
         self.continuous_learning = ContinuousLearningService(db) if db else None
 
     @property
@@ -92,17 +106,22 @@ class LLMService:
 
     @property
     def workspace_id(self) -> str:
-        """Alias for _tenant_id (parity with OS convention)."""
-        return self._tenant_id
+        """Return the primary workspace identifier."""
+        return self._workspace_id
 
-    def _get_handler(self, tenant_id: Optional[str] = None) -> BYOKHandler:
-        """Helper to get or create a BYOKHandler for a specific tenant."""
-        target_tenant = tenant_id or self._tenant_id
+    @property
+    def tenant_id(self) -> str:
+        """Alias for workspace_id (backward compatibility)."""
+        return self._workspace_id
+
+    def _get_handler(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None) -> BYOKHandler:
+        """Helper to get or create a BYOKHandler for a specific workspace."""
+        target_ws = workspace_id or tenant_id or self._workspace_id
         
-        if self._handler and (tenant_id is None or tenant_id == self._tenant_id):
+        if self._handler and target_ws == self._workspace_id:
             return self._handler
             
-        return BYOKHandler(workspace_id=target_tenant, db_session=self._db)
+        return BYOKHandler(workspace_id=target_ws, db_session=self._db)
 
     def get_provider(self, model: str) -> LLMProvider:
         """Get the provider for a given model."""
@@ -133,6 +152,7 @@ class LLMService:
         model: str = "auto",
         temperature: float = 0.7,
         max_tokens: int = 1000,
+        workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         **kwargs
     ) -> str:
@@ -140,9 +160,13 @@ class LLMService:
         # Personalization
         agent_id = kwargs.get("agent_id")
         user_id = kwargs.get("user_id")
+        target_ws = workspace_id or tenant_id or self._workspace_id
+        
+        handler = self._get_handler(workspace_id=target_ws)
+        
         if agent_id and self.continuous_learning:
             params = self.continuous_learning.get_personalized_parameters(
-                tenant_id=tenant_id or self._tenant_id,
+                tenant_id=target_ws,
                 agent_id=agent_id,
                 user_id=user_id
             )
@@ -163,6 +187,7 @@ class LLMService:
         model: str = "auto",
         temperature: float = 0.7,
         max_tokens: int = 1000,
+        workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         **kwargs
     ) -> Dict[str, Any]:
@@ -170,7 +195,7 @@ class LLMService:
         Generate completion with OpenAI-style messages.
         Maps messages to prompt/system for BYOKHandler.
         """
-        handler = self._get_handler(tenant_id)
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
         
         # Extract prompt and system from messages
         prompt = ""
@@ -216,18 +241,19 @@ class LLMService:
         response_model: Any,
         system_instruction: str = "You are a helpful assistant.",
         model: str = "quality",
+        workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         **kwargs
     ) -> Any:
         """Generate structured response using Pydantic model."""
-        handler = self._get_handler(tenant_id)
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
 
         # Personalization
         agent_id = kwargs.get("agent_id")
         user_id = kwargs.get("user_id")
         if agent_id and self.continuous_learning:
             params = self.continuous_learning.get_personalized_parameters(
-                tenant_id=tenant_id or self._tenant_id,
+                tenant_id=workspace_id or tenant_id or self._workspace_id,
                 agent_id=agent_id,
                 user_id=user_id
             )
@@ -247,12 +273,14 @@ class LLMService:
         messages: List[Dict],
         model: str = "auto",
         temperature: float = 0.7,
+        max_tokens: int = 1000,
+        workspace_id: Optional[str] = None,
         tenant_id: Optional[str] = None,
         agent_id: Optional[str] = None,
         **kwargs
     ) -> AsyncGenerator[str, None]:
         """Stream LLM responses token-by-token."""
-        handler = self._get_handler(tenant_id)
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
         
         # Resolve model if needed
         if model in ["auto", "fast", "quality", "balanced"]:
@@ -276,6 +304,104 @@ class LLMService:
             **kwargs
         ):
             yield token
+
+    async def generate_embedding(
+        self,
+        text: str,
+        model: str = "text-embedding-3-small",
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        **kwargs
+    ) -> List[float]:
+        """Generate a single embedding via BYOKHandler."""
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        
+        # Use underlying handler's client
+        provider_id = self.get_provider(model).value
+        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
+        
+        if not client:
+            raise ValueError(f"No client found for provider {provider_id}")
+
+        # Note: In OS, BYOKHandler doesn't have a direct embed_text yet, 
+        # so we use the client directly but through the handler's managed session.
+        response = await client.embeddings.create(
+            input=text,
+            model=model,
+            **kwargs
+        )
+        return response.data[0].embedding
+
+    async def generate_embeddings_batch(
+        self,
+        texts: List[str],
+        model: str = "text-embedding-3-small",
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        **kwargs
+    ) -> List[List[float]]:
+        """Generate batch embeddings via BYOKHandler."""
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        provider_id = self.get_provider(model).value
+        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
+
+        if not client:
+            raise ValueError(f"No client found for provider {provider_id}")
+
+        response = await client.embeddings.create(
+            input=texts,
+            model=model,
+            **kwargs
+        )
+        return [item.embedding for item in response.data]
+
+    async def generate_speech(
+        self,
+        text: str,
+        voice: str = "alloy",
+        model: str = "tts-1",
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        **kwargs
+    ) -> bytes:
+        """Generate speech via BYOKHandler (OpenAI TTS)."""
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        provider_id = self.get_provider(model).value
+        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
+
+        if not client:
+            raise ValueError(f"No client found for provider {provider_id}")
+
+        response = await client.audio.speech.create(
+            model=model,
+            voice=voice,
+            input=text,
+            **kwargs
+        )
+        return response.read()
+
+    async def transcribe_audio(
+        self,
+        file: Any,
+        model: str = "whisper-1",
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Transcribe audio via BYOKHandler (OpenAI Whisper)."""
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        provider_id = self.get_provider(model).value
+        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
+
+        if not client:
+            raise ValueError(f"No client found for provider {provider_id}")
+
+        response = await client.audio.transcriptions.create(
+            model=model,
+            file=file,
+            **kwargs
+        )
+        return {"text": response.text}
 
     def estimate_tokens(self, text: str, model: str = "gpt-4o-mini") -> int:
         """Estimate token count for text."""
@@ -766,245 +892,134 @@ class LLMService:
     async def generate_embedding(
         self,
         text: str,
-        model: str = "text-embedding-3-small"
+        model: str = "text-embedding-3-small",
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None
     ) -> List[float]:
         """
-        Generate embedding vector for a single text string.
-
-        Phase 223-01: Embedding generation support for migration consistency.
-        Provides unified interface for embedding generation using OpenAI's API.
-
-        Args:
-            text: The text string to generate embedding for
-            model: Embedding model name (default: "text-embedding-3-small")
-                - "text-embedding-3-small": 1536 dimensions, ~$0.00002/1K tokens
-                - "text-embedding-3-large": 3072 dimensions, ~$0.00013/1K tokens
-
-        Returns:
-            List[float]: Embedding vector (1536 or 3072 dimensions depending on model)
-
-        Raises:
-            Exception: If OpenAI package not installed or API call fails
-
-        Example:
-            >>> service = LLMService()
-            >>> embedding = await service.generate_embedding("Hello, world!")
-            >>> print(len(embedding))  # 1536 for text-embedding-3-small
-            >>> print(embedding[:3])   # First 3 dimensions
-
-        Note:
-            - Uses BYOKHandler for API key resolution (OpenAI BYOK key preferred)
-            - Logs cost telemetry (model used, token count, estimated cost)
-            - Lazy imports AsyncOpenAI to avoid import errors if openai not installed
+        Generate embedding vector for a single text string using unified BYOK resolution.
+        Supports OpenAI and Cohere via BYOKHandler.
         """
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        
+        # Identify provider from model name
+        provider = "openai"
+        if "embed-english" in model.lower() or "embed-multilingual" in model.lower():
+            provider = "cohere"
+
         try:
-            # Lazy import to avoid errors if openai not installed
-            from openai import AsyncOpenAI
-
-            # Get API key from BYOKHandler or environment
-            api_key = None
-            if hasattr(self.handler, 'clients') and 'openai' in self.handler.clients:
-                # Try to get API key from BYOK configuration
-                openai_client = self.handler.clients.get('openai')
-                if hasattr(openai_client, 'api_key'):
-                    api_key = openai_client.api_key
-
-            if not api_key:
-                # Fallback to environment variable
-                api_key = os.getenv("OPENAI_API_KEY")
-
-            if not api_key:
-                raise ValueError("OpenAI API key not found in BYOK configuration or OPENAI_API_KEY environment variable")
-
-            # Create AsyncOpenAI client
-            client = AsyncOpenAI(api_key=api_key)
-
-            # Call embeddings API
-            response = await client.embeddings.create(
+            embedding = await handler.generate_embedding(
+                text=text,
                 model=model,
-                input=text
+                provider=provider
             )
-
-            # Extract embedding vector
-            embedding = response.data[0].embedding
-
-            # Cost tracking telemetry
-            token_count = response.usage.total_tokens if hasattr(response, 'usage') else len(text) // 4
-            if model == "text-embedding-3-small":
-                cost_per_1k = 0.00002
-            elif model == "text-embedding-3-large":
-                cost_per_1k = 0.00013
+            
+            # Metadata for tracking
+            token_count = len(text) // 4 # Basic estimate
+            if provider == "openai":
+                cost_per_1k = 0.00002 if model == "text-embedding-3-small" else 0.00013
+                estimated_cost = (token_count / 1000) * cost_per_1k
             else:
-                cost_per_1k = 0.0001  # Fallback estimate
-
-            estimated_cost = (token_count / 1000) * cost_per_1k
-
-            logger.info(
-                f"Embedding generated: model={model}, tokens={token_count}, "
-                f"estimated_cost=${estimated_cost:.6f}"
-            )
-
-            # Track usage if llm_usage_tracker is available
+                estimated_cost = (token_count / 1000) * 0.0001
+            
+            # Track usage
             try:
                 llm_usage_tracker.track_usage(
-                    provider="openai",
+                    provider=provider,
                     model=model,
                     input_tokens=token_count,
                     output_tokens=0,
                     estimated_cost=estimated_cost
                 )
             except Exception as tracking_error:
-                logger.debug(f"Usage tracking failed (non-critical): {tracking_error}")
+                logger.debug(f"Usage tracking failed: {tracking_error}")
 
             return embedding
 
-        except ImportError:
-            raise Exception(
-                "OpenAI package not installed. Run: pip install openai"
-            )
         except Exception as e:
-            logger.error(f"Embedding generation failed: {e}")
+            logger.error(f"Embedding generation failed for provider {provider}: {e}")
             raise
+
+    async def transcribe_audio(
+        self,
+        file: Any,
+        model: str = "whisper-1",
+        language: Optional[str] = None,
+        prompt: Optional[str] = None,
+        response_format: str = "json",
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Transcribe audio to text.
+        
+        Args:
+            file: Audio file object (as required by OpenAI API)
+            model: Transcription model (default: "whisper-1")
+            language: Optional language of the audio
+            prompt: Optional guiding prompt for transcription
+            response_format: "json", "text", "srt", "verbose_json", "vtt"
+            tenant_id: Optional tenant override
+            
+        Returns:
+            Dict containing 'text' and metadata.
+        """
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        return await handler.generate_transcription(
+            file=file,
+            model=model,
+            language=language,
+            prompt=prompt,
+            response_format=response_format
+        )
 
     async def generate_embeddings_batch(
         self,
         texts: List[str],
-        model: str = "text-embedding-3-small"
+        model: str = "text-embedding-3-small",
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None
     ) -> List[List[float]]:
         """
-        Generate embedding vectors for multiple texts in a single batch operation.
-
-        Phase 223-01: Batch embedding generation for efficiency and cost optimization.
-        Processes multiple texts in batches of 2048 (OpenAI's limit) to minimize API calls.
-
-        Args:
-            texts: List of text strings to generate embeddings for
-            model: Embedding model name (default: "text-embedding-3-small")
-                - "text-embedding-3-small": 1536 dimensions, ~$0.00002/1K tokens
-                - "text-embedding-3-large": 3072 dimensions, ~$0.00013/1K tokens
-
-        Returns:
-            List[List[float]]: List of embedding vectors (one per input text)
-                - Each vector has 1536 or 3072 dimensions depending on model
-                - Order matches input texts order
-
-        Raises:
-            Exception: If OpenAI package not installed or API call fails
-
-        Example:
-            >>> service = LLMService()
-            >>> texts = ["Hello", "world", "batch"]
-            >>> embeddings = await service.generate_embeddings_batch(texts)
-            >>> print(len(embeddings))  # 3
-            >>> print(len(embeddings[0]))  # 1536 for text-embedding-3-small
-
-        Note:
-            - Processes in batches of 2048 texts per API call (OpenAI limit)
-            - Cost-effective: Single API call per batch instead of per text
-            - Aggregates token counts across all batches for cost tracking
-            - Logs batch size, total tokens, and estimated cost
+        Generate embedding vectors for multiple texts in a single batch operation using unified BYOK.
         """
+        handler = self._get_handler(workspace_id=workspace_id, tenant_id=tenant_id)
+        
+        provider = "openai"
+        if "embed-english" in model.lower() or "embed-multilingual" in model.lower():
+            provider = "cohere"
+
         try:
-            # Lazy import to avoid errors if openai not installed
-            from openai import AsyncOpenAI
-
-            # Get API key from BYOKHandler or environment
-            api_key = None
-            if hasattr(self.handler, 'clients') and 'openai' in self.handler.clients:
-                # Try to get API key from BYOK configuration
-                openai_client = self.handler.clients.get('openai')
-                if hasattr(openai_client, 'api_key'):
-                    api_key = openai_client.api_key
-
-            if not api_key:
-                # Fallback to environment variable
-                api_key = os.getenv("OPENAI_API_KEY")
-
-            if not api_key:
-                raise ValueError("OpenAI API key not found in BYOK configuration or OPENAI_API_KEY environment variable")
-
-            # Create AsyncOpenAI client
-            client = AsyncOpenAI(api_key=api_key)
-
-            # Process in batches of 2048 (OpenAI limit)
-            batch_size = 2048
-            all_embeddings = []
-            total_tokens = 0
-
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                batch_number = i // batch_size + 1
-                total_batches = (len(texts) + batch_size - 1) // batch_size
-
-                logger.debug(
-                    f"Processing embedding batch {batch_number}/{total_batches} "
-                    f"({len(batch)} texts)"
-                )
-
-                try:
-                    # Call embeddings API for this batch
-                    response = await client.embeddings.create(
-                        model=model,
-                        input=batch
-                    )
-
-                    # Extract embeddings from response
-                    batch_embeddings = [item.embedding for item in response.data]
-                    all_embeddings.extend(batch_embeddings)
-
-                    # Track token count
-                    if hasattr(response, 'usage'):
-                        total_tokens += response.usage.total_tokens
-
-                except Exception as batch_error:
-                    logger.error(
-                        f"Batch {batch_number} failed (texts {i}-{i+len(batch)}): {batch_error}"
-                    )
-                    raise Exception(
-                        f"Embedding batch {batch_number} failed: {batch_error}. "
-                        f"Batch index: {i}, Batch size: {len(batch)}"
-                    ) from batch_error
-
-            # Cost calculation
-            if model == "text-embedding-3-small":
-                cost_per_1k = 0.00002
-            elif model == "text-embedding-3-large":
-                cost_per_1k = 0.00013
-            else:
-                cost_per_1k = 0.0001  # Fallback estimate
-
-            # Estimate tokens if not provided by API
-            if total_tokens == 0:
-                total_tokens = sum(len(text) // 4 for text in texts)
-
-            estimated_cost = (total_tokens / 1000) * cost_per_1k
-
-            logger.info(
-                f"Batch embeddings generated: model={model}, texts={len(texts)}, "
-                f"batches={total_batches}, total_tokens={total_tokens}, "
-                f"estimated_cost=${estimated_cost:.6f}"
+            all_embeddings = await handler.generate_embeddings_batch(
+                texts=texts,
+                model=model,
+                provider=provider
             )
+            
+            # Metadata for tracking
+            total_tokens = sum(len(t) // 4 for t in texts)
+            if provider == "openai":
+                cost_per_1k = 0.00002 if model == "text-embedding-3-small" else 0.00013
+                estimated_cost = (total_tokens / 1000) * cost_per_1k
+            else:
+                estimated_cost = (total_tokens / 1000) * 0.0001
 
-            # Track usage if llm_usage_tracker is available
+            # Track usage
             try:
                 llm_usage_tracker.track_usage(
-                    provider="openai",
+                    provider=provider,
                     model=model,
                     input_tokens=total_tokens,
                     output_tokens=0,
                     estimated_cost=estimated_cost
                 )
             except Exception as tracking_error:
-                logger.debug(f"Usage tracking failed (non-critical): {tracking_error}")
+                logger.debug(f"Usage tracking failed: {tracking_error}")
 
             return all_embeddings
 
-        except ImportError:
-            raise Exception(
-                "OpenAI package not installed. Run: pip install openai"
-            )
         except Exception as e:
-            logger.error(f"Batch embedding generation failed: {e}")
+            logger.error(f"Batch embedding generation failed for provider {provider}: {e}")
             raise
 
     def classify_tier(self, prompt: str, task_type: Optional[str] = None) -> CognitiveTier:
@@ -1196,6 +1211,6 @@ class LLMService:
         return self.handler.analyze_query_complexity(prompt, task_type)
 
 
-def get_llm_service(tenant_id: str = "default", db=None) -> LLMService:
+def get_llm_service(workspace_id: Optional[str] = None, db=None, tenant_id: Optional[str] = None) -> LLMService:
     """Factory function to get an LLMService instance."""
-    return LLMService(tenant_id=tenant_id, db=db)
+    return LLMService(workspace_id=workspace_id, tenant_id=tenant_id, db=db)

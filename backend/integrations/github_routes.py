@@ -215,25 +215,6 @@ class SearchRequest(UserRequest):
     limit: int = 50
     page: int = 1
 
-def get_github_tokens(user_id: str) -> Optional[Dict[str, Any]]:
-    """Get GitHub tokens for user"""
-    try:
-        # Simple implementation using env var
-        token = os.getenv('GITHUB_ACCESS_TOKEN')
-        if token:
-            return {
-                'access_token': token,
-                'token_type': 'bearer',
-                'scope': 'repo,user:email,read:org',
-                'user_info': {
-                    'login': 'testuser',
-                    'id': '123456'
-                }
-            }
-        return None
-    except Exception as e:
-        logger.error(f"Error getting GitHub tokens for user {user_id}: {e}")
-        return None
 
 @router.get("/health")
 async def health_check():

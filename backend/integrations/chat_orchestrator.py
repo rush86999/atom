@@ -9,18 +9,14 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Cross-platform workflow execution
 """
 
-import logging
-import uuid
-from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
-from enum import Enum
-import asyncio
-from sqlalchemy.orm import Session
-from core.database import SessionLocal
-from core.automation_settings import get_automation_settings
-from core.automation_settings import get_automation_settings
-from api.agent_routes import execute_agent_task
 from services.agent_service import agent_service
+
+# LLM Service Integration
+try:
+    from core.llm_service import LLMService
+    LLM_SERVICE_AVAILABLE = True
+except ImportError:
+    LLM_SERVICE_AVAILABLE = False
 
 # Legacy Agent Definitions for Chat Mapping
 AGENTS = {
@@ -150,13 +146,20 @@ class ChatOrchestrator:
     Main orchestrator that connects chat interface with all ATOM features
     """
 
-    def __init__(self):
+    def __init__(self, tenant_id: str = "default"):
         self.conversation_sessions = {}
         self.feature_handlers = {}
         self.platform_connectors = {}
         self.ai_engines = {}
+        self.tenant_id = tenant_id
         
-        # Initialize session manager for persistence (ported from upstream)
+        # Initialize LLMService (Unified interface replaces direct clients)
+        self.llm_service = None
+        if LLM_SERVICE_AVAILABLE:
+            self.llm_service = LLMService(tenant_id=tenant_id)
+            logger.info(f"ChatOrchestrator initialized with LLMService for tenant: {tenant_id}")
+
+        # Initialize session manager for persistence
         try:
             from core.chat_session_manager import get_chat_session_manager
             self.session_manager = get_chat_session_manager()
@@ -279,14 +282,12 @@ class ChatOrchestrator:
 
     def _initialize_ai_engines(self):
         """Initialize AI engines for NLP, data intelligence, and automation"""
-        try:
-            # Import AI engines
             from ai.nlp_engine import NaturalLanguageEngine
             from ai.data_intelligence import DataIntelligenceEngine
             from ai.automation_engine import AutomationEngine
 
             self.ai_engines = {
-                "nlp": NaturalLanguageEngine(),
+                "nlp": NaturalLanguageEngine(tenant_id=self.tenant_id),
                 "data_intelligence": DataIntelligenceEngine(),
                 "automation": AutomationEngine(),
             }
@@ -369,20 +370,11 @@ class ChatOrchestrator:
             return self._generate_error_response(str(e), session_id)
 
     async def _get_qwen_response(self, message: str, history: list) -> Optional[str]:
-        """Get a real conversational AI response from Qwen via DashScope."""
+        """Get a real conversational AI response using unified LLMService."""
+        if not self.llm_service:
+            return None
+
         try:
-            import os
-            from openai import AsyncOpenAI
-            qwen_key = os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
-            if not qwen_key:
-                logger.warning("No Qwen API key configured")
-                return None
-
-            client = AsyncOpenAI(
-                api_key=qwen_key,
-                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-            )
-
             # Build messages from history
             messages = [
                 {
@@ -409,15 +401,19 @@ When users ask to fetch live data (like CRM leads), acknowledge that the integra
 
             messages.append({"role": "user", "content": message})
 
-            response = await client.chat.completions.create(
-                model="qwen-plus",
+            # Use LLMService for completion (delegates Qwen/OpenAI/Anthropic routing internally)
+            response_data = await self.llm_service.generate_completion(
                 messages=messages,
-                max_tokens=500,
-                temperature=0.7
+                model="auto", # Use auto-resolution
+                tenant_id=self.tenant_id
             )
-            return response.choices[0].message.content.strip()
+            
+            if response_data.get("success"):
+                return response_data.get("content", "").strip()
+            
+            return None
         except Exception as e:
-            logger.warning(f"Qwen conversational response failed: {e}")
+            logger.warning(f"Unified conversational response failed: {e}")
             return None
 
 

@@ -6,31 +6,34 @@ import sys
 sys.path.append(os.path.join(os.getcwd(), 'backend'))
 
 async def test_embeddings():
-    print("Testing OpenAI Embeddings via OpenAIService...")
+    print("Testing OpenAI Embeddings via LLMService/EmbeddingService...")
     try:
-        from integrations.openai_service import openai_service
+        from core.llm_service import LLMService
+        from core.embedding_service import EmbeddingService
+        
+        # Initialize services
+        # Explicitly use openai since fastembed might not be in this env
+        embedding_service = EmbeddingService(provider="openai")
         
         # Test text
         text = "ATOM is an advanced task orchestration platform."
         
-        # Check if API Key is set
-        if not openai_service.api_key:
-            print("WARNING: OPENAI_API_KEY not set. Using mock behavior.")
-            # This will fail in real call but service handles it
-            
-        result = await openai_service.generate_embeddings(text)
-        print("✓ Successfully called generate_embeddings")
+        print(f"Generating embedding for: '{text}'")
         
-        if "data" in result and len(result["data"]) > 0:
-            embedding = result["data"][0]["embedding"]
-            print(f"✓ Received embedding of size: {len(embedding)}")
-            print(f"  First 5 values: {embedding[:5]}")
+        # In LLMService, we usually need a tenant_id for many operations, 
+        # but EmbeddingService.generate_embedding handles the fallback.
+        result = await embedding_service.generate_embedding(text)
+        
+        if result and len(result) > 0:
+            print(f"✓ Successfully generated embedding of size: {len(result)}")
+            print(f"  First 5 values: {result[:5]}")
         else:
-            print("✗ Unexpected response format")
-            print(result)
+            print("✗ Failed to generate embedding or empty result")
             
     except Exception as e:
         print(f"Error during embedding test: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     asyncio.run(test_embeddings())
