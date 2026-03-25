@@ -3,6 +3,7 @@
 from .invariant_suggestion import InvariantSuggestion, Criticality
 from .fuzzing_strategy import FuzzingStrategy, BusinessImpact
 from .cross_platform_correlation import CrossPlatformCorrelation, Platform
+from .bug_cluster import BugCluster
 
 __all__ = [
     "InvariantSuggestion",
@@ -11,4 +12,5 @@ __all__ = [
     "BusinessImpact",
     "CrossPlatformCorrelation",
     "Platform",
+    "BugCluster",
 ]
