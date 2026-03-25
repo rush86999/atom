@@ -123,7 +123,14 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   6. Blast radius controls isolate failures (test databases, injection limits, duration caps)
   7. Recovery validation checks data integrity and rollback verification
   8. Chaos experiments run in isolated environment (weekly, never on shared dev)
-**Plans**: TBD
+**Plans**: 7 plans in 4 waves
+- [ ] 241-01-PLAN.md — ChaosCoordinator service and blast radius controls (Wave 1)
+- [ ] 241-02-PLAN.md — Network latency injection with Toxiproxy (Wave 2)
+- [ ] 241-03-PLAN.md — Database connection drop simulation (Wave 2)
+- [ ] 241-04-PLAN.md — Memory pressure injection (Wave 2)
+- [ ] 241-05-PLAN.md — Service crash simulation (Wave 2)
+- [ ] 241-06-PLAN.md — Blast radius controls and recovery validation (Wave 3)
+- [ ] 241-07-PLAN.md — Weekly CI pipeline and documentation (Wave 4)
 
 #### Phase 242: Unified Bug Discovery Pipeline
 **Goal**: Orchestrate all discovery methods with result aggregation, deduplication, automated triage, and GitHub filing
