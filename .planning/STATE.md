@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Automated bug discovery through comprehensive QA testing (fuzzing, chaos engineering, property-based testing, headless browser automation)
-**Current focus:** Phase 240 - Headless Browser Bug Discovery
+**Current focus:** Phase 241 - Chaos Engineering Integration
 
 ## Current Position
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
-Phase: 240 of 245 (Headless Browser Bug Discovery)
-Plan: 5 of 5 in current phase
-Status: Complete
-Last activity: 2026-03-25 — Phase 240 complete: Headless browser bug discovery with 63 tests across 6 files (2,865 lines), ExplorationAgent with DFS/BFS/random walk, Percy visual regression (69+ snapshots), comprehensive documentation (649 lines), weekly CI pipeline
+Phase: 241 of 245 (Chaos Engineering Integration)
+Plan: 1 of 7 in current phase
+Status: In Progress
+Last activity: 2026-03-25 — Phase 241-01 complete: ChaosCoordinator service with blast radius controls, recovery validation (±20% CPU, ±100MB memory), automated bug filing, chaos test fixtures
 
-Progress: [█████████] 100%
+Progress: [█         ] 14%
 
 ## Performance Metrics
 
@@ -75,6 +75,7 @@ Progress: [█████████] 100%
 | Phase 240 P03 | 180 | 2 tasks | 2 files |
 | Phase 240 P04 | 503s | 2 tasks | 2 files |
 | Phase 240 P05 | 180 | 3 tasks | 3 files |
+| Phase 241 P01 | 0 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,7 @@ Recent decisions affecting current work:
 - [Phase 239]: TestClient pattern used instead of httpx/requests for faster fuzzing (no network overhead)
 - [Phase 239]: Fixture reuse from e2e_ui (db_session, authenticated_user) prevents duplication and provides 10-100x faster auth
 - [Phase 239]: Security payload testing (SQL injection, XSS, null bytes, unicode) for auth endpoints with 10000 iterations per test
+- [Phase 241]: ChaosCoordinator service orchestrates experiment lifecycle (setup, inject, verify, cleanup) with blast radius enforcement, recovery validation (±20% CPU, ±100MB memory), and automated bug filing via BugFilingService
 
 ### Pending Todos
 
