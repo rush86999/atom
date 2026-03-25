@@ -42,6 +42,20 @@ except ImportError:
     # psutil not installed, fixtures will skip tests
     pass
 
+# Import database chaos fixtures
+try:
+    from tests.chaos.fixtures.database_chaos_fixtures import database_connection_dropper
+except ImportError:
+    # Database chaos fixtures not available
+    pass
+
+# Import Redis chaos fixtures
+try:
+    from tests.chaos.fixtures.redis_chaos_fixtures import redis_crash_simulator
+except ImportError:
+    # Redis chaos fixtures not available
+    pass
+
 
 @pytest.fixture(scope="function")
 def chaos_db_session():
