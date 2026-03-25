@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Automated bug discovery through comprehensive QA testing (fuzzing, chaos engineering, property-based testing, headless browser automation)
-**Current focus:** Phase 244 - AI-Enhanced Bug Discovery
+**Current focus:** Phase 245 - Feedback Loops & ROI Tracking
 
 ## Current Position
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
-Phase: 244 of 245 (AI-Enhanced Bug Discovery)
-Plan: 3 of 4 in current phase
+Phase: 245 of 245 (Feedback Loops & ROI Tracking)
+Plan: 1 of 5 in current phase
 Status: Complete
-Last activity: 2026-03-25 — Phase 244-03 complete: CrossPlatformCorrelator with multi-platform bug correlation by error signature, API endpoint, and temporal patterns. 3 tasks, 3 commits, ~7 minutes execution.
+Last activity: 2026-03-25 — Phase 245-01 complete: RegressionTestGenerator service with Jinja2 templates for automated regression test generation from BugReport objects. 4 tasks, 4 commits, ~8.4 minutes execution.
 
-Progress: [███] 60% (3 of 4 plans estimated)
+Progress: [███] 20% (1 of 5 plans estimated)
 
 ## Performance Metrics
 
@@ -94,6 +94,7 @@ Progress: [███] 60% (3 of 4 plans estimated)
 | Phase 244 P02 | 360 | 3 tasks | 4 files |
 | Phase 244 P03 | 390s | 3 tasks | 4 files |
 | Phase 244 P04 | 660 | 4 tasks | 9 files |
+| Phase 245 P01 | 504 | 4 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -272,10 +273,17 @@ None yet.
 - [CORRELATION-03]: Temporal proximity filtering with max_hours_apart (default 24.0) to avoid correlating bugs too far apart in time, reducing false positives in correlation results
 - [CORRELATION-04]: CrossPlatformCorrelator service with 8 methods (correlate_cross_platform_bugs, _generate_cross_platform_signatures, _normalize_error_for_cross_platform, _calculate_cross_platform_similarity, _create_correlation, _suggest_action, load_bugs_from_json, generate_correlation_report) for multi-platform bug correlation
 
+### Key Decisions (Phase 245)
+
+- [FEEDBACK-01]: RegressionTestGenerator: Automated regression test generation from BugReport objects using Jinja2 templates with method-specific rendering (fuzzing, chaos, property, browser), fixture reuse from e2e_ui (API-first authentication), test naming pattern test_regression_{discovery_method}_{bug_id}.py (bug_id = error_signature[:8])
+- [FEEDBACK-02]: Jinja2 template engine integration for test file generation with bug metadata interpolation (bug_id, discovery_method, error_message, severity, timestamp, reproduction_steps, expected_behavior), 5 templates created (pytest, fuzzing, chaos, property, browser)
+- [FEEDBACK-03]: Archival strategy for verified fixes: tests moved to archived/ subdirectory after BugFixVerifier confirmation + 2 consecutive passes (prevents flaky false positives), retention policy (critical: indefinite, high: 1 year, medium/low: 90 days), restoration process for recurring bugs
+- [FEEDBACK-04]: Comprehensive unit tests for RegressionTestGenerator with 21 tests covering initialization, test generation, template selection, reproduction steps inference, expected behavior inference, archival, and BugReport model integration (100% pass rate in 13.27s)
+
 ## Session Continuity
 
-Last session: 2026-03-25 (Phase 244-03 completion)
-Stopped at: Plan 244-03 completed - CrossPlatformCorrelator with multi-platform bug correlation by error signature, API endpoint, and temporal patterns. Platform-agnostic error normalization, 84% similarity scoring (60% endpoint + 40% Jaccard), temporal proximity filtering, suggested remediation actions, 13 comprehensive unit tests, and markdown report generation. 3 tasks, 3 commits, ~7 minutes execution.
+Last session: 2026-03-25 (Phase 245-01 completion)
+Stopped at: Plan 245-01 completed - RegressionTestGenerator with Jinja2 templates for automated regression test generation. Converts BugReport objects to pytest test files with method-specific templates (fuzzing, chaos, property, browser), fixture reuse from e2e_ui, archival strategy (verified fixes moved to archived/), and 21 comprehensive unit tests (all passing). 4 tasks, 4 commits, ~8.4 minutes execution.
 Resume file: None
 
 ## Milestone Context
