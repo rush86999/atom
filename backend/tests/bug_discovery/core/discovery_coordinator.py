@@ -60,8 +60,8 @@ class DiscoveryCoordinator:
 
     def __init__(
         self,
-        github_token: str,
-        github_repository: str,
+        github_token: str = None,
+        github_repository: str = None,
         storage_dir: str = None,
         enable_regression_tests: bool = True,
         enable_roi_tracking: bool = True
@@ -70,8 +70,8 @@ class DiscoveryCoordinator:
         Initialize DiscoveryCoordinator.
 
         Args:
-            github_token: GitHub Personal Access Token for bug filing
-            github_repository: Repository in format "owner/repo"
+            github_token: GitHub Personal Access Token for bug filing (optional, for discovery-only mode)
+            github_repository: Repository in format "owner/repo" (optional, for discovery-only mode)
             storage_dir: Directory for storing reports (default: backend/tests/bug_discovery/storage)
             enable_regression_tests: Enable automatic regression test generation
             enable_roi_tracking: Enable ROI metrics tracking
@@ -83,13 +83,19 @@ class DiscoveryCoordinator:
         if storage_dir is None:
             storage_dir = backend_dir / "tests" / "bug_discovery" / "storage"
         self.storage_dir = Path(storage_dir)
+        self.storage_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize services
-        self.bug_filing_service = BugFilingService(github_token, github_repository)
+        if github_token and github_repository:
+            self.bug_filing_service = BugFilingService(github_token, github_repository)
+        else:
+            self.bug_filing_service = None
+            print("[DiscoveryCoordinator] Bug filing disabled (no GitHub credentials)")
+
         self.result_aggregator = ResultAggregator()
         self.bug_deduplicator = BugDeduplicator()
         self.severity_classifier = SeverityClassifier()
-        self.dashboard_generator = DashboardGenerator(storage_dir)
+        self.dashboard_generator = DashboardGenerator(str(self.storage_dir))
 
         # Initialize feedback loop services
         self.enable_regression_tests = enable_regression_tests and REGRESSION_TEST_GENERATOR_AVAILABLE
@@ -100,8 +106,16 @@ class DiscoveryCoordinator:
             print("[DiscoveryCoordinator] Regression test generation enabled")
 
         if self.enable_roi_tracking:
-            self.roi_tracker = ROITracker(storage_dir=storage_dir)
-            print("[DiscoveryCoordinator] ROI tracking enabled")
+            # Create metrics directory and database path
+            metrics_dir = self.storage_dir / "metrics"
+            try:
+                metrics_dir.mkdir(parents=True, exist_ok=True)
+                db_path = str(metrics_dir / "metrics.db")
+                self.roi_tracker = ROITracker(db_path=db_path)
+                print(f"[DiscoveryCoordinator] ROI tracking enabled (db: {db_path})")
+            except Exception as e:
+                print(f"[DiscoveryCoordinator] Warning: Could not initialize ROITracker: {e}")
+                self.roi_tracker = None
 
     def run_full_discovery(
         self,
@@ -245,7 +259,9 @@ class DiscoveryCoordinator:
             "roi_data": roi_data,
             "regression_tests": regression_test_paths,
             "by_method": self._count_by_method(unique_bugs),
-            "by_severity": severity_counts
+            "by_severity": severity_counts,
+            "all_bugs": list(unique_bugs),  # Include actual BugReport objects
+            "unique_bugs_list": list(unique_bugs)  # Add explicit list for easier access
         }
 
     # ========================================================================
@@ -358,10 +374,23 @@ class DiscoveryCoordinator:
 
         reports = []
 
-        # Import FuzzingOrchestrator
-        from tests.fuzzing.campaigns.fuzzing_orchestrator import FuzzingOrchestrator
+        # Check if FuzzingOrchestrator can be initialized (requires github credentials)
+        if not self.github_token or not self.github_repository:
+            print("[DiscoveryCoordinator] Warning: Fuzzing skipped (requires GitHub credentials)")
+            return reports
 
-        orchestrator = FuzzingOrchestrator(self.github_token, self.github_repository)
+        # Import FuzzingOrchestrator
+        try:
+            from tests.fuzzing.campaigns.fuzzing_orchestrator import FuzzingOrchestrator
+        except ImportError:
+            print("[DiscoveryCoordinator] Warning: FuzzingOrchestrator not available, skipping fuzzing")
+            return reports
+
+        try:
+            orchestrator = FuzzingOrchestrator(self.github_token, self.github_repository)
+        except Exception as e:
+            print(f"[DiscoveryCoordinator] Warning: Could not initialize FuzzingOrchestrator: {e}")
+            return reports
 
         for endpoint in endpoints:
             # Determine test file based on endpoint
@@ -488,8 +517,10 @@ class DiscoveryCoordinator:
                 pass
 
         def verify_graceful_degradation(metrics):
-            # System should not crash under latency
-            assert metrics.get("cpu_percent", 0) < 100, "CPU at 100% under latency"
+            # Process CPU should be reasonable under latency (allow up to 400% for multi-core)
+            # Using process CPU percentage which can exceed 100% on multi-core systems
+            cpu = metrics.get("cpu_percent", 0)
+            assert cpu < 400, f"CPU too high under latency: {cpu}% (threshold: 400%)"
 
         return coordinator.run_experiment(
             experiment_name="network_latency_3g",
@@ -593,6 +624,17 @@ class DiscoveryCoordinator:
         # Check if frontend is running
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+        # Quick check if frontend is accessible before launching browser
+        import requests
+        try:
+            response = requests.head(frontend_url, timeout=2)
+            if response.status_code >= 500:
+                print(f"[DiscoveryCoordinator] Frontend returning {response.status_code}, skipping browser discovery")
+                return []
+        except requests.RequestException:
+            print(f"[DiscoveryCoordinator] Frontend not available at {frontend_url}, skipping browser discovery")
+            return []
+
         bugs = []
 
         # Try simple headless browser exploration
@@ -621,12 +663,8 @@ class DiscoveryCoordinator:
                         })
 
                 except Exception as e:
-                    # Frontend not available, create bug report for unavailability
-                    bugs.append({
-                        "type": "frontend_unavailable",
-                        "error": f"Frontend not available at {frontend_url}: {str(e)}",
-                        "url": frontend_url
-                    })
+                    # Frontend error during navigation - log but don't create bug
+                    print(f"[DiscoveryCoordinator] Browser navigation error: {e}")
 
                 browser.close()
 

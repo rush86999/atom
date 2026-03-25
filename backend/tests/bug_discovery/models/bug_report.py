@@ -18,6 +18,9 @@ class DiscoveryMethod(str, Enum):
     CHAOS = "chaos"
     PROPERTY = "property"
     BROWSER = "browser"
+    MEMORY = "memory"
+    PERFORMANCE = "performance"
+    AI_ENHANCED = "ai_enhanced"
 
 
 class Severity(str, Enum):

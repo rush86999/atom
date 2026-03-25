@@ -98,10 +98,13 @@ class BugExecutionOrchestrator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize services
-        if github_token and github_repo:
+        # DiscoveryCoordinator can work without GitHub credentials (just won't file bugs)
+        try:
             self.coordinator = DiscoveryCoordinator(github_token, github_repo)
-        else:
-            print("[BugExecutionOrchestrator] Warning: No GitHub credentials provided, bug filing disabled")
+            if not github_token or not github_repo:
+                print("[BugExecutionOrchestrator] Warning: No GitHub credentials provided, bug filing disabled")
+        except Exception as e:
+            print(f"[BugExecutionOrchestrator] Warning: Could not initialize DiscoveryCoordinator: {e}")
             self.coordinator = None
 
         # Optional AI-enhanced discovery
@@ -214,10 +217,10 @@ class BugExecutionOrchestrator:
             )
 
             # Extract BugReport objects from results
-            # Note: DiscoveryCoordinator returns aggregated results, not raw BugReports
-            # In production, we would collect BugReports from each discovery method
+            unique_bugs_list = results.get('unique_bugs_list', [])
+            bugs.extend(unique_bugs_list)
 
-            print(f"[BugExecutionOrchestrator] Standard discovery found {results.get('bugs_found', 0)} bugs")
+            print(f"[BugExecutionOrchestrator] Standard discovery found {len(unique_bugs_list)} bugs")
 
         except Exception as e:
             print(f"[BugExecutionOrchestrator] Warning: Standard discovery failed: {e}")
@@ -269,28 +272,39 @@ class BugExecutionOrchestrator:
         if run_performance:
             print("[BugExecutionOrchestrator] Running performance regression discovery...")
             try:
-                perf_result = subprocess.run(
-                    [sys.executable, "-m", "pytest",
-                     str(backend_dir / "tests" / "performance_regression"),
-                     "-v", "--benchmark-only"],
+                # Check if pytest-benchmark is installed
+                check_result = subprocess.run(
+                    [sys.executable, "-c", "import pytest_benchmark"],
                     capture_output=True,
-                    text=True,
-                    cwd=backend_dir,
-                    timeout=600  # 10 minute timeout
+                    cwd=backend_dir
                 )
 
-                # Parse results for regressions
-                if "regression" in perf_result.stdout.lower() or perf_result.returncode != 0:
-                    bugs.append(BugReport(
-                        discovery_method=DiscoveryMethod.PERFORMANCE,
-                        test_name="performance_regression",
-                        error_message="Performance regression detected in pytest-benchmark",
-                        error_signature="performance_regression_detected",
-                        severity=Severity.MEDIUM,
-                        stack_trace=perf_result.stdout[-1000:] if len(perf_result.stdout) > 1000 else perf_result.stdout
-                    ))
+                if check_result.returncode != 0:
+                    print("[BugExecutionOrchestrator] pytest-benchmark not installed, skipping performance regression tests")
+                    print("[BugExecutionOrchestrator] Install with: pip install pytest-benchmark")
+                else:
+                    perf_result = subprocess.run(
+                        [sys.executable, "-m", "pytest",
+                         str(backend_dir / "tests" / "performance_regression"),
+                         "-v", "--benchmark-only"],
+                        capture_output=True,
+                        text=True,
+                        cwd=backend_dir,
+                        timeout=600  # 10 minute timeout
+                    )
 
-                print(f"[BugExecutionOrchestrator] Performance discovery: {len(bugs)} bugs found")
+                    # Parse results for regressions
+                    if "regression" in perf_result.stdout.lower() or perf_result.returncode != 0:
+                        bugs.append(BugReport(
+                            discovery_method=DiscoveryMethod.PERFORMANCE,
+                            test_name="performance_regression",
+                            error_message="Performance regression detected in pytest-benchmark",
+                            error_signature="performance_regression_detected",
+                            severity=Severity.MEDIUM,
+                            stack_trace=perf_result.stdout[-1000:] if len(perf_result.stdout) > 1000 else perf_result.stdout
+                        ))
+
+                    print(f"[BugExecutionOrchestrator] Performance discovery: {len([b for b in bugs if b.discovery_method == DiscoveryMethod.PERFORMANCE])} bugs found")
 
             except subprocess.TimeoutExpired:
                 print("[BugExecutionOrchestrator] Warning: Performance tests timed out")

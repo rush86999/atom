@@ -97,7 +97,10 @@ class ROITracker:
 
     def _init_db(self):
         """Initialize SQLite database with metrics schema."""
-        conn = sqlite3.connect(self.db_path)
+        # Ensure parent directory exists
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
         # Discovery runs table
@@ -170,7 +173,7 @@ class ROITracker:
             by_method: Bugs by discovery method (e.g., {"fuzzing": 10, "chaos": 5})
             by_severity: Bugs by severity (e.g., {"critical": 2, "high": 8})
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
         # Calculate automation cost (developer time)
@@ -215,7 +218,7 @@ class ROITracker:
             severity: Bug severity (default: "medium")
             discovery_method: How bug was discovered (default: "unknown")
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
         for bug_id, issue_number, filed_date in zip(bug_ids, issue_numbers, filed_dates):
@@ -251,7 +254,7 @@ class ROITracker:
         Returns:
             Dict with ROI metrics (bugs_found, bugs_fixed, hours_saved, cost_saved, roi_ratio)
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
         # Calculate week start date
@@ -347,7 +350,7 @@ class ROITracker:
 
     def _get_breakdown(self, since: str) -> Dict[str, Any]:
         """Get detailed breakdown by method and severity."""
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
         # By method breakdown
@@ -392,7 +395,7 @@ class ROITracker:
         Returns:
             List of weekly data points
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
         trends = []
@@ -430,7 +433,7 @@ class ROITracker:
         Args:
             report: ROI report from generate_roi_report()
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
         # Calculate week start (Monday of current week)
