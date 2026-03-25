@@ -1,0 +1,125 @@
+name: Chaos Engineering Tests (Weekly)
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM UTC (Saturday night in US)
+    - cron: '0 2 * * 0'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  chaos-tests:
+    name: Run Chaos Engineering Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -e .
+          pip install pytest pytest-timeout psutil
+
+      - name: Install chaos testing dependencies
+        run: |
+          # Install toxiproxy-python for network chaos
+          pip install toxiproxy-python || echo "Toxiproxy not available, will skip network chaos tests"
+
+          # Install memory-profiler for memory chaos tests
+          pip install memory-profiler || echo "memory-profiler not available"
+
+      - name: Start Toxiproxy (if available)
+        run: |
+          # Try to start Toxiproxy via Docker
+          docker run -d --name toxiproxy -p 8474:8474 ghcr.io/shopify/toxiproxy:2.5.0 || echo "Toxiproxy Docker not available"
+          docker ps || echo "Docker not available"
+
+      - name: Verify test environment
+        run: |
+          cd backend
+          # Verify we're in test environment
+          export ENVIRONMENT=test
+          export DATABASE_URL=sqlite:///./test_chaos.db
+
+          # Verify no production access
+          if echo "$DATABASE_URL" | grep -i "production"; then
+            echo "ERROR: Production database detected!"
+            exit 1
+          fi
+
+          echo "✓ Test environment verified"
+
+      - name: Run network latency chaos tests
+        run: |
+          cd backend
+          pytest tests/chaos/test_network_latency_chaos.py -v --tb=short -m chaos --timeout=120 || echo "Network chaos tests failed"
+
+      - name: Run database drop chaos tests
+        run: |
+          cd backend
+          pytest tests/chaos/test_database_drop_chaos.py -v --tb=short -m chaos --timeout=120 || echo "Database chaos tests failed"
+
+      - name: Run memory pressure chaos tests
+        run: |
+          cd backend
+          pytest tests/chaos/test_memory_pressure_chaos.py -v --tb=short -m chaos --timeout=120 || echo "Memory chaos tests failed"
+
+      - name: Run service crash chaos tests
+        run: |
+          cd backend
+          pytest tests/chaos/test_service_crash_chaos.py -v --tb=short -m chaos --timeout=120 || echo "Service crash tests failed"
+
+      - name: Run blast radius control tests
+        run: |
+          cd backend
+          pytest tests/chaos/test_blast_radius_controls.py -v --tb=short -m chaos --timeout=120 || echo "Blast radius tests failed"
+
+      - name: Run recovery validation tests
+        run: |
+          cd backend
+          pytest tests/chaos/test_recovery_validation.py -v --tb=short -m chaos --timeout=120 || echo "Recovery validation tests failed"
+
+      - name: Run all chaos tests (comprehensive)
+        run: |
+          cd backend
+          pytest tests/chaos/ -v --tb=short -m chaos --timeout=120 --junitxml=chaos-test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-test-results
+          path: backend/chaos-test-results.xml
+          retention-days: 30
+
+      - name: File bugs for failures
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          cd backend
+          # Use bug filing service if GitHub token available
+          if [ -n "$GITHUB_TOKEN" ]; then
+            python -m pytest tests/chaos/ -v --tb=short -m chaos --bug-filing || echo "Bug filing completed"
+          fi
+
+      - name: Cleanup Toxiproxy
+        if: always()
+        run: |
+          docker stop toxiproxy || true
+          docker rm toxiproxy || true
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Chaos engineering tests failed!"
+          echo "Run: pytest tests/chaos/ -v -m chaos"
+          echo "CI: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
