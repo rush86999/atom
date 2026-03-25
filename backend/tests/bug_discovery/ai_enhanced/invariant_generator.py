@@ -82,7 +82,7 @@ class InvariantGenerator:
 
     def __init__(self, llm_service: Optional[LLMService] = None):
         """Initialize InvariantGenerator."""
-        self.llm_service = llm_service or LLMService(workspace_id="default")
+        self.llm_service = llm_service or LLMService(tenant_id="default")
 
     async def generate_invariants_for_file(
         self,
