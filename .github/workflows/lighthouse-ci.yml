@@ -96,6 +96,14 @@ jobs:
           # Fail PR if performance budget exceeded
           assertOnBudget: true
 
+      - name: Check for Lighthouse regression
+        if: github.event_name == 'pull_request'
+        run: |
+          python backend/tests/scripts/check_lighthouse_regression.py \
+            --current .lighthouseci/lhr-report.json \
+            --baseline backend/tests/performance_regression/lighthouse_baseline.json \
+            --threshold 0.2
+
       - name: Upload Lighthouse reports
         if: always()
         uses: actions/upload-artifact@v3
@@ -103,6 +111,21 @@ jobs:
           name: lighthouse-reports
           path: .lighthouseci/
           retention-days: 7
+
+      - name: Update Lighthouse baseline (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p backend/tests/performance_regression
+          cp .lighthouseci/lhr-report.json backend/tests/performance_regression/lighthouse_baseline.json
+
+      - name: Commit baseline update
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add backend/tests/performance_regression/lighthouse_baseline.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update Lighthouse baseline"
+          git push
 
       - name: Stop servers
         if: always()
@@ -173,6 +196,14 @@ jobs:
           lhci autorun --collect.url="http://localhost:3001/" \
                        --collect.url="http://localhost:3001/dashboard" \
                        --collect.url="http://localhost:3001/agents"
+
+      - name: Check for Lighthouse regression (budgets job)
+        if: github.event_name == 'pull_request'
+        run: |
+          python backend/tests/scripts/check_lighthouse_regression.py \
+            --current .lighthouseci/lhr-report.json \
+            --baseline backend/tests/performance_regression/lighthouse_baseline.json \
+            --threshold 0.2
 
       - name: Stop servers
         if: always()
