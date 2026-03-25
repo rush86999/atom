@@ -151,7 +151,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
                         <Box flex={2}>
                             <Box height="100%" bg="white" _dark={{ bg: 'gray.900' }} border="1px solid" borderColor="gray.200" borderRadius="md" display="flex" flexDir="column" overflow="hidden">
                                 <Box p={2} borderBottom="1px solid" borderColor="gray.100" bg="gray.50" _dark={{ bg: 'gray.800', borderColor: 'gray.700' }} display="flex" justifyContent="space-between" alignItems="center">
-                                    <Text fontSize="xs" fontWeight="bold">Market Analysis & Comparison</Text>
+                                    <Text fontSize="xs" fontWeight="bold">Browser Execution</Text>
                                     {workspaceState.views?.find(v => v.type === 'analysis') && (
                                         <Badge colorScheme="red" fontSize="2xs">Urgent Action Recommended</Badge>
                                     )}
@@ -205,7 +205,17 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
 
                     <Flex flex={1} gap={4}>
                         <Box flex={3}>
-                            <Box height="100%" bg="gray.900" borderRadius="md" p={3} fontFamily="mono" fontSize="xs" position="relative" overflowY="auto">
+                            <Box
+                                height="100%"
+                                bg="gray.900"
+                                borderRadius="md"
+                                p={3}
+                                fontFamily="mono"
+                                fontSize="xs"
+                                position="relative"
+                                overflowY="auto"
+                                ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}
+                            >
                                 <Box color="green.400">
                                     {terminalLogs.map((log, i) => <Text key={i}>{log}</Text>)}
                                     {isExecuting && <Text className="animate-pulse" color="blue.300">Thinking...</Text>}

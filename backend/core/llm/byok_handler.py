@@ -799,8 +799,11 @@ class BYOKHandler:
                                 is_managed = False  # Enterprise Plan = BYOK
 
                             # 3. Block Managed AI for Free Tier (Phase 59 User Req) - BYPASSED for AI Employee Demo
+                            # We bypass this for 'agentic' task types to allow the demo to function
                             if is_managed and tenant_plan.lower() == "free" and task_type != "agentic":
-                                return "🚨 PLAN RESTRICTION: Managed AI is not available on the Free plan. Please add your own API key in Settings or upgrade to a Pro plan to continue."
+                                # Check if we have ANY local api keys that can be used instead
+                                if not self.clients:
+                                    return "🚨 PLAN RESTRICTION: Managed AI is not available on the Free plan. Please add your own API key in Settings or upgrade to a Pro plan to continue."
                 except Exception as e:
                     logger.warning(f"Failed to fetch tenant plan: {e}")
 
@@ -808,6 +811,7 @@ class BYOKHandler:
             if task_type == "agentic" and self.clients:
                 is_managed = False
                 tenant_plan = "enterprise" # Effectively unrestricted
+                logger.info("Using local/BYOK mode for agentic task demo")
 
             # Analyze complexity
             complexity = self.analyze_query_complexity(prompt, task_type)
