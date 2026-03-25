@@ -56,6 +56,13 @@ except ImportError:
     # Redis chaos fixtures not available
     pass
 
+# Import service crash fixtures
+try:
+    from tests.chaos.fixtures.service_crash_fixtures import redis_crash_simulator
+except ImportError:
+    # Service crash fixtures not available
+    pass
+
 
 @pytest.fixture(scope="function")
 def chaos_db_session():
