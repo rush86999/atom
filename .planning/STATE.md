@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 240 of 245 (Headless Browser Bug Discovery)
-Plan: 4 of 5 in current phase
+Plan: 5 of 5 in current phase
 Status: Complete
-Last activity: 2026-03-25 — Phase 240-04 complete: Intelligent exploration agent tests with DFS, BFS, and random walk algorithms (12 tests, 675 lines)
+Last activity: 2026-03-25 — Phase 240-05 complete: Documentation and CI pipeline for browser discovery tests (649-line README, weekly CI workflow, __init__.py update)
 
-Progress: [████████░] 80%
+Progress: [█████████] 100%
 
 ## Performance Metrics
 
@@ -47,7 +47,7 @@ Progress: [████████░] 80%
 | 237 | 5/5 | 14 min | ~2.8 min |
 | 238 | 5/5 | 27 min | ~5.4 min |
 | 239 | 5/5 | 22 min | ~4.4 min |
-| 240 | 4/5 | 31 min | ~7.75 min |
+| 240 | 5/5 | 34 min | ~6.8 min |
 | 237-01 | 3/3 | 4 min | ~1.3 min |
 | 237-02 | 5/5 | 7 min | ~1.4 min |
 | 237-03 | 4/4 | 5 min | ~1.3 min |
@@ -74,6 +74,7 @@ Progress: [████████░] 80%
 | Phase 240 P02 | 246s | 2 tasks | 2 files |
 | Phase 240 P03 | 180 | 2 tasks | 2 files |
 | Phase 240 P04 | 503s | 2 tasks | 2 files |
+| Phase 240 P05 | 180 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -199,11 +200,16 @@ None yet.
 - [BROWSER-13]: Exploration report method (get_exploration_report) provides detailed statistics (actions_taken, urls_visited, bugs_found) for test assertions and debugging
 - [BROWSER-14]: All exploration algorithms include limit parameters (max_depth, max_actions) to prevent infinite loops and long-running test executions
 - [BROWSER-15]: Visited URL tracking prevents revisiting pages and infinite navigation loops ensuring exploration terminates even in cyclic navigation structures
+- [BROWSER-16]: Comprehensive README documentation (649 lines) covering all 7 BROWSER requirements with fixture reuse, Percy setup, CI pipeline, test categories, and troubleshooting
+- [BROWSER-17]: Weekly CI pipeline schedule (Sunday 2 AM UTC) for long-running visual regression and exploration tests with 90-minute timeout
+- [BROWSER-18]: Fixture reuse documentation (authenticated_page from e2e_ui, percy_snapshot from frontend visual tests) prevents duplication and provides 10-100x faster auth
+- [BROWSER-19]: Percy token setup instructions with installation, configuration, and usage examples enable visual regression testing with graceful degradation if token missing
+- [BROWSER-20]: pytest_plugins registration in __init__.py ensures conftest.py fixtures are automatically loaded for all browser discovery tests
 
 ## Session Continuity
 
-Last session: 2026-03-25 (Phase 240-04 completion)
-Stopped at: Plan 240-04 completed - Intelligent exploration agent tests with DFS, BFS, and random walk algorithms (12 tests, 675 lines) covering BROWSER-01 requirement with limit enforcement and infinite loop prevention
+Last session: 2026-03-25 (Phase 240-05 completion)
+Stopped at: Plan 240-05 completed - Documentation and CI pipeline for browser discovery tests (649-line README, weekly CI workflow, __init__.py update) covering all 7 BROWSER requirements with comprehensive documentation and automation
 Resume file: None
 
 ## Milestone Context
