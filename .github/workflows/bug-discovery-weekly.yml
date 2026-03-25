@@ -1,187 +1,68 @@
-name: Weekly Bug Discovery Tests
+name: Bug Discovery Weekly
 
 on:
   schedule:
-    - cron: '0 3 * * 0'  # Sunday 3 AM UTC
-  workflow_dispatch:  # Allow manual trigger
+    # Run every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration for discovery methods (seconds)'
+        required: false
+        default: '3600'
 
 env:
   PYTHON_VERSION: '3.11'
-  NODE_VERSION: '18'
 
 jobs:
-  api-fuzzing:
-    name: API Fuzzing Campaigns (1 hour)
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
-          pip install -r requirements-testing.txt
-          pip install atheris  # Fuzzing support
-
-      - name: Run fuzzing campaigns
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          FUZZ_CAMPAIGN_DURATION: 3600
-          FUZZ_ITERATIONS: 10000
-        run: |
-          cd backend
-          python3 tests/fuzzing/scripts/run_fuzzing_campaigns.py --duration 3600
-        timeout-minutes: 60
-        continue-on-error: true
-
-      - name: Upload crash artifacts
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: fuzzing-crashes
-          path: backend/tests/fuzzing/campaigns/crashes/
-          retention-days: 90
-
-      - name: Upload corpus artifacts
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: fuzzing-corpus
-          path: backend/tests/fuzzing/campaigns/corpus/
-          retention-days: 90
-
-      - name: Aggregate crash reports
-        if: always()
-        run: |
-          cd backend
-          python3 tests/fuzzing/scripts/aggregate_crash_reports.py \
-            --crash-dirs "tests/fuzzing/campaigns/crashes/*" \
-            --output fuzzing-report.md
-
-      - name: Upload fuzzing reports
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: fuzzing-report
-          path: backend/fuzzing-report.md
-          retention-days: 90
-
-      - name: File bugs for crashes
-        if: failure()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          cd backend
-          python3 tests/bug_discovery/file_bugs_from_artifacts.py
-        continue-on-error: true
-
   bug-discovery:
-    name: Bug Discovery Tests (~2 hours)
+    name: Unified Bug Discovery Pipeline
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 180
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         run: |
           cd backend
-          pip install -r requirements.txt
+          pip install -e .
           pip install -r requirements-testing.txt
-          pip install atheris  # Fuzzing support
-          playwright install chromium
 
-      - name: Run bug discovery tests
-        run: |
-          cd backend
-          pytest tests/ -m "fuzzing or chaos or browser" \
-            --tb=long \
-            --junitxml=bug-discovery-results.xml \
-            --maxfail=50
-        timeout-minutes: 120
-        continue-on-error: true
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: bug-discovery-results
-          path: backend/bug-discovery-results.xml
-          retention-days: 90
-
-      - name: Upload screenshots
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: bug-discovery-screenshots
-          path: backend/tests/artifacts/screenshots/
-          retention-days: 90
-
-      - name: Upload logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: bug-discovery-logs
-          path: backend/tests/artifacts/logs/
-          retention-days: 90
-
-      - name: Generate test report
-        if: always()
-        run: |
-          cd backend
-          echo "# Weekly Bug Discovery Test Report" > test-report.md
-          echo "" >> test-report.md
-          echo "**Date:** $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> test-report.md
-          echo "**Commit:** ${{ github.sha }}" >> test-report.md
-          echo "**Workflow:** ${{ github.workflow }}" >> test-report.md
-          echo "" >> test-report.md
-          echo "## Summary" >> test-report.md
-          echo "- **Test Selection:** \`fuzzing or chaos or browser\` markers" >> test-report.md
-          echo "- **Duration:** ~2 hours" >> test-report.md
-          echo "- **Schedule:** Weekly (Sunday 3 AM UTC)" >> test-report.md
-          echo "" >> test-report.md
-          echo "## Test Categories" >> test-report.md
-          echo "- **Fuzzing:** Coverage-guided crash discovery with Atheris" >> test-report.md
-          echo "- **Chaos:** Failure injection (network, database, memory)" >> test-report.md
-          echo "- **Browser:** Console errors, accessibility, broken links" >> test-report.md
-
-      - name: Upload test report
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: weekly-bug-discovery-report
-          path: backend/test-report.md
-          retention-days: 90
-
-      - name: File bugs for failures
-        if: failure()
+      - name: Run unified bug discovery
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          FRONTEND_URL: http://localhost:3000
+          DATABASE_URL: sqlite:///./test_bug_discovery.db
         run: |
           cd backend
-          python tests/bug_discovery/file_bugs_from_artifacts.py
-        continue-on-error: true
+          python -c "
+          from tests.bug_discovery.core import run_discovery
+          import os
+          result = run_discovery(
+              github_token=os.getenv('GITHUB_TOKEN'),
+              github_repository=os.getenv('GITHUB_REPOSITORY'),
+              duration_seconds=int(os.getenv('DURATION', '3600'))
+          )
+          print(f'Bugs found: {result[\"bugs_found\"]}')
+          print(f'Unique bugs: {result[\"unique_bugs\"]}')
+          print(f'Bugs filed: {result[\"filed_bugs\"]}')
+          print(f'Report: {result[\"report_path\"]}')
+          "
+
+      - name: Upload weekly report artifacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: bug-discovery-reports
+          path: |
+            backend/tests/bug_discovery/storage/reports/*.html
+            backend/tests/bug_discovery/storage/reports/*.json
+          retention-days: 30
