@@ -166,7 +166,7 @@ class LanceDBHandler:
         # LLMService handles BYOK API key resolution, cost tracking, and observability
         # Used for OpenAI embeddings only (local embedder keeps sentence-transformers/fastembed)
         if LLMService:
-            self.llm_service = LLMService(workspace_id=workspace_id or "default")
+            self.llm_service = LLMService(tenant_id=workspace_id or "default")
         else:
             logger.warning("LLMService not available, OpenAI embeddings disabled")
             self.llm_service = None
