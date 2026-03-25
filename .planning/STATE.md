@@ -70,6 +70,7 @@ Progress: [██░░░░░] 20%
 | Phase 239 P03 | 474 | 3 tasks | 3 files |
 | Phase 239 P04 | 240 | 3 tasks | 3 files |
 | Phase 239-api-fuzzing-infrastructure P05 | 480 | 4 tasks | 4 files |
+| Phase 240 P01 | 420s | 2 tasks | 2 files |
 | Phase 240 P02 | 246s | 2 tasks | 2 files |
 | Phase 240 P03 | 180 | 2 tasks | 2 files |
 
@@ -180,10 +181,20 @@ None yet.
 - [FUZZ-13]: Webhook URL validation with forbidden protocol detection - Tests javascript:, file://, data:, vbscript:, ftp://, gopher://, dict:// protocols with huge URLs (2000+ chars) and UNC path traversal (\\\\evil.com\\share)
 - [FUZZ-14]: Workflow DAG validation fuzzing - Cyclical dependencies (a -> b -> a), missing node references, self-referencing nodes, empty node lists, and invalid edge configurations
 
+### Key Decisions (Phase 240)
+
+- [BROWSER-01]: Console error detection tests created with 7 tests covering dashboard, agents, agent creation, canvas, and workflows pages with timestamp, URL, and location metadata capture
+- [BROWSER-02]: Accessibility violation detection tests created with 7 tests verifying WCAG 2.1 AA compliance using axe-core 4.8.2 with id, impact, description, help_url, and tags metadata
+- [BROWSER-03]: Fixture reuse pattern established from browser_discovery/conftest.py (authenticated_page, console_monitor, accessibility_checker, assert_no_console_errors, assert_accessibility) preventing duplication
+- [BROWSER-04]: API-first authentication used for all browser discovery tests (10-100x faster than UI login by bypassing login form navigation)
+- [BROWSER-05]: Console warnings logged but don't fail tests - only errors cause test failures to avoid false positives from deprecation notices
+- [BROWSER-06]: Graceful degradation implemented for axe-core load failures - tests skip with pytest.skip if axe-core CDN is unavailable due to network issues
+- [BROWSER-07]: Metadata verification tests ensure console errors and accessibility violations include all necessary fields for effective bug triaging and remediation
+
 ## Session Continuity
 
-Last session: 2026-03-24 (Phase 239-04 completion)
-Stopped at: Plan 239-04 completed - Workflow/skill/trigger endpoint fuzzing harnesses (17 fuzz targets across 3 test files, 1622 lines) with comprehensive security edge cases (code injection, typosquatting, path traversal, null bytes, XSS, SQLi, YAML parsing)
+Last session: 2026-03-25 (Phase 240-01 completion)
+Stopped at: Plan 240-01 completed - Console error detection and accessibility violation detection tests (14 tests across 2 test files, 393 lines) with metadata capture and WCAG 2.1 AA compliance
 Resume file: None
 
 ## Milestone Context
