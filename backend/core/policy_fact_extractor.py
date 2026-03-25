@@ -60,9 +60,10 @@ Document content:
 {document_text}
 """
 
-    def __init__(self, workspace_id: str = "default"):
+    def __init__(self, workspace_id: str = "default", tenant_id: str = "default"):
         self.workspace_id = workspace_id
-        self.llm = get_llm_service(workspace_id=workspace_id)
+        self.tenant_id = tenant_id
+        self.llm = get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
     
     async def extract_facts_from_text(
         self,
@@ -201,8 +202,9 @@ Document content:
 # Global registry
 _extractors: Dict[str, PolicyFactExtractor] = {}
 
-def get_policy_fact_extractor(workspace_id: str = "default") -> PolicyFactExtractor:
+def get_policy_fact_extractor(workspace_id: str = "default", tenant_id: str = "default") -> PolicyFactExtractor:
     """Get or create a PolicyFactExtractor for the workspace."""
-    if workspace_id not in _extractors:
-        _extractors[workspace_id] = PolicyFactExtractor(workspace_id)
-    return _extractors[workspace_id]
+    cache_key = f"{workspace_id}:{tenant_id}"
+    if cache_key not in _extractors:
+        _extractors[cache_key] = PolicyFactExtractor(workspace_id, tenant_id)
+    return _extractors[cache_key]

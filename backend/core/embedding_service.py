@@ -66,7 +66,9 @@ class EmbeddingService:
         self,
         provider: Optional[str] = None,
         model: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None
     ):
         """
         Initialize embedding service.
@@ -78,6 +80,8 @@ class EmbeddingService:
                 - "cohere" - Cloud-based Cohere embeddings
             model: Model name (default: provider's recommended model)
             config: Additional configuration (API keys, etc.)
+            workspace_id: Workspace ID for multi-tenant isolation
+            tenant_id: Legacy alias for workspace_id
         """
         self.provider = provider or os.getenv(
             "EMBEDDING_PROVIDER",
@@ -85,6 +89,9 @@ class EmbeddingService:
         )
         self.config = config or {}
         self._client = None
+        
+        self.workspace_id = workspace_id or "default"
+        self.tenant_id = tenant_id or "default"
 
         # Set default models
         self.model = model or self._get_default_model()
@@ -105,12 +112,15 @@ class EmbeddingService:
         self._fastembed_cache_order = []  # Track access order for LRU eviction
         self._fastembed_cache_max = 1000  # Max cache size
 
-        # Initialize LLMService for OpenAI embeddings (unified interface)
-        # Note: FastEmbed and Cohere use their own clients (keep local)
-        self.llm_service = LLMService(workspace_id="default")
+        # Initialize LLMService (for cloud providers or advanced routing)
+        self.llm_service = LLMService(
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id
+        )
 
+        # Logging
         logger.info(
-            f"Initialized EmbeddingService: provider={self.provider}, model={self.model}"
+            f"Initialized EmbeddingService: provider={self.provider}, model={self.model}, workspace={self.workspace_id}"
         )
 
     def _get_default_model(self) -> str:
@@ -662,31 +672,45 @@ class EmbeddingService:
 # Convenience Functions
 # ============================================================================
 
-async def generate_embedding(text: str, provider: Optional[str] = None) -> List[float]:
+async def generate_embedding(
+    text: str,
+    provider: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None
+) -> List[float]:
     """
     Convenience function to generate a single embedding.
 
     Args:
         text: Text to embed
         provider: Optional provider override (default: fastembed)
+        workspace_id: Workspace ID
+        tenant_id: Legacy alias for workspace_id
 
     Returns:
         Embedding vector
     """
-    service = EmbeddingService(provider=provider)
+    service = EmbeddingService(provider=provider, workspace_id=workspace_id, tenant_id=tenant_id)
     return await service.generate_embedding(text)
 
 
-async def generate_embeddings_batch(texts: List[str], provider: Optional[str] = None) -> List[List[float]]:
+async def generate_embeddings_batch(
+    texts: List[str],
+    provider: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None
+) -> List[List[float]]:
     """
     Convenience function to generate batch embeddings.
 
     Args:
         texts: List of texts to embed
         provider: Optional provider override (default: fastembed)
+        workspace_id: Workspace ID
+        tenant_id: Legacy alias for workspace_id
 
     Returns:
         List of embedding vectors
     """
-    service = EmbeddingService(provider=provider)
+    service = EmbeddingService(provider=provider, workspace_id=workspace_id, tenant_id=tenant_id)
     return await service.generate_embeddings_batch(texts)

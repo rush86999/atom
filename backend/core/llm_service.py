@@ -87,16 +87,17 @@ class LLMService:
         """
         Args:
             db: Optional SQLAlchemy session.
-            workspace_id: Primary identifier for LLM configuration.
-            tenant_id: Alias for workspace_id (SaaS convention).
+            workspace_id: Primary identifier for workspace-level grouping.
+            tenant_id: Identifier for the tenant (SaaS convention).
         """
         self._db = db
-        # Prioritize workspace_id for OS convention
-        self._workspace_id = workspace_id or tenant_id or "default"
+        self._workspace_id = workspace_id or "default"
+        self._tenant_id = tenant_id or "default"
         self._handler: Optional[BYOKHandler] = None
         
-        # Pre-initialize handler if workspace_id provided
-        self._handler = BYOKHandler(workspace_id=self._workspace_id, db_session=db)
+        # In single-tenant open source, we mostly care about workspace_id.
+        # But we preserve tenant_id for compatibility.
+        self._handler = BYOKHandler(workspace_id=self._workspace_id, tenant_id=self._tenant_id, db_session=db)
         self.continuous_learning = ContinuousLearningService(db) if db else None
 
     @property
@@ -106,13 +107,13 @@ class LLMService:
 
     @property
     def workspace_id(self) -> str:
-        """Return the primary workspace identifier."""
+        """Return the workspace identifier."""
         return self._workspace_id
 
     @property
     def tenant_id(self) -> str:
-        """Alias for workspace_id (backward compatibility)."""
-        return self._workspace_id
+        """Return the tenant identifier."""
+        return self._tenant_id
 
     def _get_handler(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None) -> BYOKHandler:
         """Helper to get or create a BYOKHandler for a specific workspace."""
@@ -121,7 +122,7 @@ class LLMService:
         if self._handler and target_ws == self._workspace_id:
             return self._handler
             
-        return BYOKHandler(workspace_id=target_ws, db_session=self._db)
+        return BYOKHandler(workspace_id=target_ws, tenant_id=tenant_id or self._tenant_id, db_session=self._db)
 
     def get_provider(self, model: str) -> LLMProvider:
         """Get the provider for a given model."""

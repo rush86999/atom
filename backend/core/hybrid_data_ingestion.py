@@ -106,8 +106,10 @@ class HybridDataIngestionService:
     # Threshold for auto-enabling sync (calls per day)
     AUTO_SYNC_USAGE_THRESHOLD = 10
     
-    def __init__(self):
-        self.workspace_id = "default" # Single-tenant: always use default
+    def __init__(self, workspace_id: str = "default", tenant_id: str = "default"):
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
+        self.usage_stats: Dict[str, IntegrationUsageStats] = {}
         self.sync_configs: Dict[str, SyncConfiguration] = {}
         self._sync_tasks: Dict[str, asyncio.Task] = {}
         self._running = False
@@ -115,15 +117,15 @@ class HybridDataIngestionService:
         # Initialize LanceDB handler
         try:
             from core.lancedb_handler import get_lancedb_handler
-            self.memory_handler = get_lancedb_handler("default")
+            self.memory_handler = get_lancedb_handler(workspace_id)
         except ImportError:
             self.memory_handler = None
             logger.warning("LanceDB handler not available for hybrid ingestion")
         
         # Initialize GraphRAG engine
         try:
-            from core.graphrag_engine import graphrag_engine
-            self.graphrag = graphrag_engine
+            from core.graphrag_engine import GraphRAGEngine
+            self.graphrag = GraphRAGEngine(workspace_id=workspace_id, tenant_id=tenant_id)
         except ImportError:
             self.graphrag = None
             logger.warning("GraphRAG engine not available for hybrid ingestion")
@@ -708,11 +710,11 @@ class HybridDataIngestionService:
 _ingestion_service: Optional[HybridDataIngestionService] = None
 
 
-def get_hybrid_ingestion_service() -> HybridDataIngestionService:
+def get_hybrid_ingestion_service(workspace_id: str = "default", tenant_id: str = "default") -> HybridDataIngestionService:
     """Get or create the HybridDataIngestionService"""
     global _ingestion_service
-    if _ingestion_service is None:
-        _ingestion_service = HybridDataIngestionService()
+    if _ingestion_service is None or _ingestion_service.workspace_id != workspace_id:
+        _ingestion_service = HybridDataIngestionService(workspace_id, tenant_id)
     return _ingestion_service
 
 

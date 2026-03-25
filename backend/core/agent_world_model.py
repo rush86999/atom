@@ -77,8 +77,10 @@ class SkillRecommendation:
     reason: str
 
 class WorldModelService:
-    def __init__(self, workspace_id: str = "default"):
-        self.db = get_lancedb_handler(workspace_id)
+    def __init__(self, workspace_id: str = "default", tenant_id: Optional[str] = None):
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id or "default"
+        self.db = get_lancedb_handler(workspace_id=workspace_id, tenant_id=self.tenant_id)
         self.table_name = "agent_experience"
         self.facts_table_name = "business_facts"
         self._ensure_tables()

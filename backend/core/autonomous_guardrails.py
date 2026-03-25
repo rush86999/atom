@@ -38,8 +38,10 @@ class AutonomousGuardrailService:
         "terminal_danger": ["rm -rf", "format", "chmod 777"]
     }
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None):
         self.db = db
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
 
     def check_guardrails(
         self, 
@@ -51,9 +53,13 @@ class AutonomousGuardrailService:
         """
         Main check for autonomous actions.
         """
-        query = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id)
-        if tenant_id:
-            query = query.filter(AgentRegistry.tenant_id == tenant_id)
+        effective_tenant = tenant_id or self.tenant_id
+        query = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        )
+        if effective_tenant:
+            query = query.filter(AgentRegistry.tenant_id == effective_tenant)
         
         agent = query.first()
         if not agent:
@@ -84,7 +90,7 @@ class AutonomousGuardrailService:
         # Default 60 actions/hour unless specified in agent config
         config = agent.configuration if hasattr(agent, 'configuration') and agent.configuration else {}
         rate_limit = config.get("guardrails", {}).get("max_actions_per_hour", 60)
-        recent_actions_count = self._get_recent_action_count(agent_id, tenant_id=tenant_id, hours=1)
+        recent_actions_count = self._get_recent_action_count(agent_id, tenant_id=effective_tenant, hours=1)
         
         if recent_actions_count >= rate_limit:
             return {
@@ -97,7 +103,7 @@ class AutonomousGuardrailService:
         # 2. Daily Cost Gating
         # Default $10/day unless specified in agent config
         cost_limit = config.get("guardrails", {}).get("max_daily_spend_usd", 10.0)
-        daily_spend = self._get_daily_spend(agent_id, tenant_id=tenant_id)
+        daily_spend = self._get_daily_spend(agent_id, tenant_id=effective_tenant)
         
         if daily_spend >= cost_limit:
             # Check enforcement mode
@@ -199,7 +205,8 @@ class AutonomousGuardrailService:
         since = datetime.now(timezone.utc) - timedelta(hours=hours)
         query = self.db.query(TokenUsage).filter(
             TokenUsage.agent_id == agent_id,
-            TokenUsage.timestamp >= since
+            TokenUsage.timestamp >= since,
+            TokenUsage.workspace_id == self.workspace_id
         )
         if tenant_id:
             query = query.filter(TokenUsage.tenant_id == tenant_id)
@@ -211,7 +218,8 @@ class AutonomousGuardrailService:
         since = datetime.now(timezone.utc) - timedelta(hours=24)
         query = self.db.query(func.sum(TokenUsage.cost_usd)).filter(
             TokenUsage.agent_id == agent_id,
-            TokenUsage.timestamp >= since
+            TokenUsage.timestamp >= since,
+            TokenUsage.workspace_id == self.workspace_id
         )
         if tenant_id:
             query = query.filter(TokenUsage.tenant_id == tenant_id)
@@ -244,9 +252,12 @@ class AutonomousGuardrailService:
 
     def handle_violation(self, agent_id: str, violation_type: str, reason: str, tenant_id: Optional[str] = None):
         """Log violation and potentially downgrade agent status"""
-        query = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id)
-        if tenant_id:
-            query = query.filter(AgentRegistry.tenant_id == tenant_id)
+        query = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        )
+        if tenant_id or self.tenant_id:
+            query = query.filter(AgentRegistry.tenant_id == (tenant_id or self.tenant_id))
             
         agent = query.first()
         if not agent:
