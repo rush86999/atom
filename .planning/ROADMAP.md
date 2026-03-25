@@ -102,7 +102,12 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   5. Visual regression testing with Percy detects UI changes across 78+ snapshots
   6. Form filling tests edge cases (null bytes, XSS payloads, SQL injection)
   7. API-first authentication integration provides 10-100x faster test setup
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 240-01-PLAN.md — Console error and accessibility detection tests (BROWSER-02, BROWSER-03)
+- [ ] 240-02-PLAN.md — Broken link detection and form edge case tests (BROWSER-04, BROWSER-06)
+- [ ] 240-03-PLAN.md — Visual regression testing with Percy integration (BROWSER-05)
+- [ ] 240-04-PLAN.md — Intelligent exploration agent with DFS/BFS/random walk (BROWSER-01)
+- [ ] 240-05-PLAN.md — Documentation and weekly CI pipeline (BROWSER-07)
 
 #### Phase 241: Chaos Engineering Integration
 **Goal**: Controlled failure injection tests resilience to network issues, resource exhaustion, and service crashes
@@ -178,7 +183,7 @@ Phases execute in numeric order: 237 → 238 → 239 → 240 → 241 → 242 →
 | 237. Bug Discovery Infrastructure Foundation | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
 | 238. Property-Based Testing Expansion | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
 | 239. API Fuzzing Infrastructure | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
-| 240. Headless Browser Bug Discovery | v8.0 | 0/TBD | Not started | - |
+| 240. Headless Browser Bug Discovery | v8.0 | 0/5 | Planned | - |
 | 241. Chaos Engineering Integration | v8.0 | 0/TBD | Not started | - |
 | 242. Unified Bug Discovery Pipeline | v8.0 | 0/TBD | Not started | - |
 | 243. Memory & Performance Bug Discovery | v8.0 | 0/TBD | Not started | - |
