@@ -1,0 +1,104 @@
+name: Browser Discovery Tests
+
+on:
+  schedule:
+    # Run every Sunday at 2 AM UTC (Saturday evening PST)
+    - cron: '0 2 * * 0'
+  workflow_dispatch: # Allow manual triggering
+    inputs:
+      reason:
+        description: 'Reason for manual run'
+        required: false
+        default: 'Manual trigger'
+
+jobs:
+  browser-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -e .
+          pip install pytest pytest-playwright
+          playwright install chromium
+
+      - name: Install Node.js and Percy
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g @percy/cli
+
+      - name: Start frontend server
+        run: |
+          cd frontend-nextjs
+          npm install
+          npm run build
+          npm start &
+          echo $! > frontend.pid
+          sleep 10
+
+      - name: Start backend server
+        run: |
+          cd backend
+          python -m uvicorn main:app &
+          echo $! > backend.pid
+          sleep 10
+
+      - name: Run console error tests
+        run: |
+          cd backend
+          pytest tests/browser_discovery/test_console_errors.py -v
+
+      - name: Run accessibility tests
+        run: |
+          cd backend
+          pytest tests/browser_discovery/test_accessibility.py -v
+
+      - name: Run broken link tests
+        run: |
+          cd backend
+          pytest tests/browser_discovery/test_broken_links.py -v
+
+      - name: Run form edge case tests
+        run: |
+          cd backend
+          pytest tests/browser_discovery/test_form_filling.py -v
+
+      - name: Run exploration agent tests
+        run: |
+          cd backend
+          pytest tests/browser_discovery/test_exploration_agent.py -v
+
+      - name: Run visual regression tests (with Percy)
+        env:
+          PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+        run: |
+          cd backend
+          pytest tests/browser_discovery/test_visual_regression.py -v
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-discovery-artifacts
+          path: |
+            backend/tests/browser_discovery/artifacts/screenshots/
+            backend/tests/browser_discovery/artifacts/logs/
+
+      - name: File bugs for failures
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd backend
+          python tests/bug_discovery/file_bugs_from_artifacts.py --source browser_discovery
