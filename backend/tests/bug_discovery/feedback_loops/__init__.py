@@ -20,3 +20,7 @@ try:
 except ImportError:
     # jinja2 not installed, RegressionTestGenerator not available
     pass
+
+# BugFixVerifier requires requests (always available in backend venv)
+from tests.bug_discovery.feedback_loops.bug_fix_verifier import BugFixVerifier
+__all__.append("BugFixVerifier")
