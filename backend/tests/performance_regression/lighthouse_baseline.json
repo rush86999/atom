@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-03-25T00:00:00Z",
+  "url": "http://localhost:3001/",
+  "metrics": {
+    "performance_score": 95,
+    "accessibility_score": 92,
+    "best_practices_score": 90,
+    "seo_score": 85,
+    "first_contentful_paint": 1200,
+    "largest_contentful_paint": 2000,
+    "total_blocking_time": 200,
+    "cumulative_layout_shift": 0.05,
+    "speed_index": 1800
+  }
+}
