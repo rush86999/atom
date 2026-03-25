@@ -170,6 +170,90 @@ class DiscoveryCoordinator:
             "by_method": self._count_by_method(unique_bugs)
         }
 
+    # ========================================================================
+    # AI-Enhanced Bug Discovery Integration (Phase 244)
+    # ========================================================================
+
+    async def run_ai_enhanced_discovery(
+        self,
+        run_clustering: bool = True,
+        clustering_threshold: float = 0.75,
+        min_cluster_size: int = 2
+    ) -> Dict[str, Any]:
+        """
+        Run AI-enhanced bug discovery with semantic clustering.
+
+        Runs all discovery methods, then applies AI clustering to identify
+        systemic issues through semantic similarity analysis.
+
+        Args:
+            run_clustering: Whether to run semantic clustering
+            clustering_threshold: Similarity threshold for clustering (0.0-1.0)
+            min_cluster_size: Minimum bugs per cluster
+
+        Returns:
+            Dict with bugs_found, unique_bugs, clusters, cluster_report_path
+        """
+        print(f"[DiscoveryCoordinator] Starting AI-enhanced bug discovery at {datetime.utcnow().isoformat()}")
+
+        # 1. Run standard discovery
+        standard_result = self.run_full_discovery()
+
+        # Note: In production, collect actual BugReport objects from standard_result
+        # For now, placeholder for AI clustering integration
+
+        # 2. Run semantic clustering
+        clusters = []
+        cluster_report_path = None
+
+        if run_clustering:
+            print("[DiscoveryCoordinator] Running semantic bug clustering...")
+
+            try:
+                from tests.bug_discovery.ai_enhanced.semantic_bug_clusterer import SemanticBugClusterer
+
+                clusterer = SemanticBugClusterer()
+
+                # Collect bugs from standard discovery
+                # Note: This would need to be populated from actual discovery results
+                # For now, empty list (clustering will be skipped)
+                all_reports = []
+
+                if len(all_reports) >= min_cluster_size:
+                    clusters = await clusterer.cluster_bugs(
+                        bugs=all_reports,
+                        similarity_threshold=clustering_threshold,
+                        min_cluster_size=min_cluster_size
+                    )
+
+                    print(f"[DiscoveryCoordinator] Found {len(clusters)} semantic clusters")
+
+                    # Save clusters
+                    cluster_paths = await clusterer.save_clusters(clusters)
+                    print(f"[DiscoveryCoordinator] Saved {len(cluster_paths)} cluster files")
+
+                    # Generate cluster report
+                    cluster_report_path = self.storage_dir / "cluster_report.md"
+                    clusterer.generate_cluster_report(clusters, output_path=str(cluster_report_path))
+                    print(f"[DiscoveryCoordinator] Cluster report: {cluster_report_path}")
+                else:
+                    print(f"[DiscoveryCoordinator] Not enough bugs for clustering (need {min_cluster_size}, have {len(all_reports)})")
+
+            except ImportError as e:
+                print(f"[DiscoveryCoordinator] Warning: Semantic clustering not available: {e}")
+            except Exception as e:
+                print(f"[DiscoveryCoordinator] Warning: Clustering failed: {e}")
+
+        # 3. Return combined results
+        return {
+            "bugs_found": standard_result.get("bugs_found", 0),
+            "unique_bugs": standard_result.get("unique_bugs", 0),
+            "filed_bugs": standard_result.get("filed_bugs", 0),
+            "clusters_found": len(clusters),
+            "cluster_report_path": str(cluster_report_path) if cluster_report_path else None,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
     def _run_fuzzing_discovery(
         self,
         endpoints: List[str] = None,
@@ -549,7 +633,8 @@ class DiscoveryCoordinator:
 def run_discovery(
     github_token: str = None,
     github_repository: str = None,
-    duration_seconds: int = 3600
+    duration_seconds: int = 3600,
+    ai_enhanced: bool = False
 ) -> Dict[str, Any]:
     """
     Convenience function to run full bug discovery.
@@ -558,6 +643,7 @@ def run_discovery(
         github_token: GitHub token (default: GITHUB_TOKEN env var)
         github_repository: GitHub repository (default: GITHUB_REPOSITORY env var)
         duration_seconds: Duration for discovery methods
+        ai_enhanced: Whether to run AI-enhanced discovery with clustering
 
     Returns:
         Discovery results dict
@@ -572,4 +658,9 @@ def run_discovery(
         raise ValueError("GITHUB_REPOSITORY environment variable not set")
 
     coordinator = DiscoveryCoordinator(github_token, github_repository)
-    return coordinator.run_full_discovery(duration_seconds=duration_seconds)
+
+    if ai_enhanced:
+        import asyncio
+        return asyncio.run(coordinator.run_ai_enhanced_discovery())
+    else:
+        return coordinator.run_full_discovery(duration_seconds=duration_seconds)
