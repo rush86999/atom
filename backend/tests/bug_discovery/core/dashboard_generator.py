@@ -116,7 +116,8 @@ class DashboardGenerator:
         """Group bugs by discovery method."""
         method_counts = Counter()
         for report in reports:
-            method = report.discovery_method.value
+            # Handle both enum and string types (use_enum_values=True in BugReport)
+            method = report.discovery_method if isinstance(report.discovery_method, str) else report.discovery_method.value
             method_counts[method] += 1
         return dict(method_counts)
 
@@ -124,7 +125,8 @@ class DashboardGenerator:
         """Group bugs by severity."""
         severity_counts = Counter()
         for report in reports:
-            severity = report.severity.value
+            # Handle both enum and string types (use_enum_values=True in BugReport)
+            severity = report.severity if isinstance(report.severity, str) else report.severity.value
             severity_counts[severity] += 1
         return dict(severity_counts)
 
@@ -246,9 +248,12 @@ class DashboardGenerator:
         """Render bug table rows."""
         rows = ""
         for bug in bugs:
-            severity_class = bug.severity.value
+            # Handle both enum and string types (use_enum_values=True in BugReport)
+            severity_class = bug.severity if isinstance(bug.severity, str) else bug.severity.value
+            discovery_method = bug.discovery_method if isinstance(bug.discovery_method, str) else bug.discovery_method.value
+            severity = bug.severity if isinstance(bug.severity, str) else bug.severity.value
             error_msg = bug.error_message[:100] + "..." if len(bug.error_message) > 100 else bug.error_message
-            rows += f'<tr><td>{bug.test_name}</td><td>{bug.discovery_method.value}</td><td class="{severity_class}">{bug.severity.value}</td><td>{error_msg}</td></tr>\n'
+            rows += f'<tr><td>{bug.test_name}</td><td>{discovery_method}</td><td class="{severity_class}">{severity}</td><td>{error_msg}</td></tr>\n'
         return rows
 
     def _save_json_report(self, path: Path, data: Dict[str, Any]):
