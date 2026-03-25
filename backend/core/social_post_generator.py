@@ -11,11 +11,7 @@ import logging
 from typing import Optional
 from datetime import datetime, timedelta
 
-try:
-    from core.llm_service import LLMService
-    LLM_SERVICE_AVAILABLE = True
-except ImportError:
-    LLM_SERVICE_AVAILABLE = False
+
 
 from sqlalchemy.orm import Session
 from core.models import AgentOperationTracker, AgentRegistry
@@ -61,22 +57,11 @@ class SocialPostGenerator:
         # Rate limiting tracker: {agent_id: last_post_timestamp}
         self._rate_limit_tracker = {}  # type: Dict[str, datetime]
 
-        # Initialize LLMService for GPT-4.1 mini social content generation
-        self.llm_service = None
-        if LLM_SERVICE_AVAILABLE:
-            try:
-                self.llm_service = LLMService(workspace_id="default")
-                # Check if OpenAI provider is available
-                if self.llm_service.is_available():
-                    logger.info("SocialPostGenerator: LLMService initialized for GPT-4.1 mini")
-                else:
-                    logger.warning("SocialPostGenerator: No LLM providers available, using templates only")
-                    self.llm_service = None
-            except Exception as e:
-                logger.warning(f"SocialPostGenerator: Failed to initialize LLMService: {e}")
-                self.llm_service = None
-        else:
-            logger.warning("SocialPostGenerator: LLMService package not available, using templates only")
+    @property
+    def llm_service(self):
+        """Lazy access to unified LLMService via ServiceFactory"""
+        from core.service_factory import ServiceFactory
+        return ServiceFactory.get_llm_service()
 
     def is_significant_operation(self, tracker: AgentOperationTracker) -> bool:
         """
@@ -224,22 +209,13 @@ Next steps: {tracker.next_steps or 'N/A'}
 Make it engaging and team-focused. Keep it under 280 characters."""
 
         try:
-            # Use LLMService with timeout wrapper
-            response = await asyncio.wait_for(
-                self.llm_service.generate_completion(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    model="gpt-4o-mini",  # Cost-effective model
-                    max_tokens=100,
-                    temperature=0.7
-                ),
-                timeout=5.0
+            # Use unified LLMService generate_response
+            content = await self.llm_service.generate_response(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                tenant_id="default",  # Default to system level if not specified
+                temperature=0.7
             )
-
-            # Extract content from LLMService response format
-            content = response.get("content", "").strip()
 
             # Validate length
             if len(content) > 280:
@@ -450,18 +426,12 @@ Make it engaging and team-focused. Keep it under 280 characters."""
         user_prompt = self._build_user_prompt(operation, episode_context)
 
         try:
-            response = await self.llm_service.generate_completion(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                model="gpt-4o-mini",  # Cost-effective model
-                max_tokens=150,
+            content = await self.llm_service.generate_response(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                tenant_id="default",
                 temperature=0.7
             )
-
-            # Extract content from LLMService response format
-            content = response.get("content", "").strip()
 
             # Validate length
             if len(content) > 280:

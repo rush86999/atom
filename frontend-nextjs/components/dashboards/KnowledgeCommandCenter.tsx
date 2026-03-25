@@ -16,6 +16,10 @@ import { PipelineSettingsPanel } from '@/components/shared/PipelineSettingsPanel
 import { RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLiveKnowledge, KnowledgeItem, SmartInsight } from '@/hooks/useLiveKnowledge';
+import { useSession } from 'next-auth/react';
+import { EntityTypeList } from '@/components/entity/EntityTypeList';
+import { EntityTypeGraphView } from '@/components/entity/EntityTypeGraphView';
+import GraphVisualization from '@/src/components/Graph/GraphVisualization';
 
 export const KnowledgeCommandCenter: React.FC = () => {
     const { items, insights, loading, insightsLoading, refresh } = useLiveKnowledge();
@@ -28,7 +32,11 @@ export const KnowledgeCommandCenter: React.FC = () => {
 
     const [activeType, setActiveType] = useState<string>('all');
     const [activePlatform, setActivePlatform] = useState<string>('all');
+    const [activeTab, setActiveTab] = useState<string>('knowledge');
+    const [showTypeGraph, setShowTypeGraph] = useState(false);
     const { toast: uiToast } = useToast();
+    const { data: session } = useSession();
+    const workspaceId = (session as any)?.user?.workspace_id || 'default';
 
     // WebSocket for Real-Time Refreshes
     const { lastMessage, isConnected } = useWebSocket({
@@ -123,6 +131,61 @@ export const KnowledgeCommandCenter: React.FC = () => {
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Sync Settings
                     </Button>
+                    <div className="relative flex items-center gap-2">
+                        {/* Tab Navigation */}
+                        <button
+                            onClick={() => setActiveTab('knowledge')}
+                            className={cn(
+                                "px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase",
+                                activeTab === 'knowledge'
+                                    ? "bg-primary/20 border-primary text-primary"
+                                    : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-white"
+                            )}
+                        >
+                            Knowledge
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('entity-types')}
+                            className={cn(
+                                "px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase",
+                                activeTab === 'entity-types'
+                                    ? "bg-primary/20 border-primary text-primary"
+                                    : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-white"
+                            )}
+                        >
+                            Entity Types
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('graph')}
+                            className={cn(
+                                "px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase",
+                                activeTab === 'graph'
+                                    ? "bg-purple-500/20 border-purple-500 text-purple-400"
+                                    : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-white"
+                            )}
+                        >
+                            Graph View
+                        </button>
+
+                        {activeTab === 'entity-types' && (
+                            <div className="h-4 w-[1px] bg-white/10 mx-1" />
+                        )}
+
+                        {activeTab === 'entity-types' && (
+                            <button
+                                onClick={() => setShowTypeGraph(!showTypeGraph)}
+                                className={cn(
+                                    "px-3 py-1.5 text-[10px] font-bold rounded-lg border transition-all uppercase flex items-center gap-2",
+                                    showTypeGraph
+                                        ? "bg-emerald-500/20 border-emerald-500 text-emerald-400"
+                                        : "bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-muted-foreground hover:text-white"
+                                )}
+                            >
+                                <span className={cn("w-1.5 h-1.5 rounded-full", showTypeGraph ? "bg-emerald-400 animate-pulse" : "bg-white/20")} />
+                                Type Graph
+                            </button>
+                        )}
+                    </div>
                     <button
                         className="flex items-center gap-2 px-3 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-primary text-xs font-bold hover:bg-primary/10 transition-colors uppercase"
                         onClick={() => toast.success('Redirecting to Atom Agent for knowledge query...')}
@@ -138,6 +201,7 @@ export const KnowledgeCommandCenter: React.FC = () => {
                             className="pl-10 pr-10 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm w-96 text-gray-900 dark:text-white"
                             value={search}
                             onChange={handleSearch}
+                            disabled={activeTab !== 'knowledge'}
                         />
                         {search && (
                             <button
@@ -179,7 +243,21 @@ export const KnowledgeCommandCenter: React.FC = () => {
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground border border-dashed border-black/10 dark:border-white/10 rounded-xl">No historical intelligence found for &quot;{search}&quot;.</div>
+                        <div className="text-center py-12 text-muted-foreground border border-dashed border-black/10 dark:border-white/10 rounded-xl">
+                            No historical intelligence found for &quot;{search}&quot;.
+                        </div>
+                    )}
+                </div>
+            ) : activeTab === 'graph' ? (
+                <div className="w-full h-[800px] border border-black/10 dark:border-white/10 rounded-xl overflow-hidden shadow-2xl bg-black/40 backdrop-blur-xl">
+                    <GraphVisualization />
+                </div>
+            ) : activeTab === 'entity-types' ? (
+                <div className="w-full">
+                    {showTypeGraph ? (
+                        <EntityTypeGraphView workspaceId={workspaceId} />
+                    ) : (
+                        <EntityTypeList />
                     )}
                 </div>
             ) : (

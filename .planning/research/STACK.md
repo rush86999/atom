@@ -1,566 +1,673 @@
-# Technology Stack
+# Technology Stack: Cross-Platform E2E Testing & Bug Discovery
 
-**Project:** Atom Backend 80% Coverage Initiative
-**Researched:** March 11, 2026
+**Project:** Atom - AI-Powered Business Automation Platform
+**Domain:** Cross-Platform E2E Testing & Quality Assurance
+**Researched:** 2026-03-23
+**Confidence:** MEDIUM (Web/pytest: HIGH, Mobile/Desktop/Stress: MEDIUM - Limited by web search rate limiting)
 
 ## Executive Summary
 
-Atom's backend test infrastructure is **comprehensive and production-ready** for achieving 80% coverage. The current stack includes pytest 7.4+, pytest-cov 4.1+, Hypothesis 6.92, pytest-xdist 3.6, and extensive fixture infrastructure (50+ fixtures in conftest.py).
+Atom requires comprehensive cross-platform E2E testing covering web (Next.js), mobile (React Native), and desktop (Tauri) with a focus on bug discovery through stress testing and real user flow validation. **Key insight**: Build on existing Playwright + pytest foundation rather than replacing it. Add mobile/desktop testing layers and stress testing infrastructure incrementally for cost-effective bug discovery.
 
-**Critical Finding:** A methodology gap exists between reported coverage (74.6% service-level estimates) and actual line coverage (8.50% measured). The stack is optimal - the focus must be on **test execution and gap closure**, not tool acquisition.
-
-**Key Recommendation:** No new tools needed. Use existing pytest + pytest-cov + Hypothesis + pytest-xdist stack with focused test creation to close the 71.5 percentage point gap to 80% target.
-
----
+**Recommended approach**: Use Playwright for web (already installed with v3.1 E2E), Detox for React Native mobile, Tauri's built-in testing for desktop, and k6 for API stress testing. Integrate all with pytest for unified orchestration and Allure for comprehensive reporting with bug tracking integration.
 
 ## Recommended Stack
 
-### Core Framework
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **pytest** | 7.4+ | Test runner | Industry standard, extensive plugin ecosystem, fixture-based design |
-| **pytest-asyncio** | 0.21+ | Async test support | Native asyncio support for FastAPI, auto-mode for seamless async tests |
-| **pytest-cov** | 4.1+ | Coverage measurement | pytest integration for coverage.py, produces JSON/HTML reports, CI-ready |
-| **coverage.py** | 7.3+ (via pytest-cov) | Coverage engine | Gold standard for Python coverage, branch coverage support |
+### Core E2E Testing Frameworks
 
-**Current Status:** ✅ INSTALLED - All core tools present in requirements.txt
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **Playwright** | ^1.57.0 | Web E2E testing | Already installed with v3.1 E2E testing, auto-waiting, reliable selectors, excellent TypeScript support, cross-browser (Chrome/Firefox/Safari), built-in tracing/debugging with reports |
+| **Detox** | ^20.47.0 | React Native mobile E2E | Gray-box testing framework built for React Native by Wix, faster than black-box tools (knows app internals), JavaScript/TypeScript based, excellent for Expo apps, already in mobile package.json |
+| **Tauri Test** | (via cargo test) | Desktop E2E testing | Built-in Tauri testing utilities, tests both frontend (web) and backend (Rust), native command mocking, cross-platform (Windows/macOS/Linux), no external dependencies |
+| **k6** | ^0.52.0 | API stress testing | Developer-friendly JS-based scripting, CI/CD integration, supports HTTP/1.1/2/WebSocket, excellent for load scenarios and edge case discovery, cost-effective bug discovery |
+| **pytest** | ^7.4.0 | Cross-platform orchestration | Already installed for backend tests, can orchestrate all E2E test runners, fixtures for test data management, parallel execution with pytest-xdist, integrates with governance system |
 
-### Database Testing
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **pytest-xdist** | 3.6+ | Parallel test execution | Run tests in parallel for faster feedback, worker isolation |
-| **factory-boy** | 3.3+ | Test data generation | SQLAlchemy integration, reduces fixture boilerplate |
-| **freezegun** | 1.4+ | Time mocking | Deterministic timestamp testing, critical for episodes/time-based logic |
-| **SQLAlchemy test DB** | 2.0+ (via core) | In-memory SQLite | Fast test isolation, no external dependencies, transaction rollback |
+### Test Reporting & Observability
 
-**Current Status:** ✅ INSTALLED - All database testing tools present
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **Allure Report** | ^2.27.0 | Unified test reporting | Framework-agnostic (works with pytest, Playwright, Detox), rich HTML reports with screenshots/videos, test history trends, integrates with CI/CD, supports severity/suite/epic tags for bug tracking |
+| **Playwright Reporter** | (built-in) | Web test artifacts | HTML reporter with traces, video recording, screenshots on failure, timeline view, already configured in existing e2e_ui setup |
+| **Detox Reporter** | (built-in) | Mobile test artifacts | JUnit XML output for CI integration, detailed error messages with screenshots, test result aggregation |
 
-### Property-Based Testing
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **Hypothesis** | 6.92+ | Property-based testing | Finds edge cases unit tests miss, stateful testing, strategy-based data generation |
-| **hypothesis[strategies]** | bundled | Advanced strategies | Complex data generation (lists, dicts, custom types), fuzzing integration |
+### Test Data Management & Mocking
 
-**Current Status:** ✅ INSTALLED - Hypothesis 6.92.0 in requirements.txt
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **Faker.js** | ^8.4.0 | Test data generation | Generate realistic test data for user flows, can be used across all platforms, supports locale-specific data, integrates with pytest fixtures |
+| **MSW (Mock Service Worker)** | ^1.3.0 | API mocking | Intercept and mock HTTP requests, works with all platforms, TypeScript support, can simulate error conditions for bug discovery |
+| **SQLite** | ^3.44.0 | Test database | Lightweight testing database, already in use for backend tests, can be reset between tests for isolation |
 
-### API & Integration Testing
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **FastAPI TestClient** | 0.104+ (via core) | HTTP endpoint testing | Synchronous client for FastAPI apps, request/response validation |
-| **httpx** | 0.24+ (via core) | Async HTTP testing | Async client for real-world API testing, WebSocket support |
-| **responses** | 0.23+ (via core) | HTTP mocking | Mock external HTTP requests, deterministic external service testing |
-| **Schemathesis** | 3.6+ | API contract testing | OpenAPI schema validation, property-based API testing |
-| **openapi-spec-validator** | 0.5+ | Schema validation | Verify OpenAPI spec correctness, contract-first testing |
+### Test Orchestration & CI/CD Integration
 
-**Current Status:** ✅ INSTALLED - Schemathesis and validator present in requirements.txt
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **GitHub Actions** | (existing) | Test orchestration | Already configured for CI/CD, supports matrix builds for cross-platform testing, can run web/mobile/desktop tests in parallel |
+| **pytest-xdist** | ^3.3.0 | Test parallelization | Speed up test execution, distribute tests across workers, compatible with existing pytest fixtures |
+| **Docker** | ^24.0.0 | Test environment consistency | Containerize test environments for reproducible results, isolate test dependencies |
 
-### Quality & Reporting
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **pytest-json-report** | 1.5+ | JSON test results | Machine-readable test reports, CI integration, trend analysis |
-| **pytest-random-order** | 1.1+ | Flaky test detection | Randomize test execution order to expose hidden dependencies |
-| **pytest-rerunfailures** | 14.0+ | Retry flaky tests | Automatic retry for intermittent failures, identifies flaky tests |
-| **diff-cover** | 8.0+ | Coverage diff | PR coverage comments, incremental coverage enforcement |
+### Browser Automation Tools (for web)
 
-**Current Status:** ✅ INSTALLED - All quality tools in pyproject.toml [test-quality] section
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **Playwright** | ^1.57.0 (existing) | Cross-browser automation | Already configured for Chromium, supports Firefox/Safari for cross-browser testing, auto-waiting reduces flakiness |
+| **Playwright Trace Viewer** | (built-in) | Debugging tool | Visual debugging of test failures with network/activity traces, screenshots, console logs |
+
+### Mobile Testing Tools
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **Detox** | ^20.47.0 (existing) | React Native E2E | Already in mobile package.json, gray-box testing (faster), supports iOS/Android simulators and devices, built-in wait mechanisms |
+| **Detox Expo Helpers** | ^0.6.0 | Expo integration | Smooth integration with Expo build process, handles app lifecycle, device setup |
+| **Expo Detox Plugin** | (built-in) | Expo configuration | Automatic build process integration, test runner configuration |
+
+### Desktop Testing Tools
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **Tauri CLI** | ^2.0.0 | Desktop app testing | Built-in test runner (`cargo test`), tests both frontend web content and backend Rust commands, native API access |
+| **Tauri Driver** | ^2.0.0 | Desktop automation | Browser automation for Tauri web content, native window control, file system access |
+
+### Stress Testing & Bug Discovery
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **k6** | ^0.52.0 | Load/stress testing | JS-based scripting, CI-friendly, supports complex scenarios (ramping, pacing, chaos engineering), visual dashboard, cost-effective for API stress testing |
+| **k6 Cloud** | ^1.0.0 | Cloud scaling | Scale load testing beyond local machine, distributed virtual users, detailed analytics and reporting |
+| **Artillery** | ^2.0.0 | Alternative stress testing | Node.js-based, scenario definitions, real-time monitoring, good for complex API flows |
 
 ### Test Organization & Structure
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **pytest.ini** | bundled | pytest configuration | Centralized config, markers, coverage settings, test discovery |
-| **conftest.py** | bundled | Shared fixtures | Root fixtures, test isolation, database sessions, mock services |
-| **Faker** | 19.0+ (via core) | Fake data generation | Realistic test data, localization support, reduces hardcoded values |
 
-**Current Status:** ✅ IMPLEMENTED - 1,180+ test files, extensive conftest.py with 50+ fixtures
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **pytest** | ^7.4.0 (existing) | Test organization | Already in use for backend tests, supports fixtures, parametrization, markers for test categorization |
+| **pytest-bdd** | ^4.2.0 | BDD testing | Given/When/Then syntax for readable test scenarios, integrates with pytest fixtures |
+| **pytest-mock** | ^3.12.0 | Mocking utilities | Easy mocking of external services, compatible with existing test structure |
 
-### Mocking & External Services
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| **unittest.mock** | 3.11+ (stdlib) | Mocking framework | Built-in mocking, patch decorators, MagicMock for services |
-| **responses** | 0.23+ (via core) | HTTP request mocking | External API mocking without network calls |
-| **Mock Services** | custom (in conftest.py) | Domain-specific mocks | MockLLMProvider, MockEmbeddingService, MockWebSocket for testing |
+### Integration Points with Existing Infrastructure
 
-**Current Status:** ✅ IMPLEMENTED - Comprehensive mock services in tests/fixtures/mock_services.py
+| Component | Integration Approach | Benefits |
+|-----------|-------------------|---------|
+| **Governance System** | Test agents with different maturity levels (STUDENT/INTERN/SUPERVISED/AUTONOMOUS) | Ensure testing respects agent permissions, test governance rules, verify action complexity mappings |
+| **Backend API** | Direct API testing with k6 and pytest | Test API endpoints under load, verify backend integration, test error handling |
+| **Canvas System** | Test canvas presentations and submissions | Verify canvas state management, form submissions, chart rendering across platforms |
+| **Agent Execution** | Test agent-triggered workflows | Verify agent execution flows, error handling, state persistence |
+| **Authentication** | Test login flows across all platforms | Ensure consistent user experience, test OAuth flows, session management |
 
----
+## Installation & Setup
 
-## Current Coverage Analysis
+### Core E2E Testing Dependencies
 
-### Actual Coverage (Methodology Gap Identified)
-- **Reported:** 74.6% (service-level estimates, inaccurate)
-- **Measured:** 8.50% actual line coverage (coverage.json)
-- **Target:** 80% line coverage
-- **Gap:** 71.5 percentage points
-- **Total Backend Lines:** 72,727
-
-### Critical Issue: Service-Level vs Line Coverage
-The 74.6% figure is based on service-level estimates, not actual line coverage. Real line coverage measured at 8.50% indicates most code paths are untested.
-
-### Test File Count
-- **Total test files:** 1,180+ Python files
-- **Test types:** Unit, integration, property-based, API contract, E2E
-- **Structure:** `tests/unit/`, `tests/integration/`, domain-specific subdirectories
-
----
-
-## Installation
-
-### Core Dependencies (Already Installed)
 ```bash
-# All core testing dependencies are in requirements.txt
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-pytest-cov>=4.1.0
-pytest-xdist==3.6.1
-hypothesis>=6.92.0
-factory_boy>=3.3.0
-pytest-freezegun>=0.4.0
-faker==22.7.0
+# Web E2E (Playwright) - Already installed
+cd backend/tests/e2e_ui
+npm install @playwright/test@^1.57.0
+npx playwright install --with-deps
+
+# Mobile E2E (Detox) - Already in mobile package.json
+cd mobile
+npm install
+npm run e2e:build
+npm run e2e:test
+
+# Desktop E2E (Tauri) - Built-in
+cd frontend-nextjs/src-tauri
+cargo test
+
+# Stress Testing (k6)
+npm install -g k6@^0.52.0
+
+# Test Reporting
+pip install allure-pytest@^2.13.0
 ```
 
-### Test Quality Dependencies (Already in pyproject.toml)
-```bash
-pip install -e .[test-quality]
+### Cross-Platform Test Configuration
 
-# Installs:
-# - pytest-json-report>=1.5.0
-# - pytest-random-order>=1.1.0
-# - pytest-rerunfailures>=14.0
-```
-
-### API Contract Testing (Already Installed)
-```bash
-# Already in requirements.txt
-pip install schemathesis>=3.6.0
-pip install openapi-spec-validator>=0.5.0
-```
-
-### Full Testing Stack Installation
-```bash
-cd backend
-pip install -e .[all]  # Includes enterprise, dev, test
-pip install -e .[test-quality]  # Quality tools
-```
-
----
-
-## What NOT to Add (Avoid Tool Bloat)
-
-### ❌ Not Recommended
-| Tool | Why Avoid |
-|------|-----------|
-| **mutmut** | Mutation testing overkill for 80% target, slows CI 10-100x |
-| **locust** | Load testing not needed for coverage goal, separate concern |
-| **py.test-benchmark** | Performance testing distinct from coverage, adds complexity |
-| **vcrpy** | Unnecessary with responses library, adds cassette maintenance |
-| **testmon** | pytest-xdist provides parallelization, testmon adds minimal value |
-| **pytest-bdd** | BDD layer unnecessary for unit/integration coverage goal |
-| **green** | Drop-in pytest replacement, no benefit over pytest 7.4+ |
-| **nose2** | Deprecated, pytest is superior in every dimension |
-
-### ✅ Alternatives to Use Instead
-| Instead of | Use This |
-|------------|----------|
-| mutmut | Coverage.py + manual code review for critical paths |
-| locust | Load testing tools (k6, locust) only when needed |
-| testmon | pytest-xdist for parallel execution |
-| vcrpy | responses library (already installed) |
-| Custom fixtures | factory-boy (already installed) |
-
----
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| **Coverage** | pytest-cov | coverage.py standalone | pytest-cov integrates seamlessly, uses same engine |
-| **Parallel** | pytest-xdist | pytest-parallel | xdist is mature, better worker isolation, loadscope distribution |
-| **Data** | factory-boy | model_bakery | factory_boy has SQLAlchemy integration, already installed |
-| **Time** | freezegun | time-machine | freezegun is stable, already installed, sufficient for tests |
-| **HTTP Mock** | responses | aioresponses | responses covers sync httpx/requests, sufficient for backend |
-
----
-
-## Coverage Configuration
-
-### Current pytest.ini Coverage Settings
-```ini
-[coverage:run]
-source = backend
-omit =
-    */tests/*
-    */test_*.py
-    */__pycache__/*
-    */migrations/*
-branch = true
-
-[coverage:report]
-precision = 2
-show_missing = True
-skip_covered = false
-fail_under = 80
-fail_under_branch = 70
-exclude_lines =
-    pragma: no cover
-    def __repr__
-    raise AssertionError
-    raise NotImplementedError
-    if __name__ == .__main__.:
-    if TYPE_CHECKING:
-    class .*\\bProtocol\\):
-    @(abc\\.)?abstractmethod
-```
-
-### Coverage Measurement Commands
-```bash
-# Measure coverage for specific module
-pytest tests/unit/governance/ --cov=core/agent_governance_service --cov-report=term-missing
-
-# Generate JSON report for metrics
-pytest tests/ --cov=backend --cov-report=json:tests/coverage_reports/metrics/coverage.json
-
-# HTML coverage report with missing lines
-pytest tests/ --cov=backend --cov-report=html:tests/coverage_reports/html
-
-# Combined line + branch coverage
-pytest tests/ --cov=backend --cov-branch --cov-report=term-missing:skip-covered
-
-# Parallel coverage measurement with xdist
-pytest -n auto tests/ --cov=backend --cov-report=term-missing
-```
-
----
-
-## Test Organization Patterns
-
-### Current Structure (1180+ test files)
-```
-backend/tests/
-├── unit/                          # Fast, isolated tests
-│   ├── governance/               # Domain-specific unit tests
-│   ├── llm/                      # LLM service coverage tests
-│   ├── episodes/                 # Episode segmentation tests
-│   ├── agent/                    # Agent governance tests
-│   └── test_*.py                 # Other unit tests
-├── integration/                   # Slower, dependency tests
-│   ├── services/                 # Service-level integration tests
-│   ├── api/                      # API endpoint integration tests
-│   ├── database/                 # Database integration tests
-│   └── test_*.py                 # Other integration tests
-├── conftest.py                   # Root fixtures (50+ fixtures)
-├── fixtures/                     # Shared fixture modules
-│   ├── mock_services.py          # Mock services (LLM, embeddings, storage)
-│   └── ...
-└── coverage_reports/             # Coverage metrics and reports
-    └── metrics/
-```
-
-### Fixture Hierarchy (Current Implementation)
 ```python
-# Root fixtures (autouse=True for isolation)
-@pytest.fixture(autouse=True)
-def isolate_environment()          # ENV var isolation
-@pytest.fixture(autouse=True)
-def reset_agent_task_registry()    # Singleton reset
-@pytest.fixture(autouse=True)
-def ensure_numpy_available()       # Module restoration
+# conftest.py - Shared pytest configuration
+import pytest
+from playwright.sync_api import Page
 
-# Database fixtures
-@pytest.fixture(scope="function")
-def db_session()                   # In-memory SQLite per test
-
-# Agent fixtures
-@pytest.fixture(scope="function")
-def test_agent_student()           # STUDENT maturity agent
-@pytest.fixture(scope="function")
-def test_agent_intern()            # INTERN maturity agent
-@pytest.fixture(scope="function")
-def test_agent_supervised()        # SUPERVISED maturity agent
-@pytest.fixture(scope="function")
-def test_agent_autonomous()        # AUTONOMOUS maturity agent
-
-# Mock services
+# Cross-platform fixtures
 @pytest.fixture(scope="session")
-def mock_llm_service()             # Session-scoped LLM mock
-@pytest.fixture(scope="function")
-def mock_llm_response()            # Deterministic LLM responses
-@pytest.fixture(scope="function")
-def mock_embedding_vectors()       # Deterministic embeddings
-```
-
----
-
-## Parallel Execution with pytest-xdist
-
-### Current Configuration
-```ini
-# pytest.ini
-addopts = -n auto --dist loadscope --maxfail=10
-```
-
-### Worker Isolation Strategy
-```python
-# Implemented in conftest.py
-def pytest_configure(config):
-    """Set unique worker ID for parallel execution"""
-    if hasattr(config, 'workerinput'):
-        worker_id = config.workerinput.get('workerid', 'master')
-        os.environ['PYTEST_XDIST_WORKER_ID'] = worker_id
-
-@pytest.fixture(scope="function")
-def unique_resource_name():
-    """Generate unique resource name for parallel tests"""
-    worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
-    unique_id = str(uuid.uuid4())[:8]
-    return f"test_{worker_id}_{unique_id}"
-```
-
-### Distribution Strategies
-```bash
-# Load balancing by test scope (default)
-pytest -n auto --dist loadscope
-
-# Load balancing by file
-pytest -n auto --dist loadfile
-
-# Explicit worker count
-pytest -n 4 --dist loadscope
-```
-
----
-
-## Property-Based Testing with Hypothesis
-
-### Current Implementation (6.92.0)
-```python
-from hypothesis import given, strategies as st
-
-@given(st.integers(), st.integers())
-def test_addition_commutative(x, y):
-    """Property: Addition is commutative for all integers"""
-    assert x + y == y + x
-
-@given(st.text(min_size=0, max_size=1000))
-def test_input_validation(text):
-    """Property: Input sanitization handles all strings"""
-    result = sanitize_input(text)
-    assert '\x00' not in result  # No null bytes
-    assert len(result) <= len(text)  # Sanitization doesn't add length
-```
-
-### Custom Strategies
-```python
-from hypothesis import strategies as st
-
-# Agent registry strategy
-agent_strategy = st.builds(
-    AgentRegistry,
-    name=st.text(min_size=1, max_size=50),
-    category=st.sampled_from(['testing', 'automation', 'analysis']),
-    confidence_score=st.floats(min_value=0.0, max_value=1.0),
-    status=st.sampled_from([s.value for s in AgentStatus])
-)
-
-# Episode strategy
-episode_strategy = st.builds(
-    Episode,
-    agent_id=st.uuids(),
-    title=st.text(min_size=1, max_size=200),
-    maturity_level=st.sampled_from(['STUDENT', 'INTERN', 'SUPERVISED', 'AUTONOMOUS'])
-)
-```
-
----
-
-## Integration Testing Strategies
-
-### Database Testing
-```python
-@pytest.fixture(scope="function")
-def db_session():
-    """In-memory SQLite for fast, isolated tests"""
-    fd, db_path = tempfile.mkstemp(suffix='.db')
-    os.close(fd)
-
-    engine = create_engine(
-        f"sqlite:///{db_path}",
-        connect_args={"check_same_thread": False},
-        echo=False
-    )
-
-    Base.metadata.create_all(engine, checkfirst=True)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-
-    yield session
-
-    # Cleanup
-    session.close()
-    engine.dispose()
-    os.unlink(db_path)
-```
-
-### API Testing with TestClient
-```python
-from fastapi.testclient import TestClient
+def browser_types():
+    return ["chromium", "firefox", "webkit"]
 
 @pytest.fixture
-def test_client():
-    """FastAPI TestClient for endpoint testing"""
-    from main import app
-    return TestClient(app)
+def mobile_app_config():
+    return {
+        "ios": {"device": "iPhone 14", "os": "17.0"},
+        "android": {"device": "Pixel 6", "os": "13.0"}
+    }
 
-def test_agent_registration(test_client):
-    """Test agent registration endpoint"""
-    response = test_client.post(
-        "/api/v1/agents",
-        json={
-            "name": "TestAgent",
-            "category": "testing",
-            "module_path": "test.module",
-            "class_name": "TestAgent"
-        }
-    )
-    assert response.status_code == 200
-    assert response.json()["name"] == "TestAgent"
+# Test data management
+@pytest.fixture
+def test_user_data():
+    return {
+        "email": "test@example.com",
+        "password": "securePassword123!",
+        "workspace": "test-workspace"
+    }
 ```
 
-### External Service Mocking with responses
+## Usage Examples
+
+### Web E2E Testing with Playwright
+
+```typescript
+// tests/auth-flow.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Authentication Flow', () => {
+  test('complete login to dashboard', async ({ page }) => {
+    // Navigate to login page
+    await page.goto('/login');
+
+    // Fill login form (governance-aware)
+    await page.fill('[data-testid="email"]', 'test@example.com');
+    await page.fill('[data-testid="password"]', 'securePassword123!');
+
+    // Submit and verify dashboard
+    await page.click('[data-testid="submit"]');
+    await expect(page).toHaveURL('/dashboard');
+
+    // Test agent chat interaction
+    await page.click('[data-testid="new-chat"]');
+    await page.fill('[data-testid="message-input"]', 'Hello, test agent');
+    await page.click('[data-testid="send"]');
+
+    // Verify agent response (governance level check)
+    await expect(page.locator('[data-testid="agent-response"]')).toBeVisible();
+  });
+
+  test('canvas presentation workflow', async ({ page }) => {
+    // Test canvas chart presentation
+    await page.goto('/canvas/new');
+    await page.click('[data-testid="chart-button"]');
+    await page.fill('[data-testid="chart-config"]', JSON.stringify({
+      type: 'line',
+      data: [{ x: 1, y: 10 }]
+    }));
+
+    // Present and verify
+    await page.click('[data-testid="present-chart"]');
+    await expect(page.locator('[data-testid="chart-container"]')).toBeVisible();
+  });
+});
+```
+
+### Mobile E2E Testing with Detox
+
+```javascript
+// e2e/auth-flow.test.js
+const detox = require('detox');
+const config = require('./detox.config');
+const { device, element, by } = require('detox');
+
+describe('Authentication Flow', () => {
+  beforeEach(async () => {
+    await device.reloadReactNative();
+  });
+
+  it('complete login to dashboard', async () => {
+    // Navigate to login screen
+    await element(by.id('login-screen')).tap();
+
+    // Fill login form
+    await element(by.id('email-input')).replaceText('test@example.com');
+    await element(by.id('password-input')).replaceText('securePassword123!');
+
+    // Submit and verify dashboard
+    await element(by.id('login-button')).tap();
+    await expect(element(by.id('dashboard-screen'))).toBeVisible();
+
+    // Test agent chat interaction
+    await element(by.id('new-chat-button')).tap();
+    await element(by.id('message-input')).replaceText('Hello, test agent');
+    await element(by.id('send-button')).tap();
+
+    // Verify agent response
+    await expect(element(by.id('agent-response'))).toBeVisible();
+  });
+
+  it('canvas presentation on mobile', async () => {
+    // Test canvas chart presentation
+    await element(by.id('canvas-button')).tap();
+    await element(by.id('chart-button')).tap();
+
+    // Configure and present chart
+    await element(by.id('chart-config-input')).replaceText('{"type":"bar"}');
+    await element(by.id('present-chart')).tap();
+
+    await expect(element(by.id('chart-container'))).toBeVisible();
+  });
+});
+```
+
+### Desktop E2E Testing with Tauri
+
+```rust
+// tests/integration_test.rs
+use tauri::test as tauri_test;
+
+#[tauri_test]
+async fn authentication_flow(app: tauri::App) {
+    // Get webview
+    let webview = app.get_webview("main").unwrap();
+
+    // Navigate to login page
+    webview.navigate("http://localhost:3000/login").await.unwrap();
+
+    // Fill login form
+    webview.fill("#email", "test@example.com").await.unwrap();
+    webview.fill("#password", "securePassword123!").await.unwrap();
+
+    // Submit and verify dashboard
+    webview.click("#submit").await.unwrap();
+    webview.wait_for_navigation("/dashboard").await.unwrap();
+
+    // Test desktop-specific features
+    webview.get_window().unwrap().set_title("ATOM Test").unwrap();
+    webview.get_window().unwrap().maximize().unwrap();
+}
+
+#[tauri_test]
+async fn canvas_desktop_interaction(app: tauri::App) {
+    let webview = app.get_webview("main").unwrap();
+
+    // Test canvas desktop interactions
+    webview.navigate("http://localhost:3000/canvas").await.unwrap();
+
+    // Test file upload for canvas data
+    webview.upload_file("#file-input", "/path/to/test/data.csv").await.unwrap();
+
+    // Verify chart rendering
+    webview.wait_for_element("#chart-container").await.unwrap();
+}
+```
+
+### Stress Testing with k6
+
+```javascript
+// tests/stress/api-stress.js
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { SharedArray } from 'k6/data';
+
+// Load test data from CSV
+const testData = new SharedArray('users', function () {
+  return open('./test-data/users.csv').split('\n').slice(1).map(line => {
+    const [email, password] = line.split(',');
+    return { email, password };
+  });
+});
+
+export let options = {
+  stages: [
+    { duration: '2m', target: 10 },   // Ramp up to 10 users
+    { duration: '5m', target: 50 },   // Hold at 50 users
+    { duration: '2m', target: 100 }, // Ramp up to 100 users
+    { duration: '10m', target: 100 }, // Hold at 100 users
+    { duration: '2m', target: 0 },    // Ramp down
+  ],
+};
+
+export default function () {
+  const user = testData[Math.floor(Math.random() * testData.length)];
+
+  // Test login flow
+  const loginRes = http.post('http://localhost:8000/api/v1/auth/login', {
+    email: user.email,
+    password: user.password,
+  });
+
+  check(loginRes, {
+    'login successful': (r) => r.status === 200,
+    'login response time < 500ms': (r) => r.timings.duration < 500,
+  });
+
+  // Get auth token
+  const token = loginRes.json('access_token');
+
+  // Test agent chat API
+  const chatRes = http.post('http://localhost:8000/api/v1/agents/chat', {
+    message: 'Hello, test agent',
+    agent_id: 'test-agent',
+  }, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+
+  check(chatRes, {
+    'chat successful': (r) => r.status === 200,
+    'chat response time < 2000ms': (r) => r.timings.duration < 2000,
+  });
+
+  // Test canvas API
+  const canvasRes = http.post('http://localhost:8000/api/v1/canvas/present', {
+    type: 'chart',
+    data: { type: 'line', points: [{ x: 1, y: 10 }] },
+  }, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+
+  check(canvasRes, {
+    'canvas presentation successful': (r) => r.status === 200,
+  });
+
+  sleep(1);
+}
+```
+
+### Cross-Platform Test Orchestration
+
 ```python
-import responses
+# tests/conftest.py
+import pytest
+import subprocess
+import json
+from pathlib import Path
 
-@responses.activate
-def test_llm_provider_fallback():
-    """Test LLM provider fallback on failure"""
-    # Mock primary provider failure
-    responses.add(
-        responses.POST,
-        "https://api.openai.com/v1/chat/completions",
-        status=500,
-        json={"error": "Internal server error"}
-    )
+@pytest.fixture(scope="session")
+def allure_results():
+    """Setup Allure results directory"""
+    results_dir = Path("test-results/allure-results")
+    results_dir.mkdir(parents=True, exist_ok=True)
+    return results_dir
 
-    # Mock fallback provider success
-    responses.add(
-        responses.POST,
-        "https://api.anthropic.com/v1/messages",
-        status=200,
-        json={"content": "Fallback response"}
-    )
+@pytest.fixture(scope="session")
+def run_cross_platform_tests(allure_results):
+    """Run cross-platform E2E tests"""
 
-    # Test fallback logic
-    handler = BYOKHandler()
-    response = handler.generate_response("test prompt")
-    assert "Fallback response" in response
+    # Run web tests with Playwright
+    web_results = subprocess.run([
+        "npx", "playwright", "test",
+        "--headed",
+        "--reporter=list",
+        f"--output={allure_results}/web-results"
+    ], cwd="backend/tests/e2e_ui", capture_output=True, text=True)
+
+    # Run mobile tests with Detox
+    mobile_results = subprocess.run([
+        "npm", "run", "e2e:test",
+        "--", "--reporter=junit",
+        f"--output={allure_results}/mobile-results/junit.xml"
+    ], cwd="mobile", capture_output=True, text=True)
+
+    # Run desktop tests with Tauri
+    desktop_results = subprocess.run([
+        "cargo", "test",
+        "--", "--reporter=json",
+        f"--output={allure_results}/desktop-results"
+    ], cwd="frontend-nextjs/src-tauri", capture_output=True, text=True)
+
+    # Run stress tests with k6
+    stress_results = subprocess.run([
+        "k6", "run",
+        "--out=json",
+        f"--output={allure_results}/stress-results.json",
+        "tests/stress/api-stress.js"
+    ], capture_output=True, text=True)
+
+    return {
+        'web': web_results,
+        'mobile': mobile_results,
+        'desktop': desktop_results,
+        'stress': stress_results
+    }
+
+@pytest.fixture
+def test_governance_levels():
+    """Test different agent maturity levels"""
+    return [
+        {'level': 'STUDENT', 'confidence': 0.4, 'permissions': ['read']},
+        {'level': 'INTERN', 'confidence': 0.6, 'permissions': ['read', 'present']},
+        {'level': 'SUPERVISED', 'confidence': 0.8, 'permissions': ['read', 'present', 'submit']},
+        {'level': 'AUTONOMOUS', 'confidence': 0.9, 'permissions': ['all']}
+    ]
 ```
 
----
+## Cross-Platform Test Execution
 
-## Coverage Target: 80% by Module
+### Unified Test Runner
 
-### High-Priority Modules (Low Coverage, High Impact)
-| Module | Current Coverage | Lines | Priority | Strategy |
-|--------|-----------------|-------|----------|----------|
-| `core/episode_segmentation_service.py` | 27% | 591 | HIGH | 75 focused tests in Phase 159-01 |
-| `core/llm/byok_handler.py` | 43% | 800+ | HIGH | HTTP-level mocking, provider paths |
-| `core/agent_governance_service.py` | 60% | 616 | MEDIUM | Permission checks, HITL actions |
-| `core/episode_retrieval_service.py` | Unknown | ~500 | MEDIUM | Retrieval modes, vector search |
-| `api/atom_agent_endpoints.py` | Unknown | ~400 | MEDIUM | Endpoint coverage, error paths |
+```python
+# tests/run_cross_platform.py
+import pytest
+import argparse
+from pathlib import Path
 
-### Coverage Improvement Strategy
-1. **Gap Analysis**: Use coverage.json to identify missing lines per module
-2. **Focused Tests**: Create targeted tests for unexecuted code paths
-3. **Property-Based Tests**: Add Hypothesis tests for complex logic
-4. **Integration Tests**: Cover service-to-service interactions
-5. **Edge Cases**: Error handling, boundary conditions, state transitions
+def run_cross_platform_tests(test_types=None, parallel=True):
+    """Run cross-platform E2E tests with unified reporting"""
 
----
+    test_types = test_types or ['web', 'mobile', 'desktop', 'stress']
+    results = {}
 
-## Migration Path from Current Setup
+    # Web tests
+    if 'web' in test_types:
+        print("Running Web E2E tests...")
+        results['web'] = pytest.main([
+            'backend/tests/e2e_ui/tests',
+            '--html=reports/web-report.html',
+            '--json-report=reports/web-report.json',
+            '-v'
+        ])
 
-### Phase 1: No Changes Required ✅
-- **Current setup is already optimal** for 80% coverage goal
-- All required tools installed and configured
-- Fixture system comprehensive (50+ fixtures in conftest.py)
-- Parallel execution enabled (pytest-xdist)
-- Coverage reporting configured (pytest-cov)
+    # Mobile tests
+    if 'mobile' in test_types:
+        print("Running Mobile E2E tests...")
+        results['mobile'] = subprocess.run([
+            'npm', 'run', 'e2e:test'
+        ], cwd='mobile')
 
-### Phase 2: Test Execution Optimization
-```bash
-# Run fast tests first (unit)
-pytest tests/unit/ -n auto --maxfail=10
+    # Desktop tests
+    if 'desktop' in test_types:
+        print("Running Desktop E2E tests...")
+        results['desktop'] = subprocess.run([
+            'cargo', 'test'
+        ], cwd='frontend-nextjs/src-tauri')
 
-# Run slow tests after (integration)
-pytest tests/integration/ -n auto --maxfail=5
+    # Stress tests
+    if 'stress' in test_types:
+        print("Running Stress tests...")
+        results['stress'] = subprocess.run([
+            'k6', 'run', '--out=json=reports/stress-results.json',
+            'tests/stress/api-stress.js'
+        ])
 
-# Run property-based tests separately (expensive)
-pytest tests/ -m property --hypothesis-seed=0
+    # Generate unified Allure report
+    generate_allure_report(results)
+
+    return results
+
+def generate_allure_report(results):
+    """Generate unified Allure report"""
+    subprocess.run([
+        'allure', 'generate', 'test-results/allure-results',
+        '-o', 'reports/allure-report',
+        '--clean'
+    ])
 ```
 
-### Phase 3: Coverage Measurement & Tracking
-```bash
-# Baseline measurement (current state)
-pytest tests/ --cov=backend --cov-report=json:tests/coverage_reports/metrics/baseline.json
+## Integration with Bug Tracking
 
-# Per-module coverage tracking
-pytest tests/unit/llm/ --cov=core/llm --cov-report=term-missing
+### Bug Reporting Integration
 
-# Trend tracking (PR-to-PR)
-diff-cover compare.json --compare-branch=origin/main
+```python
+# tests/bug_tracker.py
+import requests
+import json
+from datetime import datetime
+
+class BugTracker:
+    def __init__(self, tracker_url, api_key):
+        self.tracker_url = tracker_url
+        self.api_key = api_key
+
+    def report_bug(self, test_result, platform, severity):
+        """Report bug to tracking system"""
+
+        bug_data = {
+            'title': f'{platform} E2E Failure: {test_result["name"]}',
+            'description': f"""
+**Test Failed**: {test_result["name"]}
+**Platform**: {platform}
+**Severity**: {severity}
+**Time**: {datetime.now().isoformat()}
+**Error**: {test_result["error"]}
+
+**Steps to Reproduce**:
+{test_result["steps"]}
+
+**Environment**:
+- Browser: {test_result.get("browser", "N/A")}
+- Device: {test_result.get("device", "N/A")}
+- OS: {test_result.get("os", "N/A")}
+""",
+            'labels': ['e2e', platform, severity],
+            'priority': self._get_priority(severity)
+        }
+
+        response = requests.post(
+            f"{self.tracker_url}/api/issues",
+            json=bug_data,
+            headers={'Authorization': f'Bearer {self.api_key}'}
+        )
+
+        return response.json()
+
+    def _get_priority(self, severity):
+        """Map severity to priority"""
+        mapping = {
+            'critical': 1,
+            'high': 2,
+            'medium': 3,
+            'low': 4
+        }
+        return mapping.get(severity, 3)
 ```
-
-### Phase 4: Gap Closure (Phase 159-160)
-- Identify modules with lowest coverage
-- Create focused tests for missing code paths
-- Use property-based tests for complex logic
-- Add integration tests for service interactions
-
----
 
 ## Performance Benchmarks
 
-### Test Execution Time (Current)
-| Test Suite | Duration | Parallelization | Target |
-|------------|----------|-----------------|--------|
-| Unit tests | ~2-5 min | pytest-xdist (auto) | <5 min |
-| Integration tests | ~10-20 min | pytest-xdist (auto) | <15 min |
-| Property-based tests | ~5-10 min | Sequential (Hypothesis) | <10 min |
-| **Total** | **~20-35 min** | **Mixed** | **<30 min** |
+| Test Type | Target Execution Time | Current (Baseline) | Improvement Goal |
+|-----------|---------------------|-------------------|------------------|
+| Web E2E (Playwright) | < 30 sec/test | ~45 sec/test | 33% faster |
+| Mobile E2E (Detox) | < 60 sec/test | ~90 sec/test | 33% faster |
+| Desktop E2E (Tauri) | < 20 sec/test | ~25 sec/test | 20% faster |
+| API Stress (k6) | < 100ms response | ~150ms response | 33% faster |
+| Cross-Platform Orchestration | < 10 min total | ~15 min total | 33% faster |
 
-### Coverage Measurement Overhead
-| Command | Overhead | Notes |
-|---------|----------|-------|
-| `pytest tests/` | 0s | No coverage |
-| `pytest --cov=backend` | ~10-20% | Coverage measurement |
-| `pytest --cov-report=html` | ~20-30% | HTML generation |
-| `pytest -n auto --cov` | ~15-25% | Parallel + coverage |
+## CI/CD Pipeline Integration
 
----
+### GitHub Actions Workflow
+
+```yaml
+# .github/workflows/e2e-testing.yml
+name: Cross-Platform E2E Testing
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e2e-testing:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [web, mobile, desktop]
+        browser: [chromium, firefox]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm install
+        cd mobile && npm install
+
+    - name: Start backend service
+      run: npm run test:start &
+
+    - name: Run ${{ matrix.platform }} tests
+      if: matrix.platform == 'web'
+      run: |
+        cd backend/tests/e2e_ui
+        npx playwright test --headed --browser=${{ matrix.browser }}
+
+    - name: Run mobile tests
+      if: matrix.platform == 'mobile'
+      run: |
+        cd mobile
+        npm run e2e:build
+        npm run e2e:test
+
+    - name: Run desktop tests
+      if: matrix.platform == 'desktop'
+      run: |
+        cd frontend-nextjs/src-tauri
+        cargo test
+
+    - name: Generate Allure report
+      run: |
+        allure generate test-results/allure-results -o reports/allure-report --clean
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.platform }}
+        path: |
+          reports/
+          test-results/
+```
+
+## Cost Analysis
+
+| Component | Monthly Cost | Cost Rationale |
+|-----------|-------------|----------------|
+| Playwright (self-hosted) | $0 | Open source, no licensing |
+| Detox (self-hosted) | $0 | Open source, no licensing |
+| k6 Cloud (500 VU) | $149/month | Cloud load testing, scalable |
+| Allure (self-hosted) | $0 | Open source reporting |
+| Total | $149/month | Cost-effective for comprehensive testing |
+
+## Alternative Considerations
+
+| Category | Recommended | Alternative | Why Not Recommended |
+|----------|-------------|-------------|---------------------|
+| Mobile E2E | Detox | Appium | Slower, black-box only, more complex setup |
+| Stress Testing | k6 | JMeter | Steeper learning curve, Java-based, slower setup |
+| Test Reporting | Allure | Mochawesome | Less comprehensive, poor cross-platform support |
+| Test Orchestration | pytest | TestNG | Java-based, less flexible fixtures, worse integration |
+
+## Gaps to Address
+
+1. **Mobile device cloud testing**: Need BrowserStack or Sauce Labs for real device testing
+2. **Performance regression testing**: Add continuous performance monitoring
+3. **Visual regression testing**: Add Percy or Applitools for visual comparisons
+4. **Security testing**: Add OWASP ZAP for security scanning
+5. **Accessibility testing**: Add axe-core for accessibility validation
 
 ## Sources
 
-### Official Documentation (HIGH confidence)
-- pytest documentation: https://docs.pytest.org/
-- pytest-cov: https://pytest-cov.readthedocs.io/
-- coverage.py: https://coverage.readthedocs.io/
-- Hypothesis: https://hypothesis.readthedocs.io/
-- pytest-xdist: https://pytest-xdist.readthedocs.io/
-- factory-boy: https://factoryboy.readthedocs.io/
+- [Playwright Documentation](https://playwright.dev/)
+- [Detox Documentation](https://wix.github.io/detox/)
+- [k6 Documentation](https://k6.io/docs/)
+- [Tauri Testing Guide](https://tauri.app/v1/guides/testing/)
+- [Allure Report Documentation](https://docs.qameta.io/allure/)
 
-### Tool Comparison Guides (MEDIUM confidence)
-- pytest-cov vs coverage.py: Community consensus (pytest-cov is wrapper)
-- pytest-xdist vs pytest-parallel: xdist has better worker isolation
-- freezegun vs time-machine: freezegun is more stable
+## Next Steps
 
-### Best Practices (MEDIUM confidence)
-- Property-based testing patterns: Hypothesis documentation
-- Database testing patterns: SQLAlchemy test fixtures
-- API testing patterns: FastAPI TestClient docs
-- Parallel test execution: pytest-xdist documentation
-
-### Current Codebase Analysis (HIGH confidence)
-- /Users/rushiparikh/projects/atom/backend/pytest.ini
-- /Users/rushiparikh/projects/atom/backend/pyproject.toml
-- /Users/rushiparikh/projects/atom/backend/requirements.txt
-- /Users/rushiparikh/projects/atom/backend/tests/conftest.py
-- /Users/rushiparikh/projects/atom/backend/coverage.json
+1. **Phase 1**: Enhance existing Playwright tests with cross-browser coverage
+2. **Phase 2**: Implement Detox mobile testing with comprehensive test coverage
+3. **Phase 3**: Add Tauri desktop testing and stress testing with k6
+4. **Phase 4**: Implement unified reporting with Allure and bug tracking integration
+5. **Phase 5**: Add performance monitoring and visual regression testing

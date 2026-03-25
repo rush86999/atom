@@ -16,12 +16,12 @@ import platform
 import subprocess
 from typing import Any, Dict, List, Optional, Tuple
 
+# LLM Service Integration
 try:
-    import anthropic
-    ANTHROPIC_AVAILABLE = True
+    from core.llm_service import LLMService
+    LLM_SERVICE_AVAILABLE = True
 except ImportError:
-    ANTHROPIC_AVAILABLE = False
-    anthropic = None
+    LLM_SERVICE_AVAILABLE = False
 
 try:
     from PIL import Image, ImageGrab
@@ -82,30 +82,23 @@ class ScreenElement:
 class LuxModel:
     """LUX Model for Computer Use and Desktop Automation"""
 
-    def __init__(self, api_key: Optional[str] = None, governance_callback: Optional[callable] = None):
+    def __init__(self, tenant_id: str = "default", governance_callback: Optional[callable] = None):
         """
-        Initialize LUX model with API key
+        Initialize LUX model
         
         Args:
-            api_key: Anthropic API key
+            tenant_id: Tenant ID for metered AI operations
             governance_callback: Async function(action_type: str, details: dict) -> bool
-                               Returns True if action is allowed, False otherwise.
+                                Returns True if action is allowed, False otherwise.
         """
-        self.api_key = api_key or lux_config.get_anthropic_key()
+        self.tenant_id = tenant_id
         self.governance_callback = governance_callback
         
-        if not self.api_key:
-            # Fallback for testing if not set
-            logger.warning("ANTHROPIC_API_KEY not found in config, checking env")
-            self.api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("LUX_MODEL_API_KEY")
-            
-        if not self.api_key:
-             logger.warning("No API KEY found for LuxModel. Some features will fail.")
-
-        if self.api_key:
-            self.client = anthropic.Anthropic(api_key=self.api_key)
-        else:
-            self.client = None
+        # Use unified LLMService for all AI interactions
+        self.llm_service = None
+        if LLM_SERVICE_AVAILABLE:
+            self.llm_service = LLMService(tenant_id=tenant_id)
+            logger.info(f"LuxModel initialized with LLMService for tenant: {tenant_id}")
             
         if PYAUTOGUI_AVAILABLE:
             try:
@@ -154,8 +147,8 @@ class LuxModel:
 
     async def analyze_screen(self, screenshot: Image.Image, task: str = "Analyze the screen") -> List[ScreenElement]:
         """Analyze screen and identify interactive elements"""
-        if not self.client:
-            logger.error("Cannot analyze screen: No API Client")
+        if not self.llm_service:
+            logger.error("Cannot analyze screen: LLMService not available")
             return []
             
         try:
@@ -193,23 +186,27 @@ class LuxModel:
                         "text": prompt
                     },
                     {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": encoded_image
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{encoded_image}"
                         }
                     }
                 ]
             }
 
-            response = self.client.messages.create(
+            response_data = await self.llm_service.generate_completion(
                 messages=[message],
-                **self.model_config
+                model=self.model_config["model"],
+                tenant_id=self.tenant_id,
+                **{k: v for k, v in self.model_config.items() if k != "model"}
             )
 
+            if not response_data.get("success"):
+                logger.error(f"Screen analysis failed: {response_data.get('error')}")
+                return []
+
             # Parse response
-            result_text = response.content[0].text
+            result_text = response_data.get("content", "")
             try:
                 # Extract JSON from potential markdown blocks
                 if "```json" in result_text:
@@ -250,8 +247,8 @@ class LuxModel:
         Returns:
             List of ComputerAction objects
         """
-        if not self.client:
-             # Basic fallback logic for testing without API key
+        if not self.llm_service:
+             # Basic fallback logic for testing without LLM service
              if "calculator" in command.lower():
                  return [ComputerAction(ComputerActionType.OPEN_APP, {"app_name": "Calculator"}, 1.0, "Open Calculator")]
              return []
@@ -306,24 +303,26 @@ IMPORTANT:
             if screenshot:
                 encoded_image = self.encode_screenshot(screenshot)
                 content_parts.append({
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": encoded_image
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{encoded_image}"
                     }
                 })
 
             message = {"role": "user", "content": content_parts}
 
-            response = self.client.messages.create(
+            response_data = await self.llm_service.generate_completion(
                 messages=[message],
-                **self.model_config,
-                timeout=30.0  # Add timeout
+                tenant_id=self.tenant_id,
+                **self.model_config
             )
 
+            if not response_data.get("success"):
+                logger.error(f"Command interpretation failed: {response_data.get('error')}")
+                return []
+
             # Parse actions with better error handling
-            result_text = response.content[0].text
+            result_text = response_data.get("content", "")
             logger.debug(f"Lux response: {result_text[:200]}...")  # Log first 200 chars
 
             try:
@@ -376,15 +375,6 @@ IMPORTANT:
                     return await self.interpret_command(command, screenshot, retry_count + 1)
 
                 return []
-
-        except anthropic.APIConnectionError as e:
-            logger.error(f"API connection error: {e}")
-            # Retry for connection errors
-            if retry_count < 3:
-                logger.info(f"Retrying due to connection error (attempt {retry_count + 1}/3)")
-                await asyncio.sleep(2 ** retry_count)  # Exponential backoff
-                return await self.interpret_command(command, screenshot, retry_count + 1)
-            return []
 
         except Exception as e:
             logger.error(f"Command interpretation failed: {e}")
@@ -532,9 +522,9 @@ IMPORTANT:
 # Global LUX model instance
 lux_model = None
 
-async def get_lux_model() -> LuxModel:
+async def get_lux_model(tenant_id: str = "default") -> LuxModel:
     """Get or create LUX model instance"""
     global lux_model
-    if lux_model is None:
-        lux_model = LuxModel()
+    if lux_model is None or lux_model.tenant_id != tenant_id:
+        lux_model = LuxModel(tenant_id=tenant_id)
     return lux_model

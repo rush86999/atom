@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Root conftest.py for test suite configuration
 
@@ -164,6 +165,134 @@ def setup_byok_test_env():
         # but setup_byok_test_env is session-scoped, so it sets them for everyone.
 
 
+@pytest.fixture(scope="session")
+def worker_database():
+    """
+    Create worker-specific PostgreSQL schema for parallel test isolation.
+
+    Each pytest-xdist worker (gw0, gw1, gw2, gw3) gets its own database:
+    - gw0: {original_db}_gw0
+    - gw1: {original_db}_gw1
+    - gw2: {original_db}_gw2
+    - gw3: {original_db}_gw3
+
+    For SQLite: uses in-memory database (no worker isolation needed).
+
+    Yields:
+        SessionLocal: SQLAlchemy session factory for worker database
+
+    Example:
+        def test_something(worker_database):
+            db = worker_database()
+            # Use db for database operations
+    """
+    from core.database import DATABASE_URL
+    from sqlalchemy.engine.url import make_url
+
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
+
+    # For SQLite: use in-memory (no worker isolation needed)
+    if DATABASE_URL.startswith('sqlite'):
+        from core.models import Base
+        engine = create_engine(DATABASE_URL)
+        Base.metadata.create_all(engine)
+        SessionLocal = sessionmaker(bind=engine)
+        yield SessionLocal
+        engine.dispose()
+        return
+
+    # For PostgreSQL: create worker-specific database
+    db_url = make_url(DATABASE_URL)
+    worker_db_name = f"{db_url.database}_{worker_id}"
+
+    # Connect to system database (postgres) to create worker database
+    system_engine = create_engine(
+        f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}/postgres",
+        echo=False
+    )
+
+    # Drop worker database if exists (from previous test runs)
+    try:
+        with system_engine.connect() as conn:
+            conn.execute(f"DROP DATABASE IF EXISTS {worker_db_name}")
+            conn.execute(f"CREATE DATABASE {worker_db_name}")
+            conn.commit()
+    except Exception as e:
+        print(f"Warning: Could not create worker database: {e}")
+        system_engine.dispose()
+        raise
+
+    system_engine.dispose()
+
+    # Create engine for worker database
+    from core.models import Base
+    worker_engine = create_engine(
+        f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}/{worker_db_name}",
+        echo=False
+    )
+
+    # Create tables
+    Base.metadata.create_all(worker_engine)
+    SessionLocal = sessionmaker(bind=worker_engine)
+
+    yield SessionLocal
+
+    # Cleanup: drop worker database
+    worker_engine.dispose()
+    system_engine = create_engine(
+        f"{db_url.drivername}://{db_url.username}:{db_url.password}@{db_url.host}/postgres",
+        echo=False
+    )
+    try:
+        with system_engine.connect() as conn:
+            conn.execute(f"DROP DATABASE IF EXISTS {worker_db_name}")
+            conn.commit()
+    except Exception as e:
+        print(f"Warning: Could not drop worker database: {e}")
+    finally:
+        system_engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_session(worker_database):
+    """
+    Function-scoped database session with transaction rollback.
+
+    Uses worker-specific schema from worker_database fixture.
+    All changes are rolled back after test (instant cleanup).
+
+    Args:
+        worker_database: Session-scoped worker database fixture
+
+    Yields:
+        Session: SQLAlchemy session for test
+
+    Example:
+        def test_agent_creation(db_session):
+            agent = AgentFactory.create(_session=db_session)
+            assert db_session.query(AgentRegistry).count() == 1
+            # Changes rolled back after test
+    """
+    SessionLocal = worker_database
+    session = SessionLocal()
+
+    # Start nested transaction for rollback
+    from sqlalchemy import Connection
+    if isinstance(session, Connection):
+        transaction = session.begin_nested()
+    else:
+        transaction = session.begin_nested()
+
+    yield session
+
+    # Rollback transaction (instant cleanup, no foreign key issues)
+    try:
+        session.rollback()
+    except Exception:
+        pass
+    session.close()
+
+
 @pytest.fixture(autouse=True)
 def reset_agent_task_registry(request):
     """
@@ -205,98 +334,6 @@ def unique_resource_name():
     worker_id = os.environ.get('PYTEST_XDIST_WORKER_ID', 'master')
     unique_id = str(uuid.uuid4())[:8]
     return f"test_{worker_id}_{unique_id}"
-
-
-@pytest.fixture(scope="function")
-def db_session():
-    """
-    Standardized database session fixture for all tests.
-
-    Creates a fresh in-memory SQLite database for each test function.
-    This fixture is function-scoped to ensure complete test isolation.
-
-    Uses tempfile-based SQLite file for better compatibility with
-    SQLAlchemy multiprocessing and LanceDB integration tests.
-
-    Usage:
-        def test_my_feature(db_session):
-            agent = AgentRegistry(name="test", ...)
-            db_session.add(agent)
-            db_session.commit()
-    """
-    # Import here to avoid circular imports
-    from core.database import Base
-    import core.models # Ensure all models are registered
-
-    # Use file-based temp SQLite for tests (more stable than :memory:)
-    fd, db_path = tempfile.mkstemp(suffix='.db')
-    os.close(fd)
-
-    engine = create_engine(
-        f"sqlite:///{db_path}",
-        connect_args={"check_same_thread": False},
-        echo=False
-    )
-
-    # Store path for cleanup
-    engine._test_db_path = db_path
-
-    # Create tables using create_all with checkfirst
-    # This handles missing foreign key references gracefully
-    try:
-        Base.metadata.create_all(engine, checkfirst=True)
-    except Exception:
-        # If create_all fails, create tables individually
-        for table in Base.metadata.tables.values():
-            try:
-                table.create(engine, checkfirst=True)
-            except Exception:
-                # Skip tables that can't be created (missing FK refs, etc.)
-                continue
-
-    # Create session
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    session = TestingSessionLocal()
-
-    # Create default tenant for tests (required by SocialPost foreign key)
-    from core.models import Tenant
-    default_tenant = session.query(Tenant).filter(Tenant.id == "default").first()
-    if not default_tenant:
-        default_tenant = Tenant(
-            id="default",
-            name="Default Tenant",
-            subdomain="default",
-            edition="personal",
-            plan_type="free",
-            is_active=True
-        )
-        session.add(default_tenant)
-        session.commit()
-
-    # Create default workspace for tests (required by MetaAgent)
-    from core.models import Workspace
-    default_workspace = session.query(Workspace).filter(Workspace.id == "default").first()
-    if not default_workspace:
-        default_workspace = Workspace(
-            id="default",
-            tenant_id="default",
-            name="Default Workspace",
-            description="Test workspace"
-        )
-        session.add(default_workspace)
-        session.commit()
-
-    yield session
-
-    # Cleanup
-    session.close()
-    engine.dispose()
-    # Delete temp database file
-    if hasattr(engine, '_test_db_path'):
-        try:
-            os.unlink(engine._test_db_path)
-        except Exception:
-            pass
 
 
 @pytest.fixture(scope="function")

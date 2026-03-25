@@ -219,3 +219,50 @@ def admin_user(db_session: Session) -> Tuple[User, str]:
     )
 
     return admin, token
+
+
+@pytest.fixture(scope="function")
+def authenticated_page_api(browser: Browser, base_url: str, setup_test_user: dict):
+    """Create authenticated page using API-first authentication (bypasses UI login).
+
+    This fixture is 10-100x faster than authenticated_page because it:
+    - Creates user via API (no UI form fill)
+    - Logs in via API endpoint
+    - Injects JWT token directly to localStorage
+    - Skips navigation to login page
+
+    Args:
+        browser: Playwright browser fixture (session-scoped)
+        base_url: Base URL fixture
+        setup_test_user: API fixture that creates test user and returns token
+
+    Yields:
+        Page: Authenticated Playwright page object
+
+    Example:
+        def test_authenticated_page(authenticated_page_api):
+            authenticated_page_api.goto(f"{base_url}/agents")
+            # User already authenticated, no login needed
+    """
+    # Get user data and token from API fixture
+    user_data = setup_test_user
+    access_token = user_data.get("access_token")
+    user_email = user_data.get("email")
+
+    # Create new browser context and page
+    context = browser.new_context()
+    page = context.new_page()
+
+    # Inject JWT token to localStorage (bypass UI login)
+    page.goto(base_url)
+    page.evaluate(f"""() => {{
+        localStorage.setItem('access_token', '{access_token}');
+        localStorage.setItem('auth_token', '{access_token}');
+        localStorage.setItem('user_email', '{user_email}');
+    }}""")
+
+    yield page
+
+    # Cleanup: close page and context
+    page.close()
+    context.close()

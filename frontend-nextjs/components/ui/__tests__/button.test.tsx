@@ -244,7 +244,7 @@ describe('Button Component', () => {
     });
 
     it('handles special characters in text', () => {
-      render(<Button>Button with &lt;special&gt; &amp; "characters"</Button>);
+      render(<Button>Button with &lt;special&gt; &amp; &quot;characters&quot;</Button>);
       const button = screen.getByRole('button');
       expect(button).toHaveTextContent('Button with <special> & "characters"');
     });

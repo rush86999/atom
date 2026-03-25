@@ -2,11 +2,11 @@
 
 ## Overview
 
-Comprehensive cross-platform testing initiative to achieve 80% code coverage across all platforms (backend Python, frontend React/Next.js, mobile React Native, desktop Tauri/Rust). Starting from v5.2's baseline (backend: 26.15%, frontend: 65.85%, mobile: infrastructure foundation, desktop: 65-70%), this milestone focuses on filling coverage gaps with targeted test development, fixing failing tests, and enforcing quality gates to prevent regression.
+Comprehensive cross-platform E2E testing expansion from 30+ to 600+ tests across web (Playwright), mobile (API-level), and desktop (Tauri) platforms to discover hidden bugs through real user flow validation, stress testing, and cross-platform consistency verification. Starting with test infrastructure foundation, then critical user paths (authentication → agents → canvas → workflows), and expanding to cross-platform consistency, stress testing, and bug discovery.
 
-**Current Milestone:** v6.0 BYOK Migration to Unified LLMService API — Consolidate all LLM interactions to unified interface, eliminate fragmentation, add observability
-**Active Phase:** Phase 226: LLM Provider Registry & LUX Integration (3 sub-phases)
-**Previous Milestone:** v5.5 Test Coverage Expansion — Achieve 80% backend coverage through targeted testing (PAUSED after Phase 221)
+**Current Milestone:** v7.0 Cross-Platform E2E Testing & Bug Discovery — Comprehensive E2E test expansion for cross-platform reliability and bug discovery
+**Active Phase:** Phase 233: Test Infrastructure Foundation
+**Previous Milestone:** v6.0 BYOK Migration to Unified LLMService API — Consolidate all LLM interactions to unified interface
 
 ## Milestones
 
@@ -14,11 +14,11 @@ Comprehensive cross-platform testing initiative to achieve 80% code coverage acr
 - ✅ **v3.3 Finance Testing & Bug Fixes** - Phases 91-110 (shipped 2026-02-25)
 - ✅ **v4.0 Platform Integration & Property Testing** - Phases 111-122 (shipped 2026-02-27)
 - ✅ **v5.0 Coverage Expansion** - Phases 123-152 (shipped 2026-03-01)
-- ✅ **v5.2 Complete Codebase Coverage** - Phases 153-152 (shipped 2026-03-08)
+- ✅ **v5.2 Complete Codebase Coverage** - Phases 153-162 (shipped 2026-03-08)
 - ✅ **v5.3 Coverage Expansion to 80% Targets** - Phases 153-162 (shipped 2026-03-11)
 - ✅ **v5.4 Backend 80% Coverage - Baseline & Plan** - Phases 163-171 (shipped 2026-03-11)
-- 🚧 **v5.5 Backend 80% Coverage - Execution** - Phases 172-193 (in progress)
-- 📋 **v6.0 BYOK Migration to Unified LLMService API** - Phases 222-232 (planned)
+- ✅ **v6.0 BYOK Migration to Unified LLMService API** - Phases 222-232 (shipped 2026-03-22)
+- 📋 **v7.0 Cross-Platform E2E Testing & Bug Discovery** - Phases 233-236 (planned)
 
 ## Phases
 
@@ -1937,4 +1937,137 @@ Plans:
 - [ ] 232-01: Create API reference documentation for LLMService
 - [ ] 232-02: Create migration guide for developers
 - [ ] 232-03: Create troubleshooting guide for common issues
+
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 222 → 223 → 224 → 225 → 225.1 → 226 → 227 → 228 → 229 → 230 → 231 → 232
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 222. Enhanced LLMService | 5/5 | Complete | 2026-03-22 |
+| 223. Critical Migration Part 1 | 0/4 | Not started | - |
+| 224. Critical Migration Part 2 | 0/4 | Not started | - |
+| 225. Critical Migration Part 3 | 0/3 | Not started | - |
+| 225.1. Security Audit | 0/1 | Not started | - |
+| 226. LLM Provider Registry | 2/14 | In progress | - |
+| 227. Agent System Standardization | 0/1 | Not started | - |
+| 228. API Routes & Tools Standardization | 0/2 | Not started | - |
+| 229. BYOKHandler Deprecation | 0/2 | Not started | - |
+| 230. Enhanced Observability | 0/5 | Not started | - |
+| 231. Comprehensive Testing | 0/4 | Not started | - |
+| 232. Documentation & Completion | 0/3 | Not started | - |
+
+---
+
+### 📋 v7.0 Cross-Platform E2E Testing & Bug Discovery (Planned)
+
+**Milestone Goal:** Comprehensive cross-platform E2E testing expansion from 30+ to 600+ tests across web (Playwright), mobile (API-level), and desktop (Tauri) platforms to discover hidden bugs through real user flow validation, stress testing, and cross-platform consistency verification.
+
+**Strategy:** Test infrastructure → Critical paths (auth → agents → canvas → workflows) → Cross-platform expansion → Stress testing & bug discovery
+
+**Timeline:** 2-3 weeks (comprehensive E2E suite development)
+
+#### Phase 233: Test Infrastructure Foundation
+**Goal**: Establish test data management, shared utilities, database isolation, and unified reporting infrastructure to support cross-platform E2E test expansion
+**Depends on**: Existing v3.1 E2E infrastructure (30+ tests, Playwright configured)
+**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, INFRA-06, INFRA-07, INFRA-08, INFRA-09, INFRA-10
+**Success Criteria** (what must be TRUE):
+  1. Tests have isolated data with unique IDs per test (UUID suffixes prevent constraint violations)
+  2. Tests run in parallel across 4 workers without data conflicts (pytest-xdist execution)
+  3. Database isolation works with worker-specific schemas and transaction rollbacks
+  4. Failed tests capture screenshots and videos for debugging (Playwright artifacts)
+  5. Test fixtures are reusable with factory-boy factories and pytest fixtures
+  6. Unified test runner orchestrates web, mobile, and desktop tests with Allure reporting
+**Plans**: 5 plans in 3 waves
+
+Plans:
+- [ ] 233-01-PLAN.md — Test data isolation enforcement (factory-boy _session parameter)
+- [ ] 233-02-PLAN.md — Database isolation with worker-specific schemas (PostgreSQL)
+- [ ] 233-03-PLAN.md — Test fixtures, utilities, and standards (API-first auth, shared helpers)
+- [ ] 233-04-PLAN.md — Failure artifacts capture (Allure screenshots/videos)
+- [ ] 233-05-PLAN.md — Unified test runner with Allure cross-platform reporting
+
+#### Phase 234: Authentication & Agent E2E ✅
+**Goal**: Comprehensive E2E tests for authentication flows and agent execution critical paths across web, mobile (API-level), and desktop platforms
+**Status**: Complete (2026-03-24)
+**Depends on**: Phase 233
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, AUTH-05, AUTH-06, AUTH-07, AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05, AGNT-06, AGNT-07, AGNT-08
+**Success Criteria** (what must be TRUE):
+  1. User can log in via web UI with email/password and JWT token validation (session persists)
+  2. User can log out via web UI with token invalidation (protected routes redirect)
+  3. JWT token refresh works on expiry with automatic re-authentication
+  4. API-first authentication bypasses UI login (100-500ms vs 10-60s for faster tests)
+  5. User can spawn agent via web UI and agent appears in agent registry
+  6. User can send chat message to agent and receive streaming response (WebSocket validation)
+  7. Multiple agents can be spawned concurrently with parallel execution
+  8. WebSocket reconnection logic works on connection drop (error handling)
+  9. Authentication and agent tests work across web, mobile (API), and desktop platforms
+**Plans**: 6 plans
+
+Plans:
+- [x] 234-01-PLAN.md — Web authentication E2E tests (login, logout, JWT validation, session persistence, protected routes)
+- [x] 234-02-PLAN.md — Token refresh, API-first auth validation, mobile auth (AUTH-04, AUTH-06, AUTH-07)
+- [x] 234-03-PLAN.md — Agent creation and registry verification tests (web UI, API validation)
+- [x] 234-04-PLAN.md — Agent chat streaming and WebSocket reconnection tests (progressive display, reconnection logic)
+- [x] 234-05-PLAN.md — Concurrent execution and governance enforcement tests (parallel users/agents, maturity levels)
+- [x] 234-06-PLAN.md — Agent lifecycle and cross-platform consistency tests (activation/deactivation, API schema)
+
+#### Phase 235: Canvas & Workflow E2E
+**Goal**: E2E tests for all 7 canvas types (chart, sheet, form, docs, email, terminal, coding) and workflow automation with skill execution and triggers
+**Depends on**: Phase 234
+**Requirements**: CANV-01, CANV-02, CANV-03, CANV-04, CANV-05, CANV-06, CANV-07, CANV-08, CANV-09, CANV-10, CANV-11, WORK-01, WORK-02, WORK-03, WORK-04, WORK-05, WORK-06, WORK-07, WORK-08, WORK-09, WORK-10
+**Success Criteria** (what must be TRUE):
+  1. All 7 canvas types render correctly (chart, sheet, form, docs, email, terminal, coding)
+  2. Form canvas validates input and submits (required fields, error messages)
+  3. Canvas state is accessible via ARIA hidden trees (window.atom.canvas.getState())
+  4. Rapid canvas present/close cycles work without memory leaks (stress testing)
+  5. User can install skill via web UI and skill appears in skill registry
+  6. User can execute skill with parameters and output parses correctly (JSON validation)
+  7. User can create workflow with multiple skills and DAG validates correctly (acyclic graph)
+  8. Workflow executes skills in correct order with orchestration verification
+  9. Workflow triggers fire correctly (manual, scheduled, event-based)
+  10. Canvas and workflow tests work across web, mobile (API), and desktop platforms
+**Plans**: TBD
+
+Plans:
+- [ ] 235-01: Canvas type rendering tests (chart, sheet, form, docs, email, terminal, coding)
+- [ ] 235-02: Canvas interaction and validation tests (input validation, form submission, ARIA trees)
+- [ ] 235-03: Canvas stress testing (rapid present/close cycles, memory leak detection)
+- [ ] 235-04: Skill installation and execution tests (web UI flow, API validation, JSON parsing)
+- [ ] 235-05: Workflow creation and DAG validation tests (workflow composition, acyclic graph verification)
+- [ ] 235-06: Workflow execution and trigger tests (skill order, manual/scheduled/event-based triggers)
+- [ ] 235-07: Cross-platform canvas and workflow tests (mobile API-level, desktop Tauri)
+
+#### Phase 236: Cross-Platform & Stress Testing
+**Goal**: Mobile/desktop testing expansion, load testing with k6 (10/50/100 concurrent users), network simulation, failure injection, visual regression (Percy), accessibility (WCAG 2.1 AA), and automated bug discovery
+**Depends on**: Phase 235
+**Requirements**: STRESS-01, STRESS-02, STRESS-03, STRESS-04, STRESS-05, STRESS-06, STRESS-07, STRESS-08, STRESS-09, STRESS-10, STRESS-11, MOBILE-01, MOBILE-02, MOBILE-03, MOBILE-04, MOBILE-05, MOBILE-06, MOBILE-07, A11Y-01, A11Y-02, A11Y-03, A11Y-04, A11Y-05, A11Y-06, A11Y-07
+**Success Criteria** (what must be TRUE):
+  1. Load testing with k6 simulates 10/50/100 concurrent users (baseline, moderate, high load)
+  2. Network simulation tests slow 3G connection and offline mode (Playwright context.route())
+  3. Failure injection tests database connection drops and API timeouts (error handling)
+  4. Memory leak detection uses CDP heap snapshots (before/after comparison)
+  5. Percy visual regression tests cover 20+ critical pages (expanded from 5)
+  6. jest-axe tests verify WCAG 2.1 AA compliance (frontend accessibility)
+  7. Color contrast meets WCAG AA standards (4.5:1 for normal text)
+  8. Keyboard navigation works for all interactive elements (Tab, Enter, Escape)
+  9. Mobile API-level tests authenticate, execute agents, run workflows, test device features
+  10. Desktop Tauri tests verify window management and native features (file system, system tray)
+  11. Desktop tests work cross-platform (Windows, macOS, Linux)
+  12. Automated bug filing creates GitHub Issues for reproducible failures
+  13. Stress tests run on schedule (nightly/weekly CI jobs)
+**Plans**: TBD
+
+Plans:
+- [ ] 236-01: Load testing with k6 (10/50/100 concurrent users, API reliability)
+- [ ] 236-02: Network simulation and failure injection tests (slow 3G, offline, DB drops, timeouts)
+- [ ] 236-03: Memory leak detection and performance regression testing (CDP snapshots, Lighthouse CI)
+- [ ] 236-04: Mobile API-level testing (auth, agents, workflows, device features)
+- [ ] 236-05: Desktop Tauri testing (window management, native features, cross-platform Win/Mac/Linux)
+- [ ] 236-06: Visual regression testing with Percy (expand from 5 to 20+ pages)
+- [ ] 236-07: Accessibility testing with jest-axe (WCAG 2.1 AA compliance, color contrast, keyboard nav)
+- [ ] 236-08: Automated bug discovery and filing (GitHub Issues integration, reproducible test cases)
+- [ ] 236-09: Stress testing CI/CD integration (nightly/weekly jobs, scheduled execution)
 

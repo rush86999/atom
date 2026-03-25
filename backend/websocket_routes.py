@@ -63,6 +63,26 @@ async def websocket_endpoint(
                     "type": "stats",
                     "data": stats
                 })
+
+            elif message_type == "agent_handoff":
+                # Delegate to coordination logic
+                from core.agent_coordination import handle_agent_handoff
+                from core.database import get_db_session
+                with get_db_session() as db:
+                    await handle_agent_handoff(
+                        room_id=f"workspace:{user.workspace_id}",
+                        data=data,
+                        user=user,
+                        tenant_id=user.tenant_id if hasattr(user, "tenant_id") else "default",
+                        db=db
+                    )
+            
+            elif message_type == "canvas_join":
+                # Simplified agent presence join
+                canvas_id = data.get("canvas_id")
+                if canvas_id:
+                    manager.subscribe(websocket, f"canvas:{canvas_id}")
+                    # In real app, we'd also update AgentCanvasPresence here
     
     except WebSocketDisconnect:
         manager.disconnect(websocket, user.id)

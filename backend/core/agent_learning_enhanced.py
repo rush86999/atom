@@ -19,14 +19,16 @@ Usage:
     signals = learning.get_learning_signals("agent-1", days=30)
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
+import json
 from typing import Any, Dict, List, Optional
 import uuid
 from sqlalchemy.orm import Session
 
 from core.agent_world_model import AgentExperience, WorldModelService
-from core.models import AgentExecution, AgentFeedback, AgentRegistry
+from core.models import AgentExecution, AgentFeedback, AgentRegistry, CognitiveExperience, AgentLearning
+from core.continuous_learning_service import ContinuousLearningService
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ class AgentLearningEnhanced:
         """
         self.db = db
         self.world_model = WorldModelService()
+        self.continuous_learning = ContinuousLearningService(db)
 
     def adjust_confidence_with_feedback(
         self,
@@ -136,10 +139,30 @@ class AgentLearningEnhanced:
         ).all()
 
         if not feedback:
+            # Check if we have aggregate learning data even if no recent feedback
+            learning_record = self.db.query(AgentLearning).filter(
+                AgentLearning.agent_id == agent_id
+            ).first()
+            
+            if not learning_record:
+                return {
+                    "agent_id": agent_id,
+                    "total_feedback": 0,
+                    "learning_signals": [],
+                    "improvement_suggestions": []
+                }
+            
+            # Use aggregate data if no recent feedback
             return {
                 "agent_id": agent_id,
-                "total_feedback": 0,
-                "learning_signals": [],
+                "total_feedback": learning_record.total_feedback or 0,
+                "positive_ratio": learning_record.success_rate or 0,
+                "parameters": learning_record.parameters_json or {},
+                "learning_signals": [{
+                    "type": "info",
+                    "message": "Aggregate learning data available, but no feedback in specified period.",
+                    "confidence_impact": "neutral"
+                }],
                 "improvement_suggestions": []
             }
 
@@ -163,7 +186,7 @@ class AgentLearningEnhanced:
         corrections = [f for f in feedback if f.feedback_type == "correction"]
 
         # Generate learning signals
-        signals = []
+        signals: List[Dict[str, Any]] = []
 
         if positive_ratio >= 0.8:
             signals.append({
@@ -220,11 +243,37 @@ class AgentLearningEnhanced:
                 "priority": "medium"
             })
 
+        # Add aggregate signals if available
+        learning_record = self.db.query(AgentLearning).filter(
+            AgentLearning.agent_id == agent_id
+        ).first()
+        
+        aggregate_data = {}
+        if learning_record:
+            # Calculate success rate from aggregate stats
+            success_rate = 0.0
+            if learning_record.total_feedback > 0:
+                success_rate = learning_record.positive_feedback / learning_record.total_feedback
+                
+            aggregate_data = {
+                "aggregate_total": learning_record.total_feedback,
+                "aggregate_success_rate": success_rate,
+                "current_parameters": learning_record.parameters_json
+            }
+            
+            if success_rate < 0.5:
+                signals.append({
+                    "type": "warning",
+                    "message": f"Long-term success rate for agent is low: {success_rate:.1%}",
+                    "confidence_impact": "negative"
+                })
+
         return {
             "agent_id": agent_id,
-            "total_feedback": total,
-            "positive_ratio": positive_ratio,
-            "correction_count": len(corrections),
+            "total_feedback_in_period": total,
+            "positive_ratio_in_period": positive_ratio,
+            "correction_count_in_period": len(corrections),
+            "aggregate_data": aggregate_data,
             "learning_signals": signals,
             "improvement_suggestions": suggestions
         }
@@ -375,21 +424,170 @@ class AgentLearningEnhanced:
 
         return new_confidence
 
-    def update_diversity_profile(self, agent_id: str, feedback_signals: Dict[str, Any]):
-        """Update agent diversity profile based on feedback signals."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-        if not agent:
-            return
-        
-        profile = agent.diversity_profile or {}
-        
-        # Adjust risk profile based on behavior patterns
-        if feedback_signals.get("positive_ratio", 0.5) > 0.8:
-            profile["risk_profile"] = "aggressive"
-        elif feedback_signals.get("positive_ratio", 0.5) < 0.3:
-            profile["risk_profile"] = "conservative"
-        else:
-            profile["risk_profile"] = "balanced"
+    async def record_user_correction(
+        self,
+        agent_id: str,
+        tenant_id: str,
+        original_action: Dict[str, Any],
+        corrected_action: Dict[str, Any],
+        context: Optional[str] = None
+    ) -> str:
+        """
+        Record a user correction for agent learning.
+        Ported from SaaS LearningService.
+        """
+        experience_id = str(uuid.uuid4())
+        try:
+            # Classify correction type
+            correction_type = self._classify_correction(original_action, corrected_action)
+
+            experience = CognitiveExperience(
+                id=experience_id,
+                tenant_id=tenant_id,
+                agent_id=agent_id,
+                experience_type="user_correction",
+                task_type=corrected_action.get("action_type", "unknown"),
+                input_summary=context or "User correction in GuidancePanel",
+                output_summary=json.dumps({
+                    "original": original_action,
+                    "corrected": corrected_action
+                }),
+                outcome="correction",
+                learnings={
+                    "original_action": original_action,
+                    "corrected_action": corrected_action,
+                    "correction_type": correction_type,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                },
+                effectiveness_score=0.0
+            )
+
+            self.db.add(experience)
             
-        agent.diversity_profile = profile
-        self.db.commit()
+            # Also adjust confidence (penalty for needing correction)
+            agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            if agent:
+                # Penalty: -0.05
+                agent.confidence_score = max(0.0, (agent.confidence_score or 0.5) - 0.05)
+                logger.info(f"Penalty for correction: Agent {agent_id} confidence -> {agent.confidence_score:.2f}")
+
+            self.db.commit()
+            
+            # Continuous learning update (adaptive parameters)
+            try:
+                self.continuous_learning.update_from_feedback(AgentFeedback(
+                    tenant_id=tenant_id,
+                    agent_id=agent_id,
+                    feedback_type="correction",
+                    user_correction=json.dumps(corrected_action),
+                    created_at=datetime.now(timezone.utc)
+                ))
+            except Exception as le:
+                logger.warning(f"Continuous learning update failed: {le}")
+
+            logger.info(f"Recorded user correction for agent {agent_id}: {correction_type}")
+            return experience_id
+
+        except Exception as e:
+            logger.error(f"Failed to record user correction: {e}")
+            self.db.rollback()
+            raise
+
+    def _classify_correction(self, original: Dict, corrected: Dict) -> str:
+        """Classify the type of correction made."""
+        if not isinstance(original, dict) or not isinstance(corrected, dict):
+            return "other_correction"
+        if original.get("action_type") != corrected.get("action_type"):
+            return "action_type_change"
+        if original.get("parameters") != corrected.get("parameters"):
+            return "parameter_adjustment"
+        return "other_correction"
+
+    async def record_rejection(
+        self,
+        agent_id: str,
+        tenant_id: str,
+        action_type: str,
+        action_data: Dict[str, Any],
+        reason: Optional[str] = None,
+        context: Optional[str] = None
+    ) -> str:
+        """Record a user rejection for agent learning."""
+        experience_id = str(uuid.uuid4())
+        try:
+            experience = CognitiveExperience(
+                id=experience_id,
+                tenant_id=tenant_id,
+                agent_id=agent_id,
+                experience_type="user_rejection",
+                task_type=action_type,
+                input_summary=context or "User rejection in GuidancePanel",
+                output_summary=json.dumps({
+                    "proposed_action": action_data,
+                    "rejection_reason": reason
+                }),
+                outcome="rejection",
+                learnings={
+                    "proposed_action": action_data,
+                    "rejection_reason": reason,
+                    "rejection_type": "explicit_rejection"
+                },
+                effectiveness_score=-0.5
+            )
+
+            self.db.add(experience)
+            
+            # Confidence penalty: -0.1 (stronger than correction)
+            agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+            if agent:
+                agent.confidence_score = max(0.0, (agent.confidence_score or 0.5) - 0.1)
+                logger.info(f"Penalty for rejection: Agent {agent_id} confidence -> {agent.confidence_score:.2f}")
+
+            self.db.commit()
+            
+            # Continuous learning update (adaptive parameters)
+            try:
+                self.continuous_learning.update_from_feedback(AgentFeedback(
+                    tenant_id=tenant_id,
+                    agent_id=agent_id,
+                    feedback_type="rejection",
+                    ai_reasoning=reason,
+                    created_at=datetime.now(timezone.utc)
+                ))
+            except Exception as le:
+                logger.warning(f"Continuous learning update failed: {le}")
+
+            return experience_id
+        except Exception as e:
+            logger.error(f"Failed to record rejection: {e}")
+            self.db.rollback()
+            raise
+
+    async def analyze_failure_patterns(
+        self,
+        agent_id: str,
+        tenant_id: str,
+        min_occurrences: int = 3
+    ) -> List[Dict[str, Any]]:
+        """Identify recurring failure patterns from CognitiveExperience records."""
+        try:
+            failures = self.db.query(CognitiveExperience).filter(
+                CognitiveExperience.agent_id == agent_id,
+                CognitiveExperience.tenant_id == tenant_id,
+                CognitiveExperience.outcome.in_(["failure", "correction", "rejection"])
+            ).order_by(CognitiveExperience.created_at.desc()).limit(100).all()
+
+            patterns: Dict[str, Dict[str, Any]] = {}
+            for exp in failures:
+                l = exp.learnings or {}
+                c_type = l.get("correction_type") or l.get("rejection_type") or "unknown"
+                if c_type not in patterns:
+                    patterns[c_type] = {"type": c_type, "count": 0, "examples": []}
+                patterns[c_type]["count"] += 1
+                if len(patterns[c_type]["examples"]) < 3:
+                    patterns[c_type]["examples"].append(exp.task_type)
+
+            return [p for p in patterns.values() if p["count"] >= min_occurrences]
+        except Exception as e:
+            logger.error(f"Failed to analyze failure patterns: {e}")
+            return []

@@ -7,6 +7,10 @@ import asyncio
 import json
 import logging
 import os
+try:
+    import pyarrow as pa
+except ImportError:
+    pa = None
 
 logger = logging.getLogger(__name__)
 # Lazy load Numpy to prevent Windows hang
@@ -90,11 +94,13 @@ try:
 except ImportError:
     get_byok_manager = None
 
-# LLMService Integration for OpenAI embeddings
+# LLMService and EmbeddingService Integration
 try:
     from core.llm_service import LLMService
+    from core.embedding_service import EmbeddingService
 except ImportError:
     LLMService = None
+    EmbeddingService = None
 
 
 
@@ -153,31 +159,19 @@ class LanceDBHandler:
 
         self.db = None
         self.embedder = None
-        self.openai_client = None
 
-        # BYOK Manager
-        try:
-            self.byok_manager = get_byok_manager() if get_byok_manager else None
-        except Exception as e:
-            logger.error(f"Failed to initialize BYOK manager: {e}", exc_info=True)
-            self.byok_manager = None
-
-        # Initialize LLMService for OpenAI embeddings (unified interface)
-        # LLMService handles BYOK API key resolution, cost tracking, and observability
-        # Used for OpenAI embeddings only (local embedder keeps sentence-transformers/fastembed)
-        if LLMService:
-            self.llm_service = LLMService(workspace_id=workspace_id or "default")
+        # Initialize EmbeddingService (Handles local and cloud providers)
+        # It handles BYOK, cost tracking, and model selection internally.
+        if EmbeddingService:
+            self.embedding_service = EmbeddingService(
+                provider=self.embedding_provider,
+                model=self.embedding_model
+            )
         else:
-            logger.warning("LLMService not available, OpenAI embeddings disabled")
-            self.llm_service = None
+            logger.warning("EmbeddingService not available, using MockEmbedder fallback")
+            self.embedding_service = None
 
-        # Initialize LanceDB if available (LAZY LOAD)
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
-        # if LANCEDB_AVAILABLE:
-        #     self._initialize_db()
-
-        # Initialize embedder (LAZY LOAD on first use to prevent import block)
-        # self._initialize_embedder()
         self.embedder = None
 
     def _ensure_db(self):
@@ -229,83 +223,12 @@ class LanceDBHandler:
             self.db = None
     
     def _initialize_embedder(self):
-        """
-        Initialize embedding provider
-
-        For OpenAI: LLMService handles client creation and API key resolution internally
-        For local: Uses sentence-transformers or fastembed
-        """
-        try:
-            if self.embedding_provider == "openai":
-                # Check if LLMService is available
-                if not self.llm_service:
-                    logger.warning("LLMService not available, falling back to local embeddings")
-                    self.embedding_provider = "local"
-                    self._init_local_embedder()
-                else:
-                    # LLMService handles OpenAI client creation and API key resolution
-                    # No direct client needed - use llm_service.generate_embedding
-                    self.openai_client = None  # Deprecated, use llm_service instead
-                    logger.info("OpenAI embeddings initialized via LLMService (BYOK enabled)")
-            else:
-                self._init_local_embedder()
-
-        except Exception as e:
-            logger.error(f"Failed to initialize embedder: {e}")
-            self.embedder = None
+        """No longer used. Logic moved to EmbeddingService."""
+        pass
 
     def _init_local_embedder(self):
-        """Initialize local sentence transformer or fallback to mock"""
-        try:
-            if SENTENCE_TRANSFORMERS_AVAILABLE:
-                logger.info(f"Attempting to load SentenceTransformer: {self.embedding_model}")
-                try:
-                    # Use threading for cross-platform timeout (Windows compatible)
-                    import threading
-                    import queue
-
-                    def load_model(q, model_name):
-                        try:
-                            # Suppress tokenizers warning parallelism
-                            os.environ["TOKENIZERS_PARALLELISM"] = "false"
-                            # Lazy import inside the thread to prevent main thread blocking
-                            from sentence_transformers import SentenceTransformer
-                            model = SentenceTransformer(model_name)
-                            q.put(model)
-                        except Exception as ex:
-                            q.put(ex)
-
-                    q = queue.Queue()
-                    t = threading.Thread(target=load_model, args=(q, self.embedding_model))
-                    t.daemon = True # Daemonize to avoid blocking exit
-                    t.start()
-                    t.join(timeout=15) # 15 second timeout
-
-                    if t.is_alive():
-                        logger.warning(f"SentenceTransformer initialization timed out for {self.embedding_model}")
-                        # We proceed to fallback. The daemon thread will eventually die or persist harmlessly.
-                        raise TimeoutError("Loading timed out")
-                    
-                    if not q.empty():
-                        result = q.get_nowait()
-                        if isinstance(result, Exception):
-                            raise result
-                        self.embedder = result
-                        logger.info(f"Local embedding model loaded: {self.embedding_model}")
-                        return
-                    else:
-                         raise Exception("Thread finished but returned no result")
-
-                except Exception as e:
-                    logger.warning(f"Failed to load SentenceTransformer (attempting fallback): {e}")
-                    # Fallthrough to mock
-            
-            logger.warning("Sentence transformers not available or failed to load. Using MockEmbedder.")
-            self.embedder = MockEmbedder(384)
-            
-        except Exception as e:
-             logger.error(f"Critical error in _init_local_embedder: {e}")
-             self.embedder = MockEmbedder(384)
+        """No longer used. Logic moved to EmbeddingService."""
+        pass
 
 
     def test_connection(self) -> Dict[str, Any]:
@@ -464,68 +387,47 @@ class LanceDBHandler:
     
     def embed_text(self, text: str) -> Optional[Any]:
         """
-        Embed text using configured provider
-
-        For OpenAI: Uses LLMService.generate_embedding (unified interface)
-        For local: Uses sentence-transformers or fastembed
-
-        Args:
-            text: Text to embed
-
-        Returns:
-            Embedding vector (numpy array or list) or None on failure
+        Embed text using unified EmbeddingService.
+        Sync version for legacy compatibility.
         """
-        self._ensure_embedder()
+        if not self.embedding_service:
+            logger.error("EmbeddingService not initialized")
+            return None
+
         try:
-            if self.embedding_provider == "openai" and self.llm_service:
-                # Use LLMService for unified embedding generation
-                # Note: embed_text is synchronous but LLMService.generate_embedding is async
-                # Use asyncio.run() when not in async context
-                try:
-                    import asyncio
-
-                    async def _get_embedding():
-                        return await self.llm_service.generate_embedding(
-                            text=text,
-                            model="text-embedding-3-small"  # 1536 dimensions
-                        )
-
-                    try:
-                        # Check if we're in an async context
-                        asyncio.get_running_loop()
-                        # We're in an async context, can't use asyncio.run()
-                        # Return None and let caller handle async properly
-                        logger.warning("embed_text called from async context - use async embedding methods")
-                        return None
-                    except RuntimeError:
-                        # No running event loop, safe to use asyncio.run()
-                        embedding = asyncio.run(_get_embedding())
-
-                    if NUMPY_AVAILABLE:
-                        import numpy as np
-                        return np.array(embedding)
-                    return embedding
-                except Exception as e:
-                    logger.error(f"LLMService embedding generation failed: {e}")
-                    raise
-
-            elif self.embedder:
-                try:
-                    if NUMPY_AVAILABLE:
-                        res = self.embedder.encode(text, convert_to_numpy=True)
-                    else:
-                        res = self.embedder.encode(text, convert_to_numpy=False)
-                    return res
-                except Exception as e:
-                    logger.error(f"embedder.encode failed: {e}")
-                    raise e
-
-            else:
-                logger.error(f"No embedding provider available. Provider: {self.embedding_provider}, Embedder: {self.embedder}")
+            import asyncio
+            try:
+                # Check if we're in an async context
+                asyncio.get_running_loop()
+                # Run in separate thread or similar? For now, we recommend async_embed_text.
+                logger.warning("embed_text (sync) called from async context. Please use async_embed_text.")
+                # We can't use asyncio.run(self.async_embed_text(text)) here.
+                # Just return None or use a thread-safe runner
                 return None
-
+            except RuntimeError:
+                # No running event loop, safe to use asyncio.run()
+                return asyncio.run(self.async_embed_text(text))
         except Exception as e:
-            logger.error(f"Failed to embed text: {e}")
+            logger.error(f"Failed to embed text (sync): {e}")
+            return None
+
+    async def async_embed_text(self, text: str) -> Optional[Any]:
+        """
+        Embed text using unified EmbeddingService.
+        Recommended async version.
+        """
+        if not self.embedding_service:
+            logger.error("EmbeddingService not initialized")
+            return None
+
+        try:
+            embedding = await self.embedding_service.generate_embedding(text)
+            if NUMPY_AVAILABLE:
+                import numpy as np
+                return np.array(embedding)
+            return embedding
+        except Exception as e:
+            logger.error(f"Failed to generate embedding: {e}")
             return None
     
     def add_knowledge_edge(self, from_id: str, to_id: str, rel_type: str, 
@@ -581,11 +483,25 @@ class LanceDBHandler:
             logger.error(f"Failed to add knowledge edge: {e}")
             return False
 
-    def add_document(self, table_name: str, text: str, source: str = "", 
+    def add_document(self, table_name: str, text: str, source: str = "",
                     metadata: Dict[str, Any] = None, user_id: str = "default_user",
                     extract_knowledge: bool = True, workspace_id: Optional[str] = None,
-                    doc_id: Optional[str] = None) -> bool:
-        """Add a single document to memory"""
+                    doc_id: Optional[str] = None, skip_ai_triggers: bool = False) -> bool:
+        """
+        Add a single document to memory
+
+        Args:
+            table_name: Name of the table to add document to
+            text: Document text content
+            source: Source of the document
+            metadata: Optional metadata dictionary
+            user_id: User ID who owns the document
+            extract_knowledge: Whether to extract knowledge (triggers AI)
+            workspace_id: Workspace ID
+            doc_id: Optional document ID (will generate if not provided)
+            skip_ai_triggers: If True, skip AI trigger coordinator and workflow triggers
+                             (Use for system-generated updates to prevent loops)
+        """
         if self.db is None:
             return False
         
@@ -665,44 +581,53 @@ class LanceDBHandler:
                     logger.warning(f"Failed to log user action for document upload: {e}")
                 
                 # Optional: Trigger knowledge extraction (non-blocking)
-                if extract_knowledge:
+                if extract_knowledge and not skip_ai_triggers:
                     from core.automation_settings import get_automation_settings
                     settings = get_automation_settings()
-                    
+
                     if settings.is_extraction_enabled():
                         from core.knowledge_ingestion import get_knowledge_ingestion
                         ingestor = get_knowledge_ingestion()
                         asyncio.create_task(ingestor.process_document(text, doc_id, source, user_id=user_id, workspace_id="default"))
                     else:
                         logger.info(f"Automatic knowledge extraction skipped for {doc_id} (disabled in settings)")
-                
-                # NEW: Trigger Workflow Events
-                try:
-                    from advanced_workflow_orchestrator import get_orchestrator
+                elif skip_ai_triggers:
+                    logger.info(f"AI triggers skipped for system document {doc_id}")
 
-                    # Non-blocking trigger
-                    asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", {
-                        "text": text,
-                        "doc_id": doc_id,
-                        "source": source,
-                        "metadata": metadata
-                    }))
-                except Exception as trigger_err:
-                    logger.warning(f"Failed to trigger workflow event: {trigger_err}")
-                
+                # NEW: Trigger Workflow Events (skip for system updates)
+                if not skip_ai_triggers:
+                    try:
+                        from advanced_workflow_orchestrator import get_orchestrator
+
+                        # Non-blocking trigger
+                        asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", {
+                            "text": text,
+                            "doc_id": doc_id,
+                            "source": source,
+                            "metadata": metadata
+                        }))
+                    except Exception as trigger_err:
+                        logger.warning(f"Failed to trigger workflow event: {trigger_err}")
+                else:
+                    logger.info(f"Workflow triggers skipped for system document {doc_id}")
+
                 # Phase 31: AI Universal Trigger Coordinator
                 # Route data through AI coordinator to decide if specialty agent should trigger
-                try:
-                    from core.ai_trigger_coordinator import on_data_ingested
-                    asyncio.create_task(on_data_ingested(
-                        data={"text": text, "doc_id": doc_id, "source": source, "metadata": metadata},
-                        source=source or "document_upload",
-                        workspace_id="default",
-                        user_id=user_id,
-                        metadata=metadata
-                    ))
-                except Exception as ai_trigger_err:
-                    logger.warning(f"Failed to invoke AI trigger coordinator: {ai_trigger_err}")
+                # Skip for system updates to prevent infinite loops
+                if not skip_ai_triggers:
+                    try:
+                        from core.ai_trigger_coordinator import on_data_ingested
+                        asyncio.create_task(on_data_ingested(
+                            data={"text": text, "doc_id": doc_id, "source": source, "metadata": metadata},
+                            source=source or "document_upload",
+                            workspace_id="default",
+                            user_id=user_id,
+                            metadata=metadata
+                        ))
+                    except Exception as ai_trigger_err:
+                        logger.warning(f"Failed to invoke AI trigger coordinator: {ai_trigger_err}")
+                else:
+                    logger.info(f"AI Trigger Coordinator skipped for system document {doc_id}")
                 
                 return True
             except Exception as e:

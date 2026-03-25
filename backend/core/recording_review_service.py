@@ -36,9 +36,18 @@ class RecordingReviewService:
     - Pattern recognition for performance insights
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, tenant_id: str = "default"):
         self.db = db
-        self.governance = AgentGovernanceService(db)
+        self.tenant_id = tenant_id
+        self._governance = None
+
+    @property
+    def governance(self) -> AgentGovernanceService:
+        """Lazy-loaded governance service"""
+        if self._governance is None:
+            from core.service_factory import ServiceFactory
+            self._governance = ServiceFactory.get_governance_service(self.db)
+        return self._governance
 
     async def create_review(
         self,
@@ -95,6 +104,7 @@ class RecordingReviewService:
                 recording_id=recording_id,
                 agent_id=recording.agent_id,
                 user_id=recording.user_id,
+                tenant_id=self.tenant_id,
                 review_status=review_status,
                 overall_rating=overall_rating,
                 performance_rating=performance_rating,
@@ -243,7 +253,7 @@ class RecordingReviewService:
         success_rate = operation_complete / max(total_events, 1)
 
         # Base analysis
-        analysis = {
+        analysis: Dict[str, Any] = {
             "issues": [],
             "patterns": [],
             "confidence": 0.5,
@@ -253,42 +263,58 @@ class RecordingReviewService:
             "safety_rating": 3
         }
 
+        # Use local lists to avoid Pyre type inference confusion with Dict[str, Any]
+        issues: List[str] = []
+        patterns: List[str] = []
+        overall_rating: int = 3
+        performance_rating: int = 3
+        safety_rating: int = 3
+        confidence: float = 0.5
+
         # Error analysis
         if error_count > 0:
             error_rate = error_count / max(total_events, 1)
-            analysis["issues"].append(f"errors_occurred: {error_count} errors ({error_rate:.1%} rate)")
-            analysis["confidence"] = min(0.8, analysis["confidence"] + 0.2)  # More confident with issues
-            analysis["overall_rating"] = max(1, analysis["overall_rating"] - 1)
+            issues.append(f"errors_occurred: {error_count} errors ({error_rate:.1%} rate)")
+            confidence = min(0.8, confidence + 0.2)  # More confident with issues
+            overall_rating = max(1, overall_rating - 1)
         else:
-            analysis["patterns"].append("error_free_execution")
-            analysis["confidence"] = min(0.9, analysis["confidence"] + 0.3)
-            analysis["overall_rating"] = min(5, analysis["overall_rating"] + 1)
+            patterns.append("error_free_execution")
+            confidence = min(0.9, confidence + 0.3)
+            overall_rating = min(5, overall_rating + 1)
 
         # Success analysis
         if success_rate >= 0.8 and operation_complete > 0:
-            analysis["patterns"].append("high_success_rate")
-            analysis["performance_rating"] = min(5, analysis["performance_rating"] + 1)
-            analysis["confidence"] = min(0.95, analysis["confidence"] + 0.2)
+            patterns.append("high_success_rate")
+            performance_rating = min(5, performance_rating + 1)
+            confidence = min(0.95, confidence + 0.2)
         elif success_rate < 0.5:
-            analysis["issues"].append("low_success_rate")
-            analysis["performance_rating"] = max(1, analysis["performance_rating"] - 1)
+            issues.append("low_success_rate")
+            performance_rating = max(1, performance_rating - 1)
 
         # User intervention analysis
         if user_intervention == 0:
-            analysis["patterns"].append("fully_autonomous")
-            analysis["confidence"] = min(0.95, analysis["confidence"] + 0.2)
-            analysis["safety_rating"] = min(5, analysis["safety_rating"] + 1)
+            patterns.append("fully_autonomous")
+            confidence = min(0.95, confidence + 0.2)
+            safety_rating = min(5, safety_rating + 1)
         elif user_intervention > 2:
-            analysis["issues"].append(f"high_intervention: {user_intervention} interventions")
-            analysis["safety_rating"] = max(1, analysis["safety_rating"] - 1)
+            issues.append(f"high_intervention: {user_intervention} interventions")
+            safety_rating = max(1, safety_rating - 1)
+
+        # Map back to analysis dict
+        analysis["issues"] = issues
+        analysis["patterns"] = patterns
+        analysis["overall_rating"] = overall_rating
+        analysis["performance_rating"] = performance_rating
+        analysis["safety_rating"] = safety_rating
+        analysis["confidence"] = confidence
 
         # Determine final status
-        if len(analysis["issues"]) == 0 and len(analysis["patterns"]) >= 2:
+        if len(issues) == 0 and len(patterns) >= 2:
             analysis["review_status"] = "approved"
-            analysis["overall_rating"] = min(5, analysis["overall_rating"] + 1)
-        elif len(analysis["issues"]) >= 3:
+            analysis["overall_rating"] = min(5, overall_rating + 1)
+        elif len(issues) >= 3:
             analysis["review_status"] = "rejected"
-            analysis["overall_rating"] = max(1, analysis["overall_rating"] - 1)
+            analysis["overall_rating"] = max(1, overall_rating - 1)
 
         # Generate feedback
         analysis["feedback"] = self._generate_feedback_summary(analysis)
@@ -577,6 +603,6 @@ class RecordingReviewService:
 
 
 # Singleton helper
-def get_recording_review_service(db: Session) -> RecordingReviewService:
+def get_recording_review_service(db: Session, tenant_id: str = "default") -> RecordingReviewService:
     """Get or create recording review service instance."""
-    return RecordingReviewService(db)
+    return RecordingReviewService(db, tenant_id=tenant_id)

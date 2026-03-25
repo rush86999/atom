@@ -23,10 +23,8 @@ except ImportError:
     workflow_scheduler = None
 
 # Import AI service for intent classification
-try:
-    from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-except ImportError:
-    RealAIWorkflowService = None
+# REALAI_WORKFLOW_SERVICE_DEP_REPLACED_BY_LLMSERVICE
+RealAIWorkflowService = None
 from fastapi import APIRouter, Body, HTTPException, Depends
 from sqlalchemy.orm import Session
 from operations.system_intelligence_service import SystemIntelligenceService
@@ -43,6 +41,7 @@ from core.knowledge_query_endpoints import get_knowledge_query_manager
 
 # Import chat history management
 from core.lancedb_handler import get_chat_history_manager
+from core.llm_service import LLMService
 
 # Import System and Search services
 from core.system_status import SystemStatus
@@ -59,8 +58,8 @@ from integrations.gmail_service import GmailService
 from integrations.google_calendar_service import GoogleCalendarService
 from integrations.quickbooks_routes import list_quickbooks_items
 
-# Initialize AI service
-ai_service = RealAIWorkflowService()
+# Initialize AI service (Legacy - will be removed)
+# ai_service = RealAIWorkflowService()
 
 # Initialize chat history components
 # Initialize chat history components
@@ -432,8 +431,8 @@ async def chat_with_agent(
             for msg in stored_history
         ]
         
-        # Initialize AI sessions if needed
-        await ai_service.initialize_sessions()
+        # LLM service initialization
+        llm_service = LLMService(tenant_id="default")
         
         # Phase 18: Inject System Intelligence Context
         system_context_str = ""
@@ -725,50 +724,26 @@ Current User Context (Page): {current_page or 'Unknown'}
     """
     
     try:
-        # Use BYOK system to get optimal provider for chat tasks
-        from core.byok_endpoints import get_byok_manager
-        byok = get_byok_manager()
+        # Use LLMService for intent classification
+        llm = LLMService(tenant_id="default")
+        
+        response = await llm.generate(
+            prompt=f"User Message: {message}\n\nReview the conversation history and business context to classify the intent and extract entities.",
+            system_instruction=system_prompt,
+            model="fast"
+        )
         
         try:
-            # Get optimal provider for "chat" task type
-            provider_id = byok.get_optimal_provider("chat")
-            
-            # Get API key for the provider
-            api_key = byok.get_api_key(provider_id)
-            
-            if not api_key:
-                return fallback_intent_classification(message)
-            
-            # Call the appropriate AI provider
-            if provider_id == "openai":
-                result = await ai_service.call_openai_api(message, system_prompt) if hasattr(ai_service, 'call_openai_api') else None
-            elif provider_id == "anthropic":
-                result = await ai_service.call_anthropic_api(message, system_prompt) if hasattr(ai_service, 'call_anthropic_api') else None
-            elif provider_id == "moonshot":
-                result = await ai_service.call_moonshot_api(message, system_prompt) if hasattr(ai_service, 'call_moonshot_api') else None
-            elif provider_id == "google":
-                result = await ai_service.call_google_api(message, system_prompt) if hasattr(ai_service, 'call_google_api') else None
-            elif provider_id == "google_flash":
-                result = await ai_service.call_google_api(message, system_prompt, model="gemini-1.5-flash") if hasattr(ai_service, 'call_google_api') else None
-            else:
-                # Default to DeepSeek if available
-                result = await ai_service.call_deepseek_api(message, system_prompt) if hasattr(ai_service, 'call_deepseek_api') else None
-            
-            # Track usage
-            if result:
-                byok.track_usage(provider_id, success=result.get("success", False), tokens_used=200)
-            
-            if result and result.get("success"):
-                content = result.get("response", "{}")
-                try:
-                    intent_data = json.loads(content)
-                    return intent_data
-                except json.JSONDecodeError:
-                    return fallback_intent_classification(message)
-            else:
-                return fallback_intent_classification(message)
+            # Strip markdown if present
+            clean_response = response.strip()
+            if clean_response.startswith("```json"):
+                clean_response = clean_response.split("```json")[1].split("```")[0].strip()
+            elif clean_response.startswith("```"):
+                clean_response = clean_response.split("```")[1].split("```")[0].strip()
                 
-        except ValueError:
+            return json.loads(clean_response)
+        except (json.JSONDecodeError, IndexError):
+            logger.warning(f"Failed to parse LLM response as JSON: {response[:100]}")
             return fallback_intent_classification(message)
             
     except Exception as e:

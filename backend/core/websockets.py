@@ -43,6 +43,16 @@ class ConnectionManager:
         self.DEVICE_SESSION_CLOSED = "device:session:closed"
         self.DEVICE_AUDIT_LOG = "device:audit:log"
 
+        # Coordination event types
+        self.AGENT_JOIN_CANVAS = "agent:join"
+        self.AGENT_LEAVE_CANVAS = "agent:leave"
+        self.AGENT_HANDOFF = "agent:handoff"
+        self.AGENT_COORDINATION_RESPONSE = "agent:coordination:response"
+        self.AGENT_COORDINATION_REQUEST = "agent:coordination:request"
+        self.AGENT_ACTION_COMPLETE = "agent:action:complete"
+        self.CANVAS_USER_JOIN = "canvas:user:join"
+        self.CANVAS_USER_LEAVE = "canvas:user:leave"
+
     async def connect(self, websocket: WebSocket, token: str):
         await websocket.accept()
 

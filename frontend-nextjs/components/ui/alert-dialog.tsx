@@ -1,52 +1,26 @@
-import * as React from "react"
-import { cn } from "@/lib/utils"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./dialog"
-import { buttonVariants } from "./button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
-const AlertDialog = Dialog
-const AlertDialogTrigger = DialogTrigger
-const AlertDialogContent = DialogContent
-const AlertDialogHeader = DialogHeader
-const AlertDialogFooter = DialogFooter
-const AlertDialogTitle = DialogTitle
-const AlertDialogDescription = DialogDescription
+// Export Dialog components as AlertDialog
+export const AlertDialog = Dialog;
+export const AlertDialogContent = DialogContent;
+export const AlertDialogDescription = DialogDescription;
+export const AlertDialogFooter = DialogFooter;
+export const AlertDialogHeader = DialogHeader;
+export const AlertDialogTitle = DialogTitle;
+export const AlertDialogTrigger = DialogTrigger;
 
-const AlertDialogAction = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, ...props }, ref) => (
-  <button
-    ref={ref}
-    className={cn(buttonVariants({ variant: "default" }), className)}
-    {...props}
-  />
-))
-AlertDialogAction.displayName = "AlertDialogAction"
+// AlertDialogAction is just a Button
+export const AlertDialogAction = Button;
 
-const AlertDialogCancel = React.forwardRef<
-  HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, ...props }, ref) => (
-  <button
-    ref={ref}
-    className={cn(
-      buttonVariants({ variant: "outline" }),
-      "mt-2 sm:mt-0",
-      className
-    )}
-    {...props}
-  />
-))
-AlertDialogCancel.displayName = "AlertDialogCancel"
+// AlertDialogCancel is a Button with outline variant
+export const AlertDialogCancel = Button;
 
-export {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
-}

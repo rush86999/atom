@@ -5,6 +5,7 @@ REST endpoints for training proposals, action proposals, and supervision session
 Supports all maturity levels: STUDENT (training), INTERN (proposals), SUPERVISED (monitoring).
 """
 
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, Query, WebSocket
@@ -29,6 +30,7 @@ from core.supervision_service import SupervisionOutcome, SupervisionService
 from core.training_websocket_events import TrainingWebSocketEvents
 
 router = BaseAPIRouter(prefix="/api/maturity", tags=["Agent Maturity"])
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -323,6 +325,8 @@ async def get_agent_training_history(
 @router.get("/proposals")
 async def list_action_proposals(
     agent_id: Optional[str] = Query(None, description="Filter by agent"),
+    canvas_id: Optional[str] = Query(None, description="Filter by canvas"),
+    tenant_id: Optional[str] = Query(None, description="Filter by tenant"),
     status_filter: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
@@ -335,6 +339,12 @@ async def list_action_proposals(
     if agent_id:
         query = query.filter(AgentProposal.agent_id == agent_id)
 
+    if canvas_id:
+        query = query.filter(AgentProposal.canvas_id == canvas_id)
+
+    if tenant_id:
+        query = query.filter(AgentProposal.tenant_id == tenant_id)
+
     if status_filter:
         query = query.filter(AgentProposal.status == status_filter)
 
@@ -346,13 +356,17 @@ async def list_action_proposals(
         "proposals": [
             {
                 "id": p.id,
+                "tenant_id": p.tenant_id,
                 "agent_id": p.agent_id,
                 "agent_name": p.agent_name,
+                "canvas_id": p.canvas_id,
+                "session_id": p.session_id,
                 "title": p.title,
                 "description": p.description,
                 "status": p.status,
                 "proposed_action": p.proposed_action,
                 "reasoning": p.reasoning,
+                "reversible": p.reversible,
                 "created_at": p.created_at.isoformat(),
                 "approved_by": p.approved_by,
                 "approved_at": p.approved_at.isoformat() if p.approved_at else None
@@ -378,14 +392,18 @@ async def get_action_proposal(
 
     return {
         "id": proposal.id,
+        "tenant_id": proposal.tenant_id,
         "agent_id": proposal.agent_id,
         "agent_name": proposal.agent_name,
+        "canvas_id": proposal.canvas_id,
+        "session_id": proposal.session_id,
         "title": proposal.title,
         "description": proposal.description,
         "proposal_type": proposal.proposal_type,
         "proposed_action": proposal.proposed_action,
         "reasoning": proposal.reasoning,
         "status": proposal.status,
+        "reversible": proposal.reversible,
         "proposed_by": proposal.proposed_by,
         "approved_by": proposal.approved_by,
         "approved_at": proposal.approved_at.isoformat() if proposal.approved_at else None,

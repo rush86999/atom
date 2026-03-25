@@ -22,7 +22,7 @@ from core.agent_context_resolver import AgentContextResolver
 from core.canvas_type_registry import canvas_type_registry
 from core.feature_flags import FeatureFlags
 from core.models import AgentExecution, CanvasAudit
-from core.service_factory import ServiceFactory
+
 from core.structured_logger import get_logger
 from core.websockets import manager as ws_manager
 
@@ -122,6 +122,7 @@ async def present_chart(
         if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
+                from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
@@ -214,6 +215,7 @@ async def present_chart(
                         db.commit()
 
                         # Record outcome for confidence
+                        from core.service_factory import ServiceFactory
                         governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
@@ -242,6 +244,7 @@ async def present_chart(
                         db.commit()
 
                         if agent:
+                            from core.service_factory import ServiceFactory
                             governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:
@@ -277,6 +280,7 @@ async def present_status_panel(
         if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
+                from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
 
                 agent, _ = await resolver.resolve_agent_for_request(
@@ -352,6 +356,7 @@ async def present_markdown(
         if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
+                from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
 
                 agent, _ = await resolver.resolve_agent_for_request(
@@ -432,6 +437,7 @@ async def present_markdown(
                         execution.completed_at = datetime.now()
                         db.commit()
 
+                        from core.service_factory import ServiceFactory
                         governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
@@ -478,6 +484,7 @@ async def present_form(
         if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
+                from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
 
                 agent, _ = await resolver.resolve_agent_for_request(
@@ -558,6 +565,7 @@ async def present_form(
                         execution.completed_at = datetime.now()
                         db.commit()
 
+                        from core.service_factory import ServiceFactory
                         governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
@@ -624,6 +632,7 @@ async def update_canvas(
         if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
+                from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
@@ -710,6 +719,7 @@ async def update_canvas(
                         db.commit()
 
                         # Record outcome for confidence
+                        from core.service_factory import ServiceFactory
                         governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
@@ -739,6 +749,7 @@ async def update_canvas(
                         db.commit()
 
                         if agent:
+                            from core.service_factory import ServiceFactory
                             governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:
@@ -950,6 +961,7 @@ async def canvas_execute_javascript(
         if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
+                from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
@@ -1071,6 +1083,7 @@ async def canvas_execute_javascript(
                         db.commit()
 
                         # Record outcome for confidence
+                        from core.service_factory import ServiceFactory
                         governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
@@ -1103,6 +1116,7 @@ async def canvas_execute_javascript(
                         db.commit()
 
                         if agent:
+                            from core.service_factory import ServiceFactory
                             governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:
@@ -1201,6 +1215,7 @@ async def present_specialized_canvas(
         if FeatureFlags.should_enforce_governance('canvas'):
             with get_db_session() as db:
                 resolver = AgentContextResolver(db)
+                from core.service_factory import ServiceFactory
                 governance = ServiceFactory.get_governance_service(db)
 
                 # Resolve agent
@@ -1317,6 +1332,7 @@ async def present_specialized_canvas(
                         db.commit()
 
                         # Record outcome for confidence
+                        from core.service_factory import ServiceFactory
                         governance_service = ServiceFactory.get_governance_service(db)
                         await governance_service.record_outcome(agent.id, success=True)
 
@@ -1351,6 +1367,7 @@ async def present_specialized_canvas(
                         db.commit()
 
                         if agent:
+                            from core.service_factory import ServiceFactory
                             governance_service = ServiceFactory.get_governance_service(db)
                             await governance_service.record_outcome(agent.id, success=False)
             except Exception as inner_e:

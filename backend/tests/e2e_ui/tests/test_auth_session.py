@@ -341,3 +341,198 @@ def test_session_token_format_valid(authenticated_page: Page):
     print(f"  - Expires at: {payload['exp']} (Unix timestamp)")
     print(f"  - Current time: {current_time}")
     print(f"  - Time to expiry: {payload['exp'] - current_time} seconds")
+
+
+def test_session_persists_across_navigation(authenticated_page_api: Page):
+    """Verify authentication persists across page navigation.
+
+    This test validates:
+    1. Initial token is stored in localStorage
+    2. Token persists when navigating to /dashboard
+    3. Token persists when navigating to /agents
+    4. Token persists when navigating to /settings
+    5. Token remains unchanged after all navigation
+
+    Args:
+        authenticated_page_api: Authenticated page fixture with JWT token
+
+    Coverage: AUTH-03 (Session persistence across navigation)
+    """
+    # Get initial token
+    initial_token = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
+
+    assert initial_token is not None, "Initial token should exist in localStorage"
+
+    # Navigate to multiple pages
+    authenticated_page_api.goto("http://localhost:3000/dashboard")
+    authenticated_page_api.wait_for_timeout(500)
+
+    # Verify token after dashboard navigation
+    token_after_dashboard = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
+    assert token_after_dashboard == initial_token, "Token should persist after navigating to dashboard"
+
+    authenticated_page_api.goto("http://localhost:3000/agents")
+    authenticated_page_api.wait_for_timeout(500)
+
+    # Verify token after agents navigation
+    token_after_agents = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
+    assert token_after_agents == initial_token, "Token should persist after navigating to agents"
+
+    authenticated_page_api.goto("http://localhost:3000/settings")
+    authenticated_page_api.wait_for_timeout(500)
+
+    # Verify token after settings navigation
+    token_after_settings = authenticated_page_api.evaluate("() => localStorage.getItem('access_token')")
+    assert token_after_settings == initial_token, "Token should persist after navigating to settings"
+
+    print("✓ Session persisted across all navigation (dashboard, agents, settings)")
+
+
+def test_session_persists_across_browser_restart(browser: Browser, setup_test_user):
+    """Verify authentication persists across browser restart using storage_state.
+
+    This test validates:
+    1. Create context and authenticate with JWT token
+    2. Save storage state to file
+    3. Close context
+    4. Create new context with saved storage state
+    5. Verify new context can access protected routes
+
+    Args:
+        browser: Playwright browser fixture
+        setup_test_user: API fixture that creates test user and returns token
+
+    Coverage: AUTH-03 (Session persistence across browser restart)
+    """
+    import os
+
+    # Get user data and token from API fixture
+    user_data = setup_test_user
+    access_token = user_data.get("access_token")
+
+    # Create context and authenticate
+    context = browser.new_context()
+    page = context.new_page()
+
+    # Set JWT token in localStorage
+    page.goto("http://localhost:3000")
+    page.evaluate(f"""() => {{
+        localStorage.setItem('access_token', '{access_token}');
+        localStorage.setItem('auth_token', '{access_token}');
+    }}""")
+
+    # Save storage state to file
+    storage_state_path = "/tmp/test_state.json"
+    context.storage_state(path=storage_state_path)
+
+    # Close context (simulate browser restart)
+    context.close()
+
+    # Verify storage state file was created
+    assert os.path.exists(storage_state_path), "Storage state file should be created"
+
+    # Create new context with saved storage state
+    new_context = browser.new_context(storage_state=storage_state_path)
+    new_page = new_context.new_page()
+
+    # Navigate to dashboard - should load without redirect to login
+    new_page.goto("http://localhost:3000/dashboard")
+    new_page.wait_for_timeout(1000)
+
+    # Verify we're on dashboard (not redirected to login)
+    current_url = new_page.url
+    assert "dashboard" in current_url.lower(), "Should be on dashboard (no login redirect)"
+
+    # Verify token exists in new context
+    restored_token = new_page.evaluate("() => localStorage.getItem('access_token')")
+    assert restored_token is not None, "Token should be restored from storage state"
+
+    # Cleanup
+    new_context.close()
+    if os.path.exists(storage_state_path):
+        os.remove(storage_state_path)
+
+    print("✓ Session persisted across browser restart using storage_state")
+
+
+def test_multiple_tabs_same_session(browser: Browser, setup_test_user):
+    """Verify multiple browser tabs can share the same authentication session.
+
+    This test validates:
+    1. Create two browser contexts (simulate two tabs)
+    2. Set same JWT token in both contexts
+    3. Both can access protected routes independently
+    4. Clear token in first tab, second tab still authenticated
+
+    Args:
+        browser: Playwright browser fixture
+        setup_test_user: API fixture that creates test user and returns token
+
+    Coverage: AUTH-03 (Multiple tabs with same session)
+    """
+    # Get user data and token from API fixture
+    user_data = setup_test_user
+    access_token = user_data.get("access_token")
+
+    # Create first browser context (tab 1)
+    context1 = browser.new_context()
+    page1 = context1.new_page()
+
+    # Set token in first tab
+    page1.goto("http://localhost:3000")
+    page1.evaluate(f"""() => {{
+        localStorage.setItem('access_token', '{access_token}');
+        localStorage.setItem('auth_token', '{access_token}');
+    }}""")
+
+    # Verify: First tab can access protected routes
+    page1.goto("http://localhost:3000/dashboard")
+    url1 = page1.url
+    assert "dashboard" in url1, "First tab should access dashboard"
+
+    # Create second browser context (tab 2)
+    context2 = browser.new_context()
+    page2 = context2.new_page()
+
+    # Set same token in second tab
+    page2.goto("http://localhost:3000")
+    page2.evaluate(f"""() => {{
+        localStorage.setItem('access_token', '{access_token}');
+        localStorage.setItem('auth_token', '{access_token}');
+    }}""")
+
+    # Verify: Second tab can also access protected routes
+    page2.goto("http://localhost:3000/dashboard")
+    url2 = page2.url
+    assert "dashboard" in url2, "Second tab should access dashboard with same token"
+
+    # Verify: Both tabs have the token
+    token1 = page1.evaluate("() => localStorage.getItem('access_token')")
+    token2 = page2.evaluate("() => localStorage.getItem('access_token')")
+    assert token1 == access_token, "First tab should have token"
+    assert token2 == access_token, "Second tab should have token"
+    assert token1 == token2, "Both tabs should have the same token"
+
+    # Action: Clear token in first tab
+    page1.evaluate("""() => {
+        localStorage.clear();
+    }""")
+
+    # Verify: First tab no longer has token
+    token1_after = page1.evaluate("() => localStorage.getItem('access_token')")
+    assert token1_after is None, "First tab token should be cleared"
+
+    # Verify: Second tab still has token (contexts are isolated)
+    token2_after = page2.evaluate("() => localStorage.getItem('access_token')")
+    assert token2_after == access_token, "Second tab should still have token"
+
+    # Verify: Second tab can still access protected routes
+    page2.goto("http://localhost:3000/agents")
+    url2_after = page2.url
+    assert "agents" in url2_after, "Second tab should still access protected routes"
+
+    # Cleanup
+    context1.close()
+    context2.close()
+
+    print("✓ Multiple tabs can share same session independently")

@@ -175,7 +175,7 @@ async def list_figma_files(team_id: Optional[str] = Query(None), project_id: Opt
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/search")
-async def figma_search(request: FigmaSearchRequest):
+async def figma_search(request: FigmaSearchRequest, team_id: Optional[str] = Query(None)):
     """Search Figma content (requires authentication)"""
     try:
         service = get_figma_service()
@@ -183,20 +183,13 @@ async def figma_search(request: FigmaSearchRequest):
         
         logger.info(f"Searching Figma for: {request.query}")
 
-        # Mock results - in production, search using Figma API (if available) or index
-        mock_results = [
-            {
-                "id": "item_001",
-                "title": f"Figma Design - {request.query}",
-                "type": "file",
-                "snippet": f"Design file matching: {request.query}",
-            }
-        ]
+        # Use the service to perform a real search (requires team_id for context)
+        results = await service.search_files(request.query, team_id=team_id)
 
         return FigmaSearchResponse(
             ok=True,
             query=request.query,
-            results=mock_results,
+            results=results,
             timestamp=datetime.now().isoformat(),
         )
     except HTTPException:

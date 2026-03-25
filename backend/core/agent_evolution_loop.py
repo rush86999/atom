@@ -41,8 +41,6 @@ from sqlalchemy.orm import Session
 
 from core.models import AgentEvolutionTrace, AgentRegistry, Skill
 from core.group_reflection_service import GroupReflectionService
-from core.agents.skill_creation_agent import SkillCreationAgent
-from core.llm_router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +97,8 @@ class AgentEvolutionLoop:
 
     def __init__(self, db: Session) -> None:
         self.db = db
-        self.reflection_svc = GroupReflectionService(db)
+        from core.service_factory import ServiceFactory
+        self.reflection_svc = ServiceFactory.get_group_reflection_service(db)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Public API
@@ -397,9 +396,9 @@ class AgentEvolutionLoop:
                     # Extract prompt from directive
                     skill_prompt = directive.split(":", 1)[1].strip()
                     
-                    # Initialize SkillCreationAgent (assuming llm_router dependency exists)
-                    router = LLMRouter()
-                    skill_agent = SkillCreationAgent(self.db, router)
+                    # Initialize SkillCreationAgent via ServiceFactory
+                    from core.service_factory import ServiceFactory
+                    skill_agent = ServiceFactory.get_skill_creation_agent(self.db)
                     
                     # Execute skill creation
                     # We use generic parameters; in a real scenario, we might extract more from the directive

@@ -9,10 +9,10 @@ Provides:
 
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
-from core.models import AgentRegistry, Canvas, Tenant, User, AgentHandoff, AgentCanvasPresence, ExecutionStatus
-from core.coordinated_strategy_service import CoordinatedStrategyService
 import logging
+from sqlalchemy.orm import Session
+from core.models import AgentRegistry, Canvas, Tenant, User, AgentHandoff, AgentCanvasPresence
+from core.coordinated_strategy_service import CoordinatedStrategyService
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +26,35 @@ class AgentHandoffProtocol:
     - Accept/reject handoffs
     - Pass context between agents
     - Track handoff completion
+    - Validate I/O schemas
     """
 
     def __init__(self, db: Session):
         self.db = db
+
+    def validate_handoff_payload(self, payload: Dict, schema: Dict) -> bool:
+        """
+        Validate a handoff payload against a provided JSON schema.
+        Reduces 'Coordination Tax' by catching errors early.
+        """
+        if not schema:
+            return True
+            
+        try:
+            from jsonschema import validate
+            validate(instance=payload, schema=schema)
+            return True
+        except ImportError:
+            # Fallback if jsonschema not installed: check keys at top level
+            for key in schema.get("required", []):
+                if key not in payload:
+                    logger.error(f"Schema validation failed: missing required key '{key}'")
+                    return False
+            return True
+        except Exception as e:
+            logger.error(f"Handoff schema validation error: {e}")
+            return False
+
 
     async def initiate_handoff(
         self,
@@ -39,7 +64,9 @@ class AgentHandoffProtocol:
         tenant_id: str,
         context: Dict,
         reason: str,
-        initiated_by: Optional[str] = None
+        initiated_by: Optional[str] = None,
+        input_schema: Optional[Dict] = None,
+        output_schema: Optional[Dict] = None
     ) -> Dict:
         """
         Initiate handoff from one agent to another.
@@ -65,6 +92,10 @@ class AgentHandoffProtocol:
         if not canvas:
             raise ValueError("Invalid canvas ID")
 
+        # Validate context against input_schema if provided
+        if input_schema and not self.validate_handoff_payload(context, input_schema):
+            raise ValueError("Handoff context does not match required input schema")
+
         # Create handoff record
         handoff = AgentHandoff(
             from_agent_id=from_agent_id,
@@ -72,8 +103,10 @@ class AgentHandoffProtocol:
             canvas_id=canvas_id,
             tenant_id=tenant_id,
             context=context,
+            input_schema=input_schema,
+            output_schema=output_schema,
             reason=reason,
-            status=ExecutionStatus.PENDING.value,
+            status="pending",
             initiated_at=datetime.now(timezone.utc)
         )
 
@@ -82,37 +115,41 @@ class AgentHandoffProtocol:
         self.db.refresh(handoff)
 
         # Broadcast handoff to canvas room
-        try:
-            from core.websockets import get_connection_manager
-            manager = get_connection_manager()
+        from core.websockets import get_connection_manager
+        manager = get_connection_manager()
 
-            await manager.broadcast_event(
-                f"tenant:{tenant_id}:canvas:{canvas_id}",
-                "AGENT_HANDOFF",
-                {
-                    "handoff_id": str(handoff.id),
-                    "from_agent": {
-                        "id": str(from_agent.id),
-                        "name": from_agent.name
-                    },
-                    "to_agent": {
-                        "id": str(to_agent.id),
-                        "name": to_agent.name
-                    },
-                    "canvas_id": canvas_id,
-                    "reason": reason,
-                    "context": context,
-                    "status": "pending",
-                    "initiated_by": initiated_by,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to broadcast handoff: {e}")
+        await manager.broadcast_event(
+            f"tenant:{tenant_id}:canvas:{canvas_id}",
+            manager.AGENT_HANDOFF,
+            {
+                "handoff_id": str(handoff.id),
+                "from_agent": {
+                    "id": str(from_agent.id),
+                    "name": from_agent.name,
+                    "role": from_agent.category
+                },
+                "to_agent": {
+                    "id": str(to_agent.id),
+                    "name": to_agent.name,
+                    "role": to_agent.category
+                },
+                "canvas_id": canvas_id,
+                "reason": reason,
+                "context": context,
+                "status": "pending",
+                "initiated_by": initiated_by,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
         logger.info(
-            f"Agent handoff initiated: {from_agent.name} -> {to_agent.name} "
-            f"on canvas {canvas_id} (reason: {reason})"
+            f"Agent handoff initiated: {from_agent.name} -> {to_agent.name}",
+            extra={
+                "from_agent_id": from_agent_id,
+                "to_agent_id": to_agent_id,
+                "canvas_id": canvas_id,
+                "tenant_id": tenant_id
+            }
         )
 
         return {
@@ -144,24 +181,19 @@ class AgentHandoffProtocol:
         self.db.commit()
 
         # Broadcast acceptance
-        try:
-            from core.websockets import get_connection_manager
-            manager = get_connection_manager()
+        from core.websockets import get_connection_manager
+        manager = get_connection_manager()
 
-            await manager.broadcast_event(
-                f"tenant:{tenant_id}:canvas:{handoff.canvas_id}",
-                "AGENT_COORDINATION_RESPONSE",
-                {
-                    "handoff_id": handoff_id,
-                    "status": "accepted",
-                    "agent_id": agent_id,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to broadcast acceptance: {e}")
-
-        logger.info(f"Agent handoff {handoff_id} accepted by agent {agent_id}")
+        await manager.broadcast_event(
+            f"tenant:{tenant_id}:canvas:{handoff.canvas_id}",
+            manager.AGENT_COORDINATION_RESPONSE,
+            {
+                "handoff_id": handoff_id,
+                "status": "accepted",
+                "agent_id": agent_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
         return {"status": "accepted", "message": "Handoff accepted"}
 
@@ -190,25 +222,20 @@ class AgentHandoffProtocol:
         self.db.commit()
 
         # Broadcast rejection
-        try:
-            from core.websockets import get_connection_manager
-            manager = get_connection_manager()
+        from core.websockets import get_connection_manager
+        manager = get_connection_manager()
 
-            await manager.broadcast_event(
-                f"tenant:{tenant_id}:canvas:{handoff.canvas_id}",
-                "AGENT_COORDINATION_RESPONSE",
-                {
-                    "handoff_id": handoff_id,
-                    "status": "rejected",
-                    "agent_id": agent_id,
-                    "reason": reason,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to broadcast rejection: {e}")
-
-        logger.info(f"Agent handoff {handoff_id} rejected by agent {agent_id}: {reason}")
+        await manager.broadcast_event(
+            f"tenant:{tenant_id}:canvas:{handoff.canvas_id}",
+            manager.AGENT_COORDINATION_RESPONSE,
+            {
+                "handoff_id": handoff_id,
+                "status": "rejected",
+                "agent_id": agent_id,
+                "reason": reason,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
         return {"status": "rejected", "message": "Handoff rejected"}
 
@@ -233,24 +260,19 @@ class AgentHandoffProtocol:
         self.db.commit()
 
         # Broadcast completion
-        try:
-            from core.websockets import get_connection_manager
-            manager = get_connection_manager()
+        from core.websockets import get_connection_manager
+        manager = get_connection_manager()
 
-            await manager.broadcast_event(
-                f"tenant:{tenant_id}:canvas:{handoff.canvas_id}",
-                "AGENT_ACTION_COMPLETE",
-                {
-                    "handoff_id": handoff_id,
-                    "status": "completed",
-                    "result": result,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to broadcast completion: {e}")
-
-        logger.info(f"Agent handoff {handoff_id} completed")
+        await manager.broadcast_event(
+            f"tenant:{tenant_id}:canvas:{handoff.canvas_id}",
+            manager.AGENT_ACTION_COMPLETE,
+            {
+                "handoff_id": handoff_id,
+                "status": "completed",
+                "result": result,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
         return {"status": "completed", "result": result}
 
@@ -274,7 +296,6 @@ class MultiAgentCanvasService:
         """
         Add an agent to a canvas collaboration session.
         """
-        # Verify agent and canvas exist
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id
         ).first()
@@ -287,7 +308,7 @@ class MultiAgentCanvasService:
         if not agent or not canvas:
             raise ValueError("Invalid agent or canvas ID")
 
-        # Check if agent is already on canvas
+        # Check existing presence
         existing = self.db.query(AgentCanvasPresence).filter(
             AgentCanvasPresence.agent_id == agent_id,
             AgentCanvasPresence.canvas_id == canvas_id,
@@ -297,7 +318,7 @@ class MultiAgentCanvasService:
         if existing:
             return {"status": "already_present", "message": "Agent already on canvas"}
 
-        # Add agent presence
+        # Add presence
         presence = AgentCanvasPresence(
             agent_id=agent_id,
             canvas_id=canvas_id,
@@ -310,26 +331,22 @@ class MultiAgentCanvasService:
         self.db.add(presence)
         self.db.commit()
 
-        # Broadcast agent join
-        try:
-            from core.websockets import get_connection_manager
-            manager = get_connection_manager()
+        # Broadcast join
+        from core.websockets import get_connection_manager
+        manager = get_connection_manager()
 
-            await manager.broadcast_event(
-                f"tenant:{tenant_id}:canvas:{canvas_id}",
-                "AGENT_JOIN_CANVAS",
-                {
-                    "agent_id": agent_id,
-                    "agent_name": agent.name,
-                    "canvas_role": role,
-                    "status": "active",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
-            )
-        except Exception as e:
-            logger.error(f"Failed to broadcast agent join: {e}")
-
-        logger.info(f"Agent {agent.name} joined canvas {canvas_id}")
+        await manager.broadcast_event(
+            f"tenant:{tenant_id}:canvas:{canvas_id}",
+            manager.AGENT_JOIN_CANVAS,
+            {
+                "agent_id": agent_id,
+                "agent_name": agent.name,
+                "agent_role": agent.category,
+                "canvas_role": role,
+                "status": "active",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
 
         return {
             "status": "joined",
@@ -338,34 +355,43 @@ class MultiAgentCanvasService:
             "role": role
         }
 
-    def get_canvas_agents(
+    async def remove_agent_from_canvas(
         self,
+        agent_id: str,
         canvas_id: str,
         tenant_id: str
-    ) -> List[Dict]:
-        """Get all agents currently on a canvas."""
-        presences = self.db.query(AgentCanvasPresence).filter(
+    ) -> Dict:
+        """Remove an agent from a canvas collaboration session."""
+        presence = self.db.query(AgentCanvasPresence).filter(
+            AgentCanvasPresence.agent_id == agent_id,
             AgentCanvasPresence.canvas_id == canvas_id,
             AgentCanvasPresence.tenant_id == tenant_id,
             AgentCanvasPresence.status == "active"
-        ).all()
+        ).first()
 
-        result = []
-        for presence in presences:
-            agent = self.db.query(AgentRegistry).filter(
-                AgentRegistry.id == presence.agent_id
-            ).first()
+        if not presence:
+            return {"status": "not_present", "message": "Agent not on canvas"}
 
-            if agent:
-                result.append({
-                    "agent_id": str(agent.id),
-                    "agent_name": agent.name,
-                    "canvas_role": presence.role,
-                    "status": presence.status,
-                    "joined_at": presence.joined_at.isoformat()
-                })
+        presence.status = "left"
+        presence.left_at = datetime.now(timezone.utc)
 
-        return result
+        self.db.commit()
+
+        # Broadcast leave
+        from core.websockets import get_connection_manager
+        manager = get_connection_manager()
+
+        await manager.broadcast_event(
+            f"tenant:{tenant_id}:canvas:{canvas_id}",
+            manager.AGENT_LEAVE_CANVAS,
+            {
+                "agent_id": agent_id,
+                "canvas_id": canvas_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        )
+
+        return {"status": "removed", "agent_id": agent_id}
 
     async def coordinate_agents(
         self,
@@ -376,14 +402,31 @@ class MultiAgentCanvasService:
         coordination_strategy: str = "sequential"
     ) -> Dict:
         """
-        Coordinate multiple agents.
+        Coordinate multiple agents to complete a task together.
         """
-        if coordination_strategy == "coordinated_strategy":
-            return await self._coordinate_diverse_strategy(
-                canvas_id, tenant_id, task, required_agents
-            )
-        # Other strategies can be added here
-        return {"error": f"Strategy {coordination_strategy} not supported in current port"}
+        if coordination_strategy == "sequential":
+            return await self._coordinate_sequential(canvas_id, tenant_id, task, required_agents)
+        elif coordination_strategy == "coordinated_strategy":
+            return await self._coordinate_diverse_strategy(canvas_id, tenant_id, task, required_agents)
+        else:
+            raise ValueError(f"Coordination strategy {coordination_strategy} not supported yet in upstream.")
+
+    async def _coordinate_sequential(
+        self,
+        canvas_id: str,
+        tenant_id: str,
+        task: str,
+        required_agents: List[str]
+    ) -> Dict:
+        """Sequential coordination: Agent 1 -> Agent 2 -> Agent 3."""
+        # This is a simplified version for the first wave
+        context = {"task": task}
+        return {
+            "coordination_type": "sequential",
+            "task": task,
+            "status": "initiated",
+            "required_agents": required_agents
+        }
 
     async def _coordinate_diverse_strategy(
         self,
@@ -397,14 +440,10 @@ class MultiAgentCanvasService:
         """
         strategy_service = CoordinatedStrategyService(self.db)
         
-        # Identify initiator
-        agents = self.get_canvas_agents(canvas_id, tenant_id)
-        if not agents:
-            raise ValueError("No agents active on canvas to initiate strategy")
-            
-        initiator_id = agents[0]["agent_id"]
+        # 1. Identify initiator (system or first active agent)
+        initiator_id = "system" # Default
         
-        # Initiate strategy
+        # 2. Initiate strategy
         strategy = strategy_service.initiate_strategy(
             tenant_id=tenant_id,
             title=f"Strategic Plan: {task[:50]}...",
@@ -412,21 +451,66 @@ class MultiAgentCanvasService:
             initiator_agent_id=initiator_id
         )
         
-        # Recruit partners
+        # 3. Recruit partners
         recruited = []
         for specialty in required_specialties:
             partner = strategy_service.recruit_diverse_partner(
-                strategy.id, specialty, complementary_trait="risk_profile"
+                strategy.id, specialty
             )
             if partner:
                 await self.add_agent_to_canvas(str(partner.id), canvas_id, tenant_id, role="strategic_partner")
-                strategy_service.add_contribution(
-                    strategy.id, str(partner.id), {"action": "Recruited as diverse partner"}
-                )
                 recruited.append({"agent_id": str(partner.id), "specialty": specialty})
                 
         return {
             "strategy_id": strategy.id,
-            "status": "strategic_negotiation_active",
+            "status": "negotiation_active",
             "recruited_partners": recruited
         }
+
+
+# WebSocket handler function for agent handoffs
+async def handle_agent_handoff(
+    room_id: str,
+    data: Dict,
+    user: User,
+    tenant_id: str,
+    db: Session
+):
+    """
+    Handle agent handoff message from WebSocket.
+    """
+    from_agent = data.get("from_agent")
+    to_agent = data.get("to_agent")
+    canvas_id = data.get("canvas_id")
+    context = data.get("context", {})
+    reason = data.get("reason", "User initiated")
+
+    if not all([from_agent, to_agent, canvas_id]):
+        logger.error("Invalid agent_handoff message: missing required fields")
+        return
+
+    protocol = AgentHandoffProtocol(db)
+
+    try:
+        result = await protocol.initiate_handoff(
+            from_agent_id=from_agent,
+            to_agent_id=to_agent,
+            canvas_id=canvas_id,
+            tenant_id=tenant_id,
+            context=context,
+            reason=reason,
+            initiated_by=user.id
+        )
+
+        logger.info(f"Agent handoff successful: {result}")
+
+    except Exception as e:
+        logger.error(f"Agent handoff failed: {e}", 
+                     extra={
+                         "room_id": room_id, 
+                         "tenant_id": tenant_id,
+                         "canvas_id": canvas_id,
+                         "from_agent": from_agent,
+                         "to_agent": to_agent
+                     },
+                     exc_info=True)

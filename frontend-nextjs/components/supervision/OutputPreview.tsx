@@ -121,6 +121,7 @@ const OutputPreview: React.FC<Props> = ({ executionId, output, outputType }) => 
         {renderContent()}
       </div>
 
+      {/* eslint-disable-next-line react/no-unknown-property */}
       <style jsx>{`
         .output-preview {
           background: #f5f5f5;
