@@ -153,11 +153,11 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Check for regressions with default 20% threshold
+    # Check for regressions with default 20%% threshold
     %(prog)s --current .lighthouseci/lhr-report.json \\
              --baseline backend/tests/performance_regression/lighthouse_baseline.json
 
-    # Use custom threshold (15%)
+    # Use custom threshold (15%%)
     %(prog)s --current .lighthouseci/lhr-report.json \\
              --baseline backend/tests/performance_regression/lighthouse_baseline.json \\
              --threshold 0.15
