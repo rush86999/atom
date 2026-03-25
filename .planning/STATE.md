@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 245 of 245 (Feedback Loops & ROI Tracking)
-Plan: 2 of 5 in current phase
+Plan: 4 of 6 in current phase
 Status: Complete
-Last activity: 2026-03-25 — Phase 245-02 complete: BugFixVerifier service with automated bug fix verification and GitHub issue closing. 4 tasks, 4 commits, ~8 minutes execution.
+Last activity: 2026-03-25 — Phase 245-04 complete: Dashboard enhancements with ROI metrics, regression rate calculation, effectiveness metrics, fix verification status display, and 11 comprehensive unit tests. 3 tasks, 3 commits, ~4 minutes execution.
 
-Progress: [███] 33% (2 of 6 plans estimated)
+Progress: [█████] 50% (3 of 6 plans complete)
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Progress: [███] 33% (2 of 6 plans estimated)
 | Phase 245 P01 | 504 | 4 tasks | 10 files |
 | Phase 245 P03 | 360s | 3 tasks | 4 files |
 | Phase 245 P02 | 497 | 4 tasks | 3 files |
+| Phase 245 P04 | 289 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -176,6 +177,9 @@ Recent decisions affecting current work:
 - [Phase 244]: SemanticBugClusterer: LLM embedding-based bug clustering with EmbeddingService + LanceDB vector search
 - [Phase 244]: Text cleaning for embeddings removes non-semantic content (file paths, line numbers, timestamps, memory addresses)
 - [Phase 244]: DiscoveryCoordinator AI-enhanced discovery integrates semantic clustering with standard discovery pipeline
+- [Phase 245]: FEEDBACK-02: DashboardGenerator enhanced with generate_weekly_report_with_roi() for ROI metrics (hours_saved, cost_saved, bugs_prevented, roi_ratio), fix verification status section, and effectiveness metrics (bugs_per_hour, unique_rate)
+- [Phase 245]: FEEDBACK-02: Database-based regression rate calculation (_calculate_regression_rate_with_db) using SQLite for historical bug signature tracking
+- [Phase 245]: FEEDBACK-02: Fix verification status display integrated from BugFixVerifier showing fixed/verified/pending counts with regression rate
 
 ### Key Decisions (Phase 242)
 
@@ -283,11 +287,12 @@ None yet.
 - [FEEDBACK-04]: Comprehensive unit tests for RegressionTestGenerator with 21 tests covering initialization, test generation, template selection, reproduction steps inference, expected behavior inference, archival, and BugReport model integration (100% pass rate in 13.27s)
 - [FEEDBACK-05]: BugFixVerifier service with automated bug fix verification and GitHub issue closing, monitoring issues with "fix" label, re-running regression tests via subprocess pytest, requiring 2 consecutive passes before closing (prevents flaky false positives), verification state persistence (.verification_state.json), bug_id extraction from 3 patterns ([Bug] abc123de:, bug_id: keyword, test_regression filename), 6-hourly GitHub Actions workflow, and 13 comprehensive unit tests (100% pass rate)
 - [FEEDBACK-06]: ROITracker service for ROI metrics tracking with SQLite database (3 tables: discovery_runs, bug_fixes, roi_summary), configurable cost assumptions (manual_qa_hourly_rate=$75, developer_hourly_rate=$100, bug_production_cost=$10,000, manual_qa_hours_per_bug=2.0), ROI calculation comparing manual QA cost vs automation cost with cost saved + cost avoidance (bugs prevented from production, 10% assumption), weekly trends data for charting, and 13 comprehensive unit tests (100% pass rate)
+- [FEEDBACK-07]: DashboardGenerator enhanced with generate_weekly_report_with_roi() for ROI metrics (hours_saved, cost_saved, bugs_prevented, roi_ratio), fix verification status section (fixed/verified/pending counts), effectiveness metrics (bugs_per_hour, unique_rate, dedup_effectiveness), and database-based regression rate calculation (_calculate_regression_rate_with_db) using SQLite for historical bug signature tracking with graceful degradation (returns 0.0 if no database)
 
 ## Session Continuity
 
-Last session: 2026-03-25 (Phase 245-02 completion)
-Stopped at: Plan 245-02 completed - BugFixVerifier service with automated bug fix verification and GitHub issue closing. Monitoring issues with "fix" label, re-running regression tests via subprocess pytest, requiring 2 consecutive passes before closing (prevents flaky false positives), verification state persistence (.verification_state.json), bug_id extraction from 3 patterns, 6-hourly GitHub Actions workflow, and 13 comprehensive unit tests (all passing). 4 tasks, 4 commits, ~8 minutes execution.
+Last session: 2026-03-25 (Phase 245-04 completion)
+Stopped at: Plan 245-04 completed - Dashboard enhancements with ROI metrics, regression rate calculation, effectiveness metrics, fix verification status display, and 11 comprehensive unit tests (all passing). 3 tasks, 3 commits, ~4 minutes execution.
 Resume file: None
 
 ## Milestone Context
