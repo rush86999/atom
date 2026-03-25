@@ -6,7 +6,7 @@ This module provides unified access to all bug discovery core services:
 - ResultAggregator: Normalizes results from all methods
 - BugDeduplicator: Deduplicates bugs by error signature
 - SeverityClassifier: Classifies bug severity
-- DashboardGenerator: Generates weekly reports
+- DashboardGenerator: Generates weekly reports with ROI metrics and verification status
 - run_memory_performance_discovery: Orchestrates memory & performance discovery
 """
 
