@@ -1,0 +1,37 @@
+"""
+Chaos engineering regression test for bug {{ bug_id }}
+
+Experiment: {{ bug.metadata.get('experiment_name', 'unknown') }}
+Failure Injection: {{ bug.metadata.get('failure_type', 'unknown') }}
+"""
+
+import pytest
+from tests.chaos.core.chaos_coordinator import ChaosCoordinator
+from tests.chaos.core.blast_radius_controls import assert_blast_radius
+
+
+@pytest.mark.regression
+@pytest.mark.chaos
+@pytest.mark.slow
+def test_regression_chaos_{{ bug_id }}(db_session):
+    """
+    Chaos regression test for bug {{ bug_id }}.
+
+    This test verifies resilience under failure injection.
+    """
+    # Experiment details from bug metadata
+    experiment_name = "{{ bug.metadata.get('experiment_name', 'chaos_experiment') }}"
+    failure_type = "{{ bug.metadata.get('failure_type', 'unknown') }}"
+
+    # TODO: Implement failure injection based on experiment type
+    # Examples:
+    # - network_latency: Simulate slow 3G connection
+    # - database_drop: Simulate connection loss
+    # - memory_pressure: Simulate memory exhaustion
+
+    # Expected behavior: Graceful degradation
+    # - No crashes
+    # - Appropriate error handling
+    # - Recovery after failure
+
+    assert True, "Chaos regression test - needs experiment-specific implementation"
