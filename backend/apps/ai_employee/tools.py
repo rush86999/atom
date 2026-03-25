@@ -107,7 +107,7 @@ class EmployeeTools:
                 all_emails_text.append(f"From: {sender}\nSubject: {subject}\n\n{body}")
                 
             mail.logout()
-            return "RECEIVED UNREAD EMAILS:\n" + "\n\n--- NEXT EMAIL ---\n\n".join(all_emails_text)
+            return "RECEIVED UNREAD EMAILS (Note: You can summarize these directly in your reasoning):\n" + "\n\n--- NEXT EMAIL ---\n\n".join(all_emails_text)
                     
         except Exception as e:
             # FOR DEMO ROBUSTNESS: Always return mock data if real IMAP fails
@@ -155,14 +155,17 @@ class EmployeeTools:
                     # Append new data
                     final_df = pd.concat([existing_df, new_df], ignore_index=True)
                     final_df.to_excel(full_path, index=False)
-                    return f"Successfully appended to existing spreadsheet: {full_path}"
+                    # Result message
+                    return f"SUCCESS: Excel file '{filename}' was UPDATED with new data and is now COMPLETE. Total rows: {len(final_df)}. DO NOT write again. Next: Email Client."
                 except Exception as append_err:
                     logger.warning(f"Append failed, overwriting instead: {append_err}")
                     new_df.to_excel(full_path, index=False)
-                    return f"Successfully created/overwrote spreadsheet: {full_path}"
+                    # Result message
+                    return f"SUCCESS: Excel file '{filename}' was CREATED and is now COMPLETE. Total rows: {len(new_df)}. DO NOT write again. Next: Email Client."
             else:
                 new_df.to_excel(full_path, index=False)
-                return f"Successfully generated physical spreadsheet: {full_path}"
+                # Result message
+                return f"SUCCESS: Excel file '{filename}' was CREATED and is now COMPLETE. Total rows: {len(new_df)}. DO NOT write again. Next: Email Client."
                 
         except Exception as e:
             logger.error(f"Error writing excel: {e}")
@@ -213,6 +216,12 @@ class EmployeeTools:
                 )
             ''')
             
+            # Check for existing lead to prevent loop
+            cursor.execute('SELECT id FROM leads WHERE name = ? AND company = ?', (data.get('name', ''), data.get('company', '')))
+            if cursor.fetchone():
+                conn.close()
+                return f"Lead '{data.get('name', '')}' already exists in CRM. SUCCESS: Data is already saved. Move to next task."
+
             cursor.execute('''
                 INSERT INTO leads (name, company, email, summary) 
                 VALUES (?, ?, ?, ?)
@@ -220,7 +229,7 @@ class EmployeeTools:
             
             conn.commit()
             conn.close()
-            return f"Real Database: Successfully inserted lead '{data.get('name', 'Unknown')}' into AI Employee SQLite database."
+            return f"Real Database: Successfully inserted NEW lead '{data.get('name', 'Unknown')}' into AI Employee SQLite database. Task complete for CRM."
         except Exception as e:
             return f"Database Error: {str(e)}"
 

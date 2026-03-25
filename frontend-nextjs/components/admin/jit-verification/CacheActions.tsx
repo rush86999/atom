@@ -327,7 +327,7 @@ export const CacheActions: React.FC = () => {
             </p>
             <ul className="text-xs text-green-700 space-y-1">
               <li>• <strong>Warm cache</strong> during low-traffic periods</li>
-              <li>• <strong>Monitor hit rates</strong> - aim for >85% L1 hit rate</li>
+              <li>• <strong>Monitor hit rates</strong> - aim for {'>'}85% L1 hit rate</li>
               <li>• <strong>Clear cache</strong> only when stale data is suspected</li>
               <li>• <strong>Export metrics</strong> weekly for performance tracking</li>
             </ul>
