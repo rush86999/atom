@@ -7,8 +7,16 @@ This package provides services for closing the feedback loop:
 - ROITracker: Track ROI metrics for bug discovery automation
 """
 
-from tests.bug_discovery.feedback_loops.regression_test_generator import RegressionTestGenerator
+from tests.bug_discovery.feedback_loops.roi_tracker import ROITracker
 
 __all__ = [
-    "RegressionTestGenerator",
+    "ROITracker",
 ]
+
+# Optional imports (require jinja2)
+try:
+    from tests.bug_discovery.feedback_loops.regression_test_generator import RegressionTestGenerator
+    __all__.append("RegressionTestGenerator")
+except ImportError:
+    # jinja2 not installed, RegressionTestGenerator not available
+    pass
