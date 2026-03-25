@@ -12,18 +12,33 @@ from core.models import (
     AgentRegistry,
     AgentStatus,
     FeedbackStatus,
+    GovernanceDocument,
+    GovernanceDocStatus,
+    GovernanceImpactLevel,
     HITLAction,
     HITLActionStatus,
     User,
     UserRole,
 )
 from core.rbac_service import Permission, RBACService
+from core.continuous_learning_service import ContinuousLearningService
+from core.activity_publisher import ActivityPublisher
 
 logger = logging.getLogger(__name__)
 
 class AgentGovernanceService:
-    def __init__(self, db: Session):
+    def __init__(
+        self, 
+        db: Session, 
+        workspace_id: str = "default", 
+        tenant_id: Optional[str] = None,
+        activity_publisher: Optional[ActivityPublisher] = None
+    ):
         self.db = db
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
+        self.activity_publisher = activity_publisher
+        self.continuous_learning = ContinuousLearningService(db, workspace_id=workspace_id, tenant_id=tenant_id)
         
     def register_or_update_agent(
         self, 
@@ -35,6 +50,7 @@ class AgentGovernanceService:
     ) -> AgentRegistry:
         """Register a new agent or update existing definition"""
         agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == self.workspace_id,
             AgentRegistry.module_path == module_path,
             AgentRegistry.class_name == class_name
         ).first()
@@ -47,6 +63,8 @@ class AgentGovernanceService:
                 module_path=module_path,
                 class_name=class_name,
                 description=description,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
                 status=AgentStatus.STUDENT.value
             )
             self.db.add(agent)
@@ -73,13 +91,18 @@ class AgentGovernanceService:
         Submit user feedback for an agent's action.
         Triggers AI adjudication to check if the user is correct.
         """
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
 
         feedback = AgentFeedback(
             agent_id=agent_id,
             user_id=user_id,
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
             original_output=original_output,
             user_correction=user_correction,
             input_context=input_context,
@@ -98,7 +121,10 @@ class AgentGovernanceService:
         Judge the validity of the user's correction.
         """
         user = self.db.query(User).filter(User.id == feedback.user_id).first()
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == feedback.agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == feedback.agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         
         # Logic: "user confidence from the same role or admin"
         # 1. Admin/Super Admin are trusted.
@@ -119,6 +145,15 @@ class AgentGovernanceService:
         
         is_trusted_reviewer = is_admin or is_specialty_match
 
+        # NEW: Apply rating-based confidence adjustment
+        if feedback.rating is not None or feedback.thumbs_up_down is not None:
+            await self._update_confidence_from_rating(
+                feedback.agent_id,
+                rating=feedback.rating,
+                thumbs_up_down=feedback.thumbs_up_down,
+                feedback_type=feedback.feedback_type
+            )
+
         if is_trusted_reviewer:
             feedback.status = FeedbackStatus.ACCEPTED.value
             feedback.ai_reasoning = f"Trusted reviewer (Role: {user.role}, Specialty: {user.specialty}) provided correction."
@@ -129,32 +164,48 @@ class AgentGovernanceService:
             
             # EXPLICIT LEARNING: Record this correction in World Model
             from core.agent_world_model import AgentExperience, WorldModelService
-            wm = WorldModelService()
+            wm = WorldModelService(workspace_id=self.workspace_id, tenant_id=self.tenant_id)
             
             # Create a corrective experience
-            # We treat the original input + incorrect output as the context, and correction as the "Learning"
+            # Determine outcome based on rating if available
+            if feedback.rating:
+                outcome = "Success" if feedback.rating >= 4 else "Partial" if feedback.rating == 3 else "Failure"
+            elif feedback.thumbs_up_down is not None:
+                outcome = "Success" if feedback.thumbs_up_down else "Failure"
+            else:
+                outcome = "Failure" # If it was a correction
+
             correction_exp = AgentExperience(
                 id=str(uuid.uuid4()),
                 agent_id=feedback.agent_id,
-                task_type="correction",
+                task_type=feedback.feedback_type or "correction",
                 input_summary=f"Context: {feedback.input_context or 'N/A'}\nIncorrect Action: {feedback.original_output}",
-                outcome="Failure", # It was a failure since it needed correction
-                learnings=f"User Correction: {feedback.user_correction}",
+                outcome=outcome,
+                learnings=f"User Feedback: {feedback.user_correction}",
                 agent_role=agent.category,
                 specialty=None,
                 timestamp=datetime.utcnow()
             )
-            # We use asyncio.create_task if we are in async context, but this method is async _adjudicate_feedback
-            # So we can await it if we change signature? 
-            # Wait, _adjudicate_feedback is defined as async on line 88. 
             await wm.record_experience(correction_exp)
+
+            # Continuous learning update
+            try:
+                self.continuous_learning.update_from_feedback(feedback)
+            except Exception as le:
+                logger.warning(f"Continuous learning update failed from governance: {le}")
              
         else:
             # Lower confidence users
             feedback.status = FeedbackStatus.PENDING.value
             feedback.ai_reasoning = "Correction queued for specialty review."
             feedback.adjudicated_at = datetime.now()
-            self._update_confidence_score(feedback.agent_id, positive=False, impact_level="low")
+
+            # NEW: Still allow minor confidence adjustment for non-trusted reviewers
+            if feedback.rating is not None or feedback.thumbs_up_down is not None:
+                # We already called _update_confidence_from_rating above, so we don't need a penalty here
+                pass
+            else:
+                self._update_confidence_score(feedback.agent_id, positive=False, impact_level="low")
  
         self.db.commit()
 
@@ -166,12 +217,159 @@ class AgentGovernanceService:
         self._update_confidence_score(agent_id, positive=success, impact_level=impact)
         logger.info(f"Recorded outcome for agent {agent_id}: success={success}")
 
+    # ==================== GRADUATION & EVOLUTION ====================
+
+    def record_intervention(
+        self,
+        execution_id: str,
+        intervention_type: str,
+        user_id: str,
+        reason: Optional[str] = None,
+        supervisor_type: Optional[str] = None,
+        supervisor_id: Optional[str] = None
+    ) -> bool:
+        """
+        Record a human intervention during agent execution for graduation tracking.
+        """
+        try:
+            from core.models import AgentExecution
+
+            execution = self.db.query(AgentExecution).filter(
+                AgentExecution.id == execution_id,
+                AgentExecution.workspace_id == self.workspace_id
+            ).first()
+
+            if not execution:
+                logger.warning(f"Execution {execution_id} not found for intervention recording")
+                return False
+
+            # Increment intervention count
+            execution.human_intervention_count = (execution.human_intervention_count or 0) + 1
+
+            # Store in metadata
+            if not execution.metadata_json:
+                execution.metadata_json = {}
+            if "interventions" not in execution.metadata_json:
+                execution.metadata_json["interventions"] = []
+
+            execution.metadata_json["interventions"].append({
+                "type": intervention_type,
+                "user_id": user_id,
+                "reason": reason,
+                "supervisor_type": supervisor_type or "user",
+                "supervisor_id": supervisor_id or user_id,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+
+            # Use flag_modified if using JSONB
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(execution, "metadata_json")
+            
+            self.db.commit()
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to record intervention: {e}")
+            return False
+
+    def apply_agent_patch(self, agent_id: str) -> Dict[str, Any]:
+        """
+        Apply an evolutionary patch to an agent (manual confidence jump).
+        """
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
+        if not agent:
+             return {"success": False, "error": "Agent not found"}
+        
+        old_score = agent.confidence_score or 0.5
+        old_status = agent.status
+        
+        # Evolutionary Jump
+        new_score = min(1.0, old_score + 0.15)
+        agent.confidence_score = new_score
+        
+        # Direct status update
+        self._update_confidence_score(agent_id, positive=True, impact_level="high")
+        
+        self.db.commit()
+        return {
+            "success": True,
+            "agent_id": agent_id,
+            "old_status": old_status,
+            "new_status": agent.status,
+            "new_score": new_score
+        }
+
+    async def check_and_promote_if_ready(
+        self,
+        agent_id: str,
+        tenant_id: str,
+        episode_count: int = 30
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Check if an agent is ready for promotion and auto-promote if ready.
+        """
+        try:
+            from core.episode_service import EpisodeService
+            
+            # Get agent
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id,
+                AgentRegistry.workspace_id == self.workspace_id
+            ).first()
+
+            if not agent:
+                return None
+            
+            current_status = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
+            if current_status == "autonomous":
+                return None
+
+            # Get readiness from EpisodeService
+            from core.service_factory import ServiceFactory
+            episode_service = ServiceFactory.get_episode_service(self.db, workspace_id=self.workspace_id, tenant_id=self.tenant_id)
+            readiness = episode_service.get_graduation_readiness(
+                agent_id=agent_id,
+                tenant_id=self.tenant_id,
+                episode_count=episode_count
+            )
+
+            if readiness.threshold_met:
+                old_status = agent.status
+                new_status = readiness.breakdown.get("target_level")
+                
+                # Update agent status
+                agent.status = new_status
+                agent.last_promotion_at = datetime.now(timezone.utc)
+                agent.promotion_count = (agent.promotion_count or 0) + 1
+                
+                self.db.commit()
+                
+                logger.info(f"Auto-Promoted agent {agent_id}: {old_status} -> {new_status}")
+                return {
+                    "promoted": True,
+                    "old_status": old_status,
+                    "new_status": new_status,
+                    "readiness_score": readiness.readiness_score
+                }
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Auto-promotion check failed for agent {agent_id}: {e}")
+            return None
+
     def _update_confidence_score(self, agent_id: str, positive: bool, impact_level: str = "high") -> None:
         """
         Update confidence and manage maturity transitions.
         Impact: high (0.05/0.1), low (0.01/0.02)
         """
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             return
 
@@ -204,11 +402,89 @@ class AgentGovernanceService:
              
         if agent.status != previous_status:
             logger.info(f"Agent {agent.name} transitioned: {previous_status} -> {agent.status} (Score: {new_score:.2f})")
+            
+            # Publish Learning Activity
+            publisher = self.activity_publisher
+            if publisher:
+                publisher.publish_activity(
+                    tenant_id=self.tenant_id or "default",
+                    workspace_id=self.workspace_id,
+                    agent_id=agent_id,
+                    activity_type='learning',
+                    state='adapted',
+                    metadata={
+                        'old_status': previous_status,
+                        'new_status': agent.status,
+                        'confidence_score': new_score
+                    }
+                )
+
             # Invalidate cache when agent status changes
             cache = get_governance_cache()
             cache.invalidate(agent_id)
 
         self.db.add(agent)
+        self.db.commit()
+
+    async def _update_confidence_from_rating(
+        self,
+        agent_id: str,
+        rating: Optional[int],
+        thumbs_up_down: Optional[bool],
+        feedback_type: Optional[str] = None
+    ):
+        """
+        Update agent confidence based on rating and thumbs up/down feedback.
+        Adapted from SaaS for Upstream metrics.
+        """
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
+        if not agent:
+            return
+
+        current = agent.confidence_score if agent.confidence_score is not None else 0.5
+        adjustment = 0.0
+
+        # Rating-based adjustments
+        if rating is not None:
+            rating_adjustments = {
+                5: 0.10,  # Excellent
+                4: 0.05,  # Good
+                3: 0.02,  # Acceptable
+                2: -0.02, # Needs improvement
+                1: -0.05  # Poor
+            }
+            adjustment += rating_adjustments.get(rating, 0.0)
+
+        # Thumbs up/down adjustments
+        if thumbs_up_down is not None:
+            adjustment += 0.03 if thumbs_up_down else -0.03
+
+        # Apply adjustment
+        new_score = max(0.0, min(1.0, current + adjustment))
+
+        if abs(new_score - current) > 0.001:
+            logger.info(f"Agent {agent_id} confidence adjusted: {current:.2f} -> {new_score:.2f} (Rating: {rating}, Thumbs: {thumbs_up_down})")
+            agent.confidence_score = new_score
+
+            # Trigger maturity transition
+            previous_status = agent.status
+            if new_score >= 0.9:
+                agent.status = AgentStatus.AUTONOMOUS.value
+            elif new_score >= 0.7:
+                agent.status = AgentStatus.SUPERVISED.value
+            elif new_score >= 0.5:
+                agent.status = AgentStatus.INTERN.value
+            else:
+                agent.status = AgentStatus.STUDENT.value
+
+            if agent.status != previous_status:
+                logger.info(f"Agent {agent.name} transitioned: {previous_status} -> {agent.status} (Score: {new_score:.2f})")
+                cache = get_governance_cache()
+                cache.invalidate(agent_id)
+
         self.db.commit()
 
     def promote_to_autonomous(self, agent_id: str, user: User) -> AgentRegistry:
@@ -220,7 +496,10 @@ class AgentGovernanceService:
         if not RBACService.check_permission(user, Permission.AGENT_MANAGE):
             raise handle_permission_denied("promote", "Agent")
 
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
             
@@ -238,7 +517,10 @@ class AgentGovernanceService:
 
     def pause_agent(self, agent_id: str) -> AgentRegistry:
         """Pause an agent's execution."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
         
@@ -255,7 +537,10 @@ class AgentGovernanceService:
 
     def resume_agent(self, agent_id: str) -> AgentRegistry:
         """Resume a paused agent, recalculating maturity based on confidence."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
         
@@ -285,7 +570,10 @@ class AgentGovernanceService:
 
     def stop_agent(self, agent_id: str) -> AgentRegistry:
         """Stop an agent permanently (until manually re-activated)."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
             
@@ -302,7 +590,10 @@ class AgentGovernanceService:
 
     def delete_agent(self, agent_id: str, permanent: bool = False) -> bool:
         """Delete an agent registry entry (soft delete by default)."""
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             raise handle_not_found("Agent", agent_id)
             
@@ -322,10 +613,128 @@ class AgentGovernanceService:
 
     def list_agents(self, category: Optional[str] = None) -> List[AgentRegistry]:
         """List registered agents"""
-        query = self.db.query(AgentRegistry)
+        query = self.db.query(AgentRegistry).filter(
+            AgentRegistry.workspace_id == self.workspace_id
+        )
         if category:
             query = query.filter(AgentRegistry.category == category)
         return query.all()
+
+    # ============================================================================
+    # Policy Discovery (Feature Parity with SaaS)
+    # ============================================================================
+
+    async def find_relevant_policies(
+        self,
+        context: str,
+        domain: Optional[str] = None,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Find relevant governance policies for agent decision-making.
+        
+        Args:
+            context: Natural language description of situation
+            domain: Optional domain filter (auto-inferred if not provided)
+            limit: Max policies to return
+        """
+        # Step 1: Infer domain if not provided
+        if not domain:
+            domain = self._infer_domain_from_context(context)
+
+        # Step 2: Use policy search service
+        from core.policy_search_service import PGPolicySearchService
+        search_service = PGPolicySearchService(self.db)
+        
+        policies = await search_service.search(
+            query=context,
+            domain=domain,
+            verification_status="verified",
+            limit=limit
+        )
+
+        logger.info(f"Found {len(policies)} relevant policies for domain={domain or 'any'}")
+        return policies
+
+    async def check_policies_before_action(
+        self,
+        agent_id: str,
+        action_type: str,
+        context: str,
+        tool_name: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Check applicable policies before agent takes action.
+        
+        Returns:
+            {
+                "policies": List[Dict],
+                "requires_approval": bool,
+                "blocked": bool,
+                "reason": str
+            }
+        """
+        # Step 1: Find policies
+        domain = self._infer_domain_from_tool_name(tool_name) if tool_name else None
+        policies = await self.find_relevant_policies(context, domain)
+
+        if not policies:
+            return {
+                "policies": [],
+                "requires_approval": False,
+                "blocked": False,
+                "reason": "No applicable policies found."
+            }
+
+        # Step 2: Check verification status
+        unverified_policies = [p["id"] for p in policies if p.get("verification_status") != "verified"]
+        
+        # Step 3: Determine if approval needed
+        # In Upstream, we default to requiring approval if ANY unverified policies exist
+        requires_approval = len(unverified_policies) > 0
+        
+        reason = "All applicable policies are verified."
+        if requires_approval:
+            reason = f"{len(unverified_policies)} policies require manual verification before action."
+
+        return {
+            "policies": policies,
+            "unverified_policy_ids": unverified_policies,
+            "requires_approval": requires_approval,
+            "blocked": False, # Don't hard block, just require HITL
+            "reason": reason
+        }
+
+    def _infer_domain_from_context(self, context: str) -> Optional[str]:
+        """Infer domain (hr, finance, legal, ops) from context keywords."""
+        context_lower = context.lower()
+        domain_keywords = {
+            'hr': ['employee', 'termination', 'hire', 'disciplinary', 'performance', 'vacation', 'leave'],
+            'finance': ['expense', 'budget', 'purchase', 'invoice', 'payment', 'reimbursement', 'cost'],
+            'legal': ['contract', 'agreement', 'lawsuit', 'compliance', 'regulation', 'nda'],
+            'operations': ['supply chain', 'vendor', 'logistics', 'inventory', 'warehouse', 'shipping']
+        }
+        
+        domain_scores = {}
+        for domain, keywords in domain_keywords.items():
+            score = sum(1 for kw in keywords if kw in context_lower)
+            if score > 0:
+                domain_scores[domain] = score
+        
+        return max(domain_scores, key=domain_scores.get) if domain_scores else None
+
+    def _infer_domain_from_tool_name(self, tool_name: str) -> Optional[str]:
+        """Infer domain from tool name heuristics."""
+        tool_lower = tool_name.lower()
+        if any(kw in tool_lower for kw in ['expense', 'budget', 'purchase', 'payment']):
+            return 'finance'
+        elif any(kw in tool_lower for kw in ['employee', 'hire', 'terminate', 'payroll']):
+            return 'hr'
+        elif any(kw in tool_lower for kw in ['contract', 'legal', 'compliance']):
+            return 'legal'
+        elif any(kw in tool_lower for kw in ['vendor', 'supply', 'logistics', 'inventory']):
+            return 'operations'
+        return None
 
     # ==================== SKILL LEVEL ENFORCEMENT ====================
     
@@ -422,7 +831,10 @@ class AgentGovernanceService:
             return cached_result
 
         logger.debug(f"Cache MISS for governance check: {agent_id}:{action_type}")
-        agent = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+        agent = self.db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id,
+            AgentRegistry.workspace_id == self.workspace_id
+        ).first()
         if not agent:
             return {
                 "allowed": False,
@@ -795,6 +1207,107 @@ class AgentGovernanceService:
             logger.error(f"Error suspending agent {agent_id}: {e}")
             self.db.rollback()
             return False
+
+    # ==================== MANUAL FACT MANAGEMENT ====================
+
+    def create_manual_fact(
+        self,
+        tenant_id: str,
+        user_id: str,
+        title: str,
+        content: str,
+        category: str = "general",
+        impact_level: str = GovernanceImpactLevel.MEDIUM.value,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a manual governance fact entry.
+        
+        Senior roles (CEO, Director, Admin) are auto-approved.
+        Managers and others require approval.
+        """
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise handle_not_found("User", user_id)
+
+        # Determine approval status based on role
+        # CEO, Director, Admin, Super Admin auto-approve
+        auto_approve_roles = [
+            UserRole.SUPER_ADMIN.value,
+            UserRole.OWNER.value, # Matches CEO/Director in SaaS
+            UserRole.WORKSPACE_ADMIN.value, # Matches Admin in SaaS
+        ]
+        
+        status = GovernanceDocStatus.PENDING.value
+        approved_by = None
+        approved_at = None
+        
+        if user.role in auto_approve_roles or user.role == "ceo" or user.role == "director":
+            status = GovernanceDocStatus.APPROVED.value
+            approved_by = user_id
+            approved_at = datetime.now(timezone.utc)
+            logger.info(f"Auto-approved fact '{title}' from trusted role: {user.role}")
+
+        doc = GovernanceDocument(
+            tenant_id=tenant_id,
+            title=title,
+            content=content,
+            category=category,
+            impact_level=impact_level,
+            source_type="manual",
+            status=status,
+            entered_by=user_id,
+            approved_by=approved_by,
+            approved_at=approved_at,
+            metadata_json=metadata or {}
+        )
+        
+        self.db.add(doc)
+        self.db.commit()
+        self.db.refresh(doc)
+        
+        return {
+            "id": doc.id,
+            "status": doc.status,
+            "message": "Fact created successfully" if status == GovernanceDocStatus.APPROVED.value else "Fact created, pending approval"
+        }
+
+    def approve_pending_fact(self, document_id: str, approver_id: str) -> bool:
+        """Approve a pending governance fact."""
+        doc = self.db.query(GovernanceDocument).filter(
+            GovernanceDocument.id == document_id
+        ).first()
+        
+        if not doc:
+            raise handle_not_found("GovernanceDocument", document_id)
+            
+        if doc.status != GovernanceDocStatus.PENDING.value:
+            return False
+            
+        doc.status = GovernanceDocStatus.APPROVED.value
+        doc.approved_by = approver_id
+        doc.approved_at = datetime.now(timezone.utc)
+        
+        self.db.commit()
+        logger.info(f"Manual fact {document_id} approved by {approver_id}")
+        return True
+
+    def list_pending_facts(self, tenant_id: str) -> List[GovernanceDocument]:
+        """List all pending facts for a tenant."""
+        return self.db.query(GovernanceDocument).filter(
+            GovernanceDocument.tenant_id == tenant_id,
+            GovernanceDocument.status == GovernanceDocStatus.PENDING.value
+        ).all()
+
+    def list_approved_facts(self, tenant_id: str, category: Optional[str] = None) -> List[GovernanceDocument]:
+        """List all active governance facts for a tenant."""
+        query = self.db.query(GovernanceDocument).filter(
+            GovernanceDocument.tenant_id == tenant_id,
+            GovernanceDocument.status == GovernanceDocStatus.APPROVED.value
+        )
+        if category:
+            query = query.filter(GovernanceDocument.category == category)
+        return query.all()
 
     def terminate_agent(self, agent_id: str, reason: str = None) -> bool:
         """

@@ -14,30 +14,9 @@ import os
 import time
 from typing import Any, Dict, List, Literal, Optional, Union
 
-# Optional imports for AI providers
-try:
-    import anthropic
-except ImportError:
-    anthropic = None
-    logger = logging.getLogger(__name__)
-    logger.warning("anthropic package not available, Anthropic provider features will be disabled")
-
-try:
-    import openai
-except ImportError:
-    openai = None
-    logger = logging.getLogger(__name__)
-    logger.warning("openai package not available, OpenAI-compatible provider features will be disabled")
+from core.llm_service import LLMService
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
-
-try:
-    import instructor
-except ImportError:
-    instructor = None
-    _logger = logging.getLogger(__name__)
-    _logger.warning("instructor package not available, some features may be limited")
 
 from dotenv import load_dotenv
 
@@ -144,20 +123,21 @@ class NLUProcessingResponse(BaseModel):
 
 # --- ReAct Agent Implementation ---
 
+# --- ReAct Agent Implementation ---
+
 class ReActAgent:
     """
     Implements the Reason -> Act -> Observe loop.
-    Uses DeepSeek V3 (via Instructor) for cost-effective reasoning.
+    Uses unified LLMService for multi-provider reasoning and structured outputs.
     """
-    def __init__(self, client, model_name: str):
-        self.client = client
-        self.model_name = model_name
+    def __init__(self, llm_service: LLMService, model_name: str = "quality"):
+        self.llm_service = llm_service
+        self.model_name = model_name  # Can be "quality", "fast", or a specific model ID
         self.max_loops = 10
         self.history: List[Dict[str, str]] = []
 
     def _get_available_tools(self) -> str:
         """Define available tools for the LLM context"""
-        # In a real system, this would dynamically list tools from MCP/UniversalService
         return """
 Available Tools:
 1. get_order(client_id: str) -> dict: Fetch order details (items, qty).
@@ -167,17 +147,12 @@ Available Tools:
 """
 
     async def _execute_tool(self, tool_call: ToolCall) -> str:
-        """
-        Execute the tool.
-        In production, this calls UniversalIntegrationService.
-        For this simplified architecture validation, we implement the 'Coffee/SDR' example logic.
-        """
+        """Execute the tool (Mock implementation for validation)"""
         name = tool_call.tool_name
         params = tool_call.parameters
 
         logger.info(f"Executing Tool: {name} with {params}")
 
-        # --- Mock Implementation for Validation ---
         if name == "get_order":
             client = params.get("client_id", "").lower()
             if "client a" in client:
@@ -187,7 +162,7 @@ Available Tools:
         elif name == "check_inventory":
             item = params.get("item_id", "").lower()
             if "arabica" in item:
-                return json.dumps({"item": "Arabica Beans", "current_stock": 20, "unit": "kg"}) # Shortage scenario
+                return json.dumps({"item": "Arabica Beans", "current_stock": 20, "unit": "kg"})
             return json.dumps({"current_stock": 100, "unit": "kg"})
 
         elif name == "send_email":
@@ -199,28 +174,34 @@ Available Tools:
         return f"Error: Tool '{name}' not found."
 
     async def run_loop(self, user_input: str) -> WorkflowExecutionResponse:
-        """Execute the ReAct loop"""
+        """Execute the ReAct loop using unified LLMService.generate_structured"""
         start_time = time.time()
-        self.history = [
-            {"role": "system", "content": f"You are an autonomous agent. Use the ReAct pattern (Reason, Act, Observe). {self._get_available_tools()}"},
-            {"role": "user", "content": user_input}
-        ]
-
+        system_instruction = f"You are an autonomous agent using the ReAct pattern (Reason, Act, Observe). {self._get_available_tools()}"
+        
+        self.history = [{"role": "user", "content": user_input}]
         steps_record = []
         final_answer = None
 
         for i in range(self.max_loops):
-            # 1. REASON (Call LLM)
+            # 1. REASON (Call unified LLMService)
+            # We map context to a flat prompt for BYOKHandler for now, 
+            # but generate_structured is the preferred high-level API.
+            prompt = "\n".join([f"{m['role']}: {m['content']}" for m in self.history])
+            
             try:
-                step_decision = await self.client.chat.completions.create(
-                    model=self.model_name,
-                    response_model=AgentStep, # Instructor validates this structure
-                    messages=self.history,
-                    max_retries=2
+                step_decision = await self.llm_service.generate_structured(
+                    prompt=prompt,
+                    response_model=AgentStep,
+                    system_instruction=system_instruction,
+                    model=self.model_name
                 )
             except Exception as e:
                 logger.error(f"LLM Reasoning Failed: {e}")
                 final_answer = f"Error during reasoning: {str(e)}"
+                break
+
+            if not step_decision:
+                final_answer = "Failed to generate structured decision."
                 break
 
             action = step_decision.action
@@ -238,28 +219,23 @@ Available Tools:
                 break
 
             elif isinstance(action, ToolCall):
-                # Record the thought
                 steps_record.append(ReActStepResult(
                     step_number=i+1,
                     thought=action.reasoning,
                     tool_call=f"{action.tool_name}({action.parameters})",
-                    tool_output=None, # Pending
+                    tool_output=None,
                     timestamp=time.time()
                 ))
 
-                # Update history with assistant's thought/call
                 self.history.append({
                     "role": "assistant",
                     "content": f"Thought: {action.reasoning}\nCall: {action.tool_name}({json.dumps(action.parameters)})"
                 })
 
-                # 3. OBSERVE (Execute Tool)
+                # 3. OBSERVE
                 tool_result = await self._execute_tool(action)
-
-                # Record result
                 steps_record[-1].tool_output = tool_result
 
-                # Feed back to LLM
                 self.history.append({
                     "role": "user",
                     "content": f"Tool Output: {tool_result}"
@@ -278,313 +254,133 @@ Available Tools:
             tasks_created=len(steps_record),
             execution_time_ms=total_time,
             ai_generated_tasks=[s.tool_call for s in steps_record],
-            confidence_score=1.0, # Assumed high if completed
+            confidence_score=1.0,
             steps_executed=steps_record,
             final_answer=final_answer,
-            orchestration_type="react_loop_deepseek"
+            orchestration_type="react_loop_unified"
         )
 
 
 # --- Real Service Implementation ---
 
 class RealAIWorkflowService:
-    """Real AI workflow service using Instructor for structured outputs"""
-
+    """
+    Real AI workflow service modernized to use unified LLMService.
+    Eliminates redundant BYOK logic and manual API calls.
+    """
     def __init__(self):
-        # Force reload .env
-        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-        load_dotenv(env_path, override=True)
-
-        from core.byok_endpoints import get_byok_manager
-        self._byok = get_byok_manager()
-        self.clients = {}
-        
-        # Initialize attributes to prevent AttributeError on direct initialize_sessions calls
-        self.glm_api_key = None
-        self.anthropic_api_key = None
-        self.deepseek_api_key = None
-        self.openai_api_key = None
-        self.google_api_key = None
-        self.http_sessions = {}
-        
-        logger.info("RealAIWorkflowService (Instructor-enabled) Initialized.")
-
-    def get_client(self, provider_id: str):
-        """Get or create an instructor-patched client"""
-        if provider_id in self.clients:
-            return self.clients[provider_id]
-
-        api_key = self._byok.get_api_key(provider_id)
-        if not api_key:
-            return None
-
-        provider_config = self._byok.providers.get(provider_id)
-        base_url = provider_config.base_url
-
-        client = None
-
-        # FORCE RELOAD from os.environ if BYOK fails
-        self.glm_api_key = self._byok.get_api_key("glm") or os.getenv("GLM_API_KEY")
-        self.anthropic_api_key = self._byok.get_api_key("anthropic") or os.getenv("ANTHROPIC_API_KEY")
-        self.deepseek_api_key = self._byok.get_api_key("deepseek") or self._byok.get_api_key("openai") # Fallback
-        self.openai_api_key = self._byok.get_api_key("openai") or os.getenv("OPENAI_API_KEY")
-        self.google_api_key = self._byok.get_api_key("google") or os.getenv("GOOGLE_API_KEY")
-
-        logger.debug(f"RealAIWorkflowService client requested for {provider_id}")
+        # We use local import to break potential circularity if ServiceFactory imports this
+        from core.service_factory import ServiceFactory
+        self.llm_service = ServiceFactory.get_llm_service()
+        logger.info("RealAIWorkflowService modernized with unified LLMService.")
 
     async def initialize_sessions(self):
-        """Initialize HTTP sessions for AI providers"""
-        import aiohttp
-        if self.glm_api_key:
-            self.http_sessions['glm'] = aiohttp.ClientSession()
-        if self.anthropic_api_key:
-            self.http_sessions['anthropic'] = aiohttp.ClientSession()
-        if self.deepseek_api_key:
-            self.http_sessions['deepseek'] = aiohttp.ClientSession()
-        if self.openai_api_key:
-            self.http_sessions['openai'] = aiohttp.ClientSession()
-        if self.google_api_key:
-            self.http_sessions['google'] = aiohttp.ClientSession()
-
-    def get_session(self, provider: str):
-        """Get or create session lazily"""
-        import aiohttp
-        if provider not in self.http_sessions or self.http_sessions[provider].closed:
-            self.http_sessions[provider] = aiohttp.ClientSession()
-        return self.http_sessions[provider]
+        """No-op: Sessions managed by LLMService/BYOKHandler"""
+        pass
 
     async def cleanup_sessions(self):
-        """Cleanup HTTP sessions"""
-        for session in self.http_sessions.values():
-            await session.close()
+        """No-op: Sessions managed by LLMService/BYOKHandler"""
+        pass
 
     def get_client(self, provider_id: str):
-        """Get or create an instructor-patched client (Upstream Logic)"""
-        if provider_id in self.clients:
-            return self.clients[provider_id]
-
-        api_key = self._byok.get_api_key(provider_id)
-        if not api_key:
-            return None
-
-        provider_config = self._byok.providers.get(provider_id)
-        base_url = provider_config.base_url if provider_config else None
-        
-        if provider_id == "anthropic":
-            try:
-                base_client = anthropic.AsyncAnthropic(api_key=api_key)
-                patched_client = instructor.from_anthropic(base_client)
-                self.clients[provider_id] = patched_client
-                return patched_client
-            except Exception as e:
-                logger.error(f"Failed to initialize Anthropic client: {e}")
-                return None
-
-        # OpenAI Compatible Providers
-        mode = instructor.Mode.JSON
-        client = None
-        
-        if provider_id == "openai":
-            client = openai.AsyncOpenAI(api_key=api_key)
-            mode = instructor.Mode.TOOLS
-        elif provider_id == "deepseek":
-            client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.deepseek.com/v1")
-            mode = instructor.Mode.JSON
-        elif provider_id == "groq":
-             client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url or "https://api.groq.com/openai/v1")
-             mode = instructor.Mode.JSON
-        elif provider_id == "google":
-             client = openai.AsyncOpenAI(api_key=api_key, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
-             mode = instructor.Mode.JSON
-        else:
-             client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
-
-        if client:
-            patched_client = instructor.from_openai(client, mode=mode)
-            self.clients[provider_id] = patched_client
-            return patched_client
+        """
+        Legacy shim: Returns the underlying instructor-patched client from LLMService.
+        """
+        # Note: In the new architecture, we prefer calling llm_service directly.
+        # This is kept for backward compatibility with external callers.
+        handler = self.llm_service.handler
+        client = handler.async_clients.get(provider_id) or handler.clients.get(provider_id)
+        if client and instructor:
+            # Re-patch if needed, though BYOKHandler usually patches already
+            return client
         return None
 
-    # --- Manual NLU Methods (Preserved from HEAD) ---
-
     async def call_glm_api(self, prompt: str, system_prompt: str = "You are a helpful assistant.") -> Dict[str, Any]:
-        result = await self.process_with_nlu(prompt, provider="glm", system_prompt=system_prompt)
-        return result
-
-    # Re-implementing specific calls briefly or deferring to process_with_nlu which handles them in loop
-    # actually process_with_nlu in my HEAD version calls specific methods: call_openai_api, etc.
-    # I need to keep those implementations!
+        """Modernized GLM call via unified LLMService"""
+        content = await self.llm_service.generate(prompt, system_instruction=system_prompt, model="minimax") # Or "glm" if mapped
+        return {'content': content, 'confidence': 0.85, 'provider': 'minimax/glm'}
 
     async def call_openai_api(self, prompt: str, system_prompt: str) -> Dict[str, Any]:
-        if not self.openai_api_key: raise Exception("OpenAI API key missing")
-        session = self.get_session('openai')
-        async with session.post("https://api.openai.com/v1/chat/completions", headers={'Authorization': f"Bearer {self.openai_api_key}"}, json={'model': 'gpt-4', 'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': prompt}]}) as response:
-            result = await response.json()
-            return {'content': result['choices'][0]['message']['content'], 'confidence': 0.85, 'provider': 'openai'}
+        """Modernized OpenAI call via unified LLMService"""
+        res = await self.llm_service.generate_completion(
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+            model="gpt-4o"
+        )
+        return {'content': res['content'], 'confidence': 0.85, 'provider': 'openai'}
 
     async def call_deepseek_api(self, prompt: str, system_prompt: str) -> Dict[str, Any]:
-        if not self.deepseek_api_key: raise Exception("DeepSeek API key missing")
-        session = self.get_session('deepseek')
-        async with session.post("https://api.deepseek.com/chat/completions", headers={'Authorization': f"Bearer {self.deepseek_api_key}"}, json={'model': 'deepseek-chat', 'messages': [{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': prompt}]}) as response:
-            result = await response.json()
-            return {'content': result['choices'][0]['message']['content'], 'confidence': 0.83, 'provider': 'deepseek'}
+        """Modernized DeepSeek call via unified LLMService"""
+        res = await self.llm_service.generate_completion(
+            messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
+            model="deepseek-chat"
+        )
+        return {'content': res['content'], 'confidence': 0.83, 'provider': 'deepseek'}
             
-    async def process_with_nlu(self, text: str, provider: str = "openai", system_prompt: str = None, user_id: str = "default_user") -> Dict[str, Any]:
-        """Legacy Manual NLU Processing"""
-        # Simplified version of HEAD's process_with_nlu to resolve conflict quickly but keep Trajectory
+    async def process_with_nlu(self, text: str, provider: str = "auto", system_prompt: str = None, user_id: str = "default_user") -> Dict[str, Any]:
+        """Modernized NLU Processing using ReAct loop by default"""
         from core.trajectory import TrajectoryRecorder
         recorder = TrajectoryRecorder(user_id=user_id, request=text)
-        recorder.add_thought(f"Starting Legacy NLU: {text}")
+        recorder.add_thought(f"Starting Unified NLU: {text}")
         
         try:
-             # Try using the ReAct agent first as it's the new standard
              agent_resp = await self.run_react_agent(text, provider=provider)
              return {
                  "intent": "processed_by_react",
-                 "workflow_suggestion": {"nodes": []}, # Placeholder
+                 "workflow_suggestion": {"nodes": []},
                  "tasks_generated": agent_resp.ai_generated_tasks,
                  "confidence": agent_resp.confidence_score,
-                 "answer": agent_resp.final_answer # Restore backward compatibility
+                 "answer": agent_resp.final_answer
              }
-        except Exception:
-             # Fallback to manual logic if ReAct fails
-             pass
+        except Exception as e:
+             logger.error(f"NLU ReAct processing failed: {e}")
+             # Fallback to simple generation
+             content = await self.llm_service.generate(text, system_instruction=system_prompt or "Identify intent and tasks.")
+             return {
+                 "intent": "fallback_generation",
+                 "answer": content,
+                 "confidence": 0.5
+             }
 
-        return {"status": "fallback", "message": "Manual NLU not fully restored to save space, rely on ReAct"}
-
-    async def run_react_agent(self, text: str, provider: str = None) -> WorkflowExecutionResponse:
-        """Run the ReAct agent loop (Upstream Logic)"""
-        if not provider:
-            provider = self._byok.get_optimal_provider(task_type="reasoning", min_reasoning_level=4) or "openai"
-
-        client = self.get_client(provider)
-        if not client:
-             keys = await self.get_active_provider_keys()
-             if keys:
-                 provider = keys[0]
-                 client = self.get_client(provider)
-
-        if not client:
-            raise HTTPException(status_code=500, detail="No active AI provider found.")
-
-        model_name = self._byok.providers[provider].model or "gpt-4o"
-        agent = ReActAgent(client, model_name)
-        return await agent.run_loop(text)
-
-        if not client:
-            raise HTTPException(status_code=500, detail="No active AI provider found.")
-
-        model_name = self._byok.providers[provider].model or "gpt-4o"
-
-        agent = ReActAgent(client, model_name)
+    async def run_react_agent(self, text: str, provider: str = "quality") -> WorkflowExecutionResponse:
+        """Run the ReAct agent loop using unified infrastructure"""
+        agent = ReActAgent(self.llm_service, model_name=provider or "quality")
         return await agent.run_loop(text)
 
     async def get_active_provider_keys(self) -> List[str]:
-        active = []
-        for pid in self._byok.providers.keys():
-            if self._byok.get_api_key(pid):
-                active.append(pid)
-        return active
+        """Get active providers from unified LLMService"""
+        return self.llm_service.get_available_providers()
 
     # Keep legacy/single-turn method for backward compat or simple NLU
-    async def process_with_nlu_structured(self, text: str, provider: str = None) -> TaskBreakdown:
-        if not provider:
-            provider = "openai" # Default for simple tasks
-        client = self.get_client(provider)
-        if not client: return TaskBreakdown(intent="Error", entities=[], tasks=[], confidence=0.0)
-
-        model_name = self._byok.providers[provider].model or "gpt-4o"
+    async def process_with_nlu_structured(self, text: str, provider: str = "quality") -> TaskBreakdown:
+        """Modernized structured NLU via unified LLMService"""
         try:
-            return await client.chat.completions.create(
-                model=model_name,
+            return await self.llm_service.generate_structured(
+                prompt=text,
                 response_model=TaskBreakdown,
-                messages=[{"role": "user", "content": text}],
-                max_retries=1
+                system_instruction="Analyze the user intent and break it down into entities and tasks.",
+                model=provider or "quality"
             )
         except Exception as e:
+            logger.error(f"Structured NLU failed: {e}")
             return TaskBreakdown(intent="Error", entities=[], tasks=[str(e)], confidence=0.0)
 
     async def analyze_text(self, prompt: str, complexity: int = 1, system_prompt: str = "", user_id: str = "default_user") -> str:
         """
-        Analyze text using the configured AI provider with support for multiple providers.
-
-        Args:
-            prompt: The text prompt to analyze
-            complexity: Action complexity level (1-4) for governance checks
-            system_prompt: Optional system prompt to guide the AI
-            user_id: User ID for tracking and governance
-
-        Returns:
-            str: The AI-generated analysis/response
+        Modernized text analysis using unified LLMService.
+        Automatically handles provider selection based on complexity.
         """
-        from core.governance_cache import get_governance_cache
-        from core.agent_governance_service import AgentGovernanceService
-        from sqlalchemy.orm import Session
-        from core.database import SessionLocal
+        # Mapping complexity to pre-defined cognitive tiers in LLMService
+        model = "fast"
+        if complexity == 3:
+            model = "quality"
+        elif complexity >= 4:
+            model = "reasoning"
 
-        # Governance check for complexity level
-        if complexity > 1:
-            try:
-                with SessionLocal() as db:
-                    governance_service = AgentGovernanceService()
-                    cache = get_governance_cache()
-
-                    # Check if operation is allowed for the complexity level
-                    # This is a simplified check - in production, you'd pass agent_id
-                    is_allowed = True  # Placeholder for actual governance check
-
-                    if not is_allowed:
-                        logger.warning(f"Governance check failed for complexity {complexity}")
-                        return "Governance policy restriction: Operation not allowed at current complexity level."
-            except Exception as e:
-                logger.error(f"Governance check failed, allowing with warning: {e}")
-
-        # Select optimal provider based on complexity
-        if complexity <= 2:
-            provider = self._byok.get_optimal_provider(task_type="simple", min_reasoning_level=2) or "openai"
-        elif complexity == 3:
-            provider = self._byok.get_optimal_provider(task_type="moderate", min_reasoning_level=3) or "anthropic"
-        else:
-            provider = self._byok.get_optimal_provider(task_type="complex", min_reasoning_level=4) or "openai"
-
-        client = self.get_client(provider)
-        if not client:
-            # Fallback to any available provider
-            active_keys = await self.get_active_provider_keys()
-            if active_keys:
-                provider = active_keys[0]
-                client = self.get_client(provider)
-
-        if not client:
-            logger.error("No active AI provider found for analyze_text")
-            return "Error: No AI provider available"
-
-        model_name = self._byok.providers[provider].model or "gpt-4o"
-
-        try:
-            messages = []
-            if system_prompt:
-                messages.append({"role": "system", "content": system_prompt})
-            messages.append({"role": "user", "content": prompt})
-
-            if provider == "anthropic":
-                response = await client.messages.create(
-                    model=model_name,
-                    messages=messages,
-                    max_tokens=4096
-                )
-                return response.content[0].text
-            else:  # OpenAI-compatible providers
-                response = await client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    max_tokens=4096
-                )
-                return response.choices[0].message.content
-
-        except Exception as e:
-            logger.error(f"AI analysis failed with provider {provider}: {e}")
-            return f"Error: AI analysis failed - {str(e)}"
+        return await self.llm_service.generate(
+            prompt, 
+            system_instruction=system_prompt,
+            model=model
+        )
 
 
 # Global Service

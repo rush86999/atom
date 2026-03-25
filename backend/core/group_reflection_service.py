@@ -37,7 +37,6 @@ from typing import Any, Callable, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from core.models import AgentEvolutionTrace, AgentRegistry, Skill
-from core.llm_router import LLMRouter
 
 logger = logging.getLogger(__name__)
 
@@ -387,7 +386,8 @@ class GroupReflectionService:
 
     def __init__(self, db: Session) -> None:
         self.db = db
-        self.llm = LLMRouter()
+        from core.service_factory import ServiceFactory
+        self.llm = ServiceFactory.get_llm_service()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Step 1: Gather the shared experience pool
@@ -542,14 +542,15 @@ class GroupReflectionService:
         )
 
         try:
-            response = await self.llm.generate(
-                prompt=prompt,
-                system_prompt=system_prompt,
-                max_tokens=600,
-                temperature=0.3,
+            # Standardize on unified LLMService.generate_response
+            content = await self.llm.generate_response(
                 tenant_id=tenant_id,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ]
             )
-            directives = self._parse_directives(response, max_directives)
+            directives = self._parse_directives(content or "", max_directives)
             logger.info("GEA reflection [%s] produced %d directives", profile.name, len(directives))
             return directives
         except Exception as e:

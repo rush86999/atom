@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.auth import get_current_user
 from core.database import get_db
-from core.lancedb_handler import get_lancedb_handler
+from core.service_factory import ServiceFactory
 from core.models import User
 
 logger = logging.getLogger(__name__)
@@ -26,66 +26,51 @@ class KnowledgeQueryManager:
     
     def __init__(self, workspace_id: Optional[str] = None):
         self.workspace_id = workspace_id or "default"
-        self.handler = get_lancedb_handler(self.workspace_id)
-        # Lazy load ai_service to prevent circular dependency
+        self.engine = ServiceFactory.get_graphrag_engine(self.workspace_id)
 
     async def answer_query(self, query: str, user_id: str = "default_user", workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Answers a natural language query using the knowledge graph context.
-        Returns a dict with 'answer' and 'relevant_facts'.
+        Answers a natural language query using the GraphRAGEngine.
+        Automatically switches between local and global search based on intent.
         """
-        # 1. Search the graph for relevant relationships
-        related_edges = self.handler.query_knowledge_graph(query, user_id=user_id, limit=15)
+        ws_id = workspace_id or self.workspace_id
         
-        if not related_edges:
+        # Use GraphRAGEngine's unified query method
+        # This handles intent detection (local vs global) and LLM synthesis
+        result = await self.engine.query(ws_id, query, mode="auto")
+        
+        if "error" in result:
             return {
-                "answer": "I couldn't find any specific information in your knowledge graph to answer that question.",
+                "answer": f"I encountered an error while searching: {result['error']}",
                 "relevant_facts": []
             }
+            
+        answer = result.get("answer", "No answer could be synthesized.")
         
-        # 2. Extract facts from edges
+        # Format relevant facts for the UI
         facts = []
-        for edge in related_edges:
-            metadata = edge.get("metadata", {})
-            if isinstance(metadata, str):
-                metadata = json.loads(metadata)
-            
-            fact = f"- {edge.get('from_id')} {edge.get('type')} {edge.get('to_id')}"
-            props = metadata.get("properties", {})
-            if props:
-                fact += f" (Details: {props})"
-            facts.append(fact)
-            
-        context_str = "\n".join(facts)
-        
-        # 3. Use LLM to synthesize the answer
-        system_prompt = f"""
-        You are a Knowledge Graph Query Assistant. Answer the user's question based ONLY on the provided facts from their knowledge graph.
-        
-        **Facts:**
-        {context_str}
-        
-        If the facts don't contain the answer, say you don't know based on the current records.
-        """
-        
-        from enhanced_ai_workflow_endpoints import RealAIWorkflowService
-        ai_service = RealAIWorkflowService()
-        result = await ai_service.analyze_text(query, system_prompt=system_prompt)
-        answer = "Failed to synthesize an answer from the knowledge graph."
-        if result and result.get("success"):
-            answer = result.get("response", "Internal error synthesizing answer.")
-        
+        if result.get("mode") == "local":
+            entities = result.get("entities", [])
+            relationships = result.get("relationships", [])
+            for e in entities[:10]:
+                facts.append(f"Entity: {e['name']} ({e['type']}) - {e.get('description', '')}")
+            for r in relationships[:10]:
+                facts.append(f"Relationship: {r['from']} -> {r['type']} -> {r['to']}")
+        else:
+            # Global mode: facts are the summaries used
+            summaries = result.get("summaries", [])
+            for s in summaries:
+                facts.append(f"Community Summary: {s[:200]}...")
+                
         return {
             "answer": answer,
-            "relevant_facts": facts
+            "relevant_facts": facts,
+            "mode": result.get("mode")
         }
 
 # Helper for factory pattern
 def get_knowledge_query_manager(workspace_id: Optional[str] = None) -> KnowledgeQueryManager:
     return KnowledgeQueryManager(workspace_id=workspace_id)
-
-# Legacy instance
-knowledge_query_manager = get_knowledge_query_manager()
 
 @router.post("/query")
 async def knowledge_query(
@@ -100,10 +85,7 @@ async def knowledge_query(
     try:
         manager = get_knowledge_query_manager(request.workspace_id)
         result = await manager.answer_query(request.query, user_id=request.user_id, workspace_id=request.workspace_id)
-        return {"success": True, "answer": result.get("answer"), "relevant_facts": result.get("relevant_facts")}
+        return {"success": True, "answer": result.get("answer"), "relevant_facts": result.get("relevant_facts"), "mode": result.get("mode")}
     except Exception as e:
         logger.error(f"Knowledge query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-def get_knowledge_query_manager() -> KnowledgeQueryManager:
-    return knowledge_query_manager

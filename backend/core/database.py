@@ -18,6 +18,14 @@ def get_database_url():
     env = os.getenv("ENVIRONMENT", "development")
     database_url = os.getenv("DATABASE_URL")
 
+    if os.getenv("TESTING") == "1":
+        # Force SQLite for integration tests to prevent connection to production Postgres
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(base_dir, "test_integration.db")
+        database_url = f"sqlite:///{db_path}"
+        logger.info(f"🧪 TESTING mode enabled: Forcing SQLite ({db_path})")
+        return database_url
+
     if not database_url:
         if env == "production":
             raise ValueError(

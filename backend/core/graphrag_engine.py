@@ -69,16 +69,21 @@ class GraphRAGEngine:
     PostgreSQL-backed GraphRAG Engine.
     Uses SQL Recursive CTEs for traversal (Stateless).
     """
-    def __init__(self, workspace_id: str = "default"):
+    def __init__(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None):
         """
         Initialize GraphRAG Engine.
 
         Args:
             workspace_id: Workspace identifier for multi-tenant isolation
+            tenant_id: Tenant identifier for SaaS compatibility
         """
-        self.workspace_id = workspace_id
+        self.workspace_id = workspace_id or "default"
+        self.tenant_id = tenant_id or "default"
         # Initialize LLMService for unified LLM interactions
-        self.llm_service = LLMService(tenant_id=workspace_id)
+        self.llm_service = LLMService(
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id
+        )
 
     def _get_registry_entry(self, entity_type: str) -> Optional[Dict]:
         """Get the registry configuration for a canonical type."""
@@ -130,8 +135,12 @@ class GraphRAGEngine:
                 
         return None
 
-    def canonical_search(self, workspace_id: str, entity_type: str, query: str) -> List[Dict]:
+    def canonical_search(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None, 
+                         entity_type: str = "unknown", query: str = "") -> List[Dict]:
         """Search for canonical records to anchor graph nodes."""
+        ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
+        
         registry = self._get_registry_entry(entity_type)
         if not registry:
             return []
@@ -152,10 +161,9 @@ class GraphRAGEngine:
                 query_obj = session.query(model).filter(or_(*filters))
                 
                 if hasattr(model, 'workspace_id'):
-                    query_obj = query_obj.filter(model.workspace_id == workspace_id)
+                    query_obj = query_obj.filter(model.workspace_id == ws_id)
                 elif hasattr(model, 'tenant_id'):
-                    # Map workspace_id to tenant_id if needed, or assume they are compatible strings here
-                    query_obj = query_obj.filter(model.tenant_id == workspace_id)
+                    query_obj = query_obj.filter(model.tenant_id == tid)
 
                 records = query_obj.limit(10).all()
                 return [
@@ -194,90 +202,55 @@ class GraphRAGEngine:
         self, text: str, doc_id: str, source: str, workspace_id: str
     ) -> tuple[List[Entity], List[Relationship]]:
         """
-        Extract entities and relationships using LLMService.
-        Dynamic: Includes user-defined entity types in the prompt.
+        Extract entities and relationships using centralized KnowledgeExtractor.
         """
-        # Load custom entity types to guide extraction
-        custom_registry = self._load_custom_entity_types(workspace_id)
-        custom_types_info = ""
-        if custom_registry:
-            custom_types_info = "\nCustom Entity Types to also look for:\n"
-            for slug, info in custom_registry.items():
-                custom_types_info += f"- {info['display_name']} ({slug}): {info.get('description', 'Custom type')}\n"
+        from core.service_factory import ServiceFactory
+        extractor = ServiceFactory.get_knowledge_extractor(
+            workspace_id=workspace_id,
+            tenant_id=self.tenant_id
+        )
+        extracted_data = await extractor.extract_knowledge(
+            text,
+            workspace_id=workspace_id,
+            tenant_id=self.tenant_id,
+            source=source
+        )
+        
+        entities = []
+        for e in extracted_data.get("entities", []):
+            # Map raw extracted properties to Entity dataclass
+            # Handle potential nested 'properties' or flattened structure
+            props = e.get("properties", {})
+            name = e.get("name") or props.get("name", "Unknown")
+            e_type = e.get("type") or props.get("type", "unknown")
+            desc = e.get("description") or props.get("description", "")
+            
+            # Enrich with source info if not already there
+            if "source" not in props: props["source"] = source
+            if "doc_id" not in props: props["doc_id"] = doc_id
+            props["llm_extracted"] = True
+            
+            entities.append(Entity(
+                id=str(uuid.uuid4()),
+                name=name,
+                entity_type=e_type,
+                description=desc,
+                properties=props
+            ))
 
-        prompt = f"""Analyze the following text and extract knowledge graph elements.
-Respond with valid JSON only.
+        relationships = []
+        for r in extracted_data.get("relationships", []):
+            relationships.append(Relationship(
+                id=str(uuid.uuid4()),
+                from_entity=r.get("from"),
+                to_entity=r.get("to"),
+                rel_type=r.get("type", "related_to"),
+                description=r.get("description", ""),
+                properties=r.get("properties", {"llm_extracted": True})
+            ))
 
-Text:
-\"\"\"
-{text[:6000]}
-\"\"\"
-
-{custom_types_info}
-
-JSON Schema:
-{{
-  "entities": [{{
-    "name": "string", 
-    "type": "string (One of the standard types or custom types above)", 
-    "description": "string", 
-    "canonical_type": "string (optional: user, workspace, goal, project, task, or any custom slug)"
-  }}],
-  "relationships": [{{"from": "string", "to": "string", "type": "string", "description": "string"}}]
-}}"""
-
-        try:
-            # Use LLMService for unified LLM interaction
-            response = await self.llm_service.generate_completion(
-                messages=[
-                    {"role": "system", "content": "You are a knowledge graph extractor. Output valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                model=GRAPHRAG_LLM_MODEL,
-                temperature=0.1
-            )
-
-            # Extract content from LLMService response format
-            content = response.get("content", "")
-            if not content:
-                logger.warning(f"LLM extraction returned empty content for doc {doc_id}")
-                return [], []
-
-            data = json.loads(content)
-
-            entities = []
-            for e in data.get("entities", []):
-                properties = {"source": source, "doc_id": doc_id, "llm_extracted": True}
-                if e.get("canonical_type"):
-                    properties["canonical_type"] = e["canonical_type"]
-                entities.append(Entity(
-                    id=str(uuid.uuid4()),
-                    name=e["name"],
-                    entity_type=e["type"],
-                    description=e.get("description", ""),
-                    properties=properties
-                ))
-
-            relationships = []
-            for r in data.get("relationships", []):
-                relationships.append(Relationship(
-                    id=str(uuid.uuid4()),
-                    from_entity=r["from"], # Names for now, will map to IDs in ingestion
-                    to_entity=r["to"],
-                    rel_type=r["type"],
-                    description=r.get("description", ""),
-                    properties={"llm_extracted": True}
-                ))
-
-            logger.info(f"LLM extraction found {len(entities)} entities and {len(relationships)} relationships for doc {doc_id}")
-            return entities, relationships
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM response as JSON for doc {doc_id}: {e}")
-            return [], []
-        except Exception as e:
-            logger.error(f"LLM extraction failed for doc {doc_id}: {e}")
-            return [], []
+        logger.info(f"Unified extraction found {len(entities)} entities and {len(relationships)} relationships for doc {doc_id}")
+        return entities, relationships
 
     # ==================== PATTERN-BASED EXTRACTION FALLBACK ====================
 
@@ -329,18 +302,19 @@ JSON Schema:
 
     # ==================== INGESTION ORCHESTRATOR ====================
 
-    async def ingest_document(self, workspace_id: str, doc_id: str, text: str, source: str = "unknown"):
+    async def ingest_document(self, workspace_id: Optional[str] = None, 
+                             tenant_id: Optional[str] = None,
+                             doc_id: str = "unknown", text: str = "", source: str = "unknown"):
         """
         Ingest raw text -> Extract -> Store in Postgres.
-
-        Note: This method is now async due to LLMService.generate_completion being async.
-        For backward compatibility, a sync wrapper can be added if needed.
         """
+        ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
 
         # 1. Extract
-        if self._is_llm_available(workspace_id):
+        if self._is_llm_available(ws_id):
             logger.info(f"Using LLM-based extraction for document {doc_id}")
-            entities, relationships = await self._llm_extract_entities_and_relationships(text, doc_id, source, workspace_id)
+            entities, relationships = await self._llm_extract_entities_and_relationships(text, doc_id, source, ws_id)
         else:
             entities, relationships = self._pattern_extract_entities_and_relationships(text, doc_id, source)
 
@@ -352,12 +326,16 @@ JSON Schema:
         e_dicts = [{"name": e.name, "type": e.entity_type, "description": e.description, "properties": e.properties} for e in entities]
         r_dicts = [{"from": r.from_entity, "to": r.to_entity, "type": r.rel_type, "properties": r.properties} for r in relationships]
         
-        self.ingest_structured_data(workspace_id, e_dicts, r_dicts)
+        self.ingest_structured_data(ws_id, tid, e_dicts, r_dicts)
 
     # ==================== WRITE OPERATIONS (SQL) ====================
 
-    def add_entity(self, entity: Entity, workspace_id: str) -> str:
+    def add_entity(self, entity: Entity, workspace_id: Optional[str] = None, 
+                   tenant_id: Optional[str] = None) -> str:
         """Upsert entity to Postgres"""
+        ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
+        
         with get_db_session() as session:
             try:
                 # Anchoring Logic
@@ -365,16 +343,16 @@ JSON Schema:
                 canonical_id = entity.properties.get('canonical_id')
                 
                 if canonical_type:
-                    resolved_id = canonical_id or self._resolve_canonical_entity(session, workspace_id, entity.name, canonical_type)
+                    resolved_id = canonical_id or self._resolve_canonical_entity(session, ws_id, entity.name, canonical_type)
                     
                     if not resolved_id:
-                        created_id = self._create_canonical_entity_if_missing(session, workspace_id, entity.name, canonical_type)
+                        created_id = self._create_canonical_entity_if_missing(session, ws_id, entity.name, canonical_type)
                         if created_id:
                             entity.properties['canonical_id'] = created_id
                     else:
                         entity.properties['canonical_id'] = resolved_id
                         # Update DB record with metadata if applicable
-                        registry = self._get_registry_entry(canonical_type, workspace_id)
+                        registry = self._get_registry_entry(canonical_type, ws_id)
                         if registry and registry.get("updatable_fields"):
                             model = registry["model"]
                             record = session.query(model).filter(model.id == resolved_id).first()
@@ -386,7 +364,7 @@ JSON Schema:
                                         setattr(record, field, update_data[field])
 
                 existing = session.query(GraphNode).filter_by(
-                    workspace_id=workspace_id, 
+                    workspace_id=ws_id, 
                     name=entity.name, 
                     type=entity.entity_type
                 ).first()
@@ -400,7 +378,7 @@ JSON Schema:
                     is_new = True
                     node = GraphNode(
                         id=entity.id,
-                        workspace_id=workspace_id,
+                        workspace_id=ws_id,
                         name=entity.name,
                         type=entity.entity_type,
                         description=entity.description,
@@ -418,7 +396,8 @@ JSON Schema:
                             "entity_id": entity.id,
                             "name": entity.name,
                             "is_new": is_new,
-                            "tenant_id": workspace_id
+                            "workspace_id": ws_id,
+                            "tenant_id": tid
                         }))
                     except Exception as trigger_err:
                         logger.warning(f"Failed to trigger automation: {trigger_err}")
@@ -429,13 +408,16 @@ JSON Schema:
                 logger.error(f"Failed to add entity: {e}")
                 return None
 
-    def add_relationship(self, rel: Relationship, workspace_id: str) -> str:
+    def add_relationship(self, rel: Relationship, workspace_id: Optional[str] = None, 
+                         tenant_id: Optional[str] = None) -> str:
         """Insert edge to Postgres"""
+        ws_id = workspace_id or self.workspace_id
+        
         with get_db_session() as session:
             try:
                 edge = GraphEdge(
                     id=rel.id,
-                    workspace_id=workspace_id,
+                    workspace_id=ws_id,
                     source_node_id=rel.from_entity,
                     target_node_id=rel.to_entity,
                     relationship_type=rel.rel_type,
@@ -567,8 +549,13 @@ JSON Schema:
             logger.warning(f"Error resolving canonical entity: {e}")
         return None
 
-    def ingest_structured_data(self, workspace_id: str, entities: List[Dict], relationships: List[Dict]):
+    def ingest_structured_data(self, workspace_id: Optional[str] = None, 
+                              tenant_id: Optional[str] = None,
+                              entities: List[Dict] = [], relationships: List[Dict] = []):
         """Batch ingestion using session."""
+        ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
+        
         with get_db_session() as session:
             try:
                 # 1. Process Nodes
@@ -581,12 +568,12 @@ JSON Schema:
                     canonical_type = properties.get("canonical_type")
                     
                     if canonical_type:
-                        canonical_id = self._resolve_canonical_entity(session, workspace_id, name, canonical_type)
+                        canonical_id = self._resolve_canonical_entity(session, ws_id, name, canonical_type)
                         if canonical_id:
                             properties["canonical_id"] = canonical_id
 
                     node = GraphNode(
-                        workspace_id=workspace_id,
+                        workspace_id=ws_id,
                         name=name,
                         type=e_data.get("type", "unknown"),
                         description=e_data.get("description", ""),
@@ -602,7 +589,7 @@ JSON Schema:
                     dst = node_map.get(r_data.get("to"))
                     if src and dst:
                         edge = GraphEdge(
-                            workspace_id=workspace_id,
+                            workspace_id=ws_id,
                             source_node_id=src,
                             target_node_id=dst,
                             relationship_type=r_data.get("type", "related_to"),
@@ -611,7 +598,7 @@ JSON Schema:
                         session.add(edge)
                 
                 session.commit()
-                logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges.")
+                logger.info(f"Ingested {len(entities)} nodes, {len(relationships)} edges for ws {ws_id}")
                 return {"entities": len(entities), "relationships": len(relationships)}
             except Exception as e:
                 session.rollback()
@@ -620,8 +607,12 @@ JSON Schema:
 
     # ==================== READ OPERATIONS (SQL) ====================
 
-    def local_search(self, workspace_id: str, query: str, depth: int = 2) -> Dict[str, Any]:
+    def local_search(self, workspace_id: Optional[str] = None, 
+                     tenant_id: Optional[str] = None,
+                     query: str = "", depth: int = 2) -> Dict[str, Any]:
         """Perform Local Search using Recursive CTE (BFS) with Bidirectional Traversal."""
+        ws_id = workspace_id or self.workspace_id
+        
         with get_db_session() as session:
             try:
                 # 1. Find Start Nodes
@@ -700,19 +691,29 @@ JSON Schema:
                 logger.error(f"Local search failed: {e}")
                 return {"error": str(e)}
 
-    def global_search(self, workspace_id: str, query: str) -> Dict[str, Any]:
-        """Global Search using Pre-computed Communities."""
+    async def global_search(self, workspace_id: Optional[str] = None, 
+                           tenant_id: Optional[str] = None,
+                           query: str = "") -> Dict[str, Any]:
+        """Global Search using LLM-based synthesis of Community Summaries."""
+        ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
+        
         with get_db_session() as session:
             try:
+                # 1. Fetch relevant communities
                 sql = text("""
                     SELECT id, summary, keywords, level
                     FROM graph_communities
                     WHERE workspace_id = :ws_id
                     ORDER BY created_at DESC
-                    LIMIT 10
+                    LIMIT 20
                 """)
                 communities = session.execute(sql, {"ws_id": workspace_id}).fetchall()
                 
+                if not communities:
+                    return {"mode": "global", "summaries": [], "answer": "No community data available for global search."}
+
+                # 2. Filter/Rank communities by query relevance
                 scored = []
                 q_lower = query.lower()
                 for c in communities:
@@ -720,32 +721,70 @@ JSON Schema:
                     if c.keywords:
                         score += sum(1 for k in c.keywords if k.lower() in q_lower)
                     if q_lower in c.summary.lower():
-                        score += 1
+                        score += 2
+                    
                     if score > 0 or not q_lower:
-                        scored.append(c.summary)
+                        scored.append({"summary": c.summary, "score": score})
                 
-                if not scored:
-                    scored = [c.summary for c in communities[:3]]
+                scored.sort(key=lambda x: x["score"], reverse=True)
+                top_summaries = [s["summary"] for s in scored[:10]]
+                
+                if not top_summaries:
+                    top_summaries = [c.summary for c in communities[:5]]
 
-                return {"mode": "global", "summaries": scored, "answer": " | ".join(scored)}
+                # 3. Use LLM to synthesize the final answer
+                context_str = "\n---\n".join(top_summaries)
+                system_prompt = f"""
+                You are a Global GraphRAG Assistant. Synthesize a comprehensive answer 
+                based on these community summaries.
+                
+                **Query:** {query}
+                
+                **Community Summaries:**
+                {context_str}
+                """
+                
+                response = await self.llm_service.generate_completion(
+                    messages=[{"role": "system", "content": system_prompt}],
+                    temperature=0.3
+                )
+                
+                answer = response.get("content", "Failed to synthesize global answer.")
+
+                return {
+                    "mode": "global",
+                    "summaries": top_summaries,
+                    "answer": answer,
+                    "count": len(top_summaries)
+                }
             except Exception as e:
                 logger.error(f"Global search failed: {e}")
-                return {"error": str(e)}
+                return {"error": str(e), "mode": "global", "answer": f"Error: {e}"}
 
-    def query(self, workspace_id: str, query: str, mode: str = "auto") -> Dict[str, Any]:
-        """Unified query entry point."""
+    async def query(self, workspace_id: Optional[str] = None, 
+                    tenant_id: Optional[str] = None,
+                    query: str = "", mode: str = "auto") -> Dict[str, Any]:
+        """Unified query entry point (Async)."""
+        ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
+
         if mode == "auto":
             holistic = ["overview", "themes", "main", "all", "summary"]
             mode = "global" if any(kw in query.lower() for kw in holistic) else "local"
 
         if mode == "global":
-            return self.global_search(workspace_id, query)
+            return await self.global_search(ws_id, tid, query)
         else:
-            return self.local_search(workspace_id, query)
+            return self.local_search(ws_id, tid, query)
 
-    def get_context_for_ai(self, workspace_id: str, query: str) -> str:
-        """Format context for AI prompt"""
-        result = self.query(workspace_id, query)
+    async def get_context_for_ai(self, workspace_id: Optional[str] = None, 
+                               tenant_id: Optional[str] = None,
+                               query: str = "") -> str:
+        """Format context for AI prompt (Async)."""
+        ws_id = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
+        
+        result = await self.query(ws_id, tid, query)
         if result.get("mode") == "global":
             return f"Global Context: {result.get('answer')}"
         
@@ -765,8 +804,11 @@ JSON Schema:
             
         return "\n".join(context_lines)
 
-    def enqueue_reindex_job(self, workspace_id: str) -> bool:
-        """Push re-index job to Redis queue."""
+    def enqueue_reindex_job(self, workspace_id: Optional[str] = None) -> bool:
+        """Enqueue a background job to recompute communities and summaries."""
+        ws_id = workspace_id or self.workspace_id
+        
+        # Redis connection
         redis_url = os.getenv("UPSTASH_REDIS_URL") or os.getenv("REDIS_URL")
         if not redis_url:
             return False

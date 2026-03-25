@@ -35,20 +35,18 @@ class VoiceService:
     - Google Cloud Speech-to-Text (future)
     """
     
-    def __init__(self, workspace_id: str = "default"):
+    def __init__(self, workspace_id: str = "default", tenant_id: str = "default"):
         self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         # Initialize LLMService for unified LLM interactions and BYOK key resolution
-        self.llm_service = LLMService(workspace_id=workspace_id)
+        self.llm_service = LLMService(workspace_id=workspace_id, tenant_id=tenant_id)
         self._whisper_available = self._check_whisper_available()
     
     def _check_whisper_available(self) -> bool:
-        """Check if Whisper is available"""
-        try:
-            import openai
-            return True
-        except ImportError:
-            logger.warning("OpenAI not available for Whisper transcription")
-            return False
+        """Check if transcription is available via LLMService"""
+        # We assume it's available if the LLM service is available
+        # The actual check happens during transcription
+        return self.llm_service.is_available()
     
     async def transcribe_audio(
         self, 
@@ -67,61 +65,43 @@ class VoiceService:
         Returns:
             VoiceTranscription with text and metadata
         """
-        if self._whisper_available:
-            return await self._transcribe_with_whisper(audio_bytes, audio_format, language)
-        else:
+        # Always try Whisper via LLMService first
+        try:
+            return await self._transcribe_with_llm_service(audio_bytes, audio_format, language)
+        except Exception as e:
+            logger.warning(f"Unified transcription failed, falling back: {e}")
             return await self._transcribe_fallback(audio_bytes, audio_format, language)
     
-    async def _transcribe_with_whisper(
+    async def _transcribe_with_llm_service(
         self,
         audio_bytes: bytes,
         audio_format: str,
         language: str
     ) -> VoiceTranscription:
-        """
-        Use OpenAI Whisper API for transcription.
+        """Use unified LLMService for transcription."""
+        # Create a file-like object for the API
+        audio_file = io.BytesIO(audio_bytes)
+        audio_file.name = f"audio.{audio_format}"
 
-        NOTE: LLMService doesn't support audio.transcriptions.create yet.
-        This method uses LLMService's handler for BYOK key resolution and
-        creates a temporary AsyncOpenAI client for the actual transcription.
-        Cost tracking is handled via LLMService infrastructure.
-        """
-        try:
-            import openai
+        # Call LLMService (which handles BYOK and provider selection)
+        result = await self.llm_service.transcribe_audio(
+            file=audio_file,
+            model="whisper-1",
+            language=language
+        )
 
-            # Get AsyncOpenAI client from LLMService's handler (BYOK key resolution)
-            # LLMService.handler.async_clients contains pre-configured AsyncOpenAI instances
-            async_clients = self.llm_service.handler.async_clients
-
-            if "openai" not in async_clients:
-                logger.warning("OpenAI AsyncOpenAI client not available in LLMService, using fallback")
-                return await self._transcribe_fallback(audio_bytes, audio_format, language)
-
-            client = async_clients["openai"]
-
-            # Create a file-like object
-            audio_file = io.BytesIO(audio_bytes)
-            audio_file.name = f"audio.{audio_format}"
-
-            # Call Whisper API
-            response = await client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                language=language
-            )
-
-            return VoiceTranscription(
-                text=response.text,
-                confidence=0.95,  # Whisper doesn't return confidence
-                language=language,
-                duration_seconds=len(audio_bytes) / 16000,  # Rough estimate
-                timestamp=datetime.utcnow()
-            )
-
-        except Exception as e:
-            logger.error(f"Whisper transcription failed: {e}")
-            return await self._transcribe_fallback(audio_bytes, audio_format, language)
+        return VoiceTranscription(
+            text=result.get("text", ""),
+            confidence=0.95,
+            language=language,
+            duration_seconds=len(audio_bytes) / 16000,
+            timestamp=datetime.utcnow()
+        )
     
+    async def _transcribe_with_whisper(self, *args, **kwargs):
+        """Deprecated: Use _transcribe_with_llm_service instead."""
+        return await self._transcribe_with_llm_service(*args, **kwargs)
+
     async def _transcribe_fallback(
         self, 
         audio_bytes: bytes, 
@@ -129,12 +109,10 @@ class VoiceService:
         language: str
     ) -> VoiceTranscription:
         """Fallback transcription (mock for development)"""
-        # In production, this would use another service
-        # For now, return a mock response
         logger.info("Using fallback voice transcription (mock)")
         
         return VoiceTranscription(
-            text="[Voice transcription requires Whisper API key]",
+            text="[Voice transcription unavailable]",
             confidence=0.0,
             language=language,
             duration_seconds=0.0,
@@ -222,8 +200,8 @@ class VoiceService:
 # Singleton
 _voice_service: Optional[VoiceService] = None
 
-def get_voice_service(workspace_id: str = "default") -> VoiceService:
+def get_voice_service(workspace_id: str = "default", tenant_id: str = "default") -> VoiceService:
     global _voice_service
-    if _voice_service is None or _voice_service.workspace_id != workspace_id:
-        _voice_service = VoiceService(workspace_id)
+    if _voice_service is None or _voice_service.workspace_id != workspace_id or getattr(_voice_service, 'tenant_id', 'default') != tenant_id:
+        _voice_service = VoiceService(workspace_id, tenant_id)
     return _voice_service

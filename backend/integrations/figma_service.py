@@ -234,6 +234,40 @@ class FigmaService:
             logger.error(f"Failed to get comments: {e}")
             raise HTTPException(status_code=400, detail=f"Failed to get comments: {str(e)}")
 
+    async def search_files(self, query: str, team_id: Optional[str] = None, access_token: str = None) -> List[Dict[str, Any]]:
+        """
+        Search for Figma files based on a query string.
+        Since Figma doesn't provide a direct global search API, 
+        we list projects and files to find matches.
+        """
+        try:
+            results = []
+            token = access_token or await self.ensure_valid_token()
+            
+            # If no team_id, we can't easily search across everything without a known starting point
+            if not team_id:
+                logger.warning("Figma search called without team_id; returning empty results")
+                return []
+
+            projects = await self.get_team_projects(team_id, token)
+            for project in projects:
+                files = await self.get_project_files(project['id'], token)
+                for f in files:
+                    if query.lower() in f.get('name', '').lower():
+                        results.append({
+                            "id": f.get('key'),
+                            "title": f.get('name'),
+                            "type": "file",
+                            "url": f"https://www.figma.com/file/{f.get('key')}/",
+                            "last_edited": f.get('last_modified'),
+                            "snippet": f"File in project: {project.get('name')}",
+                        })
+            
+            return results
+        except Exception as e:
+            logger.error(f"Figma search_files failed: {e}")
+            return []
+
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Figma service"""
         try:

@@ -5,7 +5,7 @@ import os
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
-from core.byok_endpoints import get_byok_manager
+from core.service_factory import ServiceFactory
 from integrations.mcp_service import mcp_service
 
 # Try to import Lux SDK, fallback to local model if available
@@ -34,14 +34,14 @@ class ComputerUseAgent:
     """
     
     
-    def __init__(self):
-        self.byok = get_byok_manager()
+    def __init__(self, tenant_id: str = "default"):
+        self.tenant_id = tenant_id
         self.default_mode = os.getenv("LUX_MODEL_MODE", "thinker")
         self._active_tasks: Dict[str, AgentTask] = {}
         self.mcp = mcp_service  # MCP access for web search and web access
         
         # We now rely on local LuxModel if SDK is missing
-        logger.info("ComputerUseAgent initialized with local LuxModel support")
+        logger.info(f"ComputerUseAgent initialized for tenant {tenant_id}")
             
     async def execute_task(self, goal: str, mode: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -74,13 +74,14 @@ class ComputerUseAgent:
             return
 
         try:
-            # key retrieval logic moved here to ensure freshness and BYOK integration
-            # Note: BYOK key retrieval is critical as per user request
-            api_key = self.byok.get_api_key("lux") or self.byok.get_api_key("anthropic")
+            # Use ServiceFactory to get the LuxModel instance
+            # which is now tenant-aware and uses LLMService
+            task.logs.append("Initializing Lux Agent (Unified Infrastructure)...")
             
-            if api_key:
-                # Real Lux Execution via Local Model
-                task.logs.append("Initializing Lux Agent (Local Model)...")
+            # Real Lux Execution via ServiceFactory resolved model
+            agent = await ServiceFactory.get_lux_model(tenant_id=self.tenant_id)
+            
+            if True: # Key check handled inside LuxModel/LLMService now
                 
                 # --- Governance Setup ---
                 from core.agent_governance_service import AgentGovernanceService
@@ -119,10 +120,6 @@ class ComputerUseAgent:
                         db.close()
 
                 try:
-                    # Pass callback to LuxModel
-                    agent = LuxModel(api_key=api_key, governance_callback=check_governance)
-                    task.logs.append("Lux Agent ready. Executing command...")
-                    
                     # Execute
                     result_data = await agent.execute_command(task.goal)
                     
@@ -139,12 +136,6 @@ class ComputerUseAgent:
                      task.status = "failed"
                      task.result = str(model_err)
                      task.logs.append(f"Model Execution Error: {model_err}")
-                
-            else:
-                # No API Key Found - Fail Fast
-                task.status = "failed"
-                task.logs.append("ERROR: No API key found in BYOK. Cannot execute.")
-                task.result = "Execution failed: Add a 'lux' or 'anthropic' key to BYOK to enable agent execution."
                 
         except Exception as e:
             logger.error(f"Agent task failed: {e}")

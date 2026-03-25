@@ -360,7 +360,7 @@ class EpisodeRetrievalService:
         """Log episode access for audit trail"""
         try:
             log = EpisodeAccessLog(
-                episode_id=episode_id or "",
+                episode_id=episode_id,
                 accessed_by_agent=agent_id,
                 access_type=access_type,
                 governance_check_passed=governance_check.get("allowed", True),

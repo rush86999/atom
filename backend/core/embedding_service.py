@@ -44,6 +44,7 @@ except ImportError:
 class EmbeddingProvider:
     """Supported embedding providers"""
     FASTEMBED = "fastembed"  # Default: Fast, local, ONNX-based
+    LOCAL = "local"          # Alias for fastembed
     OPENAI = "openai"        # Cloud: High quality
     COHERE = "cohere"        # Cloud: Multilingual support
 
@@ -65,7 +66,9 @@ class EmbeddingService:
         self,
         provider: Optional[str] = None,
         model: Optional[str] = None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
+        workspace_id: Optional[str] = None,
+        tenant_id: Optional[str] = None
     ):
         """
         Initialize embedding service.
@@ -77,6 +80,8 @@ class EmbeddingService:
                 - "cohere" - Cloud-based Cohere embeddings
             model: Model name (default: provider's recommended model)
             config: Additional configuration (API keys, etc.)
+            workspace_id: Workspace ID for multi-tenant isolation
+            tenant_id: Legacy alias for workspace_id
         """
         self.provider = provider or os.getenv(
             "EMBEDDING_PROVIDER",
@@ -84,11 +89,17 @@ class EmbeddingService:
         )
         self.config = config or {}
         self._client = None
+        
+        self.workspace_id = workspace_id or "default"
+        self.tenant_id = tenant_id or "default"
 
         # Set default models
         self.model = model or self._get_default_model()
 
-        # Validate provider
+        # Validate and Normalize provider
+        if self.provider == EmbeddingProvider.LOCAL:
+            self.provider = EmbeddingProvider.FASTEMBED
+
         if self.provider not in [
             EmbeddingProvider.FASTEMBED,
             EmbeddingProvider.OPENAI,
@@ -101,12 +112,15 @@ class EmbeddingService:
         self._fastembed_cache_order = []  # Track access order for LRU eviction
         self._fastembed_cache_max = 1000  # Max cache size
 
-        # Initialize LLMService for OpenAI embeddings (unified interface)
-        # Note: FastEmbed and Cohere use their own clients (keep local)
-        self.llm_service = LLMService(tenant_id="default")
+        # Initialize LLMService (for cloud providers or advanced routing)
+        self.llm_service = LLMService(
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id
+        )
 
+        # Logging
         logger.info(
-            f"Initialized EmbeddingService: provider={self.provider}, model={self.model}"
+            f"Initialized EmbeddingService: provider={self.provider}, model={self.model}, workspace={self.workspace_id}"
         )
 
     def _get_default_model(self) -> str:
@@ -144,10 +158,12 @@ class EmbeddingService:
             # Generate embedding based on provider
             if self.provider == EmbeddingProvider.FASTEMBED:
                 embedding = await self._generate_fastembed_embedding(processed_text)
-            elif self.provider == EmbeddingProvider.OPENAI:
-                embedding = await self._generate_openai_embedding(processed_text)
-            elif self.provider == EmbeddingProvider.COHERE:
-                embedding = await self._generate_cohere_embedding(processed_text)
+            elif self.provider in [EmbeddingProvider.OPENAI, EmbeddingProvider.COHERE]:
+                # Both OpenAI and Cohere are now unified in LLMService
+                embedding = await self.llm_service.generate_embedding(
+                    text=processed_text,
+                    model=self.model
+                )
             else:
                 raise ValueError(f"Unknown provider: {self.provider}")
 
@@ -178,10 +194,12 @@ class EmbeddingService:
             # Generate embeddings based on provider
             if self.provider == EmbeddingProvider.FASTEMBED:
                 embeddings = await self._generate_fastembed_embeddings_batch(processed_texts)
-            elif self.provider == EmbeddingProvider.OPENAI:
-                embeddings = await self._generate_openai_embeddings_batch(processed_texts)
-            elif self.provider == EmbeddingProvider.COHERE:
-                embeddings = await self._generate_cohere_embeddings_batch(processed_texts)
+            elif self.provider in [EmbeddingProvider.OPENAI, EmbeddingProvider.COHERE]:
+                # Both OpenAI and Cohere are now unified in LLMService
+                embeddings = await self.llm_service.generate_embeddings_batch(
+                    texts=processed_texts,
+                    model=self.model
+                )
             else:
                 raise ValueError(f"Unknown provider: {self.provider}")
 
@@ -642,239 +660,57 @@ class EmbeddingService:
         results.sort(key=lambda x: x[1], reverse=True)
         return results
 
-    # ========================================================================
-    # OpenAI Implementation (Cloud, High Quality)
-    # ========================================================================
-
-    async def _generate_openai_embedding(self, text: str) -> List[float]:
-        """
-        Generate embedding using OpenAI API via LLMService.
-
-        Delegates to LLMService for unified OpenAI embedding generation with
-        BYOK support, cost tracking, and observability.
-        """
-        try:
-            embedding = await self.llm_service.generate_embedding(
-                text=text,
-                model=self.model
-            )
-            return embedding
-        except Exception as e:
-            logger.error(f"OpenAI embedding generation failed: {e}")
-            raise
-
-    async def _generate_openai_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate embeddings using OpenAI API (batch) via LLMService.
-
-        Delegates to LLMService for unified batch embedding generation with
-        automatic batching, BYOK support, cost tracking, and observability.
-        LLMService handles 2048 batch limit internally.
-        """
-        try:
-            embeddings = await self.llm_service.generate_embeddings_batch(
-                texts=texts,
-                model=self.model
-            )
-            return embeddings
-        except Exception as e:
-            logger.error(f"OpenAI batch embedding generation failed: {e}")
-            raise
-
-    # ========================================================================
-    # Cohere Implementation (Cloud, Multilingual)
-    # ========================================================================
-
-    async def _generate_cohere_embedding(self, text: str) -> List[float]:
-        """Generate embedding using Cohere API"""
-        try:
-            import cohere
-
-            client = cohere.Client(
-                api_key=self.config.get("api_key") or os.getenv("COHERE_API_KEY")
-            )
-
-            response = client.embed(
-                model=self.model,
-                texts=[text]
-            )
-
-            return response.embeddings[0]
-
-        except ImportError:
-            raise Exception("Cohere package not installed. Run: pip install cohere")
-        except Exception as e:
-            logger.error(f"Cohere embedding generation failed: {e}")
-            raise
-
-    async def _generate_cohere_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using Cohere API (batch)"""
-        try:
-            import cohere
-
-            client = cohere.Client(
-                api_key=self.config.get("api_key") or os.getenv("COHERE_API_KEY")
-            )
-
-            # Cohere supports up to 96 texts per request
-            batch_size = 96
-            all_embeddings = []
-
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                response = client.embed(
-                    model=self.model,
-                    texts=batch
-                )
-                all_embeddings.extend(response.embeddings)
-
-            return all_embeddings
-
-        except Exception as e:
-            logger.error(f"Cohere batch embedding generation failed: {e}")
-            raise
+    # Cloud implementations (OpenAI, Cohere) are now consolidated in LLMService.
+    # We no longer need local _generate_openai_embedding or _generate_cohere_embedding blocks here.
 
 
-class LanceDBHandler:
-    """
-    Handler for storing and retrieving embeddings in LanceDB.
-
-    LanceDB is a vector database optimized for AI/ML workloads.
-    """
-
-    def __init__(self, db_path: Optional[str] = None):
-        """
-        Initialize LanceDB handler.
-
-        Args:
-            db_path: Path to LanceDB database (default: ./data/lancedb)
-        """
-        import lancedb
-
-        self.db_path = db_path or os.getenv("LANCEDB_PATH", "./data/lancedb")
-        self.db = lancedb.connect(self.db_path)
-
-        logger.info(f"Initialized LanceDB handler at {self.db_path}")
-
-    async def upsert(
-        self,
-        table_name: str,
-        data: List[Dict[str, Any]],
-        vector_column: str = "vector"
-    ):
-        """
-        Upsert documents to LanceDB table.
-
-        Args:
-            table_name: Name of the table
-            data: List of documents with 'vector' field
-            vector_column: Name of the vector column
-        """
-        try:
-            import pandas as pd
-            import pyarrow as pa
-
-            # Check if table exists
-            table_names = self.db.table_names()
-            if table_name not in table_names:
-                # Create new table
-                df = pd.DataFrame(data)
-                schema = self._get_schema(df, vector_column)
-                self.db.create_table(table_name, data=df, schema=schema)
-                logger.info(f"Created new LanceDB table: {table_name}")
-            else:
-                # Add to existing table
-                table = self.db.open_table(table_name)
-                table.add(data)
-                logger.info(f"Added {len(data)} rows to table {table_name}")
-
-        except Exception as e:
-            logger.error(f"Failed to upsert to LanceDB: {e}")
-            raise
-
-    async def search(
-        self,
-        table_name: str,
-        query_vector: List[float],
-        limit: int = 10,
-        metric: str = "cosine"
-    ) -> List[Dict[str, Any]]:
-        """
-        Search for similar vectors in LanceDB.
-
-        Args:
-            table_name: Name of the table
-            query_vector: Query embedding vector
-            limit: Number of results to return
-            metric: Distance metric (cosine, l2, dot)
-
-        Returns:
-            List of search results with scores
-        """
-        try:
-            table = self.db.open_table(table_name)
-            results = table.search(query_vector).limit(limit).metric(metric).to_pandas()
-
-            return results.to_dict("records")
-
-        except Exception as e:
-            logger.error(f"Failed to search LanceDB: {e}")
-            raise
-
-    def _get_schema(self, df, vector_column: str):
-        """Get PyArrow schema for LanceDB table"""
-        import pyarrow as pa
-
-        # Define schema
-        fields = []
-
-        for col in df.columns:
-            if col == vector_column:
-                # Vector column (fixed size list of floats)
-                fields.append(pa.field(col, pa.list_(pa.float32())))
-            elif df[col].dtype == "object":
-                # String columns
-                fields.append(pa.field(col, pa.string()))
-            elif df[col].dtype == "int64":
-                fields.append(pa.field(col, pa.int64()))
-            elif df[col].dtype == "float64":
-                fields.append(pa.field(col, pa.float64()))
-            else:
-                # Default to string
-                fields.append(pa.field(col, pa.string()))
-
-        return pa.schema(fields)
+# Redundant LanceDBHandler class removed. 
+# Use core.lancedb_handler.get_lancedb_handler() instead.
 
 
 # ============================================================================
 # Convenience Functions
 # ============================================================================
 
-async def generate_embedding(text: str, provider: Optional[str] = None) -> List[float]:
+async def generate_embedding(
+    text: str,
+    provider: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None
+) -> List[float]:
     """
     Convenience function to generate a single embedding.
 
     Args:
         text: Text to embed
         provider: Optional provider override (default: fastembed)
+        workspace_id: Workspace ID
+        tenant_id: Legacy alias for workspace_id
 
     Returns:
         Embedding vector
     """
-    service = EmbeddingService(provider=provider)
+    service = EmbeddingService(provider=provider, workspace_id=workspace_id, tenant_id=tenant_id)
     return await service.generate_embedding(text)
 
 
-async def generate_embeddings_batch(texts: List[str], provider: Optional[str] = None) -> List[List[float]]:
+async def generate_embeddings_batch(
+    texts: List[str],
+    provider: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None
+) -> List[List[float]]:
     """
     Convenience function to generate batch embeddings.
 
     Args:
         texts: List of texts to embed
         provider: Optional provider override (default: fastembed)
+        workspace_id: Workspace ID
+        tenant_id: Legacy alias for workspace_id
 
     Returns:
         List of embedding vectors
     """
-    service = EmbeddingService(provider=provider)
+    service = EmbeddingService(provider=provider, workspace_id=workspace_id, tenant_id=tenant_id)
     return await service.generate_embeddings_batch(texts)
