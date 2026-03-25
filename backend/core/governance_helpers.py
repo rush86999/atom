@@ -23,7 +23,6 @@ from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity
 from core.base_routes import BaseAPIRouter
-from core.service_factory import ServiceFactory
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +74,8 @@ def check_agent_permission(
             return {"error": "Not allowed"}
     """
     try:
-        # Get governance service via factory
+        # Get governance service via factory (local import to avoid circular dependency)
+        from core.service_factory import ServiceFactory
         governance = ServiceFactory.get_governance_service(db)
 
         # Check permission
@@ -192,6 +192,7 @@ def get_agent_maturity(db: Session, agent_id: str) -> Optional[str]:
             pass
     """
     try:
+        from core.service_factory import ServiceFactory
         governance = ServiceFactory.get_governance_service(db)
         return governance.get_agent_maturity(agent_id)
     except Exception as e:

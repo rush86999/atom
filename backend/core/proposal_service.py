@@ -24,6 +24,7 @@ from core.models import (
     ProposalStatus,
     ProposalType,
 )
+from core.agent_learning_enhanced import AgentLearningEnhanced
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,10 @@ class ProposalService:
         intern_agent_id: str,
         trigger_context: Dict[str, Any],
         proposed_action: Dict[str, Any],
-        reasoning: str
+        reasoning: str,
+        canvas_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        title: Optional[str] = None
     ) -> AgentProposal:
         """
         Create proposal from INTERN agent for human review.
@@ -65,12 +69,19 @@ class ProposalService:
             logger.warning(
                 f"Agent {intern_agent_id} is not an INTERN agent (status: {agent.status})"
             )
+        # Fetch agent name for denormalization
+        # The agent object is already fetched above, so we can use it directly.
+        agent_name = agent.name if agent else "Unknown Agent"
 
         proposal = AgentProposal(
+            tenant_id=getattr(agent, 'tenant_id', 'default'),
+            user_id=getattr(agent, 'user_id', 'system'),
             agent_id=agent.id,
-            agent_name=agent.name,
+            agent_name=agent_name, # Added agent_name
+            canvas_id=canvas_id,
+            session_id=session_id,
             proposal_type=ProposalType.ACTION.value,
-            title=f"Action Proposal: {agent.name}",
+            title=title or f"Action Proposal: {agent.name}",
             description=f"""
 Agent is proposing an action for your review.
 
@@ -85,10 +96,8 @@ Agent is proposing an action for your review.
 
 Please review and approve or reject this proposal.
             """.strip(),
-            proposed_action=proposed_action,
-            reasoning=reasoning,
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=agent.id
+            proposal_data=proposed_action,
+            status=ProposalStatus.PROPOSED.value
         )
 
         self.db.add(proposal)
@@ -140,6 +149,8 @@ Please review and approve or reject this proposal.
         Returns:
             Execution result
         """
+        learning = AgentLearningEnhanced(self.db)
+        
         proposal = self.db.query(AgentProposal).filter(
             AgentProposal.id == proposal_id
         ).first()
@@ -158,6 +169,9 @@ Please review and approve or reject this proposal.
         proposal.approved_at = datetime.now()
 
         if modifications:
+            # Capture original for learning record
+            original_action = proposal.proposed_action.copy() if proposal.proposed_action else {}
+            
             # Apply modifications to proposed action
             if proposal.proposed_action:
                 proposal.proposed_action.update(modifications)
@@ -182,6 +196,16 @@ Please review and approve or reject this proposal.
             execution_result=execution_result
         )
 
+        # NEW: Record correction if modifications were made
+        if modifications:
+            await learning.record_user_correction(
+                agent_id=proposal.agent_id,
+                tenant_id=getattr(proposal, 'tenant_id', 'default'),
+                original_action=original_action, # Captured before update
+                corrected_action=proposal.proposed_action, # Current updated action
+                context=f"Modification during proposal {proposal.id} approval"
+            )
+
         logger.info(
             f"Approved and executed proposal {proposal_id} by user {user_id}"
         )
@@ -202,6 +226,7 @@ Please review and approve or reject this proposal.
             user_id: User rejecting the proposal
             reason: Reason for rejection
         """
+        learning = AgentLearningEnhanced(self.db)
         proposal = self.db.query(AgentProposal).filter(
             AgentProposal.id == proposal_id
         ).first()
@@ -230,6 +255,16 @@ Please review and approve or reject this proposal.
             rejection_reason=reason
         )
 
+        # NEW: Record rejection for learning
+        await learning.record_rejection(
+            agent_id=proposal.agent_id,
+            tenant_id=getattr(proposal, 'tenant_id', 'default'),
+            action_type=proposal.proposed_action.get("action_type", "unknown") if proposal.proposed_action else "unknown",
+            action_data=proposal.proposed_action or {},
+            reason=reason,
+            context=f"Rejection of proposal {proposal.id}"
+        )
+
         logger.info(
             f"Rejected proposal {proposal_id} by user {user_id}. Reason: {reason}"
         )
@@ -237,6 +272,8 @@ Please review and approve or reject this proposal.
     async def get_pending_proposals(
         self,
         agent_id: Optional[str] = None,
+        canvas_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
         limit: int = 50
     ) -> List[AgentProposal]:
         """Get pending proposals awaiting review"""
@@ -246,6 +283,12 @@ Please review and approve or reject this proposal.
 
         if agent_id:
             query = query.filter(AgentProposal.agent_id == agent_id)
+        
+        if canvas_id:
+            query = query.filter(AgentProposal.canvas_id == canvas_id)
+            
+        if tenant_id:
+            query = query.filter(AgentProposal.tenant_id == tenant_id)
 
         return query.order_by(
             AgentProposal.created_at.desc()

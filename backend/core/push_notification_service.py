@@ -42,8 +42,10 @@ class PushNotificationService:
     - Rich notifications with actions
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None):
         self.db = db
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         self._fcm_enabled = bool(FCM_SERVER_KEY) and PUSH_NOTIFICATIONS_ENABLED
         self._apns_enabled = all([APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID]) and PUSH_NOTIFICATIONS_ENABLED
 
@@ -52,7 +54,8 @@ class PushNotificationService:
         user_id: str,
         device_token: str,
         platform: str,  # "ios" | "android" | "web"
-        device_info: Optional[Dict[str, Any]] = None
+        device_info: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Register a device for push notifications.
@@ -62,6 +65,7 @@ class PushNotificationService:
             device_token: Push notification token
             platform: Platform type (ios, android, web)
             device_info: Optional device info (model, OS version, etc.)
+            tenant_id: Optional tenant ID override
 
         Returns:
             Registration result with device_id
@@ -69,6 +73,8 @@ class PushNotificationService:
         try:
             # Check if device already exists
             from core.models import MobileDevice
+
+            t_id = tenant_id or self.tenant_id
 
             existing_device = self.db.query(MobileDevice).filter(
                 MobileDevice.device_token == device_token
@@ -80,9 +86,11 @@ class PushNotificationService:
                 existing_device.device_info = device_info or {}
                 existing_device.last_active = datetime.utcnow()
                 existing_device.status = "active"
+                if t_id:
+                    existing_device.tenant_id = t_id
                 self.db.commit()
 
-                logger.info(f"Updated device {existing_device.id} for user {user_id}")
+                logger.info(f"Updated device {existing_device.id} for user {user_id} (tenant: {t_id})")
 
                 return {
                     "device_id": existing_device.id,
@@ -94,6 +102,7 @@ class PushNotificationService:
                 device = MobileDevice(
                     id=str(uuid.uuid4()),
                     user_id=user_id,
+                    tenant_id=t_id,
                     device_token=device_token,
                     platform=platform,
                     status="active",
@@ -105,7 +114,7 @@ class PushNotificationService:
                 self.db.add(device)
                 self.db.commit()
 
-                logger.info(f"Registered new device {device.id} for user {user_id}")
+                logger.info(f"Registered new device {device.id} for user {user_id} (tenant: {t_id})")
 
                 return {
                     "device_id": device.id,
@@ -128,9 +137,10 @@ class PushNotificationService:
         body: str,
         data: Optional[Dict[str, Any]] = None,
         priority: str = "normal",  # "normal" | "high"
+        tenant_id: Optional[str] = None,
     ) -> bool:
         """
-        Send push notification to all user's active devices.
+        Send push notification to all user's active devices within tenant context.
 
         Args:
             user_id: User to notify
@@ -139,6 +149,7 @@ class PushNotificationService:
             body: Notification body
             data: Optional additional data
             priority: Notification priority
+            tenant_id: Optional tenant ID override
 
         Returns:
             True if notification sent successfully
@@ -151,19 +162,27 @@ class PushNotificationService:
             # Get user's active devices
             from core.models import MobileDevice
 
-            devices = self.db.query(MobileDevice).filter(
+            t_id = tenant_id or self.tenant_id
+
+            query = self.db.query(MobileDevice).filter(
                 MobileDevice.user_id == user_id,
                 MobileDevice.status == "active"
-            ).all()
+            )
+
+            if t_id:
+                query = query.filter(MobileDevice.tenant_id == t_id)
+
+            devices = query.all()
 
             if not devices:
                 logger.info(f"No active devices found for user {user_id}")
                 return False
 
-            success_count = 0
+            success_count: int = 0
 
             for device in devices:
                 try:
+                    success: bool = False
                     if device.platform == "android":
                         success = await self._send_fcm_notification(device, title, body, data, priority)
                     elif device.platform == "ios":
@@ -182,7 +201,7 @@ class PushNotificationService:
                         device.status = "inactive"
                         self.db.commit()
 
-            logger.info(f"Sent notification to {success_count}/{len(devices)} devices for user {user_id}")
+            logger.info(f"Sent notification to {success_count}/{len(devices)} devices for user {user_id} (tenant: {t_id})")
             return success_count > 0
 
         except Exception as e:
@@ -318,7 +337,8 @@ class PushNotificationService:
         agent_name: str,
         operation_type: str,
         status: str,
-        context: Optional[str] = None
+        context: Optional[str] = None,
+        tenant_id: Optional[str] = None
     ) -> bool:
         """
         Send notification about agent operation status.
@@ -352,7 +372,8 @@ class PushNotificationService:
                 "status": status,
                 "context": context
             },
-            priority="normal"
+            priority="normal",
+            tenant_id=tenant_id
         )
 
     async def send_error_alert(
@@ -360,7 +381,8 @@ class PushNotificationService:
         user_id: str,
         error_type: str,
         error_message: str,
-        severity: str = "warning"
+        severity: str = "warning",
+        tenant_id: Optional[str] = None
     ) -> bool:
         """
         Send notification about error.
@@ -383,7 +405,8 @@ class PushNotificationService:
                 "error_message": error_message,
                 "severity": severity
             },
-            priority=severity
+            priority=severity,
+            tenant_id=tenant_id
         )
 
     async def send_approval_request(
@@ -393,7 +416,8 @@ class PushNotificationService:
         agent_name: str,
         action_description: str,
         options: List[Dict[str, Any]],
-        expires_at: Optional[datetime] = None
+        expires_at: Optional[datetime] = None,
+        tenant_id: Optional[str] = None
     ) -> bool:
         """
         Send notification requesting user approval.
@@ -415,7 +439,8 @@ class PushNotificationService:
                 "options": options,
                 "expires_at": expires_at.isoformat() if expires_at else None
             },
-            priority="high"
+            priority="high",
+            tenant_id=tenant_id
         )
 
     async def send_system_alert(
@@ -423,7 +448,8 @@ class PushNotificationService:
         user_id: str,
         alert_type: str,
         message: str,
-        severity: str = "info"
+        severity: str = "info",
+        tenant_id: Optional[str] = None
     ) -> bool:
         """
         Send system alert notification.
@@ -451,7 +477,8 @@ class PushNotificationService:
                 "alert_type": alert_type,
                 "severity": severity
             },
-            priority=severity
+            priority=severity,
+            tenant_id=tenant_id
         )
 
 

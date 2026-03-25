@@ -16,6 +16,15 @@ from sqlalchemy.orm import Session, sessionmaker
 # Set TESTING environment variable BEFORE any imports
 os.environ["TESTING"] = "1"
 
+# Global monkeypatch for SQLite compatibility: redirect JSONB to JSON
+try:
+    from sqlalchemy.dialects.postgresql import JSONB
+    import sqlalchemy.dialects.postgresql as postgresql
+    import sqlalchemy.types as types
+    postgresql.JSONB = types.JSON
+except ImportError:
+    pass
+
 # Add parent directory to path for imports
 import sys
 from pathlib import Path
@@ -24,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from main_api_app import app
 from core.auth import create_access_token
 from core.database import get_db, Base
-from core.models import User
+from core.models import User, AgentRegistry, AgentMemory, TokenUsage, AgentExecution, AgentStatus, ExecutionStatus
 from tests.factories.user_factory import AdminUserFactory
 
 
@@ -49,21 +58,22 @@ def db_session():
     # Store path for cleanup
     engine._test_db_path = db_path
 
-    # Create tables using create_all with checkfirst
-    # This handles missing foreign key references gracefully
-    try:
-        Base.metadata.create_all(engine, checkfirst=True)
-    except Exception:
-        # If create_all fails, create tables individually
-        for table in Base.metadata.tables.values():
-            try:
-                table.create(engine, checkfirst=True)
-            except Exception:
-                # Skip tables that can't be created (missing FK refs, etc.)
-                continue
+    print(f"DEBUG: Tables in metadata: {list(Base.metadata.tables.keys())}")
+
+    # Create tables
+    print(f"DEBUG: Creating {len(Base.metadata.tables)} tables: {list(Base.metadata.tables.keys())}")
+    Base.metadata.create_all(engine)
 
     # Create session
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=False)
+    
+    # Global Patching: ensure all services use the same engine/session
+    import core.database
+    original_engine = core.database.engine
+    original_sessionlocal = core.database.SessionLocal
+    core.database.engine = engine
+    core.database.SessionLocal = TestingSessionLocal
+    
     session = TestingSessionLocal()
 
     yield session

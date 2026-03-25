@@ -83,7 +83,6 @@ const VariablePicker: React.FC<VariablePickerProps> = ({ onSelect, trigger, avai
                                             <ChevronRight className="h-3 w-3 text-gray-300 group-hover:text-purple-400" />
                                         </button>
 
-                                        {/* Mocking some common fields for the demo/impl */}
                                         {['id', 'name', 'content'].map(field => (
                                             <button
                                                 key={field}

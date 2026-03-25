@@ -17,15 +17,7 @@ import httpx
 
 # Import existing ATOM services
 try:
-    from ai_enhanced_service import (
-        AIConversationContext,
-        AIModelType,
-        AIRequest,
-        AIResponse,
-        AIServiceType,
-        AITaskType,
-        ai_enhanced_service,
-    )
+    from core.llm_service import LLMService
     from atom_discord_integration import atom_discord_integration
     from atom_google_chat_integration import atom_google_chat_integration
     from atom_ingestion_pipeline import AtomIngestionPipeline
@@ -39,6 +31,16 @@ except ImportError as e:
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+@dataclass
+class AIConversationContext:
+    """Context for AI conversation (Modernized)"""
+    conversation_id: str
+    user_id: str
+    platform: str
+    messages: List[Dict[str, Any]]
+    metadata: Dict[str, Any]
+    last_updated: datetime = datetime.utcnow()
 
 class AtomAIIntegration:
     """Main AI integration class for unified communication ecosystem"""
@@ -58,8 +60,8 @@ class AtomAIIntegration:
             'discord': atom_discord_integration
         }
         
-        # AI service
-        self.ai_service = config.get('ai_enhanced_service')
+        # AI service (Modernized)
+        self.llm_service = config.get('llm_service') or LLMService(workspace_id=config.get('workspace_id', 'default'))
         
         # Integration state
         self.is_initialized = False
@@ -68,23 +70,23 @@ class AtomAIIntegration:
         self.ai_analytics = []
         
         # AI conversation management
-        self.conversation_manager = AIConversationManager(self.ai_service)
+        self.conversation_manager = AIConversationManager(self.llm_service)
         
         # AI-powered search
-        self.intelligent_search = IntelligentSearchManager(self.ai_service, self.atom_search)
+        self.search_manager = IntelligentSearchManager(self.llm_service, self.atom_search, self.atom_ingestion)
         
         # AI workflow automation
-        self.workflow_intelligence = WorkflowIntelligenceManager(self.ai_service, self.atom_workflow)
+        self.workflow_intelligence = WorkflowIntelligenceManager(self.llm_service, self.atom_workflow)
         
         # Cross-platform AI features
-        self.cross_platform_ai = CrossPlatformAIManager(self.ai_service, self.platform_integrations)
+        self.cross_platform_ai = CrossPlatformAIManager(self.llm_service, self.platform_integrations)
         
         logger.info("ATOM AI Integration initialized")
     
     async def initialize(self) -> bool:
         """Initialize AI integration with ATOM services"""
         try:
-            if not all([self.ai_service, self.atom_memory, self.atom_search]):
+            if not all([self.llm_service, self.atom_memory, self.atom_search]):
                 logger.error("Required services not available for AI integration")
                 return False
             
@@ -95,7 +97,7 @@ class AtomAIIntegration:
             await self._initialize_ai_features()
             
             # Setup intelligent search
-            await self._setup_intelligent_search()
+            await self.search_manager.initialize()
             
             # Setup workflow intelligence
             await self._setup_workflow_intelligence()
@@ -338,7 +340,7 @@ class AtomAIIntegration:
             options = options or {}
             
             # Use intelligent search manager
-            search_results = await self.intelligent_search.search(
+            search_results = await self.search_manager.search(
                 query=query,
                 workspace_id=workspace_id,
                 channel_id=channel_id,
@@ -407,26 +409,21 @@ class AtomAIIntegration:
         try:
             options = options or {}
             
-            # Use AI to enhance analytics
-            enhanced_analytics = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"analytics_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.PREDICTIVE_ANALYTICS,
-                model_type=AIModelType.GPT_4,
-                service_type=AIServiceType.OPENAI,
-                input_data={
-                    'metric': metric,
-                    'time_range': time_range,
-                    'workspace_id': workspace_id,
-                    'options': options
-                },
-                context={
-                    'task': 'analytics_enhancement',
-                    'user_id': options.get('user_id')
-                },
-                platform=workspace_id.split('_')[0] if '_' in workspace_id else 'unknown'
-            ))
+            # Use AI to enhance analytics (Modernized)
+            prompt = f"Analyze the following {metric} for the time range {time_range}. " \
+                     f"Workspace: {workspace_id}. Options: {json.dumps(options)}. " \
+                     "Provide insights and predictions in JSON format."
             
-            return enhanced_analytics.output_data if enhanced_analytics.ok else {'error': 'Analytics enhancement failed'}
+            result = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a predictive analytics expert for communication platforms."
+            )
+            
+            try:
+                # Attempt to parse JSON from AI response
+                return json.loads(result)
+            except:
+                return {'analysis': result}
             
         except Exception as e:
             logger.error(f"Error getting intelligent analytics: {e}")
@@ -517,7 +514,7 @@ class AtomAIIntegration:
     
     async def _setup_intelligent_search(self):
         """Setup intelligent search"""
-        await self.intelligent_search.initialize()
+        await self.search_manager.initialize()
     
     async def _setup_workflow_intelligence(self):
         """Setup workflow intelligence"""
@@ -659,48 +656,38 @@ class AtomAIIntegration:
         ]
     
     async def _get_message_ai_analysis(self, message: Dict[str, Any]) -> Dict[str, Any]:
-        """Get AI analysis for message"""
+        """Get AI analysis for message (Modernized)"""
         try:
-            # Use AI service for analysis
-            sentiment_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"sentiment_{message['id']}_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.SENTIMENT_ANALYSIS,
-                model_type=AIModelType.GPT_3_5_TURBO,
-                service_type=AIServiceType.OPENAI,
-                input_data=message['content'],
-                context={
-                    'platform': message['platform'],
-                    'channel_id': message['channel_id'],
-                    'workspace_id': message['workspace_id']
-                },
-                platform=message['platform']
-            ))
+            prompt = f"Analyze the following message for sentiment and topics: {message['content']}. " \
+                     "Return a JSON object with 'sentiment' (string), 'sentiment_score' (float -1 to 1), and 'key_topics' (list)."
             
-            topic_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"topic_{message['id']}_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.TOPIC_EXTRACTION,
-                model_type=AIModelType.GPT_3_5_TURBO,
-                service_type=AIServiceType.OPENAI,
-                input_data=message['content'],
-                context={
-                    'platform': message['platform'],
-                    'channel_id': message['channel_id']
-                },
-                platform=message['platform']
-            ))
+            analysis_text = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a linguistic analysis agent."
+            )
             
-            return {
-                'sentiment': sentiment_request.output_data.get('overall_sentiment', 'neutral'),
-                'sentiment_score': sentiment_request.output_data.get('sentiment_score', 0.0),
-                'key_topics': topic_request.output_data.get('main_topics', []),
-                'emotions': sentiment_request.output_data.get('emotions', {}),
-                'urgency': 'medium',  # Would be calculated
-                'importance': 'medium',  # Would be calculated
-                'action_items': [],  # Would be extracted
-                'category': 'general',  # Would be classified
-                'language': 'en',  # Would be detected
-                'confidence': (sentiment_request.confidence + topic_request.confidence) / 2
-            }
+            try:
+                analysis = json.loads(analysis_text)
+                return {
+                    'sentiment': analysis.get('sentiment', 'neutral'),
+                    'sentiment_score': analysis.get('sentiment_score', 0.0),
+                    'key_topics': analysis.get('key_topics', []),
+                    'emotions': {},
+                    'urgency': 'medium',
+                    'importance': 'medium',
+                    'action_items': [],
+                    'category': 'general',
+                    'language': 'en',
+                    'confidence': 0.8
+                }
+            except:
+                return {
+                    'sentiment': 'neutral',
+                    'sentiment_score': 0.0,
+                    'key_topics': [],
+                    'emotions': {},
+                    'confidence': 0.5
+                }
             
         except Exception as e:
             logger.error(f"Error getting message AI analysis: {e}")
@@ -713,32 +700,19 @@ class AtomAIIntegration:
             }
     
     async def _enhance_content(self, content: str, options: Dict[str, Any]) -> str:
-        """Enhance content with AI"""
+        """Enhance content with AI (Modernized)"""
         try:
             if not options.get('enhance_content', True):
                 return content
             
-            # Use AI for content enhancement
-            enhancement_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"enhance_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.CONTENT_GENERATION,
-                model_type=AIModelType.GPT_3_5_TURBO,
-                service_type=AIServiceType.OPENAI,
-                input_data=content,
-                context={
-                    'task': 'content_enhancement',
-                    'type': options.get('content_type', 'message'),
-                    'tone': options.get('tone', 'professional'),
-                    'platform': options.get('platform')
-                },
-                platform=options.get('platform', 'unknown')
-            ))
+            prompt = f"Enhance this content: {content}. Tone: {options.get('tone', 'professional')}. Platform: {options.get('platform')}."
             
-            if enhancement_request.ok:
-                enhanced_data = enhancement_request.output_data
-                return enhanced_data.get('content', content)
+            enhanced_content = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a professional content writer and editor."
+            )
             
-            return content
+            return enhanced_content or content
             
         except Exception as e:
             logger.error(f"Error enhancing content: {e}")
@@ -781,8 +755,8 @@ class AtomAIIntegration:
         while True:
             try:
                 # Index content for intelligent search
-                if self.intelligent_search:
-                    await self.intelligent_search.update_search_index()
+                if self.search_manager:
+                    await self.search_manager.update_search_index()
                 
                 await asyncio.sleep(300)  # Process every 5 minutes
                 
@@ -819,10 +793,10 @@ class AtomAIIntegration:
                 await asyncio.sleep(1800)  # Wait before retrying
 
 class AIConversationManager:
-    """Manages AI-powered conversations"""
+    """Manages AI-powered conversations (Modernized)"""
     
-    def __init__(self, ai_service):
-        self.ai_service = ai_service
+    def __init__(self, llm_service):
+        self.llm_service = llm_service
         self.conversations: Dict[str, AIConversationContext] = {}
     
     async def start_conversation(self, user_id: str, platform: str,
@@ -851,7 +825,7 @@ class AIConversationManager:
             return ''
     
     async def continue_conversation(self, conversation_id: str, message: str,
-                              user_id: str) -> Dict[str, Any]:
+                               user_id: str) -> Dict[str, Any]:
         """Continue AI conversation"""
         try:
             context = self.conversations.get(conversation_id)
@@ -865,29 +839,17 @@ class AIConversationManager:
                 'timestamp': datetime.utcnow().isoformat()
             })
             
-            # Get AI response
-            ai_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"conv_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.CONTENT_GENERATION,
-                model_type=AIModelType.GPT_4,
-                service_type=AIServiceType.OPENAI,
-                input_data={
-                    'conversation': context.messages[-10:],  # Last 10 messages
-                    'current_message': message
-                },
-                context={
-                    'task': 'conversation',
-                    'user_id': user_id,
-                    'platform': context.platform,
-                    'conversation_id': conversation_id
-                },
-                platform=context.platform,
-                system_prompt="You are an intelligent assistant for unified communication platforms. Provide helpful, contextually relevant responses."
-            ))
+            # Get AI response using unified LLMService
+            messages = []
+            for m in context.messages[-10:]:
+                messages.append({"role": m['role'], "content": m['content']})
             
-            if ai_request.ok:
-                response_text = ai_request.output_data.get('content', '')
-                
+            response_text = await self.llm_service.chat_completion(
+                messages=messages,
+                system_prompt="You are an intelligent assistant for unified communication platforms. Provide helpful, contextually relevant responses."
+            )
+            
+            if response_text:
                 # Add AI response
                 context.messages.append({
                     'role': 'assistant',
@@ -903,7 +865,7 @@ class AIConversationManager:
                     'ok': True,
                     'response': response_text,
                     'conversation_id': conversation_id,
-                    'confidence': ai_request.confidence
+                    'confidence': 0.9
                 }
             else:
                 return {'ok': False, 'error': 'AI processing failed'}
@@ -914,26 +876,19 @@ class AIConversationManager:
     
     async def process_command(self, command: str, user_id: str,
                            workspace_id: str = None, platform: str = None) -> Dict[str, Any]:
-        """Process natural language command"""
+        """Process natural language command (Modernized)"""
         try:
-            # Use AI for command processing
-            ai_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"cmd_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.NATURAL_LANGUAGE_COMMANDS,
-                model_type=AIModelType.GPT_4,
-                service_type=AIServiceType.OPENAI,
-                input_data=command,
-                context={
-                    'task': 'command_processing',
-                    'user_id': user_id,
-                    'platform': platform,
-                    'workspace_id': workspace_id
-                },
-                platform=platform,
-                system_prompt="You are an intelligent command processor for unified communication platforms. Parse user commands and provide appropriate responses."
-            ))
+            prompt = f"Parse and process this command: {command}. User: {user_id}. Platform: {platform}. Workspace: {workspace_id}."
             
-            return ai_request.output_data if ai_request.ok else {'error': 'Command processing failed'}
+            result_text = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are an intelligent command processor. Return response in JSON format."
+            )
+            
+            try:
+                return json.loads(result_text)
+            except:
+                return {'ok': True, 'response': result_text}
             
         except Exception as e:
             logger.error(f"Error processing command: {e}")
@@ -942,9 +897,10 @@ class AIConversationManager:
 class IntelligentSearchManager:
     """Manages AI-powered intelligent search"""
     
-    def __init__(self, ai_service, atom_search):
-        self.ai_service = ai_service
+    def __init__(self, llm_service, atom_search, atom_ingestion=None):
+        self.llm_service = llm_service
         self.atom_search = atom_search
+        self.atom_ingestion = atom_ingestion
         self.search_index = {}
     
     async def initialize(self):
@@ -955,7 +911,7 @@ class IntelligentSearchManager:
     async def search(self, query: str, workspace_id: str = None,
                     channel_id: str = None, user_id: str = None,
                     options: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-        """Perform AI-powered intelligent search"""
+        """Perform AI-powered intelligent search (Modernized)"""
         try:
             options = options or {}
             
@@ -969,48 +925,35 @@ class IntelligentSearchManager:
                 limit=options.get('limit', 50)
             )
             
-            # Use AI to rank and enhance results
+            # Use AI to rank and enhance results using LLMService
             if not base_results:
                 return []
             
-            ranked_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"search_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.SEARCH_RANKING,
-                model_type=AIModelType.GPT_3_5_TURBO,
-                service_type=AIServiceType.OPENAI,
-                input_data=base_results,
-                context={
-                    'query': query,
-                    'workspace_id': workspace_id,
-                    'channel_id': channel_id,
-                    'user_id': user_id,
-                    'platform': options.get('platform')
-                },
-                platform=options.get('platform', 'unknown')
-            ))
+            prompt = f"Rank these search results for the query: '{query}'. Results: {json.dumps(base_results[:10])}."
             
-            if ranked_request.ok:
-                ranked_data = ranked_request.output_data
+            ranked_text = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a search ranking expert. return a JSON object with 'ranked_results'."
+            )
+            
+            try:
+                ranked_data = json.loads(ranked_text)
                 return ranked_data.get('ranked_results', base_results)
-            
-            return base_results
+            except:
+                return base_results
             
         except Exception as e:
             logger.error(f"Error in intelligent search: {e}")
             return []
     
     async def update_search_index(self):
-        """Update search index with AI enhancements"""
+        """Update search index with AI enhancements (Modernized)"""
         try:
-            # Update index with new content
             logger.info("Updating search index with AI enhancements")
 
-            # Collect new content from various sources
-            if self.atom_ingestion_pipeline:
-                # Get recent communications
+            # Collect new content from ingestion pipeline
+            if self.atom_ingestion:
                 recent_communications = await self._get_recent_communications()
-
-                # Process and index with AI
                 for comm in recent_communications:
                     await self._index_communication(comm)
 
@@ -1018,19 +961,62 @@ class IntelligentSearchManager:
         except Exception as e:
             logger.error(f"Error updating search index: {e}")
 
+    async def _get_recent_communications(self) -> List[Dict[str, Any]]:
+        """Get recent communications for indexing"""
+        try:
+            # Implementation depends on ingestion pipeline API
+            return []
+        except Exception as e:
+            logger.error(f"Error getting recent communications: {e}")
+            return []
+
+    async def _index_communication(self, comm: Dict[str, Any]):
+        """Index a communication document with embedding generation (Modernized)"""
+        try:
+            from core.lancedb_handler import get_lancedb_handler
+            from core.embedding_service import EmbeddingService
+
+            # Prepare content for embedding
+            content_parts = [
+                comm.get('subject', ''),
+                comm.get('body', ''),
+                comm.get('sender', ''),
+                comm.get('summary', '')
+            ]
+            content = ' '.join([p for p in content_parts if p])
+
+            if not content or len(content.strip()) < 10:
+                return
+
+            # Generate embedding using modernized service
+            embedding_service = EmbeddingService()
+            embedding = await embedding_service.generate_embedding(content)
+
+            # Store in LanceDB using unified handler
+            vector_db = get_lancedb_handler()
+            await vector_db.upsert(
+                table_name="communications",
+                data=[{
+                    "id": comm.get('id'),
+                    "vector": embedding,
+                    "subject": comm.get('subject', ''),
+                    "body": comm.get('body', ''),
+                    "sender": comm.get('sender', ''),
+                    "timestamp": comm.get('timestamp', datetime.now(timezone.utc).isoformat()),
+                    "platform": comm.get('platform', 'unknown'),
+                    "communication_type": comm.get('type', 'email')
+                }]
+            )
+
+            logger.info(f"Indexed communication {comm.get('id')} with embedding dimension {len(embedding)}")
+        except Exception as e:
+            logger.error(f"Error indexing communication: {e}")
+
     async def _load_search_index(self):
         """Load search index"""
         try:
-            # Load existing search index
             logger.info("Loading search index")
-
-            # Initialize index from storage
-            self.search_index = {
-                "documents": [],
-                "embeddings": [],
-                "metadata": {}
-            }
-
+            self.search_index = {"documents": [], "embeddings": [], "metadata": {}}
             logger.info("Search index loaded successfully")
         except Exception as e:
             logger.error(f"Error loading search index: {e}")
@@ -1038,8 +1024,8 @@ class IntelligentSearchManager:
 class WorkflowIntelligenceManager:
     """Manages AI-powered workflow intelligence"""
     
-    def __init__(self, ai_service, atom_workflow):
-        self.ai_service = ai_service
+    def __init__(self, llm_service, atom_workflow):
+        self.llm_service = llm_service
         self.atom_workflow = atom_workflow
         self.workflow_patterns = {}
     
@@ -1048,26 +1034,21 @@ class WorkflowIntelligenceManager:
         await self._load_workflow_patterns()
     
     async def enhance_workflow(self, workflow_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Enhance workflow with AI"""
+        """Enhance workflow with AI (Modernized)"""
         try:
-            # Use AI for workflow enhancement
-            enhancement_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"workflow_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.WORKFLOW_RECOMMENDATION,
-                model_type=AIModelType.GPT_4,
-                service_type=AIServiceType.OPENAI,
-                input_data=workflow_data,
-                context={
-                    'task': 'workflow_enhancement',
-                    'platform': workflow_data.get('platform', 'unknown')
-                },
-                platform=workflow_data.get('platform', 'unknown')
-            ))
+            prompt = f"Enhance this workflow: {json.dumps(workflow_data)}. " \
+                     "Identify optimizations and suggestions."
             
-            if enhancement_request.ok:
-                enhancement_data = enhancement_request.output_data
-                # Merge enhancements into workflow data
+            enhancement_text = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a workflow optimization expert."
+            )
+            
+            try:
+                enhancement_data = json.loads(enhancement_text)
                 workflow_data['ai_enhancements'] = enhancement_data
+            except:
+                workflow_data['ai_enhancements'] = {"suggestions": enhancement_text}
             
             return workflow_data
             
@@ -1076,7 +1057,7 @@ class WorkflowIntelligenceManager:
             return workflow_data
     
     async def optimize_workflows(self):
-        """Optimize workflows with AI"""
+        """Optimize workflows with AI (Modernized)"""
         try:
             # Analyze and optimize existing workflows
             logger.info("Optimizing workflows with AI")
@@ -1088,23 +1069,39 @@ class WorkflowIntelligenceManager:
                 # Analyze each workflow
                 for workflow in workflows:
                     # Use AI to identify optimization opportunities
-                    optimization_request = await self.ai_service.process_ai_request(AIRequest(
-                        request_id=f"optimize_{workflow.id}",
-                        task_type=AITaskType.WORKFLOW_OPTIMIZATION,
-                        model_type=AIModelType.GPT_4,
-                        service_type=AIServiceType.OPENAI,
-                        input_data=workflow,
-                        context={'task': 'workflow_optimization'},
-                        platform=workflow.get('platform', 'unknown')
-                    ))
+                    prompt = f"Optimize this workflow: {json.dumps(workflow)}."
+                    
+                    optimization_text = await self.llm_service.chat_completion(
+                        messages=[{"role": "user", "content": prompt}],
+                        system_prompt="You are a workflow optimization expert."
+                    )
 
-                    if optimization_request.ok:
-                        optimizations = optimization_request.output_data
+                    try:
+                        optimizations = json.loads(optimization_text)
                         await self._apply_optimizations(workflow, optimizations)
+                    except:
+                        pass
 
             logger.info("Workflow optimization completed successfully")
         except Exception as e:
             logger.error(f"Error optimizing workflows: {e}")
+
+    async def _get_all_workflows(self) -> List[Dict[str, Any]]:
+        """Get all workflows"""
+        try:
+            # Implementation depends on workflow service
+            return []
+        except Exception as e:
+            logger.error(f"Error getting workflows: {e}")
+            return []
+
+    async def _apply_optimizations(self, workflow: Dict[str, Any], optimizations: Dict[str, Any]):
+        """Apply AI-recommended optimizations to workflow"""
+        try:
+            # Apply optimizations
+            logger.info(f"Applying optimizations to workflow {workflow.get('id')}")
+        except Exception as e:
+            logger.error(f"Error applying optimizations: {e}")
 
     async def _load_workflow_patterns(self):
         """Load workflow patterns"""
@@ -1123,11 +1120,29 @@ class WorkflowIntelligenceManager:
         except Exception as e:
             logger.error(f"Error loading workflow patterns: {e}")
 
+    async def setup_workflow_automation(self):
+        """Setup AI-powered workflow automation"""
+        try:
+            logger.info("Setting up workflow automation")
+            # Initialize AI workflow automation
+            logger.info("Workflow automation setup complete")
+        except Exception as e:
+            logger.error(f"Error setting up workflow automation: {e}")
+
+    async def start_monitoring(self):
+        """Start AI monitoring"""
+        try:
+            logger.info("Starting AI monitoring")
+            # Start background AI monitoring tasks
+            logger.info("AI monitoring started successfully")
+        except Exception as e:
+            logger.error(f"Error starting AI monitoring: {e}")
+
 class CrossPlatformAIManager:
     """Manages cross-platform AI features"""
     
-    def __init__(self, ai_service, platform_integrations):
-        self.ai_service = ai_service
+    def __init__(self, llm_service, platform_integrations):
+        self.llm_service = llm_service
         self.platform_integrations = platform_integrations
         self.cross_platform_insights = {}
     
@@ -1136,7 +1151,7 @@ class CrossPlatformAIManager:
         await self._load_cross_platform_data()
     
     async def synchronize_ai_insights(self):
-        """Synchronize AI insights across platforms"""
+        """Synchronize AI insights across platforms (Modernized)"""
         try:
             # Collect insights from all platforms
             all_insights = {}
@@ -1149,22 +1164,18 @@ class CrossPlatformAIManager:
                 insights = await self._get_platform_insights(platform, integration)
                 all_insights[platform] = insights
             
-            # Generate cross-platform AI analysis
-            cross_platform_request = await self.ai_service.process_ai_request(AIRequest(
-                request_id=f"cross_platform_{int(datetime.utcnow().timestamp())}",
-                task_type=AITaskType.USER_BEHAVIOR_ANALYSIS,
-                model_type=AIModelType.GPT_4,
-                service_type=AIServiceType.OPENAI,
-                input_data=all_insights,
-                context={
-                    'task': 'cross_platform_analysis',
-                    'platforms': list(self.platform_integrations.keys())
-                },
-                platform='cross_platform'
-            ))
+            # Generate cross-platform AI analysis using LLMService
+            prompt = f"Analyze these cross-platform insights: {json.dumps(all_insights)}."
             
-            if cross_platform_request.ok:
-                self.cross_platform_insights = cross_platform_request.output_data
+            analysis_text = await self.llm_service.chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="You are a cross-platform data scientist."
+            )
+            
+            try:
+                self.cross_platform_insights = json.loads(analysis_text)
+            except:
+                self.cross_platform_insights = {"analysis": analysis_text}
             
         except Exception as e:
             logger.error(f"Error synchronizing AI insights: {e}")
@@ -1206,85 +1217,6 @@ class CrossPlatformAIManager:
             logger.error(f"Error getting platform insights for {platform}: {e}")
             return {}
 
-    async def _get_recent_communications(self) -> List[Dict[str, Any]]:
-        """Get recent communications for indexing"""
-        try:
-            if self.atom_ingestion_pipeline:
-                # Get communications from last 24 hours
-                from datetime import timedelta
-                since = datetime.utcnow() - timedelta(hours=24)
-                # Implementation depends on ingestion pipeline API
-                return []
-            return []
-        except Exception as e:
-            logger.error(f"Error getting recent communications: {e}")
-            return []
-
-    async def _index_communication(self, comm: Dict[str, Any]):
-        """Index a communication document with embedding generation"""
-        try:
-            from core.embedding_service import EmbeddingService, LanceDBHandler
-
-            # Prepare content for embedding
-            content_parts = [
-                comm.get('subject', ''),
-                comm.get('body', ''),
-                comm.get('sender', ''),
-                comm.get('summary', '')
-            ]
-            content = ' '.join([p for p in content_parts if p])
-
-            if not content or len(content.strip()) < 10:
-                logger.debug(f"Skipping communication {comm.get('id')} - insufficient content for embedding")
-                return
-
-            # Generate embedding
-            embedding_service = EmbeddingService()
-            embedding = await embedding_service.generate_embedding(content)
-
-            # Store in LanceDB
-            vector_db = LanceDBHandler()
-            await vector_db.upsert(
-                table_name="communications",
-                data=[{
-                    "id": comm.get('id'),
-                    "vector": embedding,
-                    "subject": comm.get('subject', ''),
-                    "body": comm.get('body', ''),
-                    "sender": comm.get('sender', ''),
-                    "timestamp": comm.get('timestamp', datetime.now(timezone.utc).isoformat()),
-                    "platform": comm.get('platform', 'unknown'),
-                    "communication_type": comm.get('type', 'email')
-                }]
-            )
-
-            logger.info(
-                f"Indexed communication {comm.get('id')} with embedding dimension {len(embedding)}"
-            )
-
-        except ImportError as e:
-            logger.warning(f"Embedding dependencies not available: {e}")
-            logger.debug(f"Communication indexing requested: comm_id={comm.get('id')}")
-        except Exception as e:
-            logger.error(f"Error indexing communication: {e}")
-
-    async def _get_all_workflows(self) -> List[Dict[str, Any]]:
-        """Get all workflows"""
-        try:
-            # Implementation depends on workflow service
-            return []
-        except Exception as e:
-            logger.error(f"Error getting workflows: {e}")
-            return []
-
-    async def _apply_optimizations(self, workflow: Dict[str, Any], optimizations: Dict[str, Any]):
-        """Apply AI-recommended optimizations to workflow"""
-        try:
-            # Apply optimizations
-            logger.info(f"Applying optimizations to workflow {workflow.get('id')}")
-        except Exception as e:
-            logger.error(f"Error applying optimizations: {e}")
-
     async def _get_platform_data(self, platform: str) -> Dict[str, Any]:
         """Get data for specific platform"""
         try:
@@ -1298,29 +1230,11 @@ class CrossPlatformAIManager:
             logger.error(f"Error getting platform data for {platform}: {e}")
             return {}
 
-    async def setup_workflow_automation(self):
-        """Setup AI-powered workflow automation"""
-        try:
-            logger.info("Setting up workflow automation")
-            # Initialize AI workflow automation
-            logger.info("Workflow automation setup complete")
-        except Exception as e:
-            logger.error(f"Error setting up workflow automation: {e}")
-
-    async def start_monitoring(self):
-        """Start AI monitoring"""
-        try:
-            logger.info("Starting AI monitoring")
-            # Start background AI monitoring tasks
-            logger.info("AI monitoring started successfully")
-        except Exception as e:
-            logger.error(f"Error starting AI monitoring: {e}")
-
 # Global AI integration instance
 atom_ai_integration = AtomAIIntegration({
-    'atom_memory_service': None,  # Would be actual instance
-    'atom_search_service': None,  # Would be actual instance
-    'atom_workflow_service': None,  # Would be actual instance
-    'atom_ingestion_pipeline': None,  # Would be actual instance
-    'ai_enhanced_service': None  # Would be actual instance
+    'atom_memory_service': None,
+    'atom_search_service': None,
+    'atom_workflow_service': None,
+    'atom_ingestion_pipeline': None,
+    'llm_service': None
 })

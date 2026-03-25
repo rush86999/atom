@@ -120,15 +120,18 @@ class EscalationManager:
         ...     pass
     """
 
-    def __init__(self, db_session=None):
+    def __init__(self, db_session=None, workspace_id: str = "default", tenant_id: Optional[str] = None):
         """
         Initialize the escalation manager.
 
         Args:
             db_session: Optional SQLAlchemy session for database logging.
-                       If None, escalations are tracked in-memory only.
+            workspace_id: Workspace identifier for logging.
+            tenant_id: Optional tenant identifier for isolation.
         """
         self.db = db_session
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
 
         # In-memory escalation tracking
         # {tier_value: datetime} - tracks last escalation time for each tier
@@ -380,7 +383,8 @@ class EscalationManager:
 
                 escalation_record = EscalationLog(
                     id=str(uuid.uuid4()),
-                    workspace_id="default",  # TODO: Get from context
+                    workspace_id=self.workspace_id,
+                    tenant_id=self.tenant_id,
                     request_id=request_id or "unknown",
                     from_tier=from_tier.value,
                     to_tier=to_tier.value,

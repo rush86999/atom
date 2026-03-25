@@ -25,7 +25,7 @@ from ai.nlp_engine import NaturalLanguageEngine, CommandIntentResult, CommandTyp
 from typing import Literal
 from core.canvas_context_provider import get_canvas_provider, CanvasContext
 from core.agents.queen_agent import QueenAgent
-from core.llm_service import LLMService, get_llm_service
+
 
 # LLM Integration:
 # Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
@@ -133,19 +133,9 @@ class SpecialtyAgentTemplate:
 
 
 
-# ReAct Models
-from core.react_models import ReActStep, ToolCall, ReActObservation
-import json
-
-# Try to import instructor and AsyncOpenAI
-try:
-    import instructor
-    from openai import AsyncOpenAI
-    INSTRUCTOR_AVAILABLE = True
-except ImportError:
-    INSTRUCTOR_AVAILABLE = False
-    instructor = None
-    AsyncOpenAI = None
+# LLM Integration:
+# Uses LLMService for unified LLM interactions (BYOK key resolution, cost tracking, observability).
+# All LLM calls (generate_completion, generate_structured_response) go through self.llm.
 
 class AtomMetaAgent:
     """
@@ -179,14 +169,22 @@ class AtomMetaAgent:
         "manage_team"
     ]
 
-    def __init__(self, workspace_id: str = "default", user: Optional[User] = None):
+    def __init__(self, workspace_id: str = "default", tenant_id: Optional[str] = None, user: Optional[User] = None):
         self.workspace_id = workspace_id
+        self.tenant_id = tenant_id or "default"
         self.user = user
-        self.world_model = WorldModelService(workspace_id)
+        self.world_model = WorldModelService(workspace_id=workspace_id, tenant_id=self.tenant_id)
         self.orchestrator = AdvancedWorkflowOrchestrator()
-        self._spawned_agents: Dict[str, AgentRegistry] = {}
+        self.spawned_agents: Dict[str, AgentRegistry] = {}
         self.mcp = mcp_service  # MCP access for tools
-        self.llm = get_llm_service(workspace_id=workspace_id)
+        
+        # Access LLMService via ServiceFactory
+        from core.service_factory import ServiceFactory
+        self.llm = ServiceFactory.get_llm_service(
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id
+        )
+        
         self.session_tools: List[Dict[str, Any]] = [] # Usage: Dynamically added tools
         self.canvas_provider = get_canvas_provider()  # Canvas context provider
         self.queen = None # Lazy loaded
@@ -224,6 +222,7 @@ class AtomMetaAgent:
                     raise HTTPException(status_code=404, detail="Workspace not found")
 
                 tenant_id = workspace.tenant_id or "default"
+                self.tenant_id = tenant_id # Sync if resolved later
 
                 # Create persistent execution record
                 execution = AgentExecution(
@@ -350,8 +349,9 @@ class AtomMetaAgent:
             try:
                 # 1. Queen Phase: Generate Blueprint
                 if not self.queen:
+                    from core.service_factory import ServiceFactory
                     with SessionLocal() as db:
-                        self.queen = QueenAgent(db, self.llm)
+                        self.queen = ServiceFactory.get_queen_agent(db)
                 
                 blueprint = await self.queen.generate_blueprint(request, tenant_id=tenant_id or "default")
                 
@@ -650,7 +650,7 @@ Execution History:
 
 What is your next step?"""
 
-        # Use BYOK's tenant-aware structured generation (respects BYOK vs Managed subscription)
+        # Use unified LLMService for structured generation
         structured_result = await self.llm.generate_structured_response(
             prompt=user_prompt,
             system_instruction=system_prompt,
@@ -663,13 +663,17 @@ What is your next step?"""
         if structured_result:
             return structured_result
         
-        # Fallback: Use BYOK handler for raw response
-        raw_response = await self.llm.generate_response(
-            prompt=user_prompt,
-            system_instruction=system_prompt,
-            model_type="fast",
+        # Fallback: Use LLMService for completion
+        response_data = await self.llm.generate_completion(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model="fast",
             temperature=0.2
         )
+        
+        raw_response = response_data.get("content")
         
         # Handle None, empty, or error responses
         is_error = not raw_response or any(kw in str(raw_response).lower() for kw in ["not initialized", "error", "restriction", "budget", "expired", "failed", "no eligible"])

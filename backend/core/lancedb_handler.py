@@ -7,6 +7,10 @@ import asyncio
 import json
 import logging
 import os
+try:
+    import pyarrow as pa
+except ImportError:
+    pa = None
 
 logger = logging.getLogger(__name__)
 # Lazy load Numpy to prevent Windows hang
@@ -90,11 +94,13 @@ try:
 except ImportError:
     get_byok_manager = None
 
-# LLMService Integration for OpenAI embeddings
+# LLMService and EmbeddingService Integration
 try:
     from core.llm_service import LLMService
+    from core.embedding_service import EmbeddingService
 except ImportError:
     LLMService = None
+    EmbeddingService = None
 
 
 
@@ -110,7 +116,7 @@ class MockEmbedder:
         hash_val = int(hashlib.sha256(text.encode('utf-8')).hexdigest(), 16)
         try:
             import numpy as np
-            np.random.seed(hash_val % 2**32)
+            np.random.seed(42)
             vec = np.random.rand(self.dim).astype(np.float32)
             # Normalize vector to unit length
             norm = np.linalg.norm(vec)
@@ -133,12 +139,15 @@ class LanceDBHandler:
 
     def __init__(self, db_path: str = None,
                  workspace_id: Optional[str] = None,
+                 tenant_id: Optional[str] = None,
                  embedding_provider: str = "local",
                  embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
 
         # Determine DB path (S3 or local)
         self.db_path = db_path or os.getenv("LANCEDB_URI", "./data/atom_memory")
-        self.workspace_id = "default" # Single-tenant: always use default
+        
+        self.workspace_id = workspace_id or "default"
+        self.tenant_id = tenant_id or "default"
 
         # Embedding configuration
         self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", embedding_provider)
@@ -153,31 +162,21 @@ class LanceDBHandler:
 
         self.db = None
         self.embedder = None
-        self.openai_client = None
 
-        # BYOK Manager
-        try:
-            self.byok_manager = get_byok_manager() if get_byok_manager else None
-        except Exception as e:
-            logger.error(f"Failed to initialize BYOK manager: {e}", exc_info=True)
-            self.byok_manager = None
-
-        # Initialize LLMService for OpenAI embeddings (unified interface)
-        # LLMService handles BYOK API key resolution, cost tracking, and observability
-        # Used for OpenAI embeddings only (local embedder keeps sentence-transformers/fastembed)
-        if LLMService:
-            self.llm_service = LLMService(tenant_id=workspace_id or "default")
+        # Initialize EmbeddingService (Handles local and cloud providers)
+        # It handles BYOK, cost tracking, and model selection internally.
+        if EmbeddingService:
+            self.embedding_service = EmbeddingService(
+                provider=self.embedding_provider,
+                model=self.embedding_model,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id
+            )
         else:
-            logger.warning("LLMService not available, OpenAI embeddings disabled")
-            self.llm_service = None
+            logger.warning("EmbeddingService not available, using MockEmbedder fallback")
+            self.embedding_service = None
 
-        # Initialize LanceDB if available (LAZY LOAD)
         logger.info(f"LanceDBHandler initialized. ID: {id(self)}. LANCEDB_AVAILABLE: {LANCEDB_AVAILABLE}")
-        # if LANCEDB_AVAILABLE:
-        #     self._initialize_db()
-
-        # Initialize embedder (LAZY LOAD on first use to prevent import block)
-        # self._initialize_embedder()
         self.embedder = None
 
     def _ensure_db(self):
@@ -229,83 +228,12 @@ class LanceDBHandler:
             self.db = None
     
     def _initialize_embedder(self):
-        """
-        Initialize embedding provider
-
-        For OpenAI: LLMService handles client creation and API key resolution internally
-        For local: Uses sentence-transformers or fastembed
-        """
-        try:
-            if self.embedding_provider == "openai":
-                # Check if LLMService is available
-                if not self.llm_service:
-                    logger.warning("LLMService not available, falling back to local embeddings")
-                    self.embedding_provider = "local"
-                    self._init_local_embedder()
-                else:
-                    # LLMService handles OpenAI client creation and API key resolution
-                    # No direct client needed - use llm_service.generate_embedding
-                    self.openai_client = None  # Deprecated, use llm_service instead
-                    logger.info("OpenAI embeddings initialized via LLMService (BYOK enabled)")
-            else:
-                self._init_local_embedder()
-
-        except Exception as e:
-            logger.error(f"Failed to initialize embedder: {e}")
-            self.embedder = None
+        """No longer used. Logic moved to EmbeddingService."""
+        pass
 
     def _init_local_embedder(self):
-        """Initialize local sentence transformer or fallback to mock"""
-        try:
-            if SENTENCE_TRANSFORMERS_AVAILABLE:
-                logger.info(f"Attempting to load SentenceTransformer: {self.embedding_model}")
-                try:
-                    # Use threading for cross-platform timeout (Windows compatible)
-                    import threading
-                    import queue
-
-                    def load_model(q, model_name):
-                        try:
-                            # Suppress tokenizers warning parallelism
-                            os.environ["TOKENIZERS_PARALLELISM"] = "false"
-                            # Lazy import inside the thread to prevent main thread blocking
-                            from sentence_transformers import SentenceTransformer
-                            model = SentenceTransformer(model_name)
-                            q.put(model)
-                        except Exception as ex:
-                            q.put(ex)
-
-                    q = queue.Queue()
-                    t = threading.Thread(target=load_model, args=(q, self.embedding_model))
-                    t.daemon = True # Daemonize to avoid blocking exit
-                    t.start()
-                    t.join(timeout=15) # 15 second timeout
-
-                    if t.is_alive():
-                        logger.warning(f"SentenceTransformer initialization timed out for {self.embedding_model}")
-                        # We proceed to fallback. The daemon thread will eventually die or persist harmlessly.
-                        raise TimeoutError("Loading timed out")
-                    
-                    if not q.empty():
-                        result = q.get_nowait()
-                        if isinstance(result, Exception):
-                            raise result
-                        self.embedder = result
-                        logger.info(f"Local embedding model loaded: {self.embedding_model}")
-                        return
-                    else:
-                         raise Exception("Thread finished but returned no result")
-
-                except Exception as e:
-                    logger.warning(f"Failed to load SentenceTransformer (attempting fallback): {e}")
-                    # Fallthrough to mock
-            
-            logger.warning("Sentence transformers not available or failed to load. Using MockEmbedder.")
-            self.embedder = MockEmbedder(384)
-            
-        except Exception as e:
-             logger.error(f"Critical error in _init_local_embedder: {e}")
-             self.embedder = MockEmbedder(384)
+        """No longer used. Logic moved to EmbeddingService."""
+        pass
 
 
     def test_connection(self) -> Dict[str, Any]:
@@ -464,68 +392,47 @@ class LanceDBHandler:
     
     def embed_text(self, text: str) -> Optional[Any]:
         """
-        Embed text using configured provider
-
-        For OpenAI: Uses LLMService.generate_embedding (unified interface)
-        For local: Uses sentence-transformers or fastembed
-
-        Args:
-            text: Text to embed
-
-        Returns:
-            Embedding vector (numpy array or list) or None on failure
+        Embed text using unified EmbeddingService.
+        Sync version for legacy compatibility.
         """
-        self._ensure_embedder()
+        if not self.embedding_service:
+            logger.error("EmbeddingService not initialized")
+            return None
+
         try:
-            if self.embedding_provider == "openai" and self.llm_service:
-                # Use LLMService for unified embedding generation
-                # Note: embed_text is synchronous but LLMService.generate_embedding is async
-                # Use asyncio.run() when not in async context
-                try:
-                    import asyncio
-
-                    async def _get_embedding():
-                        return await self.llm_service.generate_embedding(
-                            text=text,
-                            model="text-embedding-3-small"  # 1536 dimensions
-                        )
-
-                    try:
-                        # Check if we're in an async context
-                        asyncio.get_running_loop()
-                        # We're in an async context, can't use asyncio.run()
-                        # Return None and let caller handle async properly
-                        logger.warning("embed_text called from async context - use async embedding methods")
-                        return None
-                    except RuntimeError:
-                        # No running event loop, safe to use asyncio.run()
-                        embedding = asyncio.run(_get_embedding())
-
-                    if NUMPY_AVAILABLE:
-                        import numpy as np
-                        return np.array(embedding)
-                    return embedding
-                except Exception as e:
-                    logger.error(f"LLMService embedding generation failed: {e}")
-                    raise
-
-            elif self.embedder:
-                try:
-                    if NUMPY_AVAILABLE:
-                        res = self.embedder.encode(text, convert_to_numpy=True)
-                    else:
-                        res = self.embedder.encode(text, convert_to_numpy=False)
-                    return res
-                except Exception as e:
-                    logger.error(f"embedder.encode failed: {e}")
-                    raise e
-
-            else:
-                logger.error(f"No embedding provider available. Provider: {self.embedding_provider}, Embedder: {self.embedder}")
+            import asyncio
+            try:
+                # Check if we're in an async context
+                asyncio.get_running_loop()
+                # Run in separate thread or similar? For now, we recommend async_embed_text.
+                logger.warning("embed_text (sync) called from async context. Please use async_embed_text.")
+                # We can't use asyncio.run(self.async_embed_text(text)) here.
+                # Just return None or use a thread-safe runner
                 return None
-
+            except RuntimeError:
+                # No running event loop, safe to use asyncio.run()
+                return asyncio.run(self.async_embed_text(text))
         except Exception as e:
-            logger.error(f"Failed to embed text: {e}")
+            logger.error(f"Failed to embed text (sync): {e}")
+            return None
+
+    async def async_embed_text(self, text: str) -> Optional[Any]:
+        """
+        Embed text using unified EmbeddingService.
+        Recommended async version.
+        """
+        if not self.embedding_service:
+            logger.error("EmbeddingService not initialized")
+            return None
+
+        try:
+            embedding = await self.embedding_service.generate_embedding(text)
+            if NUMPY_AVAILABLE:
+                import numpy as np
+                return np.array(embedding)
+            return embedding
+        except Exception as e:
+            logger.error(f"Failed to generate embedding: {e}")
             return None
     
     def add_knowledge_edge(self, from_id: str, to_id: str, rel_type: str, 
