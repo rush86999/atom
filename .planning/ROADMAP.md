@@ -155,7 +155,12 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   3. Performance regression detection with pytest-benchmark tracks latency over time
   4. Lighthouse CI integration alerts on >20% web UI performance regression
   5. Performance baseline tracking maintains p(95) latency, throughput, and error rate metrics
-**Plans**: TBD
+**Plans**: 5 plans in 4 waves
+- [ ] 243-01-PLAN.md — Memray Python memory leak detection (Wave 1)
+- [ ] 243-02-PLAN.md — pytest-benchmark regression infrastructure (Wave 2)
+- [ ] 243-03-PLAN.md — Lighthouse CI regression enhancement (Wave 2)
+- [ ] 243-04-PLAN.md — Memory/performance bug filing integration (Wave 3)
+- [ ] 243-05-PLAN.md — Weekly CI pipeline and documentation (Wave 4)
 
 #### Phase 244: AI-Enhanced Bug Discovery
 **Goal**: Multi-agent fuzzing orchestration and AI-generated invariants expand bug discovery coverage
@@ -194,6 +199,6 @@ Phases execute in numeric order: 237 → 238 → 239 → 240 → 241 → 242 →
 | 240. Headless Browser Bug Discovery | v8.0 | 5/5 | ✅ Complete | 2026-03-25 |
 | 241. Chaos Engineering Integration | v8.0 | 0/TBD | Not started | - |
 | 242. Unified Bug Discovery Pipeline | v8.0 | 0/TBD | Not started | - |
-| 243. Memory & Performance Bug Discovery | v8.0 | 0/TBD | Not started | - |
+| 243. Memory & Performance Bug Discovery | v8.0 | 0/5 | 📋 Planned | - |
 | 244. AI-Enhanced Bug Discovery | v8.0 | 0/TBD | Not started | - |
 | 245. Feedback Loops & ROI Tracking | v8.0 | 0/TBD | Not started | - |
