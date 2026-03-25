@@ -7,7 +7,15 @@ This module provides core services for chaos engineering tests:
 """
 
 from tests.chaos.core.chaos_coordinator import ChaosCoordinator
+from tests.chaos.core.blast_radius_controls import (
+    assert_blast_radius,
+    assert_test_database_only,
+    assert_environment_safe
+)
 
 __all__ = [
     "ChaosCoordinator",
+    "assert_blast_radius",
+    "assert_test_database_only",
+    "assert_environment_safe",
 ]
