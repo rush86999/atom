@@ -13,6 +13,7 @@ Fixtures:
 
 import os
 import sys
+from collections import deque
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -36,6 +37,18 @@ from tests.e2e_ui.fixtures.auth_fixtures import (
 )
 from tests.e2e_ui.fixtures.database_fixtures import db_session
 
+# ============================================================================
+# PERCY VISUAL REGRESSION IMPORT
+# ============================================================================
+# Import Percy snapshot function for visual regression testing
+# Graceful degradation if Percy is not available
+try:
+    from frontend_nextjs.tests.visual.fixtures.percy_fixtures import percy_snapshot
+    PERCY_AVAILABLE = True
+except ImportError:
+    PERCY_AVAILABLE = False
+    percy_snapshot = None
+
 # Re-export for direct use in browser discovery tests
 __all__ = [
     'authenticated_page',
@@ -43,6 +56,8 @@ __all__ = [
     'test_user',
     'authenticated_user',
     'db_session',
+    'percy_snapshot',
+    'authenticated_percy_page',
     'exploration_agent',
     'console_monitor',
     'accessibility_checker',
@@ -94,6 +109,41 @@ def browser_context_args(browser_context_args):
         "java_script_enabled": True,
         "user_agent": "AtomBrowserDiscovery/1.0",
     }
+
+
+# ============================================================================
+# PERCY VISUAL REGRESSION FIXTURES
+# ============================================================================
+
+@pytest.fixture(scope="function")
+def authenticated_percy_page(browser: Browser, authenticated_user) -> Page:
+    """
+    Create authenticated page for Percy visual regression tests.
+
+    Combines API-first authentication from e2e_ui with Percy integration.
+    Reuses existing authenticated_page fixture which already sets JWT in localStorage.
+
+    Args:
+        browser: Playwright browser fixture
+        authenticated_user: Authenticated user fixture from e2e_ui
+
+    Yields:
+        Page: Authenticated Playwright page ready for Percy snapshots
+
+    Example:
+        def test_visual_dashboard(authenticated_percy_page):
+            authenticated_percy_page.goto("http://localhost:3000/dashboard")
+            percy_snapshot(authenticated_percy_page, "Dashboard")
+    """
+    # Reuse existing authenticated_page fixture which already sets JWT in localStorage
+    from tests.e2e_ui.fixtures.auth_fixtures import authenticated_page
+
+    # Create authenticated page using existing fixture
+    page = authenticated_page(browser, authenticated_user)
+
+    yield page
+
+    # Cleanup is handled by authenticated_page fixture
 
 
 # ============================================================================
@@ -483,7 +533,7 @@ def exploration_agent(page: Page):
             # Agent explores UI and logs bugs found
     """
     class ExplorationAgent:
-        """Intelligent UI exploration agent."""
+        """Intelligent UI exploration agent with heuristic algorithms."""
 
         def __init__(self, page: Page):
             self.page = page
@@ -492,20 +542,187 @@ def exploration_agent(page: Page):
             self.actions_taken = []
 
         def explore(self, max_depth: int = 3, max_actions: int = 20):
-            """Explore UI intelligently to discover bugs.
+            """Explore UI using depth-first search (backward compatibility).
 
             Args:
                 max_depth: Maximum depth to explore (default: 3)
                 max_actions: Maximum number of actions to take (default: 20)
             """
+            self.explore_dfs(max_depth=max_depth, max_actions=max_actions)
+
+        def explore_dfs(self, max_depth: int = 3, max_actions: int = 20) -> List[Dict[str, Any]]:
+            """Explore UI using depth-first search.
+
+            Navigate deep into UI paths first before exploring siblings.
+            This algorithm is ideal for finding bugs in nested workflows
+            and form wizards (e.g., dashboard → agent → execute → results).
+
+            Args:
+                max_depth: Maximum depth to explore (default: 3)
+                max_actions: Maximum number of actions to take (default: 20)
+
+            Returns:
+                List of bugs discovered during exploration
+            """
+            self.bugs_found = []
+            self.actions_taken = []
+            self._dfs_recursive(max_depth, max_actions, 0)
+            return self.bugs_found
+
+        def _dfs_recursive(self, max_depth: int, max_actions: int, current_depth: int):
+            """Recursive DFS implementation with depth tracking.
+
+            Args:
+                max_depth: Maximum depth to explore
+                max_actions: Maximum number of actions
+                current_depth: Current exploration depth
+            """
+            if current_depth >= max_depth or len(self.actions_taken) >= max_actions:
+                return
+
             current_url = self.page.url
             if current_url in self.visited_urls:
                 return
 
             self.visited_urls.add(current_url)
+            clickable = self._find_clickable_elements()
 
-            # Find clickable elements
-            clickable = self.page.evaluate("""
+            for i, element in enumerate(clickable):
+                if len(self.actions_taken) >= max_actions:
+                    break
+
+                try:
+                    selector = self._build_selector(element)
+                    self.page.click(selector, timeout=5000)
+                    self.actions_taken.append(f"DFS depth={current_depth}: {selector}")
+                    self._check_for_bugs()
+
+                    # Recurse deeper if page changed
+                    if self.page.url != current_url:
+                        self._dfs_recursive(max_depth, max_actions, current_depth + 1)
+                        self.page.go_back()
+                        self.page.wait_for_load_state("domcontentloaded")
+                except Exception as e:
+                    self.bugs_found.append({
+                        "type": "dfs_exploration_error",
+                        "element": str(element),
+                        "error": str(e),
+                        "url": self.page.url,
+                    })
+
+        def explore_bfs(self, max_depth: int = 3, max_actions: int = 20) -> List[Dict[str, Any]]:
+            """Explore UI using breadth-first search.
+
+            Explore all links at current depth before going deeper.
+            This algorithm is ideal for discovering all reachable pages
+            and navigation bugs (e.g., explore all dashboard sections
+            before diving into each).
+
+            Args:
+                max_depth: Maximum depth to explore (default: 3)
+                max_actions: Maximum number of actions to take (default: 20)
+
+            Returns:
+                List of bugs discovered during exploration
+            """
+            self.bugs_found = []
+            self.actions_taken = []
+            self.visited_urls = set()
+
+            queue = deque([(self.page.url, 0)])  # (url, depth)
+            actions_count = 0
+
+            while queue and actions_count < max_actions:
+                url, depth = queue.popleft()
+
+                if url in self.visited_urls or depth >= max_depth:
+                    continue
+
+                self.visited_urls.add(url)
+                self.page.goto(url)
+                self.page.wait_for_load_state("domcontentloaded")
+
+                clickable = self._find_clickable_elements()
+                for element in clickable[:max_actions - actions_count]:
+                    try:
+                        selector = self._build_selector(element)
+                        self.page.click(selector, timeout=5000)
+                        self.actions_taken.append(f"BFS depth={depth}: {selector}")
+                        actions_count += 1
+                        self._check_for_bugs()
+
+                        # Add new URL to queue at next depth
+                        new_url = self.page.url
+                        if new_url != url and new_url not in self.visited_urls:
+                            queue.append((new_url, depth + 1))
+                        self.page.go_back()
+                    except Exception as e:
+                        self.bugs_found.append({
+                            "type": "bfs_exploration_error",
+                            "element": str(element),
+                            "error": str(e),
+                            "url": self.page.url,
+                        })
+
+            return self.bugs_found
+
+        def explore_random(self, max_actions: int = 30, seed: int = None) -> List[Dict[str, Any]]:
+            """Explore UI using random walk.
+
+            Stochastic exploration for discovering unexpected state
+            combinations and edge cases that systematic algorithms miss.
+            Ideal for finding race conditions, state bugs, and unusual
+            interaction sequences.
+
+            Args:
+                max_actions: Maximum number of actions to take (default: 30)
+                seed: Random seed for reproducibility (default: None)
+
+            Returns:
+                List of bugs discovered during exploration
+            """
+            import random
+            if seed is not None:
+                random.seed(seed)
+
+            self.bugs_found = []
+            self.actions_taken = []
+            self.visited_urls = set()
+
+            for _ in range(max_actions):
+                try:
+                    clickable = self._find_clickable_elements()
+                    if not clickable:
+                        break
+
+                    element = random.choice(clickable)
+                    selector = self._build_selector(element)
+                    self.page.click(selector, timeout=5000)
+                    self.actions_taken.append(f"Random: {selector}")
+                    self._check_for_bugs()
+
+                    # 50% chance to navigate back
+                    if self.page.url in self.visited_urls and random.random() < 0.5:
+                        self.page.go_back()
+                        self.page.wait_for_load_state("domcontentloaded")
+
+                    self.visited_urls.add(self.page.url)
+                except Exception as e:
+                    self.bugs_found.append({
+                        "type": "random_walk_error",
+                        "error": str(e),
+                        "url": self.page.url,
+                    })
+
+            return self.bugs_found
+
+        def _find_clickable_elements(self) -> List[Dict[str, Any]]:
+            """Find all clickable elements on current page.
+
+            Returns:
+                List of clickable elements with metadata (tag, type, text, id, class, href)
+            """
+            return self.page.evaluate("""
             () => {
                 const selectors = [
                     'button:not([disabled])',
@@ -513,46 +730,37 @@ def exploration_agent(page: Page):
                     'input[type="submit"]',
                     'input[type="button"]',
                     '[role="button"]',
+                    '[tabindex]:not([tabindex="-1"])'
                 ].join(', ');
 
                 return Array.from(document.querySelectorAll(selectors)).map(el => ({
                     tag: el.tagName,
                     type: el.type || 'button',
-                    text: el.textContent?.trim() || '',
+                    text: (el.textContent || '').trim().substring(0, 50),
                     id: el.id || '',
                     class: el.className || '',
+                    href: el.href || ''
                 }));
             }
             """)
 
-            # Explore first few clickable elements
-            for i, element in enumerate(clickable[:max_actions]):
-                if i >= max_actions:
-                    break
+        def _build_selector(self, element: Dict[str, Any]) -> str:
+            """Build CSS selector from element data.
 
-                try:
-                    # Try to click element
-                    selector = f'{element["tag"]}{f"#{element["id"]}" if element["id"] else ""}'
-                    self.page.click(selector, timeout=5000)
-                    self.actions_taken.append(f"Clicked: {selector}")
+            Args:
+                element: Element metadata from _find_clickable_elements
 
-                    # Check for bugs (console errors, broken layout, etc.)
-                    self._check_for_bugs()
-
-                    # Navigate back if page changed
-                    if self.page.url != current_url and max_depth > 0:
-                        self.explore(max_depth - 1, max_actions - i)
-                        self.page.go_back()
-                        self.page.wait_for_load_state("networkidle")
-
-                except Exception as e:
-                    # Log potential bug (element not clickable, timeout, etc.)
-                    self.bugs_found.append({
-                        "type": "exploration_error",
-                        "element": element,
-                        "error": str(e),
-                        "url": self.page.url,
-                    })
+            Returns:
+                CSS selector string
+            """
+            if element.get('id'):
+                return f"#{element['id']}"
+            if element.get('class'):
+                first_class = element['class'].split()[0]
+                return f"{element['tag'].lower()}.{first_class}"
+            if element.get('href'):
+                return f"{element['tag'].lower()}[href='{element['href']}']"
+            return element['tag'].lower()
 
         def _check_for_bugs(self):
             """Check for common bugs on current page."""
@@ -589,6 +797,20 @@ def exploration_agent(page: Page):
                 List of bugs discovered by exploration agent
             """
             return self.bugs_found
+
+        def get_exploration_report(self) -> Dict[str, Any]:
+            """Get detailed exploration report.
+
+            Returns:
+                Dictionary with exploration statistics (actions_taken, urls_visited, bugs_found)
+            """
+            return {
+                "actions_taken": len(self.actions_taken),
+                "urls_visited": len(self.visited_urls),
+                "bugs_found": len(self.bugs_found),
+                "actions": self.actions_taken,
+                "bugs": self.bugs_found
+            }
 
     return ExplorationAgent(page)
 
