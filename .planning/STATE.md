@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-24)
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
 Phase: 243 of 245 (Memory & Performance Bug Discovery)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: Complete
-Last activity: 2026-03-25 — Phase 243-02 complete: pytest-benchmark regression detection with 10 tests across API latency, database queries, and governance cache. 3 tasks, 3 commits, ~7 minutes execution.
+Last activity: 2026-03-25 — Phase 243-04 complete: Memory leak bug filing integration with 7 tests (canvas + episodic memory), MemoryPerformanceFilingService extending BugFilingService, specialized bug filing fixtures with graceful degradation. 2 tasks, 2 commits, ~2 minutes execution.
 
-Progress: [█████░░░░] 60% (3 of 5 plans complete)
+Progress: [██████░░░] 80% (4 of 5 plans complete)
 
 ## Performance Metrics
 
@@ -87,7 +87,7 @@ Progress: [█████░░░░] 60% (3 of 5 plans complete)
 | Phase 243 P01 | 259 | 3 tasks | 7 files |
 | Phase 243 P02 | 428s | 3 tasks | 6 files |
 | Phase 243 P03 | 197s | 2 tasks | 4 files |
-| Phase 243 P03 | 197 | 2 tasks | 4 files |
+| Phase 243 P04 | 162s | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -160,6 +160,7 @@ Recent decisions affecting current work:
 - [Phase 242-03]: Updated weekly CI workflow to use unified run_discovery() function, simplifying from 2-job pipeline to single unified pipeline
 - [Phase 242-03]: Created comprehensive README documentation (94 lines) with architecture, usage, testing, and troubleshooting sections
 - [Phase 243]: [PERF-03]: Lighthouse CI regression detection with automated baseline updates using exit code signaling (0=pass, 1=regression, 2=error) and 20% degradation threshold for performance score and Core Web Vitals (FCP, LCP, TBT, CLS)
+- [Phase 243-04]: Memory leak bug filing integration with 7 canvas/episodic memory leak tests using memray for Python heap leak detection (complementing CDP browser tests), MemoryPerformanceFilingService extending BugFilingService with specialized severity classification (memory: critical >50MB, high >10MB; performance: critical >100%, high >50%), bug filing fixtures (file_memory_bug, file_performance_bug) with graceful degradation if GITHUB_TOKEN/GITHUB_REPOSITORY not set, flame graph artifact upload support, TQ-01 through TQ-05 compliance with invariant-first documentation (INVARIANT, STRATEGY, RADII)
 
 ### Key Decisions (Phase 242)
 
@@ -252,8 +253,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25 (Phase 243-03 completion)
-Stopped at: Plan 243-03 completed - Lighthouse CI regression detection with CLI script, baseline metrics, workflow automation with 2 tasks + 1 bug fix, 3 commits, ~3 minutes execution
+Last session: 2026-03-25 (Phase 243-04 completion)
+Stopped at: Plan 243-04 completed - Memory leak bug filing integration with 7 canvas/episodic memory leak tests, MemoryPerformanceFilingService extending BugFilingService with specialized severity classification, bug filing fixtures with graceful degradation, flame graph artifact upload support. 2 tasks, 2 commits, ~2 minutes execution.
 Resume file: None
 
 ## Milestone Context
