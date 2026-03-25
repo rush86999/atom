@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Automated bug discovery through comprehensive QA testing (fuzzing, chaos engineering, property-based testing, headless browser automation)
-**Current focus:** Phase 241 - Chaos Engineering Integration
+**Current focus:** Phase 242 - Unified Bug Discovery Pipeline
 
 ## Current Position
 
 Milestone: v8.0 Automated Bug Discovery & QA Testing
-Phase: 241 of 245 (Chaos Engineering Integration)
-Plan: 7 of 7 in current phase
-Status: Complete
-Last activity: 2026-03-25 — Phase 241-07 complete: Weekly CI pipeline and documentation for chaos engineering tests (3 tasks: CI workflow, pytest.ini marker, comprehensive README 311 lines)
+Phase: 242 of 245 (Unified Bug Discovery Pipeline)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-25 — Phase 242-01 complete: Core pipeline services created (5 services: BugReport model, ResultAggregator, BugDeduplicator, SeverityClassifier, DashboardGenerator)
 
-Progress: [█████████] 100%
+Progress: [██] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 55 (from v6.0 milestone)
+- Total plans completed: 56 (from v6.0 milestone)
 - Average duration: ~5.4 minutes
-- Total execution time: 4.99 hours
+- Total execution time: 5.09 hours
 
 **By Phase:**
 
@@ -82,6 +82,7 @@ Progress: [█████████] 100%
 | Phase 241-04 P04 | 7217 | 2 tasks | 2 files |
 | Phase 241 P06 | 28 min | 2 tasks | 3 files |
 | Phase 241 P07 | 180 | 3 tasks | 3 files |
+| Phase 242 P01 | 397 | 5 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,16 @@ Recent decisions affecting current work:
 - [Phase 241]: Weekly CI pipeline for chaos engineering tests (Sunday 2 AM UTC, Toxiproxy, environment validation)
 - [Phase 241]: pytest.ini chaos marker enhanced with descriptive text (failure injection, isolated environment, slow, weekly only)
 - [Phase 241]: Comprehensive chaos testing README (311 lines, 29 sections) covering purpose, safety, requirements, fixtures, CI/CD, troubleshooting
+
+### Key Decisions (Phase 242)
+
+- [PIPELINE-01]: Created BugReport Pydantic model as single source of truth for all bug types with DiscoveryMethod enum (fuzzing, chaos, property, browser) and Severity enum (critical, high, medium, low)
+- [PIPELINE-02]: Error signature hashing (SHA256) enables cross-method deduplication - same bug from fuzzing and chaos detected as duplicate
+- [PIPELINE-03]: Severity classification rules: Fuzzing=CRITICAL (potential security), Chaos=HIGH (system instability), Property=varies (security invariants=CRITICAL, database=HIGH), Property=varies (console_error=HIGH, accessibility=MEDIUM)
+- [PIPELINE-04]: Rule-based severity keywords for critical/high/medium detection (CRITICAL: sql injection, xss, csrf, security, vulnerability, data corruption, crash; HIGH: resilience failure, memory leak, connection, timeout, network; MEDIUM: accessibility, wcag, aria, invariant, property)
+- [PIPELINE-05]: Weekly HTML reports with summary cards (bugs found, unique bugs, filed bugs, regression rate) and tables (by method, by severity, top N bugs)
+- [PIPELINE-06]: Fixed enum value conversion bug (use_enum_values=True in BugReport converts enums to strings, BugDeduplicator now handles both enum and string types with hasattr check)
+- [PIPELINE-07]: Deduplication tracks discovery_methods metadata for cross-method bug analysis (e.g., same bug found by fuzzing and chaos)
 
 ### Pending Todos
 
@@ -225,8 +236,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-25 (Phase 241-06 completion)
-Stopped at: Plan 241-06 completed - Blast radius control validation and recovery validation tests (24 tests: 17 blast radius + 7 recovery), 15 passing, 9 skipped (28 min execution)
+Last session: 2026-03-25 (Phase 242-01 completion)
+Stopped at: Plan 242-01 completed - Core unified pipeline services created (5 services: BugReport model, ResultAggregator, BugDeduplicator, SeverityClassifier, DashboardGenerator) with 8 files, 914 lines, ~6 minutes execution
 Resume file: None
 
 ## Milestone Context
