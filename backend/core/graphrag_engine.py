@@ -194,90 +194,47 @@ class GraphRAGEngine:
         self, text: str, doc_id: str, source: str, workspace_id: str
     ) -> tuple[List[Entity], List[Relationship]]:
         """
-        Extract entities and relationships using LLMService.
-        Dynamic: Includes user-defined entity types in the prompt.
+        Extract entities and relationships using centralized KnowledgeExtractor.
         """
-        # Load custom entity types to guide extraction
-        custom_registry = self._load_custom_entity_types(workspace_id)
-        custom_types_info = ""
-        if custom_registry:
-            custom_types_info = "\nCustom Entity Types to also look for:\n"
-            for slug, info in custom_registry.items():
-                custom_types_info += f"- {info['display_name']} ({slug}): {info.get('description', 'Custom type')}\n"
+        from core.service_factory import ServiceFactory
+        extractor = ServiceFactory.get_knowledge_extractor(tenant_id=workspace_id)
+        extracted_data = await extractor.extract_knowledge(text, tenant_id=workspace_id, source=source)
+        
+        entities = []
+        for e in extracted_data.get("entities", []):
+            # Map raw extracted properties to Entity dataclass
+            # Handle potential nested 'properties' or flattened structure
+            props = e.get("properties", {})
+            name = e.get("name") or props.get("name", "Unknown")
+            e_type = e.get("type") or props.get("type", "unknown")
+            desc = e.get("description") or props.get("description", "")
+            
+            # Enrich with source info if not already there
+            if "source" not in props: props["source"] = source
+            if "doc_id" not in props: props["doc_id"] = doc_id
+            props["llm_extracted"] = True
+            
+            entities.append(Entity(
+                id=str(uuid.uuid4()),
+                name=name,
+                entity_type=e_type,
+                description=desc,
+                properties=props
+            ))
 
-        prompt = f"""Analyze the following text and extract knowledge graph elements.
-Respond with valid JSON only.
+        relationships = []
+        for r in extracted_data.get("relationships", []):
+            relationships.append(Relationship(
+                id=str(uuid.uuid4()),
+                from_entity=r.get("from"),
+                to_entity=r.get("to"),
+                rel_type=r.get("type", "related_to"),
+                description=r.get("description", ""),
+                properties=r.get("properties", {"llm_extracted": True})
+            ))
 
-Text:
-\"\"\"
-{text[:6000]}
-\"\"\"
-
-{custom_types_info}
-
-JSON Schema:
-{{
-  "entities": [{{
-    "name": "string", 
-    "type": "string (One of the standard types or custom types above)", 
-    "description": "string", 
-    "canonical_type": "string (optional: user, workspace, goal, project, task, or any custom slug)"
-  }}],
-  "relationships": [{{"from": "string", "to": "string", "type": "string", "description": "string"}}]
-}}"""
-
-        try:
-            # Use LLMService for unified LLM interaction
-            response = await self.llm_service.generate_completion(
-                messages=[
-                    {"role": "system", "content": "You are a knowledge graph extractor. Output valid JSON."},
-                    {"role": "user", "content": prompt}
-                ],
-                model=GRAPHRAG_LLM_MODEL,
-                temperature=0.1
-            )
-
-            # Extract content from LLMService response format
-            content = response.get("content", "")
-            if not content:
-                logger.warning(f"LLM extraction returned empty content for doc {doc_id}")
-                return [], []
-
-            data = json.loads(content)
-
-            entities = []
-            for e in data.get("entities", []):
-                properties = {"source": source, "doc_id": doc_id, "llm_extracted": True}
-                if e.get("canonical_type"):
-                    properties["canonical_type"] = e["canonical_type"]
-                entities.append(Entity(
-                    id=str(uuid.uuid4()),
-                    name=e["name"],
-                    entity_type=e["type"],
-                    description=e.get("description", ""),
-                    properties=properties
-                ))
-
-            relationships = []
-            for r in data.get("relationships", []):
-                relationships.append(Relationship(
-                    id=str(uuid.uuid4()),
-                    from_entity=r["from"], # Names for now, will map to IDs in ingestion
-                    to_entity=r["to"],
-                    rel_type=r["type"],
-                    description=r.get("description", ""),
-                    properties={"llm_extracted": True}
-                ))
-
-            logger.info(f"LLM extraction found {len(entities)} entities and {len(relationships)} relationships for doc {doc_id}")
-            return entities, relationships
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse LLM response as JSON for doc {doc_id}: {e}")
-            return [], []
-        except Exception as e:
-            logger.error(f"LLM extraction failed for doc {doc_id}: {e}")
-            return [], []
+        logger.info(f"Unified extraction found {len(entities)} entities and {len(relationships)} relationships for doc {doc_id}")
+        return entities, relationships
 
     # ==================== PATTERN-BASED EXTRACTION FALLBACK ====================
 
@@ -700,19 +657,24 @@ JSON Schema:
                 logger.error(f"Local search failed: {e}")
                 return {"error": str(e)}
 
-    def global_search(self, workspace_id: str, query: str) -> Dict[str, Any]:
-        """Global Search using Pre-computed Communities."""
+    async def global_search(self, workspace_id: str, query: str) -> Dict[str, Any]:
+        """Global Search using LLM-based synthesis of Community Summaries."""
         with get_db_session() as session:
             try:
+                # 1. Fetch relevant communities
                 sql = text("""
                     SELECT id, summary, keywords, level
                     FROM graph_communities
                     WHERE workspace_id = :ws_id
                     ORDER BY created_at DESC
-                    LIMIT 10
+                    LIMIT 20
                 """)
                 communities = session.execute(sql, {"ws_id": workspace_id}).fetchall()
                 
+                if not communities:
+                    return {"mode": "global", "summaries": [], "answer": "No community data available for global search."}
+
+                # 2. Filter/Rank communities by query relevance
                 scored = []
                 q_lower = query.lower()
                 for c in communities:
@@ -720,32 +682,60 @@ JSON Schema:
                     if c.keywords:
                         score += sum(1 for k in c.keywords if k.lower() in q_lower)
                     if q_lower in c.summary.lower():
-                        score += 1
+                        score += 2
+                    
                     if score > 0 or not q_lower:
-                        scored.append(c.summary)
+                        scored.append({"summary": c.summary, "score": score})
                 
-                if not scored:
-                    scored = [c.summary for c in communities[:3]]
+                scored.sort(key=lambda x: x["score"], reverse=True)
+                top_summaries = [s["summary"] for s in scored[:10]]
+                
+                if not top_summaries:
+                    top_summaries = [c.summary for c in communities[:5]]
 
-                return {"mode": "global", "summaries": scored, "answer": " | ".join(scored)}
+                # 3. Use LLM to synthesize the final answer
+                context_str = "\n---\n".join(top_summaries)
+                system_prompt = f"""
+                You are a Global GraphRAG Assistant. Synthesize a comprehensive answer 
+                based on these community summaries.
+                
+                **Query:** {query}
+                
+                **Community Summaries:**
+                {context_str}
+                """
+                
+                response = await self.llm_service.generate_completion(
+                    messages=[{"role": "system", "content": system_prompt}],
+                    temperature=0.3
+                )
+                
+                answer = response.get("content", "Failed to synthesize global answer.")
+
+                return {
+                    "mode": "global",
+                    "summaries": top_summaries,
+                    "answer": answer,
+                    "count": len(top_summaries)
+                }
             except Exception as e:
                 logger.error(f"Global search failed: {e}")
-                return {"error": str(e)}
+                return {"error": str(e), "mode": "global", "answer": f"Error: {e}"}
 
-    def query(self, workspace_id: str, query: str, mode: str = "auto") -> Dict[str, Any]:
-        """Unified query entry point."""
+    async def query(self, workspace_id: str, query: str, mode: str = "auto") -> Dict[str, Any]:
+        """Unified query entry point (Async)."""
         if mode == "auto":
             holistic = ["overview", "themes", "main", "all", "summary"]
             mode = "global" if any(kw in query.lower() for kw in holistic) else "local"
 
         if mode == "global":
-            return self.global_search(workspace_id, query)
+            return await self.global_search(workspace_id, query)
         else:
             return self.local_search(workspace_id, query)
 
-    def get_context_for_ai(self, workspace_id: str, query: str) -> str:
-        """Format context for AI prompt"""
-        result = self.query(workspace_id, query)
+    async def get_context_for_ai(self, workspace_id: str, query: str) -> str:
+        """Format context for AI prompt (Async)."""
+        result = await self.query(workspace_id, query)
         if result.get("mode") == "global":
             return f"Global Context: {result.get('answer')}"
         

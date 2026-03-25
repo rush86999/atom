@@ -16,7 +16,7 @@ import uuid
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 
-from core.llm_router import LLMRouter
+from core.llm_service import LLMService
 from core.agents.skill_creation_agent import SkillCreationAgent
 
 logger = logging.getLogger(__name__)
@@ -28,10 +28,12 @@ class QueenAgent:
     needed to achieve the user's objective.
     """
 
-    def __init__(self, db: Session, llm_router: LLMRouter):
+    def __init__(self, db: Session, llm: LLMService):
         self.db = db
-        self.llm = llm_router
-        self.skill_creator = SkillCreationAgent(db, llm_router)
+        self.llm = llm
+        # SkillCreationAgent should also be modernized in a future step if needed
+        from core.agents.skill_creation_agent import SkillCreationAgent
+        self.skill_creator = SkillCreationAgent(db, llm)
 
     async def generate_blueprint(self, goal: str, tenant_id: str = "default") -> Dict[str, Any]:
         """
@@ -75,15 +77,11 @@ Guidelines:
 Return ONLY the JSON object."""
 
         try:
-            response = await self.llm.call(
-                tenant_id=tenant_id,
-                messages=[
-                    {"role": "system", "content": "You are a master AI architect. Output only valid JSON."},
-                    {"role": "user", "content": prompt}
-                ]
+            content = await self.llm.generate_response(
+                prompt=prompt,
+                system_prompt="You are a master AI architect. Output only valid JSON.",
+                tenant_id=tenant_id
             )
-
-            content = response.get("content", "")
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             

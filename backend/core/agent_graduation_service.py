@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from core.lancedb_handler import get_lancedb_handler
+from core.service_factory import get_episode_service
 from core.models import (
     AgentRegistry,
     AgentStatus,
@@ -191,14 +192,7 @@ class AgentGraduationService:
                 "gaps": List[str]
             }
         """
-        # Get criteria
-        criteria = self.CRITERIA.get(target_maturity.upper())
-        if not criteria:
-            return {"error": f"Unknown maturity level: {target_maturity}"}
-
-        min_eps = min_episodes or criteria["min_episodes"]
-
-        # Query agent episodes
+        # Query agent
         agent = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id
         ).first()
@@ -208,55 +202,20 @@ class AgentGraduationService:
 
         current_maturity = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
 
-        # Get episodes at current maturity level
-        episodes = self.db.query(Episode).filter(
-            Episode.agent_id == agent_id,
-            Episode.maturity_at_time == current_maturity,
-            Episode.status == "completed"
-        ).all()
-
-        episode_count = len(episodes)
-
-        # Calculate metrics
-        total_interventions = sum(e.human_intervention_count for e in episodes)
-        intervention_rate = total_interventions / episode_count if episode_count > 0 else 1.0
-
-        constitutional_scores = [e.constitutional_score for e in episodes if e.constitutional_score is not None]
-        avg_constitutional = sum(constitutional_scores) / len(constitutional_scores) if constitutional_scores else 0.0
-
-        # Check criteria
-        gaps = []
-        if episode_count < min_eps:
-            gaps.append(f"Need {min_eps - episode_count} more episodes")
-        if intervention_rate > criteria["max_intervention_rate"]:
-            gaps.append(
-                f"Intervention rate too high: {intervention_rate:.1%} > {criteria['max_intervention_rate']:.1%}"
-            )
-        if avg_constitutional < criteria["min_constitutional_score"]:
-            gaps.append(
-                f"Constitutional score too low: {avg_constitutional:.2f} < {criteria['min_constitutional_score']:.2f}"
-            )
-
-        # Calculate readiness score
-        ready = len(gaps) == 0
-        score = self._calculate_score(
-            episode_count, min_eps,
-            intervention_rate, criteria["max_intervention_rate"],
-            avg_constitutional, criteria["min_constitutional_score"]
+        # Use Ported EpisodeService for weighted readiness formula
+        episode_service = get_episode_service(self.db)
+        readiness = episode_service.get_graduation_readiness(
+            agent_id=agent_id,
+            tenant_id=agent.tenant_id,
+            target_level=target_maturity.lower()
         )
-
-        return {
-            "ready": ready,
-            "score": round(score, 1),
-            "episode_count": episode_count,
-            "avg_constitutional_score": round(avg_constitutional, 3),
-            "total_human_interventions": total_interventions,
-            "intervention_rate": round(intervention_rate, 3),
-            "recommendation": self._generate_recommendation(ready, score, target_maturity),
-            "gaps": gaps,
-            "target_maturity": target_maturity,
-            "current_maturity": current_maturity
-        }
+        
+        result = readiness.to_dict()
+        result["current_maturity"] = current_maturity
+        result["target_maturity"] = target_maturity
+        result["ready"] = result["threshold_met"] # Map to upstream field name
+        
+        return result
 
     def _calculate_score(
         self,

@@ -280,6 +280,10 @@ async def perform_governance_check(
                 from core.proposal_service import ProposalService
                 proposal_service = ProposalService(db)
 
+                # Extract context identifiers for the proposal
+                canvas_id = request.path_params.get('canvas_id')
+                session_id = request.headers.get('X-Session-ID') or request.query_params.get('session_id')
+
                 # Create proposal
                 proposal = await proposal_service.create_action_proposal(
                     intern_agent_id=agent.id,
@@ -293,7 +297,9 @@ async def perform_governance_check(
                         'type': action_name,
                         'complexity': action_complexity
                     },
-                    reasoning=f"INTERN agent requires approval for {action_name} (complexity {action_complexity})"
+                    reasoning=f"INTERN agent requires approval for {action_name} (complexity {action_complexity})",
+                    canvas_id=canvas_id,
+                    session_id=session_id
                 )
 
                 logger.info(f"Created proposal {proposal.id} for INTERN agent {agent.id}")

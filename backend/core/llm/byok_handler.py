@@ -1370,7 +1370,52 @@ class BYOKHandler:
             return None
 
 
+    async def generate_transcription(
+        self,
+        file: Any,
+        model: str = "whisper-1",
+        language: Optional[str] = None,
+        prompt: Optional[str] = None,
+        response_format: str = "json"
+    ) -> Dict[str, Any]:
+        """
+        Transcribe audio to text using OpenAI Whisper.
+        Uses BYOK keys for the 'openai' provider.
+        """
+        # Whisper is currently only supported via OpenAI provider in this architecture
+        provider_id = "openai"
+        client = self.async_clients.get(provider_id) or self.clients.get(provider_id)
+        
+        if not client:
+            raise ValueError(f"OpenAI provider not configured for transcription. Please add an API key.")
+
+        try:
+            # Use the underlying openai client if it's patched by instructor
+            # or use it directly if it's a standard client
+            raw_client = getattr(client, "client", client)
+            
+            response = await raw_client.audio.transcriptions.create(
+                model=model,
+                file=file,
+                language=language,
+                prompt=prompt,
+                response_format=response_format
+            )
+            
+            # Format response (handle both standard and raw response types)
+            text = response.text if hasattr(response, "text") else str(response)
+            
+            return {
+                "text": text,
+                "model": model,
+                "provider": provider_id
+            }
+        except Exception as e:
+            logger.error(f"Whisper transcription failed: {e}")
+            raise
+
     def get_available_providers(self) -> List[str]:
+
         """Get list of providers with valid API keys"""
         return list(self.clients.keys())
 
@@ -1655,6 +1700,71 @@ class BYOKHandler:
 
         # Yield final error message
         yield f"\n\n[Error: All LLM providers failed. Last error: {str(last_error)}]"
+
+    async def generate_embedding(
+        self,
+        text: str,
+        model: str,
+        provider: str = "openai"
+    ) -> List[float]:
+        """
+        Generate embedding vector for a single text string using managed clients.
+        
+        Args:
+            text: Text to embed
+            model: Model identifier
+            provider: Provider identifier ("openai" or "cohere")
+            
+        Returns:
+            List of floats representing the embedding vector
+        """
+        client = self.async_clients.get(provider) or self.clients.get(provider)
+        if not client:
+            raise ValueError(f"No client available for provider: {provider}")
+
+        logger.info(f"Attempting embedding with provider: {provider} (model: {model})")
+        
+        try:
+            if provider == "openai":
+                response = await client.embeddings.create(model=model, input=text)
+                return response.data[0].embedding
+            elif provider == "cohere":
+                # Cohere async client uses .embed()
+                response = await client.embed(texts=[text], model=model, input_type="search_document")
+                return response.embeddings[0]
+            else:
+                raise ValueError(f"Provider {provider} does not support embeddings via BYOKHandler yet.")
+        except Exception as e:
+            logger.error(f"Embedding generation failed for {provider}: {e}")
+            raise
+
+    async def generate_embeddings_batch(
+        self,
+        texts: List[str],
+        model: str,
+        provider: str = "openai"
+    ) -> List[List[float]]:
+        """
+        Generate embeddings for multiple texts in batch using managed clients.
+        """
+        client = self.async_clients.get(provider) or self.clients.get(provider)
+        if not client:
+            raise ValueError(f"No client available for provider: {provider}")
+
+        logger.info(f"Attempting batch embedding with provider: {provider} (model: {model}, count: {len(texts)})")
+        
+        try:
+            if provider == "openai":
+                response = await client.embeddings.create(model=model, input=texts)
+                return [item.embedding for item in response.data]
+            elif provider == "cohere":
+                response = await client.embed(texts=texts, model=model, input_type="search_document")
+                return [emb for emb in response.embeddings]
+            else:
+                raise ValueError(f"Provider {provider} does not support batch embeddings via BYOKHandler yet.")
+        except Exception as e:
+            logger.error(f"Batch embedding generation failed for {provider}: {e}")
+            raise
 
     def classify_cognitive_tier(self, prompt: str, task_type: Optional[str] = None) -> CognitiveTier:
         """

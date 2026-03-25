@@ -31,6 +31,18 @@ except ImportError:
 # Configure logging
 logger = logging.getLogger(__name__)
 
+from core.llm_service import get_llm_service, LLMService
+from pydantic import BaseModel, Field
+
+class LLMSentiment(BaseModel):
+    score: float = Field(..., description="Sentiment score between -1 and 1")
+    label: str = Field(..., description="One of: positive, neutral, negative")
+    confidence: float = Field(..., description="Confidence score between 0 and 1")
+
+class LLMTopics(BaseModel):
+    topics: List[str] = Field(..., description="List of 3-5 key topics")
+    confidence: float = Field(..., description="Confidence score between 0 and 1")
+
 class DiscordAnalyticsMetric(Enum):
     """Discord analytics metrics"""
     MESSAGE_COUNT = "message_count"
@@ -48,6 +60,8 @@ class DiscordAnalyticsMetric(Enum):
     INVITE_USES = "invite_uses"
     BOOST_LEVEL = "boost_level"
     MODERATION_ACTIONS = "moderation_actions"
+    SENTIMENT = "sentiment"
+    TOPICS = "topics"
 
 class DiscordAnalyticsTimeRange(Enum):
     """Discord analytics time ranges"""
@@ -232,10 +246,19 @@ class DiscordAnalyticsEngine:
             start_time, end_time = self._get_time_range_boundaries(time_range)
             
             # Get analytics data
-            data_points = await self._fetch_analytics_data(
-                metric, start_time, end_time, granularity, 
-                filters, workspace_id, guild_ids, channel_ids, user_ids
-            )
+            if metric == DiscordAnalyticsMetric.SENTIMENT:
+                data_points = await self._get_sentiment_analytics(
+                    start_time, end_time, granularity, filters, workspace_id, guild_ids, channel_ids, user_ids
+                )
+            elif metric == DiscordAnalyticsMetric.TOPICS:
+                data_points = await self._get_topics_analytics(
+                    start_time, end_time, granularity, filters, workspace_id, guild_ids, channel_ids, user_ids
+                )
+            else:
+                data_points = await self._fetch_analytics_data(
+                    metric, start_time, end_time, granularity, 
+                    filters, workspace_id, guild_ids, channel_ids, user_ids
+                )
             
             # Cache result
             self._cache_result(cache_key, data_points)
@@ -249,11 +272,11 @@ class DiscordAnalyticsEngine:
     async def _fetch_analytics_data(self, metric: DiscordAnalyticsMetric,
                                  start_time: datetime, end_time: datetime,
                                  granularity: DiscordAnalyticsGranularity,
-                                 filters: Dict[str, Any] = None,
-                                 workspace_id: str = None,
-                                 guild_ids: List[str] = None,
-                                 channel_ids: List[str] = None,
-                                 user_ids: List[str] = None) -> List[DiscordAnalyticsDataPoint]:
+                                 filters: Optional[Dict[str, Any]] = None,
+                                 workspace_id: Optional[str] = None,
+                                 guild_ids: Optional[List[str]] = None,
+                                 channel_ids: Optional[List[str]] = None,
+                                 user_ids: Optional[List[str]] = None) -> List[DiscordAnalyticsDataPoint]:
         """Fetch analytics data from database"""
         try:
             # Build query based on metric
@@ -290,11 +313,11 @@ class DiscordAnalyticsEngine:
     async def _build_analytics_query(self, metric: DiscordAnalyticsMetric,
                                   start_time: datetime, end_time: datetime,
                                   granularity: DiscordAnalyticsGranularity,
-                                  filters: Dict[str, Any] = None,
-                                  workspace_id: str = None,
-                                  guild_ids: List[str] = None,
-                                  channel_ids: List[str] = None,
-                                  user_ids: List[str] = None) -> Dict[str, Any]:
+                                  filters: Optional[Dict[str, Any]] = None,
+                                  workspace_id: Optional[str] = None,
+                                  guild_ids: Optional[List[str]] = None,
+                                  channel_ids: Optional[List[str]] = None,
+                                  user_ids: Optional[List[str]] = None) -> Dict[str, Any]:
         """Build SQL query for analytics"""
         
         try:
@@ -1206,6 +1229,164 @@ class DiscordAnalyticsEngine:
         except Exception as e:
             logger.error(f"Error clearing Discord analytics cache: {e}")
     
+    async def _get_sentiment_analytics(self, start_time: datetime, end_time: datetime,
+                                    granularity: DiscordAnalyticsGranularity,
+                                    filters: Optional[Dict[str, Any]] = None,
+                                    workspace_id: Optional[str] = None,
+                                    guild_ids: Optional[List[str]] = None,
+                                    channel_ids: Optional[List[str]] = None,
+                                    user_ids: Optional[List[str]] = None) -> List[DiscordAnalyticsDataPoint]:
+        """Get AI-powered sentiment analytics"""
+        # Fetch relevant messages for sentiment analysis
+        query = await self._build_analytics_query(
+            DiscordAnalyticsMetric.MESSAGE_COUNT, start_time, end_time, granularity,
+            filters, workspace_id, guild_ids, channel_ids, user_ids
+        )
+        # We actually need the raw text, so we'll fetch messages directly
+        messages = await self._fetch_raw_messages(start_time, end_time, filters, workspace_id, guild_ids, channel_ids, user_ids)
+        
+        if not messages:
+            return []
+
+        # Group messages by granularity
+        grouped_messages = self._group_messages_by_granularity(messages, granularity)
+        
+        data_points = []
+        for ts, content_list in grouped_messages.items():
+            if not content_list:
+                continue
+                
+            # Aggregate sentiment for this bucket
+            combined_text = " ".join(content_list[:20]) # Limit for analysis
+            sentiment = await self._analyze_sentiment(combined_text)
+            
+            data_points.append(DiscordAnalyticsDataPoint(
+                timestamp=ts,
+                metric=DiscordAnalyticsMetric.SENTIMENT,
+                value=sentiment["score"],
+                dimensions={"label": sentiment["label"]},
+                metadata={"confidence": sentiment["confidence"], "message_count": len(content_list)}
+            ))
+            
+        return data_points
+
+    async def _get_topics_analytics(self, start_time: datetime, end_time: datetime,
+                                 granularity: DiscordAnalyticsGranularity,
+                                 filters: Optional[Dict[str, Any]] = None,
+                                 workspace_id: Optional[str] = None,
+                                 guild_ids: Optional[List[str]] = None,
+                                 channel_ids: Optional[List[str]] = None,
+                                 user_ids: Optional[List[str]] = None) -> List[DiscordAnalyticsDataPoint]:
+        """Get AI-powered topic analytics"""
+        messages = await self._fetch_raw_messages(start_time, end_time, filters, workspace_id, guild_ids, channel_ids, user_ids)
+        
+        if not messages:
+            return []
+
+        grouped_messages = self._group_messages_by_granularity(messages, granularity)
+        
+        data_points = []
+        for ts, content_list in grouped_messages.items():
+            if not content_list:
+                continue
+                
+            topics_result = await self._extract_topics(content_list)
+            
+            data_points.append(DiscordAnalyticsDataPoint(
+                timestamp=ts,
+                metric=DiscordAnalyticsMetric.TOPICS,
+                value=", ".join(topics_result["topics"]),
+                dimensions={"topic_list": topics_result["topics"]},
+                metadata={"confidence": topics_result["confidence"], "message_count": len(content_list)}
+            ))
+            
+        return data_points
+
+    async def _fetch_raw_messages(self, start_time: datetime, end_time: datetime,
+                                filters: Optional[Dict[str, Any]] = None,
+                                workspace_id: Optional[str] = None,
+                                guild_ids: Optional[List[str]] = None,
+                                channel_ids: Optional[List[str]] = None,
+                                user_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """Fetch raw message text for AI analysis"""
+        if not self.db:
+            return [] # In reality would return mock messages
+
+        # Build raw query
+        where_conditions = ["timestamp >= ?", "timestamp <= ?"]
+        params = [start_time.isoformat(), end_time.isoformat()]
+        
+        if workspace_id:
+            guild_id = workspace_id[8:] if workspace_id.startswith('discord_') else workspace_id
+            where_conditions.append("guild_id = ?")
+            params.append(guild_id)
+            
+        # ... Add other filters (simplified for now)
+        
+        sql = f"SELECT timestamp, content, user_id, channel_id FROM discord_messages WHERE {' AND '.join(where_conditions)} LIMIT 1000"
+        
+        try:
+            results = self.db.execute(sql, params).fetchall()
+            return [dict(row) for row in results]
+        except Exception as e:
+            logger.error(f"Error fetching raw messages: {e}")
+            return []
+
+    def _group_messages_by_granularity(self, messages: List[Dict[str, Any]], 
+                                    granularity: DiscordAnalyticsGranularity) -> Dict[datetime, List[str]]:
+        """Group messages by timestamp granularity"""
+        grouped = defaultdict(list)
+        for msg in messages:
+            ts = msg['timestamp']
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts)
+            
+            if granularity == DiscordAnalyticsGranularity.HOUR:
+                ts_key = ts.replace(minute=0, second=0, microsecond=0)
+            elif granularity == DiscordAnalyticsGranularity.DAY:
+                ts_key = ts.replace(hour=0, minute=0, second=0, microsecond=0)
+            else:
+                ts_key = ts # Default to raw
+                
+            grouped[ts_key].append(msg.get('content', ''))
+            
+        return grouped
+
+    async def _analyze_sentiment(self, text: str) -> Dict[str, Any]:
+        """Analyze sentiment using LLMService"""
+        if not text or len(text.strip()) < 5:
+            return {"score": 0.0, "label": "neutral", "confidence": 1.0}
+
+        try:
+            llm_service = get_llm_service()
+            result = await llm_service.generate_structured(
+                prompt=f"Analyze sentiment for this Discord content:\n\n{text}",
+                response_model=LLMSentiment,
+                system_prompt="Analyzer for Discord community sentiment. Score: -1 to 1."
+            )
+            return result.dict()
+        except Exception as e:
+            logger.error(f"Sentiment analysis failed: {e}")
+            return {"score": 0.0, "label": "neutral", "confidence": 0.0}
+
+    async def _extract_topics(self, texts: List[str]) -> Dict[str, Any]:
+        """Extract topics using LLMService"""
+        if not texts:
+            return {"topics": [], "confidence": 1.0}
+
+        combined = "\n---\n".join(texts[:30])
+        try:
+            llm_service = get_llm_service()
+            result = await llm_service.generate_structured(
+                prompt=f"Extract 3-5 topics from these Discord messages:\n\n{combined}",
+                response_model=LLMTopics,
+                system_prompt="Topic extractor for Discord communities."
+            )
+            return result.dict()
+        except Exception as e:
+            logger.error(f"Topic extraction failed: {e}")
+            return {"topics": [], "confidence": 0.0}
+
     def get_engine_info(self) -> Dict[str, Any]:
         """Get analytics engine information"""
         return {

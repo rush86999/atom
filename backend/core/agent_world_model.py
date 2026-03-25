@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -9,7 +9,16 @@ from core.database import get_db_session
 from core.lancedb_handler import LanceDBHandler, get_lancedb_handler
 from core.models import AgentRegistry, AgentStatus, ChatMessage
 
+from enum import Enum
+from dataclasses import dataclass
+
 logger = logging.getLogger(__name__)
+
+class DetailLevel(str, Enum):
+    """Detail level for episode recall - controls token usage"""
+    SUMMARY = "summary"   # ~50 tokens: canvas type + summary + has_errors
+    STANDARD = "standard" # ~200 tokens: summary + visual_elements + data
+    FULL = "full"         # ~500 tokens: standard + full_state + audit_trail
 
 class AgentExperience(BaseModel):
     """
@@ -49,11 +58,23 @@ class BusinessFact(BaseModel):
     fact: str             # "Invoices > $500 need VP approval"
     citations: List[str]  # ["policy.pdf:p4", "src/approvals.ts:L20"]
     reason: str           # Context/Why this is important
+    
+    # Governance & Verification (Phase 189 Alignment)
     source_agent_id: str
-    created_at: datetime
-    last_verified: datetime
-    verification_status: str = "unverified" # unverified, verified, outdated
+    verification_status: str = "pending" # pending, verified, rejected
+    created_at: datetime = datetime.now(timezone.utc)
+    last_verified: datetime = datetime.now(timezone.utc)
     metadata: Dict[str, Any] = {}
+
+@dataclass
+class SkillRecommendation:
+    """Recommendation for an OpenClaw skill based on task context"""
+    skill_id: str
+    skill_name: Optional[str]
+    success_rate: float
+    execution_count: int
+    last_executed_at: Optional[datetime]
+    reason: str
 
 class WorldModelService:
     def __init__(self, workspace_id: str = "default"):
@@ -486,7 +507,8 @@ class WorldModelService:
                     fact_map[fact_id] = (fact.last_verified, fact)
 
             # Return unique facts sorted by relevance (original search order)
-            return [fact for _, fact in list(fact_map.values())[:limit]]
+            unique_facts = [fact for _, fact in list(fact_map.values())]
+            return unique_facts[:limit]
         except Exception as e:
             logger.warning(f"Failed to retrieve business facts: {e}")
             return []
@@ -589,7 +611,7 @@ class WorldModelService:
                     )
 
                     # Keep the most recent version
-                    if most_recent_fact is None or fact.last_verified > most_recent_verified:
+                    if most_recent_fact is None or (most_recent_verified and fact.last_verified > most_recent_verified):
                         most_recent_fact = fact
                         most_recent_verified = fact.last_verified
 
@@ -626,6 +648,379 @@ class WorldModelService:
             if await self.record_business_fact(fact):
                 success_count += 1
         return success_count
+
+    async def record_episode(
+        self,
+        episode_id: str,
+        agent_id: str,
+        tenant_id: str,
+        task_description: str,
+        outcome: str,
+        learnings: str,
+        agent_role: str,
+        maturity_at_time: str,
+        constitutional_score: float = 1.0,
+        human_intervention_count: int = 0,
+        confidence_score: float = 0.5,
+        metadata: Dict[str, Any] = None
+    ) -> bool:
+        """
+        Record an episode to LanceDB for long-term retention and semantic search.
+        """
+        text_representation = (
+            f"Episode: {task_description}\n"
+            f"Outcome: {outcome}\n"
+            f"Learnings: {learnings}\n"
+            f"Maturity: {maturity_at_time}\n"
+            f"Constitutional Score: {constitutional_score:.2f}\n"
+            f"Interventions: {human_intervention_count}"
+        )
+
+        episode_metadata = {
+            "episode_id": episode_id,
+            "agent_id": agent_id,
+            "tenant_id": tenant_id,
+            "task_type": "episode",
+            "outcome": outcome,
+            "agent_role": agent_role,
+            "maturity_at_time": maturity_at_time,
+            "constitutional_score": constitutional_score,
+            "human_intervention_count": human_intervention_count,
+            "confidence_score": confidence_score,
+            "type": "episode",
+            **(metadata or {})
+        }
+
+        return self.db.add_document(
+            table_name="agent_episodes",
+            text=text_representation,
+            source=f"episode_{agent_id}",
+            metadata=episode_metadata,
+            user_id="episode_system",
+            extract_knowledge=False
+        )
+
+    async def sync_episode_to_lancedb(
+        self,
+        episode_id: str,
+        agent_id: str,
+        tenant_id: str,
+        task_description: str,
+        outcome: str,
+        learnings: str,
+        agent_role: str,
+        maturity_at_time: str,
+        constitutional_score: float = 1.0,
+        human_intervention_count: int = 0,
+        confidence_score: float = 0.5,
+        metadata: Dict[str, Any] = None
+    ) -> bool:
+        """
+        Sync an episode from PostgreSQL to LanceDB.
+        """
+        return await self.record_episode(
+            episode_id=episode_id,
+            agent_id=agent_id,
+            tenant_id=tenant_id,
+            task_description=task_description,
+            outcome=outcome,
+            learnings=learnings,
+            agent_role=agent_role,
+            maturity_at_time=maturity_at_time,
+            constitutional_score=constitutional_score,
+            human_intervention_count=human_intervention_count,
+            confidence_score=confidence_score,
+            metadata=metadata
+        )
+
+    async def recall_episodes(
+        self,
+        task_description: str,
+        agent_role: str,
+        agent_id: Optional[str] = None,
+        canvas_id: Optional[str] = None,
+        min_feedback_score: Optional[float] = None,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Recall relevant episodes from LanceDB with canvas and feedback awareness.
+        """
+        try:
+            query = f"{agent_role} {task_description}"
+            results = self.db.search(
+                table_name="agent_episodes",
+                query=query,
+                limit=limit * 2
+            )
+
+            scored_episodes = []
+            for res in results:
+                meta = res.get("metadata", {})
+                if meta.get("agent_role") != agent_role:
+                    continue
+                if agent_id and meta.get("agent_id") != agent_id:
+                    continue
+                if meta.get("type") != "episode":
+                    continue
+
+                base_score = res.get("_score", 0.5)
+                canvas_boost = 0.0
+                feedback_boost = 0.0
+
+                if canvas_id and meta.get("canvas_id") == canvas_id:
+                    canvas_boost = 0.3
+                    
+                feedback_score = meta.get("feedback_score")
+                if feedback_score is not None:
+                    if feedback_score > 0.5:
+                        feedback_boost = 0.2
+                    elif feedback_score < -0.5:
+                        feedback_boost = -0.3
+
+                if min_feedback_score is not None and (feedback_score is None or feedback_score < min_feedback_score):
+                    continue
+
+                final_score = base_score + canvas_boost + feedback_boost
+                scored_episodes.append({
+                    "episode_id": meta.get("episode_id"),
+                    "agent_id": meta.get("agent_id"),
+                    "task_description": res.get("text", "").split("Outcome:")[0].replace("Episode: ", "").strip(),
+                    "outcome": meta.get("outcome"),
+                    "final_score": final_score,
+                    "metadata": meta
+                })
+
+            scored_episodes.sort(key=lambda x: x["final_score"], reverse=True)
+            return scored_episodes[:limit]
+        except Exception as e:
+            logger.warning(f"Failed to recall episodes: {e}")
+            return []
+
+    async def archive_session_to_cold_storage_with_cleanup(
+        self,
+        conversation_id: str,
+        retention_days: int = 30,
+        verify_before_delete: bool = True
+    ) -> dict:
+        """
+        Archive a session to LanceDB and optionally hard delete from PostgreSQL after retention period.
+
+        This is a safer alternative that:
+        1. Verifies archival success before deletion
+        2. Implements soft delete with retention period
+        3. Creates audit trail for deleted records
+        4. Allows rollback within retention period
+
+        Args:
+            conversation_id: Session ID to archive
+            retention_days: Days to keep soft-deleted records before hard delete
+            verify_before_delete: Verify LanceDB archival before PostgreSQL deletion
+
+        Returns:
+            Dictionary with status, audit_id, and details
+        """
+        audit_id = f"audit_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{conversation_id[:8]}"
+        result = {
+            "audit_id": audit_id,
+            "conversation_id": conversation_id,
+            "status": "failed",
+            "archived": False,
+            "soft_deleted": False,
+            "hard_deleted": False,
+            "error": None
+        }
+
+        try:
+            with get_db_session() as db:
+                # Step 1: Archive to LanceDB
+                logger.info(f"[{audit_id}] Starting archival with cleanup for session {conversation_id}")
+
+                messages = db.query(ChatMessage).filter(
+                    ChatMessage.conversation_id == conversation_id,
+                    ChatMessage.tenant_id == self.db.workspace_id
+                ).order_by(ChatMessage.created_at.asc()).all()
+
+                if not messages:
+                    result["error"] = "No messages found"
+                    return result
+
+                # Combine session history
+                session_text = "\n".join([f"{m.role}: {m.content}" for m in messages])
+                metadata = {
+                    "conversation_id": conversation_id,
+                    "msg_count": len(messages),
+                    "type": "archived_session",
+                    "archived_at": datetime.now(timezone.utc).isoformat(),
+                    "audit_id": audit_id,
+                    "retention_days": retention_days
+                }
+
+                # Save to LanceDB
+                lancedb_success = self.db.add_document(
+                    table_name="archived_memories",
+                    text=session_text,
+                    source=f"session:{conversation_id}",
+                    metadata=metadata,
+                    user_id="system_archiver"
+                )
+
+                if not lancedb_success:
+                    result["error"] = "Failed to archive to LanceDB"
+                    return result
+
+                result["archived"] = True
+                logger.info(f"[{audit_id}] ✓ Archived to LanceDB")
+
+                # Step 2: Verify archival (if requested)
+                if verify_before_delete:
+                    # Search for the archived document
+                    verification_results = self.db.search(
+                        table_name="archived_memories",
+                        query=f"conversation_id:{conversation_id}",
+                        limit=1
+                    )
+
+                    if not verification_results:
+                        result["error"] = "Verification failed: document not found in LanceDB"
+                        return result
+
+                    logger.info(f"[{audit_id}] ✓ Verified archival in LanceDB")
+
+                # Step 3: Soft delete (mark with metadata)
+                for msg in messages:
+                    msg.metadata_json = msg.metadata_json or {}
+                    msg.metadata_json.update({
+                        "_archived": True,
+                        "_archived_at": datetime.now(timezone.utc).isoformat(),
+                        "_archived_to_lancedb": True,
+                        "_audit_id": audit_id,
+                        "_retention_until": (datetime.now(timezone.utc) + timedelta(days=retention_days)).isoformat()
+                    })
+
+                db.commit()
+                result["soft_deleted"] = True
+                logger.info(f"[{audit_id}] ✓ Soft deleted {len(messages)} messages")
+
+                # Step 4: Schedule hard delete after retention period
+                result["status"] = "success"
+                result["scheduled_for_hard_delete"] = (datetime.now(timezone.utc) + timedelta(days=retention_days)).isoformat()
+
+                logger.info(f"[{audit_id}] ✓ Archival complete. Hard delete scheduled for {result['scheduled_for_hard_delete']}")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"[{audit_id}] Failed: {e}")
+            result["error"] = str(e)
+            return result
+
+    async def recover_archived_session(self, conversation_id: str) -> dict:
+        """
+        Recover a soft-deleted session from archival status.
+        Removes the archived flags and restores the messages to active state.
+        """
+        result = {
+            "conversation_id": conversation_id,
+            "status": "failed",
+            "recovered_count": 0,
+            "error": None
+        }
+
+        try:
+            with get_db_session() as db:
+                messages = db.query(ChatMessage).filter(
+                    ChatMessage.conversation_id == conversation_id,
+                    ChatMessage.tenant_id == self.db.workspace_id,
+                    ChatMessage.metadata_json.is_not(None)
+                ).all()
+
+                # Filter manually for those having _archived key
+                archived_messages = [m for m in messages if m.metadata_json.get('_archived')]
+
+                if not archived_messages:
+                    result["error"] = "No archived messages found"
+                    return result
+
+                # Remove archival flags
+                for msg in archived_messages:
+                    # Keep audit trail but remove archived status
+                    msg.metadata_json["_recovered"] = True
+                    msg.metadata_json["_recovered_at"] = datetime.now(timezone.utc).isoformat()
+                    # Remove the _archived flag
+                    msg.metadata_json.pop("_archived", None)
+
+                db.commit()
+                result["status"] = "success"
+                result["recovered_count"] = len(archived_messages)
+
+                logger.info(f"Recovered {len(archived_messages)} messages from session {conversation_id}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to recover session {conversation_id}: {e}")
+            result["error"] = str(e)
+            return result
+
+    async def hard_delete_archived_sessions(self, older_than_days: int = 30) -> dict:
+        """
+        Permanently delete sessions that have been soft-deleted for longer than retention.
+        """
+        result = {
+            "status": "failed",
+            "deleted_count": 0,
+            "error": None
+        }
+
+        try:
+            with get_db_session() as db:
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+
+                # Find messages that have been archived
+                all_archived = db.query(ChatMessage).filter(
+                    ChatMessage.tenant_id == self.db.workspace_id,
+                    ChatMessage.metadata_json.is_not(None)
+                ).all()
+
+                messages_past_retention = []
+                for msg in all_archived:
+                    if not msg.metadata_json.get('_archived'):
+                        continue
+                        
+                    retention_until = msg.metadata_json.get('_retention_until')
+                    if retention_until:
+                        try:
+                            retention_date = datetime.fromisoformat(retention_until)
+                            if retention_date < datetime.now(timezone.utc):
+                                messages_past_retention.append(msg)
+                        except (ValueError, TypeError):
+                            # In case of corruption, fallback to age
+                            if msg.created_at < cutoff_date:
+                                messages_past_retention.append(msg)
+                    elif msg.created_at < cutoff_date:
+                        messages_past_retention.append(msg)
+
+                if not messages_past_retention:
+                    result["status"] = "success"
+                    result["deleted_count"] = 0
+                    return result
+
+                # Perform hard delete
+                count = 0
+                for msg in messages_past_retention:
+                    db.delete(msg)
+                    count += 1
+
+                db.commit()
+                result["status"] = "success"
+                result["deleted_count"] = count
+
+                logger.info(f"Hard deleted {count} messages past retention")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to hard delete archived sessions: {e}")
+            result["error"] = str(e)
+            return result
 
 
     async def archive_session_to_cold_storage(self, conversation_id: str) -> bool:
@@ -673,6 +1068,149 @@ class WorldModelService:
         except Exception as e:
             logger.error(f"Failed to archive session {conversation_id}: {e}")
             return False
+
+    async def recall_experiences_with_detail(
+        self,
+        tenant_id: str,
+        agent_role: str,
+        task_description: str,
+        detail_level: DetailLevel = DetailLevel.SUMMARY,
+        agent_id: Optional[str] = None,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Recall experiences with configurable detail level.
+        Uses specialized progressive queries from EpisodeService.
+        """
+        from core.service_factory import ServiceFactory
+        
+        with get_db_session() as db:
+            episode_service = ServiceFactory.get_episode_service(db, workspace_id=tenant_id)
+            
+            # Use raw SQL for performant detail retrieval
+            from sqlalchemy import text
+            from core.episode_service import PROGRESSIVE_QUERIES
+            
+            query_sql = PROGRESSIVE_QUERIES.get(detail_level)
+            if not query_sql:
+                return []
+                
+            result = db.execute(
+                text(query_sql),
+                {"agent_id": agent_id, "limit": limit}
+            )
+
+            rows = result.fetchall()
+            return [dict(row._mapping) for row in rows]
+
+    async def archive_episode_to_cold_storage(
+        self,
+        episode_id: str,
+        agent_id: str,
+        tenant_id: str,
+        task_description: str,
+        outcome: str,
+        learnings: str,
+        agent_role: str,
+        maturity_at_time: str,
+        constitutional_score: float = 1.0,
+        human_intervention_count: int = 0,
+        confidence_score: float = 0.5
+    ) -> bool:
+        """
+        Archive an episode from PostgreSQL hot storage to LanceDB cold storage.
+        """
+        try:
+            # Reuse sync_episode_to_lancedb implementation
+            # Note: Upstream generic record_episode might not exist in the same way,
+            # but we'll ensure consistency with EpisodeService.
+            success = await self.sync_episode_to_lancedb(
+                episode_id=episode_id,
+                agent_id=agent_id,
+                tenant_id=tenant_id,
+                task_description=task_description,
+                outcome=outcome,
+                learnings=learnings,
+                agent_role=agent_role,
+                maturity_at_time=maturity_at_time,
+                constitutional_score=constitutional_score,
+                human_intervention_count=human_intervention_count,
+                confidence_score=confidence_score
+            )
+            return success
+        except Exception as e:
+            logger.error(f"Error archiving episode {episode_id}: {e}")
+            return False
+
+    async def get_recent_episodes(
+        self,
+        agent_id: str,
+        tenant_id: str,
+        limit: int = 30
+    ) -> List[Dict[str, Any]]:
+        """Get recent episodes for graduation readiness."""
+        try:
+            from core.models import AgentEpisode
+            with get_db_session() as db:
+                episodes = db.query(AgentEpisode).filter(
+                    AgentEpisode.agent_id == agent_id,
+                    AgentEpisode.tenant_id == tenant_id
+                ).order_by(AgentEpisode.started_at.desc()).limit(limit).all()
+
+                return [
+                    {
+                        "episode_id": ep.id,
+                        "task_description": ep.task_description,
+                        "outcome": ep.outcome,
+                        "success": ep.success,
+                        "maturity_at_time": ep.maturity_at_time,
+                        "constitutional_score": ep.constitutional_score,
+                        "human_intervention_count": ep.human_intervention_count,
+                        "confidence_score": ep.confidence_score,
+                        "step_efficiency": ep.step_efficiency,
+                        "started_at": ep.started_at.isoformat() if ep.started_at else None,
+                        "completed_at": ep.completed_at.isoformat() if ep.completed_at else None
+                    }
+                    for ep in episodes
+                ]
+        except Exception as e:
+            logger.warning(f"Failed to get recent episodes: {e}")
+            return []
+
+    def get_episode_feedback_for_decision(
+        self,
+        episode_ids: List[str]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Retrieve complete feedback records for multiple episodes."""
+        from core.models import EpisodeFeedback
+        if not episode_ids:
+            return {}
+
+        try:
+            with get_db_session() as db:
+                feedback_records = db.query(EpisodeFeedback).filter(
+                    EpisodeFeedback.episode_id.in_(episode_ids)
+                ).all()
+
+                result = {}
+                for f in feedback_records:
+                    if f.episode_id not in result:
+                        result[f.episode_id] = []
+
+                    result[f.episode_id].append({
+                        "id": f.id,
+                        "feedback_score": f.feedback_score,
+                        "feedback_notes": f.feedback_notes,
+                        "feedback_category": f.feedback_category,
+                        "provider_id": f.provider_id,
+                        "provider_type": f.provider_type,
+                        "provided_at": f.provided_at.isoformat() if f.provided_at else None
+                    })
+                return result
+        except Exception as e:
+            logger.error(f"Failed to get episode feedback for decision: {e}")
+            return {}
+
 
     async def recall_experiences(
         self, 
@@ -788,10 +1326,10 @@ class WorldModelService:
             # Hot Fallback: If no semantic matches, get recently updated formulas for this domain
             if len(formula_results) < limit:
                 try:
-                    from saas.models import Formula
+                    from core.models import Formula
                     with get_db_session() as db:
                         hot_formulas = db.query(Formula).filter(
-                            Formula.workspace_id == self.db.workspace_id,
+                            Formula.tenant_id == self.db.workspace_id,
                             Formula.domain == (agent_category if agent_category != "general" else Formula.domain)
                         ).order_by(Formula.updated_at.desc()).limit(limit - len(formula_results)).all()
 
@@ -841,7 +1379,6 @@ class WorldModelService:
         # 6. Search Episodes (NEW)
         episodes_result = []
         try:
-            from core.database import get_db_session
             from core.episode_retrieval_service import EpisodeRetrievalService
 
             with get_db_session() as db:
@@ -998,3 +1535,148 @@ class WorldModelService:
             logger.warning(f"Failed to extract canvas insights: {e}")
 
         return insights
+
+    async def recommend_skills_for_task(
+        self,
+        task_description: str,
+        agent_id: str,
+        tenant_id: str,
+        limit: int = 5
+    ) -> List[SkillRecommendation]:
+        """
+        Recommend OpenClaw skills based on historical performance for similar tasks.
+
+        Uses semantic search to find similar past tasks and analyzes which
+        OpenClaw skills were used successfully. Ranks skills by:
+        1. Success rate (successful executions / total)
+        2. Execution count (higher = more reliable)
+        3. Semantic similarity (from vector search)
+
+        Args:
+            task_description: Description of the current task
+            agent_id: ID of the agent
+            tenant_id: ID of the tenant
+            limit: Maximum number of recommendations to return
+
+        Returns:
+            List of SkillRecommendation objects sorted by relevance
+        """
+        try:
+            from core.models import AgentRegistry, Skill
+            
+            # Identify agent role
+            with get_db_session() as db:
+                agent = db.query(AgentRegistry).filter(
+                    AgentRegistry.id == agent_id,
+                    AgentRegistry.tenant_id == tenant_id
+                ).first()
+
+                if not agent:
+                    logger.warning(f"Agent {agent_id} not found for tenant {tenant_id}")
+                    return []
+
+                agent_role = agent.category or "general"
+
+                # Step 1: Recall semantically similar episodes
+                similar_episodes = await self.recall_episodes(
+                    task_description=task_description,
+                    agent_role=agent_role,
+                    agent_id=agent_id,
+                    limit=limit * 3
+                )
+
+                # Step 2: Filter for OpenClaw skill episodes
+                skill_episodes = []
+                for ep in similar_episodes:
+                    meta = ep.get("metadata", {})
+                    if meta.get("skill_type") == "openclaw":
+                        sid = meta.get("skill_id")
+                        if sid:
+                            skill_episodes.append({
+                                "skill_id": sid,
+                                "outcome": ep.get("outcome"),
+                                "final_score": ep.get("final_score", 0.5)
+                            })
+
+                if not skill_episodes:
+                    return []
+
+                # Step 3: Aggregate statistics
+                skill_stats = {}
+                for ep in skill_episodes:
+                    sid = ep["skill_id"]
+                    if sid not in skill_stats:
+                        skill_stats[sid] = {"total": 0, "success": 0}
+                    skill_stats[sid]["total"] += 1
+                    if ep["outcome"] == "success":
+                        skill_stats[sid]["success"] += 1
+
+                # Step 4: Generate recommendations
+                recommendations = []
+                for sid, stats in skill_stats.items():
+                    skill_obj = db.query(Skill).filter(Skill.id == sid).first()
+                    success_rate = stats["success"] / stats["total"] if stats["total"] > 0 else 0
+                    
+                    recommendations.append(SkillRecommendation(
+                        skill_id=sid,
+                        skill_name=skill_obj.name if skill_obj else None,
+                        success_rate=float(f"{success_rate:.4f}"),
+                        execution_count=stats["total"],
+                        last_executed_at=None,
+                        reason=f"Used successfully in {stats['success']} similar episodes"
+                    ))
+
+                # Step 5: Rank and return
+                recommendations.sort(key=lambda x: (x.success_rate, x.execution_count), reverse=True)
+                return recommendations[:limit]
+
+        except Exception as e:
+            logger.warning(f"Failed to recommend skills: {e}")
+            return []
+
+    async def validate_factual_consistency(
+        self,
+        experience: AgentExperience,
+        limit: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Validate an experience against the "Trusted Memory" (Business Facts).
+        
+        Identifies potential contradictions between what the agent did and
+        established business policies or facts.
+        """
+        try:
+            # 1. Get relevant business facts for this task
+            relevant_facts = await self.get_relevant_business_facts(
+                experience.input_summary, 
+                limit=limit
+            )
+            
+            if not relevant_facts:
+                return {"status": "consistent", "conflicts": [], "reason": "No relevant facts found"}
+                
+            # 2. Heuristic/Semantic check for consistency
+            # In a real scenario, this would use an LLM to compare experience.learnings
+            # against each fact. For the port, we implement the semantic structure.
+            conflicts = []
+            for fact in relevant_facts:
+                # Basic contradiction detection (mock/semantic placeholder)
+                # If "Success" but learnings mention "Mismatch", and a fact exists...
+                if "mismatch" in experience.learnings.lower() and "reconcile" in fact["fact"].lower():
+                    # This is a highly simplified heuristic for the port
+                    conflicts.append({
+                        "fact_id": fact["id"],
+                        "fact": fact["fact"],
+                        "conflict_type": "potential_contradiction",
+                        "severity": "medium"
+                    })
+            
+            return {
+                "status": "warning" if conflicts else "consistent",
+                "conflicts": conflicts,
+                "verified_at": datetime.now(timezone.utc).isoformat(),
+                "fact_count": len(relevant_facts)
+            }
+        except Exception as e:
+            logger.warning(f"Factual consistency check failed: {e}")
+            return {"status": "error", "reason": str(e)}

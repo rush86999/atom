@@ -31,6 +31,18 @@ except ImportError:
 # Configure logging
 logger = logging.getLogger(__name__)
 
+from core.llm_service import get_llm_service, LLMService
+from pydantic import BaseModel, Field
+
+class LLMSentiment(BaseModel):
+    score: float = Field(..., description="Sentiment score between -1 and 1")
+    label: str = Field(..., description="One of: positive, neutral, negative")
+    confidence: float = Field(..., description="Confidence score between 0 and 1")
+
+class LLMTopics(BaseModel):
+    topics: List[str] = Field(..., description="List of 3-5 key topics")
+    confidence: float = Field(..., description="Confidence score between 0 and 1")
+
 class GoogleChatAnalyticsMetric(Enum):
     """Google Chat analytics metrics"""
     MESSAGE_COUNT = "message_count"
@@ -44,6 +56,8 @@ class GoogleChatAnalyticsMetric(Enum):
     USER_ENGAGEMENT = "user_engagement"
     RESPONSE_TIME = "response_time"
     REACTION_COUNT = "reaction_count"
+    SENTIMENT = "sentiment"
+    TOPICS = "topics"
 
 class GoogleChatAnalyticsTimeRange(Enum):
     """Google Chat analytics time ranges"""
@@ -237,10 +251,19 @@ class GoogleChatAnalyticsEngine:
             start_time, end_time = self._get_time_range_boundaries(time_range)
             
             # Get analytics data
-            data_points = await self._fetch_analytics_data(
-                metric, start_time, end_time, granularity, 
-                filters, workspace_id, space_ids, user_ids
-            )
+            if metric == GoogleChatAnalyticsMetric.SENTIMENT:
+                data_points = await self._get_sentiment_analytics(
+                    start_time, end_time, granularity, filters, workspace_id, space_ids, user_ids
+                )
+            elif metric == GoogleChatAnalyticsMetric.TOPICS:
+                data_points = await self._get_topics_analytics(
+                    start_time, end_time, granularity, filters, workspace_id, space_ids, user_ids
+                )
+            else:
+                data_points = await self._fetch_analytics_data(
+                    metric, start_time, end_time, granularity, 
+                    filters, workspace_id, space_ids, user_ids
+                )
             
             # Cache result
             self._cache_result(cache_key, data_points)
@@ -1167,6 +1190,139 @@ class GoogleChatAnalyticsEngine:
         except Exception as e:
             logger.error(f"Error clearing analytics cache: {e}")
     
+    async def _get_sentiment_analytics(self, start_time: datetime, end_time: datetime,
+                                    granularity: GoogleChatAnalyticsGranularity,
+                                    filters: Optional[Dict[str, Any]] = None,
+                                    workspace_id: Optional[str] = None,
+                                    space_ids: Optional[List[str]] = None,
+                                    user_ids: Optional[List[str]] = None) -> List[GoogleChatAnalyticsDataPoint]:
+        """Get AI-powered sentiment analytics for Google Chat"""
+        messages = await self._fetch_raw_messages(start_time, end_time, filters, workspace_id, space_ids, user_ids)
+        if not messages:
+            return []
+
+        grouped_messages = self._group_messages_by_granularity(messages, granularity)
+        data_points = []
+        for ts, content_list in grouped_messages.items():
+            if not content_list:
+                continue
+            # Explicitly slice then join to satisfy strict type checkers
+            batch_texts = list(content_list)
+            combined_text = " ".join(batch_texts[:20])
+            sentiment = await self._analyze_sentiment(combined_text)
+            data_points.append(GoogleChatAnalyticsDataPoint(
+                timestamp=ts,
+                metric=GoogleChatAnalyticsMetric.SENTIMENT,
+                value=sentiment["score"],
+                dimensions={"label": sentiment["label"]},
+                metadata={"confidence": sentiment["confidence"], "message_count": len(content_list)}
+            ))
+        return data_points
+
+    async def _get_topics_analytics(self, start_time: datetime, end_time: datetime,
+                                 granularity: GoogleChatAnalyticsGranularity,
+                                 filters: Optional[Dict[str, Any]] = None,
+                                 workspace_id: Optional[str] = None,
+                                 space_ids: Optional[List[str]] = None,
+                                 user_ids: Optional[List[str]] = None) -> List[GoogleChatAnalyticsDataPoint]:
+        """Get AI-powered topic analytics for Google Chat"""
+        messages = await self._fetch_raw_messages(start_time, end_time, filters, workspace_id, space_ids, user_ids)
+        if not messages:
+            return []
+
+        grouped_messages = self._group_messages_by_granularity(messages, granularity)
+        data_points = []
+        for ts, content_list in grouped_messages.items():
+            if not content_list:
+                continue
+            topics_result = await self._extract_topics(content_list)
+            data_points.append(GoogleChatAnalyticsDataPoint(
+                timestamp=ts,
+                metric=GoogleChatAnalyticsMetric.TOPICS,
+                value=", ".join(topics_result["topics"]),
+                dimensions={"topic_list": topics_result["topics"]},
+                metadata={"confidence": topics_result["confidence"], "message_count": len(content_list)}
+            ))
+        return data_points
+
+    async def _fetch_raw_messages(self, start_time: datetime, end_time: datetime,
+                                filters: Optional[Dict[str, Any]] = None,
+                                workspace_id: Optional[str] = None,
+                                space_ids: Optional[List[str]] = None,
+                                user_ids: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """Fetch raw message text for AI analysis"""
+        db = self.db
+        if not db:
+            return []
+
+        where_conditions = ["timestamp >= ?", "timestamp <= ?"]
+        params = [start_time.isoformat(), end_time.isoformat()]
+        
+        if workspace_id:
+            where_conditions.append("workspace_id = ?")
+            params.append(workspace_id)
+            
+        sql = f"SELECT timestamp, content, user_id, space_id FROM google_chat_messages WHERE {' AND '.join(where_conditions)} LIMIT 1000"
+        try:
+            results = db.execute(sql, params).fetchall()
+            return [dict(row) for row in results]
+        except Exception as e:
+            logger.error(f"Error fetching raw messages: {e}")
+            return []
+
+    def _group_messages_by_granularity(self, messages: List[Dict[str, Any]], 
+                                    granularity: GoogleChatAnalyticsGranularity) -> Dict[datetime, List[str]]:
+        """Group messages by timestamp granularity"""
+        grouped = defaultdict(list)
+        for msg in messages:
+            ts = msg['timestamp']
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts)
+            
+            if granularity == GoogleChatAnalyticsGranularity.HOUR:
+                ts_key = ts.replace(minute=0, second=0, microsecond=0)
+            elif granularity == GoogleChatAnalyticsGranularity.DAY:
+                ts_key = ts.replace(hour=0, minute=0, second=0, microsecond=0)
+            else:
+                ts_key = ts
+            grouped[ts_key].append(msg.get('content', ''))
+        return dict(grouped)  # type: ignore
+
+    async def _analyze_sentiment(self, text: str) -> Dict[str, Any]:
+        """Analyze sentiment using LLMService"""
+        if not text or len(text.strip()) < 5:
+            return {"score": 0.0, "label": "neutral", "confidence": 1.0}
+        try:
+            llm_service = get_llm_service()
+            result = await llm_service.generate_structured(
+                prompt=f"Analyze sentiment for this Google Chat content:\n\n{text}",
+                response_model=LLMSentiment,
+                system_prompt="Sentiment analyzer for Google Chat communications. Score: -1 to 1."
+            )
+            return result.dict()
+        except Exception as e:
+            logger.error(f"Sentiment analysis failed: {e}")
+            return {"score": 0.0, "label": "neutral", "confidence": 0.0}
+
+    async def _extract_topics(self, texts: List[str]) -> Dict[str, Any]:
+        """Extract topics using LLMService"""
+        if not texts:
+            return {"topics": [], "confidence": 1.0}
+        # Explicitly slice then join
+        input_texts = list(texts)
+        combined = "\n---\n".join(input_texts[:30])
+        try:
+            llm_service = get_llm_service()
+            result = await llm_service.generate_structured(
+                prompt=f"Extract 3-5 topics from these Google Chat messages:\n\n{combined}",
+                response_model=LLMTopics,
+                system_prompt="Topic extractor for Google Chat communications."
+            )
+            return result.dict()
+        except Exception as e:
+            logger.error(f"Topic extraction failed: {e}")
+            return {"topics": [], "confidence": 0.0}
+
     def get_engine_info(self) -> Dict[str, Any]:
         """Get analytics engine information"""
         return {

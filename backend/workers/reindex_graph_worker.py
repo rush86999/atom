@@ -14,10 +14,12 @@ import uuid
 from sqlalchemy import text
 
 # Add backend to path
-sys.path.append(os.path.join(os.getcwd(), "backend-saas"))
+sys.path.append(os.getcwd())
 
-from core.database import SessionLocal
+from core.database import SessionLocal, get_db_session
 from core.models import CommunityMembership, GraphCommunity, GraphEdge, GraphNode
+from core.service_factory import ServiceFactory
+import asyncio
 
 try:
     import networkx as nx
@@ -98,63 +100,40 @@ class RedisWorker:
             logger.warning("Louvain not available, falling back to connected components")
             return [list(c) for c in nx.connected_components(G)]
 
-    def _get_llm_client(self, workspace_id: str):
-        """Get LLM client with BYOK support"""
-        try:
-            from openai import OpenAI
-            from core.byok_endpoints import get_byok_manager
-            
-            byok = get_byok_manager()
-            api_key = byok.get_tenant_api_key(workspace_id, "openai")
-            if not api_key:
-                api_key = byok.get_api_key("openai")
-            
-            if api_key:
-                return OpenAI(api_key=api_key)
-            return None
-        except ImportError:
-            return None
-
-    def summarize_community(self, workspace_id: str, G: nx.Graph, community_nodes: List[str]) -> Dict[str, Any]:
-        """Generate LLM summary and keywords for a community using BYOK"""
-        client = self._get_llm_client(workspace_id)
-        if not client:
-             # Fallback
-            node_names = [G.nodes[n].get("name", "Unknown") for n in community_nodes[:3]]
-            return {
-                "summary": f"Group related to {', '.join(node_names)} and {len(community_nodes)-3} other entities.",
-                "keywords": node_names
-            }
+    async def summarize_community(self, workspace_id: str, G: nx.Graph, community_nodes: List[str]) -> Dict[str, Any]:
+        """Generate LLM summary and keywords for a community using unified LLMService"""
+        llm = ServiceFactory.get_llm_service()
         
         # Prepare context
         nodes_list = [f"- {G.nodes[n].get('name', 'Unknown')} ({G.nodes[n].get('type', 'entity')})" for n in community_nodes[:20]]
         nodes_str = "\n".join(nodes_list)
         
-        prompt = f"""Summarize this knowledge graph community.
+        prompt = f"""Summarize this knowledge graph community of related entities.
 Entities:
 {nodes_str}
 
-Respond in valid JSON only:
+Respond in valid JSON only with this structure:
 {{
-  "summary": "Short 1-2 sentence description",
+  "summary": "Short 1-2 sentence description emphasizing the common theme",
   "keywords": ["keyword1", "keyword2", "keyword3"]
 }}"""
 
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.1,
-                response_format={"type": "json_object"}
+            # LLMService handles tenant isolation and usage tracking automatically
+            result = await llm.generate_response(
+                prompt=prompt,
+                tenant_id=workspace_id,
+                system_prompt="You are a GraphRAG Community Analyst. Categorize and summarize groups of entities.",
+                json_mode=True
             )
             
-            data = json.loads(response.choices[0].message.content)
+            data = json.loads(result)
             return {
                 "summary": data.get("summary", f"Community of {len(community_nodes)} entities."),
                 "keywords": data.get("keywords", [])
             }
         except Exception as e:
-            logger.error(f"Failed to summarize community: {e}")
+            logger.error(f"Failed to summarize community via LLMService: {e}")
             node_names = [G.nodes[n].get("name", "Unknown") for n in community_nodes[:3]]
             return {
                 "summary": f"Group related to {', '.join(node_names)}.",
@@ -172,7 +151,8 @@ Respond in valid JSON only:
             for i, members in enumerate(communities):
                 if len(members) < 2: continue 
                 
-                res = self.summarize_community(workspace_id, G, members)
+                # Perform async LLM summarization
+                res = asyncio.run(self.summarize_community(workspace_id, G, members))
                 
                 comm = GraphCommunity(
                     workspace_id=workspace_id,

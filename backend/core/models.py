@@ -974,7 +974,7 @@ class AgentExecution(Base):
 
     result_summary = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
-    metadata_json = Column(JSON, default={}) # Phase 110: Extensible tracking for complexity, etc.
+    metadata_json = Column(JSONB, default={}) # Phase 110: Extensible tracking for complexity, etc.
 
     __table_args__ = (
         Index('idx_agent_execution_lookup', 'agent_id', 'started_at'),
@@ -1113,7 +1113,7 @@ class UserIdentity(Base):
     provider_user_id = Column(String, nullable=False) # e.g. "U123456"
     provider_username = Column(String, nullable=True) # e.g. "rushiparikh"
     
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONB, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1541,6 +1541,106 @@ class AgentLearning(Base):
     agent = relationship("AgentRegistry", backref=backref("learning_summary", uselist=False))
     tenant = relationship("Tenant", backref="agent_learning_records")
 
+class AgentHandoff(Base):
+    """
+    Agent handoff records for multi-agent coordination.
+    Tracks handoffs between agents working on the same canvas,
+    including context, status, and results.
+    """
+    __tablename__ = "agent_handoffs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    from_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    to_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    canvas_id = Column(String, ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Handoff details
+    context = Column(JSONB, nullable=True)  # Context passed between agents
+    input_schema = Column(JSONB, nullable=True)  # Expected input schema
+    output_schema = Column(JSONB, nullable=True) # Expected output schema
+    reason = Column(Text, nullable=True)  # Why the handoff occurred
+    status = Column(String(20), nullable=False)  # pending, accepted, rejected, completed
+    rejection_reason = Column(Text, nullable=True)
+
+    # Timestamps
+    initiated_at = Column(DateTime(timezone=True), server_default=func.now())
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Result
+    result = Column(JSONB, nullable=True)  # Final result from handoff
+
+    # Relationships
+    from_agent = relationship("AgentRegistry", foreign_keys=[from_agent_id], backref="initiated_handoffs")
+    to_agent = relationship("AgentRegistry", foreign_keys=[to_agent_id], backref="received_handoffs")
+    canvas = relationship("Canvas", back_populates="handoffs")
+    tenant = relationship("Tenant", backref="agent_handoffs")
+
+
+class AgentCanvasPresence(Base):
+    """
+    Agent presence on canvases.
+    Tracks which agents are currently active on which canvases,
+    including their role and current action.
+    """
+    __tablename__ = "agent_canvas_presence"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    canvas_id = Column(String, ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Presence details
+    role = Column(String(50), nullable=True)  # collaborator, reviewer, approver
+    status = Column(String(20), default="active")  # active, idle, left
+    current_action = Column(Text, nullable=True)  # What the agent is currently doing
+
+    # Timestamps
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    left_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    agent = relationship("AgentRegistry", backref="canvas_presence")
+    canvas = relationship("Canvas", back_populates="agent_presence")
+    tenant = relationship("Tenant")
+
+    def __repr__(self):
+        return f"<AgentCanvasPresence(id={self.id}, agent_id={self.agent_id}, canvas_id={self.canvas_id})>"
+
+
+class CoordinatedStrategy(Base):
+    """A strategic plan formed by multiple specialty agents."""
+    __tablename__ = "coordinated_strategies"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    objective = Column(Text, nullable=False)
+    status = Column(String, default="draft")  # draft, negotiating, approved, executed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    contributions = relationship("StrategyContribution", back_populates="strategy", cascade="all, delete-orphan")
+    tenant = relationship("Tenant", backref="coordinated_strategies")
+
+class StrategyContribution(Base):
+    """A specific contribution or critique from a specialty agent in a strategy."""
+    __tablename__ = "strategy_contributions"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    strategy_id = Column(String, ForeignKey("coordinated_strategies.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    specialty = Column(String, nullable=False)
+    content = Column(JSONB, nullable=False)  # The actual strategic input
+    status = Column(String, default="proposed")  # proposed, debated, final
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    strategy = relationship("CoordinatedStrategy", back_populates="contributions")
+    agent = relationship("AgentRegistry")
+
 
 class GovernanceDocStatus(str, enum.Enum):
     PENDING = "pending"
@@ -1578,6 +1678,13 @@ class GovernanceDocument(Base):
     status = Column(String, default=GovernanceDocStatus.PENDING.value)
     entered_by = Column(String, ForeignKey("users.id"), nullable=False)
     approved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    
+    # Verification tracking (MODEL-02)
+    last_verified = Column(DateTime(timezone=True), nullable=True)
+    
+    # Document lifecycle (MODEL-03)
+    expiration_date = Column(DateTime(timezone=True), nullable=True)
+    is_deleted = Column(Boolean, default=False, index=True)
     
     # Vector Embedding for RAG
     if PGVECTOR_AVAILABLE:
@@ -1838,10 +1945,14 @@ class GraphNode(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False) # e.g., 'person', 'task', 'document'
     description = Column(Text, nullable=True)
-    properties = Column(JSON, default={}) # Flexible metadata
+    properties = Column(JSONB, default={}) # Flexible metadata
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index('ix_graph_nodes_properties_gin', 'properties', postgresql_using='gin'),
+    )
 
     # Constraints: (workspace_id, name, type) should be unique to prevent dupes
     # We'll enforce this via unique index in migration or explicit UNIQUE constraint
@@ -1862,9 +1973,13 @@ class GraphEdge(Base):
     
     relationship_type = Column(String, nullable=False) # e.g., 'manages', 'blocks'
     weight = Column(Float, default=1.0)
-    properties = Column(JSON, default={})
+    properties = Column(JSONB, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index('ix_graph_edges_properties_gin', 'properties', postgresql_using='gin'),
+    )
 
     # Relationships
     source_node = relationship("GraphNode", foreign_keys=[source_node_id])
@@ -1883,9 +1998,13 @@ class GraphCommunity(Base):
     
     level = Column(Integer, default=0) # Hierarchy level
     summary = Column(Text, nullable=False) # LLM-generated summary
-    keywords = Column(JSON, default=list) # Top keywords for indexing
+    keywords = Column(JSONB, default=list) # Top keywords for indexing
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index('ix_graph_communities_keywords_gin', 'keywords', postgresql_using='gin'),
+    )
 
 class CommunityMembership(Base):
     """Mapping of Nodes to Communities (Many-to-Many but usually One-to-Many per level)"""
@@ -3365,73 +3484,8 @@ class CanvasTemplate(Base):
     author = relationship("User", backref="published_templates")
 
 
-class AgentHandoff(Base):
-    """
-    Agent handoff records for multi-agent coordination.
 
-    Tracks handoffs between agents working on the same canvas,
-    including context, status, and results.
-    """
-    __tablename__ = "agent_handoffs"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    from_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
-    to_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
-    canvas_id = Column(String, ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-
-    # Handoff details
-    context = Column(JSON, nullable=True)  # Context passed between agents
-    reason = Column(Text, nullable=True)  # Why the handoff occurred
-    status = Column(String(20), nullable=False)  # pending, accepted, rejected, completed
-    rejection_reason = Column(Text, nullable=True)
-
-    # Timestamps
-    initiated_at = Column(DateTime(timezone=True), server_default=func.now())
-    responded_at = Column(DateTime(timezone=True), nullable=True)
-    completed_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Result
-    result = Column(JSON, nullable=True)  # Final result from handoff
-
-    # Relationships
-    from_agent = relationship("AgentRegistry", foreign_keys=[from_agent_id], backref="initiated_handoffs")
-    to_agent = relationship("AgentRegistry", foreign_keys=[to_agent_id], backref="received_handoffs")
-    canvas = relationship("Canvas", back_populates="handoffs")
-    tenant = relationship("Tenant", backref="agent_handoffs")
-
-
-class CoordinatedStrategy(Base):
-    """A strategic plan formed by multiple specialty agents."""
-    __tablename__ = "coordinated_strategies"
-
-    id = Column(String, primary_key=True)
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    title = Column(String, nullable=False)
-    objective = Column(Text, nullable=False)
-    status = Column(String, default="draft")  # draft, negotiating, approved, executed
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    approved_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Relationships
-    contributions = relationship("StrategyContribution", back_populates="strategy", cascade="all, delete-orphan")
-
-
-class StrategyContribution(Base):
-    """A specific contribution or critique from a specialty agent in a strategy."""
-    __tablename__ = "strategy_contributions"
-
-    id = Column(String, primary_key=True)
-    strategy_id = Column(String, ForeignKey("coordinated_strategies.id", ondelete="CASCADE"), nullable=False, index=True)
-    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
-    specialty = Column(String, nullable=False)
-    content = Column(JSON, nullable=False)  # The actual strategic input
-    status = Column(String, default="proposed")  # proposed, debated, final
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    strategy = relationship("CoordinatedStrategy", back_populates="contributions")
-    agent = relationship("AgentRegistry")
+# REDUNDANT AgentHandoff / Strategy models removed - using definitions at line 1544
 
 class Workflow(Base):
     """Core workflow definition model."""
@@ -3482,36 +3536,8 @@ class WorkflowStep(Base):
     workflow = relationship("Workflow", back_populates="steps")
 
 
-class AgentCanvasPresence(Base):
-    """
-    Agent presence on canvases.
 
-    Tracks which agents are currently active on which canvases,
-    including their role and current action.
-    """
-    __tablename__ = "agent_canvas_presence"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
-    canvas_id = Column(String, ForeignKey("canvases.id", ondelete="CASCADE"), nullable=False, index=True)
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-
-    # Presence details
-    role = Column(String(50), nullable=True)  # collaborator, reviewer, approver
-    status = Column(String(20), default="active")  # active, idle, left
-    current_action = Column(Text, nullable=True)  # What the agent is currently doing
-
-    # Timestamps
-    joined_at = Column(DateTime(timezone=True), server_default=func.now())
-    left_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Relationships
-    agent = relationship("AgentRegistry", backref="canvas_presence")
-    canvas = relationship("Canvas", back_populates="agent_presence")
-    tenant = relationship("Tenant", backref="agent_canvas_presence")
-
-    def __repr__(self):
-        return f"<AgentCanvasPresence(id={self.id}, agent_id={self.agent_id}, canvas_id={self.canvas_id})>"
+# REDUNDANT AgentCanvasPresence removed - using definition at line 1581
 
 
 # ========================================================================
@@ -3946,7 +3972,7 @@ class AgentEpisode(Base):
     status = Column(String(20), nullable=False, default="active", index=True)  # active, completed, failed, cancelled
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONB, nullable=True)
 
     # Vector embedding for semantic search (pgvector)
     # Use dynamic Vector dimension if pgvector is available, otherwise fall back to JSON
@@ -3985,8 +4011,8 @@ class AgentEpisode(Base):
     aggregate_feedback_score = Column(Float, nullable=True) # -1.0 to 1.0 aggregate score
 
     # Content
-    topics = Column(JSON, default=list) # Extracted topics
-    entities = Column(JSON, default=list) # Named entities
+    topics = Column(JSONB, default=list) # Extracted topics
+    entities = Column(JSONB, default=list) # Named entities
     importance_score = Column(Float, default=0.5, index=True) # 0.0 to 1.0
 
     # Lifecycle
@@ -4000,6 +4026,10 @@ class AgentEpisode(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index('ix_agent_episodes_metadata_gin', 'metadata_json', postgresql_using='gin'),
+    )
 
     # Relationships
     agent = relationship("AgentRegistry", backref="episodes")
@@ -6018,11 +6048,23 @@ class AgentProposal(Base):
     tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False)
     user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     agent_id = Column(String(255), ForeignKey('agent_registry.id', ondelete='CASCADE'), nullable=False)
+    agent_name = Column(String(255), nullable=True)  # Denormalized for quick queries
+    canvas_id = Column(String(255), nullable=True, index=True)
+    session_id = Column(String(255), nullable=True, index=True)
+    
+    title = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    
     proposal_type = Column(SQLEnum('action', 'workflow', 'analysis', name='proposaltype'), nullable=False)
     proposal_data = Column(JSON, nullable=False)
     status = Column(SQLEnum('pending_approval', 'approved', 'rejected', 'cancelled', 'executed', 'execution_failed', name='proposalstatus'), nullable=False, default='pending_approval')
+    
+    reversible = Column(Boolean, default=True)
+    
     approver_type = Column(SQLEnum('autonomous_agent', 'user', name='approvertype'), nullable=True)
     approver_id = Column(String(255), nullable=True)
+    approved_by = Column(String(255), nullable=True)  # Legacy alias for approver_id
+    approved_at = Column(DateTime(timezone=True), nullable=True)  # Legacy alias for reviewed_at
     approval_reason = Column(Text, nullable=True)
     confidence_score = Column(Float, nullable=True)
     risk_assessment = Column(Text, nullable=True)
@@ -6051,6 +6093,8 @@ class AgentProposal(Base):
     __table_args__ = (
         Index('idx_agent_proposals_tenant_id', 'tenant_id'),
         Index('idx_agent_proposals_agent_id', 'agent_id'),
+        Index('idx_agent_proposals_canvas_id', 'canvas_id'),
+        Index('idx_agent_proposals_session_id', 'session_id'),
         Index('idx_agent_proposals_status', 'status'),
         Index('idx_agent_proposals_approver', 'approver_type', 'approver_id'),
         {'extend_existing': True},
@@ -7954,6 +7998,7 @@ class CanvasCollaborationSession(Base):
 
     # Canvas identification
     canvas_id = Column(String(255), nullable=False, index=True)
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     session_id = Column(String(255), nullable=False, index=True)
     user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
@@ -7991,6 +8036,7 @@ class CanvasAgentParticipant(Base):
     # Foreign keys
     collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
 
     # Role and permissions
@@ -8032,30 +8078,171 @@ class CanvasConflict(Base):
     # Foreign keys
     collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     canvas_id = Column(String(255), nullable=False, index=True)
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     component_id = Column(String(255), nullable=False, index=True)
 
     # Conflicting agents
     agent_a_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
     agent_b_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
-
-    # Conflicting actions
-    agent_a_action = Column(String(50), nullable=False)  # update, delete, move
-    agent_b_action = Column(String(50), nullable=False)
-
-    # Resolution
-    resolution = Column(String(50), nullable=True)  # merge, agent_a_wins, agent_b_wins, manual
-    resolved_by = Column(String(255), nullable=True)  # user_id or system
-    resolved_action = Column(JSON, nullable=True)  # Final action taken
+    
+    # Conflict details
+    conflict_type = Column(String(100), nullable=False)  # attribute_clash, content_overlap, etc.
+    component_data_a = Column(JSON, nullable=True)
+    component_data_b = Column(JSON, nullable=True)
+    resolution_strategy = Column(String(100), nullable=True)
+    resolved_data = Column(JSON, nullable=True)
+    
+    # Resolution status
+    status = Column(String(50), nullable=False, default="pending")  # pending, resolved, dismissed
     resolved_at = Column(DateTime(timezone=True), nullable=True)
-
+    resolved_by = Column(String(255), nullable=True)  # agent_id or user_id
+    
     # Timestamps
-    detected_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
     session = relationship("CanvasCollaborationSession", back_populates="conflicts")
 
     def __repr__(self):
-        return f"<CanvasConflict(id={self.id}, component_id={self.component_id}, resolution={self.resolution})>"
+        return f"<CanvasConflict(id={self.id}, canvas_id={self.canvas_id}, status={self.status})>"
+
+
+class CanvasContext(Base):
+    """Stores canvas session context for agent learning and memory."""
+    __tablename__ = "canvas_contexts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    canvas_id = Column(String, nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    canvas_type = Column(String, nullable=False)  # terminal, browser, desktop, etc.
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    agent_id = Column(String, nullable=True)  # Optional: which agent is active
+
+    # Session history (all actions taken in this canvas)
+    session_history = Column(JSON, default=list)  # List[AgentAction]
+
+    # User corrections (for learning)
+    user_corrections = Column(JSON, default=list)  # List[{original, modified, context}]
+
+    # Current canvas state (type-specific)
+    current_state = Column(JSON, default=dict)
+
+    # User preferences learned from this canvas
+    user_preferences = Column(JSON, default=dict)
+
+    # Metadata
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_activity_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    user = relationship("User")
+    tenant = relationship("Tenant")
+
+    def __repr__(self):
+        return f"<CanvasContext(id={self.id}, canvas_id={self.canvas_id}, user_id={self.user_id})>"
+
+
+class CanvasRecording(Base):
+    """
+    Records canvas sessions for autonomous agent actions, providing
+    audit trails, compliance evidence, and user review capabilities.
+    """
+    __tablename__ = "canvas_recordings"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    recording_id = Column(String(255), nullable=False, index=True, unique=True)
+    canvas_id = Column(String(255), nullable=True, index=True)
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    session_id = Column(String(255), nullable=True, index=True)
+    
+    # Recording metadata
+    reason = Column(String(255), nullable=True)  # governance, autonomous_action, manual
+    status = Column(String(50), default="recording", index=True)  # recording, completed, failed
+    tags = Column(JSON, default=list)
+    recording_metadata = Column(JSON, default=dict)
+    
+    # Timeline and summary
+    events = Column(JSON, default=list)  # List of timestamped events
+    summary = Column(Text, nullable=True)
+    event_count = Column(Integer, default=0)
+    
+    # Review status
+    flagged_for_review = Column(Boolean, default=False, index=True)
+    flag_reason = Column(Text, nullable=True)
+    flagged_by = Column(String(255), nullable=True)
+    flagged_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Metrics
+    duration_seconds = Column(Float, nullable=True)
+    
+    # Timestamps
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    stopped_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant")
+    user = relationship("User")
+    agent = relationship("AgentRegistry")
+    reviews = relationship("CanvasRecordingReview", back_populates="recording", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<CanvasRecording(id={self.id}, recording_id={self.recording_id}, status={self.status})>"
+
+
+class CanvasRecordingReview(Base):
+    """
+    Review and adjudications for canvas recordings.
+    Integrates with agent governance and learning systems.
+    """
+    __tablename__ = "canvas_recording_reviews"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    recording_id = Column(String, ForeignKey("canvas_recordings.recording_id", ondelete="CASCADE"), nullable=False, index=True)
+    agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Review details
+    review_status = Column(String(50), nullable=False, index=True)  # approved, rejected, needs_changes
+    overall_rating = Column(Integer, nullable=True)  # 1-5
+    performance_rating = Column(Integer, nullable=True)
+    safety_rating = Column(Integer, nullable=True)
+    feedback = Column(Text, nullable=True)
+    identified_issues = Column(JSON, default=list)
+    positive_patterns = Column(JSON, default=list)
+    lessons_learned = Column(Text, nullable=True)
+    
+    # Learning/Governance impact
+    confidence_delta = Column(Float, default=0.0)
+    promoted = Column(Boolean, default=False)
+    demoted = Column(Boolean, default=False)
+    governance_notes = Column(Text, nullable=True)
+    
+    # Status flags
+    auto_reviewed = Column(Boolean, default=False)
+    auto_review_confidence = Column(Float, nullable=True)
+    used_for_training = Column(Boolean, default=False)
+    world_model_updated = Column(Boolean, default=False)
+    training_value = Column(String(50), default="low")  # low, medium, high
+    
+    # Metadata
+    reviewed_by = Column(String(255), nullable=True)  # user_id or null for auto
+    reviewed_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    recording = relationship("CanvasRecording", back_populates="reviews")
+    agent = relationship("AgentRegistry")
+
+    def __repr__(self):
+        return f"<CanvasRecordingReview(id={self.id}, recording_id={self.recording_id}, status={self.review_status})>"
 
 
 # =============================================================================
@@ -8296,7 +8483,7 @@ class EntityTypeDefinition(Base):
     description = Column(Text, nullable=True)
 
     # Schema definition (JSONB)
-    json_schema = Column(JSON, nullable=False)  # JSON Schema Draft 2020-12
+    json_schema = Column(JSONB, nullable=False)  # JSON Schema Draft 2020-12
 
     # Skill bindings (array of skill IDs)
     available_skills = Column(JSON, nullable=True)  # ["send_email", "generate_pdf"]

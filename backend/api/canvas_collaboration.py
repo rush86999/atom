@@ -24,9 +24,11 @@ from fastapi import Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.auth_routes import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.canvas_collaboration_service import CanvasCollaborationService
 from core.database import get_db
+from core.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +99,7 @@ class ReleaseLockRequest(BaseModel):
 @router.post("/session/create")
 async def create_collaboration_session(
     request: CreateSessionRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -116,7 +119,7 @@ async def create_collaboration_session(
     Response:
         Created session data
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.create_collaboration_session(
         canvas_id=request.canvas_id,
         session_id=request.session_id,
@@ -143,6 +146,7 @@ async def create_collaboration_session(
 async def add_agent_to_session(
     session_id: str,
     request: AddAgentRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -157,7 +161,7 @@ async def add_agent_to_session(
     Response:
         Participant data with role and permissions
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.add_agent_to_session(
         collaboration_session_id=session_id,
         agent_id=request.agent_id,
@@ -183,6 +187,7 @@ async def add_agent_to_session(
 async def remove_agent_from_session(
     session_id: str,
     request: RemoveAgentRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -194,7 +199,7 @@ async def remove_agent_from_session(
     Response:
         Removal confirmation
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.remove_agent_from_session(
         collaboration_session_id=session_id,
         agent_id=request.agent_id
@@ -216,6 +221,7 @@ async def remove_agent_from_session(
 @router.get("/session/{session_id}/status")
 async def get_session_status(
     session_id: str,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -230,7 +236,7 @@ async def get_session_status(
     Response:
         Session status with participant details
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.get_session_status(session_id)
 
     if "error" in result:
@@ -249,6 +255,7 @@ async def get_session_status(
 @router.post("/session/{session_id}/complete")
 async def complete_session(
     session_id: str,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -263,7 +270,7 @@ async def complete_session(
         - Total actions performed
         - Total conflicts resolved
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.complete_session(session_id)
 
     if "error" in result:
@@ -289,6 +296,7 @@ async def check_agent_permission(
     agent_id: str = Query(..., description="Agent to check"),
     action: str = Query(..., description="Action to check"),
     component_id: Optional[str] = Query(None, description="Optional component"),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -303,7 +311,7 @@ async def check_agent_permission(
     Response:
         Permission check result with allowed boolean and reason
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.check_agent_permission(
         collaboration_session_id=session_id,
         agent_id=agent_id,
@@ -321,6 +329,7 @@ async def check_agent_permission(
 async def check_for_conflicts(
     session_id: str,
     request: CheckConflictRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -339,7 +348,7 @@ async def check_for_conflicts(
     Response:
         Conflict check result
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.check_for_conflicts(
         collaboration_session_id=session_id,
         agent_id=request.agent_id,
@@ -357,6 +366,7 @@ async def check_for_conflicts(
 async def resolve_conflict(
     session_id: str,
     request: ResolveConflictRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -376,7 +386,7 @@ async def resolve_conflict(
     Response:
         Resolution result with conflict ID and final action
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.resolve_conflict(
         collaboration_session_id=session_id,
         agent_a_id=request.agent_a_id,
@@ -408,6 +418,7 @@ async def resolve_conflict(
 async def record_agent_action(
     session_id: str,
     request: RecordActionRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -423,7 +434,7 @@ async def record_agent_action(
     Response:
         Recorded action data
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.record_agent_action(
         collaboration_session_id=session_id,
         agent_id=request.agent_id,
@@ -448,6 +459,7 @@ async def record_agent_action(
 async def release_agent_lock(
     session_id: str,
     request: ReleaseLockRequest,
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -463,7 +475,7 @@ async def release_agent_lock(
     Response:
         Lock release result
     """
-    service = CanvasCollaborationService(db)
+    service = CanvasCollaborationService(db, tenant_id=user.tenant_id)
     result = service.release_agent_lock(
         collaboration_session_id=session_id,
         agent_id=request.agent_id,
@@ -492,7 +504,8 @@ async def list_collaboration_sessions(
     canvas_id: Optional[str] = Query(None, description="Filter by canvas ID"),
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100, description="Max results"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
     """
     List collaboration sessions with optional filtering.
@@ -511,6 +524,9 @@ async def list_collaboration_sessions(
 
     if canvas_id:
         query = query.filter(CanvasCollaborationSession.canvas_id == canvas_id)
+
+    if user.tenant_id:
+        query = query.filter(CanvasCollaborationSession.tenant_id == user.tenant_id)
 
     if status:
         query = query.filter(CanvasCollaborationSession.status == status)

@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from core.llm_router import LLMRouter
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,9 @@ class AutoresearchAgent:
     metrics to decide whether to keep or rollback changes.
     """
 
-    def __init__(self, db: Session, llm_router: LLMRouter):
+    def __init__(self, db: Session, llm_service: Any):
         self.db = db
-        self.llm = llm_router
+        self.llm = llm_service
 
     async def run_experiment_loop(self, 
                                   program_md_path: str, 
@@ -69,7 +69,8 @@ class AutoresearchAgent:
             """
 
             try:
-                response = await self.llm.call(
+                # Standardize on unified LLMService.generate_response
+                content = await self.llm.generate_response(
                     tenant_id=tenant_id,
                     messages=[
                         {"role": "system", "content": "You are a senior ML researcher. Output only valid Python code designed to improve the metric."},
@@ -77,7 +78,7 @@ class AutoresearchAgent:
                     ]
                 )
                 
-                new_code = response.get("content", "").strip()
+                new_code = (content or "").strip()
                 if new_code.startswith("```python"):
                     new_code = new_code[9:]
                 if new_code.endswith("```"):
