@@ -172,7 +172,11 @@ Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intellige
   2. AI-generated invariants analyze code to suggest property test opportunities
   3. Cross-platform bug correlation detects bugs manifesting across web/mobile/desktop
   4. Semantic bug clustering uses LLM embeddings to group similar bugs
-**Plans**: TBD
+**Plans**: 4 plans in 4 waves
+- [ ] 244-01-PLAN.md — FuzzingStrategyGenerator with coverage-aware fuzzing (Wave 1)
+- [ ] 244-02-PLAN.md — InvariantGenerator with AI-generated property test invariants (Wave 2)
+- [ ] 244-03-PLAN.md — CrossPlatformCorrelator for multi-platform bug correlation (Wave 3)
+- [ ] 244-04-PLAN.md — SemanticBugClusterer with LLM embeddings and clustering (Wave 4)
 
 #### Phase 245: Feedback Loops & ROI Tracking
 **Goal**: Close the loop with regression test generation, effectiveness metrics, and ROI tracking
