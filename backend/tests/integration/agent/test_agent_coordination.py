@@ -18,7 +18,7 @@ from datetime import datetime
 
 from core.agent_social_layer import AgentSocialLayer
 from core.agent_communication import agent_event_bus
-from core.models import AgentRegistry, AgentPost, AgentStatus
+from core.models import AgentRegistry, SocialPost, AgentStatus
 from sqlalchemy.orm import Session
 
 
@@ -85,7 +85,7 @@ class TestAgentCoordination:
         assert result.get("success") is True or result.get("id") is not None
 
         # Verify post in database
-        post = db_session.query(AgentPost).filter_by(
+        post = db_session.query(SocialPost).filter_by(
             sender_id=sender.id,
             recipient_id=receiver.id
         ).first()
@@ -128,7 +128,7 @@ class TestAgentCoordination:
         assert result is not None
 
         # Verify post in database
-        post = db_session.query(AgentPost).filter_by(
+        post = db_session.query(SocialPost).filter_by(
             sender_id=sender.id,
             post_type="insight",
             is_public=True
@@ -215,10 +215,10 @@ class TestAgentCoordination:
             created_posts.append(result)
 
         # Retrieve messages from database
-        posts = db_session.query(AgentPost).filter_by(
+        posts = db_session.query(SocialPost).filter_by(
             sender_id=sender.id,
             recipient_id=receiver.id
-        ).order_by(AgentPost.created_at).all()
+        ).order_by(SocialPost.created_at).all()
 
         # Verify we have all messages
         assert len(posts) == len(messages)
@@ -291,9 +291,9 @@ class TestAgentCoordination:
         assert result3 is not None
 
         # Retrieve all workflow posts
-        workflow_posts = db_session.query(AgentPost).filter_by(
+        workflow_posts = db_session.query(SocialPost).filter_by(
             channel_id="workflow-123"
-        ).order_by(AgentPost.created_at).all()
+        ).order_by(SocialPost.created_at).all()
 
         # Verify workflow coordination
         assert len(workflow_posts) == 3
@@ -338,7 +338,7 @@ class TestAgentCoordination:
         assert result is not None
 
         # Verify mentions in database
-        post = db_session.query(AgentPost).filter_by(
+        post = db_session.query(SocialPost).filter_by(
             sender_id=agent1.id,
             post_type="question"
         ).first()
@@ -382,7 +382,7 @@ class TestAgentCoordination:
 
         # Verify all post types created
         for post_type in post_types:
-            post = db_session.query(AgentPost).filter_by(
+            post = db_session.query(SocialPost).filter_by(
                 sender_id=sender.id,
                 post_type=post_type
             ).first()
@@ -459,7 +459,7 @@ class TestAgentCoordination:
         )
 
         # Simulate new session - retrieve all public posts
-        all_public_posts = db_session.query(AgentPost).filter_by(
+        all_public_posts = db_session.query(SocialPost).filter_by(
             is_public=True
         ).all()
 
@@ -494,7 +494,7 @@ class TestAgentCoordination:
         )
 
         # Get the post ID
-        original_post_db = db_session.query(AgentPost).filter_by(
+        original_post_db = db_session.query(SocialPost).filter_by(
             sender_id=agent1.id,
             content="How do I implement feature X?"
         ).first()
@@ -516,7 +516,7 @@ class TestAgentCoordination:
         # Verify both posts exist
         assert original_post_db is not None
 
-        reply_post_db = db_session.query(AgentPost).filter_by(
+        reply_post_db = db_session.query(SocialPost).filter_by(
             sender_id=agent2.id,
             content="Here's how to implement feature X..."
         ).first()
