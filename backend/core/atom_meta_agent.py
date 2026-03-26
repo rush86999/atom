@@ -25,6 +25,7 @@ from ai.nlp_engine import NaturalLanguageEngine, CommandIntentResult, CommandTyp
 from typing import Literal
 from core.canvas_context_provider import get_canvas_provider, CanvasContext
 from core.agents.queen_agent import QueenAgent
+from core.react_models import ReActStep
 
 
 # LLM Integration:
