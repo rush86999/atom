@@ -270,190 +270,190 @@ function JITVerificationDashboardContent() {
             </Button>
           </div>
         </div>
-        </div>
+      </div>
 
-        {/* System Status Cards */}
-        <SystemStatusCards
-          workerMetrics={workerMetrics}
-          cacheStats={cacheStats}
-          healthStatus={healthStatus}
-        />
+      {/* System Status Cards */}
+      <SystemStatusCards
+        workerMetrics={workerMetrics}
+        cacheStats={cacheStats}
+        healthStatus={healthStatus}
+      />
 
-        {/* Quick Actions */}
-        <QuickActions
-          isWorkerRunning={workerMetrics?.running ?? false}
+      {/* Quick Actions */}
+      <QuickActions
+        isWorkerRunning={workerMetrics?.running ?? false}
+        onUpdate={fetchDashboardData}
+      />
+
+      {/* Worker Status Monitor */}
+      {workerMetrics && (
+        <WorkerStatusMonitor
+          metrics={workerMetrics}
           onUpdate={fetchDashboardData}
         />
+      )}
 
-        {/* Worker Status Monitor */}
-        {workerMetrics && (
-          <WorkerStatusMonitor
-            metrics={workerMetrics}
-            onUpdate={fetchDashboardData}
-          />
-        )}
+      {/* Tabs for different views */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="worker">Worker</TabsTrigger>
+          <TabsTrigger value="cache">Cache</TabsTrigger>
+          <TabsTrigger value="citations">Citations</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
+          <TabsTrigger value="top-citations">Top Citations</TabsTrigger>
+        </TabsList>
 
-        {/* Tabs for different views */}
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="worker">Worker</TabsTrigger>
-            <TabsTrigger value="cache">Cache</TabsTrigger>
-            <TabsTrigger value="citations">Citations</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
-            <TabsTrigger value="top-citations">Top Citations</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4">
-            {/* Performance Metrics */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Performance Metrics</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Cache Hit Rate */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Cache Hit Rate</span>
-                    <span className="text-sm text-muted-foreground">
-                      {cacheStats ? (cacheStats.l1_verification_hit_rate * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                  <Progress value={cacheStats ? cacheStats.l1_verification_hit_rate * 100 : 0} />
-                </div>
-
-                {/* Average Verification Time */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Avg Verification Time</span>
-                    <span className="text-sm text-muted-foreground">
-                      {workerMetrics?.average_verification_time.toFixed(3) || 0}s
-                    </span>
-                  </div>
-                  <Progress value={(workerMetrics?.average_verification_time || 0) * 100} />
-                </div>
-
-                {/* Worker Last Run */}
-                {workerMetrics?.last_run_duration && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Last Run Duration</span>
-                      <span className="text-sm text-muted-foreground">
-                        {workerMetrics.last_run_duration.toFixed(2)}s
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="worker" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Worker Metrics</CardTitle>
-                <CardDescription>
-                  Background verification worker performance
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {workerMetrics && (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Verified</p>
-                        <p className="text-2xl font-bold text-green-600">
-                          {workerMetrics.verified_count}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Failed</p>
-                        <p className="text-2xl font-bold text-red-600">
-                          {workerMetrics.failed_count}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Stale Facts</p>
-                        <p className="text-2xl font-bold text-yellow-600">
-                          {workerMetrics.stale_facts}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Total Citations</p>
-                        <p className="text-2xl font-bold">
-                          {workerMetrics.total_citations}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Top Citations */}
-                    {workerMetrics.top_citations && workerMetrics.top_citations.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="text-sm font-medium mb-3">Top Citations (by access)</h4>
-                        <div className="space-y-2">
-                          {workerMetrics.top_citations.slice(0, 5).map((citation, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-sm p-2 rounded bg-secondary/20">
-                              <span className="font-mono text-xs truncate flex-1 mr-2">
-                                {citation.citation}
-                              </span>
-                              <Badge variant="secondary">
-                                {citation.access_count}x
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="cache" className="space-y-4">
-            {/* Import new components */}
-            {cacheStats && (
-              <>
-                <CacheMetricsPanel stats={cacheStats} />
-                <LatencyDisplay stats={cacheStats} />
-                <CacheActions />
-              </>
-            )}
-          </TabsContent>
-
-          <TabsContent value="citations" className="space-y-4">
-            <CitationVerificationPanel />
-          </TabsContent>
-
-          <TabsContent value="logs" className="space-y-4">
-            <VerificationLogs />
-          </TabsContent>
-
-          <TabsContent value="top-citations" className="space-y-4">
-            <TopCitations />
-          </TabsContent>
-        </Tabs>
-
-        {/* Health Issues */}
-        {healthStatus && healthStatus.issues.length > 0 && (
-          <Card className="border-yellow-500/50 bg-yellow-500/5">
+        <TabsContent value="overview" className="space-y-4">
+          {/* Performance Metrics */}
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center text-yellow-700">
-                <AlertTriangle className="h-5 w-5 mr-2" />
-                Health Issues Detected
-              </CardTitle>
+              <CardTitle>Performance Metrics</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {healthStatus.issues.map((issue, idx) => (
-                  <li key={idx} className="text-sm text-yellow-700">
-                    • {issue}
-                  </li>
-                ))}
-              </ul>
+            <CardContent className="space-y-4">
+              {/* Cache Hit Rate */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Cache Hit Rate</span>
+                  <span className="text-sm text-muted-foreground">
+                    {cacheStats ? (cacheStats.l1_verification_hit_rate * 100).toFixed(1) : 0}%
+                  </span>
+                </div>
+                <Progress value={cacheStats ? cacheStats.l1_verification_hit_rate * 100 : 0} />
+              </div>
+
+              {/* Average Verification Time */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Avg Verification Time</span>
+                  <span className="text-sm text-muted-foreground">
+                    {workerMetrics?.average_verification_time.toFixed(3) || 0}s
+                  </span>
+                </div>
+                <Progress value={(workerMetrics?.average_verification_time || 0) * 100} />
+              </div>
+
+              {/* Worker Last Run */}
+              {workerMetrics?.last_run_duration && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Last Run Duration</span>
+                    <span className="text-sm text-muted-foreground">
+                      {workerMetrics.last_run_duration.toFixed(2)}s
+                    </span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
+        </TabsContent>
+
+        <TabsContent value="worker" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Worker Metrics</CardTitle>
+              <CardDescription>
+                Background verification worker performance
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {workerMetrics && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Verified</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {workerMetrics.verified_count}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Failed</p>
+                      <p className="text-2xl font-bold text-red-600">
+                        {workerMetrics.failed_count}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Stale Facts</p>
+                      <p className="text-2xl font-bold text-yellow-600">
+                        {workerMetrics.stale_facts}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Citations</p>
+                      <p className="text-2xl font-bold">
+                        {workerMetrics.total_citations}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Top Citations */}
+                  {workerMetrics.top_citations && workerMetrics.top_citations.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="text-sm font-medium mb-3">Top Citations (by access)</h4>
+                      <div className="space-y-2">
+                        {workerMetrics.top_citations.slice(0, 5).map((citation, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm p-2 rounded bg-secondary/20">
+                            <span className="font-mono text-xs truncate flex-1 mr-2">
+                              {citation.citation}
+                            </span>
+                            <Badge variant="secondary">
+                              {citation.access_count}x
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="cache" className="space-y-4">
+          {/* Import new components */}
+          {cacheStats && (
+            <>
+              <CacheMetricsPanel stats={cacheStats} />
+              <LatencyDisplay stats={cacheStats} />
+              <CacheActions />
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="citations" className="space-y-4">
+          <CitationVerificationPanel />
+        </TabsContent>
+
+        <TabsContent value="logs" className="space-y-4">
+          <VerificationLogs />
+        </TabsContent>
+
+        <TabsContent value="top-citations" className="space-y-4">
+          <TopCitations />
+        </TabsContent>
+      </Tabs>
+
+      {/* Health Issues */}
+      {healthStatus && healthStatus.issues.length > 0 && (
+        <Card className="border-yellow-500/50 bg-yellow-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center text-yellow-700">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              Health Issues Detected
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {healthStatus.issues.map((issue, idx) => (
+                <li key={idx} className="text-sm text-yellow-700">
+                  • {issue}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
       {/* </div> removed here to let fragment handle sibling help component */}
 
       {/* Keyboard Shortcuts Help */}
@@ -480,24 +480,13 @@ function JITVerificationDashboardContent() {
               { key: "6", description: "Go to Top Citations tab", action: () => { } },
             ],
           },
-          ]}
-        />
-        </div>
-      </>
-    );
-}
-
-// Dynamically import the content component with SSR disabled to avoid prerendering issues
-const JITVerificationDashboardContentDynamic = dynamic(() => Promise.resolve(JITVerificationDashboardContent), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-screen">
-      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
-    </div>
+        ]}
+      />
+    </React.Fragment>
   );
 }
 
-// Dynamically import the content component
+// Dynamically import the content component with SSR disabled to avoid prerendering issues
 const JITVerificationDashboardContentDynamic = dynamic(() => Promise.resolve(JITVerificationDashboardContent), {
   ssr: false,
   loading: () => (

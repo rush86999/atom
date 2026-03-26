@@ -242,28 +242,6 @@ function BusinessFactsPage() {
             domains={Array.from(new Set(facts.map((f) => f.domain)))}
           />
         </div>
-          </div>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search facts, domains, or reasons..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <FactFilters
-            filters={filters}
-            onFilterChange={handleFilterChange}
-            domains={Array.from(new Set(facts.map((f) => f.domain)))}
-          />
-        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-4">
@@ -339,9 +317,9 @@ function BusinessFactsPage() {
             },
           ]}
         />
-        </div>
-      </React.Fragment>
-    );
+      </div>
+    </React.Fragment>
+  );
 }
 
 // Dynamically import the content component with SSR disabled to avoid prerendering issues
@@ -354,7 +332,6 @@ const BusinessFactsPageContent = dynamic(() => Promise.resolve(BusinessFactsPage
   ),
 });
 
-
 // Wrapper with ErrorBoundary and OfflineIndicator
 const BusinessFactsPageWrapper: React.FC = () => {
   return (
@@ -365,4 +342,5 @@ const BusinessFactsPageWrapper: React.FC = () => {
   );
 };
 
-      export default BusinessFactsPageWrapper;
+export default BusinessFactsPageWrapper;
+
