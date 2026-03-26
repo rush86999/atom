@@ -30,6 +30,8 @@ from core.agents.autoresearch_agent import AutoresearchAgent
 from core.group_reflection_service import GroupReflectionService
 from core.goal_engine import GoalEngine
 from core.atom_meta_agent import AtomMetaAgent
+from core.episode_service import EpisodeService
+from core.push_notification_service import PushNotificationService
 
 logger = logging.getLogger(__name__)
 
