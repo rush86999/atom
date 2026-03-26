@@ -2,20 +2,20 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-24)
+See: .planning/PROJECT.md (updated 2026-03-26)
 
-**Core value:** Automated bug discovery through comprehensive QA testing (fuzzing, chaos engineering, property-based testing, headless browser automation)
-**Current focus:** Phase 245 - Feedback Loops & ROI Tracking
+**Core value:** Real-time collaboration and team management with user presence, live updates, collaborative editing, and RBAC
+**Current focus:** Defining requirements for v9.0
 
 ## Current Position
 
-Milestone: v8.0 Automated Bug Discovery & QA Testing
-Phase: 245 of 245 (Feedback Loops & ROI Tracking)
-Plan: 6 of 6 in current phase
-Status: Infrastructure Complete (Awaiting Manual Execution)
-Last activity: 2026-03-25 — Phase 245-06 infrastructure complete: BugExecutionOrchestrator (427 lines), BugRemediationService (424 lines), GitHub Actions workflow (294 lines). 3 tasks completed, 4 commits, ~3 minutes execution. Task 4 (manual execution) pending.
+Milestone: v9.0 Collaboration & Team Management
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-26 — Milestone v9.0 started
 
-Progress: [██████] 83% (5 of 6 plans complete, 1 manual execution pending)
+Progress: [░░░░░░░░░░] 0% (Requirements gathering)
 
 ## Performance Metrics
 
@@ -305,38 +305,20 @@ Resume file: None
 
 ## Milestone Context
 
-**Current Milestone:** v8.0 Automated Bug Discovery & QA Testing (Started: 2026-03-24)
+**Current Milestone:** v9.0 Collaboration & Team Management (Started: 2026-03-26)
 
-**Previous Milestone:** v7.0 Cross-Platform E2E Testing & Bug Discovery (Completed: 2026-03-24)
+**Previous Milestone:** v8.0 Automated Bug Discovery & QA Testing (83% Complete: 2026-03-24)
 
-**Milestone Goal:** Discover 50+ bugs through automated fuzzing, chaos engineering, property-based testing expansion, and intelligent browser automation with automated GitHub issue filing.
+**Milestone Goal:** Enable real-time collaboration and team management for workflows, agents, and canvases with user presence, live updates, collaborative editing, comments/threads, RBAC, and shared resources.
 
-**Strategy:** Infrastructure foundation → Property tests → Fuzzing → Browser discovery → Chaos → Unification → Memory/perf → AI-enhancement → Feedback loops
+**Strategy:** Database models → Service layer → REST API + WebSocket → Frontend integration → Testing
 
-**Timeline:** 2-3 weeks (aggressive execution for comprehensive bug discovery)
+**Timeline:** 2-3 weeks
 
-**Key Requirements:**
-- Test Infrastructure (INFRA-01 through INFRA-05): Integrate into existing pytest, separate CI pipelines, documentation templates
-- Property-Based Testing (PROP-01 through PROP-05): 50+ new property tests for critical paths, API contracts, state machines, security
-- API Fuzzing (FUZZ-01 through FUZZ-07): Atheris fuzzing for FastAPI endpoints, crash deduplication, automated bug filing
-- Headless Browser Automation (BROWSER-01 through BROWSER-07): Exploration agents, console errors, accessibility, broken links, visual regression
-- Chaos Engineering (CHAOS-01 through CHAOS-08): Network latency, database drops, memory pressure, service crashes, blast radius controls
-- Unified Bug Discovery Pipeline (PIPELINE-01 through PIPELINE-06): Result aggregation, deduplication, triage, dashboard, GitHub integration
-- Memory & Performance Discovery (PERF-01 through PERF-05): memray leak detection, heap snapshots, pytest-benchmark, Lighthouse CI
-- AI-Enhanced Discovery (AI-01 through AI-04): Multi-agent fuzzing, AI-generated invariants, cross-platform correlation, semantic clustering
-- Feedback Loops (FEEDBACK-01 through FEEDBACK-05): Regression test generation, dashboard, GitHub issues, ROI tracking, effectiveness metrics
+**Key Requirements:** TBD (to be defined after research phase)
 
-**Phase Breakdown:**
-- Phase 237: Bug Discovery Infrastructure Foundation - Integrate into pytest, separate CI pipelines, quality standards
-- Phase 238: Property-Based Testing Expansion - 50+ new property tests with invariant-first thinking
-- Phase 239: API Fuzzing Infrastructure - Atheris fuzzing for FastAPI endpoints
-- Phase 240: Headless Browser Bug Discovery - Intelligent exploration agents and bug detection
-- Phase 241: Chaos Engineering Integration - Failure injection with blast radius controls
-- Phase 242: Unified Bug Discovery Pipeline - Orchestration, aggregation, deduplication, triage
-- Phase 243: Memory & Performance Bug Discovery - memray, pytest-benchmark, Lighthouse CI
-- Phase 244: AI-Enhanced Bug Discovery - Multi-agent fuzzing and AI-generated invariants
-- Phase 245: Feedback Loops & ROI Tracking - Regression tests, dashboard, effectiveness metrics
+**Phase Breakdown:** TBD (to be defined in roadmap)
 
-**Total Phases:** 9 phases (237-245)
-**Total Requirements:** 54 v8.0 requirements mapped (100% coverage)
-**Success Metric:** 50+ bugs discovered, documented, and filed with reproducible test cases
+**Total Phases:** TBD
+**Total Requirements:** TBD
+**Success Metric:** Teams can collaborate in real-time on workflows/agents/canvases with proper access control
