@@ -194,7 +194,8 @@ def worker_database():
     # For SQLite: use in-memory (no worker isolation needed)
     if DATABASE_URL.startswith('sqlite'):
         from core.models import Base
-        engine = create_engine(DATABASE_URL)
+        # Use in-memory database for tests to ensure clean slate
+        engine = create_engine('sqlite:///:memory:', connect_args={"check_same_thread": False})
         Base.metadata.create_all(engine)
         SessionLocal = sessionmaker(bind=engine)
         yield SessionLocal
