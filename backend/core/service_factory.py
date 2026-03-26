@@ -32,6 +32,7 @@ from core.goal_engine import GoalEngine
 from core.atom_meta_agent import AtomMetaAgent
 from core.episode_service import EpisodeService
 from core.push_notification_service import PushNotificationService
+from core.workflow_analytics_engine import WorkflowAnalyticsEngine
 
 logger = logging.getLogger(__name__)
 

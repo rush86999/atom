@@ -9,6 +9,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Cross-platform workflow execution
 """
 
+import logging
 from services.agent_service import agent_service
 
 # LLM Service Integration
