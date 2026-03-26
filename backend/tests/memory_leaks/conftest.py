@@ -38,15 +38,15 @@ def memray_session(tmp_path):
     """
     Memray session fixture for memory leak detection.
 
-    This fixture provides a memray.Tracker instance for profiling Python
+    This fixture provides a memray.Stats instance for analyzing Python
     memory allocations during test execution. It handles graceful degradation
     if memray is not installed or Python version is <3.11.
 
     Yields:
-        memray.Tracker: Started tracker instance
+        memray.Tracker: Started tracker instance (use after test for stats)
 
     Examples:
-        def test_agent_execution_no_leak(memray_session, db_session):
+        def test_agent_execution_no_leak(memray_session, check_memory_growth):
             from core.agent_governance_service import AgentGovernanceService
 
             governance = AgentGovernanceService()
@@ -58,7 +58,8 @@ def memray_session(tmp_path):
                     db_session=db_session
                 )
 
-            # Memory analysis done in test using check_memory_growth
+            # Assert <10MB memory growth
+            check_memory_growth(memray_session, threshold_mb=10)
 
     Requirements:
         - Python 3.11+ (memray requirement)
@@ -93,15 +94,14 @@ def memray_session(tmp_path):
     tracker = memray.Tracker(str(output_file))
     tracker.start()
 
-    # Yield tracker for test usage
     yield tracker
 
     # Stop tracking and analyze results
     tracker.stop()
 
-    # Load stats for memory analysis (yielded as second value)
+    # Load stats for memory analysis and attach to tracker object
     stats = memray.Stats(str(output_file))
-    yield stats
+    tracker.stats = stats
 
 
 # =============================================================================
