@@ -10,6 +10,7 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 """
 
 import logging
+from enum import Enum
 from services.agent_service import agent_service
 
 # LLM Service Integration
