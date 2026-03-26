@@ -1,10 +1,43 @@
 # Atom AI-Powered Business Automation Platform
 
-## Current State: v7.0 Shipped (2026-03-24)
+## Current State: v9.0 Active (2026-03-26)
 
-**Delivered:** Comprehensive cross-platform E2E testing infrastructure with 495+ tests covering authentication, agents, canvas, workflows, stress testing, load testing, network simulation, mobile/desktop platforms, visual regression, and accessibility. Automated bug discovery and filing with GitHub Issues integration. Nightly/weekly stress test CI/CD workflows.
+**Current Focus:** Real-time collaboration and team management for workflows, agents, and canvases with user presence, live updates, collaborative editing, and RBAC.
 
-**Next Milestone:** TBD (awaiting product direction)
+**Next Milestone:** v9.0 Collaboration & Team Management
+
+---
+
+## Milestone v9.0: Collaboration & Team Management (2026-03-26)
+
+**Goal:** Enable real-time collaboration and team management for workflows, agents, and canvases with user presence, live updates, collaborative editing, comments/threads, role-based access control (RBAC), and shared resources.
+
+**Target Features:**
+- Real-time collaboration: User presence (who's online/viewing), live updates via WebSocket, collaborative editing with conflict resolution, comments/threads
+- Team management: Teams/organizations with member management, RBAC (admin/member/guest with fine-grained permissions), shared agents/workflows/canvases
+- Collaboration infrastructure: Workflow collaboration sessions, edit locks, sharing links, audit logging
+- Canvas collaboration: Multi-agent canvas coordination (already exists, enhance with user collaboration)
+
+**Strategy:** Database models → Service layer → REST API + WebSocket → Frontend integration → Testing
+
+**Timeline:** 2-3 weeks
+
+---
+
+## Milestone v8.0: Automated Bug Discovery & QA Testing (2026-03-24) 🚧 83% Complete
+
+**Goal:** Discover 50+ bugs through automated QA testing methods including fuzzing, chaos engineering, property-based testing expansion, and headless browser automation across API layer, agent & LLM systems, user workflows, and data layer.
+
+**Target Features:**
+- Fuzzing infrastructure for API endpoints and input validation
+- Chaos engineering for failure condition testing (network issues, resource exhaustion, cascading failures)
+- Property-based testing expansion to find invariant violations
+- Headless browser automation for integrated UI testing
+- Automated bug filing with reproducible test cases
+
+**Strategy:** Comprehensive automated bug discovery → Documentation → Fix verification
+
+**Timeline:** 2-3 weeks
 
 ---
 
@@ -27,20 +60,25 @@
 
 **Timeline:** 2 days (actual) vs 2-3 weeks (planned)
 
+**Status:** 83% complete (Phase 245 feedback loops infrastructure built, manual execution pending)
+
 ---
 
 ## What This Is
 
 Atom is an AI-powered business automation platform that uses multi-agent systems, governance, episodic memory, and world models to automate workflows. The platform includes real-time streaming LLM responses, canvas-based presentations, browser automation, and comprehensive testing infrastructure.
 
-Current focus: v6.5 World Model Performance - optimizing JIT fact/citation verification through caching to reduce R2/S3 storage latency.
+Current focus: v9.0 Collaboration & Team Management - real-time collaboration, team management, RBAC, shared resources.
 
 ## Core Value
 
-**Cross-platform user flows work reliably across web, mobile, and desktop with comprehensive bug discovery through E2E testing.**
+**Real-time collaboration enables teams to work together seamlessly on workflows, agents, and canvases with proper access control.**
 
-If everything else fails, E2E testing must:
-- Validate critical user paths (auth, agents, workflows) on all platforms
+If everything else fails, collaboration must:
+- Show real-time user presence (who's online/viewing)
+- Deliver live updates via WebSocket when resources change
+- Prevent conflicts with edit locks and collaborative editing
+- Enforce RBAC (admin/member/guest) with fine-grained permissions
 - Discover hidden bugs through stress testing and edge cases
 - Ensure cross-platform consistency (same behavior on web/mobile/desktop)
 - Provide reproducible test cases for every bug found
@@ -161,33 +199,53 @@ If everything else fails, E2E testing must:
 
 ### Active
 
-**v7.0 Cross-Platform E2E Testing & Bug Discovery (2026-03-23):** 🚧 **NEW MILESTONE**
-- [ ] Authentication E2E Flows — Signup, login, logout, password reset, session management across all platforms — v7.0
-- [ ] Agent Execution E2E — Chat interactions, streaming responses, canvas presentations, error handling — v7.0
-- [ ] Workflow & Skill E2E — Create workflows, add skills, test triggers, verify automation end-to-end — v7.0
-- [ ] Stress Testing — API reliability under load, failure scenarios, edge cases, race conditions — v7.0
-- [ ] Cross-Platform Consistency — Verify shared user flows work identically on web/mobile/desktop — v7.0
-- [ ] Bug Discovery & Documentation — Document all bugs found with reproducible test cases — v7.0
-- [ ] Bug Fix Verification — Re-run E2E tests after fixes to confirm resolution — v7.0
+**v9.0 Collaboration & Team Management (2026-03-26):** 🚧 **NEW MILESTONE**
+- [ ] Database Models — Workflow collaboration, comments, shares, team permissions, user presence — v9.0
+- [ ] Collaboration Service — Session management, edit locks, sharing, comments, audit logging — v9.0
+- [ ] Team Management Service — Teams/organizations, RBAC, member management, shared resources — v9.0
+- [ ] Real-time Updates — WebSocket for user presence, cursor tracking, live content updates — v9.0
+- [ ] REST API — Collaboration endpoints, team management, sharing, permissions — v9.0
+- [ ] Frontend Integration — Real-time UI components, collaborative editing, comments/threads — v9.0
+- [ ] Testing — Unit tests, integration tests, E2E collaboration scenarios — v9.0
 
 **Strategy:**
-1. **Platform-First E2E**: Write tests once, run on all three platforms (Playwright web, Detox mobile, Tauri desktop)
-2. **Critical User Paths**: Focus on authentication, agent execution, and workflow automation (highest business value)
-3. **Stress Testing**: Push the system to its limits (concurrent users, large datasets, network failures)
-4. **Bug Documentation**: Every bug found gets a reproducible test case filed in issues
-5. **Fix Verification**: E2E tests must pass after bug fixes before closing the issue
+1. **Database First**: Create missing models (WorkflowCollaborationSession, CollaborationComment, etc.)
+2. **Service Layer**: Implement CollaborationService and TeamManagementService
+3. **Real-time**: WebSocket for presence, cursor updates, live changes
+4. **Security**: RBAC with admin/member/guest roles and fine-grained permissions
+5. **Testing**: Comprehensive test coverage for collaboration scenarios
 
-**Test Infrastructure:**
-- **Web**: Playwright (Chrome, Firefox, Safari) — 300+ tests planned
-- **Mobile**: Detox (iOS, Android) — 200+ tests planned
-- **Desktop**: Tauri (macOS, Windows, Linux) — 100+ tests planned
-- **Total**: 600+ cross-platform E2E tests for comprehensive coverage
+**Success Metric:** Teams can collaborate in real-time on workflows/agents/canvases with proper access control
+
+### Validated
+
+**v7.0 Cross-Platform E2E Testing & Bug Discovery (2026-03-23):** ✅ SHIPPED
+- ✓ Authentication E2E Flows — Signup, login, logout, password reset, session management across all platforms — v7.0
+- ✓ Agent Execution E2E — Chat interactions, streaming responses, canvas presentations, error handling — v7.0
+- ✓ Workflow & Skill E2E — Create workflows, add skills, test triggers, verify automation end-to-end — v7.0
+- ✓ Stress Testing — API reliability under load, failure scenarios, edge cases, race conditions — v7.0
+- ✓ Cross-Platform Consistency — Verify shared user flows work identically on web/mobile/desktop — v7.0
+- ✓ Bug Discovery & Documentation — Document all bugs found with reproducible test cases — v7.0
+- ✓ Bug Fix Verification — Re-run E2E tests after fixes to confirm resolution — v7.0
+
+**v7.0 Outcomes:**
+- 495+ E2E tests across web, mobile, desktop
+- Test infrastructure with worker-aware sessions, API-first auth, Allure reporting
+- Load testing, network simulation, memory leak detection, performance regression
+- Automated bug discovery and filing with GitHub Issues
+
+### Validated
+
+**v8.0 Automated Bug Discovery & QA Testing (2026-03-24):** 🚧 83% Complete
+- ✓ Phase 237-245 complete — Bug discovery infrastructure, property tests, fuzzing, chaos engineering, unified pipeline, memory/performance, AI-enhanced discovery, feedback loops — v8.0
+- ⚠️ Manual execution pending — Final bug discovery execution and verification — v8.0
 
 ### Out of Scope
 
 <!-- Explicit boundaries -->
-- **New feature development** — This milestone focuses on testing existing features, not building new ones
-- **Production deployment** — Infrastructure setup and deployment automation (separate initiative)
+- **v6.0 BYOK Migration** — Unified LLMService API consolidation (separate milestone)
+- **External integrations** — Slack, Microsoft Teams, Google Workspace (future milestone)
+- **Advanced collaboration features** — Video chat, voice communication, screen sharing (future milestone)
 
 ## Context
 
@@ -267,4 +325,4 @@ Research revealed that increasing max_examples from 50 to 1000 would increase ex
 - **Priority 2**: Create external invariant documentation (DOCS-02) for traceability
 
 ---
-*Last updated: 2026-03-23 after starting v7.0 (Cross-Platform E2E Testing)*
+*Last updated: 2026-03-26 after starting v9.0 (Collaboration & Team Management)*
