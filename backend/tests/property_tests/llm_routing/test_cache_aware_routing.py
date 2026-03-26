@@ -151,7 +151,7 @@ class TestCacheAwareRouting:
     @given(prompt=st.text(min_size=1, max_size=5000))
     @settings(HYPOTHESIS_SETTINGS_CRITICAL)
     @example(prompt="consistent prompt")
-    @example(prompt="unicode: 你好世界 🌍"))
+    @example(prompt="unicode: 你好世界 🌍")
     @example(prompt="special chars: \n\t\r"))
     def test_cache_key_consistency(
         self,
