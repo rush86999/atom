@@ -51,7 +51,7 @@ import pytest
 
 @pytest.mark.memory_leak
 @pytest.mark.slow
-def test_episode_segmentation_no_leak(memray_session, db_session):
+def test_episode_segmentation_no_leak(memray_session, db_session, check_memory_growth):
     """
     Test that episode segmentation does not leak memory over 100 episodes.
 
@@ -80,6 +80,7 @@ def test_episode_segmentation_no_leak(memray_session, db_session):
     Args:
         memray_session: memray.Tracker fixture for memory profiling
         db_session: Database session fixture
+        check_memory_growth: Helper for memory threshold assertions
 
     Raises:
         AssertionError: If memory growth exceeds 15MB threshold
@@ -140,12 +141,24 @@ def test_episode_segmentation_no_leak(memray_session, db_session):
     except Exception as e:
         print(f"[Warning] Segmentation service failed: {e}")
 
+    # Clean up test data to free memory
+    try:
+        db_session.query(EpisodeSegment).filter(EpisodeSegment.id.like("test_segment_%")).delete()
+        db_session.query(Episode).filter(Episode.id.like("test_episode_%")).delete()
+        db_session.commit()
+        db_session.expunge_all()  # Clear SQLAlchemy identity map
+    except Exception as e:
+        print(f"[Warning] Cleanup failed: {e}")
+
     print(f"[Memory] Episode segmentation test completed: 100 episodes × 10 segments = 1000 segments")
+
+    # Assert memory threshold
+    check_memory_growth(memray_session.stats, threshold_mb=15, context_msg="Episode segmentation")
 
 
 @pytest.mark.memory_leak
 @pytest.mark.slow
-def test_episode_retrieval_leaks(memray_session, db_session):
+def test_episode_retrieval_leaks(memray_session, db_session, check_memory_growth):
     """
     Test that episode retrieval does not leak memory during semantic queries.
 
@@ -172,6 +185,7 @@ def test_episode_retrieval_leaks(memray_session, db_session):
     Args:
         memray_session: memray.Tracker fixture for memory profiling
         db_session: Database session fixture
+        check_memory_growth: Helper for memory threshold assertions
 
     Raises:
         AssertionError: If memory growth exceeds 10MB threshold
@@ -213,12 +227,23 @@ def test_episode_retrieval_leaks(memray_session, db_session):
             print(f"[Warning] Retrieval query {query_num} failed: {e}")
             continue
 
+    # Clean up test data to free memory
+    try:
+        db_session.query(Episode).filter(Episode.id.like("test_retrieval_episode_%")).delete()
+        db_session.commit()
+        db_session.expunge_all()  # Clear SQLAlchemy identity map
+    except Exception as e:
+        print(f"[Warning] Cleanup failed: {e}")
+
     print(f"[Memory] Episode retrieval test completed: 100 semantic queries")
+
+    # Assert memory threshold
+    check_memory_growth(memray_session.stats, threshold_mb=10, context_msg="Episode retrieval")
 
 
 @pytest.mark.memory_leak
 @pytest.mark.slow
-def test_episode_lifecycle_leaks(memray_session, db_session):
+def test_episode_lifecycle_leaks(memray_session, db_session, check_memory_growth):
     """
     Test that episode lifecycle operations do not leak memory.
 
@@ -246,6 +271,7 @@ def test_episode_lifecycle_leaks(memray_session, db_session):
     Args:
         memray_session: memray.Tracker fixture for memory profiling
         db_session: Database session fixture
+        check_memory_growth: Helper for memory threshold assertions
 
     Raises:
         AssertionError: If memory growth exceeds 10MB threshold
@@ -295,12 +321,23 @@ def test_episode_lifecycle_leaks(memray_session, db_session):
     except Exception as e:
         print(f"[Warning] Archival failed: {e}")
 
+    # Clean up test data to free memory
+    try:
+        db_session.query(Episode).filter(Episode.id.like("test_lifecycle_episode_%")).delete()
+        db_session.commit()
+        db_session.expunge_all()  # Clear SQLAlchemy identity map
+    except Exception as e:
+        print(f"[Warning] Cleanup failed: {e}")
+
     print(f"[Memory] Episode lifecycle test completed: 50 episodes consolidated + archived")
+
+    # Assert memory threshold
+    check_memory_growth(memray_session.stats, threshold_mb=10, context_msg="Episode lifecycle")
 
 
 @pytest.mark.memory_leak
 @pytest.mark.slow
-def test_episode_memory_integration_leak(memray_session, db_session):
+def test_episode_memory_integration_leak(memray_session, db_session, check_memory_growth):
     """
     Test that episodic memory integration (canvas + feedback) does not leak memory.
 
@@ -329,6 +366,7 @@ def test_episode_memory_integration_leak(memray_session, db_session):
     Args:
         memray_session: memray.Tracker fixture for memory profiling
         db_session: Database session fixture
+        check_memory_growth: Helper for memory threshold assertions
 
     Raises:
         AssertionError: If memory growth exceeds 12MB threshold
@@ -403,4 +441,17 @@ def test_episode_memory_integration_leak(memray_session, db_session):
         _ = episode.metadata.get("canvas_context")
         _ = episode.metadata.get("feedback_context")
 
+    # Clean up test data to free memory
+    try:
+        db_session.query(Episode).filter(Episode.id.like("test_integrated_episode_%")).delete()
+        db_session.query(AgentFeedback).filter(AgentFeedback.id.like("test_feedback_%")).delete()
+        db_session.query(CanvasAudit).filter(CanvasAudit.id.like("test_canvas_audit_%")).delete()
+        db_session.commit()
+        db_session.expunge_all()  # Clear SQLAlchemy identity map
+    except Exception as e:
+        print(f"[Warning] Cleanup failed: {e}")
+
     print(f"[Memory] Episode integration test completed: 50 episodes × canvas + feedback links")
+
+    # Assert memory threshold
+    check_memory_growth(memray_session.stats, threshold_mb=12, context_msg="Episode integration")
