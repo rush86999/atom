@@ -47,9 +47,9 @@ class UUID(TypeDecorator):
         if dialect.name == 'postgresql':
             return value
         return uuid.UUID(value) if isinstance(value, str) else value
+
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
-import uuid
 import enum
 from datetime import datetime, timezone
 import os
