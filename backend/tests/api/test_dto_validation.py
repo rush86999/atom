@@ -60,21 +60,21 @@ class TestAgentDTOValidation:
 
     def test_agent_dto_enum_validation(self):
         """Test that agent DTOs validate enum fields correctly."""
-        from core.models import AgentMaturity
+        from core.models import AgentStatus
 
-        # Valid enum values
-        valid_values = ["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]
+        # Valid enum values (lowercase as defined in AgentStatus)
+        valid_values = ["student", "intern", "supervised", "autonomous"]
 
         for value in valid_values:
             try:
-                maturity = AgentMaturity(value)
-                assert maturity.value == value
+                status = AgentStatus(value)
+                assert status.value == value
             except ValueError:
                 pytest.fail(f"Valid enum value {value} was rejected")
 
         # Invalid enum value
         with pytest.raises(ValueError):
-            AgentMaturity("INVALID_LEVEL")
+            AgentStatus("INVALID_LEVEL")
 
 
 class TestCanvasDTOValidation:
@@ -418,8 +418,10 @@ class TestDTOValidationErrors:
             TestDTO()
 
         error = exc_info.value
-        assert len(error.errors()) > 0
-        assert "required_field" in str(error.error_dict())
+        errors = error.errors()
+        assert len(errors) > 0
+        # Check that 'loc' (location) contains the field name
+        assert "required_field" in str(errors[0].get("loc", []))
 
     def test_validation_error_includes_error_type(self):
         """Test that validation errors include the error type."""
