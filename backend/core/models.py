@@ -66,6 +66,30 @@ class JSONColumn(TypeDecorator):
         else:
             return dialect.type_descriptor(JSON)
 
+
+class JSONBColumn(TypeDecorator):
+    """
+    PostgreSQL-specific JSONB type for fields that require JSONB operators.
+
+    WARNING: This type ONLY works with PostgreSQL. SQLite tests will fail.
+    Use this ONLY for fields that need:
+    - JSONB query operators (@>, ?, ?, etc.)
+    - JSONPath expressions
+    - GIN indexes for JSON queries
+
+    Examples: GraphRAG json_schema, entity metadata that needs efficient querying
+    """
+    impl = JSONB
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name != 'postgresql':
+            raise TypeError(
+                f"JSONBColumn requires PostgreSQL database, but got {dialect.name}. "
+                "Use JSONColumn instead for cross-database compatibility."
+            )
+        return dialect.type_descriptor(JSONB)
+
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 import enum
@@ -8493,6 +8517,9 @@ class EntityTypeDefinition(Base):
 
     Stores tenant-customizable entity type schemas in JSON format.
     Enables runtime model generation without DDL operations.
+
+    IMPORTANT: json_schema and available_skills use JSONBColumn for GraphRAG queries.
+    These fields require PostgreSQL and won't work in SQLite tests.
     """
     __tablename__ = "entity_type_definitions"
 
@@ -8507,11 +8534,11 @@ class EntityTypeDefinition(Base):
     display_name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
-    # Schema definition (JSON)
-    json_schema = Column(JSONColumn, nullable=False)  # JSON Schema Draft 2020-12
+    # Schema definition (JSON) - REQUIRES PostgreSQL for JSONB query operators
+    json_schema = Column(JSONBColumn, nullable=False)  # JSON Schema Draft 2020-12
 
-    # Skill bindings (array of skill IDs)
-    available_skills = Column(JSONColumn, nullable=True)  # ["send_email", "generate_pdf"]
+    # Skill bindings (array of skill IDs) - REQUIRES PostgreSQL for JSONB queries
+    available_skills = Column(JSONBColumn, nullable=True)  # ["send_email", "generate_pdf"]
 
     # Metadata
     is_active = Column(Boolean, default=True, nullable=False)
