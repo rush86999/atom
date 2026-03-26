@@ -33,6 +33,8 @@ except ImportError:
 try:
     from api.advanced_workflow_endpoints import router as advanced_router
     ADVANCED_ENDPOINTS_EXISTS = False  # We know this one doesn't exist from earlier
+except ImportError:
+    ADVANCED_ENDPOINTS_EXISTS = False
 
 
 class TestWorkflowParameterValidatorCoverage:
