@@ -12,14 +12,24 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from core.models import (
-    CollaborationAudit,
-    CollaborationComment,
-    CollaborationSessionParticipant,
-    EditLock,
+    # TODO: These models don't exist yet - need to be created
+    # CollaborationAudit,
+    # CollaborationComment,
+    # CollaborationSessionParticipant,
+    # EditLock,
     User,
-    WorkflowCollaborationSession,
-    WorkflowShare,
+    # WorkflowCollaborationSession,
+    # WorkflowShare,
 )
+
+# Temporary type aliases for missing models
+# These should be replaced with actual model implementations
+CollaborationAudit = None
+CollaborationComment = None
+CollaborationSessionParticipant = None
+EditLock = None
+WorkflowCollaborationSession = None
+WorkflowShare = None
 
 logger = logging.getLogger(__name__)
 
