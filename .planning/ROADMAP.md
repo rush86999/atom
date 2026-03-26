@@ -1,217 +1,223 @@
-# Roadmap: Atom - Automated Bug Discovery & QA Testing
+# Roadmap: Atom v9.0 Collaboration & Team Management
 
 ## Overview
 
-Atom transforms from comprehensive E2E testing (495+ tests in v7.0) to intelligent automated bug discovery through fuzzing, chaos engineering, property-based testing expansion, and headless browser automation. This milestone builds on existing test infrastructure to discover 50+ bugs with reproducible test cases and automated GitHub issue filing.
+Atom v9.0 enables real-time collaboration and team management for workflows, agents, and canvases. This milestone delivers user presence, live updates, collaborative editing with conflict resolution, threaded comments, team-based RBAC, and shared resources. The journey begins with database models and basic RBAC, builds WebSocket infrastructure for real-time features, adds team management and permissions, implements conflict resolution with edit locks, delivers comments and collaboration sessions, and culminates in advanced features like live cursors, agent collaboration, and workflow co-editing.
 
 ## Milestones
 
-- ✅ **v7.0 Cross-Platform E2E Testing & Bug Discovery** - Phases 233-236 (shipped 2026-03-24)
-- 🚧 **v8.0 Automated Bug Discovery & QA Testing** - Phases 237-245 (in progress)
+- ✅ **v8.0 Automated Bug Discovery & QA Testing** - Phases 237-245 (shipped 2026-03-24)
+- 🚧 **v9.0 Collaboration & Team Management** - Phases 246-252 (in progress)
+- 📋 **v10.0 [Next Milestone]** - Phases 253+ (planned)
 
 ## Phases
 
 <details>
-<summary>✅ v7.0 Cross-Platform E2E Testing & Bug Discovery (Phases 233-236) - SHIPPED 2026-03-24</summary>
+<summary>✅ v8.0 Automated Bug Discovery & QA Testing (Phases 237-245) - SHIPPED 2026-03-24</summary>
 
-### Phase 233: E2E Test Infrastructure & Authentication Flows
-**Goal**: Foundation for E2E testing with API-first authentication
+### Phase 237: Bug Discovery Infrastructure Foundation
+**Goal**: Bug discovery integrates into existing pytest infrastructure with separate CI pipelines
+**Plans**: 5 plans
+**Completed**: 2026-03-24
+
+### Phase 238: Property-Based Testing Expansion
+**Goal**: 50+ new property tests validate critical invariants across agent execution, LLM routing, episodic memory, governance, and security
+**Plans**: 5 plans
+**Completed**: 2026-03-24
+
+### Phase 239: API Fuzzing Infrastructure
+**Goal**: Coverage-guided fuzzing for FastAPI endpoints discovers crashes in parsing/validation code
+**Plans**: 5 plans
+**Completed**: 2026-03-24
+
+### Phase 240: Headless Browser Bug Discovery
+**Goal**: Intelligent exploration agent discovers UI bugs through console errors, accessibility violations, broken links, visual regression
+**Plans**: 5 plans
+**Completed**: 2026-03-25
+
+### Phase 241: Chaos Engineering Integration
+**Goal**: Controlled failure injection tests resilience to network issues, resource exhaustion, and service crashes
 **Plans**: 7 plans
+**Status**: Not started
 
-### Phase 234: Agent Workflow E2E Tests
-**Goal**: Critical path E2E coverage for agent execution
+### Phase 242: Unified Bug Discovery Pipeline
+**Goal**: Orchestrate all discovery methods with result aggregation, deduplication, automated triage, and GitHub filing
+**Plans**: TBD
+**Status**: Not started
+
+### Phase 243: Memory & Performance Bug Discovery
+**Goal**: Specialized discovery for memory leaks and performance regressions using memray and pytest-benchmark
+**Plans**: 5 plans
+**Completed**: 2026-03-25
+
+### Phase 244: AI-Enhanced Bug Discovery
+**Goal**: Multi-agent fuzzing orchestration and AI-generated invariants expand bug discovery coverage
+**Plans**: 4 plans
+**Completed**: 2026-03-25
+
+### Phase 245: Feedback Loops & ROI Tracking
+**Goal**: Close the loop with regression test generation, effectiveness metrics, and ROI tracking
 **Plans**: 6 plans
-
-### Phase 235: Cross-Platform Stress Testing
-**Goal**: Load testing, network simulation, memory/performance testing
-**Plans**: 7 plans
-
-### Phase 236: Cross-Platform Consistency & Automated Bug Discovery
-**Goal**: Mobile/desktop testing, visual regression, accessibility, bug filing
-**Plans**: 7 plans
+**Status**: Complete (5/6 executed, 1 pending manual execution)
 
 </details>
 
-### 🚧 v8.0 Automated Bug Discovery & QA Testing (In Progress)
+### 🚧 v9.0 Collaboration & Team Management (In Progress)
 
-**Milestone Goal:** Discover 50+ bugs through automated fuzzing, chaos engineering, property-based testing expansion, and intelligent browser automation with automated GitHub issue filing.
+**Milestone Goal:** Enable real-time collaboration and team management for workflows, agents, and canvases with user presence, live updates, collaborative editing, comments/threads, role-based access control (RBAC), and shared resources.
 
-#### Phase 237: Bug Discovery Infrastructure Foundation
-**Goal**: Bug discovery integrates into existing pytest infrastructure with separate CI pipelines
-**Depends on**: Phase 236
-**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04, INFRA-05, SUCCESS-04, SUCCESS-05
+- [ ] **Phase 246: Foundation Models & Basic RBAC** - Database models and ownership-based authorization
+- [ ] **Phase 247: WebSocket Infrastructure & Security** - Real-time communication with hardened security
+- [ ] **Phase 248: User Presence & Real-Time Activity** - Online/offline tracking and live updates
+- [ ] **Phase 249: Team-Based RBAC & Permissions** - Team management with role inheritance
+- [ ] **Phase 250: Conflict Resolution & Resource Sharing** - Edit locks and share links
+- [ ] **Phase 251: Comments & Collaboration Sessions** - Threaded comments and session management
+- [ ] **Phase 252: Advanced Features (Cursors, Agents, Co-Editing)** - Live cursors, agent collaboration, workflow co-editing
+
+#### Phase 246: Foundation Models & Basic RBAC
+**Goal**: Database foundation for collaboration with ownership-based authorization and version control
+**Depends on**: Nothing (first phase of v9.0)
+**Requirements**: DB-01, DB-02, DB-03, DB-04, DB-05, DB-06, RBAC-01, CONF-03
 **Success Criteria** (what must be TRUE):
-  1. Bug discovery tests run in `pytest tests/` alongside existing tests (not separate `/bug-discovery/` directory)
-  2. Fast PR tests complete in <10 minutes (unit tests, integration tests, quick property tests)
-  3. Weekly bug discovery pipeline runs in ~2 hours (fuzzing, chaos, browser exploration)
-  4. All bug discovery tests follow TEST_QUALITY_STANDARDS.md (TQ-01 through TQ-05)
-  5. Bug discovery fixtures reuse existing auth_fixtures, database_fixtures, page_objects
-**Plans**: 5 plans
-- [ ] 237-01-PLAN.md — Bug discovery test directory structure (fuzzing/, browser_discovery/)
-- [ ] 237-02-PLAN.md — Documentation templates for all bug discovery categories
-- [ ] 237-03-PLAN.md — Separate CI pipelines (fast PR <10min, weekly bug discovery ~2 hours)
-- [ ] 237-04-PLAN.md — Fixture reuse documentation and verification
-- [ ] 237-05-PLAN.md — Infrastructure verification and comprehensive documentation
-
-#### Phase 238: Property-Based Testing Expansion ✅
-**Goal**: 50+ new property tests validate critical invariants across agent execution, LLM routing, episodic memory, governance, and security
-**Depends on**: Phase 237
-**Requirements**: PROP-01, PROP-02, PROP-03, PROP-04, PROP-05
-**Success Criteria** (what must be TRUE):
-  1. 50+ new property tests cover agent execution, LLM routing, episodic memory, governance critical paths
-  2. API contract tests validate malformed JSON handling, oversized payloads, response schema compliance
-  3. State machine tests enforce agent graduation monotonic transitions and episode lifecycle invariants
-  4. Security property tests prevent SQL injection, XSS, and CSRF vulnerabilities
-  5. All property tests follow invariant-first thinking (invariants documented before writing tests)
-**Plans**: 5 plans
-**Completed**: 2026-03-24
-- [x] 238-01-PLAN.md — Agent execution property tests (idempotence, termination, determinism)
-- [x] 238-02-PLAN.md — LLM routing property tests (consistency, cognitive tier mapping, cache-aware)
-- [x] 238-03-PLAN.md — Episodic memory property tests (segmentation, retrieval, lifecycle)
-- [x] 238-04-PLAN.md — API contracts and governance expansion (malformed JSON, authorization, cache)
-- [x] 238-05-PLAN.md — State machines and security property tests (graduation, SQL injection, XSS, CSRF)
-
-#### Phase 239: API Fuzzing Infrastructure ✅
-**Goal**: Coverage-guided fuzzing for FastAPI endpoints discovers crashes in parsing/validation code
-**Depends on**: Phase 237
-**Requirements**: FUZZ-01, FUZZ-02, FUZZ-03, FUZZ-04, FUZZ-05, FUZZ-06, FUZZ-07
-**Success Criteria** (what must be TRUE):
-  1. FuzzingOrchestrator service manages fuzzing campaigns (start, stop, monitor runs)
-  2. Atheris fuzzing harnesses exercise FastAPI endpoints for auth, agent execution, workflows
-  3. Fuzzing campaigns cover login, signup, password reset, JWT validation endpoints
-  4. Fuzzing campaigns cover chat streaming, canvas presentation, trigger execution, skill installation endpoints
-  5. Reproducible crashes are deduplicated and filed automatically as GitHub issues
-  6. Fuzzing runs in separate weekly CI pipeline (1 hour runs, not on PRs)
-**Plans**: 5 plans
-**Completed**: 2026-03-24
-- [x] 239-01-PLAN.md — FuzzingOrchestrator service and crash deduplication (FUZZ-01, FUZZ-06)
-- [x] 239-02-PLAN.md — Auth endpoint fuzzing harnesses (FUZZ-03)
-- [x] 239-03-PLAN.md — Agent execution and canvas presentation fuzzing (FUZZ-04)
-- [x] 239-04-PLAN.md — Workflow and skill endpoint fuzzing (FUZZ-05)
-- [x] 239-05-PLAN.md — Weekly CI pipeline integration and documentation (FUZZ-07)
-
-#### Phase 240: Headless Browser Bug Discovery ✅
-**Goal**: Intelligent exploration agent discovers UI bugs through console errors, accessibility violations, broken links, visual regression
-**Depends on**: Phase 237
-**Requirements**: BROWSER-01, BROWSER-02, BROWSER-03, BROWSER-04, BROWSER-05, BROWSER-06, BROWSER-07
-**Success Criteria** (what must be TRUE):
-  1. ExplorationAgent navigates application using heuristics (depth-first, breadth-first, random walk)
-  2. Console error detection captures JavaScript errors and unhandled exceptions
-  3. Accessibility violation detection uses axe-core for WCAG 2.1 AA compliance
-  4. Broken link detection identifies 404 responses and redirect loops
-  5. Visual regression testing with Percy detects UI changes across 78+ snapshots
-  6. Form filling tests edge cases (null bytes, XSS payloads, SQL injection)
-  7. API-first authentication integration provides 10-100x faster test setup
-**Plans**: 5 plans
-**Completed**: 2026-03-25
-- [x] 240-01-PLAN.md — Console error and accessibility detection tests (BROWSER-02, BROWSER-03)
-- [x] 240-02-PLAN.md — Broken link detection and form edge case tests (BROWSER-04, BROWSER-06)
-- [x] 240-03-PLAN.md — Visual regression testing with Percy integration (BROWSER-05)
-- [x] 240-04-PLAN.md — Intelligent exploration agent with DFS/BFS/random walk (BROWSER-01)
-- [x] 240-05-PLAN.md — Documentation and weekly CI pipeline (BROWSER-07)
-
-#### Phase 241: Chaos Engineering Integration
-**Goal**: Controlled failure injection tests resilience to network issues, resource exhaustion, and service crashes
-**Depends on**: Phase 237
-**Requirements**: CHAOS-01, CHAOS-02, CHAOS-03, CHAOS-04, CHAOS-05, CHAOS-06, CHAOS-07, CHAOS-08
-**Success Criteria** (what must be TRUE):
-  1. ChaosCoordinator service orchestrates failure injection experiments
-  2. Network latency injection simulates slow 3G conditions using Toxiproxy
-  3. Database connection drop simulation tests connection pool exhaustion recovery
-  4. Memory pressure injection validates heap exhaustion handling
-  5. Service crash simulation tests LLM provider failures and Redis crashes
-  6. Blast radius controls isolate failures (test databases, injection limits, duration caps)
-  7. Recovery validation checks data integrity and rollback verification
-  8. Chaos experiments run in isolated environment (weekly, never on shared dev)
-**Plans**: 7 plans in 4 waves
-- [ ] 241-01-PLAN.md — ChaosCoordinator service and blast radius controls (Wave 1)
-- [ ] 241-02-PLAN.md — Network latency injection with Toxiproxy (Wave 2)
-- [ ] 241-03-PLAN.md — Database connection drop simulation (Wave 2)
-- [ ] 241-04-PLAN.md — Memory pressure injection (Wave 2)
-- [ ] 241-05-PLAN.md — Service crash simulation (Wave 2)
-- [ ] 241-06-PLAN.md — Blast radius controls and recovery validation (Wave 3)
-- [ ] 241-07-PLAN.md — Weekly CI pipeline and documentation (Wave 4)
-
-#### Phase 242: Unified Bug Discovery Pipeline
-**Goal**: Orchestrate all discovery methods with result aggregation, deduplication, automated triage, and GitHub filing
-**Depends on**: Phase 238, Phase 239, Phase 240, Phase 241
-**Requirements**: PIPELINE-01, PIPELINE-02, PIPELINE-03, PIPELINE-04, PIPELINE-05, PIPELINE-06, SUCCESS-02
-**Success Criteria** (what must be TRUE):
-  1. DiscoveryCoordinator service orchestrates fuzzing, chaos, property tests, browser discovery
-  2. Result aggregation correlates failures across all discovery methods
-  3. Bug deduplication merges duplicate bugs by error signature
-  4. Automated bug triage classifies severity (critical/high/medium/low)
-  5. Bug discovery dashboard generates weekly reports (bugs found, fixed, regression rate)
-  6. All bugs are automatically filed via GitHub Issues integration with BugFilingService
+  1. System stores all collaboration data (sessions, comments, locks, shares, audit logs, participants) in PostgreSQL with proper relationships
+  2. Users cannot share or modify resources they don't own (ownership-based authorization enforced)
+  3. Workflow model has version field that detects concurrent modifications and raises conflicts on stale updates
+  4. All collaboration actions create audit log entries with before/after state, action type, user context, and timestamps
 **Plans**: TBD
 
-#### Phase 243: Memory & Performance Bug Discovery
-**Goal**: Specialized discovery for memory leaks and performance regressions using memray and pytest-benchmark
-**Depends on**: Phase 237
-**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05
-**Success Criteria** (what must be TRUE):
-  1. Memory leak detection with memray identifies leaks in long-running agent executions
-  2. Heap snapshot comparison detects 10MB+ memory increases during agent execution loops
-  3. Performance regression detection with pytest-benchmark tracks latency over time
-  4. Lighthouse CI integration alerts on >20% web UI performance regression
-  5. Performance baseline tracking maintains p(95) latency, throughput, and error rate metrics
-**Plans**: 5 plans in 4 waves
-**Completed**: 2026-03-25
-- [x] 243-01-PLAN.md — Memray Python memory leak detection (Wave 1)
-- [x] 243-02-PLAN.md — pytest-benchmark regression infrastructure (Wave 2)
-- [x] 243-03-PLAN.md — Lighthouse CI regression enhancement (Wave 2)
-- [x] 243-04-PLAN.md — Memory/performance bug filing integration (Wave 3)
-- [x] 243-05-PLAN.md — Weekly CI pipeline and documentation (Wave 4)
+Plans:
+- [ ] 246-01: Create 6 collaboration database models (WorkflowCollaborationSession, CollaborationComment, EditLock, WorkflowShare, CollaborationAudit, CollaborationSessionParticipant)
+- [ ] 246-02: Implement ownership-based authorization decorator and service layer
+- [ ] 246-03: Add version field to Workflow model with optimistic locking and conflict detection
+- [ ] 246-04: Create CollaborationAudit middleware for audit logging
 
-#### Phase 244: AI-Enhanced Bug Discovery
-**Goal**: Multi-agent fuzzing orchestration and AI-generated invariants expand bug discovery coverage
-**Depends on**: Phase 238, Phase 239
-**Requirements**: AI-01, AI-02, AI-03, AI-04
+#### Phase 247: WebSocket Infrastructure & Security
+**Goal**: Secure WebSocket infrastructure for real-time collaboration with heartbeat, cleanup, and deduplication
+**Depends on**: Phase 246
+**Requirements**: WS-01, WS-02, WS-03, WS-04
 **Success Criteria** (what must be TRUE):
-  1. Multi-agent fuzzing orchestration generates fuzzing strategies from coverage gaps
-  2. AI-generated invariants analyze code to suggest property test opportunities
-  3. Cross-platform bug correlation detects bugs manifesting across web/mobile/desktop
-  4. Semantic bug clustering uses LLM embeddings to group similar bugs
-**Plans**: 4 plans in 4 waves
-**Completed**: 2026-03-25
-- [x] 244-01-PLAN.md — FuzzingStrategyGenerator with coverage-aware fuzzing (Wave 1)
-- [x] 244-02-PLAN.md — InvariantGenerator with AI-generated property test invariants (Wave 2)
-- [x] 244-03-PLAN.md — CrossPlatformCorrelator for multi-platform bug correlation (Wave 3)
-- [x] 244-04-PLAN.md — SemanticBugClusterer with LLM embeddings and clustering (Wave 4)
+  1. WebSocket connections require JWT token validation on connection AND re-validation on every sensitive action (prevents permission escalation)
+  2. Dead connections are detected within 30 seconds via heartbeat and cleaned up within 2 minutes of inactivity (prevents memory leaks)
+  3. Users with multiple connections receive notifications once per user (not per connection) to prevent duplicate notifications
+  4. Collaboration state persists to Redis and survives server restarts with client auto-reconnect using exponential backoff
+**Plans**: TBD
 
-#### Phase 245: Feedback Loops & ROI Tracking
-**Goal**: Close the loop with regression test generation, effectiveness metrics, and ROI tracking
-**Depends on**: Phase 242
-**Requirements**: FEEDBACK-01, FEEDBACK-02, FEEDBACK-03, FEEDBACK-04, FEEDBACK-05, SUCCESS-01, SUCCESS-03
+Plans:
+- [ ] 247-01: Extend ConnectionManager with presence events and room-based routing (workflow_{id} rooms)
+- [ ] 247-02: Implement CollaborationWebSocketManager with hardened handlers and per-message authorization
+- [ ] 247-03: Add heartbeat/ping mechanism (30s timeout) and periodic cleanup task (60s for >2min inactivity)
+- [ ] 247-04: Implement Redis-backed session state with client-side auto-reconnect and exponential backoff
+- [ ] 247-05: Add notification deduplication per user across multiple WebSocket connections
+
+#### Phase 248: User Presence & Real-Time Activity
+**Goal**: Real-time user presence tracking and live updates for collaboration awareness
+**Depends on**: Phase 247
+**Requirements**: PRES-01, PRES-02, PRES-03, REAL-01, REAL-02, REAL-03
 **Success Criteria** (what must be TRUE):
-  1. Automated regression test generation converts bug findings to permanent tests
-  2. Bug discovery dashboard shows weekly reports (bugs found, fixed, regression rate)
-  3. GitHub issue integration auto-files issues for new bugs with reproducible test cases
-  4. ROI tracking demonstrates time saved, bugs prevented, fix cost vs. discovery cost
-  5. Bug discovery effectiveness metrics track bugs found per hour and false positive rate
-  6. Bug fix verification re-runs tests after fixes to confirm 50+ bugs resolved
-**Plans**: 6 plans in 4 waves
-**Completed**: 2026-03-25
-- [x] 245-01-PLAN.md — RegressionTestGenerator with Jinja2 templates (Wave 1)
-- [x] 245-02-PLAN.md — BugFixVerifier with GitHub integration (Wave 2)
-- [x] 245-03-PLAN.md — ROITracker with SQLite metrics database (Wave 2)
-- [x] 245-04-PLAN.md — Enhanced DashboardGenerator with ROI metrics (Wave 3)
-- [x] 245-05-PLAN.md — Integration, CI workflows, documentation (Wave 3)
-- [ ] 245-06-PLAN.md — Bug discovery execution and remediation (Wave 4)
+  1. Users see online/offline/away status for all workspace members with last seen timestamps and current resource viewing
+  2. Presence changes broadcast in real-time to all workspace members via WebSocket when users join/leave/go idle
+  3. Workflow/agent/canvas changes appear instantly to all connected clients via WebSocket without requiring page refresh
+  4. Updates target only users viewing the affected resource (room-based broadcasting) to prevent broadcast storms
+  5. Stale presence auto-expires after 60 seconds of inactivity (2x heartbeat interval of 30s)
+**Plans**: TBD
+
+Plans:
+- [ ] 248-01: Implement UserPresenceService with Redis-backed presence tracking and heartbeat management
+- [ ] 248-02: Add presence broadcast events (user:join, user:leave, user:idle) with online/offline/away status
+- [ ] 248-03: Implement real-time update broadcasting for workflow/agent/canvas changes via WebSocket rooms
+- [ ] 248-04: Add Redis-based persistence for collaboration state with automatic cleanup on expiration
+- [ ] 248-05: Implement client-side auto-reconnect with exponential backoff (1s → 2s → 4s → 8s max)
+
+#### Phase 249: Team-Based RBAC & Permissions
+**Goal**: Team management with hierarchical roles and resource-level ACLs for fine-grained permissions
+**Depends on**: Phase 246 (Foundation Models & Basic RBAC)
+**Requirements**: TEAM-01, TEAM-02, TEAM-03, TEAM-04, TEAM-05, TEAM-06, RBAC-02, RBAC-03, RBAC-04, RBAC-05
+**Success Criteria** (what must be TRUE):
+  1. Authorized users can create teams with name, description, and default roles (owner/admin/member/viewer)
+  2. Team owners and admins can add/remove members with role assignment and hierarchical permission inheritance (owner > admin > member > viewer)
+  3. System supports resource-level ACLs with fine-grained permissions (resource_type, resource_id, permissions JSONB)
+  4. Permission checks complete in <50ms using GovernanceCache with cache invalidation on permission changes
+  5. RBAC checks apply to ALL users including guests and apply to WebSocket messages (not just REST API endpoints)
+**Plans**: TBD
+
+Plans:
+- [ ] 249-01: Implement TeamManagementService (team CRUD, member management, role assignment)
+- [ ] 249-02: Extend RBACService with team-based permissions and role inheritance (team_lead inherits member permissions)
+- [ ] 249-03: Implement resource-level ACLs (resource_type, resource_id, permissions JSONB) with authorization decorator
+- [ ] 249-04: Integrate permission caching in GovernanceCache with <50ms lookups and cache invalidation
+- [ ] 249-05: Add Casbin integration with model.conf and policy.csv for policy-based RBAC
+- [ ] 249-06: Implement FastAPI dependency injection for route-level permissions and check_permission decorator
+
+#### Phase 250: Conflict Resolution & Resource Sharing
+**Goal**: Prevent concurrent edit conflicts with pessimistic locking and enable secure resource sharing
+**Depends on**: Phase 246 (Foundation Models & Basic RBAC), Phase 248 (User Presence)
+**Requirements**: CONF-01, CONF-02, CONF-04, SHARE-01, SHARE-02, SHARE-03, SHARE-04
+**Success Criteria** (what must be TRUE):
+  1. Users must acquire edit locks before editing resources to prevent concurrent edit conflicts
+  2. Edit locks expire after 30 minutes of inactivity with automatic release and users can extend active locks
+  3. System shows conflict resolution UI when concurrent edits detected warning users before overwriting changes
+  4. Workflow owners can create share links with customizable permissions (can_view/can_edit/can_share) and optional expiration
+  5. Share links use cryptographically secure random tokens and track usage count with revocation support
+**Plans**: TBD
+
+Plans:
+- [ ] 250-01: Implement ConflictResolutionService with pessimistic locking (acquire, release, check, extend)
+- [ ] 250-02: Add edit lock expiry handling (30-minute default) and lock status broadcasting via WebSocket
+- [ ] 250-03: Implement conflict resolution UI with warnings before overwriting concurrent changes
+- [ ] 250-04: Implement share link creation with permissions, expiration, usage tracking, and revocation
+- [ ] 250-05: Add share link access with permission validation and secure token generation (UUID4 or secrets.token_urlsafe())
+
+#### Phase 251: Comments & Collaboration Sessions
+**Goal**: Threaded comments with @mentions and collaboration session management for multi-user workflows
+**Depends on**: Phase 246 (Foundation Models), Phase 248 (User Presence), Phase 249 (Team RBAC)
+**Requirements**: COMM-01, COMM-02, COMM-03, COMM-04, COMM-05
+**Success Criteria** (what must be TRUE):
+  1. Authorized users can create threaded comments on workflows/agents/canvases with context-aware placement (node/canvas/workflow-level)
+  2. Users can reply to comments forming nested threads with recursive CTE queries for retrieval and parent-child relationships
+  3. Users can @mention other users in comments which triggers notifications and mentioned users receive real-time alerts
+  4. Comment authors and authorized users can edit/delete their own comments with audit trail and version tracking
+  5. Users can resolve comment threads marking them as resolved with resolver tracking and resolution timestamp
+**Plans**: TBD
+
+Plans:
+- [ ] 251-01: Implement CommentService with threaded comments (recursive CTEs for nesting)
+- [ ] 251-02: Add comment CRUD operations (create, reply, edit, delete, resolve) with permissions linked to resource access
+- [ ] 251-03: Implement @mention parsing in comment content with notification delivery to mentioned users
+- [ ] 251-04: Add CollaborationSessionService (create, join, leave, list) with participant tracking
+- [ ] 251-05: Implement session state persistence (Redis + PostgreSQL) and real-time comment delivery via WebSocket
+
+#### Phase 252: Advanced Features (Cursors, Agents, Co-Editing)
+**Goal**: Live cursor tracking, agent collaboration governance, and workflow co-editing with presence indicators
+**Depends on**: Phase 247 (WebSocket Infrastructure), Phase 248 (User Presence), Phase 250 (Conflict Resolution)
+**Requirements**: CURS-01, CURS-02, CURS-03, AGENT-01, AGENT-02, AGENT-03, COED-01, COED-02
+**Success Criteria** (what must be TRUE):
+  1. System broadcasts real-time cursor positions to all users viewing the same workflow with user names and colors for visual identification
+  2. Multiple agents can coordinate on shared canvases with role-based permissions (STUDENT agents blocked, INTERN+ require approval)
+  3. Agent maturity levels (STUDENT/INTERN/SUPERVISED/AUTONOMOUS) are enforced in collaboration sessions with governance checks
+  4. Multiple users can view workflows simultaneously with presence indicators showing who is viewing each node/canvas
+  5. System uses pessimistic locking for edit conflicts with visual lock indicators showing who is editing what
+**Plans**: TBD
+
+Plans:
+- [ ] 252-01: Implement live cursor tracking with Redis storage (2-min TTL) and batched broadcasts (max 50 messages or 100ms)
+- [ ] 252-02: Extend CanvasCollaborationService to support both agent-to-agent and user-to-user collaboration
+- [ ] 252-03: Add agent maturity checks (STUDENT blocked, INTERN requires approval, SUPERVISED/AUTONOMOUS allowed) on collaboration session join
+- [ ] 252-04: Implement workflow co-editing with presence indicators showing who is viewing each node/canvas
+- [ ] 252-05: Add pessimistic lock acquisition before editing with visual lock indicators showing who is editing what
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 237 → 238 → 239 → 240 → 241 → 242 → 243 → 244 → 245
+Phases execute in numeric order: 246 → 247 → 248 → 249 → 250 → 251 → 252
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 237. Bug Discovery Infrastructure Foundation | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
-| 238. Property-Based Testing Expansion | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
-| 239. API Fuzzing Infrastructure | v8.0 | 5/5 | ✅ Complete | 2026-03-24 |
-| 240. Headless Browser Bug Discovery | v8.0 | 5/5 | ✅ Complete | 2026-03-25 |
-| 241. Chaos Engineering Integration | v8.0 | 0/TBD | Not started | - |
-| 242. Unified Bug Discovery Pipeline | v8.0 | 0/TBD | Not started | - |
-| 243. Memory & Performance Bug Discovery | v8.0 | 5/5 | ✅ Complete | 2026-03-25 |
-| 244. AI-Enhanced Bug Discovery | v8.0 | 4/4 | ✅ Complete | 2026-03-25 |
-| 245. Feedback Loops & ROI Tracking | v8.0 | 5/6 | ✅ Complete | 2026-03-25 |
+| 246. Foundation Models & Basic RBAC | v9.0 | 0/4 | Not started | - |
+| 247. WebSocket Infrastructure & Security | v9.0 | 0/5 | Not started | - |
+| 248. User Presence & Real-Time Activity | v9.0 | 0/5 | Not started | - |
+| 249. Team-Based RBAC & Permissions | v9.0 | 0/6 | Not started | - |
+| 250. Conflict Resolution & Resource Sharing | v9.0 | 0/5 | Not started | - |
+| 251. Comments & Collaboration Sessions | v9.0 | 0/5 | Not started | - |
+| 252. Advanced Features (Cursors, Agents, Co-Editing) | v9.0 | 0/5 | Not started | - |
+
+**Overall Progress:** 0/35 plans complete (0%)

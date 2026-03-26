@@ -134,54 +134,54 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | Phase 246-01 | Pending |
-| DB-02 | Phase 246-01 | Pending |
-| DB-03 | Phase 246-01 | Pending |
-| DB-04 | Phase 246-01 | Pending |
-| DB-05 | Phase 246-01 | Pending |
-| DB-06 | Phase 246-01 | Pending |
-| PRES-01 | Phase 247-01 | Pending |
-| PRES-02 | Phase 247-01 | Pending |
-| PRES-03 | Phase 247-01 | Pending |
-| REAL-01 | Phase 247-02 | Pending |
-| REAL-02 | Phase 247-02 | Pending |
-| REAL-03 | Phase 247-02 | Pending |
-| TEAM-01 | Phase 248-01 | Pending |
-| TEAM-02 | Phase 248-01 | Pending |
-| TEAM-03 | Phase 248-01 | Pending |
-| TEAM-04 | Phase 248-01 | Pending |
-| TEAM-05 | Phase 248-01 | Pending |
-| TEAM-06 | Phase 248-01 | Pending |
-| COMM-01 | Phase 249-01 | Pending |
-| COMM-02 | Phase 249-01 | Pending |
-| COMM-03 | Phase 249-01 | Pending |
-| COMM-04 | Phase 249-01 | Pending |
-| COMM-05 | Phase 249-01 | Pending |
-| CONF-01 | Phase 250-01 | Pending |
-| CONF-02 | Phase 250-01 | Pending |
-| CONF-03 | Phase 250-01 | Pending |
-| CONF-04 | Phase 250-01 | Pending |
-| SHARE-01 | Phase 251-01 | Pending |
-| SHARE-02 | Phase 251-01 | Pending |
-| SHARE-03 | Phase 251-01 | Pending |
-| SHARE-04 | Phase 251-01 | Pending |
-| RBAC-01 | Phase 252-01 | Pending |
-| RBAC-02 | Phase 252-01 | Pending |
-| RBAC-03 | Phase 252-01 | Pending |
-| RBAC-04 | Phase 252-01 | Pending |
-| RBAC-05 | Phase 252-01 | Pending |
-| WS-01 | Phase 247-03 | Pending |
-| WS-02 | Phase 247-03 | Pending |
-| WS-03 | Phase 247-03 | Pending |
-| WS-04 | Phase 247-03 | Pending |
-| CURS-01 | Phase 253-01 | Pending |
-| CURS-02 | Phase 253-01 | Pending |
-| CURS-03 | Phase 253-01 | Pending |
-| AGENT-01 | Phase 254-01 | Pending |
-| AGENT-02 | Phase 254-01 | Pending |
-| AGENT-03 | Phase 254-01 | Pending |
-| COED-01 | Phase 255-01 | Pending |
-| COED-02 | Phase 255-01 | Pending |
+| DB-01 | Phase 246 | Pending |
+| DB-02 | Phase 246 | Pending |
+| DB-03 | Phase 246 | Pending |
+| DB-04 | Phase 246 | Pending |
+| DB-05 | Phase 246 | Pending |
+| DB-06 | Phase 246 | Pending |
+| RBAC-01 | Phase 246 | Pending |
+| CONF-03 | Phase 246 | Pending |
+| WS-01 | Phase 247 | Pending |
+| WS-02 | Phase 247 | Pending |
+| WS-03 | Phase 247 | Pending |
+| WS-04 | Phase 247 | Pending |
+| PRES-01 | Phase 248 | Pending |
+| PRES-02 | Phase 248 | Pending |
+| PRES-03 | Phase 248 | Pending |
+| REAL-01 | Phase 248 | Pending |
+| REAL-02 | Phase 248 | Pending |
+| REAL-03 | Phase 248 | Pending |
+| TEAM-01 | Phase 249 | Pending |
+| TEAM-02 | Phase 249 | Pending |
+| TEAM-03 | Phase 249 | Pending |
+| TEAM-04 | Phase 249 | Pending |
+| TEAM-05 | Phase 249 | Pending |
+| TEAM-06 | Phase 249 | Pending |
+| RBAC-02 | Phase 249 | Pending |
+| RBAC-03 | Phase 249 | Pending |
+| RBAC-04 | Phase 249 | Pending |
+| RBAC-05 | Phase 249 | Pending |
+| CONF-01 | Phase 250 | Pending |
+| CONF-02 | Phase 250 | Pending |
+| CONF-04 | Phase 250 | Pending |
+| SHARE-01 | Phase 250 | Pending |
+| SHARE-02 | Phase 250 | Pending |
+| SHARE-03 | Phase 250 | Pending |
+| SHARE-04 | Phase 250 | Pending |
+| COMM-01 | Phase 251 | Pending |
+| COMM-02 | Phase 251 | Pending |
+| COMM-03 | Phase 251 | Pending |
+| COMM-04 | Phase 251 | Pending |
+| COMM-05 | Phase 251 | Pending |
+| CURS-01 | Phase 252 | Pending |
+| CURS-02 | Phase 252 | Pending |
+| CURS-03 | Phase 252 | Pending |
+| AGENT-01 | Phase 252 | Pending |
+| AGENT-02 | Phase 252 | Pending |
+| AGENT-03 | Phase 252 | Pending |
+| COED-01 | Phase 252 | Pending |
+| COED-02 | Phase 252 | Pending |
 
 **Coverage:**
 - v1 requirements: 48 total
@@ -212,36 +212,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Priority | Count | Categories |
 |----------|-------|------------|
-| **P1 (Table Stakes - MVP)** | 28 | DB (all), PRES (all), REAL (all), TEAM (all), SHARE (all), RBAC (all), WS (all), CONF (all) |
+| **P1 (Table Stakes - MVP)** | 36 | DB (all), PRES (all), REAL (all), TEAM (all), SHARE (all), RBAC (all), WS (all), CONF (all) |
 | **P2 (Differentiators)** | 12 | COMM (all), CURS (all), AGENT (all), COED (all) |
 | **P3 (v2 Deferred)** | 8 | COED-03, CONF-05, TEAM-07, SHARE-05, REAL-04, REAL-05, COMM-06, PRES-04, RBAC-06 |
 
 ### Dependency Graph
 
 ```
-[Database Models: DB-01 to DB-06]
+[Database Models: DB-01 to DB-06, RBAC-01, CONF-03] (Phase 246)
     ↓ required by
-[Team Management: TEAM-01 to TEAM-06]
+[WebSocket Infrastructure: WS-01 to WS-04] (Phase 247)
     ↓ required by
-[RBAC: RBAC-01 to RBAC-05]
+[User Presence & Real-Time Updates: PRES-01 to PRES-03, REAL-01 to REAL-03] (Phase 248)
     ↓ required by
-[Resource Sharing: SHARE-01 to SHARE-04]
+[Team-Based RBAC & Permissions: TEAM-01 to TEAM-06, RBAC-02 to RBAC-05] (Phase 249)
     ↓ required by
-[WebSocket Infrastructure: WS-01 to WS-04]
+[Conflict Resolution & Resource Sharing: CONF-01, CONF-02, CONF-04, SHARE-01 to SHARE-04] (Phase 250)
     ↓ required by
-[User Presence: PRES-01 to PRES-03]
+[Comments & Collaboration Sessions: COMM-01 to COMM-05] (Phase 251)
     ↓ required by
-[Real-Time Updates: REAL-01 to REAL-03]
-    ↓ required by
-[Conflict Resolution: CONF-01 to CONF-04]
-    ↓ required by
-[Live Cursors: CURS-01 to CURS-03]
-    ↓ required by
-[Comments & Threads: COMM-01 to COMM-05]
-    ↓ required by
-[Agent Collaboration: AGENT-01 to AGENT-03]
-    ↓ required by
-[Workflow Co-Editing: COED-01 to COED-02]
+[Advanced Features: CURS-01 to CURS-03, AGENT-01 to AGENT-03, COED-01 to COED-02] (Phase 252)
 ```
 
 ## Non-Functional Requirements
@@ -434,4 +424,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: March 26, 2026*
-*Last updated: March 26, 2026 after initial requirements definition*
+*Last updated: March 26, 2026 after roadmap creation*
