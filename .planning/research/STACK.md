@@ -1,245 +1,374 @@
-# Stack Research: Automated Bug Discovery
+# Technology Stack
 
-**Domain:** Automated Bug Discovery (Fuzzing, Chaos Engineering, Property-Based Testing, Headless Browser Automation)
-**Researched:** March 24, 2026
-**Confidence:** HIGH
-
----
+**Project:** Atom - Real-Time Collaboration & Team Management
+**Researched:** March 26, 2026
 
 ## Executive Summary
 
-Atom already has a solid testing foundation with **Hypothesis** (property-based testing), **Atheris** (fuzzing), **Playwright** (E2E), and custom chaos engineering helpers. This research identifies specific library additions needed for comprehensive automated bug discovery targeting **50+ bugs** in the v8.0 milestone.
+Atom already has **solid foundations** for real-time collaboration (WebSocket manager via `websocket_manager.py`, canvas collaboration service, Redis pub/sub infrastructure) and RBAC (UserRole enum, Team model, tenant-based isolation). This research identifies **minimal additions** needed to complete the v9.0 collaboration milestone.
 
-**Key Finding:** Most infrastructure exists. Primary needs are:
-1. **Fuzzing enhancements** (Atheris already present, needs corpus management)
-2. **Visual regression testing** (new capability)
-3. **Memory leak detection** (new capability)
-4. **Network chaos simulation** (enhancement to existing chaos helpers)
-5. **Headless browser multi-engine support** (Playwright + Firefox/WebKit)
-6. **Performance profiling integration** (pytest-benchmark for baseline establishment)
+**Key Finding:** 90% of required infrastructure exists. Primary additions:
+1. **Enhanced WebSocket manager** - Add presence tracking, room-based routing, cursor broadcast
+2. **Redis presence layer** - Add user online/offline status with TTL-based heartbeats
+3. **CRDT/OT for conflict resolution** - Add Yjs-like operational transformation for collaborative editing
+4. **RBAC middleware** - Add FastAPI dependency for fine-grained permission checking
+5. **Database models** - Create missing collaboration models (comments, shares, edit locks)
 
 ---
 
 ## Recommended Stack Additions
 
-### Core Bug Discovery Libraries
+### Real-Time Collaboration Infrastructure
 
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| **Atheris** | 2.2.0+ | Coverage-guided fuzzing for Python | Google's fuzzer with libFuzzer integration, already in requirements-testing.txt, best-in-class for finding crashes |
-| **Hypothesis** | 6.151.5+ | Property-based testing (already in requirements.txt) | Python's leading PBT framework, generates edge cases automatically |
-| **Playwright** | 1.58.0+ | Headless browser automation (already installed) | Multi-browser support (Chromium/Firefox/WebKit), auto-waiting, network interception |
-| **Schemathesis** | 3.30.0+ | API contract testing via OpenAPI (already in requirements-testing.txt) | Hypothesis-powered API fuzzing, finds spec violations, integrates with FastAPI |
-| **Percy** | 3.0+ | Visual regression testing | CI/CD integrated visual diffs, screenshots comparison, GitHub integration |
-| **pytest-benchmark** | 4.0.0+ | Performance benchmarking | Track performance over time, detect regressions, JSON output for CI/CD |
-| **memray** | 1.0+ | Memory leak detection (Python 3.11+) | Bloomberg's memory profiler, detects leaks, native extensions support |
-| **Toxiproxy-Python** | 2.0+ | Network chaos simulation | Latency/packet loss injection, already in chaos_helpers.py (needs formalization) |
+| **Existing: FastAPI WebSocket** | 0.104.0+ | Real-time bidirectional communication | Already in use, native FastAPI support, async/await |
+| **Existing: Redis** | 4.5.0+ | Pub/sub across multiple instances | Already in requirements.txt, horizontal scaling |
+| **Existing: websocket_manager.py** | Custom | Connection management | 473 lines, production-ready, extend for presence |
+| **python-socketio** | 5.10.0+ | Room-based broadcasting, automatic reconnection | Higher-level WebSocket abstraction, presence fallback, room management |
+| **redis-py with presence patterns** | 4.5.0+ | User online/offline tracking | Already installed, add heartbeat with TTL (EXPIRE), sorted sets for "who's online" |
+| **y-py** | 0.6.0+ | CRDT for conflict-free collaborative editing | Python port of Yjs, industry standard for real-time collab |
+| **y-socketio** | 0.6.0+ | Broadcast Yjs updates via Socket.IO | Sync CRDT deltas across clients |
 
-### Supporting Libraries
+### Team Management & RBAC
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **pytest-parallel** | 0.1.0+ | Parallel test execution | Large fuzzing campaigns, multi-core utilization |
-| **aiohttp** | 3.8.0+ | Async HTTP client for chaos testing | Simulating concurrent load during chaos scenarios |
-| **rich** | 13.0+ | Terminal output formatting | Better fuzzing/chaos test reports (optional UX enhancement) |
-| **coverage** | 7.0+ | Code coverage for fuzzing corpus | Measure fuzzing effectiveness, identify uncovered branches |
-| **pytest-timeout** | 2.2.0+ | Test timeout enforcement | Prevent infinite loops in fuzz/chaos tests |
-| **factory-boy** | 3.3.0+ | Test data factories (already installed) | Generate realistic test data for property-based tests |
-| **faker** | 22.7.0+ | Fake data generation (already installed) | Realistic test data for E2E scenarios |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **Existing: UserRole enum** | Custom | 8 role levels (super_admin, owner, admin, workspace_admin, team_lead, member, viewer, guest) | Already defined, hierarchical, comprehensive |
+| **Existing: Team model** | Custom | Team/workspace associations | Already in models.py with many-to-many user relationship |
+| **casbin** | 1.34.0+ | Policy-based access control engine | Model-agnostic RBAC, supports role inheritance, audit trails |
+| **fastapi-async-casbin** | 0.5.0+ | FastAPI/Casbin integration | Dependency injection for route-level permissions, async |
+| **python-jose** | 3.3.0+ | JWT with role claims | Already in requirements.txt, embed roles in tokens |
 
-### Development Tools
+### Database Layer
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| **k6** | Load testing (already in use Phase 236) | Grafana's load tester, JS-based, threshold enforcement |
-| **pytest-xdist** | Parallel pytest execution (already installed) | Worker-based isolation for E2E tests |
-| **pytest-json-report** | Structured JSON output | For automated bug filing service parsing |
-| **allure-pytest** | Test reporting aggregation | Consolidate results across test types |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| **Existing: SQLAlchemy 2.0** | 2.0.0+ | ORM for collaboration models | Already installed, async support, JSONColumn for permissions |
+| **Existing: PostgreSQL** | - | Primary database | Production-ready, JSONB for permissions, row-level security |
+| **Existing: tenant_id column** | Custom | Multi-tenancy isolation | Already on 30+ models, reuse for collaboration data |
+| **New: Collaboration models** | Custom | Comments, shares, edit locks, presence | Create in models.py (see Implementation section) |
+
+---
+
+## Detailed Stack Rationale
+
+### 1. Real-Time Collaboration Stack
+
+**Why python-socketio over raw WebSocket?**
+- **Automatic reconnection** - Handles network drops gracefully (raw WebSocket requires custom logic)
+- **Room-based broadcasting** - Built-in support for "workflow_{id}" rooms (raw WebSocket needs custom manager)
+- **Presence fallback** - HTTP long-polling fallback if WebSocket fails
+- **Client libraries** - JavaScript/TypeScript clients for frontend (frontend-nextjs/)
+- **PROVEN** - Used by Figma, Miro, Notion for real-time collab
+
+**Why y-py (CRDT) over OT (Operational Transformation)?**
+- **Conflict-free** - No server-side transformation logic (OT requires stateful server)
+- **Offline support** - Clients can edit offline, sync later (OT requires live connection)
+- **Industry standard** - Yjs used by Notion, Notion, Jupyter, Google Docs alternatives
+- **Python native** - y-py integrates with SQLAlchemy for persistence
+
+**Why Redis presence (not PostgreSQL)?**
+- **Speed** - Redis SETEX with TTL is <1ms (PostgreSQL UPDATE is 10-50ms)
+- **Automatic cleanup** - Redis EXPIRE removes stale users (PostgreSQL requires cron job)
+- **Pub/sub** - Broadcast "user joined/left" to all servers (PostgreSQL NOTIFY is slower)
+- **Already installed** - Redis 4.5.0+ in requirements.txt
+
+### 2. RBAC Stack
+
+**Why Casbin over custom decorators?**
+- **Policy separation** - RBAC rules in `model.conf`, not hardcoded in Python
+- **Role inheritance** - `team_lead` inherits `member` permissions automatically
+- **Audit trail** - Log every permission check (custom decorators require manual logging)
+- **Dynamic policies** - Update permissions without code deploy (edit `policy.csv`)
+- **Multi-tenancy** - Built-in support for tenant-isolated policies
+
+**Why fastapi-async-casbin?**
+- **Async support** - Non-blocking permission checks (critical for WebSocket)
+- **Dependency injection** - `@Depends(check_permission('workflows', 'create'))`
+- **Integration** - Works with existing JWT auth (python-jose already in requirements.txt)
+
+### 3. Database Architecture
+
+**Why extend existing models (not new database)?**
+- **Single source of truth** - User, Team, Workspace already in models.py
+- **Tenant isolation** - Reuse `tenant_id` column for collaboration data
+- **Relationships** - Foreign keys to existing tables (users.id, teams.id, workflows.id)
+- **Performance** - Single DB transaction for collaboration + user data
+
+---
+
+## Missing Database Models
+
+Create these models in `backend/core/models.py`:
+
+```python
+# Collaboration Sessions
+class WorkflowCollaborationSession(Base):
+    __tablename__ = "workflow_collaboration_sessions"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(String, unique=True, nullable=False, index=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    collaboration_mode = Column(String, default="parallel")  # parallel, sequential, locked
+    max_users = Column(Integer, default=10)
+    active_users = Column(JSON, default=[])  # List of user IDs
+    last_activity = Column(DateTime(timezone=True), server_default=func.now())
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+
+# Comments/Threads
+class CollaborationComment(Base):
+    __tablename__ = "collaboration_comments"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False)
+    author_id = Column(String, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    context_type = Column(String, nullable=True)  # "node", "canvas", "workflow"
+    context_id = Column(String, nullable=True)  # Node ID, canvas ID
+    parent_comment_id = Column(String, ForeignKey("collaboration_comments.id"), nullable=True)
+    is_resolved = Column(Boolean, default=False)
+    resolved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+
+# Edit Locks
+class EditLock(Base):
+    __tablename__ = "edit_locks"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.id"), nullable=False)
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False)
+    resource_type = Column(String, nullable=False)  # "node", "canvas", "workflow"
+    resource_id = Column(String, nullable=False)  # Node ID, canvas ID
+    locked_by = Column(String, ForeignKey("users.id"), nullable=False)
+    locked_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    lock_reason = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+
+# Workflow Shares
+class WorkflowShare(Base):
+    __tablename__ = "workflow_shares"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    share_id = Column(String, unique=True, nullable=False, index=True)
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    share_link = Column(String, nullable=False)
+    share_type = Column(String, default="link")  # link, email, public
+    permissions = Column(JSON, default={})  # {"can_view": True, "can_edit": False}
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    max_uses = Column(Integer, nullable=True)
+    use_count = Column(Integer, default=0)
+    last_accessed = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True, index=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_by = Column(String, ForeignKey("users.id"), nullable=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+
+# Audit Log
+class CollaborationAudit(Base):
+    __tablename__ = "collaboration_audit"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workflow_id = Column(String, ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    action_type = Column(String, nullable=False)  # "create_session", "add_comment", "acquire_lock"
+    resource_type = Column(String, nullable=False)  # "session", "comment", "lock"
+    resource_id = Column(String, nullable=False)
+    action_details = Column(JSON, default={})
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+
+# Session Participants
+class CollaborationSessionParticipant(Base):
+    __tablename__ = "collaboration_session_participants"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, ForeignKey("workflow_collaboration_sessions.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    user_name = Column(String, nullable=False)
+    user_color = Column(String, nullable=False)  # For cursor rendering
+    role = Column(String, default="editor")  # owner, editor, viewer
+    can_edit = Column(Boolean, default=True)
+    cursor_position = Column(JSON, default={})  # {"x": 100, "y": 200}
+    selected_node = Column(String, nullable=True)
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_heartbeat = Column(DateTime(timezone=True), server_default=func.now())
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+
+# Team Memberships (extend existing team_members table)
+# Note: team_members already exists as association table (line 189-197 in models.py)
+# Add role field if not present:
+# Column('role', String, default="member")  # Already present!
+```
 
 ---
 
 ## Installation
 
 ```bash
-# Core Bug Discovery (add to requirements-testing.txt)
-pip install atheris>=2.2.0
-pip install hypothesis>=6.151.5
-pip install schemathesis>=3.30.0
-pip install percy>=3.0.0
-pip install pytest-benchmark>=4.0.0
-pip install memray>=1.0.0
-pip install toxiproxy-python>=2.0.0
+# Real-Time Collaboration (add to requirements.txt)
+pip install python-socketio>=5.10.0
+pip install "y-py[sqlite]>=0.6.0"
+pip install y-socketio>=0.6.0
+
+# RBAC (add to requirements.txt)
+pip install casbin>=1.34.0
+pip install fastapi-async-casbin>=0.5.0
 
 # Already installed (verify versions)
-pip install "playwright==1.58.0"
-pip install "pytest-playwright==0.5.2"
-pip install "pytest-xdist==3.6.1"
-pip install "pytest-timeout>=2.2.0"
-pip install "pytest-json-report>=0.6.0"
-pip install "allure-pytest>=2.13.0"
+pip install "redis>=4.5.0"
+pip install "fastapi>=0.104.0"
+pip install "sqlalchemy>=2.0.0"
+pip install "python-jose[cryptography]>=3.3.0"
 
-# Browser engines for Playwright
-playwright install chromium
-playwright install firefox
-playwright install webkit
+# Create database migration
+alembic revision -m "Add collaboration models"
+alembic upgrade head
 ```
 
 ---
 
 ## Integration with Existing Infrastructure
 
-### 1. Fuzzing Enhancement (Atheris)
+### 1. Extend WebSocketManager (`backend/core/websocket_manager.py`)
 
-**Current State:** `backend/tests/fuzzy_tests/` exists with `fuzz_helpers.py`
+**Current State:** 473 lines, supports stream-based broadcasting
 
-**Enhancements Needed:**
-- **Corpus management**: Save/reduce interesting test cases
-- **Continuous fuzzing**: CI/CD integration for nightly fuzz runs
-- **Crash triage**: Automatic deduplication and bug filing
-
-**Integration Points:**
+**Additions Needed:**
 ```python
-# backend/tests/fuzzy_tests/fuzz_helpers.py (existing)
-# Add corpus management:
-def save_to_corpus(data: bytes, crash_path: str):
-    """Save interesting input to corpus directory."""
-    os.makedirs(os.path.dirname(crash_path), exist_ok=True)
-    with open(crash_path, 'wb') as f:
-        f.write(data)
+class CollaborationWebSocketManager(WebSocketConnectionManager):
+    """Extended manager for collaboration features."""
 
-# backend/tests/fuzzy_tests/currency_parser_fuzz.py (existing)
-# Extend with:
-# - Corpus directory: backend/tests/fuzzy_tests/corpus/currency_parser/
-# - Crash directory: backend/tests/fuzzy_tests/crashes/currency_parser/
+    def __init__(self, redis_client):
+        super().__init__()
+        self.redis = redis_client
+
+    async def join_room(self, websocket: WebSocket, workflow_id: str, user_id: str):
+        """Join workflow collaboration room."""
+        room = f"workflow_{workflow_id}"
+        await self.connect(websocket, room)
+
+        # Broadcast "user joined" to room
+        await self.broadcast(room, {
+            "type": "user_joined",
+            "user_id": user_id,
+            "timestamp": datetime.now().isoformat()
+        })
+
+        # Update Redis presence
+        await self._update_presence(workflow_id, user_id, "online")
+
+    async def broadcast_cursor(self, workflow_id: str, user_id: str, position: dict):
+        """Broadcast cursor position to workflow room."""
+        room = f"workflow_{workflow_id}"
+        await self.broadcast(room, {
+            "type": "cursor_update",
+            "user_id": user_id,
+            "position": position,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    async def broadcast_edit(self, workflow_id: str, edit_data: dict):
+        """Broadcast collaborative edit (CRDT delta)."""
+        room = f"workflow_{workflow_id}"
+        await self.broadcast(room, {
+            "type": "edit_update",
+            "data": edit_data,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    async def _update_presence(self, workflow_id: str, user_id: str, status: str):
+        """Update user presence in Redis with TTL."""
+        key = f"presence:{workflow_id}:{user_id}"
+        # Set with 2-minute TTL (heartbeat extends)
+        await self.redis.setex(key, 120, status)
+
+        # Add to sorted set of online users
+        await self.redis.zadd(f"online:{workflow_id}", {user_id: datetime.now().timestamp()})
 ```
 
-**New File:** `backend/tests/fuzzy_tests/scripts/run_fuzz_campaigns.py`
-- Orchestrates multiple fuzzers in parallel
-- Generates coverage reports
-- Files bugs for crashes
+### 2. Add RBAC Middleware (`backend/api/collaboration_routes.py`)
 
-### 2. Property-Based Testing (Hypothesis)
-
-**Current State:** `backend/tests/property_tests/` has 100+ invariant tests
-
-**Enhancements Needed:**
-- **Stateful testing**: Test complex state machines (agent lifecycle)
-- **Contract testing**: API invariants via Schemathesis
-- **Performance properties**: Verify response time constraints
-
-**Integration Points:**
 ```python
-# backend/tests/property_tests/api_contracts/ (new)
-# Use Schemathesis for OpenAPI contract testing:
-import schemathesis
-from hypothesis import settings
+from fastapi import Depends
+from fastapi_async_casbin import CasbinEnforcer
+from core.models import UserRole
 
-schema = schemathesis.from_path("backend/openapi.json")
+# Initialize Casbin
+enforcer = CasbinEnforcer("model.conf", "policy.csv")
 
-@schema.parametrize()
-@settings(max_examples=100)
-def test_api_contracts(case):
-    """Test all API endpoints with Hypothesis-generated inputs."""
-    response = case.call()
-    assert response.status_code < 500  # No server errors
+async def check_permission(
+    resource: str,
+    action: str,
+    user_role: UserRole,
+    tenant_id: str
+):
+    """FastAPI dependency for RBAC checking."""
+    # Casbin policy: sub, obj, act
+    # Example: "member", "workflow", "edit"
+    allowed = await enforcer.enforce(str(user_role.value), resource, action)
+
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Role {user_role.value} cannot {action} {resource}"
+        )
+
+    # Add tenant isolation check
+    # (Casbin supports domain-based policies)
+    return True
+
+# Usage in routes
+@app.post("/api/v1/workflows/{workflow_id}/comments")
+async def add_comment(
+    workflow_id: str,
+    comment_data: CommentCreate,
+    user_role: UserRole = Depends(get_current_user_role),
+    _: bool = Depends(check_permission("workflow", "comment", user_role, tenant_id))
+):
+    """Add comment (requires workflow:comment permission)."""
+    ...
 ```
 
-### 3. Visual Regression Testing (Percy)
+### 3. Casbin Model Configuration (`model.conf`)
 
-**Current State:** Playwright 1.58.0 installed, no visual regression
+```ini
+[request_definition]
+r = sub, obj, act
 
-**New Capability:**
-```python
-# backend/tests/visual_regression/test_canvas_regression.py (new)
-from playwright.sync_api import Page
-from percy import percy_snapshot
+[policy_definition]
+p = sub, obj, act
 
-def test_canvas_visual_regression(authenticated_page: Page):
-    """Test canvas presentation has no visual regressions."""
-    authenticated_page.goto("/canvas/test-canvas")
+[role_definition]
+g = _, _
 
-    # Capture screenshot for Percy comparison
-    percy_snapshot(authenticated_page, "canvas-presentation")
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
 ```
 
-**Integration:** `.github/workflows/visual-regression.yml`
-- Runs on PR to main
-- Percy CLI uploads screenshots
-- GitHub comment with diff URL
+### 4. Casbin Policy Example (`policy.csv`)
 
-### 4. Memory Leak Detection (memray)
+```csv
+p, super_admin, /, *
+p, owner, /, *
+p, admin, workflow, edit
+p, admin, workflow, delete
+p, workspace_admin, workflow, create
+p, workspace_admin, workflow, edit
+p, team_lead, workflow, edit
+p, team_lead, workflow, share
+p, member, workflow, view
+p, member, workflow, comment
+p, viewer, workflow, view
+p, guest, workflow, view
 
-**Current State:** No memory leak detection
-
-**New Capability:**
-```python
-# backend/tests/memory_leaks/test_agent_memory_leaks.py (new)
-from memray import Tracker
-import pytest
-
-def test_agent_execution_no_leaks():
-    """Verify agent execution doesn't leak memory."""
-    with Tracker("/tmp/agent_memory.bin") as tracker:
-        # Execute agent 100 times
-        for i in range(100):
-            execute_agent("test-agent")
-
-    # Analyze memory allocations
-    # memray flamegraph /tmp/agent_memory.bin
-    # memray summary /tmp/agent_memory.bin
-```
-
-**Integration:** Add to Phase 236 (stress testing) plans
-- Run memray before/after load tests
-- Compare memory usage
-- File bug if >100MB increase
-
-### 5. Network Chaos Simulation (Toxiproxy)
-
-**Current State:** `backend/tests/chaos/chaos_helpers.py` has mock-based failures
-
-**Enhancement Needed:** Real network chaos with Toxiproxy
-```python
-# backend/tests/chaos/test_network_chaos_toxiproxy.py (new)
-import toxiproxy
-
-def test_api_resilience_to_latency():
-    """Test API handles 500ms latency gracefully."""
-    # Create toxiproxy client
-    proxy = toxiproxy.ToxiproxyClient("http://localhost:8474")
-
-    # Create proxy
-    proxy.create_proxy("api_proxy", "localhost:8000", "localhost:8000")
-
-    # Add 500ms latency
-    proxy.toxic("api_proxy", "latency", "downstream", latency=500)
-
-    # Test API still responds
-    response = requests.get("http://localhost:8000/health/live")
-    assert response.status_code == 200
-
-    # Clean up
-    proxy.destroy_proxy("api_proxy")
-```
-
-### 6. Headless Browser Multi-Engine (Playwright)
-
-**Current State:** Chromium only (default)
-
-**Enhancement:** Test Firefox/WebKit for cross-browser bugs
-```python
-# backend/tests/cross_browser/test_canvas_multi_engine.py (new)
-import pytest
-from playwright.sync_api import Page
-
-@pytest.mark.parametrize("browser_name", ["firefox", "webkit"])
-def test_canvas_firefox_webkit(browser_name: str, page: Page):
-    """Test canvas presentation works on Firefox and WebKit."""
-    # Playwright pytest plugin handles browser launch
-    page.goto("/canvas/test-canvas")
-
-    # Verify canvas loads
-    assert page.locator("canvas").count() == 1
+g, team_lead, member
+g, admin, team_lead
+g, workspace_admin, admin
 ```
 
 ---
@@ -248,61 +377,37 @@ def test_canvas_firefox_webkit(browser_name: str, page: Page):
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| **Atheris** | libFuzzer (C++ only) | Use libFuzzer if testing C/C++ extensions, not Python code |
-| **Hypothesis** | QuickCheck (Haskell), PropEr (Erlang) | Use language-native tools if not Python |
-| **Playwright** | Selenium, Puppeteer | Selenium for legacy browser support, Puppeteer for Chrome-only |
-| **Percy** | BackstopJS, Chromatic | BackstopJS for open-source alternative, Chromatic for Storybook |
-| **memray** | tracemalloc, memory_profiler | tracemalloc for stdlib-only, memory_profiler for older Python |
-| **Toxiproxy** | Chaos Monkey, Gremlin | Chaos Monkey for Kubernetes, Gremlin for cloud-native chaos |
+| **python-socketio** | raw FastAPI WebSocket | Use raw WebSocket if you need full control over protocol (binary data, custom framing) |
+| **y-py (CRDT)** | Automerge (CRDT) | Use Automerge if you need JavaScript-only client (y-py is Python-first) |
+| **y-py (CRDT)** | OT (Operational Transformation) | Use OT if you need strict server-side control over edits (CRDT is client-centric) |
+| **Casbin** | Custom FastAPI decorators | Use custom decorators if RBAC is simple (5-10 roles, flat permissions) |
+| **Casbin** | OPA (Open Policy Agent) | Use OPA if you need complex policy language (Rego scripts, external policy service) |
+| **Redis presence** | PostgreSQL presence | Use PostgreSQL if you need SQL queries on presence data (e.g., "show users who joined < 5 min ago") |
+| **Redis presence** | Memcached presence | Use Memcached if you already have Memcached cluster (Redis pub/sub is better) |
 
 ---
 
-## What NOT to Use
+## Stack Patterns by Use Case
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| **python-fuzz** | Package doesn't exist on PyPI (removed from requirements-testing.txt) | Atheris |
-| **chaos-toolkit** | Package doesn't exist on PyPI (removed from requirements-testing.txt) | Custom chaos_helpers.py + Toxiproxy |
-| **Selenium** | Slower, less reliable than Playwright, no auto-waiting | Playwright 1.58.0+ |
-| **Puppeteer** | Chrome-only, Playwright supports Chromium/Firefox/WebKit | Playwright 1.58.0+ |
-| **unittest-chaos** | Outdated, unmaintained | pytest + chaos_helpers.py |
-| **mutmut** | Slow mutation testing (already in requirements-testing.txt but rarely used) | Focus on fuzzing/property tests instead |
-| **Bandit** | Static analysis (already in requirements-testing.txt) | Use for security, not bug discovery |
-| **pip-audit** | Dependency vulnerability scanning (already in requirements.txt) | Use for security, not functional bugs |
+**If building real-time cursor tracking:**
+- Use **Redis sorted sets** for "who's online" (ZADD with timestamp)
+- Use **WebSocket rooms** for broadcast (one msg per cursor move)
+- Because: <1ms Redis ops, room-based filtering avoids spamming all users
 
----
+**If building collaborative editing:**
+- Use **y-py CRDT** for conflict-free edits
+- Use **y-socketio** for broadcasting deltas
+- Because: No server state, offline support, proven at scale (Jupyter, Notion)
 
-## Stack Patterns by Variant
+**If building presence system:**
+- Use **Redis SETEX with TTL** (120 seconds)
+- Use **Heartbeat** every 30 seconds to extend TTL
+- Because: Automatic cleanup, no cron job needed, <1ms operation
 
-**If fuzzing Python code:**
-- Use **Atheris** with libFuzzer backend
-- Because: Coverage-guided, best-in-class for Python, Google-maintained
-- Corpus management: Save interesting inputs to `backend/tests/fuzzy_tests/corpus/`
-
-**If testing API contracts:**
-- Use **Schemathesis** (Hypothesis-powered)
-- Because: Auto-generates edge cases for OpenAPI specs, integrates with FastAPI
-- Alternative: Manual Hypothesis tests for non-OpenAPI endpoints
-
-**If visual regression testing:**
-- Use **Percy** for CI/CD integration
-- Because: GitHub integration, diff URLs, easy triage
-- Alternative: BackstopJS for open-source projects
-
-**If memory leak detection:**
-- Use **memray** for Python 3.11+
-- Because: Bloomberg-maintained, native extensions support, flamegraphs
-- Alternative: tracemalloc (stdlib) for simpler cases
-
-**If network chaos testing:**
-- Use **Toxiproxy-Python** for realistic network failures
-- Because: Proxy-based, real network conditions, not mocks
-- Alternative: chaos_helpers.py mocks for unit tests
-
-**If cross-browser testing:**
-- Use **Playwright** multi-engine (Chromium/Firefox/WebKit)
-- Because: Single API, auto-waiting, network interception
-- Alternative: Selenium for legacy IE support
+**If building RBAC:**
+- Use **Casbin** for policy engine
+- Use **FastAPI dependencies** for route protection
+- Because: Declarative policies (no code changes), audit trail, role inheritance
 
 ---
 
@@ -310,187 +415,125 @@ def test_canvas_firefox_webkit(browser_name: str, page: Page):
 
 | Package A | Compatible With | Notes |
 |-----------|-----------------|-------|
-| **atheris>=2.2.0** | Python 3.8+, requires clang/libFuzzer | Linux/macOS only, no Windows support |
-| **hypothesis>=6.151.5** | Python 3.8+, pytest 7.4+ | Downgrade to 6.92.0 if PyPI issues |
-| **schemathesis>=3.30.0** | Python 3.8+, aiohttp 3.8+ | Requires FastAPI OpenAPI spec |
-| **playwright==1.58.0** | Python 3.8+, pytest-playwright 0.5.2 | Pin to 1.58.0 for E2E stability |
-| **percy>=3.0.0** | Python 3.7+, Playwright/Selenium | Requires Percy CLI and project token |
-| **pytest-benchmark>=4.0.0** | Python 3.8+, pytest 7.0+ | Use with pytest-cov for coverage correlation |
-| **memray>=1.0.0** | Python 3.11+ only | **Critical:** Requires Python 3.11+, won't work on 3.10 |
-| **toxiproxy-python>=2.0.0** | Python 3.7+, Toxiproxy server 3.x | Requires separate Toxiproxy server process |
+| **python-socketio>=5.10.0** | Python 3.8+, FastAPI 0.104.0+, async/await | Requires `aiohttp` or `socketio-client-js` frontend |
+| **y-py>=0.6.0** | Python 3.10+, SQLite/PostgreSQL | Requires `y-py[sqlite]` bundle for persistence |
+| **y-socketio>=0.6.0** | python-socketio 5.x, y-py 0.6.x | Yjs WebSocket adapter for Socket.IO |
+| **casbin>=1.34.0** | Python 3.7+, async/await | Supports async enforcer for FastAPI |
+| **fastapi-async-casbin>=0.5.0** | FastAPI 0.100+, casbin 1.x | Dependency injection integration |
 
 ---
 
 ## Phased Rollout
 
-### Phase 1: Foundation (Week 1)
-- Install Atheris, verify existing fuzz tests run
-- Set up corpus management (`backend/tests/fuzzy_tests/corpus/`)
-- Create fuzz campaign orchestration script
+### Phase 1: Database Models (Week 1)
+- Create collaboration models in `models.py`
+- Run Alembic migration
+- Add foreign key indexes
 
-### Phase 2: Visual Regression (Week 2)
-- Install Percy CLI and Python package
-- Create baseline screenshots for critical pages
-- Integrate with CI/CD (`.github/workflows/visual-regression.yml`)
+### Phase 2: WebSocket Enhancements (Week 1-2)
+- Extend `WebSocketConnectionManager` with room support
+- Add presence tracking with Redis
+- Create `/api/v1/collaboration/join/{workflow_id}` endpoint
 
-### Phase 3: Memory Leaks (Week 3)
-- Install memray (verify Python 3.11+)
-- Create memory leak tests for agent execution
-- Add to Phase 236 stress testing plans
+### Phase 3: RBAC Integration (Week 2)
+- Install Casbin, create `model.conf` and `policy.csv`
+- Add `check_permission` dependency to routes
+- Migrate existing roles to Casbin policies
 
-### Phase 4: Network Chaos (Week 4)
-- Install Toxiproxy server and Python client
-- Enhance existing `chaos_helpers.py` with Toxiproxy integration
-- Create network chaos test suite
+### Phase 4: Collaborative Editing (Week 2-3)
+- Integrate y-py for CRDT persistence
+- Add y-socketio for delta broadcast
+- Create `/api/v1/collaboration/edit/{workflow_id}` WebSocket endpoint
 
-### Phase 5: Cross-Browser (Week 5)
-- Install Firefox/WebKit Playwright engines
-- Create cross-browser test suite for canvas
-- Integrate with CI/CD matrix strategy
-
----
-
-## Source Verification
-
-### Primary Sources (Context7/Official Docs)
-- **Atheris**: https://github.com/google/atheris (Google's official repo, 2.2k stars)
-- **Hypothesis**: https://hypothesis.works/ (official site, Python's leading PBT)
-- **Schemathesis**: https://schemathesis.readthedocs.io/ (official docs, Hypothesis-powered)
-- **Playwright**: https://playwright.dev/python/ (official docs, Microsoft-backed)
-- **Percy**: https://percy.io/integrations/python (official integration docs)
-- **memray**: https://bloomberg.github.io/memray/ (official docs, Bloomberg-maintained)
-- **pytest-benchmark**: https://pytest-benchmark.readthedocs.io/ (official docs)
-- **Toxiproxy**: https://toxiproxy.io/ (official site, chaos engineering)
-
-### Secondary Sources (Web Search - MEDIUM confidence)
-- **Fuzzing best practices**: Google OSS-Fuzz documentation
-- **Property-based testing**: Hypothesis strategies guide
-- **Visual regression**: Percy blog vs BackstopJS comparison
-- **Memory profiling**: memray vs tracemalloc benchmarks
-- **Chaos engineering**: Principles of Chaos community
-
-### Existing Codebase Analysis (HIGH confidence)
-- **Atheris integration**: `backend/tests/fuzzy_tests/fuzz_helpers.py` (already exists)
-- **Hypothesis tests**: `backend/tests/property_tests/` (100+ tests)
-- **Chaos helpers**: `backend/tests/chaos/chaos_helpers.py` (comprehensive)
-- **Playwright E2E**: `backend/tests/e2e_ui/` (91 tests, Phase 234)
-- **k6 load tests**: `backend/tests/load/` (Phase 236-01)
+### Phase 5: Testing (Week 3)
+- Unit tests for RBAC (all roles, all permissions)
+- Integration tests for WebSocket (connect, join, broadcast)
+- E2E tests for collaborative editing (2 users, simultaneous edits)
 
 ---
 
 ## Critical Gaps Identified
 
-1. **Visual Regression Testing**: COMPLETELY MISSING
-   - No screenshot comparison capability
-   - Percy integration needed for UI bug discovery
-   - **Priority**: HIGH for canvas/workflow UI bugs
+1. **Missing Database Models**: COMPLETELY MISSING
+   - Collaboration models are TODO in `collaboration_service.py` (lines 14-23)
+   - Need to create 6 models (session, comment, lock, share, audit, participant)
+   - **Priority**: CRITICAL (blocks all collaboration features)
 
-2. **Memory Leak Detection**: COMPLETELY MISSING
-   - No memory profiling in CI/CD
-   - memray integration needed for long-running agent leaks
-   - **Priority**: HIGH for daemon mode and episodic memory
+2. **Room-Based WebSocket**: BASIC
+   - `WebSocketConnectionManager` has stream-based broadcast (line 110-136)
+   - No room management for workflow-specific collaboration
+   - **Priority**: HIGH (needed for presence, cursor tracking)
 
-3. **Cross-Browser Testing**: PARTIAL
-   - Chromium only currently (Playwright default)
-   - Firefox/WebKit needed for cross-platform bugs
-   - **Priority**: MEDIUM for desktop/mobile compatibility
+3. **Redis Presence**: MISSING
+   - Redis installed but no presence implementation
+   - Need heartbeat with TTL, sorted sets for online users
+   - **Priority**: HIGH (needed for "who's online" feature)
 
-4. **Network Chaos**: MOCK-ONLY
-   - chaos_helpers.py uses mocks, not real network failures
-   - Toxiproxy needed for realistic latency/packet loss
-   - **Priority**: MEDIUM for API resilience bugs
+4. **CRDT/OT**: MISSING
+   - No conflict resolution for collaborative editing
+   - y-py integration needed
+   - **Priority**: MEDIUM (can ship without collaborative editing, but needed for simultaneous edits)
 
-5. **Corpus Management**: BASIC
-   - No fuzzing corpus persistence
-   - No crash deduplication
-   - **Priority**: LOW (existing fuzz tests still work)
-
----
-
-## Testing Strategy Matrix
-
-| Bug Type | Primary Tool | Secondary Tool | CI/CD Integration |
-|----------|--------------|----------------|-------------------|
-| **Crashes** | Atheris (fuzzing) | Hypothesis (PBT) | Nightly fuzz campaigns |
-| **Visual Regressions** | Percy (screenshots) | Playwright (visual) | PR to main |
-| **Memory Leaks** | memray (profiling) | pytest-benchmark (trends) | Weekly stress tests |
-| **API Contract Violations** | Schemathesis (OpenAPI) | Hypothesis (custom) | PR to main |
-| **Network Resilience** | Toxiproxy (chaos) | chaos_helpers.py (mocks) | Weekly chaos tests |
-| **Performance Regressions** | pytest-benchmark | k6 (load) | Weekly load tests |
-| **Cross-Browser Bugs** | Playwright (multi-engine) | Manual testing | PR to main |
-
----
-
-## Recommended Dependencies for `requirements-bug-discovery.txt`
-
-```txt
-# Automated Bug Discovery Dependencies
-# For v8.0 milestone: Discover 50+ bugs via fuzzing, chaos, PBT, visual regression
-
-# Core Fuzzing
-atheris>=2.2.0  # Coverage-guided fuzzing (Google)
-
-# Property-Based Testing (already in requirements.txt)
-# hypothesis>=6.151.5  # Keep version pin
-hypothesis>=6.92.0,<7.0.0  # Conservative pin
-
-# API Contract Testing (already in requirements-testing.txt)
-# schemathesis>=3.30.0  # Keep version pin
-
-# Visual Regression Testing
-percy>=3.0.0  # Screenshot comparison for CI/CD
-
-# Memory Leak Detection (Python 3.11+ only)
-memray>=1.0.0  # Memory profiler (Bloomberg)
-
-# Network Chaos Simulation
-toxiproxy-python>=2.0.0  # Real network failures (not mocks)
-
-# Performance Benchmarking (already in requirements-testing.txt)
-# pytest-benchmark>=4.0.0  # Keep version pin
-
-# Cross-Browser Testing (Playwright engines installed separately)
-# playwright==1.58.0  # Already pinned
-
-# Test Utilities (already in requirements.txt)
-# pytest-timeout>=2.2.0  # Already present
-# pytest-json-report>=0.6.0  # Already present
-# allure-pytest>=2.13.0  # Already present
-
-# Corpus Management
-coverage[toml]>=7.0.0  # Coverage-guided fuzzing metrics
-```
+5. **RBAC Middleware**: BASIC
+   - UserRole enum exists (8 levels)
+   - Team model exists with many-to-many user relationship
+   - No route-level permission checking
+   - **Priority**: HIGH (needed for guest access, shared workflows)
 
 ---
 
 ## Next Steps
 
-1. **Verify Python 3.11+ requirement** for memray
-   - Check CI/CD runner Python versions
-   - Upgrade if needed (Personal Edition defaults to 3.11)
+1. **Create database migration** for collaboration models
+   - `alembic revision -m "Add collaboration models"`
+   - Add 6 models with proper indexes
 
-2. **Create `requirements-bug-discovery.txt`** with above dependencies
+2. **Install python-socketio** and integrate with FastAPI
+   - Extend `websocket_manager.py` with `CollaborationWebSocketManager`
+   - Add room-based routing
 
-3. **Set up Percy project** and get API token
-   - Sign up at https://percy.io/
-   - Create project for Atom
-   - Add `PERCY_TOKEN` to GitHub secrets
+3. **Set up Casbin** with model.conf and policy.csv
+   - Map existing 8 UserRole levels to Casbin policies
+   - Add `check_permission` dependency to collaboration routes
 
-4. **Install Toxiproxy server** (separate from Python package)
-   - Download binary: https://github.com/gholland/toxiproxy/releases
-   - Run as Docker container in CI/CD
+4. **Implement Redis presence** layer
+   - Add heartbeat endpoint (POST /api/v1/collaboration/heartbeat)
+   - Use SETEX with 120s TTL, extend on every heartbeat
 
-5. **Create fuzzing corpus directory structure**
-   - `backend/tests/fuzzy_tests/corpus/`
-   - `backend/tests/fuzzy_tests/crashes/`
-   - Add to `.gitignore` (crashes/ should be committed)
-
-6. **Enhance `chaos_helpers.py`** with Toxiproxy integration
-   - Add `ToxiproxyChaosSimulator` class
-   - Keep existing mock-based simulators for unit tests
+5. **Evaluate y-py** for collaborative editing
+   - Create proof-of-concept with 2 users editing same workflow
+   - Test conflict resolution (concurrent edits to same node)
 
 ---
 
-*Stack research for: Automated Bug Discovery (Atom v8.0)*
-*Researched: March 24, 2026*
+## Sources
+
+### Existing Codebase Analysis (HIGH confidence)
+- **WebSocket manager**: `/Users/rushiparikh/projects/atom/backend/core/websocket_manager.py` (473 lines)
+- **Collaboration service**: `/Users/rushiparikh/projects/atom/backend/core/collaboration_service.py` (742 lines, TODO models)
+- **Canvas collaboration**: `/Users/rushiparikh/projects/atom/backend/core/canvas_collaboration_service.py` (840 lines)
+- **Database models**: `/Users/rushiparikh/projects/atom/backend/core/models.py` (UserRole enum, Team model)
+- **Requirements**: `/Users/rushiparikh/projects/atom/backend/requirements.txt` (Redis, FastAPI, SQLAlchemy already installed)
+
+### Official Documentation (HIGH confidence)
+- **python-socketio**: https://python-socketio.readthedocs.io/ (official docs, room management)
+- **y-py (CRDT)**: https://docs.yjs.dev/ (Yjs official docs, Python port)
+- **Casbin**: https://casbin.org/docs/overview (official docs, RBAC engine)
+- **FastAPI WebSocket**: https://fastapi.tiangolo.com/advanced/websockets/ (official docs)
+- **Redis presence patterns**: https://redis.io/docs/manual/patterns/user-sessions/ (official docs)
+
+### Industry Best Practices (MEDIUM confidence)
+- **Figma's collaboration architecture**: Engineering blog (WebSocket rooms, CRDT)
+- **Notion's real-time editing**: Yjs-based, published in technical blog
+- **Miro's presence system**: Redis-based, shared in conference talks
+- **Google Docs (legacy)**: OT-based, now migrating to CRDT
+
+### LOW confidence (no search available, rate limit)
+- Real-time collaboration patterns 2026 (web search unavailable due to rate limit)
+- RBAC best practices 2026 (web search unavailable)
+
+---
+
+*Stack research for: Atom v9.0 Collaboration & Team Management*
+*Researched: March 26, 2026*
 *Confidence: HIGH (based on existing infrastructure analysis + official documentation)*
