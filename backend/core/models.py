@@ -1,7 +1,9 @@
-
-
-
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Text, Table, JSON, UniqueConstraint, Enum as SQLEnum, Index, BigInteger, TypeDecorator, Numeric, Date
+from sqlalchemy import (
+    Column, Integer, String, DateTime, ForeignKey, Boolean, Float, Text, Index,
+    Table, JSON, MetaData, select, update, delete, func, and_, or_, not_,
+    UniqueConstraint, Enum as SQLEnum, BigInteger, TypeDecorator, Numeric, Date
+)
+from sqlalchemy.orm import relationship, sessionmaker, Session, declared_attr, DeclarativeBase
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 import uuid
 from decimal import Decimal
@@ -45,9 +47,51 @@ class UUID(TypeDecorator):
         if dialect.name == 'postgresql':
             return value
         return uuid.UUID(value) if isinstance(value, str) else value
+
+
+class JSONColumn(TypeDecorator):
+    """
+    Platform-independent JSON type.
+
+    Uses PostgreSQL JSONB type when available for better performance,
+    falls back to JSON for SQLite and other databases.
+    This enables tests to use SQLite in-memory databases while production uses PostgreSQL.
+    """
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(JSONB)
+        else:
+            return dialect.type_descriptor(JSON)
+
+
+class JSONBColumn(TypeDecorator):
+    """
+    PostgreSQL-specific JSONB type for fields that require JSONB operators.
+
+    WARNING: This type ONLY works with PostgreSQL. SQLite tests will fail.
+    Use this ONLY for fields that need:
+    - JSONB query operators (@>, ?, ?, etc.)
+    - JSONPath expressions
+    - GIN indexes for JSON queries
+
+    Examples: GraphRAG json_schema, entity metadata that needs efficient querying
+    """
+    impl = JSONB
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name != 'postgresql':
+            raise TypeError(
+                f"JSONBColumn requires PostgreSQL database, but got {dialect.name}. "
+                "Use JSONColumn instead for cross-database compatibility."
+            )
+        return dialect.type_descriptor(JSONB)
+
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
-import uuid
 import enum
 from datetime import datetime, timezone
 import os
@@ -201,7 +245,7 @@ class Workspace(Base):
     # Autonomous Agent Guardrails
     is_startup = Column(Boolean, default=False)
     learning_phase_completed = Column(Boolean, default=False)
-    metadata_json = Column(JSON, default={}) # Governance & Config
+    metadata_json = Column(JSONColumn, default={}) # Governance & Config
     internal_domains = Column(Text, nullable=True)  # JSON string: ["atom.ai", "example.com"]
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -346,12 +390,12 @@ class IntegrationCanvasNode(Base):
     integration_instance_id = Column(String, nullable=True)  # For multi-account support
     
     # Visual Properties
-    position = Column(JSON, default={"x": 0, "y": 0})
-    size = Column(JSON, default={"width": 300, "height": 200})
+    position = Column(JSONColumn, default={"x": 0, "y": 0})
+    size = Column(JSONColumn, default={"width": 300, "height": 200})
     z_index = Column(Integer, default=0)
     
     # Configuration
-    config = Column(JSON, default={})  # Integration-specific settings
+    config = Column(JSONColumn, default={})  # Integration-specific settings
     display_name = Column(String, nullable=True)
     icon_override = Column(String, nullable=True)
     
@@ -361,7 +405,7 @@ class IntegrationCanvasNode(Base):
     error_message = Column(Text, nullable=True)
     
     # Agent Assignment
-    assigned_agent_ids = Column(JSON, default=[])
+    assigned_agent_ids = Column(JSONColumn, default=[])
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -382,11 +426,11 @@ class IntegrationConnection(Base):
     connection_type = Column(String, default="trigger")  # trigger, sync, transform
     
     # Data Mapping
-    data_mapping = Column(JSON, default={})  # Field mapping rules
+    data_mapping = Column(JSONColumn, default={})  # Field mapping rules
     transform_script = Column(Text, nullable=True)  # Optional JS/Python transform
     
     # Filtering
-    filter_conditions = Column(JSON, default={})
+    filter_conditions = Column(JSONColumn, default={})
     
     # Status
     status = Column(String, default="active")
@@ -423,8 +467,8 @@ class User(Base):
     onboarding_step = Column(String, default="welcome")
     capacity_hours = Column(Float, default=40.0) # Weekly capacity
     hourly_cost_rate = Column(Float, default=0.0) # Internal labor cost
-    metadata_json = Column(JSON, nullable=True)
-    preferences = Column(JSON, default={}) # User Preferences (Phase 45)
+    metadata_json = Column(JSONColumn, nullable=True)
+    preferences = Column(JSONColumn, default={}) # User Preferences (Phase 45)
     
     # Verification (Restored)
     verification_token = Column(String, nullable=True)
@@ -437,7 +481,7 @@ class User(Base):
     # 2FA Fields
     two_factor_enabled = Column(Boolean, default=False)
     two_factor_secret = Column(String, nullable=True) # Should be encrypted in a real production app
-    two_factor_backup_codes = Column(JSON, nullable=True)
+    two_factor_backup_codes = Column(JSONColumn, nullable=True)
 
     # Relationships
     workspaces = relationship("Workspace", secondary=user_workspaces, back_populates="users")
@@ -596,7 +640,7 @@ class ShellAuditLog(Base):
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     agent_maturity_level = Column(String, nullable=False, index=True)
     command = Column(String, nullable=False)
-    args = Column(JSON, nullable=False)  # Stored as JSON array of strings
+    args = Column(JSONColumn, nullable=False)  # Stored as JSON array of strings
     working_directory = Column(String)
     exit_code = Column(Integer)
     stdout = Column(Text)
@@ -836,8 +880,8 @@ class AgentOperationTracker(Base):
     why_explanation = Column(Text, nullable=True)
     next_steps = Column(Text, nullable=True)
     
-    operation_metadata = Column(JSON, default={})
-    logs = Column(JSON, default=list) # List of log dictionaries
+    operation_metadata = Column(JSONColumn, default={})
+    logs = Column(JSONColumn, default=list) # List of log dictionaries
     
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
@@ -860,8 +904,8 @@ class AgentRequestLog(Base):
     request_id = Column(String(255), nullable=False, index=True, unique=True)
     request_type = Column(String(50), nullable=False) # permission, decision, etc
     
-    request_data = Column(JSON, nullable=False) # Full request context
-    user_response = Column(JSON, nullable=True) # User's response
+    request_data = Column(JSONColumn, nullable=False) # Full request context
+    user_response = Column(JSONColumn, nullable=True) # User's response
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     responded_at = Column(DateTime(timezone=True), nullable=True)
@@ -903,7 +947,7 @@ class OperationErrorResolution(Base):
 
     # Metadata
     operation_id = Column(String, ForeignKey("agent_operation_tracker.operation_id", ondelete="SET NULL"), nullable=True, index=True)
-    resolution_metadata = Column(JSON, default={})
+    resolution_metadata = Column(JSONColumn, default={})
 
     # Relationships
     tenant = relationship("Tenant")
@@ -929,7 +973,7 @@ class ViewOrchestrationState(Base):
     session_id = Column(String(255), nullable=False, unique=True, index=True)
 
     # View management
-    active_views = Column(JSON, nullable=False, default=list)  # List of active view configs
+    active_views = Column(JSONColumn, nullable=False, default=list)  # List of active view configs
     layout = Column(String(50), nullable=False, default="canvas")  # canvas, split_horizontal, split_vertical, tabs, grid
 
     # Control
@@ -941,7 +985,7 @@ class ViewOrchestrationState(Base):
     last_activity_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Metadata
-    orchestration_metadata = Column(JSON, default={})
+    orchestration_metadata = Column(JSONColumn, default={})
 
     # Relationships
     tenant = relationship("Tenant")
@@ -974,7 +1018,7 @@ class AgentExecution(Base):
 
     result_summary = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
-    metadata_json = Column(JSONB, default={}) # Phase 110: Extensible tracking for complexity, etc.
+    metadata_json = Column(JSONColumn, default={}) # Phase 110: Extensible tracking for complexity, etc.
 
     __table_args__ = (
         Index('idx_agent_execution_lookup', 'agent_id', 'started_at'),
@@ -1000,7 +1044,7 @@ class AgentReasoningStep(Base):
     step_type = Column(String, nullable=False) # thought, action, observation, final_answer
     
     thought = Column(Text, nullable=True)
-    action = Column(JSON, nullable=True) # {tool: str, params: dict}
+    action = Column(JSONColumn, nullable=True) # {tool: str, params: dict}
     observation = Column(Text, nullable=True)
     
     confidence = Column(Float, default=1.0)
@@ -1088,6 +1132,7 @@ class TokenUsage(Base):
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
     tenant_id = Column(String, nullable=False, index=True)
     execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
     
@@ -1113,7 +1158,7 @@ class UserIdentity(Base):
     provider_user_id = Column(String, nullable=False) # e.g. "U123456"
     provider_username = Column(String, nullable=True) # e.g. "rushiparikh"
     
-    metadata_json = Column(JSONB, default={})
+    metadata_json = Column(JSONColumn, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1137,7 +1182,7 @@ class BusinessProductService(Base):
     currency = Column(String, default="USD")
     stock_quantity = Column(Integer, default=0) # For tangible products
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -1157,7 +1202,7 @@ class BusinessRule(Base):
     applies_to = Column(String, nullable=True) # Entity or category this applies to
     is_active = Column(Boolean, default=True)
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -1171,7 +1216,7 @@ class HITLAction(Base):
     agent_id = Column(String, nullable=True) # ID of the agent that initiated the action
     action_type = Column(String, nullable=False) # e.g., "send_message"
     platform = Column(String, nullable=False) # e.g., "whatsapp", "meta"
-    params = Column(JSON, nullable=False) # Serialized action parameters
+    params = Column(JSONColumn, nullable=False) # Serialized action parameters
     
     status = Column(String, default=HITLActionStatus.PENDING.value)
     reason = Column(String, nullable=True) # e.g., "Learning Phase: External Contact"
@@ -1205,13 +1250,13 @@ class ActionProposal(Base):
     session_id = Column(String, nullable=True)
 
     action_type = Column(String, nullable=False)
-    action_data = Column(JSON, nullable=False)
+    action_data = Column(JSONColumn, nullable=False)
     description = Column(String, nullable=True)
     reason = Column(String, nullable=True)
     reversible = Column(Boolean, default=True)
 
     status = Column(String, default="pending")
-    modified_data = Column(JSON, nullable=True)
+    modified_data = Column(JSONColumn, nullable=True)
     rejection_reason = Column(String, nullable=True)
     user_guidance = Column(String, nullable=True)
     meta_guidance = Column(String, nullable=True)
@@ -1291,6 +1336,7 @@ class AgentRegistry(Base):
     
     # Ownership
     user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     
     # Governance
@@ -1300,21 +1346,21 @@ class AgentRegistry(Base):
     self_healed_count = Column(Integer, default=0)  # Track self-healing recovery
     is_system_agent = Column(Boolean, default=False)  # System agents can use workspace tokens
     enabled = Column(Boolean, default=True)  # Whether agent is available for supervision tasks
-    diversity_profile = Column(JSON, default={})  # Strategy traits (e.g., risk_profile, focus)
+    diversity_profile = Column(JSONColumn, default={})  # Strategy traits (e.g., risk_profile, focus)
 
     version = Column(String, default="1.0.0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Flexible Configuration
-    configuration = Column(JSON, default={}) # System prompts, tools, constraints
-    schedule_config = Column(JSON, default={}) # Cron expression, active status
+    configuration = Column(JSONColumn, default={}) # System prompts, tools, constraints
+    schedule_config = Column(JSONColumn, default={}) # Cron expression, active status
     
     # Training Period Configuration (Phase: AI Training Periods)
     training_period_days = Column(Integer, nullable=True)  # Custom training duration
     training_started_at = Column(DateTime(timezone=True), nullable=True)  # When training began
     training_ends_at = Column(DateTime(timezone=True), nullable=True)  # When training completes
-    training_config = Column(JSON, default={})  # Milestones, AI estimates, custom settings
+    training_config = Column(JSONColumn, default={})  # Milestones, AI estimates, custom settings
 
     # Graduation & Promotion Tracking (Phase: Episodic Memory & Graduation)
     last_promotion_at = Column(DateTime(timezone=True), nullable=True)  # Last promotion date
@@ -1345,7 +1391,7 @@ class BlockedTriggerContext(Base):
     # Trigger Source
     trigger_source = Column(String, nullable=False, index=True)  # MANUAL, DATA_SYNC, WORKFLOW_ENGINE, AI_COORDINATOR
     trigger_type = Column(String, nullable=False)  # agent_message, workflow_trigger, etc.
-    trigger_context = Column(JSON, nullable=False)  # Full trigger payload
+    trigger_context = Column(JSONColumn, nullable=False)  # Full trigger payload
 
     # Routing Decision
     routing_decision = Column(String, nullable=False)  # training, proposal, supervision, execution
@@ -1386,7 +1432,7 @@ class SupervisionSession(Base):
     # Trigger Context
     trigger_id = Column(String, ForeignKey("blocked_triggers.id"), nullable=True, index=True)
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
-    trigger_context = Column(JSON, nullable=False)  # Original trigger context
+    trigger_context = Column(JSONColumn, nullable=False)  # Original trigger context
 
     # Session Status
     status = Column(String, default=SupervisionStatus.RUNNING.value, index=True)
@@ -1401,8 +1447,8 @@ class SupervisionSession(Base):
     intervention_count = Column(Integer, default=0)
 
     # Interventions (JSON array of intervention records)
-    interventions = Column(JSON, default=list)
-    agent_actions = Column(JSON, default=list)
+    interventions = Column(JSONColumn, default=list)
+    agent_actions = Column(JSONColumn, default=list)
 
     # Outcomes
     supervisor_rating = Column(Integer, nullable=True)
@@ -1449,14 +1495,14 @@ class TrainingSession(Base):
 
     # Supervision
     supervisor_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    supervisor_guidance = Column(JSON, nullable=True)  # Guidance provided during training
+    supervisor_guidance = Column(JSONColumn, nullable=True)  # Guidance provided during training
 
     # Training Progress
     tasks_completed = Column(Integer, default=0)  # Number of training tasks completed
     total_tasks = Column(Integer, nullable=True)  # Total tasks in training plan
 
     # Outcomes
-    outcomes = Column(JSON, nullable=True)  # Summary of what was accomplished
+    outcomes = Column(JSONColumn, nullable=True)  # Summary of what was accomplished
     performance_score = Column(Float, nullable=True)  # 0.0 to 1.0
     errors_count = Column(Integer, default=0)  # Number of errors during training
     supervisor_feedback = Column(Text, nullable=True)
@@ -1466,8 +1512,8 @@ class TrainingSession(Base):
     promoted_to_intern = Column(Boolean, default=False)  # Whether training led to promotion
 
     # Capability Development
-    capabilities_developed = Column(JSON, nullable=True)  # List of capabilities gained
-    capability_gaps_remaining = Column(JSON, nullable=True)  # Gaps still remaining
+    capabilities_developed = Column(JSONColumn, nullable=True)  # List of capabilities gained
+    capability_gaps_remaining = Column(JSONColumn, nullable=True)  # Gaps still remaining
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
@@ -1532,7 +1578,7 @@ class AgentLearning(Base):
 
     # Learning Parameters
     learning_rate = Column(Float, default=0.01)
-    parameters_json = Column(JSONB, nullable=True)
+    parameters_json = Column(JSONColumn, nullable=True)
 
     last_updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -1556,9 +1602,9 @@ class AgentHandoff(Base):
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Handoff details
-    context = Column(JSONB, nullable=True)  # Context passed between agents
-    input_schema = Column(JSONB, nullable=True)  # Expected input schema
-    output_schema = Column(JSONB, nullable=True) # Expected output schema
+    context = Column(JSONColumn, nullable=True)  # Context passed between agents
+    input_schema = Column(JSONColumn, nullable=True)  # Expected input schema
+    output_schema = Column(JSONColumn, nullable=True) # Expected output schema
     reason = Column(Text, nullable=True)  # Why the handoff occurred
     status = Column(String(20), nullable=False)  # pending, accepted, rejected, completed
     rejection_reason = Column(Text, nullable=True)
@@ -1569,7 +1615,7 @@ class AgentHandoff(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Result
-    result = Column(JSONB, nullable=True)  # Final result from handoff
+    result = Column(JSONColumn, nullable=True)  # Final result from handoff
 
     # Relationships
     from_agent = relationship("AgentRegistry", foreign_keys=[from_agent_id], backref="initiated_handoffs")
@@ -1633,7 +1679,7 @@ class StrategyContribution(Base):
     strategy_id = Column(String, ForeignKey("coordinated_strategies.id", ondelete="CASCADE"), nullable=False, index=True)
     agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
     specialty = Column(String, nullable=False)
-    content = Column(JSONB, nullable=False)  # The actual strategic input
+    content = Column(JSONColumn, nullable=False)  # The actual strategic input
     status = Column(String, default="proposed")  # proposed, debated, final
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -1690,10 +1736,10 @@ class GovernanceDocument(Base):
     if PGVECTOR_AVAILABLE:
         embedding = Column(Vector(EMBEDDING_DIM), nullable=True)
     else:
-        embedding = Column(JSON, nullable=True)
+        embedding = Column(JSONColumn, nullable=True)
         
     # Metadata for filtering
-    metadata_json = Column(JSONB, default={})
+    metadata_json = Column(JSONColumn, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1716,7 +1762,7 @@ class AgentFeedEvent(Base):
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
     event_type = Column(String, nullable=False, index=True)
     message = Column(Text, nullable=False)
-    data = Column(JSON, nullable=True)
+    data = Column(JSONColumn, nullable=True)
     importance = Column(Integer, nullable=False, default=1, index=True)  # 0=low, 1=normal, 2=high
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.utcnow(), nullable=False, index=True)
 
@@ -1797,8 +1843,8 @@ class IntegrationCatalog(Base):
     native_id = Column(String, nullable=True)
     
     # Store actions/triggers as JSON for flexibility
-    triggers = Column(JSON, default=list)
-    actions = Column(JSON, default=list)
+    triggers = Column(JSONColumn, default=list)
+    actions = Column(JSONColumn, default=list)
     
     popular = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -1817,7 +1863,7 @@ class UserConnection(Base):
     connection_name = Column(String, nullable=False) # User-defined name
     
     # Encrypted credentials JSON
-    credentials = Column(JSON, nullable=False)
+    credentials = Column(JSONColumn, nullable=False)
     
     status = Column(String, default="active") # active, expired, revoked
     last_used = Column(DateTime(timezone=True), nullable=True)
@@ -1883,7 +1929,7 @@ class KnowledgeDocument(Base):
     title = Column(String(500), nullable=True)
     content = Column(Text, nullable=False, default="")
     doc_type = Column(String(50), default="text")  # text, pdf, url
-    metadata_json = Column(JSON, default=dict)
+    metadata_json = Column(JSONColumn, default=dict)
     chunk_count = Column(Integer, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1899,9 +1945,9 @@ class IngestionSettings(Base):
     
     enabled = Column(Boolean, default=False)
     auto_sync_new_files = Column(Boolean, default=True)
-    file_types = Column(JSON, default=list) # ["pdf", "docx"]
-    sync_folders = Column(JSON, default=list)
-    exclude_folders = Column(JSON, default=list)
+    file_types = Column(JSONColumn, default=list) # ["pdf", "docx"]
+    sync_folders = Column(JSONColumn, default=list)
+    exclude_folders = Column(JSONColumn, default=list)
     max_file_size_mb = Column(Integer, default=50)
     sync_frequency_minutes = Column(Integer, default=60)
     
@@ -1923,7 +1969,7 @@ class IntegrationMetric(Base):
     metric_key = Column(String, nullable=False) # "total_revenue", "pipeline_count", "lead_conversion_rate"
     
     # Store value as JSON to handle scalars (10.5) or time-series ([{date: v}, ...])
-    value = Column(JSON, nullable=False) 
+    value = Column(JSONColumn, nullable=False) 
     
     unit = Column(String, default="count") # "usd", "percent", "count"
     timeframe = Column(String, default="current") # "30d", "current"
@@ -1945,7 +1991,7 @@ class GraphNode(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False) # e.g., 'person', 'task', 'document'
     description = Column(Text, nullable=True)
-    properties = Column(JSONB, default={}) # Flexible metadata
+    properties = Column(JSONColumn, default={}) # Flexible metadata
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1973,7 +2019,7 @@ class GraphEdge(Base):
     
     relationship_type = Column(String, nullable=False) # e.g., 'manages', 'blocks'
     weight = Column(Float, default=1.0)
-    properties = Column(JSONB, default={})
+    properties = Column(JSONColumn, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -1998,7 +2044,7 @@ class GraphCommunity(Base):
     
     level = Column(Integer, default=0) # Hierarchy level
     summary = Column(Text, nullable=False) # LLM-generated summary
-    keywords = Column(JSONB, default=list) # Top keywords for indexing
+    keywords = Column(JSONColumn, default=list) # Top keywords for indexing
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -2031,7 +2077,7 @@ class Intervention(Base):
     action_type = Column(String, nullable=False)
     platform = Column(String, nullable=True)
     reason = Column(Text, nullable=True)
-    params = Column(JSON, default={})
+    params = Column(JSONColumn, default={})
     status = Column(String, default="pending")
     agent_id = Column(String, nullable=True)
     workspace_id = Column(String, nullable=True)
@@ -2063,8 +2109,8 @@ class WorkflowTemplate(Base):
     icon = Column(String(50), nullable=False)
 
     # Template definition (stored as JSON)
-    steps = Column(JSON, nullable=False, default=list)
-    input_schema = Column(JSON, nullable=True)
+    steps = Column(JSONColumn, nullable=False, default=list)
+    input_schema = Column(JSONColumn, nullable=True)
 
     # Template settings
     is_public = Column(Boolean, default=False, index=True)
@@ -2094,7 +2140,7 @@ class DesktopSession(Base):
     hostname = Column(String(255), nullable=True)
     platform = Column(String(50), nullable=True)
     version = Column(String(20), nullable=True)
-    capabilities = Column(JSON, nullable=True)  # List of supported tools/features
+    capabilities = Column(JSONColumn, nullable=True)  # List of supported tools/features
     
     status = Column(String, default="active")  # active, inactive, disconnected
     last_active = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -2127,7 +2173,7 @@ class SupportTicket(Base):
     status = Column(String, default=TicketStatus.OPEN.value)
     priority = Column(String, default=TicketPriority.MEDIUM.value)
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -2144,7 +2190,7 @@ class TicketMessage(Base):
     content = Column(Text, nullable=False)
     is_internal = Column(Boolean, default=False)
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -2164,7 +2210,7 @@ class UnifiedCommunication(Base):
     body = Column(Text, nullable=False)
     internal = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    metadata_json = Column(JSON)  # Additional data like attachments, headers, etc.
+    metadata_json = Column(JSONColumn)  # Additional data like attachments, headers, etc.
 
     tenant = relationship("Tenant")
 
@@ -2176,10 +2222,10 @@ class DesktopCommand(Base):
     session_id = Column(String, ForeignKey("desktop_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     
     command = Column(String(255), nullable=False)
-    payload = Column(JSON, nullable=True)
+    payload = Column(JSONColumn, nullable=True)
     
     status = Column(String(50), default="pending")  # pending, sent, completed, failed
-    result = Column(JSON, nullable=True)
+    result = Column(JSONColumn, nullable=True)
     error = Column(Text, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -2202,13 +2248,13 @@ class UnifiedCalendarEvent(Base):
     start_time = Column(DateTime, nullable=False)
     end_time = Column(DateTime, nullable=False)
     location = Column(String(255))
-    attendees = Column(JSON)  # List of attendees with emails, names, RSVP status
+    attendees = Column(JSONColumn)  # List of attendees with emails, names, RSVP status
     status = Column(String(50))  # 'confirmed', 'tentative', 'cancelled'
     recurrence_rule = Column(String(255))  # iCal RRULE if recurring
     conference_url = Column(String(500))  # Meeting link
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    meta_data = Column(JSON)  # Provider-specific data
+    meta_data = Column(JSONColumn)  # Provider-specific data
 
     tenant = relationship("Tenant")
 
@@ -2232,10 +2278,10 @@ class SSOConfiguration(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     provider = Column(String(50), nullable=False)  # 'saml', 'oidc', 'azure-ad', 'okta', etc.
-    config = Column(JSON, nullable=False)  # Provider-specific config (endpoints, certs, etc.)
+    config = Column(JSONColumn, nullable=False)  # Provider-specific config (endpoints, certs, etc.)
     enabled = Column(Boolean, default=True)
     domain_mapping = Column(String(255))  # Optional: domain for auto-provisioning
-    role_mapping = Column(JSON)  # Map SSO roles to platform roles
+    role_mapping = Column(JSONColumn)  # Map SSO roles to platform roles
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_sync_at = Column(DateTime)
@@ -2256,7 +2302,7 @@ class SCIMConfiguration(Base):
     last_sync_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    meta_data = Column(JSON)  # Provider-specific configuration
+    meta_data = Column(JSONColumn)  # Provider-specific configuration
 
     tenant = relationship("Tenant")
 
@@ -2275,8 +2321,8 @@ class CommunicationComment(Base):
     internal = Column(Boolean, default=False)  # Internal-only comment
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    mentions = Column(JSON)  # List of mentioned user IDs
-    attachments = Column(JSON)  # Comment attachments
+    mentions = Column(JSONColumn)  # List of mentioned user IDs
+    attachments = Column(JSONColumn)  # Comment attachments
 
     tenant = relationship("Tenant")
     parent = relationship("CommunicationComment", remote_side=[id], foreign_keys=[parent_comment_id], backref="replies")
@@ -2307,11 +2353,11 @@ class Skill(Base):
     type = Column(String, nullable=False)  # api, function, script, docker, container
 
     # API / Function Schema
-    input_schema = Column(JSON, nullable=False, default=dict)
-    output_schema = Column(JSON, nullable=True)
+    input_schema = Column(JSONColumn, nullable=False, default=dict)
+    output_schema = Column(JSONColumn, nullable=True)
 
     # config: { url, method, headers } or { script } or { image, command }
-    config = Column(JSON, nullable=False, default=dict)
+    config = Column(JSONColumn, nullable=False, default=dict)
 
     # Marketplace metadata
     is_public = Column(Boolean, default=False)
@@ -2320,7 +2366,7 @@ class Skill(Base):
 
     # Categories & tags
     category = Column(String(50), nullable=True)  # productivity, finance, communication, etc.
-    tags = Column(JSON, nullable=True)  # List of tags for better discoverability
+    tags = Column(JSONColumn, nullable=True)  # List of tags for better discoverability
 
     # Pricing
     price = Column(Float, default=0.0)  # Price in USD (0 = free)
@@ -2350,8 +2396,8 @@ class Skill(Base):
     rejection_reason = Column(Text, nullable=True)
 
     # Dependencies
-    dependencies = Column(JSON, nullable=True)  # List of skill IDs this depends on
-    environment_vars = Column(JSON, nullable=True)  # Required environment variables
+    dependencies = Column(JSONColumn, nullable=True)  # List of skill IDs this depends on
+    environment_vars = Column(JSONColumn, nullable=True)  # Required environment variables
 
     # Code/storage
     code = Column(Text, nullable=True)  # Inline code for function/script types
@@ -2361,17 +2407,17 @@ class Skill(Base):
     openclaw_source_url = Column(String(500), nullable=True)  # GitHub URL to SKILL.md
     openclaw_skill_md = Column(Text, nullable=True)  # Original SKILL.md content
     openclaw_author = Column(String(255), nullable=True)  # Original author from SKILL.md
-    openclaw_metadata = Column(JSON, nullable=True)  # Full parsed YAML frontmatter
-    openclaw_dependencies = Column(JSON, nullable=True)  # Parsed dependencies from parser
+    openclaw_metadata = Column(JSONColumn, nullable=True)  # Full parsed YAML frontmatter
+    openclaw_dependencies = Column(JSONColumn, nullable=True)  # Parsed dependencies from parser
 
     # Security scanning fields (for Phase 43)
     safety_level = Column(String(20), default="UNKNOWN")  # SAFE, LOW_RISK, MEDIUM_RISK, HIGH_RISK, BLOCKED
     scan_status = Column(String(20), default="PENDING")  # PENDING, SCANNED, APPROVED
 
     # Package dependencies (for Phase 60)
-    python_packages = Column(JSON, nullable=True)  # Python package specs: [{"name": "pandas", "version": ">=2.0.0", "index": "pypi"}]
-    npm_packages = Column(JSON, nullable=True)  # npm package specs: [{"name": "axios", "version": "^1.6.0", "registry": "npm"}]
-    packages_installed = Column(JSON, nullable=True)  # Tracking installed packages: {"python": ["pandas"], "npm": ["axios"], "installed_at": "2026-02-19T..."}
+    python_packages = Column(JSONColumn, nullable=True)  # Python package specs: [{"name": "pandas", "version": ">=2.0.0", "index": "pypi"}]
+    npm_packages = Column(JSONColumn, nullable=True)  # npm package specs: [{"name": "axios", "version": "^1.6.0", "registry": "npm"}]
+    packages_installed = Column(JSONColumn, nullable=True)  # Tracking installed packages: {"python": ["pandas"], "npm": ["axios"], "installed_at": "2026-02-19T..."}
     installation_error = Column(Text, nullable=True)  # Installation failure diagnostics
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -2402,11 +2448,11 @@ class SkillVersion(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     type = Column(String, nullable=False)
-    input_schema = Column(JSON, nullable=False, default=dict)
-    output_schema = Column(JSON, nullable=True)
-    config = Column(JSON, nullable=False, default=dict)
+    input_schema = Column(JSONColumn, nullable=False, default=dict)
+    output_schema = Column(JSONColumn, nullable=True)
+    config = Column(JSONColumn, nullable=False, default=dict)
     code = Column(Text, nullable=True)
-    dependencies = Column(JSON, nullable=True)
+    dependencies = Column(JSONColumn, nullable=True)
 
     # Release info
     is_stable = Column(Boolean, default=False)  # Marked as stable release
@@ -2433,7 +2479,7 @@ class SkillInstallation(Base):
     # Installation details
     installed_version = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)  # Can be disabled without uninstalling
-    config_overrides = Column(JSON, nullable=True)  # Tenant-specific config overrides
+    config_overrides = Column(JSONColumn, nullable=True)  # Tenant-specific config overrides
 
     # Usage tracking
     executions = Column(Integer, default=0)
@@ -2495,7 +2541,7 @@ class AgentSkill(Base):
     agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), primary_key=True)
     skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), primary_key=True)
     enabled = Column(Boolean, default=True)
-    config_overrides = Column(JSON, nullable=True)
+    config_overrides = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     agent = relationship("AgentRegistry", backref="assigned_skills")
@@ -2523,8 +2569,8 @@ class SkillExecution(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
 
     status = Column(String, default="pending")  # pending, running, completed, failed
-    input_params = Column(JSON, nullable=True)
-    output_result = Column(JSON, nullable=True)
+    input_params = Column(JSONColumn, nullable=True)
+    output_result = Column(JSONColumn, nullable=True)
     error_message = Column(Text, nullable=True)
 
     # ACU Billing (1 ACU = 1 second of compute)
@@ -2545,11 +2591,11 @@ class SkillExecution(Base):
 
     # Community Skills tracking (Phase 14, Migration: 20260216_community_skills)
     skill_source = Column(String, default='cloud', nullable=True)  # 'cloud' or 'community'
-    security_scan_result = Column(JSON, nullable=True)  # LLM security scan results
+    security_scan_result = Column(JSONColumn, nullable=True)  # LLM security scan results
     sandbox_enabled = Column(Boolean, default=False, nullable=True)  # Docker sandbox flag
 
     # Audit provenance tracking (Phase 45-02, SKILL-26)
-    audit_metadata = Column(JSON, nullable=True)  # ShellSession-style provenance tracking
+    audit_metadata = Column(JSONColumn, nullable=True)  # ShellSession-style provenance tracking
 
     # Legacy timing (ms for non-compute skills like API calls)
     execution_time_ms = Column(Integer, nullable=True)
@@ -2581,8 +2627,8 @@ class SkillComposition(Base):
     version = Column(String, default="1.0.0")
 
     # Workflow configuration
-    input_schema = Column(JSON, nullable=True)  # Expected workflow input
-    output_schema = Column(JSON, nullable=True)  # Workflow output structure
+    input_schema = Column(JSONColumn, nullable=True)  # Expected workflow input
+    output_schema = Column(JSONColumn, nullable=True)  # Workflow output structure
 
     # Execution tracking
     total_executions = Column(Integer, default=0)
@@ -2616,11 +2662,11 @@ class SkillCompositionStep(Base):
     skill_id = Column(String, ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Input/output mapping
-    input_mapping = Column(JSON, nullable=True)  # Map workflow state to skill input
-    output_mapping = Column(JSON, nullable=True)  # Map skill output to workflow state
+    input_mapping = Column(JSONColumn, nullable=True)  # Map workflow state to skill input
+    output_mapping = Column(JSONColumn, nullable=True)  # Map skill output to workflow state
 
     # Conditional execution
-    condition = Column(JSON, nullable=True)  # {"field": "status", "operator": "eq", "value": "success"}
+    condition = Column(JSONColumn, nullable=True)  # {"field": "status", "operator": "eq", "value": "success"}
     parallel = Column(Boolean, default=False)  # Execute in parallel with next step
 
     # Error handling
@@ -2648,24 +2694,24 @@ class SkillCompositionExecution(Base):
     workspace_id = Column(String, default="default")
 
     # Workflow definition and validation
-    workflow_definition = Column(JSON, nullable=False)  # List of steps as dicts
+    workflow_definition = Column(JSONColumn, nullable=False)  # List of steps as dicts
     validation_status = Column(String, default="pending")  # pending, valid, invalid
 
     # Execution status
     status = Column(String, default="pending")  # pending, running, completed, failed, rolled_back
     current_step = Column(String, nullable=True)
-    completed_steps = Column(JSON, nullable=False, default=list)  # List of step_ids
+    completed_steps = Column(JSONColumn, nullable=False, default=list)  # List of step_ids
 
     # Execution results
-    execution_results = Column(JSON, nullable=True)  # Step results
-    final_output = Column(JSON, nullable=True)  # Final workflow output
+    execution_results = Column(JSONColumn, nullable=True)  # Step results
+    final_output = Column(JSONColumn, nullable=True)  # Final workflow output
 
     # Error handling
     error_message = Column(Text, nullable=True)
 
     # Rollback tracking
     rollback_performed = Column(Boolean, default=False)
-    rollback_steps = Column(JSON, nullable=True)  # List of step_ids in reverse order
+    rollback_steps = Column(JSONColumn, nullable=True)  # List of step_ids in reverse order
 
     # Timing
     started_at = Column(DateTime(timezone=True), nullable=False)
@@ -2695,7 +2741,7 @@ class AgentMessage(Base):
     priority = Column(String(20), default="normal")  # low, normal, high, urgent
     subject = Column(String(255), nullable=True)  # Message subject
     content = Column(Text, nullable=False)  # Message body
-    metadata_json = Column(JSON, nullable=True)  # Additional context
+    metadata_json = Column(JSONColumn, nullable=True)  # Additional context
 
     # Task context (for coordinated workflows)
     task_id = Column(String, nullable=True, index=True)  # Parent task/workflow ID
@@ -2750,11 +2796,11 @@ class SwarmTask(Base):
     # Status tracking
     status = Column(String(50), default="pending")  # pending, running, completed, failed, cancelled
     progress = Column(Float, default=0.0)  # 0-100
-    result = Column(JSON, nullable=True)  # Aggregated result from all agents
+    result = Column(JSONColumn, nullable=True)  # Aggregated result from all agents
 
     # Agent assignments
-    required_capabilities = Column(JSON, nullable=True)  # Required agent capabilities
-    assigned_agents = Column(JSON, nullable=True)  # List of agent IDs
+    required_capabilities = Column(JSONColumn, nullable=True)  # Required agent capabilities
+    assigned_agents = Column(JSONColumn, nullable=True)  # List of agent IDs
 
     # Timing
     started_at = Column(DateTime(timezone=True), nullable=True)
@@ -2801,7 +2847,7 @@ class DeepLinkAudit(Base):
 
     # Full context
     deeplink_url = Column(Text, nullable=False)
-    parameters = Column(JSON, nullable=True)
+    parameters = Column(JSONColumn, nullable=True)
 
     # Results
     status = Column(String, default="success")  # success, failed, error
@@ -2844,7 +2890,7 @@ class DesktopAction(Base):
     
     action_type = Column(String(50), nullable=False)  # 'tool_execution', 'file_access', 'shell_command', etc.
     action_name = Column(String(255), nullable=False)
-    metadata_json = Column(JSON, nullable=True)  # Using JSON for flexibility
+    metadata_json = Column(JSONColumn, nullable=True)  # Using JSON for flexibility
     
     success = Column(Boolean, default=True)
     duration_ms = Column(Integer, default=0)
@@ -2882,8 +2928,8 @@ class Canvas(Base):
     canvas_type = Column(String(50), default="document")  # document, spreadsheet, email, presentation, custom
 
     # Content storage
-    content = Column(JSON, nullable=True)  # Canvas content (structure, text, etc.)
-    style = Column(JSON, nullable=True)  # Custom CSS/styling
+    content = Column(JSONColumn, nullable=True)  # Canvas content (structure, text, etc.)
+    style = Column(JSONColumn, nullable=True)  # Custom CSS/styling
 
     # Collaboration settings
     is_collaborative = Column(Boolean, default=True)
@@ -2939,7 +2985,7 @@ class CanvasAudit(Base):
     episode_id = Column(String(255), ForeignKey("agent_episodes.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Action details (JSON for flexibility)
-    details_json = Column(JSON, nullable=True)  # Action-specific data
+    details_json = Column(JSONColumn, nullable=True)  # Action-specific data
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
@@ -2978,7 +3024,7 @@ class BrowserSession(Base):
     status = Column(String, server_default="active", nullable=True)
     current_url = Column(Text, nullable=True)
     page_title = Column(Text, nullable=True)
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     governance_check_passed = Column(Boolean, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     closed_at = Column(DateTime(timezone=True), nullable=True)
@@ -3013,11 +3059,11 @@ class BrowserAudit(Base):
     endpoint = Column(String(200), nullable=False)
 
     # Request/Response tracking
-    request_params = Column(JSON, nullable=True)  # Input parameters
-    action_params = Column(JSON, nullable=True)  # Alias for request_params
-    response_summary = Column(JSON, nullable=True)  # Output summary
+    request_params = Column(JSONColumn, nullable=True)  # Input parameters
+    action_params = Column(JSONColumn, nullable=True)  # Alias for request_params
+    response_summary = Column(JSONColumn, nullable=True)  # Output summary
     result_summary = Column(Text, nullable=True)  # Human-readable result
-    result_data = Column(JSON, nullable=True)  # Structured result data
+    result_data = Column(JSONColumn, nullable=True)  # Structured result data
 
     # Status and governance
     status_code = Column(Integer, nullable=True)  # HTTP-like status code
@@ -3038,7 +3084,7 @@ class BrowserAudit(Base):
     duration_ms = Column(Integer, nullable=True)  # Operation duration in milliseconds
 
     # Metadata
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
 
     # Relationships
     agent = relationship("AgentRegistry", foreign_keys=[agent_id])
@@ -3054,7 +3100,7 @@ class BrowserAudit(Base):
 #     name = Column(String, nullable=False)
 #     type = Column(String, nullable=False) # 'code', 'markdown', etc.
 #     content = Column(Text, nullable=False)
-#     metadata_json = Column(JSON, default={})
+#     metadata_json = Column(JSONColumn, default={})
 #     
 #     version = Column(Integer, default=1)
 #     is_locked = Column(Boolean, default=False)
@@ -3080,7 +3126,7 @@ class ArtifactVersion(Base):
     version = Column(Integer, nullable=False)
     
     content = Column(Text, nullable=False)
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
     
     author_id = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -3110,8 +3156,8 @@ class DeviceNode(Base):
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
 
     # Capabilities (JSON list of strings)
-    capabilities = Column(JSON, default=[]) # e.g. ["browser", "terminal", "file_system"]
-    capabilities_detailed = Column(JSON, nullable=True)  # Detailed capability info
+    capabilities = Column(JSONColumn, default=[]) # e.g. ["browser", "terminal", "file_system"]
+    capabilities_detailed = Column(JSONColumn, nullable=True)  # Detailed capability info
 
     # Platform information
     platform = Column(String, nullable=True)  # darwin, windows, linux
@@ -3124,10 +3170,10 @@ class DeviceNode(Base):
     version = Column(String, nullable=True)  # Legacy, keep for compatibility
 
     # Hardware information
-    hardware_info = Column(JSON, nullable=True)  # CPU, RAM, GPU, etc.
+    hardware_info = Column(JSONColumn, nullable=True)  # CPU, RAM, GPU, etc.
 
     # Metadata
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
 
     # App type (desktop, mobile, menubar)
     app_type = Column(String, default="desktop")
@@ -3168,11 +3214,11 @@ class DeviceAudit(Base):
     endpoint = Column(String(200), nullable=False)
 
     # Request/Response tracking
-    request_params = Column(JSON, nullable=True)  # Input parameters
-    action_params = Column(JSON, nullable=True)  # Alias for request_params, used by device_tool.py
-    response_summary = Column(JSON, nullable=True)  # Output summary
+    request_params = Column(JSONColumn, nullable=True)  # Input parameters
+    action_params = Column(JSONColumn, nullable=True)  # Alias for request_params, used by device_tool.py
+    response_summary = Column(JSONColumn, nullable=True)  # Output summary
     result_summary = Column(Text, nullable=True)  # Alias for response_summary text
-    result_data = Column(JSON, nullable=True)  # Structured result data
+    result_data = Column(JSONColumn, nullable=True)  # Structured result data
 
     # Status and governance
     status_code = Column(Integer, nullable=True)  # HTTP-like status code
@@ -3192,7 +3238,7 @@ class DeviceAudit(Base):
     governance_check_passed = Column(Boolean, nullable=True)  # Whether governance check passed
 
     # Metadata
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
 
 
 class DeviceSession(Base):
@@ -3222,8 +3268,8 @@ class DeviceSession(Base):
     status = Column(String(50), default="active", index=True)  # active, stopped, error
 
     # Configuration
-    configuration = Column(JSON, nullable=True)  # Session configuration (resolution, etc.)
-    capabilities = Column(JSON, nullable=True)  # Device capabilities for this session
+    configuration = Column(JSONColumn, nullable=True)  # Session configuration (resolution, etc.)
+    capabilities = Column(JSONColumn, nullable=True)  # Device capabilities for this session
 
     # Timestamps
     started_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -3231,11 +3277,11 @@ class DeviceSession(Base):
     last_activity = Column(DateTime(timezone=True), server_default=func.now())
 
     # Output tracking
-    output_files = Column(JSON, default=[])  # List of generated file paths
+    output_files = Column(JSONColumn, default=[])  # List of generated file paths
     total_duration_seconds = Column(Integer, nullable=True)
 
     # Metadata
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
 
 
 class MenuBarAudit(Base):
@@ -3260,8 +3306,8 @@ class MenuBarAudit(Base):
     endpoint = Column(String(200), nullable=False)
 
     # Request/Response tracking
-    request_params = Column(JSON, nullable=True)  # Input parameters
-    response_summary = Column(JSON, nullable=True)  # Output summary
+    request_params = Column(JSONColumn, nullable=True)  # Input parameters
+    response_summary = Column(JSONColumn, nullable=True)  # Output summary
 
     # Results
     success = Column(Boolean, nullable=False, default=False, index=True)
@@ -3304,12 +3350,12 @@ class CanvasComponent(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     category = Column(String(50), nullable=False)  # 'chart', 'table', 'form', 'widget', 'media', 'layout', etc.
-    tags = Column(JSON, nullable=True)  # Tags for better discoverability
+    tags = Column(JSONColumn, nullable=True)  # Tags for better discoverability
 
     # Component definition
     component_type = Column(String(50), nullable=False)  # 'html', 'react', 'vue', 'custom'
     code = Column(Text, nullable=False)  # HTML/CSS/JS or React component code
-    config_schema = Column(JSON, nullable=True)  # JSON schema for component props
+    config_schema = Column(JSONColumn, nullable=True)  # JSON schema for component props
     preview_url = Column(String(500), nullable=True)  # Screenshot or preview URL
     thumbnail_url = Column(String(500), nullable=True)
     demo_url = Column(String(500), nullable=True)  # Live demo URL
@@ -3334,8 +3380,8 @@ class CanvasComponent(Base):
     rating_count = Column(Integer, default=0)
 
     # Dependencies
-    dependencies = Column(JSON, nullable=True)  # NPM packages or CDN links
-    css_dependencies = Column(JSON, nullable=True)
+    dependencies = Column(JSONColumn, nullable=True)  # NPM packages or CDN links
+    css_dependencies = Column(JSONColumn, nullable=True)
 
     # Canvas-Skill Integration
     required_skill_id = Column(String, ForeignKey("skills.id", ondelete="SET NULL"), nullable=True, index=True)  # Skill that component requires
@@ -3376,8 +3422,8 @@ class ComponentInstallation(Base):
     component_id = Column(String, ForeignKey("canvas_components.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Instance configuration
-    config = Column(JSON, nullable=True)  # Component props for this instance
-    position = Column(JSON, nullable=True)  # { x, y, width, height }
+    config = Column(JSONColumn, nullable=True)  # Component props for this instance
+    position = Column(JSONColumn, nullable=True)  # { x, y, width, height }
     z_index = Column(Integer, default=0)
 
     # Timestamps
@@ -3453,9 +3499,9 @@ class CanvasTemplate(Base):
     category = Column(String(50), nullable=True)
 
     # Template snapshot
-    canvas_snapshot = Column(JSON, nullable=False)  # Full canvas state
-    component_installations = Column(JSON, nullable=True)  # List of installed components
-    styles = Column(JSON, nullable=True)  # Custom CSS
+    canvas_snapshot = Column(JSONColumn, nullable=False)  # Full canvas state
+    component_installations = Column(JSONColumn, nullable=True)  # List of installed components
+    styles = Column(JSONColumn, nullable=True)  # Custom CSS
 
     # Metadata
     is_public = Column(Boolean, default=False)
@@ -3487,7 +3533,7 @@ class Workflow(Base):
     tenant_id = Column(String, ForeignKey('tenants.id', ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(String, ForeignKey('users.id'), nullable=True)
     status = Column(String, default="active")
-    configuration = Column(JSON, nullable=True)
+    configuration = Column(JSONColumn, nullable=True)
     usage_count = Column(Integer, default=0)
     last_run_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -3519,7 +3565,7 @@ class WorkflowStep(Base):
     type = Column(String, nullable=False)
     connector_id = Column(String, nullable=True)
     operation_id = Column(String, nullable=True)
-    parameters = Column(JSON, nullable=True)
+    parameters = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -3566,7 +3612,7 @@ class OAuthState(Base):
     redirect_uri = Column(String, nullable=True)
 
     # Additional provider-specific data
-    extra_data = Column(JSON, nullable=True)
+    extra_data = Column(JSONColumn, nullable=True)
 
     # Relationships
     tenant = relationship("Tenant", backref="oauth_states")
@@ -3662,16 +3708,17 @@ class AgentMemory(Base):
     __tablename__ = 'agent_memories'
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
     tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
     
     # Memory content
     content = Column(Text, nullable=False)
-    embedding = Column(JSON(Float), nullable=True)  # Vector embedding for similarity search
+    embedding = Column(JSONColumn, nullable=True)  # Vector embedding for similarity search
     memory_type = Column(String, default='semantic')  # semantic, episodic, procedural
     
     # Metadata
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     importance_score = Column(Float, default=0.5)  # 0-1, used for forgetting
     access_count = Column(Integer, default=0)  # Used for memory reinforcement
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)
@@ -3709,8 +3756,8 @@ class CognitiveExperience(Base):
     outcome = Column(String, nullable=False, index=True)  # success, failure, partial
     
     # Learning data
-    learnings = Column(JSON, nullable=True)  # Key insights from this experience
-    cognitive_metrics = Column(JSON, nullable=True)  # Performance metrics
+    learnings = Column(JSONColumn, nullable=True)  # Key insights from this experience
+    cognitive_metrics = Column(JSONColumn, nullable=True)  # Performance metrics
     effectiveness_score = Column(Float, nullable=True)  # 0-1, how effective was this approach
     
     # Timestamps
@@ -3745,7 +3792,7 @@ class CommunicationSuggestion(Base):
 
     # Original context for reference
     original_content = Column(Text, nullable=True)
-    context_data = Column(JSON, nullable=True)  # Related entities, deals, etc.
+    context_data = Column(JSONColumn, nullable=True)  # Related entities, deals, etc.
 
     # User feedback
     user_feedback = Column(Text, nullable=True)
@@ -3780,7 +3827,7 @@ class Notification(Base):
     title = Column(String(500), nullable=False)
     message = Column(Text, nullable=False)
     type = Column(String(50), nullable=False, default='info')  # info, warning, error, success
-    metadata_json = Column(JSON, nullable=True)  # Additional context
+    metadata_json = Column(JSONColumn, nullable=True)  # Additional context
 
     # Status
     read = Column(Boolean, nullable=False, default=False, index=True)
@@ -3854,7 +3901,7 @@ class Artifact(Base):
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)  # 'code', 'markdown', etc.
     content = Column(Text, nullable=False)
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
 
     version = Column(Integer, default=1)
     is_locked = Column(Boolean, default=False)
@@ -3891,7 +3938,7 @@ class ArtifactComment(Base):
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
 
     content = Column(Text, nullable=False)
-    metadata_json = Column(JSON, default={})  # For attachments, formatting, etc.
+    metadata_json = Column(JSONColumn, default={})  # For attachments, formatting, etc.
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -3963,7 +4010,7 @@ class AgentEpisode(Base):
     status = Column(String(20), nullable=False, default="active", index=True)  # active, completed, failed, cancelled
 
     # Metadata
-    metadata_json = Column(JSONB, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
 
     # Vector embedding for semantic search (pgvector)
     # Use dynamic Vector dimension if pgvector is available, otherwise fall back to JSON
@@ -3981,7 +4028,7 @@ class AgentEpisode(Base):
     session_id = Column(String(255), nullable=True, index=True) # Links to ChatSession
 
     # Canvas linkage (NEW - Feb 2026)
-    canvas_ids = Column(JSON, default=list) # List of CanvasAudit IDs
+    canvas_ids = Column(JSONColumn, default=list) # List of CanvasAudit IDs
     canvas_action_count = Column(Integer, default=0) # Total canvas actions in episode
 
     # Supervision System Integration (Phase: Supervision-Learning Integration)
@@ -3994,16 +4041,16 @@ class AgentEpisode(Base):
 
     # Additional supervision metadata for retrieval service
     supervisor_rating = Column(Integer, nullable=True, comment='Supervisor rating 1-5 for this episode')
-    intervention_types = Column(JSON, nullable=True, comment='List of intervention types (human_correction, guidance, termination)')
+    intervention_types = Column(JSONColumn, nullable=True, comment='List of intervention types (human_correction, guidance, termination)')
     supervision_feedback = Column(Text, nullable=True, comment='Detailed feedback from supervisor')
 
     # Feedback linkage (NEW - Feb 2026)
-    feedback_ids = Column(JSON, default=list) # List of AgentFeedback IDs
+    feedback_ids = Column(JSONColumn, default=list) # List of AgentFeedback IDs
     aggregate_feedback_score = Column(Float, nullable=True) # -1.0 to 1.0 aggregate score
 
     # Content
-    topics = Column(JSONB, default=list) # Extracted topics
-    entities = Column(JSONB, default=list) # Named entities
+    topics = Column(JSONColumn, default=list) # Extracted topics
+    entities = Column(JSONColumn, default=list) # Named entities
     importance_score = Column(Float, default=0.5, index=True) # 0.0 to 1.0
 
     # Lifecycle
@@ -4093,7 +4140,7 @@ class EpisodeSegment(Base):
     source_id = Column(String(255), nullable=True)
 
     # Canvas presentation context for semantic understanding
-    canvas_context = Column(JSON, nullable=True, comment='Canvas presentation context (canvas_type, presentation_summary, critical_data_points, visual_elements)')
+    canvas_context = Column(JSONColumn, nullable=True, comment='Canvas presentation context (canvas_type, presentation_summary, critical_data_points, visual_elements)')
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -4150,15 +4197,15 @@ class GraduationExam(Base):
     # Skill performance scores (Stage 6)
     skill_mastery_score = Column(Float, nullable=True)  # Overall skill mastery
     skill_diversity_score = Column(Float, nullable=True)  # Skill diversity metric
-    skills_used = Column(JSON, nullable=True)  # List of skill_id used
+    skills_used = Column(JSONColumn, nullable=True)  # List of skill_id used
 
     # Edge case simulation results
-    edge_case_results = Column(JSON, nullable=True)  # Detailed results per edge case
+    edge_case_results = Column(JSONColumn, nullable=True)  # Detailed results per edge case
     edge_cases_passed = Column(Integer, default=0)
     edge_cases_total = Column(Integer, default=5)
 
     # Constitutional check results
-    constitutional_violations = Column(JSON, nullable=True)  # List of violations found
+    constitutional_violations = Column(JSONColumn, nullable=True)  # List of violations found
     constitutional_check_passed = Column(Boolean, default=False)
 
     # Exam outcome
@@ -4168,7 +4215,7 @@ class GraduationExam(Base):
     failure_reason = Column(Text, nullable=True)
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
@@ -4231,8 +4278,8 @@ class EdgeCaseLibrary(Base):
     # Test case definition
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    test_input = Column(JSON, nullable=False)  # Input that triggers the edge case
-    expected_behavior = Column(JSON, nullable=False)  # Expected correct behavior
+    test_input = Column(JSONColumn, nullable=False)  # Input that triggers the edge case
+    expected_behavior = Column(JSONColumn, nullable=False)  # Expected correct behavior
     violation_type = Column(String(100), nullable=False, index=True)  # Type of violation this tests
 
     # Test statistics
@@ -4338,8 +4385,8 @@ class SaaSTier(Base):
     overage_rate_api = Column(Float, default=0.01)
     overage_rate_storage = Column(Float, default=0.50)
     
-    pricing_config = Column(JSON, nullable=True)
-    features_config = Column(JSON, default={})
+    pricing_config = Column(JSONColumn, nullable=True)
+    features_config = Column(JSONColumn, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -4355,7 +4402,7 @@ class UsageEvent(Base):
     quantity = Column(Float, default=1.0)
     
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
 
 class Formula(Base):
     """
@@ -4372,8 +4419,8 @@ class Formula(Base):
     description = Column(Text, nullable=True)
     domain = Column(String, default="general")  # finance, sales, marketing, general
 
-    parameters = Column(JSON, default=list)  # List of parameter definitions
-    dependencies = Column(JSON, default=list)  # List of formula IDs this depends on
+    parameters = Column(JSONColumn, default=list)  # List of parameter definitions
+    dependencies = Column(JSONColumn, default=list)  # List of formula IDs this depends on
 
     # Usage tracking
     usage_count = Column(Integer, default=0)
@@ -4417,7 +4464,7 @@ class FormulaFeedback(Base):
     custom_expression = Column(Text, nullable=True)  # If user modified it
 
     # Context
-    context = Column(JSON, nullable=True)  # Spreadsheet context, cell range, etc.
+    context = Column(JSONColumn, nullable=True)  # Spreadsheet context, cell range, etc.
     suggested_for = Column(Text, nullable=True)  # What query triggered this suggestion
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -4437,7 +4484,7 @@ class EcommerceStore(Base):
     access_token = Column(String, nullable=True)
     
     is_active = Column(Boolean, default=True)
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -4458,9 +4505,9 @@ class EcommerceCustomer(Base):
     risk_score = Column(Float, default=0.0)
     risk_level = Column(String, default="low")
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     is_b2b = Column(Boolean, default=False)
-    pricing_config = Column(JSON, nullable=True)
+    pricing_config = Column(JSONColumn, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -4492,7 +4539,7 @@ class EcommerceOrder(Base):
     ledger_transaction_id = Column(String, nullable=True)
     is_ledger_synced = Column(Boolean, default=False)
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -4515,7 +4562,7 @@ class EcommerceOrderItem(Base):
     price_list_id = Column(String, nullable=True)
     tax_amount = Column(Float, default=0.0)
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     order = relationship("EcommerceOrder", back_populates="items")
 
 class Subscription(Base):
@@ -4539,7 +4586,7 @@ class Subscription(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     tier_id = Column(String, ForeignKey("saas_tiers.id"), nullable=True)
-    current_period_usage = Column(JSON, nullable=True)
+    current_period_usage = Column(JSONColumn, nullable=True)
 
     customer = relationship("EcommerceCustomer", back_populates="subscriptions")
     orders = relationship("EcommerceOrder", back_populates="subscription")
@@ -4556,7 +4603,7 @@ class SubscriptionAudit(Base):
     previous_mrr = Column(Float, default=0.0)
     new_mrr = Column(Float, default=0.0)
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     subscription = relationship("Subscription", back_populates="audit_logs")
 
@@ -4616,7 +4663,7 @@ class MarketingChannel(Base):
     type = Column(SQLEnum(ChannelType), nullable=False)
     status = Column(String, default="active")
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class AdSpendEntry(Base):
@@ -4633,7 +4680,7 @@ class AdSpendEntry(Base):
     impressions = Column(Integer, default=0)
     clicks = Column(Integer, default=0)
     
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class AttributionEvent(Base):
@@ -4652,7 +4699,7 @@ class AttributionEvent(Base):
     campaign = Column(String, nullable=True)
     
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
 
 # Import service delivery models from their dedicated module
 from service_delivery.models import (
@@ -4681,7 +4728,7 @@ class ClientHealthScore(Base):
     usage_score = Column(Float, default=0.0)
     
     calculated_at = Column(DateTime(timezone=True), server_default=func.now())
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
 
 class ResourceRole(Base):
     __tablename__ = "intelligence_resource_roles"
@@ -4716,8 +4763,8 @@ class BusinessScenario(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     
-    parameters_json = Column(JSON, nullable=True)
-    impact_json = Column(JSON, nullable=True)
+    parameters_json = Column(JSONColumn, nullable=True)
+    impact_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class WorkflowExecutionLog(Base):
@@ -4743,9 +4790,9 @@ class WorkflowExecutionLog(Base):
     message = Column(Text, nullable=True)
     timestamp = Column(DateTime(timezone=True), default=func.now())
     
-    trigger_data = Column(JSON, nullable=True)
-    results = Column(JSON, nullable=True)
-    meta_info = Column(JSON, nullable=True)
+    trigger_data = Column(JSONColumn, nullable=True)
+    results = Column(JSONColumn, nullable=True)
+    meta_info = Column(JSONColumn, nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -4761,7 +4808,7 @@ class DebugVariable(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
     variable_name = Column(String(255), nullable=False)
-    variable_value = Column(JSON, nullable=True)
+    variable_value = Column(JSONColumn, nullable=True)
     timestamp = Column(DateTime(timezone=True), nullable=False)
     captured_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -4782,7 +4829,7 @@ class ExecutionTrace(Base):
     step_id = Column(String(255), nullable=False)
     trace_type = Column(String(50), nullable=False)  # info/debug/error
     message = Column(Text, nullable=True)
-    trace_metadata = Column(JSON, nullable=True)  # Renamed from 'metadata' (reserved)
+    trace_metadata = Column(JSONColumn, nullable=True)  # Renamed from 'metadata' (reserved)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship
@@ -4821,7 +4868,7 @@ class WorkflowDebugSession(Base):
     workflow_execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=True, index=True)
     session_type = Column(String(50), nullable=False)  # interactive/automated
     status = Column(String(50), nullable=False)  # active/paused/completed
-    breakpoints = Column(JSON, nullable=True, default=list)
+    breakpoints = Column(JSONColumn, nullable=True, default=list)
     current_step = Column(String(255), nullable=True)
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     ended_at = Column(DateTime(timezone=True), nullable=True)
@@ -4870,7 +4917,7 @@ class SESEmailEvent(Base):
     from_email = Column(String(255))
 
     # Event details
-    event_data = Column(JSON)
+    event_data = Column(JSONColumn)
     timestamp = Column(DateTime(timezone=True), nullable=False)
     processed = Column(Boolean, default=False)
 
@@ -4953,8 +5000,8 @@ class DebugEvent(Base):
     parent_event_id = Column(String, nullable=True, index=True)  # For event chains
     level = Column(String(20), nullable=True)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
     message = Column(Text, nullable=True)  # Log message
-    data = Column(JSON, nullable=True)  # Full event data
-    event_metadata = Column(JSON, nullable=True)  # Tags, labels, additional context
+    data = Column(JSONColumn, nullable=True)  # Full event data
+    event_metadata = Column(JSONColumn, nullable=True)  # Tags, labels, additional context
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
     def __repr__(self):
@@ -4976,11 +5023,11 @@ class DebugInsight(Base):
     title = Column(String(200), nullable=True)
     description = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
-    evidence = Column(JSON, nullable=True)  # Evidence data
+    evidence = Column(JSONColumn, nullable=True)  # Evidence data
     confidence_score = Column(Float, default=0.5)  # 0.0 to 1.0
-    suggestions = Column(JSON, nullable=True)  # List of suggestion strings
+    suggestions = Column(JSONColumn, nullable=True)  # List of suggestion strings
     scope = Column(String(50), nullable=True)  # component, system, distributed
-    affected_components = Column(JSON, nullable=True)  # List of affected components
+    affected_components = Column(JSONColumn, nullable=True)  # List of affected components
     resolved = Column(Boolean, default=False, index=True)
     generated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
@@ -5010,7 +5057,7 @@ class CommunicationChannel(Base):
     # Configuration
     is_active = Column(Boolean, default=True)
     is_two_way = Column(Boolean, default=False)  # Can agents send messages back?
-    config = Column(JSON, nullable=True)  # Platform-specific config (webhook URL, tokens, etc.)
+    config = Column(JSONColumn, nullable=True)  # Platform-specific config (webhook URL, tokens, etc.)
 
     # Routing
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)  # Default agent for this channel
@@ -5069,9 +5116,9 @@ class UnifiedMessage(Base):
     response_sent_at = Column(DateTime(timezone=True), nullable=True)
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True)  # Platform-specific metadata
-    attachments = Column(JSON, nullable=True)  # List of attachments
-    mentions = Column(JSON, nullable=True)  # List of mentioned users
+    metadata_json = Column(JSONColumn, nullable=True)  # Platform-specific metadata
+    attachments = Column(JSONColumn, nullable=True)  # List of attachments
+    mentions = Column(JSONColumn, nullable=True)  # List of mentioned users
 
     # Timestamps
     platform_timestamp = Column(DateTime(timezone=True), nullable=True)  # Original timestamp from platform
@@ -5149,7 +5196,7 @@ class MessageTemplate(Base):
     language = Column(String(10), default="en")  # ISO language code
 
     # Variables
-    variables = Column(JSON, nullable=True)  # List of variable names and descriptions
+    variables = Column(JSONColumn, nullable=True)  # List of variable names and descriptions
 
     # State
     is_active = Column(Boolean, default=True)
@@ -5181,7 +5228,7 @@ class ScheduledMessage(Base):
     # Content
     content = Column(Text, nullable=False)  # Message content (or rendered template)
     template_id = Column(String, ForeignKey("message_templates.id"), nullable=True)
-    template_variables = Column(JSON, nullable=True)  # Variables for template rendering
+    template_variables = Column(JSONColumn, nullable=True)  # Variables for template rendering
 
     # Scheduling
     scheduled_at = Column(DateTime(timezone=True), nullable=False)  # Next scheduled delivery
@@ -5197,7 +5244,7 @@ class ScheduledMessage(Base):
 
     # Context
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True)
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -5261,8 +5308,8 @@ class Device(Base):
     tailscale_ip = Column(String(45), nullable=True)
 
     # Capabilities
-    capabilities = Column(JSON, nullable=True, default=list)  # ["terminal", "docker", "browser"]
-    tags = Column(JSON, nullable=True, default=list)  # ["production", "us-east-1"]
+    capabilities = Column(JSONColumn, nullable=True, default=list)  # ["terminal", "docker", "browser"]
+    tags = Column(JSONColumn, nullable=True, default=list)  # ["production", "us-east-1"]
 
     # SSH keys
     ssh_public_key = Column(Text, nullable=True)
@@ -5273,7 +5320,7 @@ class Device(Base):
     last_heartbeat = Column(DateTime(timezone=True), nullable=True)
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True, default={})  # Tailscale auth key, etc.
+    metadata_json = Column(JSONColumn, nullable=True, default={})  # Tailscale auth key, etc.
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -5299,7 +5346,7 @@ class DeviceAttestation(Base):
     attestation_type = Column(String(50), nullable=False)  # initial, tpm, certificate
 
     # TPM attestation data
-    certificate_data = Column(JSON, nullable=True)
+    certificate_data = Column(JSONColumn, nullable=True)
     tpm_version = Column(String(50), nullable=True)
     secure_boot_enabled = Column(Boolean, nullable=True)
     hardware_hash = Column(String(255), nullable=True)
@@ -5319,22 +5366,26 @@ class MobileDevice(Base):
     __tablename__ = "mobile_devices"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    device_token = Column(String, nullable=False, unique=True)
-    platform = Column(String, nullable=False)  # ios, android, web
-    status = Column(String, default="active")  # active, inactive, disabled
+    # Multi-tenant isolation
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
 
     # Device information
-    device_info = Column(JSON, default=dict)  # {model, os_version, app_version, etc.}
+    device_info = Column(JSONColumn, default=dict)  # {model, os_version, app_version, etc.}
 
     # Notification preferences
     notification_enabled = Column(Boolean, default=True)
-    notification_preferences = Column(JSON, default=dict)  # {agent_alerts, system_alerts, etc.}
+    notification_preferences = Column(JSONColumn, default=dict)  # {agent_alerts, system_alerts, etc.}
 
     # Biometric authentication support
     biometric_public_key = Column(Text, nullable=True)  # Public key for signature verification
     biometric_enabled = Column(Boolean, default=False)  # Whether biometric auth is enabled
     last_biometric_auth = Column(DateTime(timezone=True), nullable=True)  # Last successful biometric auth
+    
+    # Ownership and Token
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
+    device_token = Column(String(512), nullable=True, unique=True)
+    platform = Column(String(50), nullable=True) # ios, android, web
+    status = Column(String(20), default="active") # active, inactive, revoked
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -5342,14 +5393,7 @@ class MobileDevice(Base):
 
     # Relationships
     user = relationship("User", backref="mobile_devices")
-
-    # Indexes
-    __table_args__ = (
-        Index('ix_mobile_devices_user_id', 'user_id'),
-        Index('ix_mobile_devices_device_token', 'device_token'),
-        Index('ix_mobile_devices_platform', 'platform'),
-        Index('ix_mobile_devices_status', 'status'),
-    )
+    tenant = relationship("Tenant")
 
 
 class UserTask(Base):
@@ -5367,12 +5411,12 @@ class UserTask(Base):
     priority = Column(String(50), default="medium")
     due_date = Column(DateTime(timezone=True), nullable=True)
     
-    tags = Column(JSON, default=[])
+    tags = Column(JSONColumn, default=[])
     estimated_hours = Column(Float, default=0.0)
     actual_hours = Column(Float, default=0.0)
     color = Column(String(10), default="#3182CE")
     
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -5406,7 +5450,7 @@ class Task(Base):
 
     # Task definition
     type = Column(String(50), nullable=False)  # terminal, docker, browser, etc.
-    data = Column(JSON, nullable=False)  # Task-specific data
+    data = Column(JSONColumn, nullable=False)  # Task-specific data
 
     # Priority and status
     priority = Column(String(20), default="medium")  # low, medium, high, urgent
@@ -5414,7 +5458,7 @@ class Task(Base):
 
     # Device assignment
     assigned_device_id = Column(String, ForeignKey("devices.id"), nullable=True, index=True)
-    required_capabilities = Column(JSON, nullable=True, default=list)
+    required_capabilities = Column(JSONColumn, nullable=True, default=list)
 
     # Timeout and retry
     timeout_seconds = Column(Integer, default=300)
@@ -5425,7 +5469,7 @@ class Task(Base):
     error_message = Column(Text, nullable=True)
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True, default={})  # workflow_id, etc.
+    metadata_json = Column(JSONColumn, nullable=True, default={})  # workflow_id, etc.
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -5457,7 +5501,7 @@ class TaskExecution(Base):
     duration_seconds = Column(Integer, nullable=True)
 
     # Result
-    result = Column(JSON, nullable=True)  # Output, exit code, etc.
+    result = Column(JSONColumn, nullable=True)  # Output, exit code, etc.
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -5500,7 +5544,7 @@ class Machine(Base):
     headscale_name = Column(String(255), nullable=True)  # Headscale hostname
 
     # Remote desktop configuration
-    guacamole_config = Column(JSON, nullable=True)  # Guacamole connection params
+    guacamole_config = Column(JSONColumn, nullable=True)  # Guacamole connection params
     rdp_port = Column(Integer, nullable=True)
     vnc_port = Column(Integer, nullable=True)
 
@@ -5510,8 +5554,8 @@ class Machine(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Metadata
-    tags = Column(JSON, nullable=True)  # Flexible tagging system
-    metadata_json = Column(JSON, nullable=True)  # Additional machine-specific data
+    tags = Column(JSONColumn, nullable=True)  # Flexible tagging system
+    metadata_json = Column(JSONColumn, nullable=True)  # Additional machine-specific data
 
     # Relationships
     tenant = relationship("Tenant", backref="machines")
@@ -5542,7 +5586,7 @@ class GuacamoleSession(Base):
     session_type = Column(String(50), default="rdp")  # rdp, vnc, ssh
 
     # Connection details
-    connection_params = Column(JSON, nullable=True)  # Protocol-specific settings
+    connection_params = Column(JSONColumn, nullable=True)  # Protocol-specific settings
 
     # Fly.io ephemeral container details
     fly_machine_id = Column(String(255), nullable=True)  # Fly.io machine ID
@@ -5563,7 +5607,7 @@ class GuacamoleSession(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
 
     # Relationships
     machine = relationship("Machine", backref="session")
@@ -5685,7 +5729,7 @@ class PausedAgentTask(Base):
     original_status = Column(String(50), nullable=True)
 
     # Pause reason with fact_id, fact_text, citation_path, verification_failed_at
-    pause_reason = Column(JSON, nullable=False)
+    pause_reason = Column(JSONColumn, nullable=False)
 
     # Timing
     paused_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -5694,12 +5738,12 @@ class PausedAgentTask(Base):
     verification_status = Column(String(50), default="pending", nullable=False)  # pending, in_progress, verified, failed
     verification_attempts = Column(Integer, default=0, nullable=False)
     last_verified_at = Column(DateTime(timezone=True), nullable=True)
-    verification_result = Column(JSON, nullable=True)  # Store verification details
+    verification_result = Column(JSONColumn, nullable=True)  # Store verification details
 
     # Resume tracking
     resume_status = Column(String(50), default="pending", nullable=False)  # pending, ready, resumed, failed, cancelled
     resumed_at = Column(DateTime(timezone=True), nullable=True)
-    resume_result = Column(JSON, nullable=True)  # Store resume details
+    resume_result = Column(JSONColumn, nullable=True)  # Store resume details
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -5753,7 +5797,7 @@ class CitationVerificationBatch(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Detailed results
-    results_json = Column(JSON, nullable=True)
+    results_json = Column(JSONColumn, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -5786,7 +5830,7 @@ class ScheduledSocialPost(Base):
     # Post details
     platform = Column(String(20), nullable=False)  # 'twitter', 'linkedin', 'facebook', 'instagram'
     content = Column(Text, nullable=False)
-    media_urls = Column(JSON, nullable=True)  # Array of media URLs (images/videos)
+    media_urls = Column(JSONColumn, nullable=True)  # Array of media URLs (images/videos)
 
     # Scheduling
     scheduled_time = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -5807,7 +5851,7 @@ class ScheduledSocialPost(Base):
     qstash_scheduled = Column(Boolean, default=False, nullable=False)  # True if scheduled in QStash
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True)  # Additional platform-specific data
+    metadata_json = Column(JSONColumn, nullable=True)  # Additional platform-specific data
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -5847,7 +5891,7 @@ class SocialPost(Base):
     author_id = Column(String(255), nullable=False, index=True)
     post_type = Column(SQLEnum(PostType, values_callable=lambda obj: [e.value for e in obj]), nullable=False, index=True)
     content = Column(Text, nullable=False)  # Post content (will be sanitized per SOCIAL-10)
-    post_metadata = Column(JSON, nullable=True)  # Additional structured data (renamed from metadata to avoid SQLAlchemy reserved word)
+    post_metadata = Column(JSONColumn, nullable=True)  # Additional structured data (renamed from metadata to avoid SQLAlchemy reserved word)
     created_at = Column(DateTime(timezone=True), nullable=False, index=True, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -5912,10 +5956,10 @@ class DebugLog(Base):
     category = Column(String(100), nullable=True, index=True)  # 'execution', 'memory', 'governance', 'llm', 'integration'
     event_type = Column(String(255), nullable=False, index=True)  # Specific event: 'agent_start', 'memory_recall', etc.
     message = Column(Text, nullable=False)
-    data = Column(JSON, nullable=True)  # Additional structured data
+    data = Column(JSONColumn, nullable=True)  # Additional structured data
     duration_ms = Column(Float, nullable=True)  # Duration in milliseconds
-    error = Column(JSON, nullable=True)  # Error details: {type, message, stack_trace}
-    correlations = Column(JSON, nullable=True)  # Related IDs for cross-node tracing
+    error = Column(JSONColumn, nullable=True)  # Error details: {type, message, stack_trace}
+    correlations = Column(JSONColumn, nullable=True)  # Related IDs for cross-node tracing
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Indexes
@@ -5949,7 +5993,7 @@ class UserAvailability(Base):
     manual_override = Column(Boolean, nullable=False, default=False)
     away_threshold_seconds = Column(Integer, nullable=False, default=300)  # 5 minutes
     offline_threshold_seconds = Column(Integer, nullable=False, default=900)  # 15 minutes
-    active_sessions = Column(JSON, nullable=True)
+    active_sessions = Column(JSONColumn, nullable=True)
     override_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -5982,7 +6026,7 @@ class AgentEvolutionTrace(Base):
     
     # GEA Lineage
     parent_agent_id = Column(String(255), ForeignKey('agent_registry.id', ondelete='SET NULL'), nullable=True)
-    parent_agent_ids = Column(JSON, nullable=True)  # List of parent IDs for group evolution
+    parent_agent_ids = Column(JSONColumn, nullable=True)  # List of parent IDs for group evolution
     ancestor_count = Column(Integer, default=0)
     
     generation = Column(Integer, nullable=False, default=0)
@@ -5995,14 +6039,14 @@ class AgentEvolutionTrace(Base):
     combined_selection_score = Column(Float, nullable=True)
     
     # Experience Pool Data
-    tool_use_log = Column(JSON, nullable=True)
+    tool_use_log = Column(JSONColumn, nullable=True)
     task_log = Column(Text, nullable=True)
     evolving_requirements = Column(Text, nullable=True)  # Final aggregated directives
     
     # Evolution Changes
-    config_diff = Column(JSON, nullable=True)  # Changes from parent config
+    config_diff = Column(JSONColumn, nullable=True)  # Changes from parent config
     model_patch = Column(Text, nullable=True)   # Suggested code/prompt changes
-    evolution_metadata = Column(JSON, nullable=True)  # Additional evolution metadata
+    evolution_metadata = Column(JSONColumn, nullable=True)  # Additional evolution metadata
     
     # Evaluation
     benchmark_passed = Column(Boolean, default=False)
@@ -6047,7 +6091,7 @@ class AgentProposal(Base):
     description = Column(Text, nullable=True)
     
     proposal_type = Column(SQLEnum('action', 'workflow', 'analysis', name='proposaltype'), nullable=False)
-    proposal_data = Column(JSON, nullable=False)
+    proposal_data = Column(JSONColumn, nullable=False)
     status = Column(SQLEnum('pending_approval', 'approved', 'rejected', 'cancelled', 'executed', 'execution_failed', name='proposalstatus'), nullable=False, default='pending_approval')
     
     reversible = Column(Boolean, default=True)
@@ -6069,7 +6113,7 @@ class AgentProposal(Base):
 
     # Supervision Learning Integration (Phase: Supervision-Learning Integration)
     supervision_outcome_recorded = Column(Boolean, nullable=False, server_default='false', comment='Whether supervision outcome has been recorded to learning systems')
-    supervision_metadata = Column(JSON, nullable=True, comment='Extended supervision context (supervisor reasoning, risk assessment, etc.)')
+    supervision_metadata = Column(JSONColumn, nullable=True, comment='Extended supervision context (supervisor reasoning, risk assessment, etc.)')
     supervisor_confidence = Column(Float, nullable=True, comment='Supervisor confidence in their decision (0.0 to 1.0)')
     execution_success = Column(Boolean, nullable=True, comment='Did the execution succeed after approval?')
     execution_outcome_details = Column(Text, nullable=True, comment='Details if execution failed (error message, failure reason, etc.)')
@@ -6150,7 +6194,7 @@ class PackageInstallation(Base):
     version = Column(String(100), nullable=False)
     maturity_level_at_install = Column(String(50), nullable=False)
     vulnerabilities_found = Column(Integer, default=0)
-    vulnerability_details = Column(JSON, nullable=True)
+    vulnerability_details = Column(JSONColumn, nullable=True)
     installation_status = Column(String(50), nullable=False, default="pending")
     error_message = Column(Text, nullable=True)
     installed_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -6189,8 +6233,8 @@ class OAuthClient(Base):
     homepage_url = Column(String(500), nullable=True)
 
     # OAuth configuration
-    redirect_uris = Column(JSON, nullable=False)  # List of allowed redirect URIs
-    allowed_scopes = Column(JSON, nullable=False, default=lambda: ["marketplace:read"])
+    redirect_uris = Column(JSONColumn, nullable=False)  # List of allowed redirect URIs
+    allowed_scopes = Column(JSONColumn, nullable=False, default=lambda: ["marketplace:read"])
     is_public_client = Column(Boolean, default=False)  # Public clients (no secret)
 
     # Owner (who registered this app)
@@ -6375,7 +6419,7 @@ class SDLCAgentConfig(Base):
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     agent_type = Column(String(20), nullable=False)  # planner, coder, tester, reviewer, deployer
     enabled = Column(Boolean, default=False, nullable=False)
-    config = Column(JSON, default={}, nullable=True)  # Type-specific configuration
+    config = Column(JSONColumn, default={}, nullable=True)  # Type-specific configuration
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -6412,7 +6456,7 @@ class SDLCAuditLog(Base):
     approval_required = Column(Boolean, nullable=True)  # Whether approval was needed
     approved_by = Column(String(255), nullable=True)  # Approver identifier
     approved_at = Column(DateTime(timezone=True), nullable=True)  # Approval timestamp
-    constitutional_violations = Column(JSON, nullable=True)  # List of violations if any
+    constitutional_violations = Column(JSONColumn, nullable=True)  # List of violations if any
     episode_id = Column(String, ForeignKey("agent_episodes.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
@@ -6481,8 +6525,8 @@ class PullRequestReview(Base):
     branch_name = Column(String(255), nullable=False)
     target_branch = Column(String(255), default="main", nullable=False)
     diff_text = Column(Text, nullable=True)
-    static_analysis_results = Column(JSON, nullable=True)
-    llm_review_results = Column(JSON, nullable=True)
+    static_analysis_results = Column(JSONColumn, nullable=True)
+    llm_review_results = Column(JSONColumn, nullable=True)
     overall_assessment = Column(String(50), nullable=False)  # 'approve', 'request_changes', 'comment'
     critical_issues = Column(Integer, default=0, nullable=False)
     high_issues = Column(Integer, default=0, nullable=False)
@@ -6533,7 +6577,7 @@ class DeploymentRecord(Base):
     rollback_triggered_at = Column(DateTime(timezone=True), nullable=True)
     rollback_reason = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
-    deployment_metrics = Column(JSON, nullable=True)
+    deployment_metrics = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
@@ -6740,7 +6784,7 @@ class ACUConsumption(Base):
     acu_cost = Column(Numeric(10, 4), nullable=False)
 
     # Raw metrics from Fly.io
-    raw_metrics = Column(JSON, nullable=True)
+    raw_metrics = Column(JSONColumn, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -6818,7 +6862,7 @@ class ACUUsageReport(Base):
     report_type = Column(String(20), nullable=False)  # 'daily', 'weekly', 'monthly'
 
     # Report data
-    project_breakdown = Column(JSON, nullable=True)  # {project_id: {acu, cost}}
+    project_breakdown = Column(JSONColumn, nullable=True)  # {project_id: {acu, cost}}
     quota_usage_percent = Column(Numeric(5, 2), nullable=True)
     forecast_overage = Column(Boolean, nullable=True)
 
@@ -6956,10 +7000,10 @@ class SmartHomeDevice(Base):
 
     # Device capabilities (JSON array)
     # ['on_off', 'brightness', 'color', 'color_temperature', 'thermostat', 'lock', 'motion', 'temperature']
-    capabilities = Column(JSON, default=list)
+    capabilities = Column(JSONColumn, default=list)
 
     # Current device state (dynamic properties)
-    state = Column(JSON, default=dict)
+    state = Column(JSONColumn, default=dict)
 
     # Device metadata
     manufacturer = Column(String(255))
@@ -7018,13 +7062,13 @@ class SmartHomeAutomationRule(Base):
     # TAP Pattern: Trigger -> Condition(s) -> Action(s)
     # Trigger: What initiates the rule
     trigger_type = Column(String(50), nullable=False)  # 'state', 'time', 'event', 'geolocation'
-    trigger_config = Column(JSON, nullable=False)  # Trigger-specific configuration
+    trigger_config = Column(JSONColumn, nullable=False)  # Trigger-specific configuration
 
     # Conditions: Optional filters (AND/OR/NOT logic)
-    conditions = Column(JSON, default=list)  # Array of condition objects
+    conditions = Column(JSONColumn, default=list)  # Array of condition objects
 
     # Actions: What to execute when rule fires
-    actions = Column(JSON, nullable=False)  # Array of action objects
+    actions = Column(JSONColumn, nullable=False)  # Array of action objects
 
     # Rule settings
     is_enabled = Column(Boolean, nullable=False, default=True)
@@ -7073,7 +7117,7 @@ class SmartHomeScene(Base):
 
     # Scene devices (what to set when scene activates)
     # [{device_id, state, delay_seconds}]
-    scene_devices = Column(JSON, nullable=False)
+    scene_devices = Column(JSONColumn, nullable=False)
 
     # Scene settings
     is_favorite = Column(Boolean, nullable=False, default=False)
@@ -7121,7 +7165,7 @@ class SmartHomeSchedule(Base):
     # What to execute
     target_type = Column(String(50), nullable=False)  # 'scene', 'device', 'automation_rule'
     target_id = Column(String, nullable=False)  # ID of scene/device/rule
-    target_config = Column(JSON)  # Configuration for target execution
+    target_config = Column(JSONColumn)  # Configuration for target execution
 
     # Schedule settings
     is_enabled = Column(Boolean, nullable=False, default=True)
@@ -7182,7 +7226,7 @@ class SmartHomeEnergyUsage(Base):
     peak_power_watts = Column(Numeric(8, 2))
 
     # Optimization suggestions
-    optimization_suggestions = Column(JSON)  # Suggestions to reduce consumption
+    optimization_suggestions = Column(JSONColumn)  # Suggestions to reduce consumption
 
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -7213,7 +7257,7 @@ class ChatSession(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, nullable=False, index=True)
     title = Column(String, nullable=True)
-    metadata_json = Column(JSON, default={})
+    metadata_json = Column(JSONColumn, default={})
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
@@ -7300,7 +7344,7 @@ class SupervisedExecutionQueue(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
     trigger_type = Column(String, nullable=False)  # "automated" or "manual"
-    execution_context = Column(JSON, nullable=False)  # Serialized execution context
+    execution_context = Column(JSONColumn, nullable=False)  # Serialized execution context
     status = Column(SQLEnum(QueueStatus), nullable=False, default=QueueStatus.pending, index=True)
     supervisor_type = Column(String, nullable=False)  # "user" or "autonomous_agent"
     priority = Column(Integer, default=0, index=True)  # Higher priority = executed first
@@ -7429,7 +7473,8 @@ class CognitiveTierPreference(Base):
     __tablename__ = "cognitive_tier_preferences"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, unique=True, index=True)
+    workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
 
     # Tier selection
     default_tier = Column(String, nullable=False, default="standard")  # micro, standard, versatile, heavy, complex
@@ -7443,13 +7488,17 @@ class CognitiveTierPreference(Base):
     # Feature flags
     enable_cache_aware_routing = Column(Boolean, default=True)
     enable_auto_escalation = Column(Boolean, default=True)
+
+    __table_args__ = (
+        UniqueConstraint('workspace_id', 'tenant_id', name='uq_workspace_tenant_cognitive_tier_preference'),
+    )
     enable_minimax_fallback = Column(Boolean, default=True)
 
     # Provider preferences (ordered list)
-    preferred_providers = Column(JSON, default=list)  # ["deepseek", "openai"]
+    preferred_providers = Column(JSONColumn, default=list)  # ["deepseek", "openai"]
 
     # Metadata
-    metadata_json = Column(JSON, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -7487,7 +7536,7 @@ class EscalationLog(Base):
     # Metadata
     prompt_length = Column(Integer, nullable=True)
     estimated_tokens = Column(Integer, nullable=True)
-    metadata_json = Column(JSON, nullable=True)  # Flexible context storage
+    metadata_json = Column(JSONColumn, nullable=True)  # Flexible context storage
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -7524,10 +7573,10 @@ class FFmpegJob(Base):
     output_path = Column(String, nullable=True)
 
     # Metadata (operation-specific parameters)
-    operation_metadata = Column(JSON, nullable=True)  # {"start_time": "00:00:10", "duration": "00:01:00"}
+    operation_metadata = Column(JSONColumn, nullable=True)  # {"start_time": "00:00:10", "duration": "00:01:00"}
 
     # Results
-    result = Column(JSON, nullable=True)  # {"success": true, "output_path": "..."}
+    result = Column(JSONColumn, nullable=True)  # {"success": true, "output_path": "..."}
     error = Column(Text, nullable=True)  # Error message if failed
 
     # Timestamps
@@ -7718,12 +7767,12 @@ class ConflictLog(Base):
     severity = Column(String, nullable=False, index=True)  # low, medium, high, critical
 
     # Data snapshots
-    local_data = Column(JSON, nullable=False)
-    remote_data = Column(JSON, nullable=False)
+    local_data = Column(JSONColumn, nullable=False)
+    remote_data = Column(JSONColumn, nullable=False)
 
     # Resolution
     resolution_strategy = Column(String, nullable=True)  # remote_wins, local_wins, merge, manual
-    resolved_data = Column(JSON, nullable=True)
+    resolved_data = Column(JSONColumn, nullable=True)
     resolved_at = Column(DateTime(timezone=True), nullable=True)
     resolved_by = Column(String, nullable=True)  # User ID or system
 
@@ -7755,7 +7804,7 @@ class SkillCache(Base):
     skill_id = Column(String, nullable=False, unique=True, index=True)
 
     # Cached skill data
-    skill_data = Column(JSON, nullable=False)
+    skill_data = Column(JSONColumn, nullable=False)
 
     # Cache expiration
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -7796,7 +7845,7 @@ class CategoryCache(Base):
     category_name = Column(String, nullable=False, unique=True, index=True)
 
     # Cached category data
-    category_data = Column(JSON, nullable=False)
+    category_data = Column(JSONColumn, nullable=False)
 
     # Cache expiration
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -7866,20 +7915,20 @@ class ABTest(Base):
     traffic_percentage = Column(Float, nullable=False, default=0.5)  # Fraction to variant B
     variant_a_name = Column(String(100), nullable=False, default="Control")
     variant_b_name = Column(String(100), nullable=False, default="Treatment")
-    variant_a_config = Column(JSON, nullable=False)  # Control variant config
-    variant_b_config = Column(JSON, nullable=False)  # Treatment variant config
+    variant_a_config = Column(JSONColumn, nullable=False)  # Control variant config
+    variant_b_config = Column(JSONColumn, nullable=False)  # Treatment variant config
 
     # Metrics
     primary_metric = Column(String(50), nullable=False)  # satisfaction_rate, success_rate, response_time
-    secondary_metrics = Column(JSON, nullable=True)  # Additional metrics to track
+    secondary_metrics = Column(JSONColumn, nullable=True)  # Additional metrics to track
 
     # Sample size requirements
     min_sample_size = Column(Integer, nullable=False, default=100)
     confidence_level = Column(Float, nullable=False, default=0.95)  # Statistical confidence (0.0-1.0)
 
     # Statistical results
-    variant_a_metrics = Column(JSON, nullable=True)  # Calculated metrics for variant A
-    variant_b_metrics = Column(JSON, nullable=True)  # Calculated metrics for variant B
+    variant_a_metrics = Column(JSONColumn, nullable=True)  # Calculated metrics for variant A
+    variant_b_metrics = Column(JSONColumn, nullable=True)  # Calculated metrics for variant B
     statistical_significance = Column(Float, nullable=True)  # p-value
     statistical_significance_threshold = Column(Float, nullable=False, default=0.05)
     winner = Column(String(10), nullable=True)  # "A", "B", or "inconclusive"
@@ -7923,7 +7972,7 @@ class ABTestParticipant(Base):
     # Metrics
     success = Column(Boolean, nullable=True)  # Boolean success indicator
     metric_value = Column(Float, nullable=True)  # Numerical metric value
-    meta_data = Column(JSON, nullable=True)  # Additional metadata
+    meta_data = Column(JSONColumn, nullable=True)  # Additional metadata
 
     # Timestamps
     recorded_at = Column(DateTime(timezone=True), nullable=True)  # When metric was recorded
@@ -8032,12 +8081,12 @@ class CanvasAgentParticipant(Base):
 
     # Role and permissions
     role = Column(String(50), nullable=False, default="contributor")  # owner, contributor, reviewer, viewer
-    permissions = Column(JSON, nullable=True)  # Granular permissions list
+    permissions = Column(JSONColumn, nullable=True)  # Granular permissions list
 
     # Status tracking
     status = Column(String(50), nullable=False, default="active", index=True)  # active, inactive, removed
     actions_count = Column(Integer, nullable=False, default=0)
-    held_locks = Column(JSON, nullable=True)  # List of component IDs currently locked
+    held_locks = Column(JSONColumn, nullable=True)  # List of component IDs currently locked
 
     # Activity tracking
     last_activity_at = Column(DateTime(timezone=True), nullable=True)
@@ -8078,10 +8127,10 @@ class CanvasConflict(Base):
     
     # Conflict details
     conflict_type = Column(String(100), nullable=False)  # attribute_clash, content_overlap, etc.
-    component_data_a = Column(JSON, nullable=True)
-    component_data_b = Column(JSON, nullable=True)
+    component_data_a = Column(JSONColumn, nullable=True)
+    component_data_b = Column(JSONColumn, nullable=True)
     resolution_strategy = Column(String(100), nullable=True)
-    resolved_data = Column(JSON, nullable=True)
+    resolved_data = Column(JSONColumn, nullable=True)
     
     # Resolution status
     status = Column(String(50), nullable=False, default="pending")  # pending, resolved, dismissed
@@ -8111,16 +8160,16 @@ class CanvasContext(Base):
     agent_id = Column(String, nullable=True)  # Optional: which agent is active
 
     # Session history (all actions taken in this canvas)
-    session_history = Column(JSON, default=list)  # List[AgentAction]
+    session_history = Column(JSONColumn, default=list)  # List[AgentAction]
 
     # User corrections (for learning)
-    user_corrections = Column(JSON, default=list)  # List[{original, modified, context}]
+    user_corrections = Column(JSONColumn, default=list)  # List[{original, modified, context}]
 
     # Current canvas state (type-specific)
-    current_state = Column(JSON, default=dict)
+    current_state = Column(JSONColumn, default=dict)
 
     # User preferences learned from this canvas
-    user_preferences = Column(JSON, default=dict)
+    user_preferences = Column(JSONColumn, default=dict)
 
     # Metadata
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
@@ -8153,11 +8202,11 @@ class CanvasRecording(Base):
     # Recording metadata
     reason = Column(String(255), nullable=True)  # governance, autonomous_action, manual
     status = Column(String(50), default="recording", index=True)  # recording, completed, failed
-    tags = Column(JSON, default=list)
-    recording_metadata = Column(JSON, default=dict)
+    tags = Column(JSONColumn, default=list)
+    recording_metadata = Column(JSONColumn, default=dict)
     
     # Timeline and summary
-    events = Column(JSON, default=list)  # List of timestamped events
+    events = Column(JSONColumn, default=list)  # List of timestamped events
     summary = Column(Text, nullable=True)
     event_count = Column(Integer, default=0)
     
@@ -8206,8 +8255,8 @@ class CanvasRecordingReview(Base):
     performance_rating = Column(Integer, nullable=True)
     safety_rating = Column(Integer, nullable=True)
     feedback = Column(Text, nullable=True)
-    identified_issues = Column(JSON, default=list)
-    positive_patterns = Column(JSON, default=list)
+    identified_issues = Column(JSONColumn, default=list)
+    positive_patterns = Column(JSONColumn, default=list)
     lessons_learned = Column(Text, nullable=True)
     
     # Learning/Governance impact
@@ -8258,8 +8307,8 @@ class DebugStateSnapshot(Base):
     snapshot_type = Column(String(50), nullable=False, index=True)  # full, incremental, checkpoint
 
     # State data
-    state_data = Column(JSON, nullable=False)  # Complete state snapshot
-    snapshot_metadata = Column(JSON, nullable=True)  # Additional context
+    state_data = Column(JSONColumn, nullable=False)  # Complete state snapshot
+    snapshot_metadata = Column(JSONColumn, nullable=True)  # Additional context
 
     # Timestamps
     captured_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
@@ -8290,7 +8339,7 @@ class DebugMetric(Base):
     unit = Column(String(50), nullable=True)  # ms, count, percent, etc.
 
     # Labels/dimensions
-    labels = Column(JSON, nullable=True)  # Additional labels for grouping
+    labels = Column(JSONColumn, nullable=True)  # Additional labels for grouping
 
     # Timestamps
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
@@ -8324,8 +8373,8 @@ class FinancialAudit(Base):
     record_id = Column(String(255), nullable=True, index=True)
 
     # Change tracking
-    old_values = Column(JSON, nullable=True)  # Before state
-    new_values = Column(JSON, nullable=True)  # After state
+    old_values = Column(JSONColumn, nullable=True)  # Before state
+    new_values = Column(JSONColumn, nullable=True)  # After state
 
     # User context (extracted from session.info)
     user_id = Column(String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -8337,7 +8386,7 @@ class FinancialAudit(Base):
 
     # Metadata
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
-    audit_metadata = Column(JSON, nullable=True)  # Additional compliance data
+    audit_metadata = Column(JSONColumn, nullable=True)  # Additional compliance data
 
     # Relationships
     account = relationship("FinancialAccount", backref="audit_trail")
@@ -8380,7 +8429,7 @@ class FinancialAccount(Base):
 
     # Metadata
     description = Column(Text, nullable=True)
-    account_metadata = Column(JSON, nullable=True)
+    account_metadata = Column(JSONColumn, nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -8412,7 +8461,7 @@ class ProviderRegistry(Base):
     is_active = Column(Boolean, default=True, index=True)
     discovered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    provider_metadata = Column(JSON)  # Freeform provider-specific data
+    provider_metadata = Column(JSONColumn)  # Freeform provider-specific data
 
     # Relationship to models
     models = relationship("ModelCatalog", back_populates="provider", cascade="all, delete-orphan")
@@ -8435,12 +8484,12 @@ class ModelCatalog(Base):
     max_input_tokens = Column(Integer)
     context_window = Column(Integer)
     mode = Column(String(50))  # "chat", "completion", "vision"
-    capabilities = Column(JSON, default=lambda: ["chat"])  # e.g., ["chat", "vision", "tools", "computer_use", "browser_use"]
+    capabilities = Column(JSONColumn, default=lambda: ["chat"])  # e.g., ["chat", "vision", "tools", "computer_use", "browser_use"]
     exclude_from_general_routing = Column(Boolean, default=False)  # True if not suitable for general text routing
     source = Column(String(50))  # "litellm", "openrouter", "manual"
     discovered_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
-    model_metadata = Column(JSON)
+    model_metadata = Column(JSONColumn)
 
     # Relationship to provider
     provider = relationship("ProviderRegistry", back_populates="models")
@@ -8457,8 +8506,11 @@ class EntityType(str, enum.Enum):
 class EntityTypeDefinition(Base):
     """Dynamic entity type definitions with JSON Schema storage.
 
-    Stores tenant-customizable entity type schemas in JSONB format.
+    Stores tenant-customizable entity type schemas in JSON format.
     Enables runtime model generation without DDL operations.
+
+    IMPORTANT: json_schema and available_skills use JSONBColumn for GraphRAG queries.
+    These fields require PostgreSQL and won't work in SQLite tests.
     """
     __tablename__ = "entity_type_definitions"
 
@@ -8473,11 +8525,11 @@ class EntityTypeDefinition(Base):
     display_name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
-    # Schema definition (JSONB)
-    json_schema = Column(JSONB, nullable=False)  # JSON Schema Draft 2020-12
+    # Schema definition (JSON) - REQUIRES PostgreSQL for JSONB query operators
+    json_schema = Column(JSONBColumn, nullable=False)  # JSON Schema Draft 2020-12
 
-    # Skill bindings (array of skill IDs)
-    available_skills = Column(JSON, nullable=True)  # ["send_email", "generate_pdf"]
+    # Skill bindings (array of skill IDs) - REQUIRES PostgreSQL for JSONB queries
+    available_skills = Column(JSONBColumn, nullable=True)  # ["send_email", "generate_pdf"]
 
     # Metadata
     is_active = Column(Boolean, default=True, nullable=False)
@@ -8492,6 +8544,8 @@ class EntityTypeDefinition(Base):
     __table_args__ = (
         Index("ix_entity_types_tenant_slug", "tenant_id", "slug", unique=True),
         Index("ix_entity_types_tenant_id", "tenant_id"),
+        Index("ix_entity_types_json_schema_gin", "json_schema", postgresql_using='gin'),
+        Index("ix_entity_types_skills_gin", "available_skills", postgresql_using='gin'),
     )
 
 
@@ -8514,7 +8568,7 @@ class SkillSuggestionFeedback(Base):
     skill_id = Column(String, nullable=False, index=True) # Direct skill_id reference
 
     # Schema snapshot (what entity looked like when suggested)
-    schema_features = Column(JSON, nullable=False)  # {properties: [], domain_keywords: []}
+    schema_features = Column(JSONColumn, nullable=False)  # {properties: [], domain_keywords: []}
     schema_hash = Column(String(64), nullable=False, index=True)  # SHA-256 of json_schema for grouping
 
     # User action

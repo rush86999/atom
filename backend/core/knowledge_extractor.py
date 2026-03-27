@@ -17,9 +17,11 @@ class KnowledgeExtractor:
     SECURITY: Redacts secrets before processing to prevent leakage.
     """
     
-    def __init__(self, tenant_id: str = "default"):
-        self.tenant_id = tenant_id
-        self.llm_service = LLMService(tenant_id=tenant_id)
+    def __init__(self, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None):
+        self.workspace_id = workspace_id or "default"
+        self.tenant_id = tenant_id or "default"
+        
+        self.llm_service = LLMService(workspace_id=self.workspace_id, tenant_id=self.tenant_id)
         # Initialize secrets redactor
         try:
             from core.secrets_redactor import get_secrets_redactor
@@ -28,15 +30,16 @@ class KnowledgeExtractor:
             self.redactor = None
             logger.warning("Secrets redactor not available in KnowledgeExtractor")
 
-    async def _get_custom_entity_types(self, tenant_id: Optional[str]) -> List[Dict[str, Any]]:
-        """Fetch active custom entity types for the tenant."""
-        if not tenant_id:
+    async def _get_custom_entity_types(self, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Fetch active custom entity types for the workspace."""
+        wid = workspace_id or self.workspace_id
+        if not wid:
             return []
             
         with get_db_session() as session:
             try:
                 custom_types = session.query(EntityTypeDefinition).filter(
-                    EntityTypeDefinition.tenant_id == tenant_id,
+                    EntityTypeDefinition.workspace_id == wid,
                     EntityTypeDefinition.is_active == True,
                     EntityTypeDefinition.is_system == False
                 ).all()
@@ -53,11 +56,14 @@ class KnowledgeExtractor:
                 logger.error(f"Failed to fetch custom entity types: {e}")
                 return []
 
-    async def extract_knowledge(self, text: str, tenant_id: Optional[str] = None, source: str = "unknown") -> Dict[str, Any]:
+    async def extract_knowledge(self, text: str, workspace_id: Optional[str] = None, tenant_id: Optional[str] = None, source: str = "unknown") -> Dict[str, Any]:
         """
         Processes text to extract a structured knowledge graph.
         Dynamic: Includes user-defined entity types in the prompt.
         """
+        wid = workspace_id or self.workspace_id
+        tid = tenant_id or self.tenant_id
+        
         # Base entities
         base_entities = [
             "Person (name, role, organization, is_stakeholder: bool)",
@@ -78,7 +84,7 @@ class KnowledgeExtractor:
         ]
 
         # Fetch and append custom entities
-        custom_types = await self._get_custom_entity_types(tenant_id)
+        custom_types = await self._get_custom_entity_types(wid)
         for ct in custom_types:
             type_desc = f"{ct['display_name']} ({ct['description'] or 'Custom entity type'})"
             # Add schema hints if possible
@@ -134,7 +140,8 @@ class KnowledgeExtractor:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Text to analyze:\n{safe_text[:10000]}"}
                 ],
-                temperature=0.1
+                temperature=0.1,
+                workspace_id=wid
             )
             
             if response and response.get("content"):

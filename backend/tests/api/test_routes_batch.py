@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from main_api_app import app
 
 from core.models import (
-    UnifiedWorkspace,
+    Workspace,
     User,
     UserRole,
     MobileDevice,
@@ -98,7 +98,7 @@ class TestWorkspaceRoutes:
     def test_get_workspace_by_id_success(self, db_session: Session, client: TestClient):
         """Test retrieving workspace by ID"""
         # Create workspace first
-        workspace = UnifiedWorkspace(
+        workspace = Workspace(
             id="ws_test_001",
             user_id="user_123",
             name="Test Workspace",
@@ -125,7 +125,7 @@ class TestWorkspaceRoutes:
 
     def test_add_platform_to_workspace_success(self, db_session: Session, client: TestClient):
         """Test adding a platform to existing workspace"""
-        workspace = UnifiedWorkspace(
+        workspace = Workspace(
             id="ws_test_002",
             user_id="user_123",
             name="Test Workspace",
@@ -152,7 +152,7 @@ class TestWorkspaceRoutes:
     def test_list_workspaces_filtered_by_user(self, db_session: Session, client: TestClient):
         """Test listing workspaces filtered by user ID"""
         # Create workspaces for different users
-        ws1 = UnifiedWorkspace(
+        ws1 = Workspace(
             id="ws_user1_001",
             user_id="user_1",
             name="User 1 Workspace",
@@ -161,7 +161,7 @@ class TestWorkspaceRoutes:
             platform_count=1,
             member_count=3
         )
-        ws2 = UnifiedWorkspace(
+        ws2 = Workspace(
             id="ws_user2_001",
             user_id="user_2",
             name="User 2 Workspace",
@@ -188,7 +188,7 @@ class TestWorkspaceRoutes:
 
     def test_delete_workspace_success(self, db_session: Session, client: TestClient):
         """Test deleting a workspace"""
-        workspace = UnifiedWorkspace(
+        workspace = Workspace(
             id="ws_delete_001",
             user_id="user_123",
             name="Delete Me",
@@ -209,7 +209,7 @@ class TestWorkspaceRoutes:
 
     def test_propagate_changes_success(self, db_session: Session, client: TestClient):
         """Test propagating changes to other platforms"""
-        workspace = UnifiedWorkspace(
+        workspace = Workspace(
             id="ws_sync_001",
             user_id="user_123",
             name="Sync Workspace",
@@ -240,7 +240,7 @@ class TestWorkspaceRoutes:
 
     def test_workspace_to_dict_helper(self):
         """Test workspace to dictionary conversion helper"""
-        workspace = UnifiedWorkspace(
+        workspace = Workspace(
             id="ws_test_001",
             user_id="user_123",
             name="Test Workspace",

@@ -33,8 +33,8 @@ SESSIONS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "chat_s
 class ChatSessionManager:
     """Manages chat session metadata with DB support"""
     
-    def __init__(self, sessions_file: str = None, workspace_id: str = None):
-        self.workspace_id = "default" # Single-tenant: always use default
+    def __init__(self, sessions_file: str = None, workspace_id: str = "default"):
+        self.workspace_id = workspace_id
         self.sessions_file = sessions_file or SESSIONS_FILE
         
         # Determine persistence mode
@@ -423,6 +423,6 @@ class ChatSessionManager:
 # Global instance
 chat_session_manager = ChatSessionManager()
 
-def get_chat_session_manager(workspace_id: str = None) -> ChatSessionManager:
+def get_chat_session_manager(workspace_id: str = "default") -> ChatSessionManager:
     """Get workspace-aware chat session manager instance"""
     return ChatSessionManager(workspace_id=workspace_id)

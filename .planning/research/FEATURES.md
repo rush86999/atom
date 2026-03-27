@@ -1,409 +1,390 @@
-# Feature Landscape
+# Feature Research: Automated Bug Discovery
 
-**Domain:** Cross-Platform E2E Testing & Bug Discovery
-**Researched:** March 23, 2026
-**Overall confidence:** HIGH
+**Domain:** Automated QA Testing & Bug Discovery for AI Automation Platform
+**Researched:** March 24, 2026
+**Confidence:** HIGH (based on existing v7.0 implementation and testing infrastructure)
 
-## Executive Summary
+## Feature Landscape
 
-Comprehensive cross-platform E2E testing and bug discovery for Atom requires a systematic approach across web (Playwright), mobile (React Native API-level), and desktop (Tauri) platforms. Based on analysis of existing v3.1 E2E implementation (30+ tests, Playwright basics, visual regression with Percy), E2E testing best practices, and the Atom codebase architecture, this document outlines table stakes features for production-ready testing, differentiators that distinguish excellent test suites, and anti-patterns to avoid.
+### Table Stakes (Users Expect These)
 
-**Key Findings:**
-- **Current state**: Atom has v3.1 E2E with 30+ Playwright tests, Percy visual regression, API-first auth, database isolation, flaky test detection, but lacks stress testing, mobile E2E (Detox blocked), comprehensive cross-platform test reuse
-- **Table stakes for comprehensive E2E**: Critical path coverage (auth, agent execution, canvas), test isolation & reproducibility, parallel execution, screenshots/videos on failure, cross-platform workflow parity
-- **Critical gaps**: Stress testing for bug discovery, network simulation, mobile UI E2E (Detox blocked by expo-dev-client), desktop Tauri integration tests, cross-platform test reuse framework
-- **Testing balance**: 10% E2E (critical flows only), 20% integration, 70% unit for optimal coverage and feedback speed
-- **Key anti-patterns**: Brittle selectors (CSS classes), testing implementation details, shared state between tests, hard-coded waits, E2E tests for edge cases
-
-## Table Stakes
-
-Features expected in ANY production-ready E2E test suite covering cross-platform workflows. Missing = incomplete testing, missed bugs, slow feedback.
+Core automated bug discovery capabilities expected in any comprehensive QA platform. Missing these means the platform feels incomplete for production reliability.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Authentication Flow Tests** | Users must login securely across all platforms (web/mobile/desktop) | Medium | JWT token validation, session persistence, logout, token refresh across platforms |
-| **Agent Execution Critical Path** | Core product feature - agents must spawn, chat, stream responses | Medium | Spawn agent → send message → receive streaming response → verify output (happy path) |
-| **Canvas Presentation Tests** | Core differentiator - 7 canvas types (charts, sheets, forms, docs, email, terminal, coding) | High | Present canvas → verify rendering → verify interactivity → close canvas (all types) |
-| **Workflow Skill Execution** | Key feature - install skills, execute with parameters, verify output | Medium | Install skill → execute skill → parse output → verify business logic |
-| **Test Isolation & Reproducibility** | Parallel execution requires isolated test data (no collisions) | Medium | Unique IDs per test (UUID suffixes), database cleanup, fresh state per test |
-| **Parallel Test Execution** | CI/CD speed - 4 workers = 4x faster feedback | Low | pytest-xdist for web, separate worker schemas (gw0, gw1, gw2, gw3) |
-| **Failure Artifacts (Screenshots/Videos)** | Debugging failed tests requires visual evidence | Low | Playwright: `screenshot: 'only-on-failure'`, `video: 'retain-on-failure'` |
-| **API-First Authentication** | UI login is slow (10-60s) vs API auth (100-500ms) | Low | Set JWT token directly in localStorage, bypass UI login flow |
-| **Database Isolation** | Parallel tests require separate data to avoid conflicts | Medium | Worker-specific schemas, transaction rollbacks, unique test data |
-| **Cross-Platform Workflow Parity** | Users expect identical workflows on web/mobile/desktop | High | Shared test logic, platform-specific adapters, consistent test IDs (data-testid/testID) |
-| **Smoke Tests** | Verify test infrastructure works before running full suite | Low | Fixtures loaded, browser launches, API works, DB connection valid |
-| **Flaky Test Detection** | Flaky tests destroy trust in test suite | Medium | Track test outcomes across CI runs, flag <80% pass rate tests |
+| **Fuzzing** | Discovers edge cases and crash-causing inputs that human testers miss | MEDIUM | Coverage-guided fuzzing (Atheris) for Python code, targets parsing, validation, serialization |
+| **Property-Based Testing** | Validates system invariants across thousands of auto-generated inputs | LOW | Already implemented: 239 property test files using Hypothesis with 113K+ lines of test code |
+| **Load/Stress Testing** | Identifies performance bottlenecks and breaking points under load | MEDIUM | Already implemented: k6 scripts for baseline (10 users), moderate (50 users), high (100 users) |
+| **Network Failure Simulation** | Tests system resilience to degraded network conditions | LOW | Already implemented: offline mode, 3G slow, database drop, API timeout tests |
+| **Headless Browser Automation** | Validates UI workflows and discovers client-side bugs | LOW | Already implemented: 495+ Playwright E2E tests across web/mobile/desktop |
+| **Automated Bug Reporting** | Captures and files bugs without manual intervention | MEDIUM | Already implemented: BugFilingService with GitHub integration, supports screenshots/logs/traces |
+| **Memory Leak Detection** | Finds resource leaks that cause long-term degradation | MEDIUM | Already implemented: Heap snapshot comparison for agent execution loops |
+| **Performance Regression Detection** | Catches performance degradations before they reach production | MEDIUM | Already implemented: Lighthouse CI, performance thresholds, p(95) latency tracking |
 
-## Differentiators
+### Differentiators (Competitive Advantage)
 
-Features that distinguish EXCELLENT E2E test suites (comprehensive bug discovery) from ADEQUATE ones (basic happy path). Not expected, but highly valuable for finding edge cases and production bugs.
+Features that set Atom's bug discovery apart from generic QA platforms. These represent innovative approaches to automated testing.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Stress Testing for Bug Discovery** | Finds race conditions, memory leaks, resource exhaustion under load | High | Concurrent agent executions, rapid canvas present/close cycles, WebSocket connection churn |
-| **Network Simulation Testing** | Tests app behavior under poor network conditions (offline, slow, flaky) | Medium | Playwright `context.route()`, slow 3G, offline mode, packet loss simulation |
-| **Visual Regression Testing (Percy)** | Detects unintended CSS/layout changes across platforms | Medium | Automated screenshot comparison on every PR, review diffs in Percy dashboard |
-| **Cross-Platform Test Reuse** | Write test once, run on web/mobile/desktop with platform adapters | High | Shared workflow definitions, platform-specific execution (Playwright/Detox/Tauri) |
-| **Real User Interaction Simulation** | Finds bugs from realistic user behavior (mouse movement, typos, rapid clicks) | Medium | Playwright `userEvent` API (click, type, hover), realistic delays, keyboard navigation |
-| **WebSocket/Streaming Testing** | Validates real-time features (agent streaming, canvas updates) under stress | High | Multiple concurrent streams, connection drops, reconnection logic, message ordering |
-| **Canvas Accessibility Testing** | Ensures canvas state exposed to screen readers via hidden ARIA trees | Medium | `window.atom.canvas.getState()` API, accessibility tree validation |
-| **Error Boundary & Edge Case Testing** | Tests app behavior under failures (401, 500, timeouts, malformed data) | Medium | Network errors, server errors, timeout handling, malformed API responses |
-| **Performance Regression Testing** | Detects performance regressions (slow page loads, sluggish interactions) | Medium | Lighthouse CI, page load budgets, interaction timing thresholds |
-| **Memory Leak Detection** | Finds memory leaks in long-running sessions (agent chats, canvas viewing) | High | Chrome DevTools Protocol (CDP), heap snapshots before/after operations |
-| **Form Validation & Submission Testing** | Tests complex forms (agent creation, skill installation) with validation | Medium | Required fields, format validation, error messages, success states |
-| **Deep Link Testing** | Validates deep links work across platforms (`atom://agent/{id}`, workflows) | Medium | Deep link resolution, routing, parameter passing, authentication state |
+| **Multi-Agent Fuzzing Orchestration** | Uses AI agents to generate fuzzing strategies based on code coverage gaps | HIGH | Train agents to analyze coverage reports and generate targeted fuzz inputs for low-coverage paths |
+| **Chaos Engineering for Distributed Systems** | Proactively injects failures to test resilience of agent orchestration, LLM routing, episodic memory | HIGH | Simulate LLM provider failures, database connection drops, Redis crashes, WebSocket disconnections |
+| **Property-Based Testing with AI-Generated Invariants** | Uses LLM to analyze code and suggest properties to test | MEDIUM | Extend existing Hypothesis tests with AI-discovered invariants from code analysis |
+| **Cross-Platform Bug Correlation** | Detects if bug manifests across web, mobile, desktop | MEDIUM | Already have 495+ E2E tests - add correlation layer to detect cross-platform patterns |
+| **Semantic Bug Clustering** | Groups similar bugs automatically using LLM embeddings | MEDIUM | Uses existing canvas summary LLM service to cluster bug reports by semantic similarity |
+| **Predictive Bug Discovery** | Uses historical bug data to predict high-risk areas | HIGH | Train models on past bug locations to suggest fuzzing/targeted testing focus areas |
+| **Real-Time Bug Discovery in CI/CD** | Discovers and files bugs during pipeline execution | MEDIUM | Already implemented: Nightly/weekly stress test workflows in phase 236 |
+| **Business Logic Fuzzing** | Fuzzes business rules (agent governance, episodic memory, graduation) | HIGH | Custom fuzz generators for domain-specific inputs (confidence scores, maturity levels, episode boundaries) |
+| **Contract Fuzzing for API Routes** | Fuzzes OpenAPI contracts to find schema violations | MEDIUM | Already planned: Schemathesis integration (in requirements-testing.txt) |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Testing approaches to explicitly AVOID. These create brittle, unmaintainable, slow, or ineffective test suites.
+Features that seem valuable but create more problems than they solve.
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Brittle Selector Tests (CSS Classes)** | CSS classes change on refactor, test breaks, maintenance nightmare | Use `data-testid` attributes (stable), semantic selectors (`getByRole`, `getByLabelText`) |
-| **Testing Implementation Details** | Tests break on internal refactoring, don't validate user behavior | Test user-facing behavior (what user sees/clicks), not internal state or component structure |
-| **Shared State Between Tests** | Tests interfere with each other, non-deterministic failures, order-dependent | Isolate test data (unique IDs), cleanup after each test, each test is independent |
-| **Hard-coded Waits (`time.sleep`)** | Unreliable (too short or too long), slow tests, flaky on slow CI | Use explicit waits (`wait_for_selector`, `wait_for_url`), Playwright auto-waiting |
-| **E2E Tests for Edge Cases** | Slow feedback loop (minutes vs seconds), better suited for unit/integration tests | Unit tests for edge cases, E2E for critical happy paths only (5-10 flows) |
-| **Over-Specific Selectors (Nested Paths)** | Brittle to DOM structure changes, breaks on layout refactor | Use stable selectors (`data-testid`, `aria-label`, text content) |
-| **Testing Third-Party Libraries** | Don't test what library authors already test (React, Next.js, Chakra UI) | Trust library tests, test your code only (business logic, integration) |
-| **Missing Error Path Tests** | Only testing happy path misses critical production bugs | Test 401 (auth expired), 500 (server error), network errors, timeouts, malformed responses |
-| **Flaky Tests Ignored** | Flaky tests destroy trust, team disables tests, false sense of security | Track flaky tests, fix root cause (race conditions, timing issues, missing waits) |
-| **E2E Tests Without Isolation** | Tests share database, conflicts cause random failures, can't run parallel | Database per worker, unique test data, cleanup fixtures, transaction rollbacks |
-| **Testing Private Methods/Internals** | Implementation detail, breaks on refactor, doesn't validate user behavior | Test public API only, behavior over implementation, user-facing outcomes |
-| **Mobile Detox E2E Without expo-dev-client** | BLOCKED - expo-dev-client requirement adds 15min CI time, complex setup | Use API-level mobile tests for Phase 148, defer Detox to Phase 150+ when infrastructure ready |
-
-## Feature Categories
-
-### Authentication Testing
-
-**Table Stakes:**
-- JWT token validation across platforms
-- Login/logout workflows (web UI, mobile API, desktop IPC)
-- Session persistence (refresh page, verify still logged in)
-- Token refresh on expiry
-- Protected route access (redirect to login if not authenticated)
-
-**Differentiators:**
-- Biometric auth testing (mobile Face ID/Touch ID)
-- Session timeout handling (auto-logout after inactivity)
-- Multi-device session management
-- OAuth integration testing (Google, GitHub)
-- SSO (Single Sign-On) testing
-
-**Complexity:** **Medium** - Auth flows are critical but straightforward to test with API-first approach
-
----
-
-### Agent Execution Testing
-
-**Table Stakes:**
-- Agent spawn workflow (create agent, verify in registry)
-- Agent chat interaction (send message, receive response)
-- Streaming response validation (chunks arrive in order)
-- Agent execution history (verify logged in DB)
-- Agent maturity enforcement (STUDENT/INTERN/SUPERVISED/AUTONOMOUS)
-
-**Differentiators:**
-- Concurrent agent execution stress test (spawn 10 agents simultaneously)
-- Streaming interruption handling (network drop, reconnection)
-- Agent timeout handling (long-running operations)
-- Agent cancellation (stop execution mid-stream)
-- Agent context switching (switch between agents, verify state isolation)
-
-**Complexity:** **High** - Async operations, WebSocket streaming, concurrent executions
-
----
-
-### Canvas Presentation Testing
-
-**Table Stakes:**
-- All 7 canvas types (charts, sheets, forms, docs, email, terminal, coding)
-- Canvas rendering validation (verify DOM structure)
-- Canvas interactivity (form submission, chart interactions)
-- Canvas close workflow (verify cleanup)
-- Canvas state API (`window.atom.canvas.getState()`)
-
-**Differentiators:**
-- Rapid canvas present/close stress test (memory leak detection)
-- Canvas accessibility testing (ARIA tree validation)
-- Visual regression for all canvas types (Percy screenshots)
-- Canvas streaming updates (real-time data changes)
-- Canvas error handling (malformed data, missing fields)
-
-**Complexity:** **High** - 7 canvas types, dynamic content, visual validation
-
----
-
-### Workflow & Skill Automation Testing
-
-**Table Stakes:**
-- Skill marketplace browsing
-- Skill installation (verify in skill registry)
-- Skill execution with parameters
-- Skill output validation
-- Skill uninstallation
-
-**Differentiators:**
-- Skill dependency resolution (install skills with dependencies)
-- Skill version conflict detection
-- Skill composition (DAG workflows with multiple skills)
-- Skill execution under stress (concurrent skill execution)
-- Dynamic skill loading (hot-reload, watchdog detection)
-
-**Complexity:** **High** - Dynamic skill system, dependency management, composition
-
----
-
-### Stress Testing & Bug Discovery
-
-**Table Stakes:**
-- Concurrent agent executions (spawn 5-10 agents simultaneously)
-- Rapid canvas present/close cycles (100 iterations, memory leak check)
-- WebSocket connection churn (connect/disconnect rapidly)
-- Form submission spam (rapid submits, debounce validation)
-
-**Differentiators:**
-- Memory leak detection (heap snapshots before/after operations)
-- Race condition detection (concurrent writes to same resource)
-- Resource exhaustion testing (database connection pool, file handles)
-- Network failure simulation (packet loss, high latency, offline mode)
-- Performance regression testing (Lighthouse CI, page load budgets)
-
-**Complexity:** **High** - Requires specialized tooling, complex test scenarios, resource monitoring
-
----
-
-### Cross-Platform Test Reuse
-
-**Table Stakes:**
-- Shared workflow definitions (auth, agent execution, canvas)
-- Platform-specific adapters (web: Playwright, mobile: Detox/API, desktop: Tauri)
-- Consistent test IDs (web: `data-testid`, mobile: `testID`, desktop: `data-testid`)
-- Cross-platform feature parity tests
-
-**Differentiators:**
-- Single test file, multiple platforms (write once, run everywhere)
-- Platform-specific conditional logic (skip mobile-only features on web)
-- Cross-platform visual regression (same UI on all platforms)
-- Unified test reporting (aggregate web/mobile/desktop results)
-
-**Complexity:** **High** - Abstraction layer, platform differences, test synchronization
-
----
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Full System Chaos (Random Everything)** | "Test everything by breaking everything" | Too noisy, generates false positives, hard to reproduce | Targeted chaos engineering: specific failure modes in specific components |
+| **100% Code Coverage via Fuzzing** | "Find all possible bugs" | Diminishing returns, slows down CI, doesn't guarantee quality | Focus on critical path coverage (agent execution, LLM routing, governance) |
+| **Fuzzing in Production** | "Find bugs in real conditions" | Too risky, can crash production systems, customer impact | Fuzzing in staging with production-like traffic replay |
+| **Automated Bug Fixing** | "Not just discover bugs, fix them" | AI-generated fixes often introduce new bugs, require human review anyway | Automated bug triage and prioritization with human-in-the-loop fixing |
+| **Fuzz All Third-Party Dependencies** | "Ensure libs are secure" | Not our responsibility, vendors should do their own testing | Fuzz integration points with third-party libs, not libs themselves |
+| **Chaos Engineering on Database** | "Test resilience to data loss" | Data corruption risk, hard to clean up, recovery time | Database failure simulation (connection drops, not actual data corruption) |
 
 ## Feature Dependencies
 
 ```
-Authentication Testing
-    └──requires──> API-First Auth Fixtures
-                    └──requires──> Database Isolation
+[Fuzzing - Atheris]
+    └──requires──> [Coverage Reports (pytest-cov)]
+                   └──requires──> [Test Infrastructure (pytest)]
 
-Agent Execution Testing
-    └──requires──> Authentication Testing
-    └──requires──> WebSocket/Streaming Infrastructure
-    └──enhances──> Stress Testing (concurrent executions)
+[Property-Based Testing - Hypothesis]
+    └──requires──> [Test Database Fixtures]
+    └──enhances──> [API Contract Testing (Schemathesis)]
 
-Canvas Presentation Testing
-    └──requires──> Agent Execution Testing
-    └──enhances──> Visual Regression Testing
-    └──enhances──> Accessibility Testing
+[Load Testing - k6]
+    └──requires──> [Staging Environment]
+    └──requires──> [Baseline Metrics]
 
-Workflow & Skill Automation
-    └──requires──> Authentication Testing
-    └──requires──> Canvas Presentation Testing (skills present canvases)
-    └──enhances──> Stress Testing (concurrent skill execution)
+[Network Failure Simulation]
+    └──requires──> [Playwright E2E Tests]
+    └──requires──> [Network Emulation (Chromium DevTools Protocol)]
 
-Stress Testing & Bug Discovery
-    └──requires──> Agent Execution Testing (baseline)
-    └──requires──> Canvas Presentation Testing (baseline)
-    └──requires──> Workflow & Skill Automation (baseline)
-    └──enhances──> All testing categories (finds race conditions, memory leaks)
+[Automated Bug Filing]
+    └──requires──> [GitHub Integration]
+    └──requires──> [Test Metadata Collection]
+    └──enhances──> [All Test Types (load, network, memory, etc.)]
 
-Cross-Platform Test Reuse
-    └──enhances──> All testing categories (write once, run everywhere)
-    └──requires──> Consistent Test IDs (data-testid/testID)
+[Chaos Engineering]
+    └──requires──> [Container Orchestration (Docker/Kubernetes)]
+    └──requires──> [Service Discovery]
+    └──conflicts──> [Shared Development Environment]
 
-Visual Regression Testing
-    └──requires──> Canvas Presentation Testing
-    └──requires──> Authentication Testing
-    └──enhances──> Cross-Platform Parity (consistent UI)
+[Memory Leak Detection]
+    └──requires──> [Headless Browser with Heap Profiling]
+    └──requires──> [Baseline Heap Snapshots]
 
-Network Simulation Testing
-    └──requires──> Agent Execution Testing (WebSocket reconnection)
-    └──requires──> Canvas Presentation Testing (offline behavior)
-    └──enhances──> Stress Testing (failure scenarios)
+[Cross-Platform Bug Correlation]
+    └──requires──> [Web E2E Tests (Playwright)]
+    └──requires──> [Mobile E2E Tests (Detox/API-level)]
+    └──requires──> [Desktop E2E Tests (Tauri)]
+
+[Semantic Bug Clustering]
+    └──requires──> [LLM Service (OpenAI/Anthropic)]
+    └──requires──> [Bug Metadata (screenshots, logs, traces)]
 ```
 
 ### Dependency Notes
 
-- **Authentication Testing requires API-First Auth Fixtures:** UI login is too slow (10-60s) for E2E tests, need to set JWT token directly in localStorage for fast authentication
-- **Agent Execution Testing requires Authentication Testing:** Agent spawn requires authenticated user session
-- **Agent Execution Testing requires WebSocket/Streaming Infrastructure:** Streaming responses need WebSocket connection management, reconnection logic
-- **Canvas Presentation Testing requires Agent Execution Testing:** Canvas is presented by agent, need agent spawn first
-- **Stress Testing requires all baseline categories:** Stress tests build on happy path tests, add concurrent executions, rapid iterations
-- **Cross-Platform Test Reuse enhances all categories:** Shared workflow definitions reduce duplication, ensure parity
-- **Visual Regression Testing requires Canvas & Authentication:** Need authenticated user + canvas rendered to capture screenshots
+- **Fuzzing requires Coverage Reports:** Atheris coverage-guided fuzzing needs baseline coverage to identify unexplored code paths. Already have pytest-cov infrastructure.
+- **Property-Based Testing enhances API Contract Testing:** Hypothesis strategies can generate test data for Schemathesis OpenAPI contract fuzzing.
+- **Load Testing requires Staging Environment:** k6 load tests should run against staging, not production, to avoid customer impact. Already have docker-compose-e2e.yml for isolated testing.
+- **Network Failure Simulation requires E2E Tests:** Playwright's CDPSession enables network emulation (offline, slow 3G, latency). Already have 91 E2E tests with network fixtures.
+- **Automated Bug Filing enhances all test types:** BugFilingService integrates with load, network, memory, mobile, desktop, visual, and a11y tests. Already implemented in phase 236-08.
+- **Chaos Engineering conflicts with Shared Dev Environment:** Chaos experiments (pod kills, network failures) disrupt other developers. Need isolated chaos environment or scheduled chaos windows.
+- **Memory Leak Detection requires Heap Profiling:** Playwright's page.heapSnapshot() can capture JS memory usage. Already have memory leak tests in phase 236.
+- **Cross-Platform Correlation requires all platform tests:** Need web, mobile, and desktop tests running to detect if bug manifests across platforms. Already have 495+ E2E tests from phase 236.
+- **Semantic Bug Clustering requires LLM Service:** Uses existing canvas summary service or BYOK LLM to generate embeddings for bug clustering. Already have LLMService infrastructure.
 
 ## MVP Definition
 
-### Launch With (v7.0 - Cross-Platform E2E Testing & Bug Discovery)
+### Launch With (v1)
 
-Minimum viable E2E test suite for comprehensive bug discovery across platforms.
+Minimum viable bug discovery platform to validate automated testing approach.
 
-- [ ] **Authentication Flow Tests** - Core foundation, all other tests depend on auth
-- [ ] **Agent Execution Critical Path** - Core product feature, must work end-to-end
-- [ ] **Canvas Presentation Tests (7 types)** - Core differentiator, complex UI components
-- [ ] **Test Isolation & Reproducibility** - Parallel execution, speed, reliability
-- [ ] **Failure Artifacts (Screenshots/Videos)** - Debugging failed tests
-- [ ] **API-First Authentication** - Speed (100-500ms vs 10-60s UI login)
-- [ ] **Database Isolation** - Parallel execution without conflicts
-- [ ] **Cross-Platform Workflow Parity (Web + Mobile API)** - Verify workflows work on web and mobile (API-level)
-- [ ] **Smoke Tests** - Verify test infrastructure works
-- [ ] **Flaky Test Detection** - Track test outcomes, flag unreliable tests
+- [ ] **Fuzzing with Atheris** — Discovers crash-causing inputs in critical parsing/validation code (CSV parsing, JSON validation, input sanitization)
+  - **Why essential:** Finds edge cases human testers miss, high ROI for parsing-heavy code
+  - **Implementation:** Already have fuzz_helpers.py and 3 fuzz test files (financial_parsing, security_validation)
+  - **Target:** 10 fuzz test cases covering core input parsing paths
 
-### Add After Validation (v7.1 - Advanced Bug Discovery)
+- [ ] **Property-Based Testing Expansion** — Validates system invariants across thousands of auto-generated inputs
+  - **Why essential:** Already have 239 property test files (113K+ lines), need to expand coverage
+  - **Implementation:** Use existing Hypothesis conftest.py with strategies for agents, LLM, governance
+  - **Target:** Add 50 property tests for critical paths (agent execution, LLM routing, episodic memory)
 
-Features to add once core E2E is stable and passing.
+- [ ] **Load Testing with k6** — Identifies performance bottlenecks under load
+  - **Why essential:** Catches performance regressions before production, ensures scalability
+  - **Implementation:** Already have k6 setup and 4 load test scripts (baseline, moderate, high, web UI)
+  - **Target:** Run weekly load tests in CI/CD, file bugs for p(95) latency >500ms
 
-- [ ] **Stress Testing (Concurrent Executions)** - Trigger: E2E suite passing consistently, need to find race conditions
-- [ ] **Network Simulation Testing** - Trigger: Users reporting network-related bugs
-- [ ] **Visual Regression Testing (Percy)** - Trigger: UI changes causing unintended regressions
-- [ ] **Real User Interaction Simulation** - Trigger: E2E passing but users reporting UX bugs
-- [ ] **Error Boundary & Edge Case Testing** - Trigger: Production errors from unhandled edge cases
-- [ ] **WebSocket/Streaming Stress Tests** - Trigger: Streaming issues in production (dropouts, ordering)
+- [ ] **Network Failure Simulation** — Tests resilience to degraded network conditions
+  - **Why essential:** Real-world networks fail, system should degrade gracefully
+  - **Implementation:** Already have 4 network test files (offline, slow 3G, database drop, API timeout)
+  - **Target:** 10 network failure scenarios covering critical user flows
 
-### Future Consideration (v8.0 - Full Cross-Platform Coverage)
+- [ ] **Automated Bug Filing** — Captures and files bugs without manual intervention
+  - **Why essential:** Reduces toil, ensures bugs are captured immediately
+  - **Implementation:** Already have BugFilingService with GitHub integration
+  - **Target:** All test types file bugs on failure with screenshots/logs/traces
 
-Features to defer until E2E infrastructure is mature and stable.
+### Add After Validation (v1.x)
 
-- [ ] **Cross-Platform Test Reuse Framework** - Defer: Requires abstraction layer, platform-specific adapters
-- [ ] **Mobile Detox E2E (Full UI)** - Defer: BLOCKED by expo-dev-client requirement (15min CI overhead)
-- [ ] **Desktop Tauri Integration Tests** - Defer: Requires Tauri test infrastructure, GUI context in CI
-- [ ] **Performance Regression Testing (Lighthouse CI)** - Defer: Requires performance budgets, monitoring setup
-- [ ] **Memory Leak Detection (CDP)** - Defer: Requires specialized tooling, complex test scenarios
-- [ ] **Form Validation & Submission Testing** - Defer: Less critical than agent/canvas workflows
-- [ ] **Deep Link Testing** - Defer: Edge case, less critical than core workflows
+Features to add once core bug discovery is working and yielding results.
+
+- [ ] **Memory Leak Detection** — Finds resource leaks in long-running processes
+  - **Trigger:** After discovering 2+ memory-related bugs in production
+  - **Implementation:** Heap snapshot comparison for agent execution loops
+  - **Target:** Detect 10MB+ memory increase over 100 agent executions
+
+- [ ] **Performance Regression Detection** — Catches performance degradations
+  - **Trigger:** After performance complaints from users
+  - **Implementation:** Lighthouse CI integration with performance thresholds
+  - **Target:** Alert on >20% performance regression
+
+- [ ] **API Contract Fuzzing** — Fuzzes OpenAPI contracts
+  - **Trigger:** After discovering API schema violation bugs
+  - **Implementation:** Schemathesis integration (already in requirements-testing.txt)
+  - **Target:** Fuzz all /api/v1 endpoints for schema compliance
+
+- [ ] **Cross-Platform Bug Correlation** — Detects cross-platform bug patterns
+  - **Trigger:** After having 100+ bugs filed across platforms
+  - **Implementation:** Correlation layer on top of existing BugFilingService
+  - **Target:** Auto-link bugs that manifest on web + mobile + desktop
+
+### Future Consideration (v2+)
+
+Advanced features for mature bug discovery platform.
+
+- [ ] **Chaos Engineering** — Proactive failure injection for distributed systems
+  - **Why defer:** Requires isolated environment, risks disrupting other developers
+  - **Prerequisite:** Dedicated staging environment with scheduled chaos windows
+  - **Target:** Simulate LLM provider failures, database drops, Redis crashes
+
+- [ ] **Multi-Agent Fuzzing Orchestration** — AI-driven fuzzing strategy generation
+  - **Why defer:** Requires training data on effective fuzzing strategies
+  - **Prerequisite:** 100+ fuzzing runs with coverage data
+  - **Target:** Agents generate fuzz inputs for low-coverage paths
+
+- [ ] **Semantic Bug Clustering** — Groups similar bugs automatically
+  - **Why defer:** Requires significant bug dataset for clustering accuracy
+  - **Prerequisite:** 500+ filed bugs with rich metadata
+  - **Target:** Auto-group duplicate bugs, suggest merge candidates
+
+- [ ] **Predictive Bug Discovery** — Uses historical data to predict high-risk areas
+  - **Why defer:** Requires ML model training on past bug locations
+  - **Prerequisite:** 1000+ bugs with code location metadata
+  - **Target:** Suggest fuzzing focus areas based on risk score
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Authentication Flow Tests | HIGH | Medium | **P1** |
-| Agent Execution Critical Path | HIGH | Medium | **P1** |
-| Canvas Presentation Tests (7 types) | HIGH | High | **P1** |
-| Test Isolation & Reproducibility | HIGH | Medium | **P1** |
-| API-First Authentication | HIGH | Low | **P1** |
-| Database Isolation | HIGH | Medium | **P1** |
-| Failure Artifacts (Screenshots/Videos) | MEDIUM | Low | **P1** |
-| Cross-Platform Workflow Parity (Web + Mobile API) | HIGH | Medium | **P1** |
-| Smoke Tests | MEDIUM | Low | **P1** |
-| Flaky Test Detection | MEDIUM | Medium | **P1** |
-| Stress Testing (Concurrent Executions) | HIGH | High | **P2** |
-| Network Simulation Testing | MEDIUM | Medium | **P2** |
-| Visual Regression Testing (Percy) | MEDIUM | Medium | **P2** |
-| Real User Interaction Simulation | MEDIUM | Medium | **P2** |
-| Error Boundary & Edge Case Testing | HIGH | Medium | **P2** |
-| WebSocket/Streaming Stress Tests | MEDIUM | High | **P2** |
-| Cross-Platform Test Reuse Framework | HIGH | High | **P3** |
-| Mobile Detox E2E (Full UI) | MEDIUM | High | **P3** |
-| Desktop Tauri Integration Tests | MEDIUM | High | **P3** |
-| Performance Regression Testing | MEDIUM | Medium | **P3** |
-| Memory Leak Detection | MEDIUM | High | **P3** |
-| Form Validation & Submission Testing | LOW | Medium | **P3** |
-| Deep Link Testing | LOW | Medium | **P3** |
+| **Fuzzing with Atheris** | HIGH (finds crash bugs) | MEDIUM (have infrastructure, need test cases) | P1 |
+| **Property-Based Testing Expansion** | HIGH (validates invariants) | LOW (have 239 files, need more) | P1 |
+| **Load Testing with k6** | HIGH (catches perf regressions) | LOW (have scripts, need CI integration) | P1 |
+| **Network Failure Simulation** | HIGH (real-world resilience) | LOW (have tests, need expansion) | P1 |
+| **Automated Bug Filing** | HIGH (reduces toil) | MEDIUM (have service, need integration) | P1 |
+| **Memory Leak Detection** | MEDIUM (long-term stability) | MEDIUM (need heap profiling) | P2 |
+| **Performance Regression Detection** | MEDIUM (UX quality) | MEDIUM (need Lighthouse CI) | P2 |
+| **API Contract Fuzzing** | MEDIUM (API correctness) | MEDIUM (Schemathesis integration) | P2 |
+| **Cross-Platform Bug Correlation** | LOW (convenience) | HIGH (need correlation layer) | P3 |
+| **Chaos Engineering** | HIGH (resilience) | HIGH (need isolated env) | P3 |
+| **Multi-Agent Fuzzing Orchestration** | MEDIUM (smart fuzzing) | HIGH (need training data) | P3 |
+| **Semantic Bug Clustering** | LOW (organization) | HIGH (need bug dataset) | P3 |
+| **Predictive Bug Discovery** | LOW (optimization) | HIGH (need ML model) | P3 |
 
 **Priority key:**
-- **P1: Must have for v7.0 launch** - Core E2E testing for critical workflows
-- **P2: Should have for v7.1** - Advanced bug discovery techniques
-- **P3: Nice to have for v8.0+** - Full cross-platform coverage, specialized testing
+- **P1 (Must have for v1):** Core bug discovery capabilities that find high-impact bugs with reasonable cost
+- **P2 (Should have, add when possible):** Valuable features that address specific pain points
+- **P3 (Nice to have, future consideration):** Advanced features requiring significant infrastructure or data
 
 ## Competitor Feature Analysis
 
-| Feature | Selenium/Cypress | Playwright | Detox | Our Approach (Atom) |
-|---------|-----------------|------------|-------|---------------------|
-| **Cross-browser testing** | Excellent (all browsers) | Excellent (Chrome, Firefox, Safari, Edge) | N/A (mobile only) | Playwright for web (Chromium v3.1, expand to Firefox/Safari v3.2) |
-| **Mobile testing** | Appium (complex setup) | N/A | Excellent (React Native) | API-level tests v7.0 (Detox BLOCKED, defer to v8.0) |
-| **Desktop testing** | N/A | N/A | N/A | Tauri integration tests (defer to v8.0) |
-| **Parallel execution** | Yes (with Selenium Grid) | Yes (built-in) | Yes | pytest-xdist (web), separate workers (mobile API, desktop) |
-| **Auto-waiting** | No (manual waits) | Yes (auto-wait for elements) | Yes (auto-wait) | Playwright auto-waiting (web), explicit waits (mobile/desktop) |
-| **Visual regression** | Third-party (Applitools) | Third-party (Percy) | Third-party (Detox screenshot) | Percy integration (v7.1) |
-| **Network simulation** | Yes (manual) | Yes (`context.route()`) | Limited | Playwright network simulation (v7.1) |
-| **Stress testing** | Manual (load testing tools) | Manual (k6, Artillery) | Manual | Custom stress tests (v7.1) |
-| **Flaky test detection** | Manual | Manual | Manual | Custom FlakyTestTracker (v7.0) |
-| **Test isolation** | Manual setup | Manual setup | Manual setup | Database per worker, unique IDs (v7.0) |
+| Feature | Generic QA Platforms | AI Testing Tools | Our Approach (Atom) |
+|---------|---------------------|------------------|---------------------|
+| **Fuzzing** | AFL/libFuzzer integration, mostly C/C++ | Limited fuzzing support | Python-focused Atheris fuzzing for business logic |
+| **Property-Based Testing** | Hypothesis/QuickCheck plugins | Manual property definition | 239 existing property test files + AI-generated invariants (future) |
+| **Load Testing** | JMeter, k6, Gatling | Basic load tests | k6 integration with CI/CD and automated bug filing |
+| **Network Simulation** | Basic throttling | Limited | Chromium DevTools Protocol integration with offline/3G/timeout tests |
+| **Automated Bug Filing** | Jira integration, manual | Limited | GitHub integration with rich metadata (screenshots, logs, traces) |
+| **Cross-Platform** | Separate tools per platform | Web-focused | Unified Playwright + Detox + Tauri tests with correlation |
+| **Chaos Engineering** | Chaos Monkey, Chaos Mesh | Rare | Targeted chaos for agent/LLM/governance systems (future) |
+| **AI-Enhanced** | Test selection, flaky detection | AI-generated tests | AI-driven fuzzing strategies, semantic clustering, predictive discovery (future) |
 
-## Existing Atom E2E Infrastructure (v3.1)
+**Our differentiators:**
+1. **Python business logic fuzzing:** Focus on agent governance, LLM routing, episodic memory (not just parsing)
+2. **Property-based testing at scale:** 239 files, 113K+ lines, covering domain-specific invariants
+3. **Integrated bug filing:** Automatic GitHub filing with screenshots, logs, traces, reproducible cases
+4. **Cross-platform correlation:** Detect if bug manifests across web/mobile/desktop
+5. **AI-enhanced discovery:** Multi-agent fuzzing orchestration, semantic clustering, predictive risk scoring (v2+)
 
-**Already Implemented:**
-- ✅ Playwright configuration (`playwright.config.ts`, `backend/tests/e2e_ui/playwright.config.ts`)
-- ✅ 30+ E2E tests (auth, agent execution, canvas, skills, governance, WebSocket streaming)
-- ✅ API-first authentication (`fixtures/auth_fixtures.py`, JWT token in localStorage)
-- ✅ Database isolation (`fixtures/database_fixtures.py`, worker-specific schemas)
-- ✅ Test data factory (`fixtures/test_data_factory.py`, Factory Boy pattern)
-- ✅ Page Object Model (`pages/page_objects.py`, `pages/cross_platform_objects.py`)
-- ✅ Smoke tests (`tests/test_smoke.py`, infrastructure validation)
-- ✅ Flaky test detection (`scripts/detect_flaky_tests.py`, `scripts/flaky_test_tracker.py`)
-- ✅ Quality gates (`scripts/quality_gate.py`, `scripts/pass_rate_validator.py`)
-- ✅ Visual regression (Percy) (`tests/visual/test_visual_regression.py`)
-- ✅ Cross-platform workflow tests (`tests/cross-platform/test_shared_workflows.py`, `tests/cross-platform/test_feature_parity.py`)
-- ✅ CI/CD integration (`.github/workflows/e2e-unified.yml`, parallel platform jobs)
+## Existing Implementation Status
 
-**Gaps for v7.0:**
-- ❌ Stress testing for bug discovery (concurrent executions, rapid iterations)
-- ❌ Network simulation testing (offline, slow 3G, packet loss)
-- ❌ Real user interaction simulation (realistic delays, keyboard navigation)
-- ❌ Error boundary & edge case testing (401, 500, timeouts, malformed responses)
-- ❌ WebSocket/Streaming stress tests (connection churn, reconnection logic)
-- ❌ Canvas accessibility testing (ARIA tree validation for all 7 canvas types)
-- ❌ Memory leak detection (heap snapshots, long-running sessions)
-- ❌ Performance regression testing (Lighthouse CI, page load budgets)
-- ❌ Mobile Detox E2E (BLOCKED by expo-dev-client requirement)
-- ❌ Desktop Tauri integration tests (GUI context required in CI)
-- ❌ Cross-platform test reuse framework (shared test logic, platform adapters)
+Based on analysis of existing codebase (v7.0 shipped March 24, 2026):
+
+### ✅ Already Implemented (v7.0)
+
+1. **Property-Based Testing**
+   - Files: 239 property test files in `/backend/tests/property_tests/`
+   - Lines: 113,598 lines of property test code
+   - Framework: Hypothesis with conftest.py (strategies, settings, fixtures)
+   - Coverage: agent_governance, llm, episodes, workflows, models, api, security, etc.
+
+2. **Fuzzing Infrastructure**
+   - Files: `fuzz_helpers.py` with Atheris wrapper utilities
+   - Tests: 3 fuzz test files (financial_parsing, security_validation)
+   - Features: FuzzTestCase class, exception handling, crash reporting
+
+3. **Load Testing**
+   - Tool: k6 (Grafana k6 load testing tool)
+   - Scripts: 4 load test files (baseline 10 users, moderate 50 users, high 100 users, web UI)
+   - Scenarios: API endpoints, web UI user flows
+   - Location: `/backend/tests/load/`
+
+4. **Network Failure Simulation**
+   - Files: 4 network test files in `/backend/tests/e2e_ui/tests/`
+   - Scenarios: offline mode, slow 3G, database drop, API timeout
+   - Framework: Playwright with CDPSession for network emulation
+
+5. **Headless Browser Automation**
+   - Tests: 495+ E2E tests (Phase 236 v7.0)
+   - Framework: Playwright Python 1.58.0
+   - Coverage: authentication, agents, canvas, workflows, stress testing
+   - Location: `/backend/tests/e2e_ui/tests/`
+
+6. **Automated Bug Filing**
+   - Service: `BugFilingService` with GitHub integration
+   - Features: Idempotent filing, rich metadata, screenshots, logs, traces
+   - Tests: `test_automated_bug_filing.py` (615 lines)
+   - Supports: load, network, memory, mobile, desktop, visual, a11y tests
+
+7. **Memory Leak Detection**
+   - File: `test_memory_leak_detection.py` (150 lines)
+   - Method: Heap snapshot comparison for agent execution loops
+   - Detection: 10MB+ memory increase triggers bug filing
+
+8. **Performance Regression Detection**
+   - File: `test_performance_regression.py` (163 lines)
+   - Tool: Lighthouse CI integration
+   - Metrics: p(95) latency, error rate, performance thresholds
+
+9. **Cross-Platform Testing**
+   - Web: Playwright (Chromium)
+   - Mobile: Detox (React Native) - API-level testing
+   - Desktop: Tauri testing
+   - Location: `/backend/tests/e2e_ui/tests/cross-platform/`
+
+10. **Visual Regression Testing**
+    - Tool: Percy visual regression
+    - Tests: 26 tests, 78+ snapshots
+    - Location: `/backend/tests/e2e_ui/tests/visual/`
+
+11. **Accessibility Testing**
+    - Tool: jest-axe (WCAG compliance)
+    - Tests: 53 accessibility tests
+    - Location: `/backend/tests/e2e_ui/tests/a11y/`
+
+### 🚧 Partially Implemented (Needs Expansion)
+
+1. **Fuzzing Coverage**
+   - **Status:** Have infrastructure (fuzz_helpers.py), only 3 fuzz test files
+   - **Need:** Expand to 10+ fuzz test cases covering critical paths
+   - **Target Areas:** Agent governance, LLM routing, episodic memory, input validation
+
+2. **Property-Based Testing Coverage**
+   - **Status:** 239 files is extensive, but may have gaps in new features
+   - **Need:** Add 50 property tests for v7.0+ features (GraphRAG, entity types, world model)
+   - **Target:** Ensure all critical paths have property tests
+
+3. **Chaos Engineering**
+   - **Status:** Not implemented
+   - **Need:** Infrastructure for failure injection (LLM provider failures, DB drops)
+   - **Recommendation:** Defer to v2+ (requires isolated environment)
+
+### ❌ Not Implemented (Future Work)
+
+1. **API Contract Fuzzing**
+   - **Tool:** Schemathesis (in requirements-testing.txt but not configured)
+   - **Need:** Integration with OpenAPI specs, automated contract validation
+   - **Target:** Fuzz all /api/v1 endpoints for schema compliance
+
+2. **Multi-Agent Fuzzing Orchestration**
+   - **Status:** Concept only
+   - **Need:** Train agents to generate fuzzing strategies based on coverage gaps
+   - **Prerequisite:** Coverage data + training dataset
+
+3. **Semantic Bug Clustering**
+   - **Status:** Concept only
+   - **Need:** LLM-based embedding generation for bug reports
+   - **Prerequisite:** 500+ filed bugs with metadata
+
+4. **Predictive Bug Discovery**
+   - **Status:** Concept only
+   - **Need:** ML model trained on historical bug locations
+   - **Prerequisite:** 1000+ bugs with code location metadata
+
+## Target Areas for Bug Discovery (Atom-Specific)
+
+Based on Atom's architecture and v8.0 goals (discover 50+ bugs):
+
+### 1. API Layer
+- **Critical endpoints:** `/api/v1/agents/execute`, `/api/v1/chat/stream`, `/api/v1/workflows/trigger`
+- **Failure modes:** Timeout, invalid JSON, missing fields, concurrent requests
+- **Discovery methods:** Fuzzing (request payloads), property tests (response invariants), load testing (concurrent requests)
+
+### 2. Agent & LLM Systems
+- **Critical components:** Agent governance, LLM routing, cognitive tier system, streaming responses
+- **Failure modes:** Governance cache inconsistency, LLM provider fallback failures, stream interruption, memory leaks in long-running agents
+- **Discovery methods:** Fuzzing (agent configurations), property tests (governance invariants), chaos engineering (LLM provider failures)
+
+### 3. User Workflows
+- **Critical flows:** Agent creation, chat/streaming, canvas presentation, workflow execution, skill installation
+- **Failure modes:** State desynchronization, WebSocket disconnection, canvas rendering errors, workflow DAG validation failures
+- **Discovery methods:** E2E tests (495+ existing), network simulation (offline, timeout), cross-platform correlation
+
+### 4. Data Layer
+- **Critical components:** PostgreSQL, Redis (WebSocket), LanceDB (episodic memory), GraphRAG
+- **Failure modes:** Connection pool exhaustion, transaction rollbacks, cache inconsistency, vector search failures
+- **Discovery methods:** Property tests (ACID invariants), chaos engineering (database drops), load testing (query performance)
 
 ## Sources
 
-### High Confidence (Official Documentation & Implementation)
+**Existing Implementation (High Confidence):**
+- Atom v7.0 codebase analysis (1,692 test files)
+- Phase 236 plans and summaries (9 plans, 9 summaries, verification report)
+- `/backend/tests/property_tests/` - 239 property test files
+- `/backend/tests/fuzzy_tests/` - Fuzzing infrastructure with Atheris
+- `/backend/tests/load/` - k6 load testing scripts
+- `/backend/tests/e2e_ui/tests/` - 495+ E2E tests
+- `/backend/tests/bug_discovery/` - Automated bug filing service
 
-- **[Playwright Python Documentation](https://playwright.dev/python/)** - Authoritative E2E testing patterns, auto-waiting, selectors
-- **[Atom E2E Testing Guide](/Users/rushiparikh/projects/atom/docs/E2E_TESTING_GUIDE.md)** - Comprehensive E2E setup, patterns, troubleshooting (March 7, 2026)
-- **[Atom v3.1 E2E Implementation](/Users/rushiparikh/projects/atom/backend/tests/e2e_ui/)** - 30+ production E2E tests, fixtures, page objects, flaky test detection
-- **[Percy Documentation](https://docs.percy.io/)** - Visual regression testing best practices
-- **[pytest-xdist Documentation](https://pytest-xdist.readthedocs.io/)** - Parallel test execution, worker isolation
-- **[Factory Boy Documentation](https://factoryboy.readthedocs.io/)** - Test data factory patterns
+**Documentation (High Confidence):**
+- `CLAUDE.md` - Project architecture and features
+- `.planning/MILESTONES.md` - v7.0 milestone (495+ tests, bug discovery)
+- `backend/requirements-testing.txt` - Testing dependencies (Atheris, Schemathesis, Hypothesis)
+- `backend/tests/e2e_ui/README.md` - E2E testing infrastructure
 
-### Medium Confidence (Codebase Analysis & Best Practices)
+**Training Data (Medium Confidence - Web Search Unavailable):**
+- Fuzzing best practices (Atheris, AFL, libFuzzer patterns)
+- Property-based testing methodologies (Hypothesis, QuickCheck)
+- Chaos engineering principles (Chaos Monkey, Chaos Mesh)
 
-- **Atom E2E Test Suite** - 30+ tests covering auth, agent execution, canvas, skills, governance, WebSocket streaming
-- **Atom Flaky Test Detection** - Custom FlakyTestTracker, detect_flaky_tests.py, quality gates, pass rate validation
-- **Atom Cross-Platform Tests** - test_shared_workflows.py, test_feature_parity.py, cross_platform_objects.py
-- **Atom Visual Regression Tests** - Percy integration, 5 critical pages (dashboard, agent chat, canvas sheets/charts/forms)
-- **E2E Testing Anti-Patterns** - Brittle selectors, testing implementation details, shared state, hard-coded waits (from codebase analysis)
-
-### Low Confidence (Industry Best Practices - Needs Validation)
-
-- **Stress testing patterns for E2E** - Limited examples of stress testing in E2E suites (most use separate load testing tools)
-- **Network simulation in E2E** - Playwright `context.route()` documented, but production patterns not widely available
-- **Cross-platform test reuse frameworks** - Emerging pattern, few production examples of shared test logic across platforms
-- **Mobile Detox E2E best practices** - BLOCKED by expo-dev-client requirement, deferred to Phase 150+
-- **Memory leak detection in E2E** - Specialized tooling (Chrome DevTools Protocol), complex test scenarios
-
-### Gaps Identified
-
-- **Stress testing for E2E** - Need patterns for concurrent agent executions, rapid canvas iterations, WebSocket churn
-- **Network simulation in production E2E** - Need examples of offline, slow 3G, packet loss testing in real apps
-- **Cross-platform test reuse abstractions** - Need to design framework for shared workflow definitions, platform adapters
-- **Mobile API-level testing patterns** - Need to validate API-level approach vs Detox E2E for mobile workflows
-- **Performance budgets for E2E** - Need to define page load thresholds, interaction timing budgets for E2E tests
-
-**Next Research Phases:**
-- Phase-specific research needed for stress test design (concurrent execution patterns, resource exhaustion scenarios)
-- Investigation into network simulation libraries (Playwright `context.route()` vs dedicated tools)
-- Deep dive on cross-platform test reuse patterns (shared test logic, platform adapters, test ID conventions)
-- Research on Mobile API-level testing vs Detox E2E tradeoffs (speed, coverage, maintenance)
+**Gaps (Low Confidence - Need Web Search):**
+- 2026 fuzzing tool landscape updates
+- Latest chaos engineering tools for Python/FastAPI
+- Property-based testing adoption in AI/ML systems
+- Competitor analysis for AI-enhanced bug discovery
 
 ---
-
-*Feature research for: Atom v7.0 Cross-Platform E2E Testing & Bug Discovery*
-*Researched: March 23, 2026*
-*Confidence: HIGH (mix of official docs, existing implementation, codebase analysis, industry best practices)*
+*Feature research for: Automated Bug Discovery in Atom AI Automation Platform*
+*Researched: March 24, 2026*
+*Confidence: HIGH (based on extensive existing implementation)*

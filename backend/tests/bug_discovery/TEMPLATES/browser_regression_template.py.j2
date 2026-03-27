@@ -1,0 +1,38 @@
+"""
+Browser discovery regression test for bug {{ bug_id }}
+
+URL: {{ bug.metadata.get('url', 'unknown') }}
+Console Error: {{ bug.metadata.get('console_error', bug.error_message) }}
+"""
+
+import pytest
+from playwright.sync_api import Page
+from tests.browser_discovery.conftest import authenticated_page
+
+
+@pytest.mark.regression
+@pytest.mark.browser
+@pytest.mark.slow
+def test_regression_browser_{{ bug_id }}(authenticated_page: Page):
+    """
+    Browser regression test for bug {{ bug_id }}.
+
+    This test verifies no console errors on the page.
+    """
+    # URL from bug metadata
+    url = "{{ bug.metadata.get('url', 'http://localhost:3000') }}"
+
+    # Navigate to page
+    authenticated_page.goto(url, wait_until="domcontentloaded")
+
+    # Check for console errors
+    console_errors = authenticated_page.evaluate("() => window.__consoleErrors || []")
+
+    # Assert no console errors
+    assert len(console_errors) == 0, f"Console errors found: {console_errors}"
+
+    {% if bug.metadata.get('accessibility_violations') %}
+    # Check for accessibility violations
+    # Original violations: {{ bug.metadata.get('accessibility_violations') }}
+    # TODO: Add axe-core accessibility check
+    {% endif %}

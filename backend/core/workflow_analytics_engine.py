@@ -15,6 +15,7 @@ import sqlite3
 import statistics
 from typing import Any, Dict, List, Optional, Union
 import uuid
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,8 @@ class WorkflowMetric:
     step_id: Optional[str] = None
     step_name: Optional[str] = None
     user_id: str = "default_user"
+    workspace_id: str = "default"
+    tenant_id: Optional[str] = None
 
 @dataclass
 class WorkflowExecutionEvent:
@@ -67,6 +70,8 @@ class WorkflowExecutionEvent:
     metadata: Dict[str, Any] = None
     resource_id: Optional[str] = None  # ID of the produced resource (e.g., task_id)
     user_id: str = "default_user"  # ID of the user who owns this execution
+    workspace_id: str = "default"
+    tenant_id: Optional[str] = None
 
 @dataclass
 class PerformanceMetrics:
@@ -119,7 +124,8 @@ class Alert:
 class WorkflowAnalyticsEngine:
     """Advanced analytics engine for workflow monitoring and insights"""
 
-    def __init__(self, db_path: str = "analytics.db", enable_background_thread: bool = False):
+    def __init__(self, db: Optional[Session] = None, workspace_id: str = "default", tenant_id: Optional[str] = None, db_path: str = "analytics.db", enable_background_thread: bool = False):
+        self.db = db
         self.db_path = Path(db_path)
         self.db_path.expanduser().absolute()
 
@@ -127,15 +133,21 @@ class WorkflowAnalyticsEngine:
         self._init_database()
 
         # Metrics storage
-        self.metrics_buffer: deque = deque(maxlen=10000)
-        self.events_buffer: deque = deque(maxlen=50000)
-
+        
+        # Buffers for batching
+        self.events_buffer: List[WorkflowExecutionEvent] = []
+        self.metrics_buffer: List[WorkflowMetric] = []
+        
         # Performance cache
         self.performance_cache: Dict[str, PerformanceMetrics] = {}
         self.cache_ttl = 300  # 5 minutes
 
         # Active alerts
         self.active_alerts: Dict[str, Alert] = {}
+
+        # Multi-tenant context
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
 
         # Background thread control
         self.enable_background_thread = enable_background_thread
@@ -166,6 +178,8 @@ class WorkflowAnalyticsEngine:
                 step_id TEXT,
                 step_name TEXT,
                 user_id TEXT NOT NULL DEFAULT 'default_user',
+                workspace_id TEXT NOT NULL DEFAULT 'default',
+                tenant_id TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -187,6 +201,8 @@ class WorkflowAnalyticsEngine:
                 error_message TEXT,
                 metadata TEXT,
                 resource_id TEXT,
+                workspace_id TEXT NOT NULL DEFAULT 'default',
+                tenant_id TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -207,6 +223,8 @@ class WorkflowAnalyticsEngine:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 triggered_at DATETIME,
                 resolved_at DATETIME,
+                workspace_id TEXT NOT NULL DEFAULT 'default',
+                tenant_id TEXT,
                 notification_channels TEXT
             )
         """)
@@ -228,18 +246,27 @@ class WorkflowAnalyticsEngine:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_type ON workflow_events(event_type)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_user ON workflow_metrics(user_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_user ON workflow_events(user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_tenant ON workflow_metrics(tenant_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_tenant ON workflow_events(tenant_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_metrics_workspace ON workflow_metrics(workspace_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_workspace ON workflow_events(workspace_id)")
 
         conn.commit()
         conn.close()
 
     def track_workflow_start(self, workflow_id: str, execution_id: str,
-                           user_id: Optional[str] = "default_user", metadata: Optional[Dict] = None):
+                           user_id: Optional[str] = "default_user", 
+                           workspace_id: str = "default",
+                           tenant_id: Optional[str] = None,
+                           metadata: Optional[Dict] = None):
         """Track workflow execution start"""
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
             execution_id=execution_id,
             user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
             event_type="workflow_started",
             timestamp=datetime.now(),
             metadata=metadata or {}
@@ -255,7 +282,9 @@ class WorkflowAnalyticsEngine:
             value=1,
             timestamp=datetime.now(),
             tags={"event_type": "started"},
-            user_id=user_id
+            user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id
         )
         self.metrics_buffer.append(metric)
 
@@ -263,13 +292,17 @@ class WorkflowAnalyticsEngine:
                                 status: WorkflowStatus, duration_ms: int,
                                 step_outputs: Optional[Dict] = None,
                                 error_message: Optional[str] = None,
-                                user_id: str = "default_user"):
+                                user_id: str = "default_user",
+                                workspace_id: str = "default",
+                                tenant_id: Optional[str] = None):
         """Track workflow execution completion"""
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
             execution_id=execution_id,
             user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
             event_type="workflow_completed",
             timestamp=datetime.now(),
             duration_ms=duration_ms,
@@ -288,7 +321,9 @@ class WorkflowAnalyticsEngine:
             value=duration_ms,
             timestamp=datetime.now(),
             tags={"status": status.value},
-            user_id=user_id
+            user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id
         )
         self.metrics_buffer.append(metric)
 
@@ -300,20 +335,25 @@ class WorkflowAnalyticsEngine:
             value=1,
             timestamp=datetime.now(),
             tags={"status": status.value},
-            user_id=user_id
+            user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id
         )
         self.metrics_buffer.append(status_metric)
 
     def track_step_execution(self, workflow_id: str, execution_id: str, step_id: str,
                            step_name: str, event_type: str, duration_ms: Optional[int] = None,
                            status: Optional[str] = None, error_message: Optional[str] = None,
-                           resource_id: Optional[str] = None, user_id: str = "default_user"):
+                           resource_id: Optional[str] = None, user_id: str = "default_user",
+                           workspace_id: str = "default", tenant_id: Optional[str] = None):
         """Track individual step execution"""
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
             execution_id=execution_id,
             user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
             event_type=event_type,
             timestamp=datetime.now(),
             step_id=step_id,
@@ -335,19 +375,24 @@ class WorkflowAnalyticsEngine:
                 value=duration_ms,
                 timestamp=datetime.now(),
                 tags={"step_id": step_id, "step_name": step_name, "event_type": event_type},
-                user_id=user_id
+                user_id=user_id,
+                workspace_id=workspace_id,
+                tenant_id=tenant_id
             )
             self.metrics_buffer.append(metric)
 
     def track_manual_override(self, workflow_id: str, execution_id: str, resource_id: str, 
                              action: str, original_value: Any = None, new_value: Any = None,
-                             user_id: str = "default_user"):
+                             user_id: str = "default_user", workspace_id: str = "default",
+                             tenant_id: Optional[str] = None):
         """Track when a user manually overrides an automated action"""
         event = WorkflowExecutionEvent(
             event_id=str(uuid.uuid4()),
             workflow_id=workflow_id,
             execution_id=execution_id,
             user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
             event_type="manual_override",
             timestamp=datetime.now(),
             resource_id=resource_id,
@@ -369,13 +414,16 @@ class WorkflowAnalyticsEngine:
             metric_type=MetricType.COUNTER,
             value=1,
             user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
             tags={"resource_id": resource_id, "action": action}
         )
 
     def track_resource_usage(self, workflow_id: str, cpu_usage: float, memory_usage: float,
                            step_id: Optional[str] = None,
                            disk_io: Optional[int] = None, network_io: Optional[int] = None,
-                           user_id: str = "default_user"):
+                           user_id: str = "default_user", workspace_id: str = "default",
+                           tenant_id: Optional[str] = None):
         """Track resource usage during workflow execution"""
         timestamp = datetime.now()
 
@@ -387,7 +435,9 @@ class WorkflowAnalyticsEngine:
             value=cpu_usage,
             timestamp=timestamp,
             step_id=step_id,
-            user_id=user_id
+            user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id
         )
         self.metrics_buffer.append(cpu_metric)
 
@@ -399,7 +449,9 @@ class WorkflowAnalyticsEngine:
             value=memory_usage,
             timestamp=timestamp,
             step_id=step_id,
-            user_id=user_id
+            user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id
         )
         self.metrics_buffer.append(memory_metric)
 
@@ -412,7 +464,9 @@ class WorkflowAnalyticsEngine:
                 value=disk_io,
                 timestamp=timestamp,
                 step_id=step_id,
-                user_id=user_id
+                user_id=user_id,
+                workspace_id=workspace_id,
+                tenant_id=tenant_id
             )
             self.metrics_buffer.append(disk_metric)
 
@@ -425,12 +479,15 @@ class WorkflowAnalyticsEngine:
                 value=network_io,
                 timestamp=timestamp,
                 step_id=step_id,
-                user_id=user_id
+                user_id=user_id,
+                workspace_id=workspace_id,
+                tenant_id=tenant_id
             )
             self.metrics_buffer.append(network_metric)
 
     def track_user_activity(self, user_id: str, action: str, workflow_id: Optional[str] = None,
-                          metadata: Optional[Dict] = None, workspace_id: Optional[str] = None):
+                          metadata: Optional[Dict] = None, workspace_id: Optional[str] = None,
+                          tenant_id: Optional[str] = None):
         """Track user activity for analytics"""
         metric = WorkflowMetric(
             workflow_id=workflow_id or "system",
@@ -439,13 +496,16 @@ class WorkflowAnalyticsEngine:
             value=1,
             timestamp=datetime.now(),
             tags={"user_id": user_id, "action": action, "workspace_id": workspace_id or "default"},
-            user_id=user_id
+            user_id=user_id,
+            workspace_id=workspace_id or "default",
+            tenant_id=tenant_id
         )
         self.metrics_buffer.append(metric)
 
     def track_metric(self, workflow_id: str, metric_name: str, metric_type: MetricType,
                      value: Any, tags: Dict[str, str] = None, step_id: str = None,
-                     step_name: str = None, user_id: str = "default_user"):
+                     step_name: str = None, user_id: str = "default_user",
+                     workspace_id: str = "default", tenant_id: Optional[str] = None):
         """Track a general workflow metric"""
         metric = WorkflowMetric(
             workflow_id=workflow_id,
@@ -456,7 +516,9 @@ class WorkflowAnalyticsEngine:
             tags=tags,
             step_id=step_id,
             step_name=step_name,
-            user_id=user_id
+            user_id=user_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id
         )
         self.metrics_buffer.append(metric)
 

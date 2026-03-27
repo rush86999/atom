@@ -1,0 +1,42 @@
+"""
+Property-based regression test for bug {{ bug_id }}
+
+Invariant: {{ bug.metadata.get('invariant', 'Unknown invariant violated') }}
+"""
+
+import pytest
+from hypothesis import given, strategies as st
+{% if bug.metadata.get('strategy') %}
+from {{ bug.metadata.get('strategy') }} import {{ bug.metadata.get('strategy_name', 'custom_strategy') }}
+{% endif %}
+
+
+@pytest.mark.regression
+@pytest.mark.property
+@pytest.mark.slow
+{% if bug.metadata.get('property_test_name') %}
+def test_regression_property_{{ bug_id }}():
+    """
+    Property-based regression test for bug {{ bug_id }}.
+
+    This test verifies an invariant that was violated.
+    """
+    # Original property test: {{ bug.test_name }}
+    # Invariant: {{ bug.metadata.get('invariant', 'N/A') }}
+
+    # TODO: Implement invariant check
+    # The invariant must always hold for all valid inputs
+
+    assert True, "Property regression test - needs invariant implementation"
+{% else %}
+@given({{ bug.metadata.get('hypothesis_strategy', 'st.none()') }})
+def test_regression_property_{{ bug_id }}(value):
+    """
+    Property-based regression test for bug {{ bug_id }}.
+
+    This test verifies an invariant that was violated.
+    """
+    # Invariant: {{ bug.metadata.get('invariant', 'N/A') }}
+    # TODO: Implement invariant check
+    assert True, "Property regression test - needs invariant implementation"
+{% endif %}

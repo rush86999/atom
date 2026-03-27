@@ -10,8 +10,8 @@ from unittest.mock import patch, Mock
 from fastapi import HTTPException
 
 from api.oauth_routes import (
-    _is_valid_user_id,
-    _is_valid_email,
+    # _is_valid_user_id,  # Not yet implemented
+    # _is_valid_email,  # Not yet implemented
     get_current_user
 )
 

@@ -376,6 +376,58 @@ jobs:
           path: backend/tests/e2e_ui/videos/
 ```
 
+## Bug Discovery Fixture Reuse
+
+Bug discovery tests (fuzzing, chaos, property tests, browser discovery) reuse fixtures from this directory to avoid duplication and ensure consistency.
+
+**For comprehensive fixture documentation, see:**
+- **[Bug Discovery Fixture Reuse Guide](../bug_discovery/FIXTURE_REUSE_GUIDE.md)** - Complete guide to reusing fixtures in bug discovery tests
+
+**Quick Import Reference:**
+
+```python
+# Import authentication fixtures (10-100x faster than UI login)
+from tests.e2e_ui.fixtures.auth_fixtures import test_user, authenticated_user, authenticated_page
+
+# Import database fixtures (worker-based isolation for parallel execution)
+from tests.e2e_ui.fixtures.database_fixtures import db_session
+
+# Import API fixtures (HTTP client with pre-set auth headers)
+from tests.e2e_ui.fixtures.api_fixtures import setup_test_user, setup_test_project, api_client_authenticated
+
+# Import factory fixtures (Factory Boy for test data)
+from tests.e2e_ui.fixtures.test_data_factory import user_factory, agent_factory, skill_factory
+
+# Import page objects (Page Object Model for maintainable UI tests)
+from tests.e2e_ui.pages.page_objects import LoginPage, DashboardPage, ChatPage
+```
+
+**Example: Browser Discovery Test Using Fixtures**
+
+```python
+from tests.e2e_ui.fixtures.auth_fixtures import authenticated_page
+from playwright.sync_api import Page
+
+@pytest.mark.browser
+def test_console_errors_on_dashboard(authenticated_page: Page):
+    """Discover console errors on dashboard (API-first auth = 10-100x faster)."""
+    authenticated_page.goto("http://localhost:3001/dashboard")  # Already authenticated!
+
+    # Check for console errors
+    errors = authenticated_page.evaluate("() => window.consoleErrors || []")
+    assert len(errors) == 0, f"Console errors: {errors}"
+```
+
+**Bug Discovery Test Directories:**
+- `backend/tests/fuzzing/` - Atheris fuzzing tests
+- `backend/tests/browser_discovery/` - Playwright bug discovery tests
+- `backend/tests/chaos/` - Chaos engineering tests
+- `backend/tests/property_tests/` - Hypothesis property-based tests
+
+**See Also:**
+- [Bug Discovery Templates](../bug_discovery/TEMPLATES/) - Test documentation templates
+- [TEST_QUALITY_STANDARDS.md](../../docs/TEST_QUALITY_STANDARDS.md) - Test quality requirements
+
 ## Additional Resources
 
 - **Playwright Documentation**: https://playwright.dev/python/

@@ -28,9 +28,11 @@ class QueenAgent:
     needed to achieve the user's objective.
     """
 
-    def __init__(self, db: Session, llm: LLMService):
+    def __init__(self, db: Session, llm: LLMService, workspace_id: str = "default", tenant_id: str = "default"):
         self.db = db
         self.llm = llm
+        self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         # SkillCreationAgent should also be modernized in a future step if needed
         from core.agents.skill_creation_agent import SkillCreationAgent
         self.skill_creator = SkillCreationAgent(db, llm)

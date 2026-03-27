@@ -9,6 +9,9 @@ This module provides a unified chat interface that connects all ATOM capabilitie
 - Cross-platform workflow execution
 """
 
+import logging
+from enum import Enum
+from typing import Dict, Any, List, Optional
 from services.agent_service import agent_service
 
 # LLM Service Integration
@@ -282,6 +285,7 @@ class ChatOrchestrator:
 
     def _initialize_ai_engines(self):
         """Initialize AI engines for NLP, data intelligence, and automation"""
+        try:
             from ai.nlp_engine import NaturalLanguageEngine
             from ai.data_intelligence import DataIntelligenceEngine
             from ai.automation_engine import AutomationEngine

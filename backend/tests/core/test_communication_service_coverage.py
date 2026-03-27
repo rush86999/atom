@@ -24,8 +24,8 @@ def mock_user(db_session):
     user = User(
         id="test-user-123",
         email="test@example.com",
-        full_name="Test User",
-        created_at=datetime.utcnow()
+        first_name="Test",
+        last_name="User"
     )
     db_session.add(user)
     db_session.commit()
@@ -41,7 +41,7 @@ def mock_user_identity(db_session, mock_user):
         user_id=mock_user.id,
         provider="slack",
         provider_user_id="U123456",
-        raw_data={"team": "T12345"}
+        metadata_json={"team": "T12345"}
     )
     db_session.add(identity)
     db_session.commit()
