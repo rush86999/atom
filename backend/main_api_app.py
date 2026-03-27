@@ -43,7 +43,7 @@ try:
     )
 except ImportError:
     IntegrationLoader = None
-    print("⚠️ WARNING: IntegrationLoader could not be imported (likely numpy/lancedb issue)")
+    print("WARNING: IntegrationLoader could not be imported (likely numpy/lancedb issue)")
 
 
 # --- CONFIGURATION & LOGGING ---

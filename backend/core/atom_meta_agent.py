@@ -33,7 +33,20 @@ from core.react_models import ReActStep
 # Initialized via get_llm_service() singleton factory for workspace-aware service.
 # All LLM calls (generate_response, generate_structured_response) go through self.llm.
 
+from pydantic import BaseModel, Field
+
 logger = logging.getLogger(__name__)
+
+
+class ToolCall(BaseModel):
+    tool: str = Field(..., description="Name of the tool to execute")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Parameters for the tool")
+
+class ReActStep(BaseModel):
+    thought: str = Field(..., description="The reasoning behind the current action or final answer")
+    action: Optional[ToolCall] = Field(None, description="The tool to call if further action is needed")
+    final_answer: Optional[str] = Field(None, description="The final response if the task is complete")
+    confidence: float = Field(0.9, description="Confidence score for this step")
 
 
 class SpecialtyAgentTemplate:

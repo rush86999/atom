@@ -161,6 +161,27 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
                                         <VStack align="stretch" spacing={4}>
                                             {workspaceState.views.filter(v => v.type === 'analysis').map((view, idx) => (
                                                 <Box key={idx} border="1px solid" borderColor="gray.100" borderRadius="md" p={3}>
+                                                    {/* Client & Source URL */}
+                                                    <Flex justify="space-between" align="center" mb={3}>
+                                                        <Text fontSize="sm" fontWeight="bold" color="blue.600">{view.data.client_name || 'Client'}</Text>
+                                                        {view.data.source_url && (
+                                                            <Badge colorScheme="green" fontSize="2xs" cursor="pointer" onClick={() => window.open(view.data.source_url, '_blank')}>
+                                                                🌐 {view.data.source_url.replace('https://', '').split('/')[0]}
+                                                            </Badge>
+                                                        )}
+                                                    </Flex>
+
+                                                    {/* Live Website Data */}
+                                                    {view.data.site_summary && (
+                                                        <Box p={3} bg="gray.50" _dark={{ bg: 'gray.800' }} borderRadius="md" mb={4} border="1px solid" borderColor="gray.200">
+                                                            <Text fontSize="2xs" fontWeight="bold" color="gray.500" mb={1}>LIVE WEBSITE DATA</Text>
+                                                            <Text fontSize="xs" color="gray.700" _dark={{ color: 'gray.300' }} noOfLines={6} whiteSpace="pre-wrap">
+                                                                {view.data.site_summary}
+                                                            </Text>
+                                                        </Box>
+                                                    )}
+
+                                                    {/* Urgency Score */}
                                                     <Box p={3} bg="blue.50" _dark={{ bg: 'blue.900/20' }} borderRadius="md" mb={4}>
                                                         <Flex justify="space-between" mb={1} align="center">
                                                             <Text fontSize="sm" fontWeight="bold">Urgency Score: {view.data.urgency_score}%</Text>
@@ -191,6 +212,7 @@ export const Workspace: React.FC<WorkspaceProps> = ({ userId, workspaceId }) => 
                                                 </Box>
                                             ))}
                                         </VStack>
+
                                     ) : (
                                         <Center h="100%" flexDir="column">
                                             <Box w={8} h={8} borderRadius="full" bg="gray.100" mb={2} />

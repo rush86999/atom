@@ -7,7 +7,6 @@ from core.base_routes import BaseAPIRouter
 from core.database import get_db, get_db_session
 from core.models import Workspace
 from core.satellite_service import satellite_service
-from core.security import verify_api_key_ws
 
 router = BaseAPIRouter(tags=["Satellite"])
 
