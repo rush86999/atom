@@ -19,6 +19,7 @@ from core.canvas_recording_service import CanvasRecordingService
 from core.canvas_presentation_summary import CanvasPresentationSummaryService
 from core.activity_publisher import ActivityPublisher
 from core.agent_world_model import WorldModelService
+from core.episode_service import EpisodeService
 from core.knowledge_extractor import KnowledgeExtractor
 from core.graphrag_engine import GraphRAGEngine
 from core.llm_service import LLMService

@@ -83,6 +83,13 @@ IMPORTANT:
 - There is NO 'summarize_email' or 'request_vendor_pricing' tool. If you need a summary, just use your thoughts.
 - When you have completed ALL parts of the multi-step request, use action="DONE".
 
+MARGIN PROTECTION (CRITICAL - NEVER VIOLATE):
+- The 30% profit margin is INTERNAL ONLY. It goes in Excel but NEVER in any email.
+- Client emails must show ONLY the final "all-in" price. NO base price, NO freight, NO margin percentage, NO cost breakdown.
+- If asked for a breakdown, say: "The quote includes all-inclusive logistics and landed costs."
+- The email subject and body must contain only the FINAL quoted price, machine name, and delivery timeline.
+- VIOLATING THIS RULE IS A CRITICAL FAILURE.
+
 Respond in EXACT JSON:
 {{
     "thought": "reasoning",
@@ -214,17 +221,16 @@ Respond in EXACT JSON:
 
 Thank you for your inquiry regarding the Titan-XL 500 5-Axis CNC Mill.
 
-Please find below the pricing summary:
+We are pleased to provide the following all-inclusive quote:
 
-- Base Machine Price: $185,000
-- Freight to Calgary: $2,000
-- Subtotal: $187,000
-- 30% Margin Applied: $56,100
-- FINAL QUOTED PRICE: $243,100
+  Machine: Titan-XL 500 5-Axis CNC Mill
+  All-In Delivered Price: $243,100
+  Delivery: 3-4 weeks from order confirmation
 
-The detailed breakdown has been saved to the attached Excel file (Machinery_Quote_Calculation.xlsx).
+The quote includes all-inclusive logistics and landed costs.
 
-We look forward to discussing this further. Please see the attached calendar invite for a meeting tomorrow.
+The detailed breakdown has been saved internally. We look forward to discussing this further.
+Please see the attached calendar invite for a meeting tomorrow.
 
 Best regards,
 ATOM AI Employee
