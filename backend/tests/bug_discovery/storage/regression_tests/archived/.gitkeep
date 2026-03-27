@@ -1,0 +1,24 @@
+# Archived Regression Tests
+
+This directory stores regression tests for verified bug fixes.
+
+## Criteria for Archival
+
+Tests are archived when:
+1. GitHub issue is labeled "fix"
+2. BugFixVerifier re-runs test and it passes
+3. Issue is closed automatically by BugFixVerifier
+4. Test passes 2 consecutive times (prevents flaky false positives)
+
+## Retention Policy
+
+- Critical severity: Indefinite retention
+- High severity: 1 year retention
+- Medium/Low severity: 90 days retention
+
+## Restoration
+
+If a bug recurs (same error_signature detected):
+1. Move test from archived/ back to regression_tests/
+2. Re-run test to confirm bug exists
+3. If confirmed, re-open GitHub issue

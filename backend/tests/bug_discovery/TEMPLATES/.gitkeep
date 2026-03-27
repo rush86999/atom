@@ -1,0 +1,7 @@
+# This file preserves the TEMPLATES directory in git
+
+The TEMPLATES directory will be populated with documentation templates in Plan 02:
+- FUZZING_TEMPLATE.md - Template for fuzzing test documentation
+- CHAOS_TEMPLATE.md - Template for chaos engineering test documentation
+- PROPERTY_TEMPLATE.md - Template for property-based test documentation
+- BROWSER_TEMPLATE.md - Template for browser discovery test documentation

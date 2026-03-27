@@ -63,21 +63,22 @@ class CognitiveTierService:
         ...     pass
     """
 
-    def __init__(self, workspace_id: str = "default", db_session=None):
+    def __init__(self, workspace_id: str = "default", db_session=None, tenant_id: Optional[str] = None):
         """
         Initialize the cognitive tier service.
 
         Args:
             workspace_id: Workspace identifier for preference isolation
             db_session: Optional SQLAlchemy session for database operations.
-                       If None, preferences are not persisted and defaults are used.
+            tenant_id: Optional tenant identifier for isolation
         """
         self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         self.db = db_session
 
         # Initialize tier components
         self.classifier = CognitiveClassifier()
-        self.escalation_manager = EscalationManager(db_session)
+        self.escalation_manager = EscalationManager(db_session, workspace_id=workspace_id, tenant_id=tenant_id)
 
         # Lazy initialize cache router (requires pricing fetcher)
         self._cache_router = None
@@ -494,9 +495,12 @@ class CognitiveTierService:
         """
         if self.db:
             try:
-                return self.db.query(CognitiveTierPreference).filter_by(
-                    workspace_id=self.workspace_id
-                ).first()
+                query = self.db.query(CognitiveTierPreference).filter(
+                    CognitiveTierPreference.workspace_id == self.workspace_id
+                )
+                if self.tenant_id:
+                    query = query.filter(CognitiveTierPreference.tenant_id == self.tenant_id)
+                return query.first()
             except Exception as e:
                 logger.error(f"Failed to load workspace preference: {e}")
         return None

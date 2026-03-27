@@ -1,0 +1,82 @@
+name: Bug Fix Verification
+
+on:
+  # Run every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      label:
+        description: 'Label to search for (default: fix)'
+        required: false
+        default: 'fix'
+      hours_ago:
+        description: 'Only verify issues labeled in last N hours (default: 24)'
+        required: false
+        default: '24'
+
+jobs:
+  verify-fixes:
+    name: Verify Bug Fixes
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest requests
+
+      - name: Verify bug fixes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LABEL: ${{ github.event.inputs.label || 'fix' }}
+          HOURS_AGO: ${{ github.event.inputs.hours_ago || '24' }}
+        run: |
+          python -c "
+          import os
+          from tests.bug_discovery.feedback_loops.bug_fix_verifier import BugFixVerifier
+
+          verifier = BugFixVerifier(
+              github_token=os.getenv('GITHUB_TOKEN'),
+              github_repository=os.getenv('GITHUB_REPOSITORY')
+          )
+
+          results = verifier.verify_fixes(
+              label=os.getenv('LABEL', 'fix'),
+              hours_ago=int(os.getenv('HOURS_AGO', '24'))
+          )
+
+          print(f'Verified {len(results)} bug fixes')
+
+          for r in results:
+              status = 'CLOSED' if r['issue_closed'] else 'FAILED' if not r['test_passed'] else 'PENDING'
+              print(f'  Issue #{r[\"issue_number\"]} ({status}): bug_id={r[\"bug_id\"]}')
+
+          # Exit with error if any tests failed
+          failed = [r for r in results if not r['test_passed']]
+          if failed:
+              print(f'\\n{len(failed)} fixes failed verification')
+              exit(1)
+          "
+
+      - name: Upload verification results
+        if: always()
+        run: |
+          echo "Verification completed at $(date -u)"
+          # Upload .verification_state.json as artifact
+          if [ -f backend/tests/bug_discovery/storage/regression_tests/.verification_state.json ]; then
+            echo "Verification state:"
+            cat backend/tests/bug_discovery/storage/regression_tests/.verification_state.json
+          fi

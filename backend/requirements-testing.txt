@@ -29,6 +29,7 @@ radon>=6.0  # Cyclomatic complexity analysis for Python
 # Performance Testing
 pytest-benchmark>=4.0.0  # Benchmarking tests
 locust>=2.15.0  # Load testing
+memray>=1.12.0  # Memory profiler and leak detector (Python 3.11+, Phase 243-01)
 
 # Additional Testing Utilities
 pytest-mock>=3.12.0  # Mocking utilities (already in requirements.txt)

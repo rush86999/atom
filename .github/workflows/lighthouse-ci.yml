@@ -1,0 +1,212 @@
+# Lighthouse CI GitHub Actions Workflow
+#
+# This workflow runs Lighthouse performance tests on every pull request and push
+# to main. It tests critical pages and fails PRs that exceed performance budgets.
+#
+# Performance Budgets:
+# - Performance Score > 90
+# - Accessibility Score > 90
+# - Best Practices Score > 90
+# - SEO Score > 80
+# - TTFB < 600ms, FCP < 1.5s, LCP < 2.5s, TBT < 300ms, CLS < 0.1
+
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lighthouse-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Lighthouse CLI
+        run: npm install -g lighthouse
+
+      - name: Verify Lighthouse installation
+        run: lighthouse --version
+
+      - name: Start backend server
+        run: |
+          cd backend
+          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+          echo "Backend server starting..."
+          sleep 10
+
+      - name: Start frontend server
+        run: |
+          cd frontend-nextjs
+          npm install
+          npm run build
+          npm start &
+          echo "Frontend server starting..."
+          sleep 10
+
+      - name: Verify servers are running
+        run: |
+          curl -f http://localhost:8000/health/live || exit 1
+          curl -f http://localhost:3001 || exit 1
+          echo "Both servers are running"
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          # URLs to test
+          urls: |
+            http://localhost:3001/
+            http://localhost:3001/dashboard
+            http://localhost:3001/agents
+            http://localhost:3001/workflows
+
+          # Upload artifacts to GitHub Actions
+          uploadArtifacts: true
+
+          # Use temporary public storage for report links
+          temporaryPublicStorage: true
+
+          # Lighthouse configuration
+          chromeFlags: --headless
+
+          # Budget paths (optional)
+          budgetPath: ./.lighthouserc.json
+
+      - name: Lighthouse CI comment on PR
+        if: github.event_name == 'pull_request'
+        uses: treosh/lighthouse-ci-action@v9
+        with:
+          urls: |
+            http://localhost:3001/
+            http://localhost:3001/dashboard
+            http://localhost:3001/agents
+
+          # Comment results on PR
+          commentOnPR: true
+
+          # Fail PR if performance budget exceeded
+          assertOnBudget: true
+
+      - name: Check for Lighthouse regression
+        if: github.event_name == 'pull_request'
+        run: |
+          python backend/tests/scripts/check_lighthouse_regression.py \
+            --current .lighthouseci/lhr-report.json \
+            --baseline backend/tests/performance_regression/lighthouse_baseline.json \
+            --threshold 0.2
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/
+          retention-days: 7
+
+      - name: Update Lighthouse baseline (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p backend/tests/performance_regression
+          cp .lighthouseci/lhr-report.json backend/tests/performance_regression/lighthouse_baseline.json
+
+      - name: Commit baseline update
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add backend/tests/performance_regression/lighthouse_baseline.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update Lighthouse baseline"
+          git push
+
+      - name: Stop servers
+        if: always()
+        run: |
+          pkill -f "uvicorn main:app" || true
+          pkill -f "npm start" || true
+
+  lighthouse-budgets:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Lighthouse CLI
+        run: npm install -g lighthouse
+
+      - name: Create performance budget file
+        run: |
+          cat > .lighthouserc.json <<EOF
+          {
+            "ci": {
+              "collect": {
+                "url": [
+                  "http://localhost:3001/",
+                  "http://localhost:3001/dashboard",
+                  "http://localhost:3001/agents"
+                ],
+                "numberOfRuns": 3
+              },
+              "assert": {
+                "assertions": {
+                  "categories:performance": ["error", {"minScore": 0.9}],
+                  "categories:accessibility": ["error", {"minScore": 0.9}],
+                  "categories:best-practices": ["error", {"minScore": 0.9}],
+                  "categories:seo": ["warn", {"minScore": 0.8}]
+                }
+              },
+              "upload": {
+                "target": "temporary-public-storage"
+              }
+            }
+          }
+          EOF
+
+      - name: Start backend server
+        run: |
+          cd backend
+          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+
+      - name: Start frontend server
+        run: |
+          cd frontend-nextjs
+          npm install
+          npm run build
+          npm start &
+          sleep 10
+
+      - name: Run Lighthouse with budgets
+        run: |
+          lhci autorun --collect.url="http://localhost:3001/" \
+                       --collect.url="http://localhost:3001/dashboard" \
+                       --collect.url="http://localhost:3001/agents"
+
+      - name: Check for Lighthouse regression (budgets job)
+        if: github.event_name == 'pull_request'
+        run: |
+          python backend/tests/scripts/check_lighthouse_regression.py \
+            --current .lighthouseci/lhr-report.json \
+            --baseline backend/tests/performance_regression/lighthouse_baseline.json \
+            --threshold 0.2
+
+      - name: Stop servers
+        if: always()
+        run: |
+          pkill -f "uvicorn main:app" || true
+          pkill -f "npm start" || true

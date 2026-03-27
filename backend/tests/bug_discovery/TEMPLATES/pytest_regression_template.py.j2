@@ -1,0 +1,47 @@
+"""
+Regression test for bug {{ bug_id }}
+
+Bug Report:
+- Discovery Method: {{ discovery_method }}
+- Test: {{ bug.test_name }}
+- Error: {{ bug.error_message }}
+- Severity: {{ bug.severity }}
+- Generated: {{ bug.timestamp.isoformat() }}
+
+{% if reproduction_steps %}
+Reproduction Steps:
+{{ reproduction_steps }}
+{% endif %}
+
+Expected Behavior:
+{{ expected_behavior }}
+"""
+
+import pytest
+from tests.e2e_ui.fixtures.auth_fixtures import authenticated_page
+from tests.e2e_ui.fixtures.database_fixtures import db_session
+
+
+@pytest.mark.regression
+@pytest.mark.slow
+def test_regression_{{ bug_id }}(db_session):
+    """
+    Regression test for bug {{ bug_id }}.
+
+    This test prevents regression of bug discovered via {{ discovery_method }} testing.
+    """
+    # TODO: Implement test logic from bug metadata
+    # This is a placeholder - actual implementation depends on bug type
+
+    # Bug metadata:
+    # - Test: {{ bug.test_name }}
+    # - Error: {{ bug.error_message }}
+    # - Signature: {{ bug.error_signature }}
+    # - Severity: {{ bug.severity }}
+
+    {% if bug.metadata.get('issue_number') %}
+    # GitHub Issue: #{{ bug.metadata['issue_number'] }}
+    {% endif %}
+
+    # Placeholder assertion - replace with actual test
+    assert True, "Regression test for {{ bug_id }} - needs implementation"

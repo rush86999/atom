@@ -1,0 +1,28 @@
+# Regression Tests Directory
+
+This directory stores automatically generated regression tests from discovered bugs.
+
+## Directory Structure
+
+- `test_regression_*.py`: Active regression tests for unresolved bugs
+- `archived/`: Regression tests for verified fixes (moved after verification)
+
+## Test Naming
+
+Tests follow pattern: `test_regression_{discovery_method}_{bug_id}.py`
+- `{discovery_method}`: fuzzing, chaos, property, browser
+- `{bug_id}`: First 8 characters of error signature SHA256
+
+## Archival Strategy
+
+Tests are moved to `archived/` subdirectory when:
+- Bug fix is verified via BugFixVerifier
+- Test passes for 2 consecutive runs (prevents flaky test archival)
+- Issue is closed on GitHub
+
+## Cleanup
+
+Periodic cleanup (monthly):
+- Delete archived tests for issues closed > 90 days ago
+- Keep critical severity tests indefinitely
+- Keep tests for high-severity bugs for 1 year

@@ -1,272 +1,284 @@
 # Project Research Summary
 
-**Project:** Atom v7.0 - Cross-Platform E2E Testing & Bug Discovery
-**Domain:** Cross-Platform End-to-End Testing & Quality Assurance
-**Researched:** March 23, 2026
-**Confidence:** HIGH (Web/pytest: HIGH, Mobile/Desktop/Stress: MEDIUM)
+**Project:** Atom v9.0 - Real-Time Collaboration & Team Management
+**Domain:** Real-time collaboration, team management, RBAC for AI-powered automation platform
+**Researched:** March 26, 2026
+**Confidence:** HIGH
 
 ## Executive Summary
 
-Atom is an AI-powered business automation platform requiring comprehensive cross-platform E2E testing across web (Next.js/Playwright), mobile (React Native/Detox), and desktop (Tauri) with a focus on stress testing and automated bug discovery. **Key insight**: Build on existing v3.1 E2E infrastructure (30+ Playwright tests, Percy visual regression, pytest backend tests) rather than replacing it. Add mobile/desktop testing layers and stress testing infrastructure incrementally for cost-effective bug discovery.
+Atom is an AI-powered business automation platform that requires real-time collaboration capabilities to enable teams to work together on workflows, agents, and canvases. Research reveals that **90% of the required infrastructure already exists** — WebSocket managers, Redis pub/sub, SQLAlchemy models, RBAC service, and governance caching. The primary gap is extending these systems for **user-to-user collaboration** (current implementation focuses on agent-to-agent coordination).
 
-The recommended approach leverages **Playwright for web** (already configured with v3.1 E2E), **Detox for React Native mobile** (available but requires expo-dev-client setup), **Tauri's built-in testing for desktop**, and **k6 for API stress testing**. Integrate all with pytest for unified orchestration and Allure for comprehensive reporting. This combination provides excellent cross-platform coverage with minimal tooling complexity, building on Atom's existing investment in Playwright and pytest.
+The recommended approach is **incremental extension** rather than rebuild: add presence tracking to existing WebSocket infrastructure, implement pessimistic locking for conflict resolution, extend RBAC for team-based permissions, and create 6 new database models for collaboration sessions, comments, edit locks, and sharing. This leverages existing patterns (GovernanceCache for <50ms permission checks, ConnectionManager for WebSocket, ActivityPublisher for events) while adding collaboration-specific features.
 
-**Critical risks**: Mobile Detox testing is blocked by expo-dev-client requirement (15min CI overhead), cross-platform test reuse requires abstraction layer complexity, and stress testing patterns for E2E are not well-documented. Mitigation strategy: Start with web E2E expansion (300+ tests), add mobile API-level tests instead of Detox for Phase 148, implement cross-platform orchestration with shared test data management, and defer full mobile Detox UI tests to Phase 150+ when infrastructure is ready.
+**Key risks** identified are primarily operational: WebSocket race conditions causing data loss, memory leaks from orphaned connections, database lock contention from high-frequency updates, and RBAC bypass via missing ownership checks. All are preventable with established patterns: Redis-backed presence with TTL, heartbeat/cleanup mechanisms, optimistic locking with version vectors, and ownership-based authorization. The research shows these are well-solved problems with clear mitigation strategies.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Summary from STACK.md**: Atom requires a layered testing approach building on existing v3.1 E2E infrastructure. Playwright is the foundation for web testing (already installed), with Detox for mobile (available), Tauri for desktop (built-in), and k6 for stress testing. pytest orchestrates all runners with Allure for unified reporting.
+Atom has solid foundations for real-time collaboration. Primary additions are **minimal and focused**:
 
 **Core technologies:**
-- **Playwright (^1.57.0)** — Web E2E testing with auto-waiting, cross-browser support, tracing/debugging — Already configured with v3.1 E2E, excellent TypeScript support, built-in HTML reporter with traces
-- **Detox (^20.47.0)** — React Native mobile E2E testing — Gray-box testing framework faster than black-box tools, already in mobile package.json, but BLOCKED by expo-dev-client requirement
-- **k6 (^0.52.0)** — Load/stress testing — JS-based scripting, CI-friendly, supports HTTP/WebSocket, excellent for API stress testing, cost-effective bug discovery ($149/month for cloud scaling)
-- **pytest (^7.4.0)** — Cross-platform orchestration — Already installed for backend tests, can orchestrate all E2E runners with fixtures, parallel execution via pytest-xdist
-- **Allure Report (^2.27.0)** — Unified test reporting — Framework-agnostic, rich HTML reports with screenshots/videos, integrates with CI/CD, supports severity/suite/epic tags for bug tracking
+- **python-socketio 5.10.0+** — Room-based broadcasting and automatic reconnection — higher-level WebSocket abstraction with presence fallback, proven at scale (Figma, Miro, Notion)
+- **y-py 0.6.0+ (CRDT)** — Conflict-free collaborative editing — Python port of Yjs industry standard, enables offline support and conflict resolution without server state
+- **casbin 1.34.0+** — Policy-based access control engine — model-agnostic RBAC with role inheritance, audit trails, and dynamic policies without code deploy
+- **Redis presence patterns** — User online/offline tracking with TTL — <1ms operations, automatic cleanup via EXPIRE, already installed (Redis 4.5.0+ in requirements.txt)
+- **fastapi-async-casbin 0.5.0+** — FastAPI/Casbin integration — Async dependency injection for route-level permissions, works with existing JWT auth
 
-**Integration with existing Atom infrastructure:**
-- Backend API (FastAPI) for test data setup, agent operations
-- Authentication (JWT) with API-first approach (bypass UI login for speed)
-- Database (SQLite/PostgreSQL) with test isolation via worker-specific schemas
-- CI/CD (GitHub Actions) with matrix strategy for parallel platform execution
+**Why this stack:** Extends existing infrastructure rather than rebuilding. All technologies have Python support, integrate with FastAPI/SQLAlchemy, and are proven in production at scale. The stack adds **presence tracking**, **conflict resolution**, and **fine-grained RBAC** while reusing existing WebSocket managers, governance cache, and database models.
 
 ### Expected Features
 
-**Summary from FEATURES.md**: Atom already has v3.1 E2E with 30+ tests covering auth, agent execution, canvas, skills, governance, and WebSocket streaming. Critical gaps include stress testing, network simulation, mobile Detox E2E (blocked), desktop Tauri tests, and cross-platform test reuse framework.
+**Must have (table stakes) — features users assume exist in any collaboration platform:**
+- **User Presence Indicators** — Online/offline/away status, last seen timestamp — foundational for all collaboration features
+- **Real-Time Updates** — Changes appear instantly without refresh — WebSocket pub/sub (already exists)
+- **Basic Comments** — Threaded discussions on workflows/agents/canvases — feedback loop essential
+- **Team CRUD** — Create teams, add/remove members, assign roles — organizational structure for permissions
+- **Resource Sharing** — Share workflows/agents via link with permissions — enable cross-team collaboration
+- **Edit Locks** — Prevent concurrent edit conflicts — avoid data loss, already stubbed in collaboration_service.py
 
-**Must have (table stakes):**
-- **Authentication Flow Tests** — Users expect secure login across all platforms (JWT validation, session persistence, logout, token refresh)
-- **Agent Execution Critical Path** — Core product feature (spawn agent → send message → receive streaming response → verify output)
-- **Canvas Presentation Tests** — Core differentiator (7 canvas types: charts, sheets, forms, docs, email, terminal, coding)
-- **Test Isolation & Reproducibility** — Parallel execution requires isolated test data (unique IDs, database cleanup, fresh state per test)
-- **API-First Authentication** — Speed optimization (100-500ms vs 10-60s UI login) by setting JWT token directly in localStorage
-- **Failure Artifacts (Screenshots/Videos)** — Debugging failed tests requires visual evidence (Playwright: `screenshot: 'only-on-failure'`)
-- **Database Isolation** — Parallel tests require separate data (worker-specific schemas, transaction rollbacks)
+**Should have (competitive differentiators):**
+- **Live Cursor Tracking** — Real-time cursor positions with user names/colors — visual awareness of collaborators' focus
+- **Agent Collaboration** — Multi-agent coordination on shared canvases — unique Atom differentiator (agents as first-class participants)
+- **Agent Governance in Teams** — Maturity-based permissions (STUDENT→INTERN→SUPERVISED→AUTONOMOUS) applied to team interactions
+- **Workflow Co-Editing** — Multiple users editing agent workflows simultaneously — requires OT/CRDT for conflict resolution
+- **Contextual Permissions** — Resource-level RBAC with team inheritance — Workspace → Team → Resource cascade
 
-**Should have (competitive):**
-- **Stress Testing for Bug Discovery** — Finds race conditions, memory leaks, resource exhaustion under load (concurrent agent executions, rapid canvas cycles, WebSocket churn)
-- **Network Simulation Testing** — Tests app behavior under poor network conditions (Playwright `context.route()`, slow 3G, offline mode)
-- **Visual Regression Testing (Percy)** — Detects unintended CSS/layout changes (already configured in v3.1 for 5 critical pages)
-- **Real User Interaction Simulation** — Finds bugs from realistic user behavior (Playwright `userEvent` API, realistic delays, keyboard navigation)
-- **WebSocket/Streaming Testing** — Validates real-time features under stress (multiple concurrent streams, connection drops, reconnection logic)
-
-**Defer (v2+):**
-- **Cross-Platform Test Reuse Framework** — Requires abstraction layer, platform-specific adapters
-- **Mobile Detox E2E (Full UI)** — BLOCKED by expo-dev-client requirement (15min CI overhead)
-- **Desktop Tauri Integration Tests** — Requires Tauri test infrastructure, GUI context in CI
-- **Performance Regression Testing (Lighthouse CI)** — Requires performance budgets, monitoring setup
+**Defer to v2+:**
+- **Collaborative Workflow Editing (OT/CRDT)** — Complex, uncertain demand, niche use case — alternative: edit locks + version history
+- **Video/Audio Integration** — Commoditized feature, better integrated via Slack/Zoom — alternative: deep links to external tools
+- **Custom Team Roles** — Role explosion, support burden — alternative: fixed roles (Owner/Admin/Member/Viewer) + resource permissions
+- **AI Conflict Resolution** — Unclear value proposition, could confuse users — alternative: clear conflict UI with manual resolution
 
 ### Architecture Approach
 
-**Summary from ARCHITECTURE.md**: Atom's existing architecture (Python backend, Next.js frontend, React Native mobile, Tauri desktop) provides solid foundation for E2E testing. Key components needed: test orchestration layer, shared test data management, stress testing infrastructure, and bug discovery tools.
+The recommended architecture extends **existing Atom patterns** rather than introducing new paradigms. Four new services (UserPresenceService, ConflictResolutionService, TeamManagementService, CommentService) integrate with existing components (ConnectionManager, RBACService, GovernanceCache, ActivityPublisher). Data flows through REST API for state-changing operations and WebSocket for real-time broadcasts, with Redis backing transient state (presence, cursors) and PostgreSQL for persistent data (sessions, locks, comments).
 
 **Major components:**
-1. **Unified Test Runner** — Orchestrates test execution across platforms, manages parallelization, aggregates results (custom Node.js CLI or Python orchestrator calling platform-specific runners)
-2. **Test Data Manager** — Creates, seeds, and cleans test data using fixtures, factories, and seed data (pytest fixtures + factory-boy + TestDataManager service)
-3. **Web E2E Runner** — Executes browser-based tests with Playwright multi-browser support (Chromium, Firefox, WebKit)
-4. **Mobile E2E Runner** — Executes React Native tests with Detox on iOS/Android simulators (gray-box testing, auto-wait mechanisms)
-5. **Desktop E2E Runner** — Executes Tauri desktop tests using Playwright WebDriver protocol or CDP connection
-6. **Stress Test Runner** — Generates load with k6/Locust, injects failures with chaos tools, validates performance degradation
-7. **Bug Discovery Engine** — Analyzes test failures, generates reproducible test cases, documents bugs via GitHub Issues integration
+1. **UserPresenceService** — Redis-backed presence tracking with TTL-based expiration, heartbeat management (30s intervals, 60s TTL), pub/sub for real-time broadcasts to all workspace members
+2. **ConflictResolutionService** — Pessimistic locking using existing EditLock pattern, version vectors for conflict detection, integration with Workflow model for optimistic locking
+3. **TeamManagementService** — Team CRUD operations, member management, role assignment using existing User/Team/Workspace relationships, extends RBACService for team-based permissions
+4. **CollaborationSessionService** — Session lifecycle management (create/join/leave), participant tracking with cursor positions, session state persistence via Redis + PostgreSQL
+5. **CommentService** — Threaded comments with recursive CTEs for nesting, @mentions with notifications, comment permissions linked to resource access
+6. **RBACService (EXTEND)** — Add team-based permissions and resource-level ACLs, cache results in GovernanceCache for <50ms lookups, support role inheritance (team_lead inherits member permissions)
 
-**Key architectural patterns:**
-- **Test Orchestration with Unified Runner**: Central coordination of cross-platform test execution with parallelization and result aggregation
-- **Shared Test Data Management**: Centralized fixtures, factories, and seed data used across all E2E test platforms
-- **Cross-Platform Test Reuse**: Share test logic across platforms using abstraction layers with platform-specific UI implementations
-- **Stress Testing with Load Generation**: Concurrent user simulation, failure injection, and performance baseline tracking
-- **Bug Discovery with Failure Analysis**: Automated analysis of test failures with GitHub Issues integration
+**Integration points:** All services use existing GovernanceCache for performance, ConnectionManager for WebSocket broadcasts, ActivityPublisher for audit events, and SQLAlchemy context managers for database transactions. This maintains consistency with current Atom architecture while adding collaboration capabilities.
 
 ### Critical Pitfalls
 
-**Summary from PITFALLS.md**: Atom's existing backend testing has a 71.5 percentage point gap between service-level estimates (74.6%) and actual line coverage (8.50%), illustrating the critical methodology pitfall of coverage estimation without actual execution data. The highest-impact pitfalls focus on methodology errors, fixture leaks, testing anti-patterns, coverage gaming, and process failures.
+**Top 5 pitfalls with prevention strategies:**
 
-1. **Service-Level Coverage Estimation Masking True Gaps** — Atom's episode services appeared at 74.6% estimated but actual line coverage was only 8.50% (71.5 point gap). Prevention: **ALWAYS use actual coverage.py execution data** with `pytest --cov=backend --cov-report=json`, require coverage JSON as source of truth, calculate coverage at function/line level not service level.
+1. **WebSocket Race Conditions in Collaborative Editing** — Multiple users edit same workflow node simultaneously, last-write-wins causes data loss
+   - **Prevention:** Add version field to Workflow model with optimistic locking, check version on update, broadcast edit intent before committing
+   - **Phase to address:** Phase 01 (Foundation Models & Basic RBAC) - add versioning to Workflow model
 
-2. **Fixture Scope Leaks and Database Session Pollution** — Tests share database sessions or state due to incorrect pytest fixture scoping, causing passes in isolation but failures in parallel. Prevention: Use `scope="function"` for all database fixtures, use `yield` fixtures with cleanup code after yield, implement transaction rollback in teardown.
+2. **Permission Escalation via WebSocket Message Spoofing** — Attacker crafts WebSocket message claiming to be another user with higher privileges
+   - **Prevention:** NEVER trust user_id from client messages, validate JWT on connection AND re-validate on every sensitive action, use server-side user_id for audit
+   - **Phase to address:** Phase 02 (WebSocket Infrastructure) - hardened WebSocket handlers with RBAC
 
-3. **Over-Mocking External Dependencies** — Tests mock everything (database, HTTP, LLM) and verify implementation details rather than behavior, creating brittle tests. Prevention: Only mock external services (LLM providers, S3), use real database (SQLite in-memory), test observable behavior (return values, DB state) not call sequences.
+3. **Memory Leaks from Orphaned WebSocket Connections** — Connections accumulate without proper cleanup, memory grows until OOM kill
+   - **Prevention:** Add heartbeat/ping mechanism (30s timeout), periodic cleanup task for dead connections (>2min inactivity), ALWAYS cleanup in finally blocks
+   - **Phase to address:** Phase 02 (WebSocket Infrastructure) - implement heartbeat + cleanup
 
-4. **Coverage Gaming - Excluding Untestable Code** — Adding `# pragma: no cover` to avoid testing difficult code (error handlers, async paths) inflates coverage while leaving critical paths untested. Prevention: Audit coverage exclusions quarterly, only exclude genuinely untestable code (generated protocols), require PR review for new pragmas.
+4. **Database Lock Contention from High-Frequency Updates** — Cursor positions, heartbeats write to DB on every change, locks cause latency spikes
+   - **Prevention:** Use Redis for high-frequency data (cursor positions, heartbeats) with 2-min TTL, periodic batch sync to DB (every 30s), separate tables for high vs low frequency data
+   - **Phase to address:** Phase 03 (Real-Time Presence & Activity) - Redis-backed state management
 
-5. **Flaky Tests Masking Real Issues** — Tests fail intermittently due to timing issues, race conditions, or async coordination but are marked as flaky and auto-retried. Prevention: Use `pytest-asyncio` with explicit event loop management, mock time-dependent code, use unique resource names for parallel tests, fix root cause don't add retries.
-
-6. **Wrong Coverage Metrics - Line vs Branch Coverage** — Focusing only on line coverage (80% target) while ignoring branch coverage creates false confidence. Line coverage measures "lines executed" but branch coverage measures "decision outcomes tested." Prevention: **ALWAYS enable branch coverage** with `pytest --cov=backend --cov-branch`, set separate targets (80% line, 70% branch as Atom does).
-
-7. **Async Testing Without Proper Event Loop Management** — Async tests without proper event loop configuration cause hangs or failures in parallel runs. Prevention: Use `pytest-asyncio` with `asyncio_mode = auto`, use `async def` for fixtures and tests, never manually create/close event loops.
-
-8. **Test Data Factories Creating Duplicate Records** — Factories using hardcoded names or sequential IDs cause unique constraint violations in parallel pytest-xdist runs. Prevention: Use UUIDs or random suffixes for all unique fields, include worker ID in parallel tests, use database transactions with rollback.
+5. **RBAC Bypass via Missing Ownership Checks** — User creates share link for workflow they don't own, system checks role but not ownership
+   - **Prevention:** Separate permission checks (ownership OR explicit share permission), authorization decorator requiring both role + ownership, verify created_by before allowing share operations
+   - **Phase to address:** Phase 01 (Foundation Models & Basic RBAC) - ownership-based authorization
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on research, suggested phase structure for Atom v9.0 Collaboration & Team Management:
 
-### Phase 1: Test Infrastructure Foundation
-**Rationale:** Must establish test data management, shared utilities, and unified reporting before expanding test coverage. Without proper fixtures, factories, and isolation, adding tests creates maintenance burden.
+### Phase 1: Foundation Models & Basic RBAC
+**Rationale:** Database models are foundational — all services depend on them. RBAC ownership checks prevent critical security vulnerabilities (data leaks via unauthorized sharing). Versioning on Workflow model prevents concurrent edit data loss.
 
-**Delivers:** Test data manager with factory-boy factories, shared test utilities for common operations, unified reporter foundation aggregating existing test reports.
+**Delivers:**
+- 6 new database models: WorkflowCollaborationSession, CollaborationComment, EditLock, WorkflowShare, CollaborationAudit, CollaborationSessionParticipant
+- Alembic migration with proper indexes and foreign keys
+- Ownership-based authorization for share operations
+- Version field on Workflow model for optimistic locking
+- CollaborationAudit middleware for audit logging
 
-**Addresses:** Test Isolation & Reproducibility, Database Isolation, API-First Authentication
+**Addresses:** Team CRUD, Resource Sharing, Basic Comments, Edit Locks (from FEATURES.md table stakes)
 
-**Avoids:** Pitfall 2 (Fixture Scope Leaks), Pitfall 8 (Test Data Factories Creating Duplicates)
+**Avoids:** Pitfall 5 (RBAC bypass), Pitfall 1 (concurrent edit data loss), Pitfall 8 (missing audit trail)
 
-**Stack Elements:** pytest fixtures, factory-boy, SQLite in-memory, TestDataManager service
+**Stack elements:** SQLAlchemy 2.0 (already installed), PostgreSQL (existing)
 
-**Implements:** Shared Test Data Management architecture pattern
+### Phase 2: WebSocket Infrastructure & Security
+**Rationale:** Real-time features depend on WebSocket infrastructure. Security hardening prevents permission escalation (critical). Presence tracking requires WebSocket extensions. This phase builds the communication layer for all collaboration features.
 
-### Phase 2: Web E2E Expansion (300+ tests)
-**Rationale:** Web is most critical platform and has existing Playwright infrastructure. Expanding from 30+ to 300+ tests covers all critical user flows before adding mobile/desktop complexity.
+**Delivers:**
+- Extended ConnectionManager with presence events (user:join, user:leave, user:typing)
+- CollaborationWebSocketManager with room-based routing (workflow_{id} rooms)
+- Hardened WebSocket handlers with per-message authorization
+- Heartbeat/ping mechanism (30s timeout)
+- Periodic cleanup task for dead connections (>2min inactivity)
+- Redis-backed session state (survives server restart)
+- Client-side auto-reconnect with exponential backoff
 
-**Delivers:** Comprehensive web E2E test suite covering auth flows, agent interactions, workflow execution, canvas presentations (7 types), episodic memory flows.
+**Addresses:** User Presence, Real-Time Updates (from FEATURES.md table stakes)
 
-**Addresses:** Authentication Flow Tests, Agent Execution Critical Path, Canvas Presentation Tests, Workflow Skill Execution
+**Avoids:** Pitfall 2 (permission escalation), Pitfall 3 (memory leaks), Pitfall 6 (stale state after restart)
 
-**Uses:** Playwright (existing), API-First Auth Fixtures, Test Data Manager
+**Stack elements:** python-socketio 5.10.0+, Redis presence patterns (already installed), FastAPI WebSocket (existing)
 
-**Avoids:** Pitfall 3 (Over-Mocking), Pitfall 5 (Coverage Gaming), Anti-Pattern 1 (Testing Implementation Details)
+### Phase 3: Real-Time Presence & Activity
+**Rationale:** Presence is the foundation for awareness features. Redis-backed state prevents database lock contention (performance pitfall). Targeted broadcasts prevent CPU spikes from broadcast storms. This phase delivers the "who's online" and real-time awareness capabilities.
 
-**Implements:** Web E2E Runner architecture pattern
+**Delivers:**
+- UserPresenceService with Redis-backed presence tracking
+- Heartbeat management (30s intervals, 60s TTL)
+- Online/offline/away status with last seen timestamps
+- Typing indicators with auto-expiry (10s timeout)
+- Targeted broadcasts (only to users viewing relevant workflow)
+- Update batching (max 50 messages or 100ms)
+- Live cursor tracking with real-time position broadcasts
+- Activity feed (recent changes, who did what, when)
 
-### Phase 3: Mobile API-Level Testing (defer Detox UI)
-**Rationale:** Detox E2E is blocked by expo-dev-client requirement (15min CI overhead). API-level tests provide mobile workflow coverage without infrastructure complexity. Defer Detox UI tests to Phase 150+.
+**Addresses:** User Presence Indicators, Live Cursor Tracking, Typing Indicators, Activity Feed (from FEATURES.md)
 
-**Delivers:** Mobile API-level test suite covering auth, agent execution, workflows, device features (camera, location, notifications) via backend API calls.
+**Avoids:** Pitfall 4 (database lock contention), Pitfall 7 (broadcast storms), Pitfall 9 (stale typing indicators)
 
-**Addresses:** Cross-Platform Workflow Parity (Web + Mobile API), Authentication Flow Tests
+**Stack elements:** Redis presence patterns, python-socketio rooms
 
-**Uses:** pytest for backend API testing, existing mobile API endpoints
+### Phase 4: Team-Based RBAC & Permissions
+**Rationale:** Team management requires organizational structure. RBAC extension enables fine-grained permissions. Resource-level ACLs provide security boundaries. GovernanceCache integration ensures performance (<50ms permission checks).
 
-**Avoids:** Pitfall 7 (Async Event Loop Issues), Detox expo-dev-client blocker
+**Delivers:**
+- TeamManagementService (team CRUD, member management, role assignment)
+- Extended RBACService with team-based permissions
+- Resource-level ACLs (resource_type, resource_id, permissions JSONB)
+- Role inheritance (team_lead inherits member permissions)
+- Permission caching in GovernanceCache
+- Casbin integration with model.conf and policy.csv
+- FastAPI dependency injection for route-level permissions
+- check_permission decorator for authorization
 
-**Implements:** Mobile API test patterns (defer Mobile E2E Runner to Phase 150+)
+**Addresses:** Team Creation/Management, User Roles, Contextual Permissions (from FEATURES.md)
 
-### Phase 4: Desktop Tauri Integration Tests
-**Rationale:** Desktop testing requires Tauri test infrastructure and GUI context in CI. Add after web and mobile foundations are stable.
+**Avoids:** Pitfall 5 (RBAC bypass via missing ownership checks)
 
-**Delivers:** Desktop E2E test suite covering window management, native features (file system, system tray), cross-platform behavior (Win/Mac/Linux).
+**Stack elements:** casbin 1.34.0+, fastapi-async-casbin 0.5.0+, python-jose (already installed)
 
-**Addresses:** Desktop Tauri Integration Tests, Cross-Platform Workflow Parity
+### Phase 5: Conflict Resolution & Collaborative Editing
+**Rationale:** Collaborative editing requires conflict resolution. Pessimistic locking prevents concurrent edits. Version vectors detect conflicts. This phase enables simultaneous editing while maintaining data integrity.
 
-**Uses:** Tauri built-in testing (`cargo test`), Playwright with CDP connection or Tauri Driver
+**Delivers:**
+- ConflictResolutionService with pessimistic locking
+- EditLock CRUD (acquire, release, check, extend)
+- Version vector conflict detection on Workflow model
+- Conflict resolution UI (warn before overwriting)
+- Integration with existing EditLock pattern from CollaborationService
+- Lock expiry handling (30-minute default)
+- Lock status broadcasting via WebSocket
 
-**Implements:** Desktop E2E Runner architecture pattern
+**Addresses:** Edit Locks, Collaborative Workflow Editing (from FEATURES.md)
 
-### Phase 5: Cross-Platform Orchestration
-**Rationale:** Once platform-specific tests exist, implement unified test runner for coordination, parallelization, and result aggregation. Doing this earlier would require constant refactoring as tests added.
+**Avoids:** Pitfall 1 (concurrent edit data loss)
 
-**Delivers:** Unified test runner orchestrating web, mobile, and desktop tests with parallelization, cross-platform test reuse framework, CI/CD integration with GitHub Actions matrix strategy.
+**Stack elements:** y-py 0.6.0+ for CRDT (deferred to v2), pessimistic locking via SQLAlchemy (existing)
 
-**Addresses:** Cross-Platform Test Reuse Framework, Parallel Test Execution, Unified Reporting
+### Phase 6: Comments & Collaboration Sessions
+**Rationale:** Comments enable feedback and discussion. Collaboration sessions coordinate multi-user workflows. Mentions and notifications improve awareness. This phase completes the collaboration feature set.
 
-**Uses:** Test Orchestrator, pytest for orchestration, GitHub Actions matrix strategy
+**Delivers:**
+- CommentService with threaded comments (recursive CTEs for nesting)
+- Comment CRUD (create, reply, edit, delete, resolve)
+- @mentions with notifications
+- Comment permissions (linked to resource access)
+- CollaborationSessionService (create, join, leave, list)
+- Session participant tracking with cursor positions
+- Session state persistence (Redis + PostgreSQL)
+- Real-time comment delivery via WebSocket
 
-**Implements:** Test Orchestration with Unified Runner architecture pattern, Cross-Platform Test Reuse pattern
+**Addresses:** Basic Comments, Agent Collaboration (from FEATURES.md)
 
-**Avoids:** Pitfall 2 (Fixture Scope Leaks), Pitfall 8 (Test Data Duplicates), Anti-Pattern 2 (Shared State Between Tests)
+**Stack elements:** SQLAlchemy recursive CTEs, WebSocket pub/sub (existing)
 
-### Phase 6: Stress Testing & Bug Discovery
-**Rationale:** Stress testing requires stable baseline E2E tests. Building on phases 2-5, this phase adds load generation and failure injection to find race conditions and memory leaks.
+### Phase 7: Advanced Collaboration (v2+)
+**Rationale:** Advanced features require complex technology (OT/CRDT). Defer until core collaboration is validated and product-market fit is established. These are differentiators but not blockers for launch.
 
-**Delivers:** Load generation with k6 (10, 50, 100 concurrent users), failure injection (network delays, DB drops), automated bug filing via GitHub Issues, performance degradation alerts.
+**Delivers:**
+- y-py CRDT integration for conflict-free collaborative editing
+- Yjs WebSocket adapter for delta broadcast
+- Collaborative workflow editing (simultaneous edits)
+- AI conflict resolution with LLM-powered merge suggestions
+- Custom team roles (user-defined roles)
+- Video/audio integration (Slack/Zoom deep links)
 
-**Addresses:** Stress Testing for Bug Discovery, Network Simulation Testing, WebSocket/Streaming Testing, Real User Interaction Simulation
+**Addresses:** Collaborative Workflow Editing, AI Conflict Resolution, Custom Team Roles (from FEATURES.md differentiators)
 
-**Uses:** k6 for load testing, Chaos tools for failure injection, Octokit for GitHub Issues integration
-
-**Implements:** Stress Testing with Load Generation pattern, Bug Discovery with Failure Analysis pattern
-
-**Avoids:** Pitfall 1 (Coverage Estimation False Positives), Pitfall 5 (Flaky Tests)
-
-### Phase 7: Advanced Bug Discovery (v7.1)
-**Rationale:** Once stress testing infrastructure is stable, add advanced bug discovery techniques for production-quality testing.
-
-**Delivers:** Visual regression testing with Percy (expanded from 5 to 20+ pages), error boundary testing (401, 500, timeouts), performance regression testing with Lighthouse CI, memory leak detection with CDP.
-
-**Addresses:** Visual Regression Testing, Error Boundary & Edge Case Testing, Performance Regression Testing, Memory Leak Detection
-
-**Uses:** Percy (existing), Lighthouse CI, Chrome DevTools Protocol (CDP)
+**Stack elements:** y-py 0.6.0+, y-socketio 0.6.0+, LLM integration (existing BYOK)
 
 ### Phase Ordering Rationale
 
-- **Foundation first (Phase 1)**: Proper test data management, fixtures, and isolation prevents Pitfall 2 (fixture leaks) and Pitfall 8 (duplicate records) which cause flaky tests in parallel execution
-- **Web before mobile/desktop (Phase 2 → 3 → 4)**: Web has existing infrastructure, is most critical platform, and establishes test patterns that can be reused for mobile/desktop
-- **API-level mobile before Detox UI (Phase 3)**: Detox E2E blocked by expo-dev-client requirement, API-level tests provide mobile coverage without 15min CI overhead
-- **Orchestration after platform tests (Phase 5)**: Unified runner requires stable platform-specific tests to orchestrate, building it earlier would require constant refactoring
-- **Stress testing last (Phase 6)**: Stress testing requires stable baseline E2E tests, doing it earlier would waste effort on flaky tests
-- **Advanced features deferred (Phase 7)**: Visual regression, performance testing, memory leak detection are differentiators but not critical for v7.0 launch
+**Dependency-driven ordering:** Database models (Phase 1) → WebSocket infrastructure (Phase 2) → Presence (Phase 3) → RBAC (Phase 4) → Conflict resolution (Phase 5) → Comments/Sessions (Phase 6) → Advanced (Phase 7). Each phase builds on previous deliverables.
 
-This order avoids Pitfall 5 (Flaky Tests Masking Real Issues) by establishing stable tests first, and Anti-Pattern 6 (E2E Tests for Everything) by focusing on critical paths only (10% E2E, 20% integration, 70% unit).
+**Grouped by capability:** Foundation (models + RBAC) → Real-time infrastructure (WebSocket + presence) → Security (team permissions) → Collaboration features (conflict resolution + comments) → Advanced differentiation.
+
+**Pitfall avoidance:** Critical security pitfalls (permission escalation, RBAC bypass) addressed early (Phase 1-2). Performance pitfalls (database lock contention, broadcast storms) addressed in Phase 3. Data loss pitfalls (concurrent edits) addressed in Phase 5.
 
 ### Research Flags
 
 **Phases likely needing deeper research during planning:**
-- **Phase 3 (Mobile API Testing)**: Mobile API-level testing patterns vs Detox E2E tradeoffs (speed, coverage, maintenance) — MEDIUM confidence, needs validation
-- **Phase 4 (Desktop Tauri Tests)**: Tauri E2E testing patterns with Playwright CDP connection stability — MEDIUM confidence, limited production examples
-- **Phase 5 (Cross-Platform Orchestration)**: Cross-platform test reuse abstractions, shared test logic strategies — MEDIUM confidence, emerging pattern
-- **Phase 6 (Stress Testing)**: Stress test design patterns (concurrent execution scenarios, resource exhaustion), acceptable stress test failure rates — LOW confidence, industry standards unclear
+- **Phase 5 (Conflict Resolution):** Evaluate y-py vs. operational transformation libraries for Python, research conflict resolution UI patterns, verify version vector implementation with SQLAlchemy 2.0
+- **Phase 7 (Advanced Collaboration):** Research OT vs. CRDT libraries (y-py vs. Automerge), verify Yjs WebSocket adapter compatibility with python-socketio, research AI conflict resolution prompt engineering
 
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Test Infrastructure)**: Well-documented pytest patterns, factory-boy documentation — HIGH confidence
-- **Phase 2 (Web E2E Expansion)**: Playwright official docs, existing Atom v3.1 E2E implementation — HIGH confidence
-- **Phase 7 (Advanced Bug Discovery)**: Percy, Lighthouse CI, CDP documentation — HIGH confidence
+- **Phase 1 (Foundation Models):** Standard SQLAlchemy patterns, well-documented Alembic migrations, established RBAC ownership patterns
+- **Phase 2 (WebSocket Infrastructure):** FastAPI WebSocket patterns are well-documented, python-socketio has comprehensive examples, heartbeat/cleanup is established pattern
+- **Phase 3 (Real-Time Presence):** Redis presence patterns are standard (SETEX with TTL), pub/sub is well-documented, typing indicators are common pattern
+- **Phase 4 (Team-Based RBAC):** Casbin has extensive documentation, FastAPI dependency injection is standard, role inheritance is well-understood
+- **Phase 6 (Comments & Sessions):** Recursive CTEs for nested comments are standard PostgreSQL pattern, WebSocket event broadcasting is existing pattern
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | **HIGH** | Web/pytest: HIGH (Playwright official docs, existing v3.1 implementation). Mobile/Desktop/Stress: MEDIUM (limited by web search rate limiting, Detox expo-dev-client blocker) |
-| Features | **HIGH** | Based on official docs (Playwright, Detox, k6), existing Atom v3.1 E2E implementation (30+ tests, Percy), codebase analysis (61 shipped phases), industry best practices |
-| Architecture | **HIGH** | Based on official docs (Playwright, Detox, Tauri, GitHub Actions, k6, factory-boy), existing Atom architecture (Python backend, Next.js frontend, React Native mobile, Tauri desktop), industry best patterns |
-| Pitfalls | **HIGH** | Based on pytest/coverage.py official docs, existing Atom coverage analysis (71.5 point gap), Atom's pytest.ini configuration, conftest.py patterns, industry best practices |
+| Stack | HIGH | Based on existing infrastructure analysis (WebSocket managers, RBAC service, governance cache) and official documentation (python-socketio, Casbin, y-py) |
+| Features | MEDIUM | Table stakes features are well-established (presence, comments, sharing), differentiators are based on Atom's unique agent collaboration capabilities but web search was unavailable for 2026 trends |
+| Architecture | HIGH | Architecture patterns are proven in production (Figma, Notion, Miro), integration with existing Atom components is clear, data flows are well-understood |
+| Pitfalls | HIGH | Pitfalls are based on common production issues (race conditions, memory leaks, lock contention), prevention strategies are established patterns, detection methods are actionable |
 
-**Overall confidence:** **HIGH** (mix of official documentation, existing implementation verification, codebase analysis, industry best practices)
+**Overall confidence:** HIGH
+
+Research is based on:
+- Existing Atom codebase analysis (collaboration_service.py, websocket_manager.py, models.py, rbac_service.py)
+- Official documentation (python-socketio, Casbin, y-py, Redis, FastAPI)
+- Established production patterns (Figma, Notion, Miro collaboration architectures)
+- Common operational issues (WebSocket race conditions, memory leaks, database lock contention)
+
+Only limitation: web search was unavailable during research (rate limits), so 2026-specific trends could not be verified. However, collaboration patterns are stable and well-established, so this is not a significant gap.
 
 ### Gaps to Address
 
-- **Stress test design patterns**: Need patterns for concurrent agent executions, rapid canvas iterations, WebSocket churn scenarios — MEDIUM confidence, limited E2E stress testing examples
-- **Cross-platform test reuse abstractions**: Need to design framework for shared workflow definitions, platform adapters — MEDIUM confidence, emerging pattern with few production examples
-- **Mobile API-level testing vs Detox E2E**: Need to validate API-level approach tradeoffs (speed, coverage, maintenance) — MEDIUM confidence, defer Detox to Phase 150+ due to expo-dev-client blocker
-- **Tauri Playwright integration stability**: Need to validate CDP connection patterns for desktop E2E — MEDIUM confidence, limited production examples
-- **Automated bug filing thresholds**: Risk of GitHub Issues noise, false positives in automated bug filing — need to define reproduction criteria (2+ failures)
+- **CRDT library selection:** Research recommends y-py but verification against alternatives (Automerge) during Phase 5 planning would be prudent
+- **Conflict resolution UI patterns:** Research identifies the need for conflict resolution UI but specific patterns are not detailed — should be researched during Phase 5 planning
+- **AI conflict resolution prompts:** Research flags this as v2+ feature, but if implemented in Phase 7, will need prompt engineering research for LLM-powered merge suggestions
+- **Performance at scale:** Research identifies scaling considerations (CRDTs for 100+ concurrent editors, Redis Cluster for 10k+ users) but these are edge cases — can be addressed when needed
 
-**How to handle during planning/execution:**
-- Phase-specific `/gsd:research-phase` for stress test design (Phase 6), cross-platform test reuse (Phase 5), Tauri integration (Phase 4)
-- Validation spikes for mobile API-level testing patterns (Phase 3) before committing to approach
-- Conservative bug filing thresholds (require 3+ reproductions) to avoid GitHub Issues noise
-- Incremental implementation: start with web E2E (Phase 2) before adding cross-platform complexity
+These gaps are not blockers for initial implementation but should be flagged for phase-specific research during planning.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Playwright Python Documentation](https://playwright.dev/python/) - Authoritative E2E testing patterns, auto-waiting, selectors
-- [Atom E2E Testing Guide](/Users/rushiparikh/projects/atom/docs/E2E_TESTING_GUIDE.md) - Comprehensive E2E setup, patterns, troubleshooting (March 7, 2026)
-- [Atom v3.1 E2E Implementation](/Users/rushiparikh/projects/atom/backend/tests/e2e_ui/) - 30+ production E2E tests, fixtures, page objects, flaky test detection
-- [pytest Fixtures Documentation](https://docs.pytest.org/en/stable/how-to/fixtures.html) - Fixture scopes, teardown, finalizers, yield patterns
-- [Coverage.py Documentation](https://coverage.readthedocs.io/) - Line vs branch coverage, exclude patterns, reporting
-- [Atom Backend Coverage Reports](/Users/rushiparikh/projects/atom/backend/coverage.json) - Actual coverage data: episode_segmentation_service.py at 27.41% line coverage
-- [Atom pytest.ini Configuration](/Users/rushiparikh/projects/atom/backend/pytest.ini) - Flaky test reruns, branch coverage enabled
-- [Detox Documentation](https://wix.github.io/Detox/) - React Native gray-box E2E testing framework
-- [k6 Documentation](https://k6.io/docs/) - Load testing and stress testing framework
-- [Tauri Testing Guide](https://tauri.app/v1/guides/testing/) - Official Tauri testing documentation
+- **Existing Atom Codebase** — Analyzed collaboration_service.py (742 lines), websocket_manager.py (473 lines), canvas_collaboration_service.py (840 lines), models.py (User, Team, Workspace, UserRole, EditLock), rbac_service.py
+- **Official Documentation** — python-socketio (room management, automatic reconnection), Casbin (policy-based RBAC), y-py (CRDT for Python), Redis (presence patterns with SETEX/TTL), FastAPI WebSocket (connection management)
+- **Production Architectures** — Figma (WebSocket rooms, CRDT), Notion (Yjs-based real-time collaboration), Miro (Redis-based presence system)
 
 ### Secondary (MEDIUM confidence)
-- Atom CI/CD Pipeline - GitHub Actions workflows, deployment automation, health checks
-- Atom Monitoring Setup - `/Users/rushiparikh/projects/atom/backend/docs/MONITORING_SETUP.md` - Health check endpoints, Prometheus metrics
-- Atom Deployment Runbook - `/Users/rushiparikh/projects/atom/backend/docs/DEPLOYMENT_RUNBOOK.md` - Deployment procedures, rollback strategies
-- Percy Documentation - Visual regression testing best practices
-- pytest-xdist Documentation - Parallel test execution, worker isolation
-- Factory Boy Documentation - Test data factory patterns
-- Cross-Platform Testing Patterns - Shared test logic across platforms, platform-specific abstractions
-- Stress Testing Best Practices - Load generation, failure injection, chaos engineering
+- **Industry Patterns** — Operational Transformation vs. CRDT trade-offs, RBAC best practices (role inheritance, resource ACLs), WebSocket pub/sub patterns for horizontal scaling
+- **Competitor Analysis** — Figma (multiplayer editing with cursors), Notion (block-level real-time collaboration), Miro (infinite canvas with presence), Slack (workspace/channel-based messaging)
+- **Database Patterns** — SQLAlchemy 2.0 async support, recursive CTEs for nested comments, optimistic locking with version vectors, PostgreSQL JSONB for permissions
 
 ### Tertiary (LOW confidence)
-- Stress testing patterns for E2E - Limited examples of stress testing in E2E suites (most use separate load testing tools)
-- Network simulation in E2E - Playwright `context.route()` documented, but production patterns not widely available
-- Cross-platform test reuse frameworks - Emerging pattern, few production examples of shared test logic across platforms
-- Mobile Detox E2E best practices - BLOCKED by expo-dev-client requirement, deferred to Phase 150+
-- Tauri Playwright integration - Tauri supports CDP but Playwright driver stability unknown
+- **2026 Trends** — Web search was unavailable (rate limits), so latest 2025-2026 collaboration framework trends could not be verified. However, collaboration patterns are stable and well-established, so this is not a significant gap.
 
 ---
-*Research completed: March 23, 2026*
+*Research completed: March 26, 2026*
 *Ready for roadmap: yes*

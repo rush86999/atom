@@ -33,7 +33,7 @@ from .fixtures import test_data_factory  # Factory functions module
 # Re-export commonly used fixtures for backward compatibility
 from .fixtures.auth_fixtures import authenticated_page, authenticated_page_api, test_user, authenticated_user
 from .fixtures.database_fixtures import db_session
-from .fixtures.api_fixtures import setup_test_user, setup_test_project
+from .fixtures.api_fixtures import setup_test_user, setup_test_project, api_client, api_base_url, test_user_data
 
 
 @pytest.fixture(scope="session")

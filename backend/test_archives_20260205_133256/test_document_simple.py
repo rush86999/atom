@@ -25,4 +25,6 @@ async def test_document_service():
             from backend.python_api_service.document_service_enhanced import EnhancedDocumentService
             logger.info("✅ Document service imported successfully")
         except ImportError as e:
-            logger.error(f"❌ Failed to import
+            logger.error(f"❌ Failed to import document service: {e}")
+    except Exception as e:
+        logger.error(f"❌ Test failed: {e}")

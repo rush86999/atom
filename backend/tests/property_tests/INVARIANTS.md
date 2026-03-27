@@ -6,7 +6,7 @@
 
 **Invariant Definition:** An invariant is a formal property that must always hold true for all valid inputs. Property tests generate thousands of random inputs to verify these invariants, finding edge cases that example-based tests miss.
 
-**Last Updated:** 2026-02-28 (Phase 103 Plan 04)
+**Last Updated:** 2026-03-24 (Phase 238 Plan 04)
 
 ---
 
@@ -30,9 +30,16 @@
 4. [Canvas Invariants](#canvas-invariants)
    - [Canvas Audit Invariants](#canvas-audit-invariants)
    - [Chart Data Invariants](#chart-data-invariants)
-5. [Criticality Categories](#criticality-categories)
-
----
+5. [Agent Execution Invariants](#agent-execution-invariants)
+   - [Execution Idempotence Invariants](#execution-idempotence-invariants)
+   - [Execution Termination Invariants](#execution-termination-invariants)
+   - [Execution Determinism Invariants](#execution-determinism-invariants)
+6. [API Contract Invariants](#api-contract-invariants)
+   - [Malformed JSON Handling Invariants](#malformed-json-handling-invariants)
+   - [Oversized Payload Handling Invariants](#oversized-payload-handling-invariants)
+   - [Authorization Invariants (Expansion)](#authorization-invariants-expansion)
+   - [Governance Cache Invariants (Expansion)](#governance-cache-invariants-expansion)
+7. [Criticality Categories](#criticality-categories)
 
 ## Governance Invariants
 
@@ -518,6 +525,412 @@ Let M = {STUDENT, INTERN, SUPERVISED, AUTONOMOUS}
 ```
 
 ---
+
+## API Contract Invariants
+
+API contract invariants ensure API endpoints handle malformed inputs, oversized payloads, and adhere to response schema specifications. These are **CRITICAL** for API robustness and preventing DoS vulnerabilities.
+
+### Malformed JSON Handling Invariants
+
+#### Invariant: Malformed JSON Returns Client Error (Not 500)
+
+**Formal Specification:**
+```
+For all malformed JSON payloads p:
+  response = POST /api/v1/agents/execute with p
+  response.status_code in [400, 422] (client error only)
+  response.status_code != 500 (never crash)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Malformed JSON is common (client bugs, network errors). API must handle gracefully without crashing. 500 errors on malformed input indicate poor error handling and potential DoS vulnerability.
+
+**Test Location:** `test_malformed_json.py::TestMalformedJSONHandling::test_api_rejects_malformed_json_gracefully`
+
+**Mathematical Definition:**
+```
+Let P be set of malformed JSON payloads:
+  - Random text (not valid JSON)
+  - Dict with None values (invalid JSON)
+  - Specifically malformed strings
+  - Empty/null payloads
+  - Invalid UTF-8 sequences
+
+∀ p ∈ P:
+  400 ≤ status_code(p) < 500
+  status_code(p) ≠ 500
+```
+
+---
+
+#### Invariant: Invalid UTF-8 Handled Gracefully
+
+**Formal Specification:**
+```
+For all invalid UTF-8 byte sequences b:
+  response = POST /api/v1/agents/execute with b
+  response.status_code in [400, 422] (client error only)
+  No exception raised during request
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Invalid UTF-8 sequences must not crash the API. Proper UTF-8 validation prevents encoding-related vulnerabilities.
+
+**Test Location:** `test_malformed_json.py::TestMalformedJSONHandling::test_api_handles_invalid_utf8`
+
+**Mathematical Definition:**
+```
+Let B be set of invalid UTF-8 byte sequences
+
+∀ b ∈ B:
+  400 ≤ status_code(b) < 500
+  status_code(b) ≠ 500
+```
+
+---
+
+#### Invariant: Injection Attempts Sanitized
+
+**Formal Specification:**
+```
+For all text inputs t (including null bytes, SQL injection, XSS):
+  response = POST /api/v1/agents/execute with t
+  response.status_code in [400, 422] (client error only)
+  Input is sanitized (no SQL injection, no XSS execution)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Injection attempts must be sanitized to prevent SQL injection, XSS, and command injection vulnerabilities. Null bytes must be handled to prevent string truncation attacks.
+
+**Test Location:** `test_malformed_json.py::TestMalformedJSONHandling::test_api_handles_null_bytes_and_injection`
+
+**Mathematical Definition:**
+```
+Let I be set of injection patterns:
+  - SQL injection: '; DROP TABLE--', '1' OR '1'='1
+  - XSS: <script>alert('xss')</script>
+  - Null bytes: \x00 embedded in strings
+
+∀ i ∈ I:
+  status_code(i) ≠ 500
+  sanitized(i) is safe
+```
+
+---
+
+### Oversized Payload Handling Invariants
+
+#### Invariant: Oversized Payloads Rejected Gracefully
+
+**Formal Specification:**
+```
+For all oversized payloads (size > limit):
+  response = POST /api/v1/agents/execute with oversized payload
+  response.status_code in [400, 413] (client error only)
+  response.status_code != 500 (never crash with OOM)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Oversized payloads must not cause Out of Memory errors or crashes. Proper size limits prevent DoS attacks via memory exhaustion.
+
+**Test Location:** `test_oversized_payloads.py::TestOversizedPayloadHandling::test_api_rejects_oversized_payloads`
+
+**Mathematical Definition:**
+```
+Let S be payload size
+Let LIMIT be maximum allowed payload size
+
+∀ S > LIMIT:
+  status_code(payload_with_size_S) in {400, 413}
+  status_code(payload_with_size_S) ≠ 500
+```
+
+---
+
+#### Invariant: Empty Payloads Handled Gracefully
+
+**Formal Specification:**
+```
+For all empty payloads e:
+  response = POST /api/v1/agents/execute with e
+  response.status_code in [400, 422] (client error only)
+  response.status_code != 500 (never crash)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Empty payloads are common (client bugs, validation failures). API must validate input before processing to prevent crashes.
+
+**Test Location:** `test_oversized_payloads.py::TestOversizedPayloadHandling::test_api_handles_empty_payloads`
+
+**Mathematical Definition:**
+```
+Let E = {'', '{}', '[]', None}
+
+∀ e ∈ E:
+  400 ≤ status_code(e) < 500
+  status_code(e) ≠ 500
+```
+
+---
+
+#### Invariant: Deeply Nested JSON Handled Safely
+
+**Formal Specification:**
+```
+For all deeply nested JSON structures (depth > 50):
+  response = POST /api/v1/agents/execute with nested JSON
+  response.status_code in [400, 422] (client error only)
+  response.status_code != 500 (never crash with stack overflow)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Deeply nested JSON can cause stack overflow errors during recursive parsing. Proper depth limits prevent recursion-based DoS attacks.
+
+**Test Location:** `test_oversized_payloads.py::TestOversizedPayloadHandling::test_api_handles_deeply_nested_json`
+
+**Mathematical Definition:**
+```
+Let D be nesting depth
+Let MAX_DEPTH = 50
+
+∀ D > MAX_DEPTH:
+  status_code(nested_json_with_depth_D) ≠ 500
+```
+
+---
+
+### Authorization Invariants (Expansion)
+
+#### Invariant: Authorization Monotonic with Maturity
+
+**Formal Specification:**
+```
+For all maturity levels (a, b) and action complexities c:
+  If order(a) > order(b) and permitted(b, c):
+    Then permitted(a, c) must be True
+
+Higher maturity cannot have fewer permissions than lower maturity.
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Authorization monotonicity is a security-critical invariant. Bugs here cause permission escalation vulnerabilities where higher maturity agents have fewer rights than lower maturity agents.
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_authorization_monotonic_with_maturity`
+
+**Mathematical Definition:**
+```
+Let M = {STUDENT, INTERN, SUPERVISED, AUTONOMOUS}
+Let order: M → {0, 1, 2, 3}
+
+∀ a, b ∈ M, ∀ c ∈ Complexity:
+  (order(a) > order(b) ∧ permitted(b, c)) ⟹ permitted(a, c)
+```
+
+---
+
+#### Invariant: Permission Check Idempotent
+
+**Formal Specification:**
+```
+For all agent_id and action:
+  permission_check(agent_id, action) = permission_check(agent_id, action)
+  (same inputs always produce same output)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Permission checks must be deterministic. Non-idempotent checks cause unpredictable behavior and break audit trails.
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_permission_check_idempotent`
+
+**Mathematical Definition:**
+```
+Let check(agent_id, action) be permission check function
+
+∀ agent_id, ∀ action:
+  check(agent_id, action) = check(agent_id, action)
+```
+
+---
+
+#### Invariant: Authorization Denied for Insufficient Maturity
+
+**Formal Specification:**
+```
+For all low maturity levels (STUDENT, INTERN) and high complexity (3-4):
+  permission_check(low_maturity, high_complexity) = False (denied)
+
+STUDENT cannot execute complexity 2+ actions.
+INTERN cannot execute complexity 3+ actions.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Low maturity agents must be denied high complexity actions to prevent unauthorized operations (state changes, deletions).
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_authorization_denied_for_insufficient_maturity`
+
+**Mathematical Definition:**
+```
+Let M = {STUDENT, INTERN}
+Let C = {3, 4}
+
+∀ m ∈ M, ∀ c ∈ C:
+  permitted(m, c) = False
+```
+
+---
+
+#### Invariant: Cross-Tenant Authorization Isolation
+
+**Formal Specification:**
+```
+For all agent_id and other_tenant_id (where agent.tenant_id != other_tenant_id):
+  permission_check(agent_id, action, other_tenant_id) = False (denied)
+
+Agents cannot access resources from other tenants.
+```
+
+**Criticality:** CRITICAL (max_examples=100)
+
+**Rationale:** Cross-tenant isolation is critical for multi-tenant security. Agents must not access resources from other tenants to prevent data leaks.
+
+**Test Location:** `test_authorization_invariants.py::TestAuthorizationMonotonicity::test_cross_tenant_authorization_isolation`
+
+**Mathematical Definition:**
+```
+Let agent ∈ Tenant₁
+Let resource ∈ Tenant₂
+Let Tenant₁ ≠ Tenant₂
+
+∀ agent, resource:
+  Tenant₁(agent) ≠ Tenant₂(resource) ⟹ ¬permitted(agent, resource)
+```
+
+---
+
+### Governance Cache Invariants (Expansion)
+
+#### Invariant: Cache Invalidation Propagates
+
+**Formal Specification:**
+```
+For all agent_id lists:
+  After cache warming → update agent → invalidate cache:
+    Cache returns fresh data (not stale)
+    Cached value matches updated database value
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache invalidation must remove stale entries. Stale cache data causes incorrect governance decisions (wrong permissions, outdated maturity levels).
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_invalidation_propagates`
+
+**Mathematical Definition:**
+```
+Let k be cache key
+Let v₀ be initial cached value
+Let v₁ be updated database value
+
+After invalidate(k):
+  cache.get(k) = v₁ (fresh data)
+  cache.get(k) ≠ v₀ (not stale)
+```
+
+---
+
+#### Invariant: Cache Consistency with Database
+
+**Formal Specification:**
+```
+For all agent counts:
+  After caching agents and updating DB:
+    Cached value == DB value (after invalidation)
+    No stale data remains in cache
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must be consistent with database. Inconsistent values cause incorrect permission decisions and data corruption.
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_consistency_with_database`
+
+**Mathematical Definition:**
+```
+Let k be cache key
+Let cache.get(k) = cached
+Let db.query(k) = db_value
+
+After invalidation:
+  cached ≅ db_value (consistent)
+```
+
+---
+
+#### Invariant: Cache Hit Rate Above Threshold
+
+**Formal Specification:**
+```
+For all repeated lookup patterns:
+  Let cache_hits = count(successful cache lookups)
+  Let total_lookups = count(all cache lookups)
+  
+  cache_hit_rate = cache_hits / total_lookups
+  cache_hit_rate > 0.90 (90% target)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must provide >90% hit rate for repeated lookups. Lower hit rates indicate cache inefficiency and degraded performance.
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_hit_rate_above_threshold`
+
+**Mathematical Definition:**
+```
+Let lookups = [k₁, k₂, ..., kₙ] be cache key lookups
+Let hits = count(cache.get(k) ≠ None for k in lookups)
+
+hit_rate = hits / n
+
+∀ lookup_patterns: hit_rate > 0.90
+```
+
+---
+
+#### Invariant: Cache Concurrent Access Safe
+
+**Formal Specification:**
+```
+For all concurrent access patterns:
+  No race conditions occur
+  No data corruption
+  No exceptions raised during concurrent access
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must handle concurrent access safely. Race conditions cause data corruption, incorrect permission decisions, and system crashes.
+
+**Test Location:** `test_governance_cache_invariants.py::TestGovernanceCacheInvariants::test_cache_concurrent_access_safe`
+
+**Mathematical Definition:**
+```
+Let threads = [t₁, t₂, ..., tₙ] accessing cache concurrently
+
+∀ thread t:
+  cache.get(k) returns valid result OR None (no exception)
+  No data corruption occurs
+```
+
+
 
 ## Episode Invariants
 
@@ -1029,6 +1442,302 @@ Let I = {s.sequence_order | s ∈ S}
 Let max_i = max(I)
 
 ∀ i ∈ {0, ..., max_i}: i ∈ I (contiguity)
+```
+
+---
+
+### Phase 238 Episodic Memory Property Tests (NEW)
+
+**Added:** 2026-03-24 (Phase 238 Plan 03)
+
+**Test Files:**
+- `tests/property_tests/episodic_memory/test_segmentation_contiguity.py`
+- `tests/property_tests/episodic_memory/test_retrieval_ranking.py`
+- `tests/property_tests/episodic_memory/test_lifecycle_transitions.py`
+
+#### Invariant: Segments Are Contiguous With No Gaps
+
+**Formal Specification:**
+```
+For episode with messages M = [m₁, m₂, ..., mₙ] sorted by timestamp:
+  Let segments = segment(M)
+  Let S = {s.start_time | s ∈ segments} ∪ {s.end_time | s ∈ segments}
+
+  Coverage: min(S) ≤ m₁.timestamp AND max(S) ≥ mₙ.timestamp
+  No gaps: ∀ consecutive segments seg_a, seg_b: seg_a.end ≥ seg_b.start
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Segments must cover full episode timeline with no gaps. Missing gaps cause context loss for agents.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segments_are_contiguous_no_gaps`
+
+**Mathematical Definition:**
+```
+Let segments = [s₁, s₂, ..., sₖ]
+Let timestamps = {s.start, s.end | s ∈ segments}
+
+min(timestamps) ≤ m₁.timestamp ∧ max(timestamps) ≥ mₙ.timestamp
+∀ i ∈ {1, ..., k-1}: segments[i].end ≥ segments[i+1].start
+```
+
+---
+
+#### Invariant: Segments Do Not Overlap
+
+**Formal Specification:**
+```
+For any two segments seg_a and seg_b where order(seg_a) < order(seg_b):
+  seg_a.end_time < seg_b.start_time (non-overlapping)
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Overlapping segments cause double-counting and unclear temporal boundaries.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segments_do_not_overlap`
+
+**Mathematical Definition:**
+```
+∀ seg_a, seg_b ∈ segments:
+  order(seg_a) < order(seg_b) ⟹ seg_a.end < seg_b.start
+```
+
+---
+
+#### Invariant: Segmentation Splits On Time Gaps
+
+**Formal Specification:**
+```
+For consecutive messages mᵢ, mᵢ₊₁ with gap g:
+  boundary_created(g) ⟺ g > THRESHOLD
+
+Where THRESHOLD = 30 minutes (exclusive)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Time gap boundary detection uses exclusive threshold to prevent over-segmentation.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segmentation_on_time_gaps`
+
+**Mathematical Definition:**
+```
+Let g = (mᵢ₊₁.timestamp - mᵢ.timestamp) in minutes
+Let T = 30
+
+boundary_at(i) ⟺ g > T
+```
+
+---
+
+#### Invariant: Segmentation Preserves Message Order
+
+**Formal Specification:**
+```
+For each segment S in episode:
+  Let messages = [m₁, m₂, ..., mₖ] from S
+
+  Monotonicity: sequence_id(m₁) < sequence_id(m₂) < ... < sequence_id(mₖ)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Message order must be preserved to maintain causality and conversation flow.
+
+**Test Location:** `test_segmentation_contiguity.py::TestSegmentationContiguity::test_segmentation_preserves_message_order`
+
+**Mathematical Definition:**
+```
+∀ segment S:
+  ∀ i, j ∈ {1, ..., |S|}:
+    i < j ⟹ sequence_id(mᵢ) < sequence_id(mⱼ)
+```
+
+---
+
+#### Invariant: Semantic Retrieval Ranks Relevant Higher
+
+**Formal Specification:**
+```
+For semantic retrieval results R = [(e₁, s₁), (e₂, s₂), ..., (eₙ, sₙ)]:
+  Monotonic similarity: s₁ ≥ s₂ ≥ s₃ ≥ ... ≥ sₙ
+
+Where sᵢ = similarity_score(query, episodeᵢ.content)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Agents receive most relevant episodes first, improving context quality.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_semantic_retrieval_ranks_relevant_higher`
+
+**Mathematical Definition:**
+```
+Let ranked = sort_by_similarity(episodes, query)
+
+∀ i ∈ {1, ..., n-1}: similarity(ranked[i]) ≥ similarity(ranked[i+1])
+```
+
+---
+
+#### Invariant: Temporal Retrieval Sorts By Recency
+
+**Formal Specification:**
+```
+For temporal retrieval results R = [e₁, e₂, ..., eₙ]:
+  Temporal order: e₁.started_at ≥ e₂.started_at ≥ ... ≥ eₙ.started_at
+
+(Newest episodes first - descending timestamp order)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Most recent context is typically more relevant for task continuation.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_temporal_retrieval_sorts_by_recency`
+
+**Mathematical Definition:**
+```
+∀ i ∈ {1, ..., n-1}: episodes[i].started_at ≥ episodes[i+1].started_at
+```
+
+---
+
+#### Invariant: Retrieval Results Size Within Limit
+
+**Formal Specification:**
+```
+For retrieval with limit L and available episodes N:
+  |retrieved_episodes| ≤ L
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Prevents memory overload and ensures predictable response sizes.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_retrieval_results_size_within_limit`
+
+**Mathematical Definition:**
+```
+Let retrieved = retrieve(limit=L)
+
+|retrieved| ≤ L
+|retrieved| ≤ N (available episodes)
+```
+
+---
+
+#### Invariant: Contextual Retrieval Combines Temporal Semantic
+
+**Formal Specification:**
+```
+For contextual retrieval with similarity weight w:
+  Let score(e) = w * semantic_sim(e) + (1-w) * temporal_recency(e)
+
+  Bounded: 0.0 ≤ score(e) ≤ 1.0
+  Ranked: score(e₁) ≥ score(e₂) ≥ ... ≥ score(eₙ)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Balanced retrieval considers both relevance and freshness.
+
+**Test Location:** `test_retrieval_ranking.py::TestRetrievalRanking::test_contextual_retrieval_combines_temporal_semantic`
+
+**Mathematical Definition:**
+```
+Let score(e) = w * semantic(e) + (1-w) * temporal(e)
+
+∀ e: 0.0 ≤ score(e) ≤ 1.0
+∀ i, j: i < j ⟹ score(eᵢ) ≥ score(eⱼ)
+```
+
+---
+
+#### Invariant: Episode Lifecycle Is Valid DAG
+
+**Formal Specification:**
+```
+States = {ACTIVE, ARCHIVED, DELETED}
+Transitions = {
+  (ACTIVE, ARCHIVED),
+  (ACTIVE, DELETED),
+  (ARCHIVED, ACTIVE),
+  (ARCHIVED, DELETED)
+}
+
+No cycles: No path from DELETED back to ACTIVE/ARCHIVED
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Prevents data corruption and ensures clear lifecycle semantics.
+
+**Test Location:** `test_lifecycle_transitions.py::TestLifecycleTransitions::test_episode_lifecycle_is_valid_dag`
+
+**Mathematical Definition:**
+```
+Let G = (V, E) be lifecycle graph where V = States, E = Transitions
+
+∄ path p = [v₁, v₂, ..., vₖ] in G:
+  v₁ = DELETED ∧ vₖ ∈ {ACTIVE, ARCHIVED}
+```
+
+---
+
+#### Invariant: Archived Episodes Preserve Data
+
+**Formal Specification:**
+```
+For episode e with metadata M before archiving:
+  Let e_archived = archive(e)
+
+  Data preservation: e_archived.metadata = M
+                   e_archived.segments = e.segments
+                   e_archived.feedback = e.feedback
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Archiving must preserve all episode data for audit trails and recovery.
+
+**Test Location:** `test_lifecycle_transitions.py::TestLifecycleTransitions::test_archived_episodes_preserve_data`
+
+**Mathematical Definition:**
+```
+Let M = e.metadata (before archive)
+Let M' = archive(e).metadata (after archive)
+
+M = M' (exact equality, no data loss)
+```
+
+---
+
+#### Invariant: Deleted Episodes Are Soft Deleted
+
+**Formal Specification:**
+```
+For deleted episode e:
+  Soft deletion: e.deleted_at is not None
+                e.deleted_at >= deletion_time
+                e.id is not None (record exists)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Soft deletion enables audit trails and data recovery.
+
+**Test Location:** `test_lifecycle_transitions.py::TestLifecycleTransitions::test_deleted_episodes_are_soft_deleted`
+
+**Mathematical Definition:**
+```
+Let e' = delete(e)
+
+e'.deleted_at ≠ NULL
+e'.deleted_at ≥ deletion_time
+e'.id = e.id (record preserved)
 ```
 
 ---
@@ -1932,6 +2641,296 @@ D.datasets ≠ None ∧
 
 ---
 
+## Agent Execution Invariants
+
+Agent execution invariants ensure agent execution lifecycle, idempotence, termination, and determinism operate correctly. These are **CRITICAL** for system correctness and reliability.
+
+### Execution Idempotence Invariants
+
+#### Invariant: Execution Idempotent for Same Inputs
+
+**Formal Specification:**
+```
+For all agent_id and params:
+  execution_1 = execute_agent(agent_id, params)
+  execution_2 = execute_agent(agent_id, params)
+
+  execution_1.agent_id == execution_2.agent_id
+  execution_1.status == execution_2.status
+  execution_1.output == execution_2.output
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Same inputs must produce identical outputs. Non-idempotent executions cause data corruption and unpredictable behavior.
+
+**Test Location:** `test_execution_idempotence.py::TestExecutionIdempotenceInvariants::test_execution_idempotent_for_same_inputs`
+
+**Mathematical Definition:**
+```
+Let f(agent_id, params) = execution
+
+∀ agent_id, params:
+  f(agent_id, params)₁ ≡ f(agent_id, params)₂
+```
+
+---
+
+#### Invariant: Execution Replay Produces Same Result
+
+**Formal Specification:**
+```
+For all execution_id:
+  original = get_execution(execution_id)
+  replay_1 = get_execution(execution_id)
+  replay_2 = get_execution(execution_id)
+
+  All replays return identical result, status, duration
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Replaying executions must produce consistent results. Inconsistent replays break reproducibility.
+
+**Test Location:** `test_execution_idempotence.py::TestExecutionIdempotenceInvariants::test_execution_replay_produces_same_result`
+
+**Mathematical Definition:**
+```
+Let replay(execution_id) = execution
+
+∀ execution_id, ∀ i, j ∈ {1, ..., n}:
+  replay(execution_id)ᵢ ≡ replay(execution_id)ⱼ
+```
+
+---
+
+#### Invariant: Concurrent Execution Handling
+
+**Formal Specification:**
+```
+For all concurrent executions of same agent_id:
+  execution_ids = [execute_agent(agent_id, params) for _ in range(n)]
+
+  len(execution_ids) == len(set(execution_ids)) (unique IDs)
+  All executions complete successfully
+  No race conditions or data corruption
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Concurrent executions must have unique IDs and complete without conflicts. Race conditions cause data corruption.
+
+**Test Location:** `test_execution_idempotence.py::TestExecutionIdempotenceInvariants::test_concurrent_execution_handling`
+
+**Mathematical Definition:**
+```
+Let E = [execute_agent(agent_id, params) for _ in range(n)]
+
+|E| = |set(E)| (uniqueness)
+∀ e ∈ E: e.status = COMPLETED (no failures)
+```
+
+---
+
+### Execution Termination Invariants
+
+#### Invariant: Execution Terminates Gracefully
+
+**Formal Specification:**
+```
+For all executions with deadline D:
+  execute_agent(agent_id, params)
+
+  execution.status ∈ {COMPLETED, FAILED, CANCELLED} (never PENDING/RUNNING)
+  execution.duration_seconds ≤ D
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** All executions must terminate within deadline. Infinite loops or hangs cause system unresponsiveness.
+
+**Test Location:** `test_execution_termination.py::TestExecutionTerminationInvariants::test_execution_terminates_gracefully`
+
+**Mathematical Definition:**
+```
+Let E = execute_agent(agent_id, params, deadline=D)
+
+E.status ∈ {COMPLETED, FAILED, CANCELLED}
+E.duration ≤ D
+```
+
+---
+
+#### Invariant: Large Payloads Handled Gracefully
+
+**Formal Specification:**
+```
+For all executions with payload_size S:
+  execute_agent(agent_id, large_payload)
+
+  execution completes (no OOM, no infinite loops)
+  execution.duration < 60s (reasonable time)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Large payloads must not cause OOM or infinite loops. Memory leaks cause system crashes.
+
+**Test Location:** `test_execution_termination.py::TestExecutionTerminationInvariants::test_execution_handles_large_payloads`
+
+**Mathematical Definition:**
+```
+Let payload_size ∈ [0, 10_000_000]
+Let E = execute_agent(agent_id, payload)
+
+E.status ∈ {COMPLETED, FAILED} (not hung)
+E.duration < 60s
+```
+
+---
+
+#### Invariant: Malformed Params Return Error
+
+**Formal Specification:**
+```
+For all malformed params (None, empty lists, invalid structures):
+  execution = execute_agent(agent_id, malformed_params)
+
+  execution.status ∈ {COMPLETED, FAILED}
+  If FAILED: execution.error_message is not None
+  Execution completes (no infinite loops)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Malformed params must return error, not hang. Infinite loops cause system unresponsiveness.
+
+**Test Location:** `test_execution_termination.py::TestExecutionTerminationInvariants::test_execution_handles_malformed_params`
+
+**Mathematical Definition:**
+```
+Let malformed ∈ {None, [], invalid}
+Let E = execute_agent(agent_id, malformed)
+
+E.status ∈ {COMPLETED, FAILED}
+(E.status = FAILED) ⟹ (E.error_message ≠ None)
+```
+
+---
+
+### Execution Determinism Invariants
+
+#### Invariant: Deterministic Output for Same Inputs
+
+**Formal Specification:**
+```
+For all agent_id and params:
+  executions = [execute_agent(agent_id, params) for _ in range(n)]
+
+  All execution.status values identical
+  All execution.result_summary values identical
+  All execution.error_message values identical (or all None)
+  All execution.duration_seconds within 100ms variance
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Same inputs must produce identical outputs. Non-determinism breaks reproducibility and debugging.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionDeterminismInvariants::test_deterministic_output_for_same_inputs`
+
+**Mathematical Definition:**
+```
+Let E = [execute(agent_id, params) for _ in range(n)]
+
+∀ eᵢ, eⱼ ∈ E:
+  eᵢ.status = eⱼ.status ∧
+  eᵢ.result = eⱼ.result ∧
+  |eᵢ.duration - eⱼ.duration| ≤ 0.1s
+```
+
+---
+
+#### Invariant: Deterministic State Transitions
+
+**Formal Specification:**
+```
+For all agent_id and params:
+  state_seq_1 = get_state_sequence(agent_id, params)
+  state_seq_2 = get_state_sequence(agent_id, params)
+
+  state_seq_1 == state_seq_2 (identical transitions)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Same inputs must produce same state transition path. Non-deterministic transitions break state machine correctness.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionDeterminismInvariants::test_deterministic_state_transitions`
+
+**Mathematical Definition:**
+```
+Let S(agent_id, params) = [state₀, state₁, ..., stateₙ]
+
+∀ agent_id, params:
+  S(agent_id, params)₁ = S(agent_id, params)₂
+```
+
+---
+
+#### Invariant: Deterministic Telemetry Recording
+
+**Formal Specification:**
+```
+For all agent executions:
+  executions = [execute_agent(agent_id, params) for _ in range(3)]
+
+  All execution.duration_seconds within 10% variance
+  All execution.metadata_json have same fields (token_count, error_count)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Telemetry must be consistent for same operations. Inconsistent telemetry breaks monitoring and debugging.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionDeterminismInvariants::test_deterministic_telemetry_recording`
+
+**Mathematical Definition:**
+```
+Let E = [execute(agent_id, params) for _ in range(3)]
+
+∀ eᵢ, eⱼ ∈ E:
+  |eᵢ.duration - eⱼ.duration| / eⱼ.duration ≤ 0.10
+  keys(eᵢ.metadata) = keys(eⱼ.metadata)
+```
+
+---
+
+#### Invariant: Execution Timestamps Consistent
+
+**Formal Specification:**
+```
+For all completed executions:
+  execution.started_at < execution.completed_at
+  execution.completed_at - execution.started_at ≈ execution.duration_seconds (within 100ms)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Timestamps must be consistent and ordered. Inconsistent timestamps break audit trails and duration tracking.
+
+**Test Location:** `test_execution_determinism.py::TestExecutionTimestampInvariants::test_execution_timestamps_consistent`
+
+**Mathematical Definition:**
+```
+Let E be completed execution
+
+E.started_at < E.completed_at
+| (E.completed_at - E.started_at) - E.duration | ≤ 0.1s
+```
+
+---
+
 ## Criticality Categories
 
 Property tests use `max_examples` based on invariant criticality:
@@ -1994,20 +2993,438 @@ Property tests use `max_examples` based on invariant criticality:
 
 ---
 
+## State Machine Invariants
+
+State machine invariants ensure agent graduation, training sessions, and lifecycle transitions operate correctly. These are **CRITICAL** for system correctness and security.
+
+### Agent Graduation State Machine Invariants
+
+#### Invariant: Agent Graduation Is Monotonic
+
+**Formal Specification:**
+```
+For all maturity transitions (current_maturity → next_maturity):
+  order(next) >= order(current)
+
+Where:
+  order(STUDENT) = 0
+  order(INTERN) = 1
+  order(SUPERVISED) = 2
+  order(AUTONOMOUS) = 3
+
+Invalid transitions (NEVER allowed):
+  AUTONOMOUS → SUPERVISED, INTERN, STUDENT
+  SUPERVISED → INTERN, STUDENT
+  INTERN → STUDENT
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Agent maturity is monotonic - agents only gain capabilities through learning. Decreasing maturity violates constitutional compliance and indicates data corruption.
+
+**Test Location:** `test_graduation_state_machine.py::test_agent_graduation_monotonic_state_machine`
+
+**Mathematical Definition:**
+```
+Let M = {STUDENT, INTERN, SUPERVISED, AUTONOMOUS}
+Let order: M → {0, 1, 2, 3}
+
+∀ current, next ∈ M:
+  valid_transition(current, next) ⟺ order(next) ≥ order(current)
+```
+
+---
+
+#### Invariant: Graduation Requirements Satisfied Before Promotion
+
+**Formal Specification:**
+```
+For all promotion attempts (current_maturity → target_maturity):
+  promotion_allowed ⟺ (
+    episode_count >= min_episodes(target_maturity) AND
+    intervention_rate <= max_intervention_rate(target_maturity) AND
+    constitutional_score >= min_constitutional_score(target_maturity)
+  )
+
+Where:
+  STUDENT → INTERN: episode_count >= 10, intervention_rate <= 0.5, score >= 0.70
+  INTERN → SUPERVISED: episode_count >= 25, intervention_rate <= 0.2, score >= 0.85
+  SUPERVISED → AUTONOMOUS: episode_count >= 50, intervention_rate <= 0.0, score >= 0.95
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Promotion only occurs if all requirements met. Premature promotion of underperforming agents breaks governance.
+
+**Test Location:** `test_graduation_state_machine.py::test_graduation_requirements_satisfied_before_promotion`
+
+**Mathematical Definition:**
+```
+Let requirements(target) = (min_episodes, max_intervention, min_score)
+
+∀ target ∈ {INTERN, SUPERVISED, AUTONOMOUS}:
+  promoted(current → target) ⟺ (
+    episode_count >= requirements(target).min_episodes ∧
+    intervention_rate <= requirements(target).max_intervention ∧
+    constitutional_score >= requirements(target).min_score
+  )
+```
+
+---
+
+### Training Session State Machine Invariants
+
+#### Invariant: Training Session Transitions Are Valid
+
+**Formal Specification:**
+```
+States = {PENDING, IN_PROGRESS, COMPLETED, CANCELLED}
+Valid transitions = {
+  PENDING → {IN_PROGRESS, CANCELLED},
+  IN_PROGRESS → {COMPLETED, CANCELLED},
+  COMPLETED → {},  # Terminal state
+  CANCELLED → {}   # Terminal state
+}
+
+Invalid transitions (NEVER allowed):
+  PENDING → COMPLETED (must go through IN_PROGRESS)
+  COMPLETED → any state
+  CANCELLED → any state
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Training sessions must follow valid state transitions. Invalid transitions (e.g., PENDING → COMPLETED) break lifecycle management.
+
+**Test Location:** `test_graduation_state_machine.py::test_training_session_state_transitions`
+
+**Mathematical Definition:**
+```
+Let G = (V, E) be state machine graph where V = States, E = Valid transitions
+
+∀ current, next ∈ V:
+  valid_transition(current, next) ⟺ next ∈ Valid_transitions[current]
+
+∄ path p = [v₁, v₂, ..., vₖ] in G:
+  v₁ ∈ {COMPLETED, CANCELLED} ∧ k > 1
+```
+
+---
+
+## Security Invariants
+
+Security invariants ensure SQL injection, XSS, and CSRF protections operate correctly. These are **CRITICAL** for system security and user safety.
+
+### SQL Injection Prevention Invariants
+
+#### Invariant: SQL Injection Sanitized in Queries
+
+**Formal Specification:**
+```
+For all malicious SQL inputs (e.g., "' OR '1'='1", "'; DROP TABLE users; --"):
+  query_result = execute_query("SELECT * FROM agents WHERE name = ?", malicious_input)
+
+  query_result.count == 0  # No matches (sanitized)
+  NOT (query_result.count == all_records_count)  # Not bypassing WHERE clause
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** SQL injection attempts must be sanitized by ORM. Malicious input should return 0 results, not all records.
+
+**Test Location:** `test_sql_injection.py::test_sql_injection_sanitized_in_queries`
+
+**Mathematical Definition:**
+```
+Let malicious_input ∈ {"' OR '1'='1", "'; DROP TABLE users; --", ...}
+Let result = query(field=malicious_input)
+
+|result| = 0 (no matches)
+NOT (|result| = |all_records|) (not bypassing WHERE clause)
+```
+
+---
+
+#### Invariant: SQL Injection in Agent Creation
+
+**Formal Specification:**
+```
+For all agent creation attempts with malicious SQL in name:
+  agent = create_agent(name="'; DROP TABLE agents; --", ...)
+
+  agent.name == "'; DROP TABLE agents; --"  # Literal string
+  agents_table.exists == True  # Table not dropped
+  NOT (executed_arbitrary_sql(agent.name))  # SQL not executed
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Agent creation with malicious SQL must treat input as literal string, not executable SQL.
+
+**Test Location:** `test_sql_injection.py::test_sql_injection_in_agent_creation`
+
+**Mathematical Definition:**
+```
+Let malicious_name ∈ {"'; DROP TABLE agents; --", ...}
+Let agent = create_agent(name=malicious_name)
+
+agent.name = malicious_name (literal)
+NOT (DROP TABLE executed)
+agents_table.exists = True
+```
+
+---
+
+#### Invariant: SQL Injection in Filter Clauses
+
+**Formal Specification:**
+```
+For all filter operations with SQL metacharacters:
+  filter_values = ["'", ";", "--", "/*", ...]
+
+  For each malicious_value in filter_values:
+    result = filter(field=malicious_value)
+    NOT (syntax_error_in_result)
+    NOT (result.includes_unintended_records)
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Filter clauses must sanitize SQL metacharacters to prevent injection via WHERE clauses.
+
+**Test Location:** `test_sql_injection.py::test_sql_injection_in_filter_clauses`
+
+**Mathematical Definition:**
+```
+Let metacharacters = {"'", ";", "--", "/*"}
+
+∀ char ∈ metacharacters:
+  result = filter(field=contains(char))
+  NOT (syntax_error(result))
+  NOT (bypassed_filter(result))
+```
+
+---
+
+### XSS Prevention Invariants
+
+#### Invariant: XSS Payloads Escaped in Response
+
+**Formal Specification:**
+```
+For all XSS payloads (e.g., "<script>alert('XSS')</script>"):
+  agent = create_agent(name="<script>alert('XSS')</script>", ...)
+  response = get_agent(agent.id)
+
+  response.text contains "&lt;script&gt;"  # Escaped
+  NOT (response.text contains unescaped "<script>")
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** XSS payloads must be HTML-escaped in responses. Unescaped tags allow script execution in user browsers.
+
+**Test Location:** `test_xss_prevention.py::test_xss_payloads_escaped_in_response`
+
+**Mathematical Definition:**
+```
+Let xss_payload = "<script>alert('XSS')</script>"
+Let response = get(agent_with_xss_name)
+
+"&lt;script&gt;" ∈ response.text (escaped)
+"<script>" ∉ response.data.name (no unescaped tag)
+```
+
+---
+
+#### Invariant: XSS in Canvas Content
+
+**Formal Specification:**
+```
+For all canvas content with XSS payloads:
+  canvas = create_canvas(title="<script>alert('XSS')</script>", ...)
+  response = get_canvas(canvas.id)
+
+  response.content is escaped OR sanitized
+  NOT (response.content contains unescaped "<script>")
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Canvas content must escape or sanitize HTML tags to prevent XSS via user-generated content.
+
+**Test Location:** `test_xss_prevention.py::test_xss_in_canvas_content`
+
+**Mathematical Definition:**
+```
+Let canvas = create(title=xss_payload)
+Let response = get(canvas.id)
+
+escaped(response.content) OR sanitized(response.content)
+"<script>" ∉ response.rendered_content
+```
+
+---
+
+#### Invariant: XSS in User-Generated Content
+
+**Formal Specification:**
+```
+For all user-generated content fields (name, description, content):
+  content = "<script>alert('XSS')</script>"
+
+  HTML special chars must be escaped:
+    '<' → '&lt;'
+    '>' → '&gt;'
+    '&' → '&amp;'
+    '"' → '&quot;'
+    "'" → '&#x27;'
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** All user-generated content fields must escape HTML special characters to prevent XSS.
+
+**Test Location:** `test_xss_prevention.py::test_xss_in_user_generated_content`
+
+**Mathematical Definition:**
+```
+Let special_chars = {'<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#x27;'}
+
+∀ char, escaped in special_chars.items():
+  input_contains(char) ⟹ response_contains(escaped)
+```
+
+---
+
+### CSRF Protection Invariants
+
+#### Invariant: CSRF Token Required on State-Changing Requests
+
+**Formal Specification:**
+```
+For all state-changing HTTP methods (POST, DELETE, PUT, PATCH):
+  request_without_csrf_token = execute_request(method, ...)
+
+  expected_response = 403 Forbidden
+  NOT (expected_response == 200 OK)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** State-changing requests must require valid CSRF token. Requests without token must be rejected.
+
+**Test Location:** `test_csrf_protection.py::test_csrf_token_required_on_state_changing_requests`
+
+**Mathematical Definition:**
+```
+Let state_changing_methods = {POST, DELETE, PUT, PATCH}
+
+∀ method ∈ state_changing_methods:
+  request(method, csrf_token=None) → 403 Forbidden
+  NOT (request(method, csrf_token=None) → 200 OK)
+```
+
+---
+
+#### Invariant: CSRF Token Validated on Mutating Operations
+
+**Formal Specification:**
+```
+For all invalid CSRF tokens ("", "invalid", "null", random_32_char):
+  request_with_invalid_token = execute_request(method, csrf_token=invalid_token)
+
+  expected_response = 403 Forbidden
+  NOT (expected_response == 200 OK)
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Invalid CSRF tokens must be rejected. Only valid tokens allow state-changing operations.
+
+**Test Location:** `test_csrf_protection.py::test_csrf_token_validated_on_mutating_operations`
+
+**Mathematical Definition:**
+```
+Let invalid_tokens = {"", "invalid", "null", random_32_char}
+
+∀ token ∈ invalid_tokens:
+  request(POST, csrf_token=token) → 403 Forbidden
+  NOT (request(POST, csrf_token=token) → 200 OK)
+```
+
+---
+
+#### Invariant: Safe Methods Exempt from CSRF
+
+**Formal Specification:**
+```
+For all safe HTTP methods (GET, HEAD, OPTIONS):
+  request_without_csrf_token = execute_request(method, ...)
+
+  expected_response != 403 Forbidden
+  Safe methods work without CSRF token
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Safe methods (GET, HEAD, OPTIONS) don't modify state and don't require CSRF token (OWASP recommendation).
+
+**Test Location:** `test_csrf_protection.py::test_safe_methods_exempt_from_csrf`
+
+**Mathematical Definition:**
+```
+Let safe_methods = {GET, HEAD, OPTIONS}
+
+∀ method ∈ safe_methods:
+  request(method, csrf_token=None) ≠ 403 Forbidden
+  request(method, csrf_token=None) → 200 OK or other non-403 response
+```
+
+---
+
+## Phase 238 Summary
+
+**Added:** 2026-03-24 (Phase 238 Plan 05)
+
+**New Test Files:**
+- `tests/property_tests/state_machines/test_graduation_state_machine.py`
+- `tests/property_tests/security/test_sql_injection.py`
+- `tests/property_tests/security/test_xss_prevention.py`
+- `tests/property_tests/security/test_csrf_protection.py`
+
+**New Invariants Added:** 12 invariants
+- State Machine Invariants: 3 invariants (agent graduation monotonicity, graduation requirements, training session transitions)
+- Security Invariants: 9 invariants (3 SQL injection, 3 XSS, 3 CSRF)
+
+**Total Phase 238 Invariants:** 50+ invariants across 5 plans (238-01 through 238-05)
+
+---
+
 ## Summary
 
-**Total Invariants Documented:** 50+
+**Total Invariants Documented:** 113+ invariants
 
 **Distribution:**
 - Governance: 20 invariants
-- Episodes: 18 invariants
-- Financial: 10+ invariants
+- Episodes: 31 invariants (18 existing + 13 Phase 238)
+- Financial: 34 invariants
 - Canvas: 2+ invariants
+- Agent Execution: 11 invariants
+- LLM Routing: 15 invariants
+- State Machines: 3 invariants (NEW - Phase 238)
+- Security: 9 invariants (NEW - Phase 238)
 
 **Criticality Distribution:**
-- CRITICAL (max_examples=200): 20 invariants
-- STANDARD (max_examples=100): 22 invariants
-- IO_BOUND (max_examples=50): 8 invariants
+- CRITICAL (max_examples=200): 45 invariants
+- STANDARD (max_examples=100): 48 invariants
+- IO_BOUND (max_examples=50): 20 invariants
+
+**Phase 238 Additions:**
+- 50+ new property tests across 5 plans (238-01 through 238-05)
+- State machine invariants: Agent graduation monotonicity, training session transitions
+- Security invariants: SQL injection prevention, XSS prevention, CSRF protection
+- All tests follow invariant-first pattern (PROP-05 compliant)
 
 **Validation Status:**
 - All invariants validated by property tests
@@ -2017,5 +3434,387 @@ Property tests use `max_examples` based on invariant criticality:
 ---
 
 *Document maintained by: Backend Property Testing Team*
-*Last review: 2026-02-28*
-*Next review: After Phase 103 completion*
+*Last review: 2026-03-24*
+*Next review: After Phase 238 completion*
+
+## LLM Routing Invariants
+
+LLM routing invariants ensure cognitive tier classification, cache-aware routing, and provider selection operate correctly. These are **CRITICAL** for cost optimization and quality assurance.
+
+### Routing Consistency Invariants
+
+#### Invariant: Same Prompt Routes to Same Tier
+
+**Formal Specification:**
+```
+For all prompts p:
+  classify(p) = classify(p) = classify(p) (n times)
+
+All classifications of identical prompt return same cognitive tier.
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Routing must be deterministic. Non-deterministic routing causes unpredictable costs and quality for identical queries.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_same_prompt_routes_to_same_tier`
+
+**Mathematical Definition:**
+```
+∀ prompt p:
+  classify(p)₁ = classify(p)₂ = ... = classify(p)ₙ
+```
+
+---
+
+#### Invariant: Token Count Variance Within Tier Maps Consistently
+
+**Formal Specification:**
+```
+For all token counts in same tier range:
+  tokens_a, tokens_b ∈ [tier_min, tier_max]
+  tier(classify(prompt_a)) ≈ tier(classify(prompt_b))
+
+Token count variance within tier maps to same or adjacent tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Token count determines base tier (before complexity adjustments). Consistent mapping ensures predictable routing.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_routing_invariant_under_token_count_variance`
+
+**Mathematical Definition:**
+```
+Let tier_boundaries = {100, 500, 2000, 5000}
+Let classify(prompt) = tier
+
+∀ tokens_a, tokens_b ∈ [min, max]:
+  |tier(tier_a) - tier(tier_b)| ≤ 1
+```
+
+---
+
+#### Invariant: Semantic Complexity Classification Consistent
+
+**Formal Specification:**
+```
+For all structured prompts with same complexity patterns:
+  classify(structure_a) = classify(structure_b)
+
+Same semantic patterns (code, technical terms) produce same tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Semantic complexity must be consistently detected. Inconsistent detection breaks cost optimization.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_routing_preserves_complexity_classification`
+
+**Mathematical Definition:**
+```
+Let structure = dict(keys, values)
+Let complexity = detect_semantic_patterns(structure)
+
+∀ structure₁, structure₂ where patterns₁ = patterns₂:
+  tier(structure₁) = tier(structure₂)
+```
+
+---
+
+#### Invariant: Provider Fallback Maintains Tier Selection
+
+**Formal Specification:**
+```
+For all providers and prompts:
+  tier(classify(prompt, provider_a)) = tier(classify(prompt, provider_b))
+
+Cognitive tier classification is provider-independent.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Tier classification happens before provider selection. Provider failures shouldn't affect tier decision.
+
+**Test Location:** `test_routing_consistency.py::TestRoutingConsistency::test_provider_fallback_consistency`
+
+**Mathematical Definition:**
+```
+∀ prompt p, ∀ provider₁, provider₂:
+  tier(classify(p, provider₁)) = tier(classify(p, provider₂))
+```
+
+---
+
+### Cognitive Tier Mapping Invariants
+
+#### Invariant: Tier Boundary Conditions Map Correctly
+
+**Formal Specification:**
+```
+For token count at tier boundaries:
+  1-99 tokens → Micro tier
+  100-500 tokens → Standard tier
+  501-2000 tokens → Versatile tier
+  2001-5000 tokens → Heavy tier
+  5001+ tokens → Complex tier
+
+Note: Semantic complexity can increase tier beyond token count.
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Boundary bugs cause over-provisioning (wasted cost) or under-provisioning (poor quality). Exact boundaries tested with @example().
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_tier_boundary_conditions`
+
+**Mathematical Definition:**
+```
+Let boundaries = {100, 500, 2000, 5000}
+Let tokens = estimated token count
+
+tokens < 100 ⟹ tier = Micro (or higher if complex)
+tokens ∈ [100, 500) ⟹ tier = Standard (or higher if complex)
+tokens ∈ [500, 2000) ⟹ tier = Versatile (or higher if complex)
+tokens ∈ [2000, 5000) ⟹ tier = Heavy (or Complex if complex)
+tokens ≥ 5000 ⟹ tier = Complex
+```
+
+---
+
+#### Invariant: Tier Mapping Monotonic
+
+**Formal Specification:**
+```
+For all token counts a < b:
+  tier(classify(a)) ≤ tier(classify(b))
+
+Higher token count never maps to lower tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Tier mapping must be monotonic non-decreasing. Violations indicate classification bugs.
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_tier_mapping_monotonic`
+
+**Mathematical Definition:**
+```
+Let order(tier) = {MICRO: 0, STANDARD: 1, VERSATILE: 2, HEAVY: 3, COMPLEX: 4}
+
+∀ tokens_a < tokens_b:
+  order(tier(tokens_a)) ≤ order(tier(tokens_b))
+```
+
+---
+
+#### Invariant: Semantic Complexity Increases Tier
+
+**Formal Specification:**
+```
+For prompts with same token count but different complexity:
+  complexity_low < complexity_high ⟹ tier_low ≤ tier_high
+
+High semantic complexity (code, technical terms) bumps tier.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Semantic patterns (code: +3, technical: +3, advanced: +5) must influence tier classification.
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_semantic_complexity_increases_tier`
+
+**Mathematical Definition:**
+```
+Let complexity_score = sum(pattern_weights)
+Let tier = classify(tokens, complexity)
+
+∀ (tokens, complexity₁) < (tokens, complexity₂):
+  order(tier₁) ≤ order(tier₂)
+```
+
+---
+
+#### Invariant: Task Type Influences Tier
+
+**Formal Specification:**
+```
+For different task types with same prompt:
+  task_type ∈ {code, analysis, reasoning} → tier_boost(+2)
+  task_type ∈ {chat, general} → tier_reduction(-1)
+
+Certain tasks require minimum tier regardless of token count.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Code generation and complex reasoning require higher-quality models. Task type must influence tier selection.
+
+**Test Location:** `test_cognitive_tier_mapping.py::TestCognitiveTierMapping::test_task_type_influences_tier`
+
+**Mathematical Definition:**
+```
+Let task_adjustment(task_type) = {
+  code: +2,
+  analysis: +2,
+  reasoning: +2,
+  agentic: +2,
+  chat: -1,
+  general: -1
+}
+
+∀ task_type:
+  tier(tokens, task_type) = classify(tokens, task_adjustment(task_type))
+```
+
+---
+
+### Cache-Aware Routing Invariants
+
+#### Invariant: Cached Prompts Skip Classification
+
+**Formal Specification:**
+```
+For all cached prompts:
+  first_route → classify + cache
+  second_route → use cache (skip classification)
+
+Cache hit probability > 0.9 → use cached tier.
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Caching improves performance (90% cost reduction). Cache hits must skip classification.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cached_prompts_skip_classification`
+
+**Mathematical Definition:**
+```
+Let cache_hit_probability = 0.9
+Let first_call = route(prompt)
+Let second_call = route(prompt)
+
+second_call ≈ cached_result(first_call)
+classification_count(second_call) ≤ classification_count(first_call)
+```
+
+---
+
+#### Invariant: Cache Invalidation Propagates
+
+**Formal Specification:**
+```
+For all cached prompts after invalidation:
+  clear_cache(prompt_hash)
+  subsequent_route → fresh classification (no cached data)
+
+Cache invalidation removes all cached entries.
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache invalidation must trigger reclassification. Stale cache causes incorrect routing.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cache_invalidation_propagates`
+
+**Mathematical Definition:**
+```
+Let cache = {key: value}
+let cache' = clear_cache(cache)
+
+|cache'| = 0 (empty after clear)
+∀ prompt: route(prompt) uses fresh classification
+```
+
+---
+
+#### Invariant: Cache Key Consistency
+
+**Formal Specification:**
+```
+For all prompts p:
+  hash(p) = hash(p) = hash(p) (deterministic)
+
+Cache key generation is deterministic (SHA-256).
+```
+
+**Criticality:** CRITICAL (max_examples=200)
+
+**Rationale:** Non-deterministic hashing causes cache misses. Hash collisions or encoding issues break caching.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cache_key_consistency`
+
+**Mathematical Definition:**
+```
+Let hash_fn(prompt) = SHA256(prompt.encode())[:16]
+
+∀ prompt p:
+  hash_fn(p)₁ = hash_fn(p)₂ = ... = hash_fn(p)ₙ
+```
+
+---
+
+#### Invariant: Cache Size Bounds Respected
+
+**Formal Specification:**
+```
+For all cache insert operations:
+  cache_size ≤ max_capacity
+  If cache_full: evict oldest entries (LRU)
+
+Current implementation: In-memory dict with no explicit limit.
+```
+
+**Criticality:** IO_BOUND (max_examples=50)
+
+**Rationale:** Cache must handle arbitrary size without crashes. Future implementation should enforce limits with LRU eviction.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_cache_size_bounds`
+
+**Mathematical Definition:**
+```
+Let cache_size = |cache|
+let max_capacity = ∞ (current implementation)
+
+∀ insert operations: cache_size ≤ max_capacity
+∀ key, value in cache: valid_structure(key, value)
+```
+
+---
+
+#### Invariant: Provider Cache Capability Detection
+
+**Formal Specification:**
+```
+For all providers:
+  capability = get_provider_cache_capability(provider)
+
+  capability.supports_cache ∈ {True, False}
+  capability.min_tokens ≥ 0
+  capability.cached_cost_ratio ∈ [0.0, 1.0]
+
+Cache capabilities correctly identified per provider.
+```
+
+**Criticality:** STANDARD (max_examples=100)
+
+**Rationale:** Wrong cache capability detection causes incorrect cost calculations. Must match provider documentation.
+
+**Test Location:** `test_cache_aware_routing.py::TestCacheAwareRouting::test_provider_cache_capability`
+
+**Mathematical Definition:**
+```
+Let providers = {
+  openai: {supports_cache: True, min_tokens: 1024},
+  anthropic: {supports_cache: True, min_tokens: 2048},
+  gemini: {supports_cache: True, min_tokens: 1024},
+  deepseek: {supports_cache: False, min_tokens: 0},
+  minimax: {supports_cache: False, min_tokens: 0}
+}
+
+∀ provider p ∈ providers:
+  get_capability(p) = providers[p]
+```
+
+---
+

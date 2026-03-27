@@ -533,6 +533,8 @@ class JITVerificationCache:
     async def get_business_facts(
         self,
         query: str,
+        workspace_id: str = "default",
+        tenant_id: str = "default",
         limit: int = 5,
         domain: Optional[str] = None,
         force_refresh: bool = False
@@ -565,7 +567,7 @@ class JITVerificationCache:
 
         # Actual search
         from core.agent_world_model import WorldModelService
-        wm = WorldModelService("default")  # TODO: Get from context
+        wm = WorldModelService(workspace_id=workspace_id, tenant_id=tenant_id)
         facts = await wm.list_all_facts(limit=limit, domain=domain)
 
         # Convert to dicts

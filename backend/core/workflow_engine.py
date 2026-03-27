@@ -163,6 +163,8 @@ class WorkflowEngine:
         analytics = get_analytics_engine()
 
         graph = self._build_execution_graph(workflow)
+        workspace_id = workflow.get("workspace_id", "default")
+        tenant_id = workflow.get("tenant_id", "default")
         nodes = graph["nodes"]
         adjacency = graph["adjacency"]
         reverse_adjacency = graph["reverse_adjacency"]
@@ -234,7 +236,9 @@ class WorkflowEngine:
                         "output_schema": config.get("output_schema", {}),
                         "workflow_id": workflow.get("id", "unknown"),
                         "execution_id": execution_id,
-                        "connection_id": config.get("connectionId")
+                        "connection_id": config.get("connectionId"),
+                        "workspace_id": workspace_id,
+                        "tenant_id": tenant_id
                     }
 
                     async with self.semaphore:
@@ -471,6 +475,8 @@ class WorkflowEngine:
         analytics = get_analytics_engine()
         
         user_id = workflow.get("created_by", "default")
+        workspace_id = workflow.get("workspace_id", "default")
+        tenant_id = workflow.get("tenant_id", "default")
         start_time = datetime.utcnow()
         
         try:
@@ -506,6 +512,10 @@ class WorkflowEngine:
                 step_state = state["steps"].get(step_id, {})
                 if step_state.get("status") == "COMPLETED":
                     continue
+                
+                # Attach context for execution
+                step["workspace_id"] = workspace_id
+                step["tenant_id"] = tenant_id
                 
                 # Check dependencies
                 if not self._check_dependencies(step, state):
@@ -1577,6 +1587,8 @@ class WorkflowEngine:
         """
         try:
             from core.agent_context_resolver import AgentContextResolver
+            workspace_id = agent_context.get("workspace_id", "default")
+            tenant_id = agent_context.get("tenant_id", "default")
             from core.llm_service import get_llm_service
             from core.models import AgentRegistry
 

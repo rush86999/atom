@@ -25,7 +25,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
 # Import canvas routes router
-from api.canvas_routes import router, FormSubmission
+from api.canvas_routes import router
 
 # Import models
 from core.models import (

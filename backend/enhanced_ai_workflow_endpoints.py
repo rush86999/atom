@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 from core.llm_service import LLMService
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from dotenv import load_dotenv
 

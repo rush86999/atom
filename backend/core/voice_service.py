@@ -35,10 +35,11 @@ class VoiceService:
     - Google Cloud Speech-to-Text (future)
     """
     
-    def __init__(self, workspace_id: str = "default"):
+    def __init__(self, workspace_id: str = "default", tenant_id: str = "default"):
         self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         # Initialize LLMService for unified LLM interactions and BYOK key resolution
-        self.llm_service = LLMService(workspace_id=workspace_id)
+        self.llm_service = LLMService(workspace_id=workspace_id, tenant_id=tenant_id)
         self._whisper_available = self._check_whisper_available()
     
     def _check_whisper_available(self) -> bool:
@@ -199,8 +200,8 @@ class VoiceService:
 # Singleton
 _voice_service: Optional[VoiceService] = None
 
-def get_voice_service(workspace_id: str = "default") -> VoiceService:
+def get_voice_service(workspace_id: str = "default", tenant_id: str = "default") -> VoiceService:
     global _voice_service
-    if _voice_service is None or _voice_service.workspace_id != workspace_id:
-        _voice_service = VoiceService(workspace_id)
+    if _voice_service is None or _voice_service.workspace_id != workspace_id or getattr(_voice_service, 'tenant_id', 'default') != tenant_id:
+        _voice_service = VoiceService(workspace_id, tenant_id)
     return _voice_service

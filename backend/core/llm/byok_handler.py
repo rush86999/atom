@@ -165,6 +165,7 @@ class BYOKHandler:
     def __init__(
         self,
         workspace_id: str = "default",
+        tenant_id: str = "default",
         provider_id: str = "auto",
         cognitive_classifier: Optional[CognitiveClassifier] = None,
         cache_router: Optional[CacheAwareRouter] = None,
@@ -172,8 +173,10 @@ class BYOKHandler:
         tier_service: Optional[CognitiveTierService] = None
     ):
         self.workspace_id = workspace_id
+        self.tenant_id = tenant_id
         self.default_provider_id = provider_id if provider_id != "auto" else None
         self.clients: Dict[str, Any] = {}
+        self.async_clients: Dict[str, Any] = {}
         self.byok_manager = get_byok_manager()
 
         # Use injected dependencies or create defaults
@@ -193,7 +196,7 @@ class BYOKHandler:
                 logger.warning(f"Could not create database session for tier service: {e}")
                 self.db_session = None
 
-        self.tier_service = tier_service or CognitiveTierService(workspace_id, self.db_session)
+        self.tier_service = tier_service or CognitiveTierService(workspace_id, self.db_session, tenant_id=tenant_id)
 
         # Phase 226.4-04: Initialize excluded models cache
         self.excluded_models = set()
@@ -202,6 +205,7 @@ class BYOKHandler:
         # Phase 226.4-04: Initialize health monitor
         from core.provider_health_monitor import get_provider_health_monitor
         self.health_monitor = get_provider_health_monitor()
+        self.async_clients = self.async_clients or {} # Ensure it exists if _initialize_clients failed
 
     def _get_provider_fallback_order(self, primary_provider: str) -> List[str]:
         """
@@ -772,9 +776,9 @@ class BYOKHandler:
                     tenant_plan = "free"
                     is_managed = True
 
-                    workspace = db.query(Workspace).filter(Workspace.id == "default").first()
+                    workspace = db.query(Workspace).filter(Workspace.id == self.workspace_id).first()
                     if workspace and workspace.tenant_id:
-                        tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
+                        tenant = db.query(Tenant).filter(Tenant.id == (self.tenant_id if self.tenant_id != "default" else workspace.tenant_id)).first()
                         if tenant:
                             # 1. Determine Plan level
                             plan_type = tenant.plan_type
@@ -792,7 +796,7 @@ class BYOKHandler:
                                 is_managed_service=True, requires_tools=requires_tools
                             )
 
-                            tenant_key = self.byok_manager.get_tenant_api_key("default", temp_provider_id)
+                            tenant_key = self.byok_manager.get_tenant_api_key(self.tenant_id, temp_provider_id)
                             if tenant_key:
                                 is_managed = False  # Custom Key = BYOK
                             elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:

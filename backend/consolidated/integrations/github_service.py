@@ -412,7 +412,5 @@ class GitHubService:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            }
-
 # Global service instance
 github_service = GitHubService()
