@@ -98,17 +98,28 @@ class DynamicPricingFetcher:
                             "supports_cache": model_data.get("supports_cache", False),  # Cache support metadata
                         }
 
-                # Add MiniMax M2.5 fallback if not in LiteLLM yet (API access closed as of Feb 2026)
+                # Add MiniMax models fallback if not in LiteLLM yet
                 if "minimax-m2.5" not in pricing:
                     pricing["minimax-m2.5"] = {
                         "input_cost_per_token": 0.000001,  # $1/M estimated
                         "output_cost_per_token": 0.000001,
-                        "max_tokens": 128000,
+                        "max_tokens": 204000,
                         "litellm_provider": "minimax",
                         "mode": "chat",
-                        "source": "estimated",  # Mark as estimated
+                        "source": "estimated",
                         "supports_cache": False,
                     }
+                for _m27 in ("MiniMax-M2.7", "MiniMax-M2.7-highspeed"):
+                    if _m27 not in pricing:
+                        pricing[_m27] = {
+                            "input_cost_per_token": 0.000001,
+                            "output_cost_per_token": 0.000001,
+                            "max_tokens": 204000,
+                            "litellm_provider": "minimax",
+                            "mode": "chat",
+                            "source": "estimated",
+                            "supports_cache": False,
+                        }
 
                 logger.info(f"Fetched {len(pricing)} model prices from LiteLLM")
                 return pricing
