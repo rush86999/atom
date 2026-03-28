@@ -1,18 +1,20 @@
 """
-MiniMax M2.5 API Integration for BYOK Handler
+MiniMax M2.7 API Integration for BYOK Handler
 
-Provides cost-effective standard tier routing with ~$1/M token pricing.
-MiniMax M2.5 (launched Feb 12, 2026) offers competitive reasoning with native agent support.
+Provides cost-effective standard tier routing via OpenAI-compatible API.
+MiniMax M2.7 is the latest flagship model with 204K context window.
 
-Note: As of Feb 2026, M2.5 API access is closed. This implementation uses estimated pricing
-based on research ($1/M tokens). Will update when official pricing is announced.
+Available models:
+- MiniMax-M2.7: Latest flagship, 204K context
+- MiniMax-M2.7-highspeed: Optimized for lower latency, 204K context
 
 Integration:
-- Tier: STANDARD (quality score 88, between gemini-2.0-flash and deepseek-chat)
+- Tier: STANDARD (quality score 90)
 - Vision: Not supported (text-only reasoning model)
-- Tools: Native agent support
-- Cache: No prompt caching (as of Feb 2026)
+- Tools: Native agent support via OpenAI-compatible function calling
+- Cache: No prompt caching
 - Pricing: Pay-as-you-go (no minimum commitment)
+- Temperature: Must be in (0.0, 1.0] — clamped automatically
 """
 
 import asyncio
@@ -26,6 +28,28 @@ from core.llm.cognitive_tier_system import CognitiveTier
 logger = logging.getLogger(__name__)
 
 
+# Available MiniMax models with context windows
+MINIMAX_MODELS = {
+    "MiniMax-M2.7": {"context_window": 204000, "description": "Latest flagship model"},
+    "MiniMax-M2.7-highspeed": {"context_window": 204000, "description": "Optimized for lower latency"},
+    "MiniMax-M2.5": {"context_window": 204000, "description": "Previous generation"},
+    "MiniMax-M2.5-highspeed": {"context_window": 204000, "description": "Previous generation, low latency"},
+}
+
+DEFAULT_MODEL = "MiniMax-M2.7"
+
+
+def clamp_temperature(temperature: float) -> float:
+    """Clamp temperature to MiniMax's accepted range (0.0, 1.0].
+
+    MiniMax API rejects temperature=0.0. Values at or below 0 are
+    nudged to 0.01; values above 1.0 are capped at 1.0.
+    """
+    if temperature <= 0.0:
+        return 0.01
+    return min(temperature, 1.0)
+
+
 class RateLimitedError(Exception):
     """Raised when MiniMax API rate limit is exceeded (HTTP 429)"""
     pass
@@ -33,51 +57,46 @@ class RateLimitedError(Exception):
 
 class MiniMaxIntegration:
     """
-    MiniMax M2.5 API wrapper for cost-effective standard tier routing.
+    MiniMax M2.7 API wrapper for cost-effective standard tier routing.
 
-    Pricing (estimate, will update when official pricing announced):
-    - Input: $1/M tokens
-    - Output: $1/M tokens
-    - Context: 128k tokens
+    Pricing:
+    - Input: ~$1/M tokens
+    - Output: ~$1/M tokens
+    - Context: 204K tokens (all models)
 
     Capabilities:
-    - Quality Score: 88 (between gemini-2.0-flash @ 86 and deepseek-chat @ 80)
+    - Quality Score: 90
     - Vision: No (text-only reasoning)
-    - Tools: Yes (native agent support)
-    - Cache: No (as of Feb 2026)
-
-    API access currently closed - graceful fallback to next provider.
+    - Tools: Yes (native agent / function calling support)
+    - Cache: No
     """
 
-    BASE_URL = "https://api.minimaxi.com/v1"
+    BASE_URL = "https://api.minimax.io/v1"
 
-    # Estimated pricing (will update when official pricing announced)
     ESTIMATED_PRICING = {
-        "input_cost_per_token": 0.000001,  # $1/M tokens
-        "output_cost_per_token": 0.000001,  # $1/M tokens
-        "max_tokens": 128000,
+        "input_cost_per_token": 0.000001,   # ~$1/M tokens
+        "output_cost_per_token": 0.000001,  # ~$1/M tokens
+        "max_tokens": 204000,
     }
 
-    # Model capabilities based on research
     CAPABILITIES = {
-        "quality_score": 88,  # Between gemini-2.0-flash (86) and deepseek-chat (80)
+        "quality_score": 90,
         "supports_vision": False,
-        "supports_tools": True,  # Native agent support
+        "supports_tools": True,
         "supports_cache": False,
         "tier": CognitiveTier.STANDARD,
     }
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: str = DEFAULT_MODEL):
         """
         Initialize MiniMax API client.
 
         Args:
             api_key: MiniMax API key (from MINIMAX_API_KEY env var or user config)
-
-        Note: As of Feb 2026, API access is closed. Client initialization will succeed
-        but API calls will gracefully fail until access opens.
+            model: Model to use (default: MiniMax-M2.7)
         """
         self.api_key = api_key
+        self.model = model
         self.client = httpx.AsyncClient(
             base_url=self.BASE_URL,
             headers={
@@ -86,40 +105,40 @@ class MiniMaxIntegration:
             },
             timeout=30.0,
         )
-        logger.info(f"MiniMaxIntegration initialized (API access may be closed)")
+        logger.info(f"MiniMaxIntegration initialized with model={model}")
 
     async def generate(
         self,
         prompt: str,
         temperature: float = 0.7,
         max_tokens: int = 1000,
+        model: Optional[str] = None,
     ) -> Optional[str]:
         """
-        Generate response using MiniMax M2.5 model.
+        Generate response using MiniMax model.
 
         Args:
             prompt: User prompt
-            temperature: Sampling temperature (0-1, default 0.7)
+            temperature: Sampling temperature, clamped to (0.0, 1.0]
             max_tokens: Maximum tokens to generate (default 1000)
+            model: Override model for this request (optional)
 
         Returns:
             Generated text or None if API call fails
 
         Raises:
             RateLimitedError: If API returns 429 (rate limit exceeded)
-
-        Example:
-            >>> minimax = MiniMaxIntegration(api_key="sk-...")
-            >>> response = await minimax.generate("Explain quantum computing")
-            >>> print(response)
         """
+        effective_model = model or self.model
+        clamped_temp = clamp_temperature(temperature)
+
         try:
             response = await self.client.post(
                 "/chat/completions",
                 json={
-                    "model": "m2.5",
+                    "model": effective_model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": temperature,
+                    "temperature": clamped_temp,
                     "max_tokens": max_tokens,
                 },
             )
@@ -145,8 +164,6 @@ class MiniMaxIntegration:
 
         Returns:
             Dictionary with input_cost_per_token, output_cost_per_token, max_tokens
-
-        Note: Pricing is estimated ($1/M) until official pricing announced.
         """
         return self.ESTIMATED_PRICING.copy()
 
@@ -156,11 +173,17 @@ class MiniMaxIntegration:
 
         Returns:
             True if API is accessible (HTTP 200), False otherwise
-
-        Note: As of Feb 2026, returns False for all keys (API access closed).
         """
         try:
-            response = await self.client.get("/models")
+            response = await self.client.post(
+                "/chat/completions",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": "Hi"}],
+                    "max_tokens": 1,
+                    "temperature": 0.01,
+                },
+            )
             is_valid = response.status_code == 200
             logger.info(f"MiniMax API connection test: {is_valid}")
             return is_valid
@@ -177,6 +200,11 @@ class MiniMaxIntegration:
             supports_cache, tier
         """
         return self.CAPABILITIES.copy()
+
+    @staticmethod
+    def get_available_models() -> Dict[str, Dict]:
+        """Return all available MiniMax models with metadata."""
+        return MINIMAX_MODELS.copy()
 
     async def close(self):
         """Close the HTTP client (call when done)"""

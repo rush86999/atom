@@ -102,10 +102,10 @@ COST_EFFICIENT_MODELS = {
         QueryComplexity.ADVANCED: "qwen-3-max",
     },
     "minimax": {
-        QueryComplexity.SIMPLE: "minimax-m2.5",
-        QueryComplexity.MODERATE: "minimax-m2.5",
-        QueryComplexity.COMPLEX: "minimax-m2.5",
-        QueryComplexity.ADVANCED: "minimax-m2.5",
+        QueryComplexity.SIMPLE: "MiniMax-M2.7-highspeed",
+        QueryComplexity.MODERATE: "MiniMax-M2.7-highspeed",
+        QueryComplexity.COMPLEX: "MiniMax-M2.7",
+        QueryComplexity.ADVANCED: "MiniMax-M2.7",
     },
     "lux": {  # LUX Computer Use (Claude 3.5 Sonnet based)
         QueryComplexity.SIMPLE: "lux-1.0",
@@ -316,7 +316,7 @@ class BYOKHandler:
             "deepseek": {"base_url": "https://api.deepseek.com/v1"},
             "moonshot": {"base_url": "https://api.moonshot.cn/v1"},
             "deepinfra": {"base_url": "https://api.deepinfra.com/v1/openai"},
-            "minimax": {"base_url": "https://api.minimaxi.com/v1"},  # Phase 68-04: MiniMax M2.5 integration
+            "minimax": {"base_url": "https://api.minimax.io/v1"},  # MiniMax M2.7 (OpenAI-compatible)
             "lux": {"base_url": None},  # Phase 226.2-01: LUX Computer Use (uses Anthropic API)
             "qwen": {"base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"},
         }
