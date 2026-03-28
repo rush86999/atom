@@ -617,6 +617,7 @@ BROWSER_HEADLESS=true
 # LLM Providers
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk--...
+MINIMAX_API_KEY=...  # Optional: MiniMax M2.7 (204K context, OpenAI-compatible)
 
 # Application
 PORT=8000

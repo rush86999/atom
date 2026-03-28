@@ -17,6 +17,7 @@ from ..providers.base_provider import LLMResponse, ValidationRequest
 from ..providers.deepseek_provider import DeepSeekProvider
 from ..providers.glm_provider import GLMProvider
 from ..providers.google_provider import GoogleProvider
+from ..providers.minimax_provider import MiniMaxProvider
 from .credential_manager import CredentialManager
 from .real_world_usage_validator import RealWorldUsageValidator
 from .user_expectation_validator import UserExpectationValidator
@@ -80,7 +81,8 @@ class IndependentAIValidator:
             'glm': 0.0,
             'anthropic': 0.0,
             'deepseek': 1.0,
-            'google': 1.0
+            'google': 1.0,
+            'minimax': 0.8
         }
 
     async def initialize(self) -> bool:
@@ -148,6 +150,15 @@ class IndependentAIValidator:
                 google_cred.weight
             )
             logger.info("Google provider initialized")
+
+        # MiniMax Provider (cost-effective, 204K context)
+        minimax_cred = self.credential_manager.get_credential('minimax')
+        if minimax_cred:
+            self.providers['minimax'] = MiniMaxProvider(
+                minimax_cred.key,
+                minimax_cred.weight
+            )
+            logger.info("MiniMax provider initialized")
         
         # 4-way consensus validation now active!
 

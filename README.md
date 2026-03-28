@@ -53,6 +53,7 @@ atom init
 
 # Add your API keys to .env
 # OPENAI_API_KEY=sk-...
+# MINIMAX_API_KEY=...  (optional, for MiniMax M2.7 support)
 
 # Start Atom
 atom start
@@ -182,7 +183,7 @@ cp .env.personal .env
 ## Security & Privacy
 
 - **Self-Hosted Only**: Your data never leaves your environment
-- **BYOK**: Bring your own OpenAI, Anthropic, Gemini, or DeepSeek keys
+- **BYOK**: Bring your own OpenAI, Anthropic, Gemini, DeepSeek, or MiniMax keys
 - **Encrypted Storage**: Sensitive data encrypted at-rest (Fernet)
 - **Audit Logs**: Every agent action logged and traceable
 - **Human-in-the-Loop**: Configurable approval policies
