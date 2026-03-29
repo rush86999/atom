@@ -142,7 +142,8 @@ REASONING_MODELS_WITHOUT_VISION = {
     "deepseek-v3.2-speciale",
     "o3",
     "o3-mini",
-    "deepseek-chat"
+    "deepseek-chat",
+    "MiniMax-M2.7"
 }
 
 VISION_ONLY_MODELS = {
