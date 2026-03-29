@@ -52,5 +52,14 @@
     "total_time_saved_seconds": 46260.0,
     "total_business_value": 1250.0,
     "last_executed": "2026-03-15T21:45:12.123456"
+  },
+  "test-workflow": {
+    "execution_count": 32,
+    "success_count": 0,
+    "failure_count": 32,
+    "total_duration_seconds": 0.073867,
+    "total_time_saved_seconds": 0.0,
+    "total_business_value": 0.0,
+    "last_executed": "2026-03-26T14:29:29.709172"
   }
 }
