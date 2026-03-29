@@ -29,14 +29,27 @@ class TaskRequest(BaseModel):
     command: str
     current_state: Dict[str, Any]
 
+import datetime
+
 @router.post("/task")
 async def execute_task(request: TaskRequest, db: Session = Depends(get_db)):
+    DEBUG_FILE = r"c:\Users\Mannan Bajaj\atom\backend\debug_log.txt"
+    with open(DEBUG_FILE, "a", encoding='utf-8') as f:
+        f.write(f"[{datetime.datetime.now()}] execute_task CALLED with command: {request.command[:50]}\n")
+        
     workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.id == request.workspace_id).first()
     if not workspace:
+        with open(DEBUG_FILE, "a", encoding='utf-8') as f:
+            f.write(f"[{datetime.datetime.now()}] Workspace {request.workspace_id} NOT FOUND\n")
         raise HTTPException(status_code=404, detail="Workspace not found")
     
     # Run the dynamic executor
-    result = await employee_executor.run_task(request.command, request.current_state)
+    result = await employee_executor.run_task(
+        request.command, 
+        request.current_state,
+        user_id=workspace.user_id,
+        db=db
+    )
     
     # Persist the full state back to the DB
     workspace.workspace_state = result["new_state"]
@@ -48,6 +61,10 @@ async def execute_task(request: TaskRequest, db: Session = Depends(get_db)):
 
 @router.post("/workspace/init")
 async def init_workspace(user_id: str, db: Session = Depends(get_db)):
+    DEBUG_FILE = r"c:\Users\Mannan Bajaj\atom\backend\debug_log.txt"
+    with open(DEBUG_FILE, "a", encoding='utf-8') as f:
+        f.write(f"[{datetime.datetime.now()}] init_workspace CALLED for user_id: {user_id}\n")
+    
     workspace = db.query(EmployeeWorkspace).filter(EmployeeWorkspace.user_id == user_id).first()
     
     if not workspace:
@@ -80,6 +97,7 @@ async def reset_workspace(workspace_id: str, db: Session = Depends(get_db)):
     new_state = employee_executor.reset_state()
     workspace.workspace_state = new_state
     workspace.deliverables = []
+    workspace.views = []
     db.commit()
     return {"status": "success", "new_state": new_state}
 

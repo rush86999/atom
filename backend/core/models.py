@@ -3091,14 +3091,6 @@ class BrowserAudit(Base):
     agent_execution = relationship("AgentExecution", foreign_keys=[agent_execution_id])
     user = relationship("User", foreign_keys=[user_id])
 
-# Removed duplicate Artifact class - using consolidated definition at line 3668
-#     """
-#     Persistent AI-generated artifacts (code, markdown, etc.) that can be edited by users.
-#
-#     Note: extend_existing=True handles duplicate class at line 3334.
-#     """
-#     __tablename__ = "artifacts"
-#     __table_args__ = {'extend_existing': True}
 #
 #     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 #     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=False, index=True)
@@ -3122,7 +3114,6 @@ class BrowserAudit(Base):
 #     author = relationship("User", foreign_keys=[author_id])
 #     locked_by = relationship("User", foreign_keys=[locked_by_user_id])
 #     workspace = relationship("Workspace")
-# Artifact class moved - duplicate definition resolved
 
 class ArtifactVersion(Base):
     """

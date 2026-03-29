@@ -797,10 +797,11 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
         {
             title: '📄 Job Application Received',
             duration: 1800,
-            output: (
+            output: <div className="p-2 text-xs italic text-gray-400">Application processed...</div>
+        }
+    ];
 
-
-    const runDemoAnimation = async () => {};
+    const runDemoAnimation = async () => { };
 
     return (
         <div className="h-[700px] w-full border rounded-lg bg-white dark:bg-gray-900 shadow-sm flex flex-col overflow-hidden">

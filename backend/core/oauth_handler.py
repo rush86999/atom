@@ -165,7 +165,6 @@ class OAuthHandler:
 
 
 # Pre-configured OAuth handlers for major integrations
-
 GOOGLE_OAUTH_CONFIG = OAuthConfig(
     client_id_env="GOOGLE_CLIENT_ID",
     client_secret_env="GOOGLE_CLIENT_SECRET",
@@ -177,9 +176,13 @@ GOOGLE_OAUTH_CONFIG = OAuthConfig(
         "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/userinfo.email",
     ]
 )
+
+
+
 
 MICROSOFT_OAUTH_CONFIG = OAuthConfig(
     client_id_env="MICROSOFT_CLIENT_ID",

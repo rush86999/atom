@@ -13,6 +13,7 @@ import logging
 import os
 import time
 from typing import Any, Dict, List, Literal, Optional, Union
+from pydantic import BaseModel, Field
 
 from core.llm_service import LLMService
 

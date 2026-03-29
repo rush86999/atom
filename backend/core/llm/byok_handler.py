@@ -715,13 +715,14 @@ class BYOKHandler:
 
                 if "*" in allowed_models or model in allowed_models:
                     ranked_options.append((provider_id, model))
-                else:
-                    for comp in [QueryComplexity.MODERATE, QueryComplexity.SIMPLE]:
-                        lower_model = models.get(comp)
-                        if lower_model and (lower_model in allowed_models or "*" in allowed_models):
-                            ranked_options.append((provider_id, lower_model))
-                            break
-                            
+                    
+        # Phase 68-Q: Boost Qwen to top if available and requested
+        if "qwen" in self.clients:
+            qwen_option = next(((p, m) for p, m in ranked_options if p == "qwen"), None)
+            if qwen_option:
+                ranked_options.remove(qwen_option)
+                ranked_options.insert(0, qwen_option)
+
         return ranked_options
 
     async def generate_response(
@@ -744,6 +745,22 @@ class BYOKHandler:
             logger.warning(f"AI Blocked: Trial expired for workspace {self.workspace_id}")
             return "Trial Expired: Your free trial has ended. Please upgrade your plan in settings to continue using AI agents."
         if not self.clients:
+            if task_type == "agentic":
+                # FOR DEMO: Return a mock JSON that continues the agentic loop
+                if "Check my inbox" in prompt or "analyze" in prompt.lower() or "market" in prompt.lower():
+                    return json.dumps({
+                        "thought": "The user wants a full end-to-end machinery quote and client analysis. I will start by performing the market analysis.",
+                        "plan_update": ["Perform market analysis for brennan.ca", "Read inbound emails", "Calculate quote and save to Excel", "Update CRM", "Send final email with meeting invite"],
+                        "action": "perform_market_analysis",
+                        "action_input": {"client_url": "brennan.ca", "product_name": "5-Axis CNC Mill"},
+                        "log": "> Starting Market Analysis for Brennan.ca...",
+                        "deliverable": None
+                    })
+                return json.dumps({
+                    "thought": "LLM not initialized, but running in agentic demo mode.",
+                    "action": "DONE",
+                    "log": "AI Employee Demo Mode active (No API Keys found)."
+                })
             return "LLM Client not initialized (No API Keys configured)."
         
         # --- Budget Enforcement (Phase 56) ---
@@ -785,11 +802,20 @@ class BYOKHandler:
                             elif tenant_plan.lower() in [p.lower() for p in BYOK_ENABLED_PLANS]:
                                 is_managed = False  # Enterprise Plan = BYOK
 
-                            # 3. Block Managed AI for Free Tier (Phase 59 User Req)
-                            if is_managed and tenant_plan.lower() == "free":
-                                return "🚨 PLAN RESTRICTION: Managed AI is not available on the Free plan. Please add your own API key in Settings or upgrade to a Pro plan to continue."
+                            # 3. Block Managed AI for Free Tier (Phase 59 User Req) - BYPASSED for AI Employee Demo
+                            # We bypass this for 'agentic' task types to allow the demo to function
+                            if is_managed and tenant_plan.lower() == "free" and task_type != "agentic":
+                                # Check if we have ANY local api keys that can be used instead
+                                if not self.clients:
+                                    return "🚨 PLAN RESTRICTION: Managed AI is not available on the Free plan. Please add your own API key in Settings or upgrade to a Pro plan to continue."
                 except Exception as e:
                     logger.warning(f"Failed to fetch tenant plan: {e}")
+
+            # --- Phase 14-BYOK: Force BYOK behavior if local keys exist for agentic tasks ---
+            if task_type == "agentic" and self.clients:
+                is_managed = False
+                tenant_plan = "enterprise" # Effectively unrestricted
+                logger.info("Using local/BYOK mode for agentic task demo")
 
             # Analyze complexity
             complexity = self.analyze_query_complexity(prompt, task_type)
