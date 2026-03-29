@@ -1,0 +1,53 @@
+{
+  "week_date": "2026-03-25",
+  "bugs_found": 0,
+  "unique_bugs": 0,
+  "filed_bugs": 0,
+  "regression_rate": 0.0,
+  "by_method": {},
+  "by_severity": {},
+  "bugs": [],
+  "roi": {
+    "period_weeks": 4,
+    "period_start": "2026-02-25T23:40:58.242617",
+    "period_end": "2026-03-25T23:40:58.243456",
+    "bugs_found": 17,
+    "unique_bugs": 17,
+    "filed_bugs": 0,
+    "bugs_fixed": 0,
+    "manual_qa_hours": 34.0,
+    "automation_hours": 11.0,
+    "hours_saved": 23.0,
+    "manual_qa_cost": 2550.0,
+    "automation_cost": 1100.0,
+    "cost_saved": 1450.0,
+    "bugs_prevented": 1,
+    "cost_avoidance": 10000.0,
+    "total_savings": 11450.0,
+    "roi_ratio": 10.409090909090908,
+    "avg_fix_duration_hours": 0,
+    "cost_assumptions": {
+      "manual_qa_hourly_rate": 75.0,
+      "developer_hourly_rate": 100.0,
+      "bug_production_cost": 10000.0,
+      "manual_qa_hours_per_bug": 2.0
+    },
+    "breakdown": {
+      "by_method": {
+        "chaos": 10,
+        "browser": 7
+      },
+      "by_severity": {
+        "high": 10,
+        "low": 7
+      }
+    }
+  },
+  "verification": null,
+  "effectiveness": {
+    "bugs_per_hour": 0.0,
+    "unique_rate": 0,
+    "dedup_effectiveness": 0,
+    "total_time_hours": 11.0
+  }
+}

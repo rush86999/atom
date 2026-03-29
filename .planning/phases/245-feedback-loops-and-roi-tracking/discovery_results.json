@@ -1,0 +1,21 @@
+{
+  "bugs_found": 2,
+  "unique_bugs": 2,
+  "filed_bugs": 0,
+  "duration_seconds": 155.9175,
+  "bugs_by_severity": {
+    "critical": 0,
+    "high": 1,
+    "medium": 1,
+    "low": 0
+  },
+  "bugs_by_method": {
+    "memory": 1,
+    "performance": 1
+  },
+  "all_bugs": [
+    "discovery_method='memory' test_name='memory_leak_detection' error_message='Memory leak detected in memray tests' error_signature='memory_leak_detected' severity='high' metadata={} timestamp=datetime.datetime(2026, 3, 26, 0, 21, 32, 328437) stack_trace='memory_leaks.py::test_episode_memory_integration_leak\\n=========================== warnings summary (final) ===========================\\n<unknown>:6\\n  <unknown>:6: SyntaxWarning: \"\\\\ \" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\ \"? A raw string is also an option.\\n\\n<unknown>:117\\n  <unknown>:117: SyntaxWarning: \"\\\\ \" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\ \"? A raw string is also an option.\\n\\n<unknown>:944\\n  <unknown>:944: SyntaxWarning: \"\\\\.\" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\.\"? A raw string is also an option.\\n\\n<unknown>:129\\n  <unknown>:129: SyntaxWarning: \"\\\\[\" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\[\"? A raw string is also an option.\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n================== 15 skipped, 5 warnings, 6 errors in 33.44s ==================\\n' screenshot_path=None log_path=None reproduction_steps=None duplicate_count=1",
+    "discovery_method='performance' test_name='performance_regression' error_message='Performance regression detected in pytest-benchmark' error_signature='performance_regression_detected' severity='medium' metadata={} timestamp=datetime.datetime(2026, 3, 26, 0, 22, 26, 576886) stack_trace='atabase_query_regression.py::test_db_pagination_query\\n=========================== warnings summary (final) ===========================\\n<unknown>:6\\n  <unknown>:6: SyntaxWarning: \"\\\\ \" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\ \"? A raw string is also an option.\\n\\n<unknown>:117\\n  <unknown>:117: SyntaxWarning: \"\\\\ \" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\ \"? A raw string is also an option.\\n\\n<unknown>:944\\n  <unknown>:944: SyntaxWarning: \"\\\\.\" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\.\"? A raw string is also an option.\\n\\n<unknown>:129\\n  <unknown>:129: SyntaxWarning: \"\\\\[\" is an invalid escape sequence. Such sequences will not work in the future. Did you mean \"\\\\\\\\[\"? A raw string is also an option.\\n\\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\\n======= 3 failed, 2 passed, 10 skipped, 75 warnings, 6 errors in 40.97s ========\\n' screenshot_path=None log_path=None reproduction_steps=None duplicate_count=1"
+  ],
+  "run_id": "20260325_202226"
+}
