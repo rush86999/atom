@@ -26,16 +26,21 @@ async def slack_webhook(
     """
     body = await request.body()
     form_data = await request.form()
-    
+    adapter = communication_service.get_adapter("slack")
+
     # 1. Handle Interactivity (Button Clicks)
     if "payload" in form_data:
         payload = json.loads(form_data["payload"])
         logger.info(f"Received Slack interactivity payload: {payload.get('type')}")
         
+        normalized = adapter.normalize_payload(payload)
+        if not normalized:
+            return {"status": "ignored"}
+            
         # Dispatch to CommunicationService
         return await communication_service.handle_incoming_message(
             source="slack",
-            payload=payload,
+            payload=normalized,
             background_tasks=background_tasks
         )
 
@@ -49,11 +54,20 @@ async def slack_webhook(
     if data.get("type") == "url_verification":
         return {"challenge": data.get("challenge")}
 
+    # Verify Signature
+    if not await adapter.verify_request(request, body):
+        logger.warning("Slack signature verification failed")
+        return {"status": "error", "message": "Signature mismatch"}
+
     logger.info(f"Received Slack event: {data.get('type')}")
     
+    normalized = adapter.normalize_payload(data)
+    if not normalized:
+        return {"status": "ignored"}
+
     return await communication_service.handle_incoming_message(
         source="slack",
-        payload=data,
+        payload=normalized,
         background_tasks=background_tasks
     )
 
@@ -68,20 +82,31 @@ async def discord_webhook(
     Handle Discord Interactions (Buttons, Commands).
     """
     body = await request.body()
+    adapter = communication_service.get_adapter("discord")
+    
+    # 1. Verify Signature
+    if not await adapter.verify_request(request, body):
+        logger.warning("Discord signature verification failed")
+        return {"status": "error", "message": "Signature mismatch"}
+
     try:
         data = json.loads(body)
     except json.JSONDecodeError:
         return {"status": "error", "message": "Invalid JSON"}
 
-    # Discord PING/PONG
-    if data.get("type") == 1:
-        return {"type": 1}
-
     logger.info(f"Received Discord interaction: {data.get('type')}")
     
+    normalized = adapter.normalize_payload(data)
+    if not normalized:
+        return {"status": "ignored"}
+        
+    # Support Discord PING/PONG challenge in normalization
+    if normalized.get("type") == "challenge":
+        return normalized.get("response")
+
     return await communication_service.handle_incoming_message(
         source="discord",
-        payload=data,
+        payload=normalized,
         background_tasks=background_tasks
     )
 
@@ -112,7 +137,6 @@ async def whatsapp_webhook(
     body = await request.body()
     
     # 1. Verify Signature
-    from core.communication_service import communication_service
     adapter = communication_service.get_adapter("whatsapp")
     if not await adapter.verify_request(request, body):
         logger.warning("WhatsApp signature verification failed")
@@ -125,8 +149,77 @@ async def whatsapp_webhook(
 
     logger.info("Received WhatsApp webhook event")
     
+    normalized = adapter.normalize_payload(data)
+    if not normalized:
+        return {"status": "ignored"}
+        
     return await communication_service.handle_incoming_message(
         source="whatsapp",
-        payload=data,
+        payload=normalized,
         background_tasks=background_tasks
     )
+
+@router.post("/telegram")
+async def telegram_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    x_telegram_bot_api_secret_token: str = Header(None)
+):
+    """Handle Telegram Message Events"""
+    body = await request.body()
+    adapter = communication_service.get_adapter("telegram")
+    
+    # 1. Verify Signature
+    if not await adapter.verify_request(request, body):
+        logger.warning("Telegram verification failed")
+        return {"status": "error", "message": "Verification failed"}
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return {"status": "error", "message": "Invalid JSON"}
+
+    logger.info("Received Telegram webhook event")
+    
+    normalized = await adapter.normalize_payload(request, body)
+    if not normalized:
+        return {"status": "ignored"}
+    
+    return await communication_service.handle_incoming_message(
+        source="telegram",
+        payload=normalized,
+        background_tasks=background_tasks
+    )
+
+@router.post("/teams")
+async def teams_webhook(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    authorization: str = Header(None)
+):
+    """Handle Microsoft Teams Interactions"""
+    body = await request.body()
+    adapter = communication_service.get_adapter("teams")
+    
+    # 1. Verify Signature
+    if not await adapter.verify_request(request, body):
+        logger.warning("Teams verification failed")
+        return {"status": "error", "message": "Verification failed"}
+
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        return {"status": "error", "message": "Invalid JSON"}
+
+    logger.info("Received Teams webhook event")
+    
+    normalized = await adapter.normalize_payload(request, body)
+    if not normalized:
+        return {"status": "ignored"}
+        
+    return await communication_service.handle_incoming_message(
+        source="teams",
+        payload=normalized,
+        background_tasks=background_tasks
+    )
+

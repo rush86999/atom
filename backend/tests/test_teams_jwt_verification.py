@@ -201,7 +201,7 @@ class TestJWKSKeyRetrieval:
         # Mock successful fetch
         mock_keys = [{"kid": "key1", "kty": "RSA"}]
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch('core.communication.adapters.teams.httpx.AsyncClient') as mock_client:
             mock_response = Mock()
             mock_response.json.return_value = {
                 "jwks_uri": "https://login.botframework.com/v1/keys"
@@ -212,9 +212,14 @@ class TestJWKSKeyRetrieval:
             mock_keys_response.json.return_value = {"keys": mock_keys}
             mock_keys_response.raise_for_status = Mock()
 
-            mock_client.return_value.__aenter__.return_value.get = Mock(
-                side_effect=[mock_response, mock_keys_response]
-            )
+            # Configure the AsyncClient instance to handle multiple calls
+            instance = mock_client.return_value
+            instance.__aenter__.return_value = instance
+            instance.__aexit__.return_value = None
+            instance.get = AsyncMock(side_effect=[
+                mock_response, mock_keys_response, # First call
+                mock_response, mock_keys_response  # Second call (after cache expiry)
+            ])
 
             # First call should fetch
             keys1 = await teams_adapter._get_jwks_keys()
