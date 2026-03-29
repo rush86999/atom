@@ -8,6 +8,7 @@ The Agent Graduation Framework provides a rigorous, data-driven approach to prom
 
 - [Why Graduation Matters](#why-graduation-matters)
 - [Graduation Criteria](#graduation-criteria)
+- [How Graduation is Triggered](#how-graduation-is-triggered)
 - [Readiness Score Calculation](#readiness-score-calculation)
 - [Constitutional Compliance](#constitutional-compliance)
 - [Use Cases](#use-cases)
@@ -84,6 +85,40 @@ intervention_rate = total_interventions / episode_count
 - Calculated per episode
 
 ---
+
+## How Graduation is Triggered
+
+Graduation is an autonomous, event-driven process that monitors agent performance across two distinct paths:
+
+### 1. Event-Driven Trigger (Post-Task)
+Immediately following every execution of the `GenericAgent`, the system invokes the `GraduationService`. 
+- **Mechanism**: The `_record_execution` hook captures the task outcome.
+- **Context**: Passing the `agent_id` and the `skill_id` (e.g., "tax_calculation") to the evaluation engine.
+- **Immediate Action**: If the local streak threshold is met, the skill is promoted to `AUTONOMOUS` instantly.
+
+### 2. Autonomous Review Trigger (Background Audit)
+The `BackgroundAgentRunner` performs system-wide audits independently of user interaction.
+- **Mechanism**: Periodic scheduled jobs (e.g., every 5 minutes).
+- **Context**: Scans the `AgentRegistry` for skills in the `SUPERVISED` or `INTERN` tiers.
+- **Action**: Aggregates episodic data across all sessions for a comprehensive readiness review.
+
+---
+
+## Skill Promotion Logic
+
+Promotion to `AUTONOMOUS` state is governed by the **Dynamic Streak Rule**:
+
+| Complexity | Required Consecutive Clean Runs |
+|------------|--------------------------------|
+| **Simple**   | 3                              |
+| **Moderate** | 5                              |
+| **Complex**  | 8                              |
+| **Advanced** | 8                              |
+
+**A "Clean Run" is defined as:**
+1.  **Success**: `True` (Task completed objective).
+2.  **Human Interventions**: `0` (Zero manual corrections).
+3.  **Constitutional Score**: `≥ 0.95` (Full domain compliance).
 
 ## Readiness Score Calculation
 
