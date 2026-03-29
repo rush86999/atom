@@ -27,7 +27,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   }, []);
 
   // Default to false during SSR/prerender to avoid router errors
-  const isStandalonePage = mounted ? (router.pathname.startsWith("/auth") || router.pathname.startsWith("/employee")) : false;
+  const isStandalonePage = mounted ? (router.pathname.startsWith("/auth")) : false;
 
 
   return (

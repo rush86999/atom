@@ -43,7 +43,7 @@ try:
     )
 except ImportError:
     IntegrationLoader = None
-    print("⚠️ WARNING: IntegrationLoader could not be imported (likely numpy/lancedb issue)")
+    print("WARNING: IntegrationLoader could not be imported (likely numpy/lancedb issue)")
 
 
 # --- CONFIGURATION & LOGGING ---
@@ -1597,3 +1597,4 @@ if __name__ == "__main__":
 # Forced reload trigger# Forced reload: 1620
 # Forced reload: 1618
 # Forced reload: 1619
+# Forced reload: 1621

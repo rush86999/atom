@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.models import DeviceNode, User
-from core.security import get_current_user
+from core.auth import get_current_user
 
 
 # Configure Pydantic models

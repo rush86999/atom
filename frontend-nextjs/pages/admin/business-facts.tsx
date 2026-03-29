@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ import type {
  *
  * Provides CRUD operations for managing business facts with citation verification.
  */
-const BusinessFactsPageContent: React.FC = () => {
+function BusinessFactsPage() {
   const [facts, setFacts] = useState<BusinessFact[]>([]);
   const [filteredFacts, setFilteredFacts] = useState<BusinessFact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,137 +190,147 @@ const BusinessFactsPageContent: React.FC = () => {
   return (
     <React.Fragment>
       <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Business Facts</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage business facts with citation verification
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowKeyboardHelp(true)}
-          >
-            <Keyboard className="h-4 w-4 mr-2" />
-            Shortcuts
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={handleCreateFact}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Fact
-          </Button>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search facts, domains, or reasons..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10"
-            />
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Business Facts</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage business facts with citation verification
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowKeyboardHelp(true)}
+            >
+              <Keyboard className="h-4 w-4 mr-2" />
+              Shortcuts
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            <Button size="sm" onClick={handleCreateFact}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Fact
+            </Button>
           </div>
         </div>
-        <FactFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          domains={Array.from(new Set(facts.map((f) => f.domain)))}
+
+        {/* Search and Filters */}
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search facts, domains, or reasons..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <FactFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            domains={Array.from(new Set(facts.map((f) => f.domain)))}
+          />
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold">{facts.length}</p>
+                <p className="text-sm text-muted-foreground">Total Facts</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-green-600">
+                  {facts.filter((f) => f.verification_status === "verified").length}
+                </p>
+                <p className="text-sm text-muted-foreground">Verified</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-yellow-600">
+                  {facts.filter((f) => f.verification_status === "unverified").length}
+                </p>
+                <p className="text-sm text-muted-foreground">Unverified</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-red-600">
+                  {facts.filter((f) => f.verification_status === "outdated").length}
+                </p>
+                <p className="text-sm text-muted-foreground">Outdated</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Facts Table */}
+        <BusinessFactsTable
+          facts={filteredFacts}
+          onEdit={handleEditFact}
+          onDelete={handleDeleteFact}
+        />
+
+        {/* Create/Edit Dialog */}
+        {(showCreateDialog || editingFact) && (
+          <BusinessFactForm
+            fact={editingFact}
+            onSubmit={handleFormSubmit}
+            onCancel={handleFormCancel}
+          />
+        )}
+
+        {/* Keyboard Shortcuts Help */}
+        <KeyboardShortcutsHelp
+          open={showKeyboardHelp}
+          onClose={() => setShowKeyboardHelp(false)}
+          groups={[
+            {
+              title: "Actions",
+              shortcuts: [
+                { key: "?", description: "Show keyboard shortcuts", action: () => { } },
+                { key: "n", description: "Create new fact", action: () => { } },
+                { key: "r", description: "Refresh facts", action: () => { } },
+                { key: "/", description: "Focus search", action: () => { } },
+              ],
+            },
+          ]}
         />
       </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold">{facts.length}</p>
-              <p className="text-sm text-muted-foreground">Total Facts</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">
-                {facts.filter((f) => f.verification_status === "verified").length}
-              </p>
-              <p className="text-sm text-muted-foreground">Verified</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-600">
-                {facts.filter((f) => f.verification_status === "unverified").length}
-              </p>
-              <p className="text-sm text-muted-foreground">Unverified</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-red-600">
-                {facts.filter((f) => f.verification_status === "outdated").length}
-              </p>
-              <p className="text-sm text-muted-foreground">Outdated</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Facts Table */}
-      <BusinessFactsTable
-        facts={filteredFacts}
-        onEdit={handleEditFact}
-        onDelete={handleDeleteFact}
-      />
-
-      {/* Create/Edit Dialog */}
-      {(showCreateDialog || editingFact) && (
-        <BusinessFactForm
-          fact={editingFact}
-          onSubmit={handleFormSubmit}
-          onCancel={handleFormCancel}
-        />
-      )}
-    </div>
-
-    {/* Keyboard Shortcuts Help */}
-    <KeyboardShortcutsHelp
-        open={showKeyboardHelp}
-        onClose={() => setShowKeyboardHelp(false)}
-        groups={[
-          {
-            title: "Actions",
-            shortcuts: [
-              { key: "?", description: "Show keyboard shortcuts", action: () => {} },
-              { key: "n", description: "Create new fact", action: () => {} },
-              { key: "r", description: "Refresh facts", action: () => {} },
-              { key: "/", description: "Focus search", action: () => {} },
-            ],
-          },
-        ]}
-      />
     </React.Fragment>
   );
-};
+}
+
+// Dynamically import the content component with SSR disabled to avoid prerendering issues
+const BusinessFactsPageContent = dynamic(() => Promise.resolve(BusinessFactsPage), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-screen">
+      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  ),
+});
 
 // Wrapper with ErrorBoundary and OfflineIndicator
 const BusinessFactsPageWrapper: React.FC = () => {
@@ -332,3 +343,4 @@ const BusinessFactsPageWrapper: React.FC = () => {
 };
 
 export default BusinessFactsPageWrapper;
+

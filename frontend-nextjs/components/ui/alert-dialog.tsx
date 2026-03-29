@@ -1,10 +1,3 @@
-/**
- * AlertDialog Component
- *
- * This is an alias for the Dialog component to maintain compatibility.
- * The shadcn/ui alert-dialog component is not installed, so we use Dialog instead.
- */
-
 import {
   Dialog,
   DialogContent,
@@ -30,3 +23,4 @@ export const AlertDialogAction = Button;
 
 // AlertDialogCancel is a Button with outline variant
 export const AlertDialogCancel = Button;
+

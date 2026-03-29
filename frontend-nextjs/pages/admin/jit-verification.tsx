@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   Card,
   CardContent,
@@ -48,7 +49,7 @@ import type {
  *
  * Provides real-time monitoring and control of the JIT verification system.
  */
-const JITVerificationDashboardContent: React.FC = () => {
+function JITVerificationDashboardContent() {
   const [workerMetrics, setWorkerMetrics] = useState<WorkerMetricsResponse | null>(null);
   const [cacheStats, setCacheStats] = useState<CacheStatsResponse | null>(null);
   const [healthStatus, setHealthStatus] = useState<HealthCheckResponse | null>(null);
@@ -233,40 +234,41 @@ const JITVerificationDashboardContent: React.FC = () => {
   return (
     <React.Fragment>
       <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">JIT Verification</h1>
-          <p className="text-muted-foreground mt-1">
-            Monitor and manage business fact citation verification
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowKeyboardHelp(true)}
-          >
-            <Keyboard className="h-4 w-4 mr-2" />
-            Shortcuts
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleAutoRefresh}
-          >
-            {autoRefresh ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
-            {autoRefresh ? "Auto-refreshing" : "Auto-refresh"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">JIT Verification</h1>
+            <p className="text-muted-foreground mt-1">
+              Monitor and manage business fact citation verification
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowKeyboardHelp(true)}
+            >
+              <Keyboard className="h-4 w-4 mr-2" />
+              Shortcuts
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleAutoRefresh}
+            >
+              {autoRefresh ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Clock className="h-4 w-4 mr-2" />}
+              {autoRefresh ? "Auto-refreshing" : "Auto-refresh"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -452,43 +454,53 @@ const JITVerificationDashboardContent: React.FC = () => {
           </CardContent>
         </Card>
       )}
-    </div>
+      {/* </div> removed here to let fragment handle sibling help component */}
 
-    {/* Keyboard Shortcuts Help */}
-    <KeyboardShortcutsHelp
-      open={showKeyboardHelp}
-      onClose={() => setShowKeyboardHelp(false)}
-      groups={[
-        {
-          title: "Navigation",
-          shortcuts: [
-            { key: "?", description: "Show keyboard shortcuts", action: () => {} },
-            { key: "r", description: "Refresh dashboard", action: () => {} },
-            { key: "a", description: "Toggle auto-refresh", action: () => {} },
-          ],
-        },
-        {
-          title: "Tabs",
-          shortcuts: [
-            { key: "1", description: "Go to Overview tab", action: () => {} },
-            { key: "2", description: "Go to Worker tab", action: () => {} },
-            { key: "3", description: "Go to Cache tab", action: () => {} },
-            { key: "4", description: "Go to Citations tab", action: () => {} },
-            { key: "5", description: "Go to Logs tab", action: () => {} },
-            { key: "6", description: "Go to Top Citations tab", action: () => {} },
-          ],
-        },
-      ]}
-    />
-  </React.Fragment>
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp
+        open={showKeyboardHelp}
+        onClose={() => setShowKeyboardHelp(false)}
+        groups={[
+          {
+            title: "Navigation",
+            shortcuts: [
+              { key: "?", description: "Show keyboard shortcuts", action: () => { } },
+              { key: "r", description: "Refresh dashboard", action: () => { } },
+              { key: "a", description: "Toggle auto-refresh", action: () => { } },
+            ],
+          },
+          {
+            title: "Tabs",
+            shortcuts: [
+              { key: "1", description: "Go to Overview tab", action: () => { } },
+              { key: "2", description: "Go to Worker tab", action: () => { } },
+              { key: "3", description: "Go to Cache tab", action: () => { } },
+              { key: "4", description: "Go to Citations tab", action: () => { } },
+              { key: "5", description: "Go to Logs tab", action: () => { } },
+              { key: "6", description: "Go to Top Citations tab", action: () => { } },
+            ],
+          },
+        ]}
+      />
+    </React.Fragment>
   );
-};
+}
+
+// Dynamically import the content component with SSR disabled to avoid prerendering issues
+const JITVerificationDashboardContentDynamic = dynamic(() => Promise.resolve(JITVerificationDashboardContent), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-screen">
+      <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  ),
+});
 
 // Wrapper with ErrorBoundary and OfflineIndicator
 const JITVerificationDashboard: React.FC = () => {
   return (
     <ErrorBoundary>
-      <JITVerificationDashboardContent />
+      <JITVerificationDashboardContentDynamic />
       <OfflineIndicator />
     </ErrorBoundary>
   );
