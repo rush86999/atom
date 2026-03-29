@@ -11,10 +11,20 @@ from core.marketing_analytics import PlainEnglishReporter
 from core.marketing_manager import AIMarketingManager
 from core.models import User
 from core.reputation_service import ReputationManager
-from integrations.ai_enhanced_service import ai_enhanced_service
 
 router = BaseAPIRouter(prefix="/api/marketing", tags=["Marketing"])
 logger = logging.getLogger(__name__)
+
+# Handle missing ai_enhanced_service gracefully
+try:
+    from integrations.ai_enhanced_service import ai_enhanced_service
+except ImportError:
+    logger.warning("Enterprise services not available: ai_enhanced_service module not found. Using stub.")
+    # Create stub service for missing integration
+    class StubAIEnhancedService:
+        async def generate_insights(self, *args, **kwargs):
+            return {"status": "stub", "message": "AI Enhanced service not available"}
+    ai_enhanced_service = StubAIEnhancedService()
 
 # Initialize managers (ideally these would be injected or handled via a startup event)
 marketing_manager = AIMarketingManager(ai_service=ai_enhanced_service)

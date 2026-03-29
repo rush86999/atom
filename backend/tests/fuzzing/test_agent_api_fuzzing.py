@@ -24,7 +24,7 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from core.database import get_db
-from main import app
+from main_api_app import app
 
 # Import existing fixtures (FUZZ-02: reuse to avoid duplication)
 from tests.e2e_ui.fixtures.auth_fixtures import authenticated_user

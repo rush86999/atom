@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
 
-from api.canvas_routes import router, FormSubmission
+from api.canvas_routes import router
 from core.error_handlers import ErrorCode
 
 

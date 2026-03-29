@@ -257,8 +257,8 @@ Respond ONLY with valid JSON, no explanation."""
         test_file: str
     ) -> bool:
         """Validate endpoint exists and test file exists."""
-        # Check if test file exists
-        test_path = Path(test_file)
+        # Check if test file exists (resolve relative to backend dir)
+        test_path = backend_dir / test_file if not Path(test_file).is_absolute() else Path(test_file)
         if not test_path.exists():
             return False
 
@@ -295,7 +295,7 @@ Respond ONLY with valid JSON, no explanation."""
             filepath = Path(output_dir) / filename
 
             with open(filepath, "w") as f:
-                json.dump(strategy.dict(), f, indent=2)
+                json.dump(strategy.model_dump(), f, indent=2)
 
             saved_paths.append(str(filepath))
 
