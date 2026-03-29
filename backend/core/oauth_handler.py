@@ -277,3 +277,12 @@ LINKEDIN_OAUTH_CONFIG = OAuthConfig(
     scopes=["r_liteprofile", "r_emailaddress", "w_member_social"]
 )
 
+WHATSAPP_OAUTH_CONFIG = OAuthConfig(
+    client_id_env="WHATSAPP_APP_ID",
+    client_secret_env="WHATSAPP_APP_SECRET",
+    redirect_uri_env="WHATSAPP_REDIRECT_URI",
+    auth_url="https://www.facebook.com/v17.0/dialog/oauth",
+    token_url="https://graph.facebook.com/v17.0/oauth/access_token",
+    scopes=["whatsapp_business_messaging", "whatsapp_business_management"]
+)
+

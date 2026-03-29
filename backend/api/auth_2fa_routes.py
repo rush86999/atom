@@ -121,3 +121,50 @@ async def disable_2fa(
         return router.success_response(message="2FA disabled successfully")
     else:
         raise router.validation_error("code", "Invalid verification code")
+
+class Action2FAVerifyRequest(BaseModel):
+    code: str
+
+@router.post("/verify-action/{action_id}")
+async def verify_action_2fa(
+    action_id: str,
+    verify_data: Action2FAVerifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Verify 2FA code and resolve a high-stakes HITL action"""
+    if not current_user.two_factor_enabled:
+        raise router.validation_error("two_factor_enabled", "2FA is not enabled for your account")
+
+    # 1. Verify TOTP Code
+    import pyotp
+    totp = pyotp.TOTP(current_user.two_factor_secret)
+    if not totp.verify(verify_data.code):
+        raise router.validation_error("code", "Invalid verification code")
+
+    # 2. Resolve Action via HITLService
+    from core.hitl_service import hitl_service
+    try:
+        result = await hitl_service.resolve_action(
+            action_id=action_id,
+            resolution="approved",
+            resolver_id=current_user.id,
+            metadata={"verified_2fa": True}
+        )
+        
+        # Log to Audit
+        from core.models import AuditEventType, SecurityLevel
+        audit_service.log_event(
+            db,
+            event_type=AuditEventType.UPDATE.value,
+            action="hitl_action_verified_2fa",
+            description=f"HITL Action {action_id} approved via 2FA by {current_user.email}",
+            user_id=current_user.id,
+            user_email=current_user.email,
+            security_level=SecurityLevel.HIGH.value
+        )
+        
+        return router.success_response(data=result, message="Action approved successfully via 2FA")
+    except Exception as e:
+        logger.error(f"Failed to verify action via 2FA: {e}")
+        raise router.server_error(f"Failed to resolve action: {str(e)}")

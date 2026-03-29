@@ -814,6 +814,7 @@ class AgentJobStatus(str, enum.Enum):
 class HITLActionStatus(str, enum.Enum):
     """Status for Human-in-the-loop actions requiring user approval"""
     PENDING = "pending"
+    PENDING_2FA = "pending_2fa"
     APPROVED = "approved"
     REJECTED = "rejected"
     EXPIRED = "expired"
@@ -1198,6 +1199,10 @@ class HITLAction(Base):
     status = Column(String, default=HITLActionStatus.PENDING.value)
     reason = Column(String, nullable=True) # e.g., "Learning Phase: External Contact"
     
+    # Priority & Routing
+    priority = Column(String, default="MEDIUM") # LOW, MEDIUM, HIGH, URGENT
+    notified_channel_id = Column(String, nullable=True) # Slack/Discord channel ID where notification was sent
+
     # Ownership
     user_id = Column(String, ForeignKey("users.id"), nullable=True, index=True)
     
@@ -1304,6 +1309,8 @@ class AgentRegistry(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String, nullable=False)
+    display_name = Column(String, nullable=True) # Personalized name (e.g., Alex, Grace)
+    handle = Column(String, nullable=True, index=True) # Unique handle for @mentions (e.g., alex)
     description = Column(Text, nullable=True)
     category = Column(String, nullable=False) # e.g., "Operations", "Finance"
     
@@ -3543,6 +3550,7 @@ class WorkflowStep(Base):
     connector_id = Column(String, nullable=True)
     operation_id = Column(String, nullable=True)
     parameters = Column(JSONColumn, nullable=True)
+    priority = Column(String, default="MEDIUM") # LOW, MEDIUM, HIGH, URGENT
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

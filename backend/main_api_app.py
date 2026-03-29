@@ -605,6 +605,14 @@ try:
     except ImportError as e:
         logger.error(f"Failed to load Core Workflow routes: {e}")
 
+    # Communication Webhooks (Slack/Discord)
+    try:
+        from api.communication_webhooks import router as comm_router
+        app.include_router(comm_router)
+        logger.info("✓ Communication Webhooks (Slack/Discord) Loaded")
+    except ImportError as e:
+        logger.warning(f"Communication webhooks not found: {e}")
+
     # 3. Workflow UI (Visual Automations)
     # Eagerly load this to ensure 404s don't happen silently
     try:

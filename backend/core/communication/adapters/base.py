@@ -33,6 +33,22 @@ class PlatformAdapter(ABC):
         """Send an outbound message to this platform"""
         pass
 
+    async def send_approval_request(self, target_id: str, action_id: str, details: Dict[str, Any], priority: str) -> bool:
+        """
+        Send an interactive approval request (Approve/Reject buttons).
+        Default implementation falls back to plain text send_message.
+        """
+        message = f"🚨 *HITL Approval Required* ({priority})\nAction: {details.get('action_type')}\nReason: {details.get('reason')}\nAction ID: {action_id}\n\nPlease reply with 'APPROVE {action_id}' or 'REJECT {action_id}'"
+        return await self.send_message(target_id, message)
+
+    async def send_direct_message(self, target_id: str, message: str, agent_name: Optional[str] = None) -> bool:
+        """
+        Send a proactive message from a specific agent.
+        Default implementation falls back to plain text send_message.
+        """
+        prefix = f"[{agent_name}] " if agent_name else ""
+        return await self.send_message(target_id, f"{prefix}{message}")
+
     async def get_media(self, media_id: str) -> Optional[bytes]:
         """Optional: Download media (audio/voice) from the platform."""
         return None
