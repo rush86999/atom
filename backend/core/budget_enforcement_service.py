@@ -1,538 +1,641 @@
 """
-Budget enforcement service with atomic spend approval.
+Budget Enforcement Service for ATOM SaaS
 
-This service provides centralized budget enforcement to prevent overdrafts
-and ensure spend approval is atomic (check + update in single transaction).
-
-Per GAAP/IFRS, all monetary calculations use Decimal for exact precision.
-
-Concurrency Control:
-- Pessimistic locking: with_for_update() (SELECT FOR UPDATE) for serializing spend approval
-- Optimistic locking: approve_spend_with_retry() using version_id_col pattern
-- Lock timeout: Configurable lock acquisition timeout to prevent deadlocks
+Handles budget enforcement with four configurable modes:
+- alert_only: Continue all operations, send notifications only
+- soft_stop: Prevent new episodes, allow active to complete
+- hard_stop: Halt all operations immediately
+- approval: Require admin approval to continue
 """
-
+import json
 import logging
-from decimal import Decimal
-from typing import Any, Dict, Optional, Union
+from typing import Dict, Any, Optional
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
-# StaleDataError doesn't exist in SQLAlchemy 2.x, create a compatible exception
-class StaleDataError(Exception):
-    """Raised when concurrent modification is detected."""
-    pass
-
-from core.decimal_utils import to_decimal, round_money
-from service_delivery.models import Project, BudgetStatus
+from core.models import Tenant, AgentExecution, TenantSetting
+from core.database import SessionLocal
+from core.spend_aggregation_service import SpendAggregationService
+from core.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
 
-class BudgetError(Exception):
-    """Base exception for budget operations"""
-    pass
+# Enforcement modes
+class BudgetEnforcementMode:
+    ALERT_ONLY = "alert_only"
+    SOFT_STOP = "soft_stop"
+    HARD_STOP = "hard_stop"
+    APPROVAL = "approval"
 
-
-class InsufficientBudgetError(BudgetError):
-    """Raised when spend would exceed budget limit"""
-
-    def __init__(self, requested, remaining, budget_id=None):
-        self.requested = requested
-        self.remaining = remaining
-        self.budget_id = budget_id
-        super().__init__(
-            f"Requested {requested}, only {remaining} remaining"
-            + (f" for budget {budget_id}" if budget_id else "")
-        )
-
-
-class BudgetNotFoundError(BudgetError):
-    """Raised when budget doesn't exist"""
-    pass
+    ALL = [ALERT_ONLY, SOFT_STOP, HARD_STOP, APPROVAL]
 
 
 class BudgetEnforcementService:
     """
-    Centralized budget enforcement with atomic spend approval.
+    Budget enforcement service with configurable modes.
 
-    All database operations use explicit transactions to ensure atomicity.
-    No check-then-act outside transaction boundary.
+    Checks budget before agent actions, enforces limits based on mode,
+    stores enforcement state in tenant.settings JSONB.
     """
 
-    def __init__(self, db: Session):
-        """
-        Initialize budget enforcement service.
+    def __init__(self, db: Session = None):
+        self.db = db or SessionLocal()
+        self.spend_service = SpendAggregationService(self.db)
+        self.notification_service = NotificationService(db_session=self.db)
 
-        Args:
-            db: Database session (must be within transaction for atomicity)
-        """
-        self.db = db
-
-    def check_budget(
-        self, project_id: str, amount: Union[Decimal, str, float]
-    ) -> Dict[str, Any]:
-        """
-        Check if spend amount is within budget limit.
-
-        Args:
-            project_id: Project ID to check budget for
-            amount: Amount to check (Decimal, string, or float)
-
-        Returns:
-            Dict with:
-                - allowed: bool (True if within budget)
-                - remaining: Decimal (remaining budget)
-                - budget_status: str (on_track, at_risk, over_budget)
-                - utilization_pct: Decimal (percentage used)
-
-        Raises:
-            BudgetNotFoundError: If project doesn't exist
-            ValueError: If amount is negative
-        """
-        # Query project
-        project = self.db.query(Project).filter(Project.id == project_id).first()
-        if not project:
-            raise BudgetNotFoundError(f"Project {project_id} not found")
-
-        # Convert and validate amount
-        spend_amount = to_decimal(amount)
-        if spend_amount < 0:
-            raise ValueError("Spend amount cannot be negative")
-
-        # Calculate remaining budget
-        budget_amount = to_decimal(project.budget_amount or 0)
-        actual_burn = to_decimal(project.actual_burn or 0)
-        remaining = budget_amount - actual_burn
-
-        # Calculate utilization percentage
-        utilization_pct = (
-            round_money((actual_burn / budget_amount) * Decimal('100'))
-            if budget_amount > 0
-            else Decimal('0.00')
-        )
-
-        # Get budget status
-        budget_status = project.budget_status.value if project.budget_status else "on_track"
-
-        # Check if spend is allowed
-        allowed = spend_amount <= remaining
-
-        return {
-            "allowed": allowed,
-            "remaining": remaining,
-            "budget_status": budget_status,
-            "utilization_pct": utilization_pct,
-        }
-
-    def approve_spend(
+    async def check_budget_before_action(
         self,
-        project_id: str,
-        amount: Union[Decimal, str, float],
-        description: str = None
+        tenant_id: str,
+        agent_id: str,
+        action: str
     ) -> Dict[str, Any]:
         """
-        Atomically approve and record spend.
-
-        This method performs check-and-update within a single transaction
-        to prevent race conditions. If budget is insufficient, the spend
-        is rejected and no changes are made.
-
-        Args:
-            project_id: Project ID to approve spend for
-            amount: Amount to spend (Decimal, string, or float)
-            description: Optional description for audit trail
+        Check if action is allowed under current budget and enforcement mode.
 
         Returns:
-            Dict with:
-                - approved: bool (True if spend approved)
-                - remaining: Decimal (remaining budget after spend)
-                - budget_status: str (updated budget status)
-                - utilization_pct: Decimal (updated utilization)
-                - previous_burn: Decimal (burn before this spend)
-
-        Raises:
-            InsufficientBudgetError: If spend would exceed budget
-            BudgetNotFoundError: If project doesn't exist
+            {
+                "allowed": bool,
+                "reason": str | None,
+                "enforcement_mode": str,
+                "current_spend_usd": float,
+                "budget_limit_usd": float,
+                "utilization_percent": float
+            }
         """
-        # Start transaction (assert we're in transaction context)
         try:
-            # Query project with row lock for atomicity
-            project = (
-                self.db.query(Project)
-                .filter(Project.id == project_id)
-                .with_for_update()  # Prevent concurrent modifications
-                .first()
-            )
+            # Get current spend from SpendAggregationService
+            spend_result = self.spend_service.update_tenant_spend(tenant_id)
 
-            if not project:
-                raise BudgetNotFoundError(f"Project {project_id} not found")
-
-            # Convert amount
-            spend_amount = to_decimal(amount)
-            if spend_amount < 0:
-                raise ValueError("Spend amount cannot be negative")
-
-            # Store previous burn for result
-            previous_burn = to_decimal(project.actual_burn or 0)
-
-            # Check budget
-            budget_amount = to_decimal(project.budget_amount or 0)
-            remaining = budget_amount - previous_burn
-
-            if spend_amount > remaining:
-                # Insufficient budget - raise error
-                raise InsufficientBudgetError(
-                    requested=spend_amount,
-                    remaining=remaining,
-                    budget_id=project_id
+            if "error" in spend_result:
+                # Fail-open: allow action if spend check fails
+                logger.warning(
+                    f"[BudgetEnforcementService] Unable to verify spend for tenant {tenant_id}: "
+                    f"{spend_result.get('error')}"
                 )
+                return {
+                    "allowed": True,
+                    "reason": "Unable to verify spend",
+                    "enforcement_mode": "unknown",
+                    "current_spend_usd": 0.0,
+                    "budget_limit_usd": 0.0,
+                    "utilization_percent": 0.0
+                }
 
-            # Approve spend: update actual_burn
-            project.actual_burn = float(previous_burn + spend_amount)
+            current_spend = spend_result.get("current_spend_usd", 0.0)
+            budget_limit = spend_result.get("budget_limit_usd", 0.0)
+            utilization = spend_result.get("utilization_percent", 0.0)
 
-            # Recalculate budget status
-            new_burn = to_decimal(project.actual_burn)
-            new_utilization = (
-                round_money((new_burn / budget_amount) * Decimal('100'))
-                if budget_amount > 0
-                else Decimal('0.00')
-            )
+            # Get enforcement mode from tenant.settings
+            enforcement_mode = self._get_enforcement_mode(tenant_id)
 
-            # Status thresholds: on_track <80%, at_risk 80-99%, over_budget >=100%
-            if new_utilization >= Decimal('100.00'):
-                project.budget_status = BudgetStatus.OVER_BUDGET
-            elif new_utilization >= Decimal('80.00'):
-                project.budget_status = BudgetStatus.AT_RISK
-            else:
-                project.budget_status = BudgetStatus.ON_TRACK
+            # Check if budget exceeded
+            budget_exceeded = utilization >= 100.0 or current_spend >= budget_limit
 
-            # Commit transaction
-            self.db.commit()
+            if not budget_exceeded:
+                return {
+                    "allowed": True,
+                    "reason": None,
+                    "enforcement_mode": enforcement_mode,
+                    "current_spend_usd": current_spend,
+                    "budget_limit_usd": budget_limit,
+                    "utilization_percent": utilization
+                }
 
-            # Return approval result
+            # Budget exceeded - apply enforcement mode
+            if enforcement_mode == BudgetEnforcementMode.ALERT_ONLY:
+                # Phase 71 behavior - notifications only, allow all actions
+                return {
+                    "allowed": True,
+                    "reason": None,
+                    "enforcement_mode": enforcement_mode,
+                    "current_spend_usd": current_spend,
+                    "budget_limit_usd": budget_limit,
+                    "utilization_percent": utilization
+                }
+
+            elif enforcement_mode == BudgetEnforcementMode.SOFT_STOP:
+                # Prevent new episodes, allow active to complete
+                if self._has_active_episodes(tenant_id, agent_id):
+                    return {
+                        "allowed": True,
+                        "reason": "Active episode allowed to complete",
+                        "enforcement_mode": enforcement_mode,
+                        "current_spend_usd": current_spend,
+                        "budget_limit_usd": budget_limit,
+                        "utilization_percent": utilization
+                    }
+                else:
+                    return {
+                        "allowed": False,
+                        "reason": "Budget exceeded. New episodes blocked. Active episodes will complete.",
+                        "enforcement_mode": enforcement_mode,
+                        "current_spend_usd": current_spend,
+                        "budget_limit_usd": budget_limit,
+                        "utilization_percent": utilization
+                    }
+
+            elif enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+                # Halt all operations immediately
+                return {
+                    "allowed": False,
+                    "reason": "Budget exceeded. All operations halted immediately.",
+                    "enforcement_mode": enforcement_mode,
+                    "current_spend_usd": current_spend,
+                    "budget_limit_usd": budget_limit,
+                    "utilization_percent": utilization
+                }
+
+            elif enforcement_mode == BudgetEnforcementMode.APPROVAL:
+                # Check if admin has approved override
+                override = self._get_budget_override(tenant_id)
+                if override and self._is_override_valid(override):
+                    return {
+                        "allowed": True,
+                        "reason": "Admin override approved",
+                        "enforcement_mode": enforcement_mode,
+                        "current_spend_usd": current_spend,
+                        "budget_limit_usd": budget_limit,
+                        "utilization_percent": utilization
+                    }
+                else:
+                    return {
+                        "allowed": False,
+                        "reason": "Budget exceeded. Admin approval required to continue.",
+                        "enforcement_mode": enforcement_mode,
+                        "current_spend_usd": current_spend,
+                        "budget_limit_usd": budget_limit,
+                        "utilization_percent": utilization
+                    }
+
+            # Default fail-open
             return {
-                "approved": True,
-                "remaining": budget_amount - new_burn,
-                "budget_status": project.budget_status.value,
-                "utilization_pct": new_utilization,
-                "previous_burn": previous_burn,
+                "allowed": True,
+                "reason": None,
+                "enforcement_mode": enforcement_mode,
+                "current_spend_usd": current_spend,
+                "budget_limit_usd": budget_limit,
+                "utilization_percent": utilization
             }
 
         except Exception as e:
-            # Rollback on any error
-            self.db.rollback()
-            raise
+            logger.error(f"[BudgetEnforcementService] Error checking budget: {str(e)}")
+            # Fail-open on errors
+            return {
+                "allowed": True,
+                "reason": "Unable to verify spend",
+                "enforcement_mode": "unknown",
+                "current_spend_usd": 0.0,
+                "budget_limit_usd": 0.0,
+                "utilization_percent": 0.0
+            }
 
-    def record_spend(
+    async def enforce_budget(
         self,
-        project_id: str,
-        amount: Union[Decimal, str, float],
-        category: str,
-        description: str = None
+        tenant_id: str,
+        current_spend: float,
+        budget_limit: float,
+        utilization_percent: float
     ) -> Dict[str, Any]:
         """
-        Record spend after approval.
+        Enforce budget when threshold exceeded.
 
-        This method calls approve_spend() (which raises if insufficient)
-        and then creates a Transaction record for audit trail.
-
-        Args:
-            project_id: Project ID to record spend for
-            amount: Amount to record (Decimal, string, or float)
-            category: Category for the spend (e.g., "labor", "expenses")
-            description: Optional description
-
-        Returns:
-            Dict with approval result and transaction details
-
-        Raises:
-            InsufficientBudgetError: If spend would exceed budget
-            BudgetNotFoundError: If project doesn't exist
+        Called by SpendAggregationWorker when utilization >= 100%.
+        Sends notifications, cancels active episodes (hard-stop), etc.
         """
-        # Approve spend first (raises if insufficient)
-        approval_result = self.approve_spend(project_id, amount, description)
-
-        # Create transaction record
-        from accounting.models import Transaction, TransactionStatus
-        from datetime import datetime, timezone
-
-        transaction = Transaction(
-            workspace_id="",  # Will be filled from project
-            external_id=None,
-            source=f"budget_enforcement:{category}",
-            status=TransactionStatus.POSTED,
-            transaction_date=datetime.now(timezone.utc),
-            description=description or f"{category} spend for project {project_id}",
-            project_id=project_id,
-            amount=float(to_decimal(amount)),  # Convert to float for DB
-        )
-
-        # Set workspace_id from project
-        project = self.db.query(Project).filter(Project.id == project_id).first()
-        if project:
-            transaction.workspace_id = project.workspace_id
-
-        self.db.add(transaction)
-        self.db.commit()
-
-        # Return combined result
-        return {
-            **approval_result,
-            "transaction_id": transaction.id,
-            "category": category,
-        }
-
-    def get_budget_status(self, project_id: str) -> Dict[str, Any]:
-        """
-        Get full budget status for a project.
-
-        Args:
-            project_id: Project ID to get status for
-
-        Returns:
-            Dict with:
-                - project_id: str
-                - budget_amount: Decimal
-                - actual_burn: Decimal
-                - remaining: Decimal
-                - budget_status: str
-                - utilization_pct: Decimal
-
-        Raises:
-            BudgetNotFoundError: If project doesn't exist
-        """
-        project = self.db.query(Project).filter(Project.id == project_id).first()
-        if not project:
-            raise BudgetNotFoundError(f"Project {project_id} not found")
-
-        budget_amount = to_decimal(project.budget_amount or 0)
-        actual_burn = to_decimal(project.actual_burn or 0)
-        remaining = budget_amount - actual_burn
-
-        utilization_pct = (
-            round_money((actual_burn / budget_amount) * Decimal('100'))
-            if budget_amount > 0
-            else Decimal('0.00')
-        )
-
-        return {
-            "project_id": project_id,
-            "budget_amount": budget_amount,
-            "actual_burn": actual_burn,
-            "remaining": remaining,
-            "budget_status": project.budget_status.value if project.budget_status else "on_track",
-            "utilization_pct": utilization_pct,
-        }
-
-    def approve_spend_locked(
-        self,
-        project_id: str,
-        amount: Union[Decimal, str, float],
-        description: Optional[str] = None,
-        lock_timeout: Optional[int] = 5
-    ) -> Dict[str, Any]:
-        """
-        Approve spend with pessimistic locking (SELECT FOR UPDATE) to prevent race conditions.
-
-        Uses row-level locking to ensure only one transaction can check and update
-        the budget at a time, preventing concurrent approvals from exceeding the limit.
-
-        Args:
-            project_id: Project ID to approve spend for
-            amount: Amount to spend (Decimal, string, or float)
-            description: Optional description for audit trail
-            lock_timeout: Lock acquisition timeout in seconds (default: 5)
-
-        Returns:
-            Dict with:
-                - status: str ("approved")
-                - project_id: str
-                - amount: Decimal (approved amount)
-                - remaining: Decimal (remaining budget after spend)
-                - budget_status: str (updated budget status)
-                - previous_burn: Decimal (burn before this spend)
-
-        Raises:
-            InsufficientBudgetError: If spend would exceed budget
-            BudgetNotFoundError: If project doesn't exist
-            TimeoutError: If lock cannot be acquired within timeout
-        """
-        logger.debug(f"Acquiring pessimistic lock for project {project_id}")
-
         try:
-            # Start transaction
-            with self.db.begin():
-                # SELECT FOR UPDATE locks the Project row
-                # This prevents concurrent transactions from modifying the budget
-                query = self.db.query(Project).filter(Project.id == project_id)
+            enforcement_mode = self._get_enforcement_mode(tenant_id)
 
-                # Apply lock timeout if specified (PostgreSQL syntax)
-                if lock_timeout:
-                    query = query.with_for_update(nowait=False, skip_locked=False)
-
-                project = query.first()
-
-                if not project:
-                    raise BudgetNotFoundError(f"Project {project_id} not found")
-
-                amount_decimal = to_decimal(amount)
-                if amount_decimal < 0:
-                    raise ValueError("Spend amount cannot be negative")
-
-                # Store previous burn for result
-                previous_burn = to_decimal(project.actual_burn or 0)
-
-                # Check budget limit (atomic - no concurrent modifications possible)
-                budget_amount = to_decimal(project.budget_amount or 0)
-                remaining = budget_amount - previous_burn
-
-                if amount_decimal > remaining:
-                    raise InsufficientBudgetError(
-                        requested=amount_decimal,
-                        remaining=remaining,
-                        budget_id=project_id
-                    )
-
-                # Atomic update (still within lock)
-                project.actual_burn = float(previous_burn + amount_decimal)
-
-                # Update budget status
-                new_burn = to_decimal(project.actual_burn)
-                utilization = (
-                    round_money((new_burn / budget_amount) * Decimal('100'))
-                    if budget_amount > 0
-                    else Decimal('0.00')
-                )
-
-                if utilization >= Decimal('100.00'):
-                    project.budget_status = BudgetStatus.OVER_BUDGET
-                elif utilization >= Decimal('90.00'):
-                    project.budget_status = BudgetStatus.AT_RISK
-                else:
-                    project.budget_status = BudgetStatus.ON_TRACK
-
-                self.db.flush()
-
-                logger.debug(f"Spend approved: project={project_id}, amount={amount_decimal}, "
-                           f"remaining={budget_amount - new_burn}")
-
-        except Exception as e:
-            logger.error(f"Failed to approve spend: {e}")
-            self.db.rollback()
-            raise
-
-        return {
-            "status": "approved",
-            "project_id": project_id,
-            "amount": amount_decimal,
-            "remaining": budget_amount - new_burn,
-            "budget_status": project.budget_status.value,
-            "previous_burn": previous_burn,
-        }
-
-    def approve_spend_with_retry(
-        self,
-        project_id: str,
-        amount: Union[Decimal, str, float],
-        description: Optional[str] = None,
-        max_retries: int = 3
-    ) -> Dict[str, Any]:
-        """
-        Approve spend using optimistic locking with retry on conflict.
-
-        Uses version_id_col pattern if available, retries up to max_retries times
-        on StaleDataError (concurrent modification detected).
-
-        Args:
-            project_id: Project ID to approve spend for
-            amount: Amount to spend (Decimal, string, or float)
-            description: Optional description for audit trail
-            max_retries: Maximum number of retry attempts (default: 3)
-
-        Returns:
-            Dict with approval result (same format as approve_spend_locked)
-
-        Raises:
-            InsufficientBudgetError: If spend would exceed budget
-            BudgetNotFoundError: If project doesn't exist
-            ConcurrentModificationError: If max retries exceeded
-        """
-        amount_decimal = to_decimal(amount)
-        if amount_decimal < 0:
-            raise ValueError("Spend amount cannot be negative")
-
-        for attempt in range(max_retries):
-            try:
-                # Query project (no lock - optimistic locking)
-                project = self.db.query(Project).filter(Project.id == project_id).first()
-
-                if not project:
-                    raise BudgetNotFoundError(f"Project {project_id} not found")
-
-                # Check budget
-                previous_burn = to_decimal(project.actual_burn or 0)
-                budget_amount = to_decimal(project.budget_amount or 0)
-                remaining = budget_amount - previous_burn
-
-                if amount_decimal > remaining:
-                    raise InsufficientBudgetError(
-                        requested=amount_decimal,
-                        remaining=remaining,
-                        budget_id=project_id
-                    )
-
-                # Update burn (SQLAlchemy will check version on commit)
-                project.actual_burn = float(previous_burn + amount_decimal)
-
-                # Update budget status
-                new_burn = to_decimal(project.actual_burn)
-                utilization = (
-                    round_money((new_burn / budget_amount) * Decimal('100'))
-                    if budget_amount > 0
-                    else Decimal('0.00')
-                )
-
-                if utilization >= Decimal('100.00'):
-                    project.budget_status = BudgetStatus.OVER_BUDGET
-                elif utilization >= Decimal('90.00'):
-                    project.budget_status = BudgetStatus.AT_RISK
-                else:
-                    project.budget_status = BudgetStatus.ON_TRACK
-
-                # Try to commit (SQLAlchemy checks version here)
-                self.db.commit()
-
-                logger.info(f"Optimistic lock spend approved on attempt {attempt + 1}: "
-                          f"project={project_id}, amount={amount_decimal}")
-
+            # Get tenant for notification
+            tenant = self.db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            if not tenant:
                 return {
-                    "status": "approved",
-                    "project_id": project_id,
-                    "amount": amount_decimal,
-                    "remaining": budget_amount - new_burn,
-                    "budget_status": project.budget_status.value,
-                    "previous_burn": previous_burn,
+                    "success": False,
+                    "error": f"Tenant {tenant_id} not found"
                 }
 
-            except StaleDataError:
-                # Concurrent modification detected - retry
-                logger.warning(f"Concurrent modification detected on attempt {attempt + 1}, retrying...")
-                self.db.rollback()
+            # Send notification based on mode
+            if enforcement_mode == BudgetEnforcementMode.HARD_STOP:
+                # Cancel all active episodes
+                cancelled_count = self._cancel_active_episodes(tenant_id)
 
-                if attempt == max_retries - 1:
-                    raise ConcurrentModificationError(
-                        f"Failed to approve spend after {max_retries} retries due to concurrent modifications"
+                # Send notification
+                await self._send_enforcement_notification(
+                    tenant_id=tenant_id,
+                    mode=enforcement_mode,
+                    current_spend=current_spend,
+                    budget_limit=budget_limit,
+                    utilization_percent=utilization_percent,
+                    details=f"All operations halted. {cancelled_count} active episodes cancelled."
+                )
+
+                logger.info(
+                    f"[BudgetEnforcementService] Hard-stop enforced for tenant {tenant_id}: "
+                    f"{cancelled_count} episodes cancelled"
+                )
+
+                return {
+                    "success": True,
+                    "enforcement_mode": enforcement_mode,
+                    "episodes_cancelled": cancelled_count,
+                    "notification_sent": True
+                }
+
+            elif enforcement_mode == BudgetEnforcementMode.SOFT_STOP:
+                # Send notification
+                await self._send_enforcement_notification(
+                    tenant_id=tenant_id,
+                    mode=enforcement_mode,
+                    current_spend=current_spend,
+                    budget_limit=budget_limit,
+                    utilization_percent=utilization_percent,
+                    details="New episodes blocked. Active episodes will complete."
+                )
+
+                logger.info(
+                    f"[BudgetEnforcementService] Soft-stop enforced for tenant {tenant_id}"
+                )
+
+                return {
+                    "success": True,
+                    "enforcement_mode": enforcement_mode,
+                    "notification_sent": True
+                }
+
+            elif enforcement_mode == BudgetEnforcementMode.APPROVAL:
+                # Check if override exists
+                override = self._get_budget_override(tenant_id)
+                if override and self._is_override_valid(override):
+                    # Override active, no action needed
+                    return {
+                        "success": True,
+                        "enforcement_mode": enforcement_mode,
+                        "override_active": True
+                    }
+
+                # Send notification requesting approval
+                await self._send_enforcement_notification(
+                    tenant_id=tenant_id,
+                    mode=enforcement_mode,
+                    current_spend=current_spend,
+                    budget_limit=budget_limit,
+                    utilization_percent=utilization_percent,
+                    details="Admin approval required to continue operations."
+                )
+
+                logger.info(
+                    f"[BudgetEnforcementService] Approval mode enforced for tenant {tenant_id}"
+                )
+
+                return {
+                    "success": True,
+                    "enforcement_mode": enforcement_mode,
+                    "notification_sent": True,
+                    "approval_required": True
+                }
+
+            else:  # ALERT_ONLY
+                # No enforcement, just logging
+                logger.info(
+                    f"[BudgetEnforcementService] Alert-only mode for tenant {tenant_id}, "
+                    f"no enforcement action taken"
+                )
+
+                return {
+                    "success": True,
+                    "enforcement_mode": enforcement_mode,
+                    "enforcement_action": "none"
+                }
+
+        except Exception as e:
+            logger.error(f"[BudgetEnforcementService] Error enforcing budget: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def _get_enforcement_mode(self, tenant_id: str) -> str:
+        """
+        Get enforcement mode from tenant.settings['billing']['enforcement']['mode'].
+        Defaults to 'alert_only' if not set.
+        """
+        try:
+            existing_setting = self.db.query(TenantSetting).filter(
+                TenantSetting.tenant_id == tenant_id,
+                TenantSetting.setting_key == 'billing'
+            ).first()
+
+            if existing_setting and existing_setting.setting_value:
+                settings_dict = json.loads(existing_setting.setting_value)
+                enforcement = settings_dict.get('enforcement', {})
+                mode = enforcement.get('mode', BudgetEnforcementMode.ALERT_ONLY)
+
+                # Validate mode
+                if mode not in BudgetEnforcementMode.ALL:
+                    logger.warning(
+                        f"[BudgetEnforcementService] Invalid enforcement mode '{mode}' "
+                        f"for tenant {tenant_id}, defaulting to alert_only"
                     )
-                continue
+                    return BudgetEnforcementMode.ALERT_ONLY
 
-            except Exception as e:
-                self.db.rollback()
-                raise
+                return mode
 
-        # Should never reach here
-        raise ConcurrentModificationError("Unexpected error in optimistic locking retry loop")
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"[BudgetEnforcementService] Error reading enforcement mode: {e}")
 
+        return BudgetEnforcementMode.ALERT_ONLY
 
-class ConcurrentModificationError(BudgetError):
-    """Raised when concurrent modification prevents spend approval after retries"""
-    pass
+    def _get_budget_override(self, tenant_id: str) -> Optional[Dict]:
+        """
+        Get admin override from tenant.settings['billing']['enforcement']['override'].
+        Returns None if no override exists.
+        """
+        try:
+            existing_setting = self.db.query(TenantSetting).filter(
+                TenantSetting.tenant_id == tenant_id,
+                TenantSetting.setting_key == 'billing'
+            ).first()
+
+            if existing_setting and existing_setting.setting_value:
+                settings_dict = json.loads(existing_setting.setting_value)
+                enforcement = settings_dict.get('enforcement', {})
+                override = enforcement.get('override')
+
+                return override
+
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(f"[BudgetEnforcementService] Error reading override: {e}")
+
+        return None
+
+    def _is_override_valid(self, override: Dict) -> bool:
+        """
+        Check if override is still valid (not expired).
+        Override expires after 1 hour OR on billing cycle reset.
+        """
+        if not override:
+            return False
+
+        try:
+            expires_at_str = override.get('expires_at')
+            if not expires_at_str:
+                return False
+
+            expires_at = datetime.fromisoformat(expires_at_str)
+            return datetime.now(timezone.utc) < expires_at
+
+        except (ValueError, TypeError) as e:
+            logger.warning(f"[BudgetEnforcementService] Error validating override: {e}")
+            return False
+
+    def _set_budget_override(self, tenant_id: str, user_id: str) -> Dict:
+        """
+        Set admin override with expiry (1 hour from now).
+        """
+        try:
+            from core.models import Tenant
+
+            tenant = self.db.query(Tenant).filter(Tenant.id == tenant_id).first()
+            if not tenant:
+                return {
+                    "success": False,
+                    "error": f"Tenant {tenant_id} not found"
+                }
+
+            # Get or initialize settings dict
+            settings_dict = {}
+            existing_setting = self.db.query(TenantSetting).filter(
+                TenantSetting.tenant_id == tenant_id,
+                TenantSetting.setting_key == 'billing'
+            ).first()
+
+            if existing_setting and existing_setting.setting_value:
+                try:
+                    settings_dict = json.loads(existing_setting.setting_value)
+                except (json.JSONDecodeError, TypeError):
+                    settings_dict = {}
+
+            # Initialize enforcement dict if needed
+            if 'enforcement' not in settings_dict:
+                settings_dict['enforcement'] = {}
+
+            # Set override with 1-hour expiry
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+            settings_dict['enforcement']['override'] = {
+                'user_id': user_id,
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'expires_at': expires_at.isoformat()
+            }
+
+            # Update settings
+            settings_json = json.dumps(settings_dict)
+
+            if existing_setting:
+                existing_setting.setting_value = settings_json
+            else:
+                new_setting = TenantSetting(
+                    tenant_id=tenant.id,
+                    setting_key='billing',
+                    setting_value=settings_json
+                )
+                self.db.add(new_setting)
+
+            self.db.flush()
+
+            logger.info(
+                f"[BudgetEnforcementService] Budget override set for tenant {tenant_id} "
+                f"by user {user_id}, expires at {expires_at.isoformat()}"
+            )
+
+            return {
+                "success": True,
+                "expires_at": expires_at.isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"[BudgetEnforcementService] Error setting override: {str(e)}")
+            self.db.rollback()
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def _has_active_episodes(self, tenant_id: str, agent_id: str) -> bool:
+        """
+        Check if agent has active (running) episodes.
+        """
+        try:
+            active_count = self.db.query(func.count(AgentExecution.id)).filter(
+                AgentExecution.tenant_id == tenant_id,
+                AgentExecution.agent_id == agent_id,
+                AgentExecution.status == "running"
+            ).scalar()
+
+            return active_count > 0
+
+        except Exception as e:
+            logger.error(f"[BudgetEnforcementService] Error checking active episodes: {str(e)}")
+            return False
+
+    def _cancel_active_episodes(self, tenant_id: str) -> int:
+        """
+        Mark all running episodes as cancelled (hard-stop mode).
+        Returns count of cancelled episodes.
+        """
+        try:
+            # Query all running episodes for tenant
+            running_episodes = self.db.query(AgentExecution).filter(
+                AgentExecution.tenant_id == tenant_id,
+                AgentExecution.status == "running"
+            ).all()
+
+            cancelled_count = 0
+            for episode in running_episodes:
+                episode.status = "cancelled"
+                cancelled_count += 1
+
+            self.db.flush()
+
+            logger.info(
+                f"[BudgetEnforcementService] Cancelled {cancelled_count} active episodes "
+                f"for tenant {tenant_id}"
+            )
+
+            return cancelled_count
+
+        except Exception as e:
+            logger.error(f"[BudgetEnforcementService] Error cancelling episodes: {str(e)}")
+            self.db.rollback()
+            return 0
+
+    async def _send_enforcement_notification(
+        self,
+        tenant_id: str,
+        mode: str,
+        current_spend: float,
+        budget_limit: float,
+        utilization_percent: float,
+        details: str
+    ) -> bool:
+        """
+        Send enforcement notification to admin users.
+        """
+        try:
+            from core.models import User, Permission, CustomRole
+            from core.models import Workspace
+
+            # Get admin users
+            admin_users = self.db.query(User).join(
+                User.custom_role
+            ).join(
+                CustomRole.permissions
+            ).filter(
+                Permission.scope == 'billing',
+                Permission.action == 'manage',
+                User.tenant_id == tenant_id
+            ).all()
+
+            if not admin_users:
+                # Fallback to tenant owner
+                admin_users = self.db.query(User).filter(
+                    User.tenant_id == tenant_id
+                ).limit(1).all()
+
+            if not admin_users:
+                logger.warning(f"[BudgetEnforcementService] No admin users for tenant {tenant_id}")
+                return False
+
+            # Get workspace
+            workspace = self.db.query(Workspace).filter(
+                Workspace.tenant_id == tenant_id
+            ).first()
+
+            if not workspace:
+                logger.warning(f"[BudgetEnforcementService] No workspace for tenant {tenant_id}")
+                return False
+
+            # Build notification
+            mode_labels = {
+                BudgetEnforcementMode.ALERT_ONLY: "Alert Only",
+                BudgetEnforcementMode.SOFT_STOP: "Soft Stop",
+                BudgetEnforcementMode.HARD_STOP: "Hard Stop",
+                BudgetEnforcementMode.APPROVAL: "Approval Required"
+            }
+
+            title = f"Budget Enforcement: {mode_labels.get(mode, mode)} Active"
+            message = f"""Budget limit exceeded.
+
+Current Spend: ${current_spend:.2f}
+Budget Limit: ${budget_limit:.2f}
+Utilization: {utilization_percent:.1f}%
+
+Enforcement Mode: {mode_labels.get(mode, mode)}
+{details}
+"""
+
+            # Send to all admin users
+            for user in admin_users:
+                await self.notification_service.send_notification(
+                    user_id=str(user.id),
+                    workspace_id=str(workspace.id),
+                    title=title,
+                    message=message,
+                    notification_type='error',
+                    channels=['email', 'in_app'],
+                    metadata={
+                        'enforcement_mode': mode,
+                        'current_spend': current_spend,
+                        'budget_limit': budget_limit,
+                        'utilization_percent': utilization_percent,
+                        'alert_type': 'budget_enforcement'
+                    }
+                )
+
+            logger.info(
+                f"[BudgetEnforcementService] Enforcement notification sent to {len(admin_users)} "
+                f"admin users for tenant {tenant_id}"
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"[BudgetEnforcementService] Error sending notification: {str(e)}")
+            return False
+
+    def clear_enforcement_state(self, tenant_id: str) -> None:
+        """
+        Clear override on billing cycle reset.
+        Called by SpendAggregationService when new billing cycle starts.
+        """
+        try:
+            existing_setting = self.db.query(TenantSetting).filter(
+                TenantSetting.tenant_id == tenant_id,
+                TenantSetting.setting_key == 'billing'
+            ).first()
+
+            if not existing_setting or not existing_setting.setting_value:
+                return
+
+            settings_dict = json.loads(existing_setting.setting_value)
+
+            # Clear override
+            if 'enforcement' in settings_dict and 'override' in settings_dict['enforcement']:
+                del settings_dict['enforcement']['override']
+
+                existing_setting.setting_value = json.dumps(settings_dict)
+                self.db.flush()
+
+                logger.info(
+                    f"[BudgetEnforcementService] Cleared enforcement override for tenant {tenant_id} "
+                    f"(billing cycle reset)"
+                )
+
+        except Exception as e:
+            logger.error(f"[BudgetEnforcementService] Error clearing enforcement state: {str(e)}")
+            self.db.rollback()
+
+    def __del__(self):
+        """Cleanup database session."""
+        if hasattr(self, 'db'):
+            self.db.close()

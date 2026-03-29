@@ -8,8 +8,8 @@ Handles the execution of workflows with support for:
 - Automatic retries and error handling
 """
 
-import asyncio
-from datetime import datetime
+import json
+from datetime import datetime, timezone
 import logging
 import re
 from typing import Any, Dict, List, Optional, Union
@@ -27,9 +27,11 @@ from core.exceptions import (
     ValidationError as AtomValidationError,
 )
 from core.execution_state_manager import ExecutionStateManager, get_state_manager
-from core.models import IntegrationCatalog, WorkflowExecutionLog
+from core.models import IntegrationCatalog, WorkflowExecutionLog, WorkflowSnapshot, AgentRegistry
 from core.token_storage import token_storage
 from core.websockets import get_connection_manager
+from core.service_factory import ServiceFactory
+from core.workflow_notifier import notifier
 
 logger = logging.getLogger(__name__)
 
@@ -385,6 +387,14 @@ class WorkflowEngine:
                     async with state_lock:
                         await self.state_manager.update_execution_status(execution_id, "FAILED", error=str(failure_error))
                         await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(failure_error)})
+                    
+                    # Send failure notification
+                    asyncio.create_task(notifier.notify_failure(
+                        workflow_id=workflow.get("id", "unknown"),
+                        workflow_name=workflow.get("name", "Untitled Workflow"),
+                        execution_id=execution_id,
+                        error=str(failure_error)
+                    ))
                     return
 
                 # Continue to next iteration (new steps may have become ready)
@@ -395,6 +405,14 @@ class WorkflowEngine:
                 async with state_lock:
                     await self.state_manager.update_execution_status(execution_id, "COMPLETED")
                     await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
+
+                # Send completion notification
+                asyncio.create_task(notifier.notify_completion(
+                    workflow_id=workflow.get("id", "unknown"),
+                    workflow_name=workflow.get("name", "Untitled Workflow"),
+                    execution_id=execution_id,
+                    results=state.get("outputs", {})
+                ))
 
                 # Track success
                 duration = (datetime.utcnow() - start_time).total_seconds()
@@ -570,6 +588,35 @@ class WorkflowEngine:
                 await self.state_manager.update_step_status(execution_id, step_id, "RUNNING")
                 await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_RUNNING", {"step_id": step_id})
 
+                # --- START SAAS GOVERNANCE INTERLOCK ---
+                # Check for agent governance authorization
+                with get_db_session() as db:
+                    try:
+                        governance = ServiceFactory.get_governance_service(db, tenant_id=tenant_id)
+                        agent_id = workflow.get("agent_id") or "system_agent"
+                        
+                        # Find registry agent if not system
+                        agent_record = None
+                        if agent_id != "system_agent":
+                            agent_record = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+                        
+                        # Use complexity-based gating logic from SaaS
+                        can_perform, message = await governance.can_perform_action(
+                            agent_id=agent_id,
+                            action=step.get("action", "default"),
+                            context={"step_id": step_id, "params": resolved_params}
+                        )
+                        
+                        if not can_perform:
+                            logger.warning(f"🚫 Governance block for execution {execution_id} at step {step_id}: {message}")
+                            await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=f"Governance Block: {message}")
+                            await self.state_manager.update_execution_status(execution_id, "FAILED", error=f"Governance Block: {message}")
+                            await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": f"Governance Block: {message}", "step_id": step_id})
+                            return
+                    except Exception as gov_error:
+                        logger.error(f"Governance check failed, failing open for safety but logging error: {gov_error}")
+                # --- END SAAS GOVERNANCE INTERLOCK ---
+
                 # Create step execution record
                 with get_db_session() as db:
                     try:
@@ -594,6 +641,34 @@ class WorkflowEngine:
                     self._validate_output_schema(step, output)
                     await self.state_manager.update_step_status(execution_id, step_id, "COMPLETED", output=output)
                     await ws_manager.notify_workflow_status(user_id, execution_id, "STEP_COMPLETED", {"step_id": step_id})
+
+                    # --- START SAAS TIME TRAVEL SNAPSHOT ---
+                    # Create snapshot for forking/replay capability
+                    with get_db_session() as db:
+                        try:
+                            # Refresh state to capture current results
+                            current_state = await self.state_manager.get_execution_state(execution_id)
+                            snapshot_data = {
+                                "input_data": current_state.get("input_data", {}),
+                                "outputs": current_state.get("outputs", {}),
+                                "step_results": current_state.get("step_results", {}),
+                                "metadata": workflow.get("metadata", {})
+                            }
+                            
+                            snapshot = WorkflowSnapshot(
+                                tenant_id=tenant_id,
+                                execution_id=execution_id,
+                                step_id=step_id,
+                                step_order=steps.index(step),
+                                context_snapshot=json.dumps(snapshot_data),
+                                status="COMPLETED"
+                            )
+                            db.add(snapshot)
+                            db.commit()
+                            logger.debug(f"📸 Snapshot created for {execution_id} at step {step_id}")
+                        except Exception as snapshot_error:
+                            logger.warning(f"Failed to create Time Travel snapshot: {snapshot_error}")
+                    # --- END SAAS TIME TRAVEL SNAPSHOT ---
 
                     # Update step execution record
                     with get_db_session() as db:
@@ -621,6 +696,14 @@ class WorkflowEngine:
                     await self.state_manager.update_execution_status(execution_id, "FAILED", error=str(e))
                     await ws_manager.notify_workflow_status(user_id, execution_id, "FAILED", {"error": str(e), "step_id": step_id})
                     
+                    # Send failure notification
+                    asyncio.create_task(notifier.notify_failure(
+                        workflow_id=workflow.get("id", "unknown"),
+                        workflow_name=workflow.get("name", "Untitled Workflow"),
+                        execution_id=execution_id,
+                        error=str(e)
+                    ))
+
                     # Track failure
                     duration = (datetime.utcnow() - start_time).total_seconds()
                     analytics.track_workflow_execution(
@@ -634,6 +717,14 @@ class WorkflowEngine:
 
             await self.state_manager.update_execution_status(execution_id, "COMPLETED")
             await ws_manager.notify_workflow_status(user_id, execution_id, "COMPLETED")
+            
+            # Send completion notification
+            asyncio.create_task(notifier.notify_completion(
+                workflow_id=workflow.get("id", "unknown"),
+                workflow_name=workflow.get("name", "Untitled Workflow"),
+                execution_id=execution_id,
+                results=state.get("outputs", {})
+            ))
             
             # Track success
             duration = (datetime.utcnow() - start_time).total_seconds()

@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 # Docling availability check
 try:
-    from docling.datamodel.base_models import InputFormat
     from docling.document_converter import DocumentConverter
+    from docling.datamodel.base_models import InputFormat
     DOCLING_AVAILABLE = True
 except ImportError:
     DOCLING_AVAILABLE = False
@@ -29,8 +29,12 @@ try:
     from core.byok_endpoints import get_byok_manager
     BYOK_AVAILABLE = True
 except ImportError:
-    BYOK_AVAILABLE = False
-    get_current_active_user = None
+    try:
+        from core.byok_endpoints import get_byok_manager
+        BYOK_AVAILABLE = True
+    except ImportError:
+        BYOK_AVAILABLE = False
+        get_byok_manager = None
 
 
 class DoclingDocumentProcessor:
@@ -184,10 +188,6 @@ class DoclingDocumentProcessor:
     ):
         """Convert document using docling."""
         try:
-            if self.converter is None:
-                logger.warning("Docling converter not initialized")
-                return None
-                
             # Handle different source types
             if isinstance(source, bytes):
                 # For bytes, write to temp file since docling works best with files
