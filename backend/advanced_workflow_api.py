@@ -314,3 +314,53 @@ async def get_workflow_validation_summary():
     except Exception as e:
         logger.error(f"Failed to get validation summary: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+class AgentWorkflowRequest(BaseModel):
+    """Request model for agent-driven workflow generation"""
+    prompt: str
+    tenant_id: str = "default"
+    user_id: str = "default_user"
+
+@router.post("/generate-from-agent")
+async def generate_workflow_from_agent(request: AgentWorkflowRequest):
+    """
+    Generate a real workflow from a user prompt using Queen Agent.
+    Bridges the NLU routing and Queen blueprinting with the Workflow Engine.
+    """
+    try:
+        from core.llm_service import LLMService
+        from ai.nlp_engine import NaturalLanguageEngine, RouteCategory
+        from core.agents.queen_agent import QueenAgent
+        
+        # 1. Classify Route (using standard NLU Engine)
+        nlu = NaturalLanguageEngine()
+        route = await nlu.classify_route(request.prompt, tenant_id=request.tenant_id)
+        
+        # 2. Use Queen Agent to design blueprint
+        # In OS, we use workspace_id as the primary identifier, but preserve tenant_id for compatibility.
+        llm = LLMService(tenant_id=request.tenant_id)
+        queen = QueenAgent(db=None, llm=llm, tenant_id=request.tenant_id)
+        
+        execution_mode = "recurring_automation" if route.category == RouteCategory.AUTOMATION else "one_off"
+        
+        blueprint = await queen.generate_blueprint(
+            goal=request.prompt, 
+            tenant_id=request.tenant_id,
+            execution_mode=execution_mode
+        )
+        
+        # 3. Realize into Orchestrator
+        workflow_id = await queen.realize_blueprint(blueprint, tenant_id=request.tenant_id)
+        
+        # 4. Return the result for UI rendering
+        return {
+            "workflow_id": workflow_id,
+            "name": blueprint.get("architecture_name"),
+            "description": blueprint.get("description"),
+            "execution_mode": execution_mode,
+            "route_reasoning": route.reasoning,
+            "nodes": blueprint.get("nodes", []),
+            "blueprint": blueprint
+        }
+    except Exception as e:
+        logger.error(f"Failed to generate workflow from agent: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

@@ -163,6 +163,8 @@ npm install
 
 ✅ **Full AI Automation Platform**
 - Multi-agent system with governance
+- **AI Workflow Generator**: Create complex automations by simply describing them to the agent. ✨ NEW
+- **Intelligent request routing**: Automatic classification and task delegation. ✨ NEW
 - Workflow builder with visual editor
 - Browser automation
 - Device capabilities

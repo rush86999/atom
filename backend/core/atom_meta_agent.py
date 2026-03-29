@@ -347,7 +347,24 @@ class AtomMetaAgent:
 
         # 3. Planning & Specialty Delegation Phase (NEW)
         # If the task is complex, we use a high-reasoning turn to plan subtasks
-        is_complex = len(request) > 100 or any(kw in request.lower() for kw in ["analyze", "create", "sync", "report", "manage"])
+        # 3. Intelligent Routing Phase (NEW)
+        # Fast classification to determine if we need a persistent automation or a one-off task
+        from ai.nlp_engine import RouteCategory
+        nlu = NaturalLanguageEngine()
+        route = await nlu.classify_route(request, tenant_id=tenant_id or "default")
+        
+        routing_log = {
+            "execution_id": execution_id,
+            "step": 0,
+            "step_type": "routing",
+            "thought": f"[SYSTEM] Routing Request: {route.category.value.upper()} - {route.reasoning}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        if step_callback: await step_callback(routing_log)
+        execution_history += f"System Routing: {route.category.value.upper()} ({route.reasoning})\n"
+
+        # 4. Planning & Specialty Delegation Phase
+        is_complex = len(request) > 100 or any(kw in request.lower() for kw in ["analyze", "create", "sync", "report", "manage"]) or route.category == RouteCategory.AUTOMATION
         
         if is_complex and trigger_mode == AgentTriggerMode.MANUAL:
             plan_record = {
@@ -367,7 +384,12 @@ class AtomMetaAgent:
                     with SessionLocal() as db:
                         self.queen = ServiceFactory.get_queen_agent(db)
                 
-                blueprint = await self.queen.generate_blueprint(request, tenant_id=tenant_id or "default")
+                execution_mode = "recurring_automation" if route.category == RouteCategory.AUTOMATION else "one_off"
+                blueprint = await self.queen.generate_blueprint(
+                    request, 
+                    tenant_id=tenant_id or "default",
+                    execution_mode=execution_mode
+                )
                 
                 if blueprint and blueprint.get("nodes"):
                     plan_summary = f"Queen designed blueprint '{blueprint.get('architecture_name')}'. Transitioning to King Mode for execution."
