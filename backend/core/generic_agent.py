@@ -14,6 +14,7 @@ from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.react_models import ReActObservation, ReActStep, ToolCall
 from integrations.mcp_service import mcp_service
 from core.reflection_service import ReflectionService
+from core.graduation_service import GraduationService
 from core.llm.canvas_summary_service import CanvasSummaryService
 
 # Instructor library is used internally by LLMService for structured output
@@ -560,6 +561,23 @@ What is your next step?"""
             try:
                 gov = AgentGovernanceService(db)
                 await gov.record_outcome(self.id, success=success)
+                
+                # 5. Graduation Check (Autonomous Promotion)
+                if success:
+                    try:
+                        # Skill promotion logic
+                        skill_id = self.config.get("active_skill_id")
+                        if skill_id:
+                             graduation = GraduationService(db)
+                             promotion_result = await graduation.check_skill_promotion(
+                                 agent_id=self.id,
+                                 skill_id=skill_id,
+                                 complexity=result.get("complexity", "moderate")
+                             )
+                             if promotion_result.get("promoted"):
+                                 logger.info(f"Agent {self.name} skill {skill_id} promoted to AUTONOMOUS!")
+                    except Exception as ge:
+                        logger.warning(f"Graduation check failed: {ge}")
             except Exception as e:
                 logger.error(f"Failed to record governance outcome: {e}", exc_info=True)
 
