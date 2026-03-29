@@ -34,6 +34,9 @@ except ImportError:
     MODELS_AVAILABLE = False
     logger.warning("Workflow persistence models not available")
 
+# Placeholder for Phase 215 availability check
+SERVICES_AVAILABLE = True
+
 class WorkflowStepType(Enum):
     """Types of workflow steps"""
     NLU_ANALYSIS = "nlu_analysis"
@@ -83,6 +86,9 @@ class WorkflowStepType(Enum):
     # Phase specific integrations
     ZOHO_CRM_INTEGRATION = "zoho_crm_integration"
     ZOOM_INTEGRATION = "zoom_integration"
+    BROWSER = "browser"
+    TERMINAL = "terminal"
+    ENTITY = "entity"
 
 class WorkflowStatus(Enum):
     """Workflow execution status"""
@@ -185,6 +191,24 @@ class AdvancedWorkflowOrchestrator:
         
         # Phase 11: Restore active executions (Fix Ghost Workflows)
         self._restore_active_executions()
+
+        # Step Type to Connector ID mapping for unified dispatch
+        # This standardizes all integration nodes under the unified registry
+        self.STEP_TYPE_TO_CONNECTOR = {
+            WorkflowStepType.SLACK_NOTIFICATION: "slack",
+            WorkflowStepType.ASANA_INTEGRATION: "asana",
+            WorkflowStepType.NOTION_INTEGRATION: "notion",
+            WorkflowStepType.HUBSPOT_INTEGRATION: "hubspot",
+            WorkflowStepType.SALESFORCE_INTEGRATION: "salesforce",
+            WorkflowStepType.GMAIL_INTEGRATION: "gmail",
+            WorkflowStepType.ZOHO_CRM_INTEGRATION: "zoho-crm",
+            WorkflowStepType.ZOOM_INTEGRATION: "zoom",
+            # Advanced nodes that map to generic connectors
+            WorkflowStepType.GMAIL_FETCH: "gmail",
+            WorkflowStepType.GMAIL_SEARCH: "gmail",
+            WorkflowStepType.NOTION_SEARCH: "notion",
+            WorkflowStepType.NOTION_DB_QUERY: "notion",
+        }
 
     def _create_snapshot(self, context: WorkflowContext, step_id: str):
         """
@@ -1758,22 +1782,19 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         step.parameters = self._resolve_variables(step.parameters, context)
 
         try:
-            if step.step_type == WorkflowStepType.NLU_ANALYSIS:
+            # Check if this is a unified integration type
+            if step.step_type in self.STEP_TYPE_TO_CONNECTOR:
+                connector_id = self.STEP_TYPE_TO_CONNECTOR[step.step_type]
+                result = await self._execute_registry_step(connector_id, step, context)
+            
+            elif step.step_type == WorkflowStepType.NLU_ANALYSIS:
                 result = await self._execute_nlu_analysis(step, context)
             elif step.step_type == WorkflowStepType.CONDITIONAL_LOGIC:
                 result = await self._execute_conditional_logic(workflow, step, context)
             elif step.step_type == WorkflowStepType.EMAIL_SEND:
                 result = await self._execute_email_send(step, context)
-            elif step.step_type == WorkflowStepType.SLACK_NOTIFICATION:
-                result = await self._execute_slack_notification(step, context)
-            elif step.step_type == WorkflowStepType.ASANA_INTEGRATION:
-                result = await self._execute_asana_integration(step, context)
             elif step.step_type == WorkflowStepType.PARALLEL_EXECUTION:
                 result = await self._execute_parallel_execution(step, context)
-            elif step.step_type == WorkflowStepType.HUBSPOT_INTEGRATION:
-                result = await self._execute_hubspot_integration(step, context)
-            elif step.step_type == WorkflowStepType.SALESFORCE_INTEGRATION:
-                result = await self._execute_salesforce_integration(step, context)
             elif step.step_type == WorkflowStepType.KNOWLEDGE_LOOKUP:
                 result = await self._execute_knowledge_lookup(step, context)
             elif step.step_type == WorkflowStepType.KNOWLEDGE_UPDATE:
@@ -1784,18 +1805,6 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_api_call(step, context)
             elif step.step_type == WorkflowStepType.UNIVERSAL_INTEGRATION:
                 result = await self._execute_universal_integration(step, context)
-            elif step.step_type == WorkflowStepType.NOTION_INTEGRATION:
-                result = await self._execute_notion_integration(step, context)
-            elif step.step_type == WorkflowStepType.GMAIL_FETCH:
-                result = await self._execute_gmail_fetch(step, context)
-            elif step.step_type == WorkflowStepType.GMAIL_INTEGRATION:
-                result = await self._execute_gmail_integration(step, context)
-            elif step.step_type == WorkflowStepType.GMAIL_SEARCH:
-                result = await self._execute_gmail_search(step, context)
-            elif step.step_type == WorkflowStepType.NOTION_SEARCH:
-                result = await self._execute_notion_search(step, context)
-            elif step.step_type == WorkflowStepType.NOTION_DB_QUERY:
-                result = await self._execute_notion_db_query(step, context)
             elif step.step_type == WorkflowStepType.APP_SEARCH:
                 result = await self._execute_app_search(step, context)
             elif step.step_type == WorkflowStepType.SYSTEM_REASONING:
@@ -1842,6 +1851,12 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 result = await self._execute_zoho_crm_integration(step, context)
             elif step.step_type == WorkflowStepType.ZOOM_INTEGRATION:
                 result = await self._execute_zoom_integration(step, context)
+            elif step.step_type == WorkflowStepType.BROWSER:
+                result = await self._execute_browser_node(step, context)
+            elif step.step_type == WorkflowStepType.TERMINAL:
+                result = await self._execute_terminal_node(step, context)
+            elif step.step_type == WorkflowStepType.ENTITY:
+                result = await self._execute_entity_node(step, context)
             elif step.step_type == WorkflowStepType.APPROVAL_REQUIRED:
                 result = await self._execute_approval_required_step(step, context)
             else:
@@ -2411,79 +2426,6 @@ Return your response as a JSON object with this format:
             "sent_at": datetime.datetime.now().isoformat()
         }
 
-    async def _execute_slack_notification(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Slack notification step"""
-        channel = step.parameters.get("channel", "#general")
-        content = step.parameters.get("message", context.input_data.get("text", ""))
-        title = step.parameters.get("title", "New Notification")
-
-        # Advanced formatting
-        rich_message = await self._format_content_for_output(content, target_type="slack", title=title)
-
-        # Simulate Slack notification (in real implementation, integrate with Slack API)
-        await asyncio.sleep(0.1)  # Simulate API call
-
-        return {
-            "status": "completed",
-            "channel": channel,
-            "message": rich_message,
-            "sent_at": datetime.datetime.now().isoformat()
-        }
-
-    async def _execute_invoice_processing(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute automated invoice processing and ledger recording"""
-        document_id = step.parameters.get("document_id") or context.input_data.get("document_id")
-        workspace_id = step.parameters.get("workspace_id") or context.input_data.get("workspace_id", "default_workspace")
-        expense_account_code = step.parameters.get("expense_account_code", "5100")
-
-        if not document_id:
-            return {"status": "failed", "error": "No document_id provided for invoice processing"}
-
-        try:
-            from accounting.ap_service import APService
-
-            from core.database import get_db_session
-            
-            with get_db_session() as db:
-                ap_service = APService(db)
-                result = await ap_service.process_invoice_document(
-                    document_id=document_id,
-                    workspace_id=workspace_id,
-                    expense_account_code=expense_account_code
-                )
-                
-                # Merge bill results into context variables for subsequent steps
-                if result["status"] == "success":
-                    context.variables.update({
-                        "bill_id": result.get("bill_id"),
-                        "transaction_id": result.get("transaction_id"),
-                        "vendor_name": result.get("vendor"),
-                        "bill_amount": result.get("amount")
-                    })
-                
-                return result
-        except Exception as e:
-            logger.error(f"Invoice processing step failed: {e}")
-            return {"status": "failed", "error": str(e)}
-
-    async def _execute_asana_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Asana integration step"""
-        project = step.parameters.get("project", "Default")
-        assignee = step.parameters.get("assignee", "unassigned")
-
-        # Simulate Asana task creation (in real implementation, integrate with Asana API)
-        await asyncio.sleep(0.1)  # Simulate API call
-
-        task_id = f"task_{uuid.uuid4().hex[:8]}"
-
-        return {
-            "status": "completed",
-            "task_id": task_id,
-            "project": project,
-            "assignee": assignee,
-            "created_at": datetime.datetime.now().isoformat()
-        }
-
     async def _execute_parallel_execution(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute parallel execution step"""
         parallel_steps = step.parallel_steps
@@ -2526,36 +2468,6 @@ Return your response as a JSON object with this format:
             "unit": unit
         }
 
-    async def _execute_hubspot_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute HubSpot integration step"""
-        try:
-            from core.mock_mode import get_mock_mode_manager
-            mock_manager = get_mock_mode_manager()
-            
-            if mock_manager.is_mock_mode("hubspot", False): # Assume no credentials for demo
-                logger.info(f"HubSpot Mock Mode: Executing {step.parameters.get('action')}")
-                return {"status": "completed", "result": {"id": "mock_hs_123", "status": "created"}, "mock": True}
-
-            return {"status": "completed", "message": "HubSpot action processed", "parameters": step.parameters}
-        except Exception as e:
-            logger.error(f"HubSpot integration error: {e}")
-            return {"status": "failed", "error": str(e)}
-
-    async def _execute_salesforce_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Salesforce integration step"""
-        try:
-            from core.mock_mode import get_mock_mode_manager
-            mock_manager = get_mock_mode_manager()
-            
-            if mock_manager.is_mock_mode("salesforce", False):
-                logger.info(f"Salesforce Mock Mode: Executing {step.parameters.get('action')}")
-                return {"status": "completed", "result": {"id": "mock_sf_456", "status": "created"}, "mock": True}
-
-            return {"status": "completed", "message": "Salesforce action processed", "parameters": step.parameters}
-        except Exception as e:
-            logger.error(f"Salesforce integration error: {e}")
-            return {"status": "failed", "error": str(e)}
-
     async def _execute_api_call(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute external API call step"""
         service = step.parameters.get("service", "unknown")
@@ -2571,164 +2483,43 @@ Return your response as a JSON object with this format:
             "call_time": datetime.datetime.now().isoformat()
         }
 
-    async def _execute_notion_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Notion integration step"""
+
+    async def _execute_invoice_processing(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute automated invoice processing and ledger recording"""
+        document_id = step.parameters.get("document_id") or context.input_data.get("document_id")
+        workspace_id = step.parameters.get("workspace_id") or context.input_data.get("workspace_id", "default_workspace")
+        expense_account_code = step.parameters.get("expense_account_code", "5100")
+
+        if not document_id:
+            return {"status": "failed", "error": "No document_id provided for invoice processing"}
+
         try:
-            from integrations.notion_service import NotionService
-            notion = NotionService()
+            from accounting.ap_service import APService
+
+            from core.database import get_db_session
             
-            action = step.parameters.get("action", "create_page")
-            database_id = step.parameters.get("database_id")
-            title = step.parameters.get("title", "New Task")
-            content = step.parameters.get("content", "")
-            
-            if action == "create_page":
-                if database_id:
-                    properties = step.parameters.get("properties", {
-                        "Name": {"title": [{"text": {"content": title}}]}
+            with get_db_session() as db:
+                ap_service = APService(db)
+                result = await ap_service.process_invoice_document(
+                    document_id=document_id,
+                    workspace_id=workspace_id,
+                    expense_account_code=expense_account_code
+                )
+                
+                # Merge bill results into context variables for subsequent steps
+                if result["status"] == "success":
+                    context.variables.update({
+                        "bill_id": result.get("bill_id"),
+                        "transaction_id": result.get("transaction_id"),
+                        "vendor_name": result.get("vendor"),
+                        "bill_amount": result.get("amount")
                     })
-                    
-                    # Use generalized rich formatting if content is provided
-                    content_blocks = None
-                    if content:
-                        content_blocks = await self._format_content_for_output(content, target_type="notion", title=title)
-                    
-                    result = notion.create_page_in_database(
-                        database_id=database_id,
-                        properties=properties,
-                        content_blocks=content_blocks
-                    )
-                else:
-                    parent = step.parameters.get("parent")
-                    properties = step.parameters.get("properties", {
-                        "title": [{"text": {"content": title}}]
-                    })
-                    result = notion.create_page(parent, properties)
                 
-            elif action == "page_get":
-                page_id = step.parameters.get("page_id")
-                result = notion.get_page(page_id)
-                
-            elif action == "page_update":
-                page_id = step.parameters.get("page_id")
-                properties = step.parameters.get("properties", {})
-                archived = step.parameters.get("archived", False)
-                result = notion.update_page(page_id, properties, archived=archived)
-                
-            elif action == "db_query":
-                database_id = step.parameters.get("database_id")
-                filter_obj = step.parameters.get("filter")
-                sorts = step.parameters.get("sorts")
-                max_pages = step.parameters.get("page_size", 100)
-                result = notion.query_database(database_id, filter=filter_obj, sorts=sorts, page_size=max_pages)
-                
-            elif action == "db_get":
-                database_id = step.parameters.get("database_id")
-                result = notion.get_database(database_id)
-                
-            elif action == "block_append":
-                block_id = step.parameters.get("block_id")
-                content = step.parameters.get("content", "")
-                blocks = await self._format_content_for_output(content, target_type="notion")
-                result = notion.append_block_children(block_id, blocks)
-            else:
-                return {"status": "failed", "error": f"Unsupported Notion action: {action}"}
-
-            return {
-                "status": "completed",
-                "result": result,
-                "notion_result": result, # Backward compatibility
-                "action": action
-            }
+                return result
         except Exception as e:
-            logger.error(f"Notion integration error: {e}")
+            logger.error(f"Invoice processing step failed: {e}")
             return {"status": "failed", "error": str(e)}
 
-    async def _execute_gmail_fetch(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Gmail fetch step (Backward compatibility)"""
-        step.parameters["action"] = "list"
-        return await self._execute_gmail_integration(step, context)
-
-    async def _execute_gmail_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Gmail integration step with full CRUD support"""
-        try:
-            from integrations.gmail_service import GmailService
-            gmail = GmailService()
-            
-            action = step.parameters.get("action", "list")
-            
-            if action == "list":
-                query = step.parameters.get("query", "is:unread")
-                max_results = step.parameters.get("max_results", 5)
-                # get_messages already returns parsed messages
-                result = gmail.get_messages(query=query, max_results=max_results)
-                return {
-                    "status": "completed",
-                    "result": result, # For consistency
-                    "messages": result,
-                    "count": len(result),
-                    "action": action
-                }
-                
-            elif action == "message_get":
-                message_id = step.parameters.get("message_id")
-                result = gmail.get_message(message_id)
-                
-            elif action == "message_modify":
-                message_id = step.parameters.get("message_id")
-                add_labels = step.parameters.get("add_labels", [])
-                remove_labels = step.parameters.get("remove_labels", [])
-                result = gmail.modify_message(message_id, add_labels=add_labels, remove_labels=remove_labels)
-                
-            elif action == "message_delete":
-                message_id = step.parameters.get("message_id")
-                result = gmail.delete_message(message_id)
-                
-            elif action == "draft_create":
-                to = step.parameters.get("to")
-                subject = step.parameters.get("subject", "Automated Response")
-                body = step.parameters.get("body", "")
-                thread_id = step.parameters.get("thread_id")
-                result = gmail.draft_message(to=to, subject=subject, body=body, thread_id=thread_id)
-                
-            elif action == "send":
-                to = step.parameters.get("to")
-                subject = step.parameters.get("subject", "Automated Response")
-                body = step.parameters.get("body", "")
-                thread_id = step.parameters.get("thread_id")
-                result = gmail.send_message(to=to, subject=subject, body=body, thread_id=thread_id)
-            else:
-                return {"status": "failed", "error": f"Unsupported Gmail action: {action}"}
-
-            return {
-                "status": "completed",
-                "result": result,
-                "messages": result if action == "list" else None, # Compatibility
-                "action": action
-            }
-        except Exception as e:
-            logger.error(f"Gmail integration error: {e}")
-            return {"status": "failed", "error": str(e)}
-
-
-    async def _execute_gmail_search(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Gmail search step"""
-        try:
-            from integrations.gmail_service import GmailService
-            gmail = GmailService()
-            query = step.parameters.get("query", "")
-            max_results = step.parameters.get("max_results", 10)
-            
-            result = gmail.search_messages(query=query, max_results=max_results)
-            
-            return {
-                "status": "completed",
-                "result": result,
-                "count": len(result)
-            }
-        except Exception as e:
-            logger.error(f"Gmail search error: {e}")
-            return {"status": "failed", "error": str(e)}
 
     async def _execute_system_reasoning(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute system reasoning step for cross-system consistency and deduplication"""
@@ -2761,76 +2552,6 @@ Return your response as a JSON object with this format:
             logger.error(f"System reasoning step failed: {e}")
             return {"status": "failed", "error": str(e)}
 
-    async def _execute_notion_search(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Notion search step"""
-        try:
-            from integrations.notion_service import NotionService
-            notion = NotionService()
-            query = step.parameters.get("query", "")
-            page_size = step.parameters.get("page_size", 50)
-            
-            result = notion.search(query=query, page_size=page_size)
-            
-            return {
-                "status": "completed",
-                "result": result,
-                "count": len(result.get("results", []))
-            }
-        except Exception as e:
-            logger.error(f"Notion search error: {e}")
-            return {"status": "failed", "error": str(e)}
-
-    async def _execute_notion_db_query(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute Notion database query with AI filter support"""
-        try:
-            from integrations.notion_service import NotionService
-            notion = NotionService()
-            database_id = step.parameters.get("database_id")
-            filter_obj = step.parameters.get("filter")
-            ai_filter_query = step.parameters.get("ai_filter_query")
-            sorts = step.parameters.get("sorts")
-            page_size = step.parameters.get("page_size", 100)
-
-            # If AI query is provided, generate the filter object
-            if ai_filter_query and self.ai_service:
-                logger.info(f"Generating Notion filter for query: {ai_filter_query}")
-                prompt = f"""
-                Generate a Notion API filter object (JSON) for the following requirement:
-                "{ai_filter_query}"
-                
-                The database schema might have properties like:
-                - "Name" (title)
-                - "Status" (select/status)
-                - "Priority" (select)
-                - "Due Date" (date)
-                
-                Return ONLY the JSON filter object as specified in Notion API documentation.
-                Example structure: {{"property": "Status", "select": {{"equals": "Done"}}}}
-                """
-                ai_response = await self.ai_service.analyze_text(prompt, complexity=1)
-                try:
-                    # Extract JSON from response
-                    json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
-                    if json_match:
-                        parsed_filter = json.loads(json_match.group(0))
-                        # Merge or replace filter
-                        if filter_obj and isinstance(filter_obj, dict):
-                            filter_obj = {"and": [filter_obj, parsed_filter]}
-                        else:
-                            filter_obj = parsed_filter
-                except Exception as e:
-                    logger.warning(f"Failed to parse AI-generated filter: {e}")
-
-            result = notion.query_database(database_id, filter=filter_obj, sorts=sorts, page_size=page_size)
-            
-            return {
-                "status": "completed",
-                "result": result,
-                "count": len(result.get("results", []))
-            }
-        except Exception as e:
-            logger.error(f"Notion DB query error: {e}")
-            return {"status": "failed", "error": str(e)}
 
     async def _execute_app_search(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute App Memory (LanceDB) search step"""
@@ -2918,62 +2639,206 @@ Return your response as a JSON object with this format:
         }
 
     async def _execute_universal_integration(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute any integration using a universal handler approach"""
-        service = step.parameters.get("service", "unknown")
-        action = step.parameters.get("action", "execute")
+        """Execute generic integration using the service parameter as connector_id"""
+        service = step.parameters.get("service")
+        if not service:
+            return {"status": "failed", "error": "No 'service' (connector_id) provided for universal integration"}
+        
+        return await self._execute_registry_step(service, step, context)
+
+    async def _execute_registry_step(self, connector_id: str, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """DRY execution of any integration via the IntegrationRegistryv2"""
+        from core.integration_registry_v2 import registry as integration_registry
+        
+        # Determine operation (action)
+        # If the step_type implies a specific action, use it as default
+        action = step.parameters.get("action")
+        if not action:
+            if step.step_type == WorkflowStepType.GMAIL_FETCH:
+                action = "list"
+            elif step.step_type == WorkflowStepType.GMAIL_SEARCH:
+                action = "search"
+            elif step.step_type == WorkflowStepType.NOTION_SEARCH:
+                action = "search"
+            elif step.step_type == WorkflowStepType.NOTION_DB_QUERY:
+                action = "query_database"
+            elif step.step_type == WorkflowStepType.SLACK_NOTIFICATION:
+                action = "post_message"
+            else:
+                action = "execute"
         
         try:
-            from core.mock_mode import get_mock_mode_manager
-            mock_manager = get_mock_mode_manager()
-            
-            # Check for credentials or connectionId
-            connection_id = step.parameters.get("connectionId")
-            credentials = step.parameters.get("credentials") or context.variables.get(f"{service}_credentials")
-            
-            # If we have a connection_id, fetch real credentials
-            if connection_id and not credentials:
-                from core.connection_service import connection_service
-                user_id = context.user_id
-                credentials = await connection_service.get_connection_credentials(connection_id, user_id)
-                if credentials:
-                    logger.info(f"Retrieved real credentials for connection {connection_id} for user {user_id}")
+            # Pre-processing: Standardize parameters for common integrations
+            if connector_id == "slack":
+                # Map 'message' (used in generic UI) to 'text' (expected by Slack pieces/adapters)
+                if "message" in step.parameters and "text" not in step.parameters:
+                    step.parameters["text"] = step.parameters["message"]
 
-            # Use Mock Mode if no credentials and mock mode is enabled (default behavior)
-            if not credentials and mock_manager.is_mock_mode(service, False):
-                logger.info(f"Universal Integration (Mock): {service} -> {action}")
+            # Prepare configuration (e.g., access_token from context or params)
+            config = {
+                "access_token": step.parameters.get("access_token") or context.variables.get(f"{connector_id}_access_token"),
+                "api_key": step.parameters.get("api_key") or context.variables.get(f"{connector_id}_api_key")
+            }
+            
+            # Prepare parameters: everything except reserved keys
+            from dataclasses import asdict
+            reserved_keys = ["service", "action", "access_token", "api_key"]
+            operation_params = {k: v for k, v in step.parameters.items() if k not in reserved_keys}
+            
+            # Execute via registry
+            result = await integration_registry.execute_operation(
+                connector_id=connector_id,
+                operation=action,
+                parameters=operation_params,
+                context=asdict(context) if hasattr(context, "__dataclass_fields__") else {},
+                config=config
+            )
+            
+            if result.success:
                 return {
-                    "status": "completed", 
-                    "service": service,
+                    "status": "completed",
+                    "service": connector_id,
                     "action": action,
-                    "result": {"status": "success", "message": f"Mock action {action} for {service} completed"},
-                    "mock": True
+                    "data": result.data,
+                    "message": result.message or f"Action {action} on {connector_id} completed successfully"
+                }
+            else:
+                 # Check if it was blocked by license restriction
+                 if result.error and result.error.value == "LICENSE_RESTRICTED":
+                     return {
+                        "status": "failed",
+                        "error": "LICENSE_RESTRICTED",
+                        "message": result.message or f"Integration {connector_id} is blocked (MIT License Required)"
+                    }
+                 
+                 return {
+                    "status": "failed",
+                    "service": connector_id,
+                    "action": action,
+                    "error": result.message or str(result.error),
+                    "error_code": result.error
                 }
 
-            # Real Execution via External Integration Service (Node.js Bridge)
-            logger.info(f"Universal Integration (Real): {service} -> {action}")
-            
-            from core.external_integration_service import external_integration_service
-
-            # Prepare parameters - merge step params with input data
-            # Filter out system params like 'service', 'action', 'credentials'
-            action_params = {k: v for k, v in step.parameters.items() if k not in ["service", "action", "credentials"]}
-            
-            result = await external_integration_service.execute_integration_action(
-                integration_id=service,
-                action_id=action,
-                params=action_params,
-                credentials=credentials
-            )
-
-            return {
-                "status": "completed",
-                "service": service,
-                "action": action,
-                "result": result
-            }
         except Exception as e:
-            logger.error(f"Universal integration error for {service}: {e}")
-            return {"status": "failed", "error": str(e), "service": service}
+            logger.error(f"Registry execution failed for {connector_id}: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_browser_node(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute a BROWSER node using the upstream browser_tool (Playwright-based)"""
+        from tools import browser_tool
+        action = step.parameters.get("action", "navigate")
+        url = step.parameters.get("url")
+        
+        try:
+            # Resolve or create session
+            session_id = context.variables.get(f"_browser_session_{context.workflow_id}") or step.parameters.get("session_id")
+            
+            if not session_id and action != "close":
+                with get_db_session() as db:
+                    res = await browser_tool.browser_create_session(
+                        user_id=context.user_id or "system",
+                        agent_id=context.variables.get("current_agent_id"),
+                        db=db
+                    )
+                    if not res.get("success"):
+                        return {"status": "failed", "error": res.get("error")}
+                    session_id = res["session_id"]
+                    context.variables[f"_browser_session_{context.workflow_id}"] = session_id
+
+            # Dispatch action
+            if action == "navigate":
+                res = await browser_tool.browser_navigate(session_id, url)
+            elif action == "click":
+                res = await browser_tool.browser_click(session_id, step.parameters.get("selector"))
+            elif action == "extract":
+                res = await browser_tool.browser_extract_text(session_id, step.parameters.get("selector"))
+            elif action == "screenshot":
+                res = await browser_tool.browser_screenshot(session_id)
+            elif action == "close":
+                if session_id:
+                    res = await browser_tool.browser_close_session(session_id)
+                    context.variables.pop(f"_browser_session_{context.workflow_id}", None)
+                else:
+                    return {"status": "completed", "message": "No session to close"}
+            else:
+                return {"status": "failed", "error": f"Unsupported browser action: {action}"}
+
+            if res.get("success"):
+                return {"status": "completed", "action": action, "result": res}
+            else:
+                return {"status": "failed", "error": res.get("error")}
+
+        except Exception as e:
+            logger.error(f"Browser node failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_terminal_node(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute a TERMINAL node using host_shell_service (Governed)"""
+        from core.host_shell_service import host_shell_service
+        command = step.parameters.get("command")
+        if not command:
+            return {"status": "failed", "error": "No 'command' provided for terminal node"}
+
+        try:
+            with get_db_session() as db:
+                agent_id = context.variables.get("current_agent_id") or "system_default"
+                res = await host_shell_service.execute_shell_command(
+                    agent_id=agent_id,
+                    user_id=context.user_id or "system",
+                    command=command,
+                    db=db
+                )
+                
+                if res.get("exit_code") == 0:
+                    return {"status": "completed", "stdout": res.get("stdout"), "exit_code": 0}
+                else:
+                    return {
+                        "status": "failed", 
+                        "stdout": res.get("stdout"), 
+                        "stderr": res.get("stderr"), 
+                        "exit_code": res.get("exit_code")
+                    }
+        except Exception as e:
+            logger.error(f"Terminal node failed: {e}")
+            return {"status": "failed", "error": str(e)}
+
+    async def _execute_entity_node(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
+        """Execute an ENTITY node using GraphRAGEngine"""
+        from core.graphrag_engine import GraphRAGEngine
+        action = step.parameters.get("action", "lookup")
+        entity_name = step.parameters.get("entity_name")
+        entity_type = step.parameters.get("entity_type", "unknown")
+        
+        try:
+            engine = GraphRAGEngine(workspace_id=context.variables.get("workspace_id", "default"))
+            
+            if action == "query":
+                query = step.parameters.get("query")
+                res = await engine.query(query=query)
+                return {"status": "completed", "results": res}
+                
+            elif action in ["create", "update"]:
+                from core.graphrag_engine import Entity
+                new_entity = Entity(
+                    id=str(uuid.uuid4()),
+                    name=entity_name,
+                    entity_type=entity_type,
+                    description=step.parameters.get("description", ""),
+                    properties=step.parameters.get("properties", {})
+                )
+                entity_id = engine.add_entity(new_entity)
+                return {"status": "completed", "entity_id": entity_id}
+            
+            elif action == "lookup":
+                res = engine.canonical_search(entity_type=entity_type, query=entity_name or "")
+                return {"status": "completed", "matches": res}
+                
+            else:
+                return {"status": "failed", "error": f"Unsupported entity action: {action}"}
+
+        except Exception as e:
+            logger.error(f"Entity node failed: {e}")
+            return {"status": "failed", "error": str(e)}
 
     def _create_template_from_workflow(self, workflow: WorkflowDefinition, category: str = "automation") -> Optional[str]:
         """Convert a workflow definition into a reusable template"""

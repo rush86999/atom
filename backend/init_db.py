@@ -6,8 +6,10 @@ import os
 # Ensure backend directory is in python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Force usage of the correct DB file (atom.db) as used by the running server
-os.environ["DATABASE_URL"] = "sqlite:///c:/Users/Mannan Bajaj/atom/backend/data/atom.db"
+# Use a relative path for the local development database
+base_dir = os.path.dirname(os.path.abspath(__file__))
+db_path = os.path.join(base_dir, "dev.db")
+os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
 
 from core.database import engine, SessionLocal, Base
 from core.models import User
@@ -37,7 +39,7 @@ def init_db():
                 id=str(uuid.uuid4()),
                 email=admin_email,
                 password_hash=get_password_hash("admin123"),
-                is_active=True,
+                status="active",
                 role="admin",
                 first_name="Admin",
                 last_name="User"

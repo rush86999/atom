@@ -71,24 +71,24 @@ class JSONBColumn(TypeDecorator):
     """
     PostgreSQL-specific JSONB type for fields that require JSONB operators.
 
-    WARNING: This type ONLY works with PostgreSQL. SQLite tests will fail.
+    NOTE: GraphRAG functionality will NOT work on SQLite (JSON) as it requires 
+    JSONB operators (@>, ?, etc.) which are only available in PostgreSQL.
+
+    WARNING: This type primarily works with PostgreSQL.
     Use this ONLY for fields that need:
     - JSONB query operators (@>, ?, ?, etc.)
     - JSONPath expressions
     - GIN indexes for JSON queries
-
-    Examples: GraphRAG json_schema, entity metadata that needs efficient querying
     """
     impl = JSONB
     cache_ok = True
 
     def load_dialect_impl(self, dialect):
-        if dialect.name != 'postgresql':
-            raise TypeError(
-                f"JSONBColumn requires PostgreSQL database, but got {dialect.name}. "
-                "Use JSONColumn instead for cross-database compatibility."
-            )
-        return dialect.type_descriptor(JSONB)
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(JSONB)
+        else:
+            # Fallback to JSON for SQLite/etc to support tests and local development
+            return dialect.type_descriptor(JSON)
 
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
@@ -5846,9 +5846,7 @@ class ScheduledSocialPost(Base):
     retry_count = Column(Integer, default=0, nullable=False)
     last_retry_at = Column(DateTime(timezone=True), nullable=True)
 
-    # QStash callback
-    qstash_message_id = Column(String(255), nullable=True)  # QStash message ID for tracking
-    qstash_scheduled = Column(Boolean, default=False, nullable=False)  # True if scheduled in QStash
+    last_retry_at = Column(DateTime(timezone=True), nullable=True)
 
     # Metadata
     metadata_json = Column(JSONColumn, nullable=True)  # Additional platform-specific data
@@ -5870,6 +5868,88 @@ class ScheduledSocialPost(Base):
 
     def __repr__(self):
         return f"<ScheduledSocialPost(id={self.id}, platform={self.platform}, status={self.status})>"
+
+
+class SocialPostHistory(Base):
+    """
+    Audit trail for social media posts (both immediate and scheduled).
+    Captures content, target platforms, and execution results.
+    """
+    __tablename__ = "social_post_history"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    post_id = Column(String(255), unique=True, index=True, nullable=False)
+    user_id = Column(String(255), ForeignKey('users.id'), nullable=False, index=True)
+    
+    # Post details
+    content = Column(Text, nullable=False)
+    platforms = Column(JSONColumn, nullable=False)  # List of target platforms
+    media_urls = Column(JSONColumn, nullable=True)
+    link_url = Column(Text, nullable=True)
+    
+    # Scheduling & Status
+    scheduled_for = Column(DateTime(timezone=True), nullable=True, index=True)
+    status = Column(String(20), default="pending", nullable=False)  # 'pending', 'scheduled', 'posting', 'posted', 'partial', 'failed', 'cancelled'
+    job_id = Column(String(255), nullable=True)  # RQ Job ID
+    
+    # Execution results
+    posted_at = Column(DateTime(timezone=True), nullable=True)
+    platform_results = Column(JSONColumn, nullable=True)  # Dict of results per platform
+    error_message = Column(Text, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    user = relationship("User", backref="social_post_histories")
+
+    def __repr__(self):
+        return f"<SocialPostHistory(post_id={self.post_id}, status={self.status})>"
+
+
+class SocialMediaAudit(Base):
+    """
+    Audit log for social media interactions and agent-driven posting.
+    Tracks governance compliance, human approvals, and platform execution results.
+    """
+    __tablename__ = "social_media_audit"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey('users.id'), nullable=False, index=True)
+    agent_id = Column(String(255), ForeignKey('agent_registry.id'), nullable=True, index=True)
+    agent_execution_id = Column(String(255), ForeignKey('agent_executions.id'), nullable=True, index=True)
+    
+    # Action Details
+    platform = Column(String(50), nullable=False)
+    action_type = Column(String(50), nullable=False)  # 'post', 'comment', 'delete'
+    post_id = Column(String(255), nullable=True)  # Platform-specific post ID
+    content = Column(Text, nullable=True)
+    media_urls = Column(JSONColumn, nullable=True)
+    link_url = Column(Text, nullable=True)
+    
+    # Status & Results
+    success = Column(Boolean, default=False)
+    error_message = Column(Text, nullable=True)
+    platform_response = Column(JSONColumn, nullable=True)
+    
+    # Governance & Transparency
+    agent_maturity = Column(String(50), nullable=True)
+    governance_check_passed = Column(Boolean, default=True)
+    required_approval = Column(Boolean, default=False)
+    approval_granted = Column(Boolean, nullable=True)
+    request_id = Column(String(255), nullable=True, index=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Relationships
+    user = relationship("User", backref="social_media_audits")
+    agent = relationship("AgentRegistry", backref="social_media_audits")
+    execution = relationship("AgentExecution", backref="social_media_audits")
+
+    def __repr__(self):
+        return f"<SocialMediaAudit(id={self.id}, platform={self.platform}, success={self.success})>"
 
 
 # ============================

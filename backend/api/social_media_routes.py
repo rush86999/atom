@@ -18,7 +18,12 @@ from core.agent_context_resolver import AgentContextResolver
 from core.agent_governance_service import AgentGovernanceService
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import OAuthToken, SocialMediaAudit, User
+from core.models import (
+    OAuthToken,
+    SocialMediaAudit,
+    SocialPostHistory,
+    User
+)
 from core.security_dependencies import get_current_user
 
 router = BaseAPIRouter(prefix="/api/v1/social", tags=["social-media"])
@@ -100,8 +105,6 @@ def rate_limit_check(user_id: str, db: Session) -> bool:
     Check rate limits for social posting.
     Max 10 posts per hour per user across all platforms.
     """
-    from core.models import SocialPostHistory
-
     # Count posts in last hour
     one_hour_ago = datetime.utcnow() - timedelta(hours=1)
     recent_posts = db.query(SocialPostHistory).filter(
@@ -517,7 +520,6 @@ async def create_social_post(
                 )
 
             # Create history record
-            from core.models import SocialPostHistory
             history = SocialPostHistory(
                 user_id=current_user.id,
                 content=payload.text,
@@ -758,8 +760,6 @@ async def get_rate_limit_status(
     try:
 
         # Count posts in last hour
-        from core.models import SocialPostHistory
-
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
         recent_posts = db.query(SocialPostHistory).filter(
             SocialPostHistory.user_id == current_user.id,

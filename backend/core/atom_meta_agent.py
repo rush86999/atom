@@ -1005,22 +1005,30 @@ async def handle_data_event_trigger(event_type: str, data: Dict[str, Any],
     # Build request from event
     request = f"Process {event_type} event with data: {str(data)[:100]}"
     
-    # 1. Try QStash Dispatch (Async/Scalable)
+    # 1. Try Redis Task Queue Dispatch (Async/Scalable)
     try:
-        from core.qstash_worker import enqueue_task
-        task_id = await enqueue_task(
-            task_name="execute_agent",
-            task_data={
-                "request": request,
-                "context": {"event_type": event_type, "event_data": data},
-                "trigger_mode": AgentTriggerMode.DATA_EVENT.value,
-                "tenant_id": workspace_id
-            }
-        )
-        logger.info(f"Data event trigger queued to QStash: {task_id}")
-        return {"status": "queued", "task_id": task_id, "message": "Agent execution offloaded to background worker"}
+        from core.task_queue import get_task_queue
+        from core.agent_worker_wrapper import execute_agent_background
+        
+        task_queue = get_task_queue()
+        if task_queue.enabled:
+            task_id = task_queue.enqueue_job(
+                func=execute_agent_background,
+                queue_name="workflows",
+                task_data={
+                    "request": request,
+                    "context": {"event_type": event_type, "event_data": data},
+                    "trigger_mode": AgentTriggerMode.DATA_EVENT.value,
+                    "tenant_id": workspace_id
+                }
+            )
+            if task_id:
+                logger.info(f"Data event trigger queued to Redis: {task_id}")
+                return {"status": "queued", "task_id": task_id, "message": "Agent execution offloaded to background worker"}
+            
+        logger.warning("Task queue is disabled. Falling back to inline execution.")
     except Exception as e:
-        logger.error(f"QStash dispatch failed for agent trigger: {e}. Falling back to inline execution.")
+        logger.error(f"Redis dispatch failed for agent trigger: {e}. Falling back to inline execution.")
     
     # 2. Fallback to Inline Execution (Blocking)
     atom = AtomMetaAgent(workspace_id)
