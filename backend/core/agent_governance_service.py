@@ -38,7 +38,7 @@ class AgentGovernanceService:
         self.workspace_id = workspace_id
         self.tenant_id = tenant_id
         self.activity_publisher = activity_publisher
-        self.continuous_learning = ContinuousLearningService(db, workspace_id=workspace_id, tenant_id=tenant_id)
+        self.continuous_learning = ContinuousLearningService(db)
         
     def register_or_update_agent(
         self, 
