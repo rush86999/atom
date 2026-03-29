@@ -19,7 +19,6 @@ from core.canvas_recording_service import CanvasRecordingService
 from core.canvas_presentation_summary import CanvasPresentationSummaryService
 from core.activity_publisher import ActivityPublisher
 from core.agent_world_model import WorldModelService
-from core.episode_service import EpisodeService
 from core.knowledge_extractor import KnowledgeExtractor
 from core.graphrag_engine import GraphRAGEngine
 from core.llm_service import LLMService
@@ -31,9 +30,13 @@ from core.agents.autoresearch_agent import AutoresearchAgent
 from core.group_reflection_service import GroupReflectionService
 from core.goal_engine import GoalEngine
 from core.atom_meta_agent import AtomMetaAgent
-from core.episode_service import EpisodeService
-from core.push_notification_service import PushNotificationService
-from core.workflow_analytics_engine import WorkflowAnalyticsEngine
+from core.integration_catalog_service import IntegrationCatalogService
+from core.integration_registry import IntegrationRegistry
+from core.budget_enforcement_service import BudgetEnforcementService
+from core.policy_search_service import PGPolicySearchService
+from core.docling_processor import DoclingProcessor
+from core.messaging_action_dispatcher import MessagingActionDispatcher
+from core.universal_communication_bridge import UniversalCommunicationBridge
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +151,18 @@ class ServiceFactory:
             delattr(cls._thread_local, 'queen_agent')
         if hasattr(cls._thread_local, 'atom_meta_agent'):
             delattr(cls._thread_local, 'atom_meta_agent')
+        if hasattr(cls._thread_local, 'integration_catalog'):
+            delattr(cls._thread_local, 'integration_catalog')
+        if hasattr(cls._thread_local, 'budget_enforcement'):
+            delattr(cls._thread_local, 'budget_enforcement')
+        if hasattr(cls._thread_local, 'policy_search'):
+            delattr(cls._thread_local, 'policy_search')
+        if hasattr(cls._thread_local, 'docling_processor'):
+            delattr(cls._thread_local, 'docling_processor')
+        if hasattr(cls._thread_local, 'messaging_dispatcher'):
+            delattr(cls._thread_local, 'messaging_dispatcher')
+        if hasattr(cls._thread_local, 'communication_bridge'):
+            delattr(cls._thread_local, 'communication_bridge')
 
 
     @classmethod
@@ -324,6 +339,53 @@ class ServiceFactory:
         if not hasattr(cls._thread_local, 'goal_engine'):
             cls._thread_local.goal_engine = GoalEngine()
         return cls._thread_local.goal_engine
+
+    @classmethod
+    def get_integration_catalog(cls, db: Session) -> IntegrationCatalogService:
+        """Get or create IntegrationCatalogService instance."""
+        if not hasattr(cls._thread_local, 'integration_catalog'):
+            cls._thread_local.integration_catalog = IntegrationCatalogService(db)
+        return cls._thread_local.integration_catalog
+
+    @classmethod
+    def get_budget_enforcement(cls, db: Session) -> BudgetEnforcementService:
+        """Get or create BudgetEnforcementService instance."""
+        if not hasattr(cls._thread_local, 'budget_enforcement'):
+            cls._thread_local.budget_enforcement = BudgetEnforcementService(db)
+        return cls._thread_local.budget_enforcement
+
+    @classmethod
+    def get_policy_search(cls, db: Session) -> PGPolicySearchService:
+        """Get or create PGPolicySearchService instance."""
+        if not hasattr(cls._thread_local, 'policy_search'):
+            cls._thread_local.policy_search = PGPolicySearchService(db)
+        return cls._thread_local.policy_search
+
+    @classmethod
+    def get_docling_processor(cls) -> DoclingProcessor:
+        """Get or create DoclingProcessor instance (singleton)."""
+        if not hasattr(cls._thread_local, 'docling_processor'):
+            cls._thread_local.docling_processor = DoclingProcessor()
+        return cls._thread_local.docling_processor
+
+    @classmethod
+    def get_integration_registry(cls) -> IntegrationRegistry:
+        """Get the global IntegrationRegistry singleton."""
+        return IntegrationRegistry()
+
+    @classmethod
+    def get_messaging_dispatcher(cls, db: Optional[Session] = None) -> MessagingActionDispatcher:
+        """Get or create MessagingActionDispatcher instance."""
+        if not hasattr(cls._thread_local, 'messaging_dispatcher'):
+            cls._thread_local.messaging_dispatcher = MessagingActionDispatcher(db)
+        return cls._thread_local.messaging_dispatcher
+
+    @classmethod
+    def get_communication_bridge(cls, db: Session) -> UniversalCommunicationBridge:
+        """Get or create UniversalCommunicationBridge instance."""
+        if not hasattr(cls._thread_local, 'communication_bridge'):
+            cls._thread_local.communication_bridge = UniversalCommunicationBridge(db)
+        return cls._thread_local.communication_bridge
 
 
 class GovernanceServiceFactory:

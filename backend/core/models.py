@@ -447,6 +447,11 @@ class User(Base):
     metadata_json = Column(JSONColumn, nullable=True)
     preferences = Column(JSONColumn, default={}) # User Preferences (Phase 45)
     
+    # Resource Management (SaaS Parity)
+    capacity_hours = Column(Float, default=40.0) # Weekly capacity
+    hourly_cost_rate = Column(Float, default=0.0) # Internal labor cost
+    notification_preferences = Column(JSONBColumn, nullable=True) # Notification preferences (Phase 214)
+    
     # Verification (Restored)
     verification_token = Column(String, nullable=True)
     email_verified = Column(Boolean, default=False)
@@ -1314,6 +1319,12 @@ class AgentRegistry(Base):
     description = Column(Text, nullable=True)
     category = Column(String, nullable=False) # e.g., "Operations", "Finance"
     
+    # Legacy/Compatibility fields (SaaS Parity)
+    role = Column(String, nullable=False, default='agent')
+    type = Column(String, nullable=False, default='personal')
+    capabilities = Column(JSONColumn, nullable=False, default=list)
+    module_class = Column(String, nullable=True)  # Maps to class_name for compatibility
+
     # Technical Config
     module_path = Column(String, nullable=False) # e.g., "operations.automations.inventory"
     class_name = Column(String, nullable=False)
@@ -1331,6 +1342,14 @@ class AgentRegistry(Base):
     is_system_agent = Column(Boolean, default=False)  # System agents can use workspace tokens
     enabled = Column(Boolean, default=True)  # Whether agent is available for supervision tasks
     diversity_profile = Column(JSONColumn, default={})  # Strategy traits (e.g., risk_profile, focus)
+
+    @property
+    def maturity_level(self):
+        return self.status
+
+    @maturity_level.setter
+    def maturity_level(self, value):
+        self.status = value
 
     version = Column(String, default="1.0.0")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -1351,6 +1370,7 @@ class AgentRegistry(Base):
     promotion_count = Column(Integer, default=0)  # Number of promotions received
     last_exam_id = Column(String(255), ForeignKey("graduation_exams.id", ondelete="SET NULL"), nullable=True)  # Most recent exam
     exam_eligible_at = Column(DateTime(timezone=True), nullable=True)  # When agent can take next exam
+    
     # Abuse Protection & Rate Limiting
     daily_requests_count = Column(Integer, default=0)
     last_request_date = Column(DateTime(timezone=True), nullable=True)
@@ -8316,3 +8336,24 @@ class SkillSuggestionFeedback(Base):
         Index("ix_skill_feedback_tenant_schema", "tenant_id", "schema_hash"),
         Index("ix_skill_feedback_action", "action"),
     )
+
+
+class WorkflowSnapshot(Base):
+    """
+    Time-Travel Debugging: Immutable snapshot of execution state at a specific step.
+    This acts as a 'Save Point' allowing users to fork/replay from this exact moment.
+    """
+    __tablename__ = "workflow_snapshots"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, nullable=True, index=True)
+    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
+    step_id = Column(String, nullable=False) # The step that just finished/is current
+    step_order = Column(Integer, nullable=False) # Sequence number (0, 1, 2...)
+    
+    # State Capture
+    context_snapshot = Column(Text, nullable=False) # Full JSON dump of WorkflowContext (vars, results)
+    
+    # Metadata
+    status = Column(String, nullable=False) # Status at this snapshot (e.g. COMPLETED, FAILED)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

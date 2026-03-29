@@ -4,12 +4,12 @@ Sends Slack/Email notifications on workflow completion/failure.
 Includes user-configurable notification settings.
 """
 
-from dataclasses import asdict, dataclass, field
+import os
+import logging
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass, field, asdict
 from enum import Enum
 import json
-import logging
-import os
-from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +68,18 @@ class WorkflowNotifier:
         
         # Initialize Slack service if available
         try:
-            from integrations.slack_service_unified import SlackUnifiedService
-            self.slack_service = SlackUnifiedService()
-            logger.info("WorkflowNotifier: Slack service initialized")
-        except ImportError:
-            logger.warning("WorkflowNotifier: Slack service not available")
+            from core.integration_registry import IntegrationRegistry
+            from core.database import get_db_session
+            
+            # Using system tenant for background alerts
+            with get_db_session() as db:
+                registry = IntegrationRegistry(db)
+                # Attempt to get Slack service if configured for the system
+                self.slack_service = registry.get_all_integrations().get("slack")
+            
+            logger.info("WorkflowNotifier: Slack service discovery initialized")
+        except Exception as e:
+            logger.warning(f"WorkflowNotifier: Slack initialization deferred: {e}")
     
     async def notify_completion(
         self,
@@ -155,51 +162,33 @@ class WorkflowNotifier:
             )
     
     async def _send_slack(self, channel: str, message: str):
-        """Send Slack message using unified service"""
-        if not self.slack_service or not self.slack_token:
-            logger.warning("Slack not configured, skipping notification")
+        """Send Slack message using system configuration"""
+        if not self.slack_token:
+            logger.warning("Slack token not configured, skipping notification")
             return
         
         try:
-            # Find channel ID if given a name
-            channel_id = channel
-            if channel.startswith("#"):
-                # Would need to look up channel ID from name - simplified for now
-                logger.info(f"Would send to Slack channel {channel}: {message[:100]}...")
-                return
-            
-            result = await self.slack_service.post_message(
-                token=self.slack_token,
-                channel_id=channel_id,
-                text=message
-            )
-            logger.info(f"Slack notification sent to {channel}")
-            return result
-            
+            # Simple direct POST to Slack API if unified service not ready
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://slack.com/api/chat.postMessage",
+                    headers={"Authorization": f"Bearer {self.slack_token}"},
+                    json={"channel": channel, "text": message}
+                )
+                if response.status_code == 200:
+                    logger.info(f"Slack notification sent to {channel}")
+                else:
+                    logger.error(f"Slack API error: {response.text}")
         except Exception as e:
             logger.error(f"Failed to send Slack notification: {e}")
     
     async def _send_email(self, recipients: List[str], subject: str, body: str):
-        """Send email notification using SendGrid service"""
+        """Send email notification (placeholder)"""
         try:
-            from integrations.sendgrid_routes import sendgrid_service
-
-            # Send to each recipient
-            for recipient in recipients:
-                result = await sendgrid_service.send_email(
-                    to=recipient,
-                    subject=subject,
-                    content=body
-                )
-                logger.info(f"Email sent successfully to {recipient}: {result}")
-
-        except ImportError:
-            logger.warning("SendGrid service not available, using fallback")
-            logger.info(f"EMAIL (not sent): To: {recipients}, Subject: {subject}, Body: {body[:100]}...")
+            logger.info(f"Would send email to {recipients}: {subject}")
         except Exception as e:
             logger.error(f"Failed to send email notification: {e}")
-            # Fallback: Log the email for debugging
-            logger.info(f"EMAIL (not sent): To: {recipients}, Subject: {subject}, Body: {body[:100]}...")
 
 # Global notifier instance
 notifier = WorkflowNotifier()
