@@ -12,6 +12,7 @@ export interface AgentInfo {
     status: "idle" | "running" | "success" | "failed";
     last_run?: string;
     category: string;
+    maturity_level?: 'student' | 'intern' | 'supervised' | 'autonomous';
 }
 
 interface AgentCardProps {

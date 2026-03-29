@@ -61,6 +61,22 @@ class CommandType(str, Enum):
     WORKFLOW_CREATION = "workflow_creation"
     UNKNOWN = "unknown"
 
+class RouteCategory(str, Enum):
+    """Categories for routing user requests to specialized pipelines"""
+    ONE_OFF = "one_off"
+    AUTOMATION = "recurring_automation"
+    KNOWLEDGE_QUERY = "knowledge_query"
+    UNKNOWN = "unknown"
+
+class RouteClassification(BaseModel):
+    """
+    Result of request classification for high-level routing.
+    Distinguishes between one-off actions and persistent automations.
+    """
+    category: RouteCategory = Field(..., description="The routing category for the request")
+    reasoning: str = Field(..., description="Brief explanation of why this category was chosen")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score (0.0-1.0)")
+
 
 class PlatformType(str, Enum):
     """Supported platform types"""
@@ -171,6 +187,44 @@ class NaturalLanguageEngine:
         except Exception as e:
             logger.warning(f"Unified LLM parsing failed: {e}, falling back to pattern-based")
             return None
+
+    async def classify_route(self, prompt: str, tenant_id: str = "default") -> RouteClassification:
+        """
+        Classify a user prompt into a routing category (One-off vs Automation).
+        This is the 'Intelligent Routing' layer that precedes heavy reasoning.
+        """
+        if not self.llm_service:
+            return RouteClassification(category=RouteCategory.ONE_OFF, reasoning="LLM unavailable, defaulting to one-off", confidence=1.0)
+
+        trigger_keywords = ["if", "when", "every", "whenever", "on", "schedule", "recurring", "daily", "weekly"]
+        is_suspiciously_automation = any(word in prompt.lower().split() for word in trigger_keywords)
+
+        system_prompt = f"""You are the Atom NLU Router. Your job is to classify user requests into high-level categories.
+        
+CATEGORIES:
+- {RouteCategory.ONE_OFF.value}: Immediate tasks, single actions, or one-time checks. (e.g., 'Find the contract', 'Send a message now')
+- {RouteCategory.AUTOMATION.value}: Recurring tasks, conditional logic, or persistent workflows. (e.g., 'Every Monday do X', 'If a deal is lost, notify Y')
+- {RouteCategory.KNOWLEDGE_QUERY.value}: Questions about facts, data, or platform status. (e.g., 'What is our revenue?', 'How many agents are active?')
+
+Analyze the prompt and return the category with reasoning."""
+
+        try:
+            result = await self.llm_service.generate_structured_response(
+                prompt=prompt,
+                system_instruction=system_prompt,
+                response_model=RouteClassification,
+                tenant_id=tenant_id
+            )
+            
+            # Heuristic override: if keywords are present but LLM was unsure, boost automation
+            if is_suspiciously_automation and result.category == RouteCategory.ONE_OFF and result.confidence < 0.8:
+                result.category = RouteCategory.AUTOMATION
+                result.reasoning += " (Heuristic override: Trigger keywords detected)"
+
+            return result
+        except Exception as e:
+            logger.error(f"Routing classification failed: {e}")
+            return RouteClassification(category=RouteCategory.ONE_OFF, reasoning=f"Error in NLU routing: {str(e)}", confidence=0.0)
             
     async def _mock_parse_command(self, command: str) -> Optional[CommandIntent]:
         """Mock parsing for verification scripts"""

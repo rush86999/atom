@@ -210,6 +210,26 @@ class AdvancedWorkflowOrchestrator:
             WorkflowStepType.NOTION_DB_QUERY: "notion",
         }
 
+    def register_workflow(self, definition: WorkflowDefinition):
+        """Register a new workflow definition (dynamic or AI-generated)"""
+        self.workflows[definition.workflow_id] = definition
+        logger.info(f"Registered workflow: {definition.workflow_id} ({definition.name})")
+        return definition.workflow_id
+
+    def get_workflow_definitions(self) -> List[Dict[str, Any]]:
+        """Get all registered workflow definitions as dictionaries"""
+        return [
+            {
+                "workflow_id": wf.workflow_id,
+                "name": wf.name,
+                "description": wf.description,
+                "version": wf.version,
+                "step_count": len(wf.steps),
+                "complexity_score": len(wf.steps) * 2 # Simple heuristic
+            }
+            for wf in self.workflows.values()
+        ]
+
     def _create_snapshot(self, context: WorkflowContext, step_id: str):
         """
         

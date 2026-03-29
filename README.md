@@ -83,7 +83,9 @@ That's it! 🚀
 - **Sales Agent**: CRM pipelines, lead scoring, outreach
 - **Marketing Agent**: Campaigns, social posting, analytics
 - **Engineering Agent**: PR notifications, deployments, incidents
-- **Hive Orchestration**: Autonomous multi-agent coordination with **Queen** (Design), **King** (Orchestration), and **Healer** (Self-Correction) ✨ NEW
+- **Hive Orchestration**: Autonomous multi-agent coordination with **Queen** (Architectural Design) and **King** (Execution Orchestration). ✨ NEW
+- **Intelligent request routing**: Automatic intent classification to route requests to the most capable specialty agent. ✨ NEW
+- **Autonomous Workflow Realization**: Convert natural language requests into persistent, executable blueprints via the Queen Agent. ✨ NEW
 - **Governance**: Progress from "Student" to "Autonomous" as they gain trust
 
 ### 🎨 Canvas Presentations & Real-Time Guidance ✨

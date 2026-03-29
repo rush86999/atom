@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useToast } from "@/components/ui/use-toast";
 import AgentCard, { AgentInfo } from "@/components/Agents/AgentCard";
 import AgentTerminal from "@/components/Agents/AgentTerminal";
+import { MaturityProgression } from "@/components/Agents/MaturityProgression";
 import { Badge } from "@/components/ui/badge";
 import { LayoutDashboard } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -273,6 +274,7 @@ const AgentsDashboard = () => {
 
     const activeAgentName = agents.find(a => a.id === activeAgentId)?.name || "Terminal";
     const activeAgentStatus = agents.find(a => a.id === activeAgentId)?.status || "idle";
+    const activeAgentMaturity = agents.find(a => a.id === activeAgentId)?.maturity_level || "student";
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 font-sans">
@@ -337,10 +339,15 @@ const AgentsDashboard = () => {
                                 {isConnected ? "Live Connection" : "Offline"}
                             </Badge>
                         </div>
+                        <MaturityProgression 
+                            currentLevel={activeAgentMaturity} 
+                            className="mb-4"
+                        />
                         <AgentTerminal
                             agentName={activeAgentName}
                             logs={logs}
                             status={activeAgentStatus}
+                            activeTools={['outlook', 'zoho', 'whatsapp', 'excel']} // For Demo
                         />
 
                         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border shadow-sm mt-4">
