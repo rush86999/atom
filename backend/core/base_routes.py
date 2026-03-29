@@ -229,7 +229,7 @@ class BaseAPIRouter(APIRouter):
             error_code="VALIDATION_ERROR",
             message=message,
             details=error_details,
-            status_code=status.HTTP_400_BAD_REQUEST
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
         )
 
     def not_found_error(

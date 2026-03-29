@@ -21,7 +21,7 @@ class CreateSkillRequest(BaseModel):
     capabilities: List[str] = []
     scripts: Dict[str, str]  # filename -> content
 
-@router.post("/api/admin/skills")
+@router.post("/")
 async def create_new_skill(
     request: CreateSkillRequest,
     admin: User = Depends(get_super_admin)
@@ -87,12 +87,14 @@ async def create_new_skill(
         )
         
         if not result["success"]:
-            raise router.validation_error(result["message"])
+            raise router.validation_error("skill_creation", result["message"])
 
         return router.success_response(
             data=result,
             message="Skill created successfully"
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise router.internal_error(str(e))

@@ -1307,6 +1307,45 @@ class ChatHistoryManager:
             logger.error(f"Failed to get entity mentions: {e}")
             return []
 
+    def get_or_create_reflection_pool_table(self) -> Optional[Table]:
+        """
+        Create or get the 'reflection_pool' table for storing M2.7 critiques.
+        Schema matches SaaS version for feature parity.
+        """
+        table_name = "reflection_pool"
+        self._ensure_db()
+        if self.db is None:
+            return None
+
+        try:
+            # Check if exists
+            table = self.get_table(table_name)
+            if table:
+                return table
+
+            # Define schema
+            # vector size based on provider (MiniMax uses OpenAI-compatible embeddings or local ST)
+            vector_size = 1536 if self.embedding_provider == "openai" else 384
+            
+            fields = [
+                pa.field("id", pa.string()),
+                pa.field("agent_id", pa.string()),
+                pa.field("workspace_id", pa.string()),
+                pa.field("intent", pa.string()),
+                pa.field("action", pa.string()),
+                pa.field("outcome", pa.string()),
+                pa.field("critique", pa.string()),
+                pa.field("created_at", pa.string()),
+                pa.field("metadata", pa.string()), # JSON blob
+                pa.field("vector", pa.list_(pa.float32(), vector_size))
+            ]
+            
+            schema = pa.schema(fields)
+            return self.db.create_table(table_name, schema=schema)
+        except Exception as e:
+            logger.error(f"Failed to initialize reflection_pool in LanceDB: {e}")
+            return None
+
 # Handle multiple handlers (one per workspace) for physical isolation
 _workspace_handlers: Dict[str, 'LanceDBHandler'] = {}
 

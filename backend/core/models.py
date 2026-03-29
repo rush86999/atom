@@ -278,33 +278,13 @@ class Tenant(Base):
     # Enterprise: Full platform, all IM, multi-user, all features
     edition = Column(String, nullable=False, default="personal", index=True)
 
-    # Quotas and limits
-    memory_limit_mb = Column(Integer, default=50)
-    memory_used_mb = Column(Integer, default=0)
-    max_agents = Column(Integer, default=None)  # None = use tier-based quota from QuotaManager
-    sync_frequency = Column(String, default="weekly")
-    budget_limit_usd = Column(Float, default=100.0)
-    current_spend_usd = Column(Float, default=0.0)
-    total_spend_usd = Column(Float, default=0.0)
-
     # Feature flags
-    collaborative_memory = Column(Boolean, default=False)
     segregated_namespaces = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Billing fields
-    billing_email = Column(String, nullable=True)
-    stripe_customer_id = Column(String, nullable=True)
-    stripe_subscription_id = Column(String, nullable=True)
-    stripe_subscription_item_id = Column(String, nullable=True)
-    subscription_status = Column(String, nullable=True)
-    last_payment_at = Column(DateTime(timezone=True), nullable=True)
-    payment_failed = Column(Boolean, default=False)
-    subscription_end_date = Column(DateTime(timezone=True), nullable=True)
 
     # Additional fields
     computer_use_count = Column(Integer, default=0)
@@ -314,7 +294,6 @@ class Tenant(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=True)
     api_calls_count = Column(Integer, default=0)
     ai_mode = Column(String, default="byok")  # byok, managed, hybrid
-    stripe_compute_item_id = Column(String, nullable=True) # For ACU usage tracking
 
     # Edition helper properties
     @property
@@ -465,8 +444,6 @@ class User(Base):
     # Onboarding
     onboarding_completed = Column(Boolean, default=False)
     onboarding_step = Column(String, default="welcome")
-    capacity_hours = Column(Float, default=40.0) # Weekly capacity
-    hourly_cost_rate = Column(Float, default=0.0) # Internal labor cost
     metadata_json = Column(JSONColumn, nullable=True)
     preferences = Column(JSONColumn, default={}) # User Preferences (Phase 45)
     
@@ -4366,43 +4343,7 @@ class PasswordResetToken(Base):
 # CONSOLIDATED DOMAIN MODELS (Unified Schema)
 # ========================================================================
 
-class SaaSTier(Base):
-    __tablename__ = "saas_tiers"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    
-    name = Column(String, nullable=False) # e.g. "Pro", "Enterprise"
-    base_price = Column(Float, default=0.0)
-    currency = Column(String, default="USD")
-    billing_interval = Column(String, default="month") # month, year
-    
-    included_seats = Column(Integer, default=1)
-    included_api_calls = Column(Integer, default=1000)
-    included_storage_gb = Column(Float, default=10.0)
-    
-    overage_rate_seat = Column(Float, default=10.0)
-    overage_rate_api = Column(Float, default=0.01)
-    overage_rate_storage = Column(Float, default=0.50)
-    
-    pricing_config = Column(JSONColumn, nullable=True)
-    features_config = Column(JSONColumn, default={})
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-class UsageEvent(Base):
-    __tablename__ = "saas_usage_events"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    subscription_id = Column(String, ForeignKey("ecommerce_subscriptions.id"), nullable=False)
-    
-    event_type = Column(String, nullable=False) # api_call, storage_snapshot, seat_assigned
-    quantity = Column(Float, default=1.0)
-    
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    metadata_json = Column(JSONColumn, nullable=True)
 
 class Formula(Base):
     """
@@ -6884,83 +6825,6 @@ class ACUConsumption(Base):
         return f"<ACUConsumption(id={self.id}, tenant_id={self.tenant_id}, project_id={self.project_id}, acu={self.acu_consumed})>"
 
 
-class ACUBillingRecord(Base):
-    """
-    ACU Billing Record
-
-    Tracks monthly billing for ACU consumption.
-    Records base plan allowance, overage, and costs.
-    """
-    __tablename__ = "acu_billing_records"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    billing_period = Column(String(7), nullable=False)  # 'YYYY-MM'
-
-    # ACU totals
-    total_acu = Column(Numeric(15, 2), nullable=False)
-    base_acu_included = Column(Integer, nullable=True)  # Plan tier allowance
-    overage_acu = Column(Numeric(15, 2), nullable=True)
-
-    # Costs
-    base_cost = Column(Numeric(10, 2), nullable=False)
-    overage_cost = Column(Numeric(10, 2), nullable=True)
-    total_cost = Column(Numeric(10, 2), nullable=False)
-
-    # Stripe integration
-    stripe_usage_record_id = Column(String(100), nullable=True)
-    invoice_generated = Column(Boolean, default=False, nullable=False)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    # Relationships
-    tenant = relationship("Tenant", backref="acu_billing_records")
-
-    # Indexes and constraints
-    __table_args__ = (
-        Index('idx_acu_billing_records_tenant_id', 'tenant_id'),
-        Index('idx_acu_billing_records_period', 'billing_period'),
-        UniqueConstraint('tenant_id', 'billing_period', name='uq_acu_billing_tenant_period'),
-    )
-
-    def __repr__(self):
-        return f"<ACUBillingRecord(id={self.id}, tenant_id={self.tenant_id}, period={self.billing_period}, total=${self.total_cost})>"
-
-
-class ACUUsageReport(Base):
-    """
-    ACU Usage Report
-
-    Aggregated usage reports for tenants.
-    Provides project breakdown and forecasting.
-    """
-    __tablename__ = "acu_usage_reports"
-
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    report_period = Column(String(7), nullable=False)  # 'YYYY-MM'
-    report_type = Column(String(20), nullable=False)  # 'daily', 'weekly', 'monthly'
-
-    # Report data
-    project_breakdown = Column(JSONColumn, nullable=True)  # {project_id: {acu, cost}}
-    quota_usage_percent = Column(Numeric(5, 2), nullable=True)
-    forecast_overage = Column(Boolean, nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    # Relationships
-    tenant = relationship("Tenant", backref="acu_usage_reports")
-
-    # Indexes
-    __table_args__ = (
-        Index('idx_acu_usage_reports_tenant_id', 'tenant_id'),
-        Index('idx_acu_usage_reports_period', 'report_period'),
-    )
-
-    def __repr__(self):
-        return f"<ACUUsageReport(id={self.id}, tenant_id={self.tenant_id}, period={self.report_period}, type={self.report_type})>"
-
-
 class CustomDomain(Base):
     """
     Custom Domain
@@ -7343,110 +7207,6 @@ class ChatSession(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
     message_count = Column(Integer, default=0)
 
-class UserState(str, enum.Enum):
-    """User activity state for supervision routing"""
-    online = "online"
-    away = "away"
-    offline = "offline"
-
-
-class QueueStatus(str, enum.Enum):
-    """Status for supervised execution queue"""
-    pending = "pending"
-    executing = "executing"
-    completed = "completed"
-    failed = "failed"
-    cancelled = "cancelled"
-
-
-class UserActivity(Base):
-    """
-    Track user activity state for supervision availability.
-    """
-    __tablename__ = "user_activities"
-
-    id = Column(String, primary_key=True, default=lambda: f"ua_{uuid.uuid4()}")
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True, unique=True)
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
-    state = Column(SQLEnum(UserState), nullable=False, default=UserState.offline, index=True)
-    last_activity_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
-    manual_override = Column(Boolean, default=False)
-    manual_override_expires_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    # Relationships
-    user = relationship("User", backref=backref("activity", uselist=False))
-    sessions = relationship("UserActivitySession", back_populates="activity", cascade="all, delete-orphan")
-
-    # Indexes
-    __table_args__ = (
-        Index('ix_user_activity_state_updated', 'state', 'updated_at'),
-    )
-
-
-class UserActivitySession(Base):
-    """
-    User sessions for activity tracking.
-    """
-    __tablename__ = "user_activity_sessions"
-
-    id = Column(String, primary_key=True, default=lambda: f"us_{uuid.uuid4()}")
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
-    activity_id = Column(String, ForeignKey("user_activities.id"), nullable=False, index=True)
-    session_type = Column(String, nullable=False)  # "web" or "desktop"
-    session_token = Column(String, nullable=False, unique=True, index=True)
-    last_heartbeat = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
-    user_agent = Column(String, nullable=True)
-    ip_address = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    terminated_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Relationships
-    user = relationship("User", backref="activity_sessions")
-    activity = relationship("UserActivity", back_populates="sessions")
-
-    # Indexes
-    __table_args__ = (
-        Index('ix_user_activity_session_heartbeat', 'last_heartbeat'),
-    )
-
-
-class SupervisedExecutionQueue(Base):
-    """
-    Queue for SUPERVISED agent executions when users are unavailable.
-    """
-    __tablename__ = "supervised_execution_queue"
-
-    id = Column(String, primary_key=True, default=lambda: f"queue_{uuid.uuid4()}")
-    agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=False, index=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
-    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
-    trigger_type = Column(String, nullable=False)  # "automated" or "manual"
-    execution_context = Column(JSONColumn, nullable=False)  # Serialized execution context
-    status = Column(SQLEnum(QueueStatus), nullable=False, default=QueueStatus.pending, index=True)
-    supervisor_type = Column(String, nullable=False)  # "user" or "autonomous_agent"
-    priority = Column(Integer, default=0, index=True)  # Higher priority = executed first
-    max_attempts = Column(Integer, default=3)
-    attempt_count = Column(Integer, default=0)
-    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
-    execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
-    error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    # Relationships
-    agent = relationship("AgentRegistry", backref="supervised_queue_entries")
-    user = relationship("User", backref="supervised_queue_entries")
-    execution = relationship("AgentExecution", backref="supervised_queue_entry")
-
-    # Indexes
-    __table_args__ = (
-        Index('ix_supervised_queue_user_status', 'user_id', 'status'),
-        Index('ix_supervised_queue_priority_created', 'priority', 'created_at'),
-        Index('ix_supervised_queue_expires', 'expires_at'),
-    )
 
 
 class ShellSession(Base):
@@ -8100,132 +7860,6 @@ class SyncState(Base):
         return f"<SyncState(id={self.id}, status={self.status}, last_sync={self.last_sync})>"
 
 
-# =============================================================================
-# CANVAS COLLABORATION MODELS (Multi-Agent Canvas Collaboration)
-# =============================================================================
-
-class CanvasCollaborationSession(Base):
-    """
-    Multi-agent collaboration session for shared canvases.
-
-    Manages collaboration between multiple agents working on the same canvas
-    with role-based permissions, conflict detection, and coordination.
-    """
-    __tablename__ = "canvas_collaboration_sessions"
-
-    # Primary key
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    # Canvas identification
-    canvas_id = Column(String(255), nullable=False, index=True)
-    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    session_id = Column(String(255), nullable=False, index=True)
-    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-
-    # Collaboration settings
-    collaboration_mode = Column(String(50), nullable=False, default="sequential")  # sequential, parallel, locked
-    max_agents = Column(Integer, nullable=False, default=5)
-
-    # Status tracking
-    status = Column(String(50), nullable=False, default="active", index=True)  # active, paused, completed, cancelled
-
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    completed_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Relationships
-    participants = relationship("CanvasAgentParticipant", back_populates="session", cascade="all, delete-orphan")
-    conflicts = relationship("CanvasConflict", back_populates="session", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return f"<CanvasCollaborationSession(id={self.id}, canvas_id={self.canvas_id}, status={self.status})>"
-
-
-class CanvasAgentParticipant(Base):
-    """
-    Agent participant in a canvas collaboration session.
-
-    Tracks agent participation, roles, permissions, and activity within
-    collaboration sessions.
-    """
-    __tablename__ = "canvas_agent_participants"
-
-    # Primary key
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    # Foreign keys
-    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
-    agent_id = Column(String(255), ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
-    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
-
-    # Role and permissions
-    role = Column(String(50), nullable=False, default="contributor")  # owner, contributor, reviewer, viewer
-    permissions = Column(JSONColumn, nullable=True)  # Granular permissions list
-
-    # Status tracking
-    status = Column(String(50), nullable=False, default="active", index=True)  # active, inactive, removed
-    actions_count = Column(Integer, nullable=False, default=0)
-    held_locks = Column(JSONColumn, nullable=True)  # List of component IDs currently locked
-
-    # Activity tracking
-    last_activity_at = Column(DateTime(timezone=True), nullable=True)
-    left_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Timestamps
-    joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-
-    # Relationships
-    session = relationship("CanvasCollaborationSession", back_populates="participants")
-    agent = relationship("AgentRegistry", backref="collaboration_sessions")
-
-    def __repr__(self):
-        return f"<CanvasAgentParticipant(id={self.id}, agent_id={self.agent_id}, role={self.role})>"
-
-
-class CanvasConflict(Base):
-    """
-    Conflict detection and resolution for canvas collaboration.
-
-    Tracks conflicts when multiple agents try to modify the same component
-    and their resolution.
-    """
-    __tablename__ = "canvas_conflicts"
-
-    # Primary key
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    # Foreign keys
-    collaboration_session_id = Column(String, ForeignKey("canvas_collaboration_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
-    canvas_id = Column(String(255), nullable=False, index=True)
-    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    component_id = Column(String(255), nullable=False, index=True)
-
-    # Conflicting agents
-    agent_a_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
-    agent_b_id = Column(String(255), ForeignKey("agent_registry.id"), nullable=False)
-    
-    # Conflict details
-    conflict_type = Column(String(100), nullable=False)  # attribute_clash, content_overlap, etc.
-    component_data_a = Column(JSONColumn, nullable=True)
-    component_data_b = Column(JSONColumn, nullable=True)
-    resolution_strategy = Column(String(100), nullable=True)
-    resolved_data = Column(JSONColumn, nullable=True)
-    
-    # Resolution status
-    status = Column(String(50), nullable=False, default="pending")  # pending, resolved, dismissed
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-    resolved_by = Column(String(255), nullable=True)  # agent_id or user_id
-    
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    session = relationship("CanvasCollaborationSession", back_populates="conflicts")
-
-    def __repr__(self):
-        return f"<CanvasConflict(id={self.id}, canvas_id={self.canvas_id}, status={self.status})>"
 
 
 class CanvasContext(Base):

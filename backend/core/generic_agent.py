@@ -13,6 +13,8 @@ from core.llm_service import LLMService
 from core.models import AgentRegistry, AgentStatus, HITLActionStatus
 from core.react_models import ReActObservation, ReActStep, ToolCall
 from integrations.mcp_service import mcp_service
+from core.reflection_service import ReflectionService
+from core.llm.canvas_summary_service import CanvasSummaryService
 
 # Instructor library is used internally by LLMService for structured output
 # No need to import directly here
@@ -48,6 +50,8 @@ class GenericAgent:
         
         # Initialize Services
         self.world_model = WorldModelService(workspace_id)
+        self.reflection_service = ReflectionService(workspace_id)
+        self.canvas_summary_service = CanvasSummaryService(self.llm)
         self.mcp = mcp_service
 
         # LLM Integration Note:
@@ -114,7 +118,7 @@ class GenericAgent:
                     current_step += 1
                     
                     # Plan/Think - Use instructor for structured parsing
-                    react_step = await self._react_step(task_input, memory_context, execution_history)
+                    react_step = await self._react_step(task_input, memory_context, execution_history, context)
                     
                     thought = react_step.thought
                     action = react_step.action.model_dump() if react_step.action else None
@@ -212,6 +216,20 @@ class GenericAgent:
             final_answer = f"Error during execution: {str(e)}"
             status = "failed"
             
+        # 2.5: Generate Reflection/Critique on failure (Phase 215)
+        if status in ["failed", "timeout", "max_steps_exceeded"]:
+            try:
+                await self.reflection_service.generate_critique(
+                    agent_id=self.id,
+                    task_input=task_input,
+                    intent=self.config.get("specialty", "general task"),
+                    action="react_loop",
+                    outcome=status
+                )
+                logger.info(f"Self-Evolution: Generated critique for Agent {self.name} failure.")
+            except Exception as ref_err:
+                logger.warning(f"Failed to generate self-critique: {ref_err}")
+            
         # 3. TRACE Framework Metrics (Phase 6.6)
         complexity = self.llm._get_handler().analyze_query_complexity(task_input)
         
@@ -265,11 +283,11 @@ class GenericAgent:
         
         return execution_result
 
-    async def _react_step(self, task_input: str, memory: Dict, history: str) -> ReActStep:
+    async def _react_step(self, task_input: str, memory: Dict, history: str, context: Dict = None) -> ReActStep:
         """
         Generate a single ReAct step with Pydantic validation.
-        Uses instructor for structured output when available.
         """
+        context = context or {}
         # Get available tools (Core + Session Lazy Loaded)
         all_tools = await self.mcp.get_all_tools()
         
@@ -366,8 +384,40 @@ ORCHESTRATION POWERS:
                 memory_display += f"\n\n[UNCORRELATED_SIGNAL]: {noise_signal}"
                 logger.info(f"Chaos Engineering: Injected noise into Agent {self.name} context.")
 
+        # --- Phase 14.5: Semantic Visual Description ---
+        semantic_ui_summary = ""
+        canvas_id = context.get("canvas_id")
+        if canvas_id:
+            try:
+                # In Upstream, we use the local CanvasPresentationSummaryService or port the SaaS one
+                # For consistency with SaaS port, we use the port we just made
+                from core.canvas_summary_service import CanvasSummaryService as CSS
+                # If vision is DISABLED or it's M2.7, we use the summary instead of screenshot
+                # Identify M2.7 by routing info
+                is_minimax = "minimax" in str(self.llm._get_handler().default_provider_id).lower()
+                if not self.vision_enabled or is_minimax:
+                    canvas_state = context.get("canvas_state", {})
+                    if canvas_state:
+                        semantic_ui_summary = await self.canvas_summary_service.generate_summary(
+                            canvas_type=context.get("canvas_type", "generic"),
+                            canvas_state=canvas_state,
+                            agent_task=task_input
+                        )
+                        logger.info(f"Generated semantic UI summary for {self.name} (Canvas: {canvas_id})")
+            except Exception as e:
+                logger.warning(f"Failed to generate semantic summary: {e}")
+
+        # Retrieve past critiques for context
+        critiques = await self.reflection_service.get_relevant_critiques(
+            agent_id=self.id,
+            task_input=task_input
+        )
+        critique_display = "\n".join([f"- CRITIQUE: {c.critique}" for c in critiques[:2]])
+
         user_prompt = f"""Request: {task_input}
 
+{f"SEMANTIC UI LAYOUT (SCREEN READER):\n{semantic_ui_summary}\n\n" if semantic_ui_summary else ""}
+{f"SELF-EVOLUTION CRITIQUES (LEARN FROM THESE):\n{critique_display}\n\n" if critique_display else ""}
 MEMORY CONTEXT:
 {memory_display}
 

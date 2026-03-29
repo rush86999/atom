@@ -13,6 +13,38 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 logger.debug(f"Loading core.database module. ENV: MOCK={os.getenv('ATOM_MOCK_DATABASE')}")
 
+def _clean_postgresql_url(url: str) -> str:
+    """Strip ALL SSL and conflicting parameters from a PostgreSQL URL.
+    Backported from SaaS to ensure compatibility with providers like Neon/Supabase
+    that inject conflicting parameters into the connection string.
+    """
+    if not url or "postgresql" not in url or "?" not in url:
+        return url
+    try:
+        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query, keep_blank_values=True)
+        
+        # Comprehensive list of parameters to remove
+        params_to_remove = [
+            'sslmode', 'channel_binding', 'sslcert', 'sslkey', 'sslrootcert', 
+            'ssl', 'sslrootcert', 'sslcompression', 'target_session_attrs'
+        ]
+        removed = [p for p in params_to_remove if p in params]
+        
+        for param in params_to_remove:
+            params.pop(param, None)
+            
+        new_query = urlencode(params, doseq=True) if params else ''
+        clean_url = urlunparse(parsed._replace(query=new_query))
+        
+        if removed:
+            logger.debug(f"✓ Cleaned URL params: {removed}")
+        return clean_url
+    except Exception as e:
+        logger.warning(f"Failed to clean URL: {e}")
+        return url
+
 def get_database_url():
     """Get database URL with production safety checks"""
     env = os.getenv("ENVIRONMENT", "development")
@@ -33,22 +65,20 @@ def get_database_url():
                 "Cannot use default SQLite in production."
             )
         else:
-            # Development fallback: Use FILE-BASED SQLite to prevent threading/import issues
-            # Resolve path relative to backend root (parent of core)
+            # Development fallback
             base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             db_path = os.path.join(base_dir, "dev.db")
             database_url = f"sqlite:///{db_path}"
-            logger.warning(
-                f"⚠️ WARNING: Using SQLite file database ({db_path}). "
-                "Set DATABASE_URL for production deployment."
-            )
+            logger.warning(f"⚠️  Using SQLite file database ({db_path})")
     
-    # CI/Testing Override: Force in-memory SQLite if requested
-    # This prevents blocking connection attempts during import checks
+    # CI/Testing Override
     if os.getenv("ATOM_MOCK_DATABASE", "false").lower() == "true":
         database_url = "sqlite:///:memory:"
-        logger.warning("🛡️ ATOM_MOCK_DATABASE enabled: Using in-memory SQLite for CI/Testing")
+        logger.warning("🛡️  ATOM_MOCK_DATABASE enabled: Using in-memory SQLite")
         return database_url
+
+    # Clean the URL before adding our own SSL parameters
+    database_url = _clean_postgresql_url(database_url)
 
     # Security: Ensure SSL for PostgreSQL in production
     if env == "production" and "postgresql" in database_url:
@@ -56,6 +86,8 @@ def get_database_url():
             database_url += "?sslmode=require"
             logger.info("🔒 Added SSL requirement for PostgreSQL connection")
 
+    # Sync back to environment for consistency across processes
+    os.environ["DATABASE_URL"] = database_url
     return database_url
 
 DATABASE_URL = get_database_url()

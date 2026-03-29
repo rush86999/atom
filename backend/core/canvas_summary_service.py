@@ -1,0 +1,387 @@
+"""
+Canvas Summary Service
+
+Generates LLM-powered semantic summaries of canvas presentations for
+episodic memory enhancement. Replaces Phase 20's metadata extraction
+with richer context capture.
+
+Features:
+- Canvas-specific prompts for all 7 canvas types
+- BYOK integration for multi-provider LLM support
+- Caching to avoid redundant generation
+- Fallback to metadata extraction if LLM fails
+- Cost tracking for per-episode summary generation
+"""
+
+import asyncio
+import hashlib
+import json
+import logging
+from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
+
+# Import at runtime to avoid circular dependencies
+LLMService = None
+
+
+class CanvasSummaryService:
+    """
+    LLM-powered canvas presentation summary service.
+
+    Generates semantically rich descriptions (50-100 words) that capture:
+    - What was presented (canvas type, key elements, data)
+    - Why it mattered (business context, decision required, risks)
+    - Critical data (metrics, amounts, deadlines, stakeholders)
+    - User decision (what the user did)
+
+    Falls back to metadata extraction if LLM fails or times out.
+    """
+
+    # Canvas-specific extraction guidance
+    _CANVAS_PROMPTS = {
+        "generic": (
+            "Focus on: Generic canvas content, purpose, key elements.\n"
+            "Extract: canvas_title, components, interaction_type, main_purpose."
+        ),
+        "orchestration": (
+            "Focus on: Workflow details, approval amounts, stakeholders, risks, decision context.\n"
+            "Extract: workflow_id, approval_amount, approvers, blockers, deadline."
+        ),
+        "sheets": (
+            "Focus on: Data values, calculations, trends, notable entries.\n"
+            "Extract: revenue, amounts, key_metrics, data_points."
+        ),
+        "terminal": (
+            "Focus on: Command output, errors, test results, deployment status.\n"
+            "Extract: command, exit_code, error_lines, test_counts, blocking_issues."
+        ),
+        "docs": (
+            "Focus on: Document content, sections, key information.\n"
+            "Extract: document_title, sections, word_count, key_topics."
+        ),
+        "email": (
+            "Focus on: Email composition, recipients, subject, attachments.\n"
+            "Extract: to, cc, subject, attachment_count, draft_status."
+        ),
+        "coding": (
+            "Focus on: Code content, language, syntax elements.\n"
+            "Extract: language, line_count, functions, syntax_errors."
+        ),
+    }
+
+    def __init__(self, llm_service: Any):
+        """
+        Initialize canvas summary service.
+
+        Args:
+            llm_service: LLM service for LLM generation
+        """
+        self.llm_service = llm_service
+        self._summary_cache: Dict[str, str] = {}
+        self._cost_tracker: Dict[str, float] = {}
+
+    async def generate_summary(
+        self,
+        canvas_type: str,
+        canvas_state: Dict[str, Any],
+        agent_task: Optional[str] = None,
+        user_interaction: Optional[str] = None,
+        timeout_seconds: int = 2
+    ) -> str:
+        """
+        Generate LLM-powered semantic summary of canvas presentation.
+
+        Args:
+            canvas_type: One of 7 canvas types (generic, docs, email, sheets,
+                        orchestration, terminal, coding)
+            canvas_state: Canvas state from accessibility tree or state API
+            agent_task: Optional task description for context
+            user_interaction: Optional user action (submit, close, update, execute)
+            timeout_seconds: LLM generation timeout (default 2s)
+
+        Returns:
+            Semantic summary (50-100 words) or metadata fallback
+
+        Raises:
+            ValueError: If canvas_type is not one of 7 supported types
+        """
+        # Validate canvas type
+        valid_types = list(self._CANVAS_PROMPTS.keys())
+        if canvas_type not in valid_types:
+            raise ValueError(
+                f"Invalid canvas_type '{canvas_type}'. "
+                f"Must be one of: {', '.join(valid_types)}"
+            )
+
+        # Generate cache key from all inputs
+        cache_key = hashlib.sha256(
+            json.dumps({
+                "canvas_type": canvas_type,
+                "canvas_state": canvas_state,
+                "agent_task": agent_task,
+                "user_interaction": user_interaction
+            }, sort_keys=True).encode()
+        ).hexdigest()[:16]
+
+        # Check cache
+        if cache_key in self._summary_cache:
+            logger.debug(f"Cache hit for canvas summary: {cache_key}")
+            return self._summary_cache[cache_key]
+
+        # Generate summary with LLM
+        try:
+            prompt = self._build_prompt(canvas_type, canvas_state, agent_task, user_interaction)
+
+            summary = await asyncio.wait_for(
+                self.llm_service.generate(
+                    prompt=prompt,
+                    system_instruction="You are a canvas presentation analyzer. Generate concise semantic summaries (50-100 words).",
+                    temperature=0.0,  # Deterministic for consistency
+                    task_type="analysis"
+                ),
+                timeout=timeout_seconds
+            )
+
+            # Cache the result
+            self._summary_cache[cache_key] = summary
+
+            # Track cost (BYOK handler tracks internally)
+            session_key = f"{canvas_type}_{cache_key}"
+            self._cost_tracker[session_key] = 0.0  # Updated by BYOK handler
+
+            logger.info(f"Generated LLM summary for {canvas_type} canvas: {cache_key}")
+            return summary
+
+        except asyncio.TimeoutError:
+            logger.warning(f"LLM summary generation timed out after {timeout_seconds}s")
+            raise  # Re-raise to allow caller to handle fallback
+
+        except Exception as e:
+            logger.error(f"LLM summary generation failed: {e}")
+            raise  # Re-raise to allow caller to handle fallback
+
+    def _build_prompt(
+        self,
+        canvas_type: str,
+        canvas_state: Dict[str, Any],
+        agent_task: Optional[str],
+        user_interaction: Optional[str]
+    ) -> str:
+        """
+        Build LLM prompt with canvas context.
+
+        Args:
+            canvas_type: Canvas type
+            canvas_state: Canvas state dictionary
+            agent_task: Optional agent task description
+            user_interaction: Optional user interaction
+
+        Returns:
+            Complete LLM prompt
+        """
+        # Get canvas-specific instructions
+        canvas_instructions = self._CANVAS_PROMPTS.get(canvas_type, "")
+
+        prompt = f"""You are analyzing a canvas presentation from an AI agent interaction. Generate a concise semantic summary (50-100 words) that captures:
+
+1. **What was presented**: Canvas type, key elements, data shown
+2. **Why it mattered**: Business context, decision required, risks highlighted
+3. **Critical data**: Key metrics, amounts, deadlines, stakeholders
+4. **User decision**: What the user did (if applicable)
+
+**Canvas Type**: {canvas_type}
+**Agent Task**: {agent_task or "Not specified"}
+**Canvas State**: {json.dumps(canvas_state, indent=2)}
+**User Interaction**: {user_interaction or "None"}
+
+{canvas_instructions}
+
+**Summary**:"""
+
+        return prompt
+
+    def _fallback_to_metadata(
+        self,
+        canvas_type: str,
+        canvas_state: Dict[str, Any]
+    ) -> str:
+        """
+        Fallback to metadata extraction if LLM fails.
+
+        Replicates Phase 20 behavior for reliability.
+
+        Args:
+            canvas_type: Canvas type
+            canvas_state: Canvas state dictionary
+
+        Returns:
+            Metadata-based summary (30-50 words)
+        """
+        # Extract visual elements
+        components = canvas_state.get("components", [])
+        visual_elements = ", ".join([c.get("type", "element") for c in components[:3]])
+
+        # Extract critical data
+        critical_data = []
+        if "workflow_id" in canvas_state:
+            critical_data.append(f"workflow {canvas_state['workflow_id']}")
+        if "revenue" in canvas_state:
+            critical_data.append(f"${canvas_state['revenue']}")
+        if "amount" in canvas_state:
+            critical_data.append(f"${canvas_state['amount']}")
+        if "command" in canvas_state:
+            critical_data.append(f"command: {canvas_state['command']}")
+
+        # Build summary
+        if visual_elements:
+            summary = f"Agent presented {visual_elements} on {canvas_type} canvas"
+        else:
+            summary = f"Agent presented {canvas_type} canvas"
+
+        if critical_data:
+            summary += f" with {', '.join(critical_data)}"
+
+        logger.info(f"Used metadata fallback for {canvas_type} canvas")
+        return summary
+
+    def get_cache_stats(self) -> Dict[str, int]:
+        """
+        Get cache statistics for monitoring.
+
+        Returns:
+            Dictionary with cache size and tracking metrics
+        """
+        return {
+            "cache_size": len(self._summary_cache),
+            "tracked_sessions": len(self._cost_tracker),
+            "supported_canvas_types": len(self._CANVAS_PROMPTS)
+        }
+
+    def clear_cache(self) -> None:
+        """
+        Clear the summary cache.
+
+        Useful for testing or when canvas state structure changes.
+        """
+        cleared_count = len(self._summary_cache)
+        self._summary_cache.clear()
+        logger.info(f"Cleared {cleared_count} cached summaries")
+
+    def get_supported_canvas_types(self) -> list[str]:
+        """
+        Get list of supported canvas types.
+
+        Returns:
+            List of canvas type identifiers
+        """
+        return list(self._CANVAS_PROMPTS.keys())
+
+    def is_canvas_type_supported(self, canvas_type: str) -> bool:
+        """
+        Check if a canvas type is supported.
+
+        Args:
+            canvas_type: Canvas type to check
+
+        Returns:
+            True if supported, False otherwise
+        """
+        return canvas_type in self._CANVAS_PROMPTS
+
+    def get_total_cost_tracked(self) -> float:
+        """
+        Get total cost tracked for all summary generations.
+
+        Returns:
+            Total cost in USD (updated by BYOK handler)
+        """
+        return sum(self._cost_tracker.values())
+
+    def get_canvas_prompt_instructions(self, canvas_type: str) -> Optional[str]:
+        """
+        Get the canvas-specific prompt instructions for a given type.
+
+        Useful for debugging or understanding what guidance is provided
+        to the LLM for each canvas type.
+
+        Args:
+            canvas_type: Canvas type
+
+        Returns:
+            Prompt instructions string or None if canvas type not found
+        """
+        return self._CANVAS_PROMPTS.get(canvas_type)
+
+    def _calculate_semantic_richness(self, summary: str) -> float:
+        """
+        Calculate semantic richness score (0.0 to 1.0).
+
+        Higher score indicates more business context, intent, and
+        decision reasoning present in the summary.
+
+        Args:
+            summary: LLM-generated summary
+
+        Returns:
+            Richness score (0.0 = poor, 1.0 = excellent)
+        """
+        if not summary:
+            return 0.0
+
+        richness_indicators = [
+            # Business context terms
+            "approval", "budget", "revenue", "workflow", "stakeholder",
+            "decision", "consent", "deadline", "priority",
+            # Metrics and numbers
+            "%", "growth", "increase", "decrease", "trend",
+            "$", "k", "m", "b",
+            # Intent and reasoning
+            "requiring", "requesting", "highlighting", "showing",
+            "due to", "because", "for", "with"
+        ]
+
+        summary_lower = summary.lower()
+        matches = sum(1 for indicator in richness_indicators if indicator.lower() in summary_lower)
+
+        # Normalize to 0-1 range (assuming ~10 indicators is excellent)
+        return min(1.0, matches / 10.0)
+
+    def _detect_hallucination(
+        self,
+        summary: str,
+        canvas_state: Dict[str, Any]
+    ) -> bool:
+        """
+        Detect hallucinations in LLM summary.
+
+        Checks if summary contains facts not present in canvas state.
+
+        Args:
+            summary: LLM-generated summary
+            canvas_state: Original canvas state
+
+        Returns:
+            True if hallucination detected (facts not in state)
+        """
+        import re
+
+        # Look for workflow IDs, amounts, etc. in summary
+        summary_facts = set()
+
+        # Workflow IDs (e.g., wf-123)
+        summary_facts.update(re.findall(r'wf-\d+', summary.lower()))
+
+        # Check if summary facts exist in canvas state
+        state_str = json.dumps(canvas_state, default=str).lower()
+
+        for fact in summary_facts:
+            if fact not in state_str:
+                # Fact not found in state - potential hallucination
+                return True
+
+        # For monetary amounts, be more lenient - just check presence of numbers
+        # Don't strictly match formatting differences ($50K vs 50000)
+        # Only flag if summary contains workflow IDs that don't exist in state
+
+        return False
