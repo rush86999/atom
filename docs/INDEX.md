@@ -1,12 +1,15 @@
 # Atom Documentation Index
 
-> **Last Updated**: February 20, 2026
+> **Last Updated**: March 28, 2026
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 ---
 
-## 🚀 Recent Updates (February 2026)
+## 🚀 Recent Updates (March 2026)
 
+- **Phase 234**: E2E Testing Infrastructure - 91+ comprehensive E2E tests with API-first authentication ✨ NEW
+- **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos) ✨ NEW
+- **Phase 236**: Cross-Platform & Stress Testing - Load testing with k6, network simulation, failure injection ✨ NEW
 - **Phase 64**: E2E Test Suite - 217+ E2E tests with real services (PostgreSQL, Redis, Docker)
 - **Phase 63**: Documentation Audit - 98/100 health score, all features documented
 - **Phase 61**: Atom SaaS Sync - Bidirectional marketplace sync for skills and ratings
@@ -205,19 +208,69 @@
 
 ## 🧪 Testing
 
+### E2E Testing ✨ NEW (March 2026)
+
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [backend/tests/e2e/README.md](../backend/tests/e2e/README.md) | **E2E testing guide (Docker, real services, 217+ tests)** | Feb 20, 2026 |
+| [backend/tests/e2e_ui/README.md](../backend/tests/e2e_ui/README.md) | **E2E testing guide (91+ comprehensive tests)** | Mar 28, 2026 |
+| [Phase 234: Authentication & Agent E2E](../.planning/phases/234-authentication-and-agent-e2e/) | **E2E test infrastructure (AUTH-01 to AUTH-07, AGNT-01 to AGNT-08)** | Mar 24, 2026 |
+
+**E2E Test Infrastructure (Phase 234)**:
+- 91+ comprehensive E2E tests with Playwright Python 1.58.0
+- API-first authentication (10-100x faster than UI login)
+- Worker-based database isolation for parallel execution
+- Page Object Model for maintainable UI abstractions
+- Comprehensive fixture suite (auth, database, API, factory)
+- Tests complete in under 10 minutes with parallel execution
+
+### Bug Discovery ✨ NEW (March 2026)
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md](../backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md) | **AI-enhanced bug discovery infrastructure** | Mar 28, 2026 |
+| [backend/docs/BUG_DISCOVERY.md](../backend/docs/BUG_DISCOVERY.md) | **Bug discovery guide** | Mar 28, 2026 |
+| [Phase 237: Bug Discovery Infrastructure](../.planning/phases/237-bug-discovery-infrastructure-foundation/) | **Bug discovery foundation (fuzzing, property-based testing, chaos)** | Mar 24, 2026 |
+
+**Bug Discovery Features (Phase 237)**:
+- Automated fuzzing with atheris (coverage-guided fuzzing)
+- Mutation testing with mutmut for test quality validation
+- Property-based testing with Hypothesis framework (66+ invariants)
+- Chaos engineering with locust for load testing
+- Automated bug filing with GitHub Issues API integration
+- CI pipeline separation (fast PR tests <10min, weekly bug discovery ~2 hours)
+
+### Stress Testing ✨ NEW (March 2026)
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [Phase 236: Cross-Platform & Stress Testing](../.planning/phases/236-cross-platform-and-stress-testing/) | **Load testing, network simulation, cross-platform validation** | Mar 24, 2026 |
+
+**Stress Testing Features (Phase 236)**:
+- k6 load testing (10/50/100 concurrent users)
+- Network simulation (slow 3G, offline mode)
+- Failure injection (database drops, API timeouts)
+- Memory leak detection with CDP heap snapshots
+- Performance regression testing with Lighthouse CI
+- Cross-platform testing (mobile API-level, desktop Tauri)
+- Visual regression testing with Percy
+- Accessibility testing with jest-axe (WCAG 2.1 AA)
+
+### Test Quality & Standards
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [backend/docs/TEST_QUALITY_STANDARDS.md](../backend/docs/TEST_QUALITY_STANDARDS.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
 | [CI_FIXES.md](CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
 | [TEST_RESULTS_FEB2026.md](TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
 
-**E2E Test Coverage (Phase 64)**:
-- 217+ E2E tests across 14 test files
-- Docker Compose environment (PostgreSQL + Redis)
-- MCP tools, database, LLM providers, external services
-- Critical workflow validation
-- Performance monitoring (<10 min target)
+**Test Suite Summary**:
+- 495+ tests (unit, integration, E2E, bug discovery)
+- 99%+ pass rate (TQ-02 standard)
+- 17-27% overall coverage (expanding to 80%)
+- 60-70% coverage for MCP service
+- <60min full suite execution time
+- <30s per test performance target
 
 ---
 
