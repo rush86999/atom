@@ -93,15 +93,13 @@ That's it! 🚀
 - Smart error resolution with actionable suggestions
 - [Full Details →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
 
-### 🧠 Episodic Memory & Autonomous Self-Evolution ✨ NEW
-- **Experience-based learning**: Agents store and retrieve past experiences
-- **Recursive Self-Evolution**: Autonomous critique-based optimization loop (optimized for MiniMax M2.7)
-- **Reflection Pool**: Vector-based storage for task-specific "learnings" and self-corrections
-- **Semantic Visual Description**: "Screen reader" for non-vision models to reason over UI states
-- **Hybrid storage**: PostgreSQL + LanceDB for performance
-- **Four retrieval modes**: Temporal, Semantic, Sequential, Contextual
-- **Graduation validation**: Promote agents only when reliable
-- [Full Documentation →](docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
+### 🧠 Autonomous Self-Evolution & Graduation ✨ NEW
+- **Experience-based learning**: Agents store and retrieve past experiences using the Reflection Pool.
+- **Recursive Self-Evolution**: Autonomous critique-based optimization loop (optimized for MiniMax M2.7).
+- **Dual-Trigger Graduation**: Skills progress from `SUPERVISED` to `AUTONOMOUS` via post-task event hooks and background audits.
+- **Dynamic Streak Rule**: Promotion based on "Clean Run" streaks (Success + No Intervention + High Compliance).
+- **Hybrid storage**: PostgreSQL for state + LanceDB for mistake memory.
+- [Agent Graduation Guide →](docs/AGENT_GRADUATION_GUIDE.md)
 
 ### 🛡️ Agent Governance System
 - 4-tier maturity-based routing and approval system

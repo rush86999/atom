@@ -10,35 +10,101 @@
 
 This document provides visual architecture diagrams for Atom's **Citation System** and **Just-In-Time (JIT) Fact Provision System**, illustrating data flows, component interactions, storage architecture, and retrieval patterns.
 
+## Unified Platform Mapping
+
+This diagram provides the top-level architectural context for the entire ATOM Agent OS, mapping the flow from user interfaces to the intelligence tier and persistence layer.
+
+```mermaid
+graph TB
+    subgraph UI ["🎨 Frontend Layer (Next.js 14)"]
+        Canvas["Interactive Canvas UI<br/>(Real-time State)"]
+        Dashboard["Admin Dashboard<br/>(BYOK/Analytics)"]
+        Chat["Agent Chat Interface"]
+    end
+
+    subgraph API ["⚡ API & Orchestration (FastAPI)"]
+        Router["Enhanced AI Workflow Router"]
+        WS["WebSocket Server<br/>(Real-time Collaboration)"]
+        
+        subgraph Coordination ["🎛️ Coordination & Automation Tier"]
+            Orchestrator["Advanced Workflow Orchestrator<br/>(System Spinal Cord)"]
+            BackgroundRunner["Background Agent Runner<br/>(Autonomous Scheduled Jobs)"]
+            BatchSync["Automated Data Sync<br/>(Deterministic Workers)"]
+        end
+    end
+
+    subgraph LLM ["🧠 LLM & Intelligence Tier"]
+        LLMService["LLMService<br/>(Cognitive Entry Point)"]
+        BYOK["BYOKHandler<br/>(Tenant Isolation)"]
+        Tiering["Cognitive Tiering<br/>(5-Tier Logic)"]
+        
+        subgraph Evolution ["🧬 Self-Evolution & Learning Loop"]
+            Reflection["ReflectionPool<br/>(Mistake Storage / Critique)"]
+            Graduation["GraduationService<br/>(Performance Review / Promotion)"]
+        end
+    end
+
+    subgraph MCP_Layer ["🔌 Tool Protocol (MCP)"]
+        MCP["MCP Service<br/>(Tool Projection)"]
+        ToolSearch["MCP Tool Search<br/>(Semantic Discovery)"]
+    end
+
+    subgraph Core_Integrations ["📡 Core Integration Services"]
+        CRM["CRM Services<br/>(Salesforce / HubSpot)"]
+        Finance["Finance Services<br/>(Stripe / QuickBooks)"]
+        Comm["Comm Services<br/>(Slack / Teams / WhatsApp)"]
+        Storage["Storage Services<br/>(Drive / Dropbox / S3)"]
+    end
+
+    subgraph Persistence ["💾 Persistence Layer"]
+        Postgres["PostgreSQL / Neon<br/>(System State / Maturity Auth)"]
+        LanceDB["LanceDB<br/>(Mistake Memory / RAG)"]
+        Redis["Redis / Upstash<br/>(Queue / Collab Bus)"]
+    end
+
+    %% Wiring
+    UI --> Router
+    UI --> WS
+    
+    %% THREE INDEPENDENT PATHS TO INTELLIGENCE
+    Router -- "Direct Chat / Agent Ops" --> LLMService
+    Router -- "Multi-Step Workflow Trigger" --> Orchestrator
+    BackgroundRunner -- "Scheduled Autonomous Task" --> LLMService
+    
+    %% THE GRADUATION TRIGGERS (DUAL-PATH)
+    LLMService -- "Event Trigger: Post-Task Success" --> Graduation
+    BackgroundRunner -- "Periodic Trigger: System Review" --> Graduation
+    
+    %% THE LEARNING LOOP (MINIMAX M2.7)
+    LLMService -- "1. Record Mistake / Critique" --> Reflection
+    Reflection -- "2. Persist to Mistake Memory" --> LanceDB
+    LLMService -- "3. Learning Retrieval (Mistake Correction)" --> LanceDB
+    
+    %% THE GRADUATION LOGIC
+    Graduation -- "1. Analyze Streaks" --> LanceDB
+    Graduation -- "2. Promote Skill / Update Config" --> Postgres
+    
+    %% Standard Connections
+    Orchestrator --> LLMService
+    Orchestrator --> Core_Integrations
+    Router --> Core_Integrations
+    BackgroundRunner --> Core_Integrations
+    BatchSync --> Core_Integrations
+    LLMService --> MCP
+    MCP --> Core_Integrations
+    MCP --> ToolSearch
+    
+    %% Data Wiring
+    Router --> Postgres
+    LLMService --> BYOK
+    WS --> Redis
+    BackgroundRunner --> Redis
+    Core_Integrations --> Postgres
+```
+
 ---
 
 ## System Context Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ATOM PLATFORM                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌──────────────┐      ┌──────────────────────────────────────────┐        │
-│  │   Users      │─────▶│         Citation & JIT Systems            │        │
-│  │   & Admins   │      │                                          │        │
-│  └──────────────┘      │  ┌──────────────┐  ┌──────────────┐      │        │
-│                        │  │  Citation    │  │     JIT      │      │        │
-│  ┌──────────────┐      │  │   System     │  │   System     │      │        │
-│  │   Agents     │─────▶│  │              │  │              │      │        │
-│  │              │      │  └──────────────┘  └──────────────┘      │        │
-│  └──────────────┘      │                                          │        │
-│                        └──────────────────────────────────────────┘        │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐  │
-│  │                        External Services                             │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          │  │
-│  │  │ OpenAI   │  │ Anthropic│  │  Docling │  │  R2/S3   │          │  │
-│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘          │  │
-│  └──────────────────────────────────────────────────────────────────────┘  │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
 
 ---
 
