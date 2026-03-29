@@ -22,6 +22,7 @@ from sqlalchemy.pool import StaticPool
 
 # Import admin skill routes router
 from api.admin.skill_routes import router
+from core.models import User
 
 
 # ============================================================================
@@ -199,7 +200,7 @@ class TestAdminSkillRoutesSuccess:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "test_skill",
                         "description": "A test skill for coverage",
@@ -230,7 +231,7 @@ class TestAdminSkillRoutesSuccess:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "advanced_skill",
                         "description": "An advanced skill with all fields",
@@ -274,7 +275,7 @@ class TestAdminSkillRoutesSuccess:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "tenant_skill",
                         "description": "Skill for specific tenant",
@@ -300,7 +301,7 @@ class TestAdminSkillRoutesSuccess:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "author_skill",
                         "description": "Skill to test author default",
@@ -331,7 +332,7 @@ class TestAdminSkillRoutesSuccess:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
                 with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                     response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                         json={
                             "name": "no_llm_skill",
                             "description": "Skill without LLM scan",
@@ -377,7 +378,7 @@ class TestAdminSkillRoutesAuth:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
                 with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                     response = client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                         json={
                             "name": "unauthorized_skill",
                             "description": "Should fail",
@@ -397,7 +398,7 @@ class TestAdminSkillRoutesAuth:
     ):
         """Test that unauthenticated request fails."""
         response = unauthenticated_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
             json={
                 "name": "unauth_skill",
                 "description": "Should fail",
@@ -428,7 +429,7 @@ class TestAdminSkillRoutesAuth:
             with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
                 with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                     response = client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                         json={
                             "name": "inactive_skill",
                             "description": "Should fail",
@@ -483,7 +484,7 @@ class TestAdminSkillRoutesSecurity:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "clean_skill",
                         "description": "Passes security scan",
@@ -519,7 +520,7 @@ class TestAdminSkillRoutesSecurity:
 
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                 json={
                     "name": "malicious_skill",
                     "description": "Contains critical findings",
@@ -576,7 +577,7 @@ class TestAdminSkillRoutesSecurity:
 
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                 json={
                     "name": "mixed_findings_skill",
                     "description": "Has multiple findings",
@@ -618,7 +619,7 @@ class TestAdminSkillRoutesSecurity:
                 with patch('atom_security.analyzers.llm.LLMAnalyzer', return_value=mock_llm_analyzer):
                     with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                         response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                             json={
                                 "name": "llm_scanned_skill",
                                 "description": "Skill with LLM scan",
@@ -659,7 +660,7 @@ class TestAdminSkillRoutesSecurity:
                 with patch('atom_security.analyzers.llm.LLMAnalyzer', return_value=mock_llm_analyzer):
                     with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                         response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                             json={
                                 "name": "llm_fail_skill",
                                 "description": "LLM scan fails but continues",
@@ -692,7 +693,7 @@ class TestAdminSkillRoutesSecurity:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "scan_exception_skill",
                         "description": "Security scan fails",
@@ -720,7 +721,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test request validation failures."""
         response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
             json={
                 # Missing required fields: name, description, instructions, scripts
                 "capabilities": ["web_search"]
@@ -735,7 +736,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test invalid scripts format."""
         response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
             json={
                 "name": "invalid_scripts",
                 "description": "Has invalid scripts",
@@ -762,7 +763,7 @@ class TestAdminSkillRoutesError:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "builder_fail",
                         "description": "Builder fails",
@@ -785,7 +786,7 @@ class TestAdminSkillRoutesError:
         with patch('api.admin.skill_routes.StaticAnalyzer', return_value=mock_static_analyzer):
             with patch('api.admin.skill_routes.skill_builder_service', mock_skill_builder):
                 response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
                     json={
                         "name": "exception_skill",
                         "description": "Raises exception",
@@ -802,7 +803,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test empty name validation."""
         response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
             json={
                 "name": "",  # Empty name
                 "description": "Empty name",
@@ -819,7 +820,7 @@ class TestAdminSkillRoutesError:
     ):
         """Test invalid capabilities format."""
         response = authenticated_admin_client.post(
-                    "/api/admin/skills/api/admin/skills",
+                    "/api/admin/skills/",
             json={
                 "name": "invalid_caps",
                 "description": "Invalid capabilities",

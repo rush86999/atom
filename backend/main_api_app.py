@@ -400,7 +400,7 @@ try:
     # Skill Builder Routes
     try:
         from api.admin.skill_routes import router as skill_router
-        app.include_router(skill_router, prefix="/api/admin/skills", tags=["Skill Management"])
+        app.include_router(skill_router, tags=["Skill Management"])
         logger.info("✓ Skill Builder Routes Loaded")
     except Exception as e:
         logger.warning(f"Skill routes not found: {e}")
@@ -512,71 +512,10 @@ try:
         logger.warning(f"Failed to load background agent routes: {e}")
     
     try:
-        from api.financial_ops_routes import router as financial_router
-        app.include_router(financial_router, prefix="/api/financial", tags=["financial-ops"])
+        from api.media_routes import router as media_router
+        app.include_router(media_router, prefix="/api", tags=["media", "integrations"])
     except ImportError as e:
-        logger.warning(f"Failed to load financial ops routes: {e}")
-
-    try:
-        from api.billing_routes import router as billing_router
-        app.include_router(billing_router, prefix="/api")
-        logger.info("✓ Billing Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Failed to load billing routes: {e}")
-
-    try:
-        from api.webhook_routes import router as webhook_router
-        app.include_router(webhook_router)
-        logger.info("✓ Webhook Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Failed to load webhook routes: {e}")
-
-    try:
-        from api.marketplace_routes import router as marketplace_router
-        app.include_router(marketplace_router, prefix="/api")
-        logger.info("✓ Marketplace Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Failed to load marketplace routes: {e}")
-
-    try:
-        from api.composition_routes import router as composition_router
-        app.include_router(composition_router, prefix="/api")
-        logger.info("✓ Skill Composition Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Failed to load composition routes: {e}")
-
-    # Provider Registry Routes
-    try:
-        from api.provider_registry_routes import router as provider_registry_router
-        app.include_router(provider_registry_router)
-        logger.info("✓ Provider Registry Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Failed to load provider registry routes: {e}")
-
-    try:
-        from api.cognitive_tier_routes import router as cognitive_tier_router
-        app.include_router(cognitive_tier_router)
-        logger.info("✓ Cognitive Tier Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Failed to load cognitive tier routes: {e}")
-
-    try:
-        from api.ai_accounting_routes import router as accounting_router
-        app.include_router(accounting_router, prefix="/api", tags=["ai-accounting"])
-    except ImportError as e:
-        logger.warning(f"Failed to load AI accounting routes: {e}")
-
-    try:
-        from api.reconciliation_routes import router as reconciliation_router
-        app.include_router(reconciliation_router, prefix="/api", tags=["reconciliation"])
-    except ImportError as e:
-        logger.warning(f"Failed to load reconciliation routes: {e}")
-
-    try:
-        from api.apar_routes import router as apar_router
-        app.include_router(apar_router, prefix="/api", tags=["ap-ar"])
-    except ImportError as e:
-        logger.warning(f"Failed to load AP/AR routes: {e}")
+        logger.warning(f"Failed to load media routes: {e}")
 
     try:
         from api.media_routes import router as media_router
@@ -778,12 +717,6 @@ try:
     except ImportError:
         logger.warning("OAuth status routes not found, skipping.")
 
-    # 4. WebSockets (Real-time features)
-    try:
-        from websocket_routes import router as ws_router
-        app.include_router(ws_router, tags=["WebSockets"])
-    except ImportError:
-        logger.warning("WebSocket routes not found, skipping.")
 
     # 6. MCP Routes (Web Search & Web Access for Agents)
     try:
@@ -1267,13 +1200,6 @@ try:
     except ImportError as e:
         logger.warning(f"A/B testing routes not found: {e}")
 
-    # 15.10 Canvas Collaboration Routes (Multi-Agent Coordination)
-    try:
-        from api.canvas_collaboration import router as collab_router
-        app.include_router(collab_router, prefix="/api/canvas-collab", tags=["Canvas Collaboration"])
-        logger.info("✓ Canvas Collaboration Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Canvas collaboration routes not found: {e}")
 
     # The following block for canvas_context_routes is being removed as per instruction.
     # The instruction implies a unified canvas_router will handle this.
@@ -1324,13 +1250,6 @@ try:
     except ImportError as e:
         logger.warning(f"User workflow templates routes not found: {e}")
 
-    # 15.14 Collaboration Routes (NEW - Phase 4)
-    try:
-        from api.workflow_collaboration import router as collaboration_router
-        app.include_router(collaboration_router)
-        logger.info("✓ Collaboration Routes Loaded")
-    except ImportError as e:
-        logger.warning(f"Collaboration routes not found: {e}")
 
     # 15.15 Mobile Workflows Routes (NEW - Mobile Support)
     try:

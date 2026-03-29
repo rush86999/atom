@@ -59,12 +59,6 @@ class FeatureFlags:
     # Connection/Integration Governance
     CONNECTION_GOVERNANCE_ENABLED = os.getenv("CONNECTION_GOVERNANCE_ENABLED", "true").lower() == "true"
 
-    # Financial Operations Governance
-    FINANCIAL_GOVERNANCE_ENABLED = os.getenv("FINANCIAL_GOVERNANCE_ENABLED", "true").lower() == "true"
-
-    # Billing/Payment Governance
-    BILLING_GOVERNANCE_ENABLED = os.getenv("BILLING_GOVERNANCE_ENABLED", "true").lower() == "true"
-
     # Admin Operations Governance
     ADMIN_GOVERNANCE_ENABLED = os.getenv("ADMIN_GOVERNANCE_ENABLED", "true").lower() == "true"
 
@@ -88,9 +82,6 @@ class FeatureFlags:
 
     # Streaming LLM Governance
     STREAMING_GOVERNANCE_ENABLED = os.getenv("STREAMING_GOVERNANCE_ENABLED", "true").lower() == "true"
-
-    # Real-Time Collaboration
-    REALTIME_COLLABORATION_ENABLED = os.getenv("REALTIME_COLLABORATION_ENABLED", "true").lower() == "true"
 
     # WebSocket Support
     WEBSOCKET_ENABLED = os.getenv("WEBSOCKET_ENABLED", "true").lower() == "true"
@@ -234,9 +225,7 @@ class FeatureFlags:
         if env == "production":
             critical_governance = [
                 'BROWSER_GOVERNANCE_ENABLED',
-                'DEVICE_GOVERNANCE_ENABLED',
-                'FINANCIAL_GOVERNANCE_ENABLED',
-                'BILLING_GOVERNANCE_ENABLED'
+                'DEVICE_GOVERNANCE_ENABLED'
             ]
             for flag in critical_governance:
                 if not getattr(cls, flag):

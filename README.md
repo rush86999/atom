@@ -93,8 +93,11 @@ That's it! 🚀
 - Smart error resolution with actionable suggestions
 - [Full Details →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
 
-### 🧠 Episodic Memory & Graduation
+### 🧠 Episodic Memory & Autonomous Self-Evolution ✨ NEW
 - **Experience-based learning**: Agents store and retrieve past experiences
+- **Recursive Self-Evolution**: Autonomous critique-based optimization loop (optimized for MiniMax M2.7)
+- **Reflection Pool**: Vector-based storage for task-specific "learnings" and self-corrections
+- **Semantic Visual Description**: "Screen reader" for non-vision models to reason over UI states
 - **Hybrid storage**: PostgreSQL + LanceDB for performance
 - **Four retrieval modes**: Temporal, Semantic, Sequential, Contextual
 - **Graduation validation**: Promote agents only when reliable

@@ -4,8 +4,6 @@ Provides caching, compression, and connection pooling
 """
 
 import asyncio
-from datetime import datetime, timedelta
-from functools import wraps
 import hashlib
 import json
 import logging
@@ -13,8 +11,90 @@ import time
 from typing import Any, Dict, Optional
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from collections import OrderedDict
 
 logger = logging.getLogger(__name__)
+
+
+class LocalCacheFallback:
+    """LRU cache with TTL for Redis fallback scenarios.
+    Backported from SaaS to ensure parity and fix cross-repo test regressions.
+    """
+
+    def __init__(self, max_size: int = 1000, default_ttl: int = 60):
+        self.max_size = max_size
+        self.default_ttl = default_ttl
+        self._cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self._lock = asyncio.Lock()
+        # Statistics
+        self.hits = 0
+        self.misses = 0
+        self.evictions = 0
+
+    async def get(self, key: str) -> Optional[Any]:
+        async with self._lock:
+            if key not in self._cache:
+                self.misses += 1
+                return None
+
+            entry = self._cache[key]
+
+            # Check expiration
+            if time.time() > entry.get("expires_at", 0):
+                del self._cache[key]
+                self.misses += 1
+                return None
+
+            # Move to end (LRU: most recently used)
+            self._cache.move_to_end(key)
+            self.hits += 1
+            return entry["value"]
+
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+        async with self._lock:
+            # Evict oldest if at capacity
+            if len(self._cache) >= self.max_size and key not in self._cache:
+                self._cache.popitem(last=False)  # Remove oldest (first)
+                self.evictions += 1
+
+            ttl = ttl or self.default_ttl
+            self._cache[key] = {
+                "value": value,
+                "expires_at": time.time() + ttl,
+                "created_at": time.time()
+            }
+            self._cache.move_to_end(key)
+            return True
+
+    async def delete(self, key: str) -> bool:
+        async with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+                return True
+            return False
+
+    def clear(self):
+        """Clear all cache entries"""
+        self._cache.clear()
+        self.hits = 0
+        self.misses = 0
+        self.evictions = 0
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        total_requests = self.hits + self.misses
+        hit_rate = (self.hits / total_requests * 100) if total_requests > 0 else 0
+
+        return {
+            "size": len(self._cache),
+            "max_size": self.max_size,
+            "hits": self.hits,
+            "misses": self.misses,
+            "evictions": self.evictions,
+            "hit_rate_percent": round(hit_rate, 2),
+            "usage_percent": round(len(self._cache) / self.max_size * 100, 2) if self.max_size > 0 else 0,
+            "entries": list(self._cache.keys())[-10:]  # Last 10 keys
+        }
 
 
 # Simple in-memory cache for MVP (replace with Redis in production)
