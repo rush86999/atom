@@ -13,9 +13,13 @@ class TelegramAdapter(PlatformAdapter):
     """
     Adapter for Telegram Bot API.
     """
-    def __init__(self):
-        self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-        self.secret_token = os.getenv("TELEGRAM_SECRET_TOKEN") # For verification
+    def __init__(
+        self,
+        bot_token: Optional[str] = None,
+        secret_token: Optional[str] = None,
+    ):
+        self.bot_token = bot_token or os.getenv("TELEGRAM_BOT_TOKEN")
+        self.secret_token = secret_token or os.getenv("TELEGRAM_SECRET_TOKEN") # For verification
         self.api_base = f"https://api.telegram.org/bot{self.bot_token}"
 
     async def verify_request(self, request: Request, body_bytes: bytes) -> bool:

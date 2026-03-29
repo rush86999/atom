@@ -12,9 +12,13 @@ from core.communication.adapters.base import PlatformAdapter
 logger = logging.getLogger(__name__)
 
 class DiscordAdapter(PlatformAdapter):
-    def __init__(self):
-        self.public_key_hex = os.getenv("DISCORD_PUBLIC_KEY")
-        self.bot_token = os.getenv("DISCORD_BOT_TOKEN")
+    def __init__(
+        self,
+        bot_token: Optional[str] = None,
+        public_key_hex: Optional[str] = None,
+    ):
+        self.public_key_hex = public_key_hex or os.getenv("DISCORD_PUBLIC_KEY")
+        self.bot_token = bot_token or os.getenv("DISCORD_BOT_TOKEN")
         self.verify_key = None
         
         if self.public_key_hex:

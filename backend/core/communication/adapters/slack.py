@@ -13,9 +13,13 @@ logger = logging.getLogger(__name__)
 class SlackAdapter(PlatformAdapter):
     """Adapter for Slack Events API"""
     
-    def __init__(self):
-        self.signing_secret = os.environ.get("SLACK_SIGNING_SECRET")
-        self.bot_token = os.environ.get("SLACK_BOT_TOKEN") 
+    def __init__(
+        self,
+        bot_token: Optional[str] = None,
+        signing_secret: Optional[str] = None,
+    ):
+        self.signing_secret = signing_secret or os.environ.get("SLACK_SIGNING_SECRET")
+        self.bot_token = bot_token or os.environ.get("SLACK_BOT_TOKEN") 
         
         try:
             from slack_sdk import WebClient

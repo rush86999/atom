@@ -14,10 +14,15 @@ class WhatsAppAdapter(PlatformAdapter):
     """
     Adapter for WhatsApp Cloud API (Direct).
     """
-    def __init__(self):
-        self.access_token = os.getenv("WHATSAPP_ACCESS_TOKEN")
-        self.app_secret = os.getenv("WHATSAPP_APP_SECRET")
-        self.phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+    def __init__(
+        self,
+        access_token: Optional[str] = None,
+        phone_number_id: Optional[str] = None,
+        app_secret: Optional[str] = None,
+    ):
+        self.access_token = access_token or os.getenv("WHATSAPP_ACCESS_TOKEN")
+        self.app_secret = app_secret or os.getenv("WHATSAPP_APP_SECRET")
+        self.phone_number_id = phone_number_id or os.getenv("WHATSAPP_PHONE_NUMBER_ID")
         self.api_version = "v17.0"
         self.base_url = f"https://graph.facebook.com/{self.api_version}/{self.phone_number_id}"
 
