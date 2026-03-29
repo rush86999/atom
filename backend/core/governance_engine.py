@@ -136,28 +136,87 @@ class ContactGovernance:
     async def request_approval(self, workspace_id: str, action_type: str, platform: str, params: Dict[str, Any], reason: str) -> str:
         """
         Pauses the action and creates a HITL record in the database.
+        Triggers messaging notifications for high-priority actions.
         """
         db = self.db or get_db_session()
         try:
+            # 1. Determine Priority
+            priority = params.get("priority", "MEDIUM")
+            if action_type in ["delete_customer", "wipe_database", "send_mass_email"]:
+                priority = "URGENT"
+            elif action_type in ["update_billing", "change_role"]:
+                priority = "HIGH"
+
+            # 2. Create HITL Record
             hitl_action = HITLAction(
                 workspace_id=workspace_id,
+                tenant_id=params.get("tenant_id"),
                 agent_id=params.get("agent_id"),
                 action_type=action_type,
                 platform=platform,
                 params=params,
                 reason=reason,
                 status=HITLActionStatus.PENDING.value,
+                priority=priority,
                 confidence_score=self.get_confidence_score(workspace_id, action_type, platform)
             )
             db.add(hitl_action)
             db.commit()
             db.refresh(hitl_action)
             
-            logger.info(f"Created HITL action {hitl_action.id} for workspace {workspace_id}")
+            logger.info(f"Created HITL action {hitl_action.id} for workspace {workspace_id} (Priority: {priority})")
+
+            # 3. Trigger Notification if Urgent/High
+            if priority in ["HIGH", "URGENT"]:
+                await self._notify_governance_channel(db, hitl_action)
+
             return hitl_action.id
         finally:
             if not self.db:
                 db.close()
+
+    async def _notify_governance_channel(self, db, hitl_action: HITLAction):
+        """Send notification to the configured governance channel"""
+        from core.communication_service import communication_service
+        from core.models import TenantSetting
+        
+        # 1. Get Governance Channel from Tenant Settings
+        setting = db.query(TenantSetting).filter(
+            TenantSetting.tenant_id == hitl_action.tenant_id,
+            TenantSetting.setting_key == "governance_alerts_channel"
+        ).first()
+        
+        if not setting:
+            logger.warning(f"No governance_alerts_channel configured for tenant {hitl_action.tenant_id}")
+            return
+
+        # 2. Determine Platform (Default to slack if not specified in setting format 'slack:C123...')
+        channel_val = setting.setting_value
+        source = "slack"
+        channel_id = channel_val
+        
+        if ":" in channel_val:
+            source, channel_id = channel_val.split(":", 1)
+
+        # 3. Send Notification
+        adapter = communication_service.get_adapter(source)
+        details = {
+            "action_type": hitl_action.action_type,
+            "reason": hitl_action.reason,
+            "params": hitl_action.params
+        }
+        
+        success = await adapter.send_approval_request(
+            target_id=channel_id,
+            action_id=hitl_action.id,
+            details=details,
+            priority=hitl_action.priority
+        )
+        
+        if success:
+            hitl_action.notified_channel_id = f"{source}:{channel_id}"
+            db.commit()
+            logger.info(f"Sent HITL notification for {hitl_action.id} to {source}:{channel_id}")
 
 # Global governance instance
 contact_governance = ContactGovernance()

@@ -141,10 +141,29 @@ class CommunicationService:
             if handled:
                 return {"status": "command_executed"}
 
-        # 3. Trigger Agent Processing
-        # We assume the user wants to talk to Atom (Meta-Agent)
-        # We run this in background to avoid valid webhook timeouts
-        
+        # 3. Intercept HITL Interactions (Button Clicks)
+        if payload.get("is_interaction"):
+            logger.info(f"Handling interaction from {source}: {content}")
+            return await self._handle_interaction(
+                source=source,
+                payload=payload,
+                user=user,
+                workspace_id=workspace_id,
+                background_tasks=background_tasks
+            )
+
+        # 4. Agent Addressing (e.g. @Alex)
+        target_agent_id = None
+        if content.startswith("@"):
+            parts = content.split(" ", 1)
+            handle = parts[0][1:].lower() # Remove '@' and normalize
+            target_agent_id = await self._resolve_agent_by_handle(handle, user.tenant_id, workspace_id)
+            
+            if target_agent_id:
+                logger.info(f"Routing message to agent {handle} (ID: {target_agent_id})")
+                content = parts[1] if len(parts) > 1 else ""
+
+        # 5. Trigger Agent Processing
         background_tasks.add_task(
             self._process_and_reply,
             user=user,
@@ -152,7 +171,8 @@ class CommunicationService:
             request=content,
             source=source,
             channel_id=channel_id,
-            metadata=payload.get("metadata")
+            metadata=payload.get("metadata"),
+            target_agent_id=target_agent_id
         )
         
         return {"status": "processing", "message": "Message received"}
@@ -223,7 +243,8 @@ class CommunicationService:
         request: str, 
         source: str, 
         channel_id: str,
-        metadata: Dict = None
+        metadata: Dict = None,
+        target_agent_id: Optional[str] = None
     ):
         """
         Execute core Atom logic and send reply back to source.
@@ -318,4 +339,59 @@ class CommunicationService:
         }, workspace_id)
 
 # Singleton
+    async def _resolve_agent_by_handle(self, handle: str, tenant_id: str, workspace_id: str) -> Optional[str]:
+        """Resolve a handle (e.g. 'alex') to an agent_id"""
+        with get_db_session() as db:
+            from core.models import AgentRegistry
+            agent = db.query(AgentRegistry).filter(
+                AgentRegistry.tenant_id == tenant_id,
+                AgentRegistry.handle == handle,
+                AgentRegistry.enabled == True
+            ).first()
+            
+            if agent:
+                return agent.id
+                
+            # Fallback for system agents or global handles if needed
+            return None
+
+    async def _handle_interaction(
+        self,
+        source: str,
+        payload: Dict[str, Any],
+        user: User,
+        workspace_id: str,
+        background_tasks: BackgroundTasks
+    ) -> Dict[str, Any]:
+        """Handle button clicks and other interactive elements from messaging platforms"""
+        content = payload.get("content", "")
+        parts = content.split(" ", 1)
+        if len(parts) < 2:
+            return {"status": "error", "message": "Invalid interaction format"}
+            
+        action_type = parts[0].upper() # APPROVE or REJECT
+        action_id = parts[1]
+        
+        # Route to HITL Service (Phase 4)
+        from core.hitl_service import hitl_service
+        try:
+            result = await hitl_service.resolve_action(
+                action_id=action_id,
+                resolution="approved" if action_type == "APPROVE" else "rejected",
+                resolver_id=user.id,
+                metadata={"source": source, "original_payload": payload}
+            )
+            
+            # Send confirmation
+            adapter = self.get_adapter(source)
+            msg = f"✅ Action `{action_id}` has been {action_type.lower()}."
+            await adapter.send_message(payload.get("channel_id"), msg)
+            
+            return {"status": "resolved", "action_id": action_id}
+        except Exception as e:
+            logger.error(f"Failed to resolve HITL action: {e}")
+            adapter = self.get_adapter(source)
+            await adapter.send_message(payload.get("channel_id"), f"⚠️ Error resolving action: {str(e)}")
+            return {"status": "error", "message": str(e)}
+
 communication_service = CommunicationService()

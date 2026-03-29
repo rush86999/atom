@@ -72,6 +72,24 @@ class SlackAdapter(PlatformAdapter):
                 "metadata": payload
             }
             
+        # Handle Block Actions (Interactive Buttons)
+        if payload.get("type") == "block_actions":
+            actions = payload.get("actions", [])
+            if not actions:
+                return None
+                
+            action = actions[0]
+            action_id = action.get("action_id") # e.g., "approve_123"
+            value = action.get("value") # The actual action ID
+            
+            return {
+                "sender_id": payload.get("user", {}).get("id"),
+                "content": f"{action_id.upper()} {value}",
+                "channel_id": payload.get("channel", {}).get("id"),
+                "metadata": payload,
+                "is_interaction": True
+            }
+            
         return None
 
     async def send_message(self, target_id: str, message: str, **kwargs) -> bool:
@@ -84,4 +102,67 @@ class SlackAdapter(PlatformAdapter):
             return True
         except Exception as e:
             logger.error(f"Slack outbound error: {e}")
+            return False
+
+    async def send_approval_request(self, target_id: str, action_id: str, details: Dict[str, Any], priority: str) -> bool:
+        """Send interactive approval request using Slack Blocks"""
+        if not self.client:
+            return False
+            
+        blocks = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"🚨 *HITL Approval Required* ({priority})\n*Action:* {details.get('action_type')}\n*Reason:* {details.get('reason')}"
+                }
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Approve ✅"},
+                        "style": "primary",
+                        "action_id": f"approve_{action_id}",
+                        "value": action_id
+                    },
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "Reject ❌"},
+                        "style": "danger",
+                        "action_id": f"reject_{action_id}",
+                        "value": action_id
+                    }
+                ]
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"Action ID: `{action_id}` | Priority: {priority}"
+                    }
+                ]
+            }
+        ]
+        
+        try:
+            self.client.chat_postMessage(channel=target_id, blocks=blocks, text=f"HITL Approval Required: {action_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Slack interactive send error: {e}")
+            return False
+
+    async def send_direct_message(self, target_id: str, message: str, agent_name: Optional[str] = None) -> bool:
+        """Send a proactive message from a specific agent"""
+        if not self.client:
+            return False
+            
+        prefix = f"*[{agent_name}]* " if agent_name else ""
+        try:
+            self.client.chat_postMessage(channel=target_id, text=f"{prefix}{message}")
+            return True
+        except Exception as e:
+            logger.error(f"Slack direct message error: {e}")
             return False

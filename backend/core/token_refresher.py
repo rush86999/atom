@@ -182,11 +182,49 @@ async def refresh_salesforce_token(metadata: Dict) -> Optional[Dict]:
         return None
 
 
+async def refresh_whatsapp_token(metadata: Dict) -> Optional[Dict]:
+    """Refresh WhatsApp/Meta OAuth token using Meta's exchange endpoint"""
+    client_id = os.getenv("WHATSAPP_APP_ID")
+    client_secret = os.getenv("WHATSAPP_APP_SECRET")
+    short_lived_token = metadata.get("refresh_token") # We treat it as refresh_token for our logic
+
+    if not client_id or not client_secret or not short_lived_token:
+        logger.error("WhatsApp credentials or token missing for refresh")
+        return None
+
+    try:
+        url = "https://graph.facebook.com/v17.0/oauth/access_token"
+        params = {
+            "grant_type": "fb_exchange_token",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "fb_exchange_token": short_lived_token
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Long-lived tokens typically last 60 days
+            expires_in = data.get("expires_in", 5184000) 
+            return {
+                "expires_at": datetime.now() + timedelta(seconds=expires_in),
+                "refresh_token": data.get("access_token"), # The new long-lived token acts as the next one to exchange
+                "access_token": data.get("access_token")
+            }
+    except Exception as e:
+        logger.error(f"Failed to refresh WhatsApp token: {e}")
+        return None
+
+
 # Global token refresher instance
 token_refresher = TokenRefresher()
 
 # Register OAuth services for auto-refresh
-# In production, this would be configured with actual token data
+if os.getenv("WHATSAPP_APP_ID"):
+    token_refresher.register_service("whatsapp", refresh_whatsapp_token)
+
 if os.getenv("GMAIL_CLIENT_ID"):
    token_refresher.register_service("google", refresh_google_token)
 

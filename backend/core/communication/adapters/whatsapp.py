@@ -21,6 +21,16 @@ class WhatsAppAdapter(PlatformAdapter):
         self.api_version = "v17.0"
         self.base_url = f"https://graph.facebook.com/{self.api_version}/{self.phone_number_id}"
 
+    async def _get_access_token(self) -> str:
+        """Get the current access token, refreshing if necessary."""
+        from core.token_refresher import token_refresher
+        # If registered, the refresher might have a better token than env
+        status = token_refresher.get_status().get("whatsapp")
+        if status and status.get("access_token"):
+             # In a real impl, we'd fetch from token_storage
+             return status.get("access_token")
+        return self.access_token
+
     async def verify_request(self, request: Request, body_bytes: bytes) -> bool:
         if not self.app_secret:
              # Dev mode or misconfiguration
@@ -64,10 +74,19 @@ class WhatsAppAdapter(PlatformAdapter):
                 
             message = value["messages"][0]
             sender_id = message["from"] # Phone number
+            is_interaction = False
+            metadata = payload
             
             # Handle text messages
             if message["type"] == "text":
                 content = message["text"]["body"]
+            elif message["type"] == "interactive":
+                is_interaction = True
+                interactive = message["interactive"]
+                if interactive["type"] == "button_reply":
+                    content = interactive["button_reply"]["id"] # e.g. "APPROVE action_123"
+                else:
+                    content = "[Interactive Message]"
             elif message["type"] == "audio":
                 content = "[Audio Message]"
                 metadata["media_id"] = message["audio"]["id"]
@@ -80,21 +99,22 @@ class WhatsAppAdapter(PlatformAdapter):
                 "sender_id": sender_id,
                 "channel_id": sender_id, # DM
                 "content": content,
-                "metadata": payload
+                "is_interaction": is_interaction,
+                "metadata": metadata
             }
         except (KeyError, IndexError):
-            # logger.warning("WhatsApp payload structure unknown") # Reduce noise
             return None
 
     async def send_message(self, target_id: str, message: str, metadata: Dict = None) -> bool:
-        if not self.access_token or not self.phone_number_id:
+        access_token = await self._get_access_token()
+        if not access_token or not self.phone_number_id:
             logger.error("WhatsApp credentials missing.")
             return False
             
         try:
             async with httpx.AsyncClient() as client:
                 headers = {
-                    "Authorization": f"Bearer {self.access_token}",
+                    "Authorization": f"Bearer {access_token}",
                     "Content-Type": "application/json"
                 }
                 payload = {
@@ -111,6 +131,54 @@ class WhatsAppAdapter(PlatformAdapter):
         except Exception as e:
             logger.error(f"Failed to send WhatsApp message: {e}")
             return False
+
+    async def send_approval_request(self, target_id: str, action_id: str, details: Dict[str, Any], priority: str) -> bool:
+        """Send a WhatsApp Interactive Message with Approve/Reject buttons"""
+        access_token = await self._get_access_token()
+        if not access_token or not self.phone_number_id:
+            return await super().send_approval_request(target_id, action_id, details, priority)
+
+        try:
+            async with httpx.AsyncClient() as client:
+                headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                }
+                
+                header_text = f"Approval Required ({priority})"
+                body_text = f"Action: {details.get('action_type')}\nReason: {details.get('reason')}\nID: {action_id}"
+                
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": target_id,
+                    "type": "interactive",
+                    "interactive": {
+                        "type": "button",
+                        "header": {"type": "text", "text": header_text},
+                        "body": {"text": body_text},
+                        "action": {
+                            "buttons": [
+                                {
+                                    "type": "reply",
+                                    "reply": {"id": f"APPROVE {action_id}", "title": "Approve"}
+                                },
+                                {
+                                    "type": "reply",
+                                    "reply": {"id": f"REJECT {action_id}", "title": "Reject"}
+                                }
+                            ]
+                        }
+                    }
+                }
+                
+                response = await client.post(f"{self.base_url}/messages", json=payload, headers=headers)
+                response.raise_for_status()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to send WhatsApp interactive message: {e}")
+            # Fallback to text
+            return await super().send_approval_request(target_id, action_id, details, priority)
 
     async def get_media(self, media_id: str) -> Optional[bytes]:
         """Downloads media from WhatsApp Cloud API."""
