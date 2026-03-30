@@ -35,9 +35,30 @@ class NotionAdapter:
         self.client_secret = os.getenv("NOTION_CLIENT_SECRET")
         self.redirect_uri = os.getenv("NOTION_REDIRECT_URI")
 
-        # Token storage (in production, store securely in database)
         self._access_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
+
+    async def _load_token(self):
+        """Load OAuth tokens from database for the current workspace"""
+        if not self.db:
+            return
+            
+        from core.models import IntegrationToken
+        token = self.db.query(IntegrationToken).filter(
+            IntegrationToken.workspace_id == self.workspace_id,
+            IntegrationToken.provider == self.service_name
+        ).first()
+        
+        if token:
+            self._access_token = token.access_token
+            self._refresh_token = token.refresh_token
+            self._token_expires_at = token.expires_at
+
+    async def ensure_token(self):
+        """Ensure we have a valid access token"""
+        if not self._access_token:
+            await self._load_token()
 
     async def get_oauth_url(self) -> str:
         """
@@ -347,9 +368,85 @@ class NotionAdapter:
                 )
                 response.raise_for_status()
 
-                logger.info(f"Archived Notion page {page_id} in workspace {self.workspace_id}")
-                return True
-
         except Exception as e:
             logger.error(f"Failed to archive Notion page {page_id}: {e}")
             return False
+
+    async def get_available_schemas(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all available database schemas shared with the Notion integration.
+        Uses the search API filtered for databases.
+
+        Returns:
+            List of database objects with their properties/schemas.
+        """
+        if not self._access_token:
+            raise ValueError("Notion access token not available")
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/search",
+                    headers={
+                        "Authorization": f"Bearer {self._access_token}",
+                        "Notion-Version": "2022-06-28",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "filter": {
+                            "value": "database",
+                            "property": "object"
+                        }
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                results = data.get("results", [])
+                
+                logger.info(f"Discovered {len(results)} databases in Notion workspace {self.workspace_id}")
+                return results
+        except Exception as e:
+            logger.error(f"Failed to fetch Notion databases: {e}")
+            return []
+
+    async def fetch_records(self, entity_type: str, limit: int = 100, after: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Query a Notion database for records (pages).
+        
+        Args:
+            entity_type: The ID of the database to query.
+            limit: Number of records to fetch.
+            after: start_cursor for pagination.
+            
+        Returns:
+            Dictionary with 'results' (list) and 'paging' (dict).
+        """
+        if not self._access_token:
+            raise ValueError("Notion access token not available")
+
+        try:
+            json_data = {"page_size": limit}
+            if after:
+                json_data["start_cursor"] = after
+
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/databases/{entity_type}/query",
+                    headers={
+                        "Authorization": f"Bearer {self._access_token}",
+                        "Notion-Version": "2022-06-28",
+                        "Content-Type": "application/json"
+                    },
+                    json=json_data
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                # Normalize response to match Universal Adapter pattern
+                return {
+                    "results": data.get("results", []),
+                    "paging": {"after": data.get("next_cursor")} if data.get("has_more") else {}
+                }
+        except Exception as e:
+            logger.error(f"Failed to fetch records from Notion database {entity_type}: {e}")
+            return {"results": [], "paging": {}}

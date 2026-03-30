@@ -81,7 +81,7 @@ def seed_marketplace():
             "description": "Aggregate Stripe/Quickbooks data into a PDF report sent via email.",
             "category": TemplateCategory.REPORTING,
             "complexity": TemplateComplexity.ADVANCED,
-            "tags": ["finance", "stripe", "pdf", "reporting"],
+            "tags": ["finance", "pdf", "reporting"],
             "inputs": [
                 {"name": "date_range", "label": "Reporting Period", "description": "Last 30 days, Quater, etc.", "type": "string", "required": True},
                 {"name": "recipient", "label": "Email Recipient", "description": "Who gets the report?", "type": "string", "required": True}

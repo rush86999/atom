@@ -34,10 +34,6 @@ INTEGRATION_CONFIG = {
         "env_vars": ["TRELLO_API_KEY", "TRELLO_API_SECRET"],
         "service_name": "Trello"
     },
-    "stripe": {
-        "env_vars": ["STRIPE_API_KEY", "STRIPE_SECRET_KEY"],
-        "service_name": "Stripe"
-    },
     "quickbooks": {
         "env_vars": ["QUICKBOOKS_CLIENT_ID", "QUICKBOOKS_CLIENT_SECRET"],
         "service_name": "QuickBooks"
@@ -140,7 +136,6 @@ async def test_api_connectivity(integration: str, config_status: Dict[str, Any])
         "zoom": "https://api.zoom.us/v2",
         "notion": "https://api.notion.com/v1",
         "trello": "https://api.trello.com/1",
-        "stripe": "https://api.stripe.com/v1",
         "quickbooks": "https://sandbox-quickbooks.api.intuit.com/v3",  # Sandbox endpoint
         "github": "https://api.github.com",
         "salesforce": "https://login.salesforce.com",  # Auth endpoint
@@ -306,16 +301,6 @@ async def trello_health(db: Session = Depends(get_db)):
     token_status = check_oauth_tokens("trello", db)
     api_status = await test_api_connectivity("trello", config_status)
     return health_response("trello", config_status, token_status, api_status)
-
-
-# Stripe
-@router.get("/api/stripe/health")
-async def stripe_health(db: Session = Depends(get_db)):
-    """Check Stripe integration health with config, tokens, and API connectivity"""
-    config_status = check_integration_config("stripe")
-    token_status = check_oauth_tokens("stripe", db)
-    api_status = await test_api_connectivity("stripe", config_status)
-    return health_response("stripe", config_status, token_status, api_status)
 
 
 # QuickBooks

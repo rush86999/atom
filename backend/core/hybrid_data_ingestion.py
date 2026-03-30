@@ -5,15 +5,22 @@ Enables cross-system insights without manual configuration.
 """
 
 import asyncio
-from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from enum import Enum
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set
-
+import os
+from typing import Any, Dict, List, Optional, Set, Union
+from core.database import SessionLocal
 logger = logging.getLogger(__name__)
 
+class SyncMode(str, Enum):
+    """Modes for data synchronization"""
+    INCREMENTAL = "incremental"
+    FULL = "full"
+    DISCOVERY = "discovery"
+    HYBRID = "hybrid"
 
 @dataclass
 class IntegrationUsageStats:
@@ -37,6 +44,8 @@ class SyncConfiguration:
     sync_last_n_days: int = 30
     max_records_per_sync: int = 1000
     include_metadata: bool = True
+    sync_mode: str = "incremental"  # "incremental", "discovery"
+    discovery_frequency_hours: int = 168  # Weekly by default
 
 
 # Default sync configurations for popular integrations
@@ -91,7 +100,7 @@ DEFAULT_SYNC_CONFIGS: Dict[str, SyncConfiguration] = {
     ),
     "zoho": SyncConfiguration(
         integration_id="zoho",
-        entity_types=["crm_leads", "crm_deals", "books_invoices", "projects_tasks"],
+        entity_types=["crm_leads", "crm_deals", "books_invoices", "projects_tasks", "inventory_items", "inventory_sales_orders"],
         sync_last_n_days=30,
         max_records_per_sync=1000
     ),
@@ -115,6 +124,7 @@ class HybridDataIngestionService:
     def __init__(self, workspace_id: str = "default", tenant_id: str = "default"):
         self.workspace_id = workspace_id
         self.tenant_id = tenant_id
+        logger.error(f"DEBUG: HybridDataIngestionService initialized for {workspace_id} / {tenant_id}")
         self.usage_stats: Dict[str, IntegrationUsageStats] = {}
         self.sync_configs: Dict[str, SyncConfiguration] = {}
         self._sync_tasks: Dict[str, asyncio.Task] = {}
@@ -131,10 +141,18 @@ class HybridDataIngestionService:
         # Initialize GraphRAG engine
         try:
             from core.graphrag_engine import GraphRAGEngine
-            self.graphrag = GraphRAGEngine(workspace_id=workspace_id, tenant_id=tenant_id)
+            self.graphrag = GraphRAGEngine()
         except ImportError:
             self.graphrag = None
             logger.warning("GraphRAG engine not available for hybrid ingestion")
+            
+        # Initialize LLM Service
+        try:
+            from core.llm_service import get_llm_service
+            self.llm = get_llm_service(workspace_id=workspace_id, tenant_id=tenant_id)
+        except ImportError:
+            self.llm = None
+            logger.warning("LLM Service not available for hybrid ingestion schema discovery")
     
     def record_integration_usage(
         self, 
@@ -179,12 +197,9 @@ class HybridDataIngestionService:
                 logger.info(f"Auto-enabling sync for {integration_id} (usage: {stats.total_calls})")
                 self.enable_auto_sync(integration_id)
     
-    def enable_auto_sync(
-        self, 
-        integration_id: str,
-        config: Optional[SyncConfiguration] = None
-    ):
+    def enable_auto_sync(self, integration_id: str, config: Optional[SyncConfiguration] = None):
         """Enable automatic data sync for an integration"""
+        logger.error(f"DEBUG: enable_auto_sync called for {integration_id}")
         if integration_id not in self.usage_stats:
             self.usage_stats[integration_id] = IntegrationUsageStats(
                 integration_id=integration_id,
@@ -199,6 +214,7 @@ class HybridDataIngestionService:
             self.sync_configs[integration_id] = config
         elif integration_id in DEFAULT_SYNC_CONFIGS:
             self.sync_configs[integration_id] = DEFAULT_SYNC_CONFIGS[integration_id]
+            logger.error(f"DEBUG: Loaded default sync config for {integration_id}: {self.sync_configs[integration_id]}")
         else:
             # Create basic config
             self.sync_configs[integration_id] = SyncConfiguration(
@@ -221,7 +237,8 @@ class HybridDataIngestionService:
     async def sync_integration_data(
         self, 
         integration_id: str,
-        force: bool = False
+        force: bool = False,
+        discovery_mode: bool = False
     ) -> Dict[str, Any]:
         """
         Sync data from an integration into Atom Memory.
@@ -256,13 +273,45 @@ class HybridDataIngestionService:
         
         try:
             # Fetch data from integration
-            records = await self._fetch_integration_data(integration_id, config)
+            records = await self._fetch_integration_data(integration_id, config, discovery_mode=discovery_mode)
             results["records_fetched"] = len(records)
             
             # Ingest each record into Atom Memory
+            seen_types = set()
             for record in records:
                 try:
-                    # Convert record to text for embedding
+                    record_type = record.get("type", "unknown")
+                    
+                    # 1. Automated Schema Discovery (Dynamic Intelligence)
+                    if record_type not in seen_types and record_type != "unknown":
+                        try:
+                            from core.entity_type_service import EntityTypeService
+                            from core.database import SessionLocal
+                            
+                            db = SessionLocal()
+                            try:
+                                et_service = EntityTypeService(db=db)
+                                # Only discover if it's likely a new or customized type
+                                discovered_schema = await self._discover_schema(record)
+                                
+                                # Register as draft (is_active=False)
+                                # Sanitize record_type for slug (e.g. replace : with _)
+                                sanitized_type = record_type.replace(":", "_").replace(" ", "_").lower()
+                                slug = f"{self.workspace_id}_{integration_id}_{sanitized_type}"
+                                et_service.resolve_or_create_draft(
+                                    tenant_id=self.tenant_id,
+                                    slug=slug,
+                                    display_name=record_type.replace("_", " ").title(),
+                                    json_schema=discovered_schema,
+                                    description=f"Automatically discovered from {integration_id} sync."
+                                )
+                                seen_types.add(record_type)
+                            finally:
+                                db.close()
+                        except Exception as discovery_err:
+                            logger.warning(f"Failed to perform dynamic discovery for {record_type}: {discovery_err}")
+
+                    # 2. Convert record to text for embedding
                     text = self._record_to_text(record, integration_id)
                     
                     # Skip if no meaningful text
@@ -295,8 +344,9 @@ class HybridDataIngestionService:
                             text=text,
                             source=integration_id
                         )
-                        results["entities_extracted"] += graphrag_result.get("entities", 0)
-                        results["relationships_extracted"] += graphrag_result.get("relationships", 0)
+                        if graphrag_result:
+                            results["entities_extracted"] += graphrag_result.get("entities", 0)
+                            results["relationships_extracted"] += graphrag_result.get("relationships", 0)
                 
                 except Exception as record_err:
                     results["errors"].append(str(record_err))
@@ -321,35 +371,46 @@ class HybridDataIngestionService:
             logger.error(f"Sync failed for {integration_id}: {e}")
         
         return results
-    
+
+    async def _estimate_api_cost(self, integration_id: str, mode: Union[SyncMode, str]) -> int:
+        """Estimate the API credit cost for a specific sync mode"""
+        if isinstance(mode, str):
+            try:
+                mode = SyncMode(mode)
+            except ValueError:
+                mode = SyncMode.INCREMENTAL
+        
+        base_cost = 10 
+        if mode == SyncMode.DISCOVERY:
+            return base_cost * 10
+        elif mode == SyncMode.HYBRID:
+            return base_cost * 3
+        elif mode == SyncMode.FULL:
+            return base_cost * 5
+        return base_cost
+
     async def _fetch_integration_data(
         self, 
         integration_id: str, 
-        config: SyncConfiguration
+        config: SyncConfiguration,
+        discovery_mode: bool = False
     ) -> List[Dict[str, Any]]:
         """
-        Fetch data from an integration's API.
-        This is a dispatcher that routes to specific integration fetchers.
         """
         records = []
         
         try:
             if integration_id == "salesforce":
                 records = await self._fetch_salesforce_data(config)
-            elif integration_id == "hubspot":
-                records = await self._fetch_hubspot_data(config)
+            elif integration_id in ["hubspot", "notion", "airtable", "jira", "zoho", "zoho_crm"]:
+                # Use the new Universal discovery/fetch pattern
+                records = await self._fetch_universal_adapter_data(integration_id, config, discovery_mode)
             elif integration_id == "slack":
                 records = await self._fetch_slack_data(config)
             elif integration_id == "gmail":
                 records = await self._fetch_gmail_data(config)
-            elif integration_id == "notion":
-                records = await self._fetch_notion_data(config)
-            elif integration_id == "jira":
-                records = await self._fetch_jira_data(config)
             elif integration_id == "zendesk":
                 records = await self._fetch_zendesk_data(config)
-            elif integration_id == "zoho" or integration_id == "zoho_crm":
-                records = await self._fetch_zoho_multi_app_data(config)
             else:
                 logger.warning(f"No fetcher implemented for {integration_id}")
         
@@ -357,6 +418,89 @@ class HybridDataIngestionService:
             logger.error(f"Failed to fetch data from {integration_id}: {e}")
         
         return records[:config.max_records_per_sync]
+
+    async def _fetch_universal_adapter_data(self, integration_id: str, config: SyncConfiguration, discovery_mode: bool = False) -> List[Dict[str, Any]]:
+        """
+        Generic fetcher that uses the standardized adapter interface for discovery and data retrieval.
+        Supported by: Zoho, HubSpot, Notion, Airtable, Jira.
+        """
+        records = []
+        try:
+            from core.service_factory import ServiceFactory
+            from core.database import SessionLocal
+            
+            db = SessionLocal()
+            try:
+                # 1. Get the adapter from ServiceFactory
+                # ServiceFactory methods are named get_{provider}_adapter
+                adapter_method_name = f"get_{integration_id.replace('_crm', '')}_adapter"
+                if not hasattr(ServiceFactory, adapter_method_name):
+                    logger.error(f"ServiceFactory has no method {adapter_method_name}")
+                    return []
+                
+                adapter_method = getattr(ServiceFactory, adapter_method_name)
+                # Some adapters might need workspace_id or other params
+                adapter = adapter_method(db=db, workspace_id=self.workspace_id)
+                
+                # Ensure token is valid (if adapter supports it)
+                if hasattr(adapter, "ensure_token"):
+                    await adapter.ensure_token()
+                
+                # 2. Discovery: If discovery_mode is True, find all available entity types
+                entity_types = config.entity_types
+                if discovery_mode:
+                    if hasattr(adapter, "get_available_schemas"):
+                        discovered_schemas = await adapter.get_available_schemas()
+                        # Extract the unique identifiers for fetching
+                        # Format varies by adapter (e.g., 'objectApiName' for HubSpot, 'id' for Notion)
+                        new_entities = []
+                        for schema in discovered_schemas:
+                            if integration_id == "hubspot":
+                                new_entities.append(schema.get("name"))
+                            elif integration_id == "notion":
+                                new_entities.append(schema.get("id"))
+                            elif integration_id == "airtable":
+                                new_entities.append(f"{schema.get('base_id')}:{schema.get('id')}")
+                            elif integration_id == "jira":
+                                new_entities.append(f"{schema.get('project_key')}:{schema.get('issue_type')}")
+                            elif integration_id in ["zoho", "zoho_crm"]:
+                                new_entities.append(schema.get("api_name"))
+                        
+                        # Merge with config (avoid duplicates)
+                        entity_types = list(set(entity_types + new_entities))
+                        logger.info(f"Discovery mode for {integration_id} found {len(new_entities)} potential entities.")
+
+                # 3. Fetch data for each entity type
+                if hasattr(adapter, "fetch_records"):
+                    for etype in entity_types:
+                        try:
+                            # Fetch a single page for discovery/sync
+                            response = await adapter.fetch_records(entity_type=etype, limit=100)
+                            batch = response.get("results", [])
+                            
+                            for r in batch:
+                                # Ensure record has type and source for ingestion loop
+                                r["type"] = etype
+                                r["source"] = integration_id
+                                records.append(r)
+                                
+                            if len(records) >= config.max_records_per_sync:
+                                break
+                        except Exception as fetch_err:
+                            logger.error(f"Error fetching {etype} from {integration_id}: {fetch_err}")
+                else:
+                    # Fallback to legacy app-specific fetchers if fetch_records is missing
+                    if integration_id in ["zoho", "zoho_crm"]:
+                        return await self._fetch_zoho_multi_app_data(config, discovery_mode)
+                    logger.warning(f"Adapter for {integration_id} does not support fetch_records")
+                    
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"Universal fetch error for {integration_id}: {e}")
+            
+        return records
     
     async def _fetch_salesforce_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
         """Fetch data from Salesforce"""
@@ -631,27 +775,30 @@ class HybridDataIngestionService:
 
         return records
 
-    async def _fetch_zoho_multi_app_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+    async def _fetch_zoho_multi_app_data(self, config: SyncConfiguration, discovery_mode: bool = False) -> List[Dict[str, Any]]:
         """Fetch data from all enabled Zoho applications using the Universal Adapter"""
         records = []
         try:
             from core.integrations.adapters.zoho import ZohoAdapter
             from core.models import IntegrationToken
-            from core.database import SessionLocal
             
             db = SessionLocal()
             try:
-                # In Upstream, we might use workspace_id as tenant_id
-                target_tenant = self.tenant_id or self.workspace_id
-                
                 # Get the api_domain (instance_url) from the stored token
                 token = db.query(IntegrationToken).filter(
-                    IntegrationToken.tenant_id == target_tenant,
+                    IntegrationToken.tenant_id == self.tenant_id,
                     IntegrationToken.provider == "zoho"
                 ).first()
                 
+                logger.error(f"DEBUG: Token found for {self.tenant_id}: {token is not None}")
+                if token:
+                    logger.error(f"DEBUG: Token metadata: {token.metadata}")
+                
                 instance_url = token.instance_url if token else None
                 adapter = ZohoAdapter(db=db, workspace_id=self.workspace_id, instance_url=instance_url)
+                
+                # Ensure we have a valid access token
+                await adapter.ensure_token()
                 
                 for entity_type in config.entity_types:
                     if entity_type == "crm_leads":
@@ -660,27 +807,97 @@ class HybridDataIngestionService:
                         records.extend(await adapter.get_deals(limit=100))
                     elif entity_type == "books_invoices":
                         # Note: Books requires organization_id which should be in connection metadata
-                        # In OS, we might store this in a 'config' JSON field or similar
-                        metadata = getattr(token, 'metadata', {}) or {}
-                        org_id = metadata.get("organization_id")
+                        org_id = token.metadata.get("organization_id") if token and token.metadata else None
                         if org_id:
                             records.extend(await adapter.get_invoices(organization_id=org_id, limit=100))
+                    elif entity_type == "inventory_items":
+                        org_id = token.metadata.get("organization_id") if token and token.metadata else None
+                        if org_id:
+                            records.extend(await adapter.get_items(organization_id=org_id, limit=100))
+                    elif entity_type == "inventory_sales_orders":
+                        org_id = token.metadata.get("organization_id") if token and token.metadata else None
+                        if org_id:
+                            records.extend(await adapter.get_sales_orders(organization_id=org_id, limit=100))
                     elif entity_type == "projects_tasks":
-                        metadata = getattr(token, 'metadata', {}) or {}
-                        portal_id = metadata.get("portal_id")
-                        projects = metadata.get("active_projects", [])
+                        # Discovery mode gates expensive portal/project traversal
+                        portal_id = token.metadata.get("portal_id") if token and token.metadata else None
+                        
+                        if discovery_mode and not portal_id:
+                            portals = await adapter.get_portals()
+                            if portals:
+                                portal_id = portals[0]["id"]
+                                # Update metadata if needed (deferred)
+                                
+                        projects = token.metadata.get("active_projects", []) if token and token.metadata else []
+                        if discovery_mode and portal_id and not projects:
+                            discovered_projects = await adapter.get_projects(portal_id)
+                            projects = [p["id"] for p in discovered_projects[:3]]
+                            
                         if portal_id:
-                            for project_id in projects[:3]:
+                            for project_id in projects[:3]: # Sync top 3 active projects
                                 records.extend(await adapter.get_tasks(portal_id=portal_id, project_id=project_id))
                                 
-                logger.info(f"Universal Zoho Sync (Upstream): Fetched {len(records)} items")
+                logger.info(f"Universal Zoho Sync (Discovery={discovery_mode}): Fetched {len(records)} items across modules")
             finally:
                 db.close()
                 
         except Exception as e:
-            logger.error(f"Universal Zoho fetch error in Upstream: {e}")
+            logger.error(f"Universal Zoho fetch error: {e}")
             
         return records
+
+    async def _discover_schema(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Infer JSON Schema from a sample record using LLM refinement if available"""
+        properties = {}
+        
+        # 1. Base inference
+        for key, value in record.items():
+            if key in ["raw_metadata"]: continue
+            
+            if isinstance(value, bool):
+                properties[key] = {"type": "boolean"}
+            elif isinstance(value, int):
+                properties[key] = {"type": "integer"}
+            elif isinstance(value, float):
+                properties[key] = {"type": "number"}
+            elif isinstance(value, dict):
+                properties[key] = {"type": "object"}
+            elif isinstance(value, list):
+                properties[key] = {"type": "array"}
+            else:
+                properties[key] = {"type": "string"}
+        
+        # 2. LLM Refinement for metadata if available
+        if self.llm:
+            try:
+                from pydantic import BaseModel
+                
+                class SchemaMetadata(BaseModel):
+                    display_names: Dict[str, str]
+                    descriptions: Dict[str, str]
+                
+                sample_json = json.dumps({k: record[k] for k in list(record.keys())[:10]}, indent=2)
+                prompt = f"Analyze this Zoho record and provide human-readable display names and descriptions for these fields:\n\n{sample_json}"
+                
+                metadata = await self.llm.generate_structured_response(
+                    prompt=prompt,
+                    response_model=SchemaMetadata,
+                    system_instruction="You are a data architect. Generate professional metadata for discovered CRM/ERP entities."
+                )
+                
+                for key in properties:
+                    if key in metadata.display_names:
+                        properties[key]["title"] = metadata.display_names[key]
+                    if key in metadata.descriptions:
+                        properties[key]["description"] = metadata.descriptions[key]
+            except Exception as e:
+                logger.warning(f"LLM schema refinement failed: {e}")
+                
+        return {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": properties
+        }
     
     def _record_to_text(self, record: Dict[str, Any], integration_id: str) -> str:
         """Convert a record to searchable text for embedding"""

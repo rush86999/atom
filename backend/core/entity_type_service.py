@@ -116,6 +116,60 @@ class EntityTypeService:
             logger.error(f"Merge failed: {e}")
             raise
     
+    def resolve_or_create_draft(
+        self,
+        tenant_id: str,
+        slug: str,
+        display_name: str,
+        json_schema: Dict[str, Any],
+        description: Optional[str] = None,
+        is_active: bool = False
+    ) -> EntityTypeDefinition:
+        """
+        Idempotent resolver for automated discovery.
+        If slug exists: updates schema (evolving version) if changed.
+        If slug is new: creates a new draft entity type.
+        
+        Args:
+            tenant_id: Tenant UUID
+            slug: Entity type slug
+            display_name: Suggested display name
+            json_schema: Inferred JSON schema
+            description: Optional description
+            is_active: Whether the entity type is active (default False for drafts)
+            
+        Returns:
+            Resolved/updated EntityTypeDefinition
+        """
+        existing = self.db.query(EntityTypeDefinition).filter(
+            EntityTypeDefinition.tenant_id == tenant_id,
+            EntityTypeDefinition.slug == slug
+        ).first()
+        
+        if existing:
+            # Check if schema changed
+            if existing.json_schema != json_schema:
+                logger.info(f"Evolving schema for {slug} (v{existing.version} -> v{existing.version+1})")
+                return self.update_entity_type(
+                    tenant_id=tenant_id,
+                    entity_type_id=str(existing.id),
+                    json_schema=json_schema,
+                    change_summary="Automated schema evolution detected during sync.",
+                    changed_by="system:auto-discovery"
+                )
+            return existing
+            
+        # Create as new draft
+        return self.create_entity_type(
+            tenant_id=tenant_id,
+            slug=slug,
+            display_name=display_name,
+            json_schema=json_schema,
+            description=description,
+            is_system=False,
+            is_active=is_active
+        )
+
     def create_entity_type(
         self,
         tenant_id: str,
@@ -124,7 +178,8 @@ class EntityTypeService:
         json_schema: Dict[str, Any],
         description: Optional[str] = None,
         available_skills: Optional[List[str]] = None,
-        is_system: bool = False
+        is_system: bool = False,
+        is_active: bool = True
     ) -> EntityTypeDefinition:
         """
         Create new entity type with schema validation.
@@ -137,6 +192,7 @@ class EntityTypeService:
             description: Optional description
             available_skills: List of skill IDs that can operate on this entity type
             is_system: True for canonical entities (should not be modified)
+            is_active: Whether the entity type is active or a draft
 
         Returns:
             Created EntityTypeDefinition
@@ -177,7 +233,7 @@ class EntityTypeService:
             json_schema=json_schema,
             available_skills=available_skills or [],
             is_system=is_system,
-            is_active=True,
+            is_active=is_active,
             version=1
         )
 

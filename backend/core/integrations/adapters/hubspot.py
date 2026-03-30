@@ -36,10 +36,75 @@ class HubSpotAdapter:
         self.client_secret = os.getenv("HUBSPOT_CLIENT_SECRET")
         self.redirect_uri = os.getenv("HUBSPOT_REDIRECT_URI")
 
-        # Token storage
         self._access_token: Optional[str] = None
-        _refresh_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
+
+    async def _load_token(self):
+        """Load OAuth tokens from database for the current workspace"""
+        if not self.db:
+            return
+            
+        from core.models import IntegrationToken
+        token = self.db.query(IntegrationToken).filter(
+            IntegrationToken.workspace_id == self.workspace_id,
+            IntegrationToken.provider == self.service_name
+        ).first()
+        
+        if token:
+            self._access_token = token.access_token
+            self._refresh_token = token.refresh_token
+            self._token_expires_at = token.expires_at
+
+    async def refresh_token(self) -> bool:
+        """Refresh HubSpot access token using refresh token"""
+        if not self._refresh_token:
+            return False
+            
+        token_url = f"{self.base_url}/oauth/v1/token"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(token_url, data=data)
+                response.raise_for_status()
+                
+                token_data = response.json()
+                self._access_token = token_data.get("access_token")
+                expires_in = token_data.get("expires_in", 3600)
+                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                
+                # Update DB
+                if self.db:
+                    from core.models import IntegrationToken
+                    token = self.db.query(IntegrationToken).filter(
+                        IntegrationToken.workspace_id == self.workspace_id,
+                        IntegrationToken.provider == self.service_name
+                    ).first()
+                    if token:
+                        token.access_token = self._access_token
+                        token.expires_at = self._token_expires_at
+                        self.db.commit()
+                
+                return True
+        except Exception as e:
+            logger.error(f"HubSpot token refresh failed: {e}")
+            return False
+
+    async def ensure_token(self):
+        """Ensure we have a valid non-expired access token"""
+        if not self._access_token:
+            await self._load_token()
+            
+        if not self._access_token or (self._token_expires_at and self._token_expires_at < datetime.now()):
+            # HubSpot tokens expire in 30 mins, but let's refresh if needed
+            if self._refresh_token:
+                await self.refresh_token()
 
     async def get_oauth_url(self) -> str:
         """
@@ -405,15 +470,13 @@ class HubSpotAdapter:
             logger.error(f"Failed to create HubSpot deal: {e}")
             raise
 
-    async def get_companies(self, limit: int = 20) -> List[Dict[str, Any]]:
+    async def get_available_schemas(self) -> List[Dict[str, Any]]:
         """
-        Retrieve HubSpot companies.
-
-        Args:
-            limit: Maximum number of results
+        Retrieve all available object schemas for the HubSpot portal.
+        Includes Contacts, Companies, Deals, Tickets, and Custom Objects.
 
         Returns:
-            List of company objects
+            List of schema definition objects.
         """
         if not self._access_token:
             raise ValueError("HubSpot access token not available")
@@ -421,24 +484,67 @@ class HubSpotAdapter:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.base_url}/crm/v3/objects/companies",
+                    f"{self.base_url}/crm/v3/schemas",
+                    headers={
+                        "Authorization": f"Bearer {self._access_token}",
+                        "Content-Type": "application/json"
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                schemas = data.get("results", [])
+                
+                logger.info(f"Discovered {len(schemas)} schemas for HubSpot workspace {self.workspace_id}")
+                return schemas
+        except Exception as e:
+            logger.error(f"Failed to fetch HubSpot schemas: {e}")
+            return []
+
+    async def fetch_records(self, entity_type: str, limit: int = 100, after: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Unified method to fetch records for any HubSpot object type.
+        
+        Args:
+            entity_type: The object type to fetch (e.g., 'contacts', 'deals', '2-12345' for custom objects)
+            limit: Page size
+            after: Pagination cursor
+            
+        Returns:
+            Dictionary with 'results' (list) and 'paging' (dict).
+        """
+        if not self._access_token:
+            raise ValueError("HubSpot access token not available")
+
+        # Standard object names mapping (plural to singular for some endpoints)
+        # HubSpot CRM v3 uses plural for standard objects in the URL path
+        endpoint_map = {
+            "contact": "contacts",
+            "company": "companies",
+            "deal": "deals",
+            "ticket": "tickets"
+        }
+        
+        normalized_type = endpoint_map.get(entity_type.lower(), entity_type)
+        
+        try:
+            params = {"limit": limit}
+            if after:
+                params["after"] = after
+                
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/crm/v3/objects/{normalized_type}",
                     headers={
                         "Authorization": f"Bearer {self._access_token}",
                         "Content-Type": "application/json"
                     },
-                    params={
-                        "limit": limit,
-                        "properties": "name,domain,industry,description,phone"
-                    }
+                    params=params
                 )
                 response.raise_for_status()
-
                 data = response.json()
-                companies = data.get("results", [])
-
-                logger.info(f"Retrieved {len(companies)} HubSpot companies for workspace {self.workspace_id}")
-                return companies
-
+                
+                logger.debug(f"Fetched {len(data.get('results', []))} {normalized_type} from HubSpot")
+                return data
         except Exception as e:
-            logger.error(f"Failed to retrieve HubSpot companies: {e}")
-            raise
+            logger.error(f"Failed to fetch {entity_type} from HubSpot: {e}")
+            return {"results": [], "paging": {}}
