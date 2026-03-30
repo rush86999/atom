@@ -24,7 +24,6 @@ except ImportError:
     INSTRUCTOR_AVAILABLE = False
 
 # Core imports (moved from inline for better testability)
-from core.agent_governance_service import AgentGovernanceService
 from core.benchmarks import get_quality_score, get_capability_score
 from core.byok_endpoints import get_byok_manager
 from core.cost_config import (
@@ -42,7 +41,7 @@ from core.llm.cognitive_tier_service import CognitiveTierService
 from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
 from core.llm_usage_tracker import llm_usage_tracker
 from core.lux_config import lux_config
-from core.models import AgentExecution, Tenant, Workspace, ModelCatalog
+from core.models import GovernanceDocument, AgentExecution, Tenant, Workspace, ModelCatalog
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +195,6 @@ class BYOKHandler:
             except Exception as e:
                 logger.warning(f"Could not create database session for tier service: {e}")
                 self.db_session = None
-
         self.tier_service = tier_service or CognitiveTierService(workspace_id, self.db_session, tenant_id=tenant_id)
 
         # Phase 226.4-04: Initialize excluded models cache
@@ -1679,6 +1677,7 @@ class BYOKHandler:
                         db.commit()
 
                         # Record outcome for confidence scoring
+                        from core.agent_governance_service import AgentGovernanceService
                         governance = AgentGovernanceService(db)
                         await governance.record_outcome(agent_id, success=True)
 
@@ -1723,6 +1722,7 @@ class BYOKHandler:
                 db.commit()
 
                 # Record failure for confidence scoring
+                from core.agent_governance_service import AgentGovernanceService
                 governance = AgentGovernanceService(db)
                 await governance.record_outcome(agent_id, success=False)
 

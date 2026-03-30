@@ -1,1 +1,2 @@
-from .llm_service import LLMService, get_llm_service, LLMProvider, LLMModel
+# Core module
+# Circular imports are avoided by NOT importing services at the top level

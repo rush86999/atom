@@ -17,7 +17,6 @@ import numpy as np
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from core.llm_service import LLMService
 from core.models import GovernanceDocument
 
 logger = logging.getLogger(__name__)
@@ -34,6 +33,7 @@ class PGPolicySearchService:
         Initialize policy search service.
         """
         self.db = db
+        from core.llm_service import LLMService
         self.llm_service = LLMService()
 
     async def search(
