@@ -37,10 +37,86 @@ class AirtableAdapter:
         self.redirect_uri = os.getenv("AIRTABLE_REDIRECT_URI")
         self.personal_access_token = os.getenv("AIRTABLE_PAT")
 
-        # Token storage
         self._access_token: Optional[str] = None
-        _refresh_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
+
+    async def _load_token(self):
+        """Load OAuth tokens from database for the current workspace"""
+        if not self.db:
+            return
+            
+        from core.models import IntegrationToken
+        token = self.db.query(IntegrationToken).filter(
+            IntegrationToken.workspace_id == self.workspace_id,
+            IntegrationToken.provider == self.service_name
+        ).first()
+        
+        if token:
+            self._access_token = token.access_token
+            self._refresh_token = token.refresh_token
+            self._token_expires_at = token.expires_at
+
+    async def refresh_token(self) -> bool:
+        """Refresh Airtable access token using refresh token"""
+        if not self._refresh_token:
+            return False
+            
+        token_url = "https://airtable.com/oauth2/v1/token"
+        
+        import base64
+        auth_header = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+        }
+        
+        headers = {
+            "Authorization": f"Basic {auth_header}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(token_url, data=data, headers=headers)
+                response.raise_for_status()
+                
+                token_data = response.json()
+                self._access_token = token_data.get("access_token")
+                self._refresh_token = token_data.get("refresh_token") # Airtable might issue new refresh token
+                expires_in = token_data.get("expires_in", 3600)
+                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                
+                # Update DB
+                if self.db:
+                    from core.models import IntegrationToken
+                    token = self.db.query(IntegrationToken).filter(
+                        IntegrationToken.workspace_id == self.workspace_id,
+                        IntegrationToken.provider == self.service_name
+                    ).first()
+                    if token:
+                        token.access_token = self._access_token
+                        token.refresh_token = self._refresh_token
+                        token.expires_at = self._token_expires_at
+                        self.db.commit()
+                
+                return True
+        except Exception as e:
+            logger.error(f"Airtable token refresh failed: {e}")
+            return False
+
+    async def ensure_token(self):
+        """Ensure we have a valid access token"""
+        if not self._access_token:
+            await self._load_token()
+            
+        if not self._access_token or (self._token_expires_at and self._token_expires_at < datetime.now()):
+            if self._refresh_token:
+                await self.refresh_token()
+            elif self.personal_access_token:
+                # Fallback to PAT if configured and OAuth fails
+                self._access_token = self.personal_access_token
 
     async def get_oauth_url(self) -> str:
         """
@@ -436,13 +512,82 @@ class AirtableAdapter:
             # Build filter formula
             formula = f"FIND('{search_value}', LOWER({{{field_name}}})) > 0"
 
-            return await self.get_records(
-                base_id=base_id,
-                table_name=table_name,
-                filter_by_formula=formula,
-                max_records=max_records
-            )
-
         except Exception as e:
             logger.error(f"Failed to search Airtable records: {e}")
             raise
+
+    async def get_available_schemas(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all available table schemas across all accessible Airtable bases.
+        Traverses Bases -> Tables.
+
+        Returns:
+            List of schema objects, where each object represents a table in a base.
+        """
+        try:
+            bases = await self.list_bases()
+            all_schemas = []
+            
+            for base in bases:
+                base_id = base.get("id")
+                base_name = base.get("name")
+                
+                try:
+                    tables = await self.list_tables(base_id)
+                    for table in tables:
+                        # Enrich table schema with base identity
+                        table["base_id"] = base_id
+                        table["base_name"] = base_name
+                        all_schemas.append(table)
+                except Exception as e:
+                    logger.warning(f"Failed to fetch tables for Airtable base {base_id} ({base_name}): {e}")
+                    
+            logger.info(f"Discovered {len(all_schemas)} tables across {len(bases)} Airtable bases")
+            return all_schemas
+        except Exception as e:
+            logger.error(f"Failed to discover Airtable schemas: {e}")
+            return []
+
+    async def fetch_records(self, entity_type: str, limit: int = 100, after: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Unified method to fetch records from an Airtable table.
+        
+        Args:
+            entity_type: Composite ID in format 'base_id:table_name' or 'base_id:table_id'
+            limit: Maximum records to fetch.
+            after: Offset for pagination.
+            
+        Returns:
+            Dictionary with 'results' (list) and 'paging' (dict).
+        """
+        token = self._access_token or self.personal_access_token
+        if not token:
+            raise ValueError("Airtable access token not configured")
+
+        try:
+            if ":" not in entity_type:
+                logger.error(f"Invalid Airtable entity_type format: {entity_type}. Expected 'base_id:table_name'")
+                return {"results": [], "paging": {}}
+                
+            base_id, table_name = entity_type.split(":", 1)
+            
+            params = {"maxRecords": limit}
+            if after:
+                params["offset"] = after
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.base_url}/{base_id}/{table_name}",
+                    headers={"Authorization": f"Bearer {token}"},
+                    params=params
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                return {
+                    "results": data.get("records", []),
+                    "paging": {"after": data.get("offset")} if data.get("offset") else {}
+                }
+        except Exception as e:
+            logger.error(f"Failed to fetch records from Airtable {entity_type}: {e}")
+            return {"results": [], "paging": {}}

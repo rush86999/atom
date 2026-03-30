@@ -37,10 +37,83 @@ class JiraAdapter:
         self.client_secret = os.getenv("JIRA_CLIENT_SECRET")
         self.redirect_uri = os.getenv("JIRA_REDIRECT_URI")
 
-        # Token storage
         self._access_token: Optional[str] = None
-        _refresh_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
         self._token_expires_at: Optional[datetime] = None
+
+    async def _load_token(self):
+        """Load OAuth tokens from database for the current workspace"""
+        if not self.db:
+            return
+            
+        from core.models import IntegrationToken
+        token = self.db.query(IntegrationToken).filter(
+            IntegrationToken.workspace_id == self.workspace_id,
+            IntegrationToken.provider == self.service_name
+        ).first()
+        
+        if token:
+            self._access_token = token.access_token
+            # Jira tokens also are store here
+            self._refresh_token = token.refresh_token
+            self._token_expires_at = token.expires_at
+            
+            # Dynamically set site_url from token if not explicitly provided
+            if not self.site_url and token.instance_url:
+                self.site_url = token.instance_url
+                self.base_url = f"{self.site_url}/rest/api/3"
+                logger.info(f"Loaded Jira site URL from token: {self.site_url}")
+
+    async def refresh_token(self) -> bool:
+        """Refresh Jira access token using refresh token"""
+        if not self._refresh_token:
+            return False
+            
+        token_url = "https://auth.atlassian.com/oauth/token"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": self._refresh_token,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+        }
+        
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(token_url, json=data)
+                response.raise_for_status()
+                
+                token_data = response.json()
+                self._access_token = token_data.get("access_token")
+                self._refresh_token = token_data.get("refresh_token")
+                expires_in = token_data.get("expires_in", 3600)
+                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                
+                # Update DB
+                if self.db:
+                    from core.models import IntegrationToken
+                    token = self.db.query(IntegrationToken).filter(
+                        IntegrationToken.workspace_id == self.workspace_id,
+                        IntegrationToken.provider == self.service_name
+                    ).first()
+                    if token:
+                        token.access_token = self._access_token
+                        token.refresh_token = self._refresh_token
+                        token.expires_at = self._token_expires_at
+                        self.db.commit()
+                
+                return True
+        except Exception as e:
+            logger.error(f"Jira token refresh failed: {e}")
+            return False
+
+    async def ensure_token(self):
+        """Ensure we have a valid access token"""
+        if not self._access_token:
+            await self._load_token()
+            
+        if not self._access_token or (self._token_expires_at and self._token_expires_at < datetime.now()):
+            if self._refresh_token:
+                await self.refresh_token()
 
     async def get_oauth_url(self) -> str:
         """
@@ -335,9 +408,107 @@ class JiraAdapter:
 
                 data = response.json()
 
-                logger.info(f"Added comment to Jira issue {issue_key} in workspace {self.workspace_id}")
-                return data
-
         except Exception as e:
             logger.error(f"Failed to add comment to Jira issue {issue_key}: {e}")
             raise
+
+    async def get_available_schemas(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all available projects and their associated issue types.
+        In Jira, the schema is effectively (Project x IssueType).
+
+        Returns:
+            List of project/issue-type schema objects.
+        """
+        if not self.base_url or not self._access_token:
+            raise ValueError("Jira API not configured")
+
+        try:
+            async with httpx.AsyncClient() as client:
+                # Fetch projects with their issue types expanded
+                response = await client.get(
+                    f"{self.base_url}/project",
+                    headers={
+                        "Authorization": f"Bearer {self._access_token}",
+                        "Content-Type": "application/json"
+                    },
+                    params={"expand": "issueTypes"}
+                )
+                response.raise_for_status()
+                projects = response.json()
+                
+                schemas = []
+                for project in projects:
+                    project_key = project.get("key")
+                    project_name = project.get("name")
+                    issue_types = project.get("issueTypes", [])
+                    
+                    for itype in issue_types:
+                        # Create a composite schema object
+                        schemas.append({
+                            "project_key": project_key,
+                            "project_name": project_name,
+                            "issue_type": itype.get("name"),
+                            "issue_type_id": itype.get("id"),
+                            "description": itype.get("description")
+                        })
+                
+                logger.info(f"Discovered {len(schemas)} project/issue-type combinations in Jira")
+                return schemas
+        except Exception as e:
+            logger.error(f"Failed to discover Jira schemas: {e}")
+            return []
+
+    async def fetch_records(self, entity_type: str, limit: int = 50, after: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Unified method to fetch Jira issues using JQL based on project and issue type.
+        
+        Args:
+            entity_type: Composite ID in format 'project_key:issue_type_name'
+            limit: Maximum issues to fetch.
+            after: startAt (integer offset) for Jira pagination.
+            
+        Returns:
+            Dictionary with 'results' (list) and 'paging' (dict).
+        """
+        if not self.base_url or not self._access_token:
+            raise ValueError("Jira API not configured")
+
+        try:
+            if ":" not in entity_type:
+                logger.error(f"Invalid Jira entity_type format: {entity_type}. Expected 'project_key:issue_type_name'")
+                return {"results": [], "paging": {}}
+                
+            project_key, issue_type = entity_type.split(":", 1)
+            jql = f"project = '{project_key}' AND issuetype = '{issue_type}' ORDER BY created DESC"
+            
+            start_at = int(after) if after and after.isdigit() else 0
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/search",
+                    headers={
+                        "Authorization": f"Bearer {self._access_token}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "jql": jql,
+                        "maxResults": limit,
+                        "startAt": start_at,
+                        "fields": ["*all"] # Fetch all fields for discovery
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                issues = data.get("issues", [])
+                total = data.get("total", 0)
+                next_startat = start_at + len(issues)
+                
+                return {
+                    "results": issues,
+                    "paging": {"after": str(next_startat)} if next_startat < total else {}
+                }
+        except Exception as e:
+            logger.error(f"Failed to fetch records from Jira {entity_type}: {e}")
+            return {"results": [], "paging": {}}

@@ -34,10 +34,14 @@ from core.integration_catalog_service import IntegrationCatalogService
 from core.integration_registry import IntegrationRegistry
 from core.budget_enforcement_service import BudgetEnforcementService
 from core.policy_search_service import PGPolicySearchService
-from core.docling_processor import DoclingProcessor
+from core.docling_processor import DoclingDocumentProcessor
 from core.messaging_action_dispatcher import MessagingActionDispatcher
 from core.universal_communication_bridge import UniversalCommunicationBridge
 from core.integrations.adapters.zoho import ZohoAdapter
+from core.integrations.adapters.hubspot import HubSpotAdapter
+from core.integrations.adapters.notion import NotionAdapter
+from core.integrations.adapters.airtable import AirtableAdapter
+from core.integrations.adapters.jira import JiraAdapter
 from core.hybrid_data_ingestion import HybridDataIngestionService
 
 logger = logging.getLogger(__name__)
@@ -155,6 +159,14 @@ class ServiceFactory:
             delattr(cls._thread_local, 'atom_meta_agent')
         if hasattr(cls._thread_local, 'zoho_adapter'):
             delattr(cls._thread_local, 'zoho_adapter')
+        if hasattr(cls._thread_local, 'hubspot_adapter'):
+            delattr(cls._thread_local, 'hubspot_adapter')
+        if hasattr(cls._thread_local, 'notion_adapter'):
+            delattr(cls._thread_local, 'notion_adapter')
+        if hasattr(cls._thread_local, 'airtable_adapter'):
+            delattr(cls._thread_local, 'airtable_adapter')
+        if hasattr(cls._thread_local, 'jira_adapter'):
+            delattr(cls._thread_local, 'jira_adapter')
         if hasattr(cls._thread_local, 'hybrid_ingestion'):
             delattr(cls._thread_local, 'hybrid_ingestion')
         if hasattr(cls._thread_local, 'integration_catalog'):
@@ -354,6 +366,34 @@ class ServiceFactory:
         return cls._thread_local.zoho_adapter
 
     @classmethod
+    def get_hubspot_adapter(cls, db: Session, workspace_id: str = "default") -> HubSpotAdapter:
+        """Get or create HubSpotAdapter instance."""
+        if not hasattr(cls._thread_local, 'hubspot_adapter'):
+            cls._thread_local.hubspot_adapter = HubSpotAdapter(db=db, workspace_id=workspace_id)
+        return cls._thread_local.hubspot_adapter
+
+    @classmethod
+    def get_notion_adapter(cls, db: Session, workspace_id: str = "default") -> NotionAdapter:
+        """Get or create NotionAdapter instance."""
+        if not hasattr(cls._thread_local, 'notion_adapter'):
+            cls._thread_local.notion_adapter = NotionAdapter(db=db, workspace_id=workspace_id)
+        return cls._thread_local.notion_adapter
+
+    @classmethod
+    def get_airtable_adapter(cls, db: Session, workspace_id: str = "default") -> AirtableAdapter:
+        """Get or create AirtableAdapter instance."""
+        if not hasattr(cls._thread_local, 'airtable_adapter'):
+            cls._thread_local.airtable_adapter = AirtableAdapter(db=db, workspace_id=workspace_id)
+        return cls._thread_local.airtable_adapter
+
+    @classmethod
+    def get_jira_adapter(cls, db: Session, workspace_id: str = "default", site_url: Optional[str] = None) -> JiraAdapter:
+        """Get or create JiraAdapter instance."""
+        if not hasattr(cls._thread_local, 'jira_adapter'):
+            cls._thread_local.jira_adapter = JiraAdapter(db=db, workspace_id=workspace_id, site_url=site_url)
+        return cls._thread_local.jira_adapter
+
+    @classmethod
     def get_hybrid_ingestion_service(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> HybridDataIngestionService:
         """Get or create HybridDataIngestionService instance."""
         if not hasattr(cls._thread_local, 'hybrid_ingestion'):
@@ -382,10 +422,10 @@ class ServiceFactory:
         return cls._thread_local.policy_search
 
     @classmethod
-    def get_docling_processor(cls) -> DoclingProcessor:
-        """Get or create DoclingProcessor instance (singleton)."""
+    def get_docling_processor(cls) -> DoclingDocumentProcessor:
+        """Get or create DoclingDocumentProcessor instance (singleton)."""
         if not hasattr(cls._thread_local, 'docling_processor'):
-            cls._thread_local.docling_processor = DoclingProcessor()
+            cls._thread_local.docling_processor = DoclingDocumentProcessor()
         return cls._thread_local.docling_processor
 
     @classmethod
