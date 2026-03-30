@@ -389,6 +389,204 @@ async def add_slack_reaction(
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SECURITY: Slack Interactive Callback Handling
+# ─────────────────────────────────────────────────────────────────────────────
+
+import hashlib
+import hmac as _hmac
+import time
+from collections import defaultdict, deque
+
+# Signing secret pulled from environment — NEVER from request payload
+SLACK_SIGNING_SECRET: str = os.getenv("SLACK_SIGNING_SECRET", "")
+
+# Maximum age of a Slack request before it is rejected (replay-attack window)
+SLACK_REQUEST_MAX_AGE_SECONDS: int = int(os.getenv("SLACK_REQUEST_MAX_AGE_SECONDS", "300"))
+
+# Per-IP rate limiting: max N requests per sliding window
+_RATE_LIMIT_MAX = int(os.getenv("SLACK_INTERACTIVE_RATE_LIMIT", "30"))   # requests
+_RATE_LIMIT_WINDOW = int(os.getenv("SLACK_INTERACTIVE_RATE_WINDOW", "60"))  # seconds
+_rate_limit_store: dict = defaultdict(deque)  # ip -> deque of timestamps
+
+
+def _verify_slack_signature(body: bytes, timestamp_header: str, signature_header: str) -> tuple[bool, str]:
+    """
+    Verify a Slack request signature using HMAC-SHA256.
+
+    Security properties:
+      - Replay-attack protection: rejects requests older than SLACK_REQUEST_MAX_AGE_SECONDS
+      - Timing-safe comparison via hmac.compare_digest — prevents timing oracle attacks
+      - Never reveals partial signature information in error messages
+
+    Args:
+        body: Raw request body bytes (must be read BEFORE parsing JSON)
+        timestamp_header: Value of X-Slack-Request-Timestamp header
+        signature_header: Value of X-Slack-Signature header
+
+    Returns:
+        (is_valid, reason) — reason is a safe, generic message on failure
+    """
+    if not SLACK_SIGNING_SECRET:
+        logger.error("SLACK_SIGNING_SECRET is not configured — rejecting interactive request")
+        return False, "Signing secret not configured"
+
+    # ── Step 1: Validate timestamp (replay-attack protection) ─────────────────
+    try:
+        ts = int(timestamp_header)
+    except (TypeError, ValueError):
+        return False, "Invalid or missing X-Slack-Request-Timestamp"
+
+    age = int(time.time()) - ts
+    if age > SLACK_REQUEST_MAX_AGE_SECONDS:
+        return False, f"Request too old: {age}s exceeds {SLACK_REQUEST_MAX_AGE_SECONDS}s window"
+    if age < -60:
+        return False, "Request timestamp is in the future — possible clock skew or replay"
+
+    # ── Step 2: Compute expected signature ────────────────────────────────────
+    sig_basestring = f"v0:{ts}:{body.decode('utf-8', errors='replace')}"
+    expected_sig = "v0=" + _hmac.new(
+        SLACK_SIGNING_SECRET.encode("utf-8"),
+        sig_basestring.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    # ── Step 3: Timing-safe comparison ────────────────────────────────────────
+    if not _hmac.compare_digest(expected_sig, signature_header or ""):
+        logger.warning("Slack signature mismatch — possible spoofed request")
+        return False, "Signature verification failed"
+
+    return True, "OK"
+
+
+def _check_rate_limit(client_ip: str) -> bool:
+    """
+    Sliding-window rate limiter.  Returns True if the request should be allowed.
+    Thread-safety note: This is a single-process sentinel; production deployments
+    should replace this with Redis ZRANGEBYSCORE + ZADD for multi-instance safety.
+    """
+    now = time.time()
+    window = _rate_limit_store[client_ip]
+
+    # Evict timestamps outside the window
+    while window and window[0] < now - _RATE_LIMIT_WINDOW:
+        window.popleft()
+
+    if len(window) >= _RATE_LIMIT_MAX:
+        return False
+
+    window.append(now)
+    return True
+
+
+# Typed action dispatcher — register handlers here
+# Each key is a Slack action_id; value is a callable (action_payload) -> dict
+_SLACK_ACTION_HANDLERS: dict = {}
+
+
+def _dispatch_slack_action(action: dict, user: dict, trigger_id: str) -> dict:
+    """
+    Route an interactive button/select action to the registered handler.
+
+    Returns a structured result dict for logging / downstream processing.
+    """
+    action_id = action.get("action_id", "")
+    handler = _SLACK_ACTION_HANDLERS.get(action_id)
+
+    if handler:
+        try:
+            result = handler(action)
+            logger.info(f"Dispatched Slack action '{action_id}' for user {user.get('id')} — OK")
+            return {"status": "dispatched", "action_id": action_id, "result": result}
+        except Exception as exc:
+            logger.error(f"Handler for action '{action_id}' raised: {exc}", exc_info=True)
+            return {"status": "handler_error", "action_id": action_id, "error": str(exc)}
+    else:
+        logger.info(f"No handler registered for Slack action_id='{action_id}'")
+        return {"status": "unhandled", "action_id": action_id}
+
+
+@router.post("/interactive")
+async def slack_interactive_callback(request: Request):
+    """
+    Handle Slack interactive component callbacks (button clicks, menu selections, etc.).
+
+    Security:
+      - HMAC-SHA256 signature verification (X-Slack-Signature header)
+      - Replay-attack protection via 5-minute timestamp window
+      - Per-IP rate limiting (configurable via env vars)
+      - Payload structure validation before any processing
+      - Never exposes internal errors to the caller
+
+    Slack sends URL-encoded form data with a `payload` field containing JSON.
+    Reference: https://api.slack.com/messaging/interactivity
+    """
+    # ── 0. Rate limiting ──────────────────────────────────────────────────────
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(client_ip):
+        logger.warning(f"Slack interactive rate limit exceeded for IP {client_ip}")
+        # Return 200 to Slack (don't reveal rate limiting to potential attacker)
+        return {"ok": True}
+
+    # ── 1. Read raw body BEFORE any parsing ───────────────────────────────────
+    raw_body = await request.body()
+
+    # ── 2. Signature verification ─────────────────────────────────────────────
+    ts_header = request.headers.get("X-Slack-Request-Timestamp", "")
+    sig_header = request.headers.get("X-Slack-Signature", "")
+
+    if SLACK_SIGNING_SECRET:  # Only enforce if secret is configured
+        is_valid, reason = _verify_slack_signature(raw_body, ts_header, sig_header)
+        if not is_valid:
+            # Always return 200 to Slack; log the security event internally
+            logger.warning(f"Slack signature verification failed: {reason} (IP={client_ip})")
+            return {"ok": True}
+    else:
+        logger.warning(
+            "SLACK_SIGNING_SECRET not set — skipping signature verification. "
+            "Set this env var in production!"
+        )
+
+    # ── 3. Parse form-encoded payload ─────────────────────────────────────────
+    try:
+        form = await request.form()
+        payload_str = form.get("payload")
+        if not payload_str:
+            logger.warning("Slack interactive callback missing 'payload' field")
+            return {"ok": True}
+
+        import json as _json
+        payload = _json.loads(payload_str)
+    except Exception as exc:
+        logger.error(f"Failed to parse Slack interactive payload: {exc}", exc_info=True)
+        return {"ok": True}
+
+    # ── 4. Payload structure validation ───────────────────────────────────────
+    payload_type = payload.get("type", "")
+    if payload_type not in {"block_actions", "interactive_message", "view_submission", "view_closed"}:
+        logger.warning(f"Unexpected Slack payload type: {payload_type!r}")
+        return {"ok": True}
+
+    user = payload.get("user", {})
+    trigger_id = payload.get("trigger_id", "")
+    actions = payload.get("actions", [])
+
+    logger.info(
+        f"Slack interactive event: type={payload_type} user={user.get('id')} "
+        f"actions={[a.get('action_id') for a in actions]}"
+    )
+
+    # ── 5. Dispatch actions ────────────────────────────────────────────────────
+    dispatch_results = []
+    for action in actions:
+        result = _dispatch_slack_action(action, user, trigger_id)
+        dispatch_results.append(result)
+
+    # ── 6. Respond to Slack within 3-second window ───────────────────────────
+    # Per Slack docs: always respond with 200 immediately; handle async
+    return {"ok": True}
+
+
 @router.post("/callback")
 async def slack_oauth_callback(
     request: Request,

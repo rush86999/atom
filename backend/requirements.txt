@@ -157,3 +157,4 @@ spotipy>=2.24.0  # Spotify Web API client
 # Creative tools (Phase 66-03)
 ffmpeg-python>=0.2.0  # Pythonic FFmpeg wrapper for video/audio processing
 jinja2
+PyNaCl>=1.5.0

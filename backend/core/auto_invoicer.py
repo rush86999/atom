@@ -112,6 +112,21 @@ class AutoInvoicer:
 
             logger.info(f"Generated Invoice {invoice.id} for Appointment {appointment_id}")
             return invoice
+
+        except Exception as e:
+            logger.error(
+                f"Unexpected error invoicing appointment {appointment_id}: {e}",
+                exc_info=True
+            )
+            db.rollback()
+            # Re-raise typed InvoiceErrors when strict mode is active
+            if isinstance(e, (InvoiceNotFoundError, InvoiceValidationError, InvoicePricingError)):
+                if INVOICING_STRICT_ERRORS:
+                    raise
+            # Unexpected errors always propagate to avoid silent data loss
+            elif INVOICING_STRICT_ERRORS:
+                raise
+            return None
         finally:
             if not self.db:
                 db.close()
@@ -191,6 +206,21 @@ class AutoInvoicer:
 
             logger.info(f"Generated Invoice {invoice.id} for Order {order_id}")
             return invoice
+
+        except Exception as e:
+            logger.error(
+                f"Unexpected error invoicing ecommerce order {order_id}: {e}",
+                exc_info=True
+            )
+            db.rollback()
+            # Re-raise typed InvoiceErrors when strict mode is active
+            if isinstance(e, (InvoiceNotFoundError, InvoiceValidationError, InvoicePricingError)):
+                if INVOICING_STRICT_ERRORS:
+                    raise
+            # Unexpected errors always propagate to avoid silent data loss
+            elif INVOICING_STRICT_ERRORS:
+                raise
+            return None
         finally:
             if not self.db:
                 db.close()

@@ -10,10 +10,16 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from .discord_service import discord_service
+from core.messaging_action_dispatcher import MessagingActionDispatcher, RateLimiter
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/discord", tags=["discord"])
+
+# Discord Actions Dispatcher and Sentinel Rate Limiter
+discord_dispatcher = MessagingActionDispatcher(platform="discord")
+discord_rate_limiter = RateLimiter(limit=30, window=60)
+DISCORD_PUBLIC_KEY = os.getenv("DISCORD_PUBLIC_KEY", "")
 
 
 class DiscordSearchRequest(BaseModel):
@@ -152,3 +158,62 @@ async def discord_health():
         "configured": bool(discord_service.client_id),
         "timestamp": datetime.now().isoformat()
     }
+
+
+def verify_discord_signature(raw_body: bytes, signature: str, timestamp: str) -> bool:
+    """Verify Discord Ed25519 signature logic per Discord Developer documentation."""
+    if not DISCORD_PUBLIC_KEY or not signature or not timestamp:
+        return False
+    try:
+        from nacl.signing import VerifyKey
+        from nacl.exceptions import BadSignatureError
+        verify_key = VerifyKey(bytes.fromhex(DISCORD_PUBLIC_KEY))
+        verify_key.verify(timestamp.encode() + raw_body, bytes.fromhex(signature))
+        return True
+    except (Exception, getattr(Exception, 'BadSignatureError', ValueError)):
+        return False
+
+
+@router.post("/interactions")
+async def discord_interactions(request: Request):
+    """
+    Handle Discord Webhook Interactions (Slash commands, Button clicks)
+    Doc: https://discord.com/developers/docs/interactions/receiving-and-responding
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    if not discord_rate_limiter.check(client_ip):
+        logger.warning(f"Discord interactive rate limit exceeded for IP {client_ip}")
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    raw_body = await request.body()
+    signature = request.headers.get("X-Signature-Ed25519", "")
+    timestamp = request.headers.get("X-Signature-Timestamp", "")
+
+    if not verify_discord_signature(raw_body, signature, timestamp):
+        logger.warning(f"Discord signature verification failed for IP {client_ip}")
+        raise HTTPException(status_code=401, detail="invalid request signature")
+
+    import json
+    try:
+        payload = json.loads(raw_body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # Type 1: PING interaction natively checked by Discord validation
+    if payload.get("type") == 1:
+        return {"type": 1}
+
+    # Type 3: MESSAGE_COMPONENT (Buttons, Select Menus)
+    if payload.get("type") == 3:
+        action_id = payload.get("data", {}).get("custom_id", "")
+        member = payload.get("member", {})
+        user_info = member.get("user") or payload.get("user", {})
+        
+        # Dispatch to interactive agent handler
+        discord_dispatcher.dispatch(action_id, payload, user_info)
+        
+        # Defer message interaction update immediately
+        return {"type": 6}
+
+    # Fallback OK
+    return {"ok": True}
