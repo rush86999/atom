@@ -89,6 +89,12 @@ DEFAULT_SYNC_CONFIGS: Dict[str, SyncConfiguration] = {
         sync_last_n_days=30,
         max_records_per_sync=500
     ),
+    "zoho": SyncConfiguration(
+        integration_id="zoho",
+        entity_types=["crm_leads", "crm_deals", "books_invoices", "projects_tasks"],
+        sync_last_n_days=30,
+        max_records_per_sync=1000
+    ),
 }
 
 
@@ -342,6 +348,8 @@ class HybridDataIngestionService:
                 records = await self._fetch_jira_data(config)
             elif integration_id == "zendesk":
                 records = await self._fetch_zendesk_data(config)
+            elif integration_id == "zoho" or integration_id == "zoho_crm":
+                records = await self._fetch_zoho_multi_app_data(config)
             else:
                 logger.warning(f"No fetcher implemented for {integration_id}")
         
@@ -621,6 +629,57 @@ class HybridDataIngestionService:
         except Exception as e:
             logger.error(f"Zendesk fetch error: {e}")
 
+        return records
+
+    async def _fetch_zoho_multi_app_data(self, config: SyncConfiguration) -> List[Dict[str, Any]]:
+        """Fetch data from all enabled Zoho applications using the Universal Adapter"""
+        records = []
+        try:
+            from core.integrations.adapters.zoho import ZohoAdapter
+            from core.models import IntegrationToken
+            from core.database import SessionLocal
+            
+            db = SessionLocal()
+            try:
+                # In Upstream, we might use workspace_id as tenant_id
+                target_tenant = self.tenant_id or self.workspace_id
+                
+                # Get the api_domain (instance_url) from the stored token
+                token = db.query(IntegrationToken).filter(
+                    IntegrationToken.tenant_id == target_tenant,
+                    IntegrationToken.provider == "zoho"
+                ).first()
+                
+                instance_url = token.instance_url if token else None
+                adapter = ZohoAdapter(db=db, workspace_id=self.workspace_id, instance_url=instance_url)
+                
+                for entity_type in config.entity_types:
+                    if entity_type == "crm_leads":
+                        records.extend(await adapter.get_leads(limit=100))
+                    elif entity_type == "crm_deals":
+                        records.extend(await adapter.get_deals(limit=100))
+                    elif entity_type == "books_invoices":
+                        # Note: Books requires organization_id which should be in connection metadata
+                        # In OS, we might store this in a 'config' JSON field or similar
+                        metadata = getattr(token, 'metadata', {}) or {}
+                        org_id = metadata.get("organization_id")
+                        if org_id:
+                            records.extend(await adapter.get_invoices(organization_id=org_id, limit=100))
+                    elif entity_type == "projects_tasks":
+                        metadata = getattr(token, 'metadata', {}) or {}
+                        portal_id = metadata.get("portal_id")
+                        projects = metadata.get("active_projects", [])
+                        if portal_id:
+                            for project_id in projects[:3]:
+                                records.extend(await adapter.get_tasks(portal_id=portal_id, project_id=project_id))
+                                
+                logger.info(f"Universal Zoho Sync (Upstream): Fetched {len(records)} items")
+            finally:
+                db.close()
+                
+        except Exception as e:
+            logger.error(f"Universal Zoho fetch error in Upstream: {e}")
+            
         return records
     
     def _record_to_text(self, record: Dict[str, Any], integration_id: str) -> str:

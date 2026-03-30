@@ -37,6 +37,8 @@ from core.policy_search_service import PGPolicySearchService
 from core.docling_processor import DoclingProcessor
 from core.messaging_action_dispatcher import MessagingActionDispatcher
 from core.universal_communication_bridge import UniversalCommunicationBridge
+from core.integrations.adapters.zoho import ZohoAdapter
+from core.hybrid_data_ingestion import HybridDataIngestionService
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +153,10 @@ class ServiceFactory:
             delattr(cls._thread_local, 'queen_agent')
         if hasattr(cls._thread_local, 'atom_meta_agent'):
             delattr(cls._thread_local, 'atom_meta_agent')
+        if hasattr(cls._thread_local, 'zoho_adapter'):
+            delattr(cls._thread_local, 'zoho_adapter')
+        if hasattr(cls._thread_local, 'hybrid_ingestion'):
+            delattr(cls._thread_local, 'hybrid_ingestion')
         if hasattr(cls._thread_local, 'integration_catalog'):
             delattr(cls._thread_local, 'integration_catalog')
         if hasattr(cls._thread_local, 'budget_enforcement'):
@@ -339,6 +345,20 @@ class ServiceFactory:
         if not hasattr(cls._thread_local, 'goal_engine'):
             cls._thread_local.goal_engine = GoalEngine()
         return cls._thread_local.goal_engine
+
+    @classmethod
+    def get_zoho_adapter(cls, db: Session, workspace_id: str = "default", instance_url: Optional[str] = None) -> ZohoAdapter:
+        """Get or create Universal ZohoAdapter instance."""
+        if not hasattr(cls._thread_local, 'zoho_adapter'):
+            cls._thread_local.zoho_adapter = ZohoAdapter(db=db, workspace_id=workspace_id, instance_url=instance_url)
+        return cls._thread_local.zoho_adapter
+
+    @classmethod
+    def get_hybrid_ingestion_service(cls, db: Session, workspace_id: str = "default", tenant_id: str = "default") -> HybridDataIngestionService:
+        """Get or create HybridDataIngestionService instance."""
+        if not hasattr(cls._thread_local, 'hybrid_ingestion'):
+            cls._thread_local.hybrid_ingestion = HybridDataIngestionService(db=db, workspace_id=workspace_id, tenant_id=tenant_id)
+        return cls._thread_local.hybrid_ingestion
 
     @classmethod
     def get_integration_catalog(cls, db: Session) -> IntegrationCatalogService:

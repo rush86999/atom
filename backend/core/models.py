@@ -1879,6 +1879,7 @@ class UserConnection(Base):
     user = relationship("User", backref="connections")
     workspace = relationship("Workspace", backref="connections")
 
+
 class WorkflowSnapshot(Base):
     """
     Time-Travel Debugging: Immutable snapshot of execution state at a specific step.
@@ -8337,23 +8338,42 @@ class SkillSuggestionFeedback(Base):
         Index("ix_skill_feedback_action", "action"),
     )
 
+class EntityTypeVersionHistory(Base):
+    """Historical snapshots of entity type schema changes.
 
-class WorkflowSnapshot(Base):
+    Stores immutable records of each schema version for audit trail
+    and rollback capability. Tenant-isolated for multi-tenancy.
     """
-    Time-Travel Debugging: Immutable snapshot of execution state at a specific step.
-    This acts as a 'Save Point' allowing users to fork/replay from this exact moment.
-    """
-    __tablename__ = "workflow_snapshots"
+    __tablename__ = "entity_type_version_history"
 
+    # Primary key
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String, nullable=True, index=True)
-    execution_id = Column(String, ForeignKey("workflow_executions.execution_id"), nullable=False, index=True)
-    step_id = Column(String, nullable=False) # The step that just finished/is current
-    step_order = Column(Integer, nullable=False) # Sequence number (0, 1, 2...)
-    
-    # State Capture
-    context_snapshot = Column(Text, nullable=False) # Full JSON dump of WorkflowContext (vars, results)
-    
-    # Metadata
-    status = Column(String, nullable=False) # Status at this snapshot (e.g. COMPLETED, FAILED)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Multi-tenancy
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Reference to entity type
+    entity_type_id = Column(
+        String,
+        ForeignKey("entity_type_definitions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Version snapshot data
+    version = Column(Integer, nullable=False)
+    json_schema = Column(JSONColumn, nullable=False)
+    display_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    available_skills = Column(JSONColumn, nullable=True)
+
+    # Change metadata
+    change_summary = Column(String(500), nullable=True)
+    changed_by = Column(String(255), nullable=True)
+    schema_hash = Column(String(64), nullable=False)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+
+
