@@ -240,6 +240,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 - **Documentation**: [docs/INDEX.md](docs/INDEX.md) - Complete index
 - **Developer Guide**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Setup
 - **Implementation History**: [docs/IMPLEMENTATION_HISTORY.md](docs/IMPLEMENTATION_HISTORY.md) - Recent changes
+- **Blog**: [Substack](https://substack.com/@rish2atom/posts) - Latest updates & insights
 - **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
 - **License**: AGPL v3 - [LICENSE.md](LICENSE.md)
 
