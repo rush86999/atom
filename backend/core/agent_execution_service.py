@@ -26,6 +26,7 @@ from core.episode_integration import trigger_episode_creation
 from core.lancedb_handler import get_chat_history_manager
 from core.llm_service import LLMService
 from core.models import AgentExecution
+from core.personal_budget_service import personal_budget_service
 from core.websockets import manager as ws_manager
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,27 @@ async def execute_agent_chat(
                         "agent_id": agent_id,
                         "execution_id": None
                     }
+
+        # ============================================
+        # BUDGET: Check Budget (Warning Only, No Blocking)
+        # ============================================
+        # Check budget before execution (warning only, does NOT block)
+        # Personal use = user's responsibility, so we only log warnings
+        try:
+            if personal_budget_service.is_budget_exceeded():
+                logger.warning(
+                    f"Budget exceeded for agent execution (agent_id={agent_id}). "
+                    f"Continuing anyway (personal use = user responsibility)."
+                )
+                # Send alert at 100% threshold
+                personal_budget_service.send_budget_alert(100.0)
+            else:
+                # Send alerts at 80% and 90% thresholds
+                personal_budget_service.send_budget_alert(80.0)
+                personal_budget_service.send_budget_alert(90.0)
+        except Exception as budget_error:
+            logger.error(f"Budget check failed (continuing anyway): {budget_error}")
+            # Don't block execution on budget check failures
 
         # ============================================
         # EXECUTION: Create AgentExecution Record
@@ -327,6 +349,19 @@ Provide helpful, concise responses. Be direct and practical."""
             )
         except Exception as episode_error:
             logger.warning(f"Failed to trigger episode creation: {episode_error}")
+
+        # ============================================
+        # BUDGET: Track Spend After Execution
+        # ============================================
+        # Record spend for budget forecasting and tracking
+        try:
+            # Estimate cost based on tokens (rough estimation)
+            # ACU cost: ~$0.0001 per token, API cost varies by provider
+            estimated_cost = (tokens_count * 0.0001) + 0.001  # Base API call cost
+            personal_budget_service.record_spend(estimated_cost, execution_id)
+        except Exception as budget_error:
+            logger.error(f"Failed to record spend (non-critical): {budget_error}")
+            # Don't fail execution on budget tracking errors
 
         # Return success
         return {
