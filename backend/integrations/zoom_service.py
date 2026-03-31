@@ -10,6 +10,10 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
 
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+
 logger = logging.getLogger(__name__)
 
 class ZoomService:
@@ -80,22 +84,54 @@ class ZoomService:
             )
 
     async def get_user(self, user_id: str = "me", access_token: str = None) -> Dict[str, Any]:
-        """Get user information"""
+        """Get user information with governance patterns"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoom", "get_user", {
+            "user_id": user_id
+        })
+
         try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoom"):
+                logger.warning("Zoom circuit breaker is open")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail="Zoom integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoom")
+            if is_limited:
+                logger.warning("Zoom rate limit exceeded")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail="Zoom rate limit exceeded"
+                )
+
             token = access_token or self.access_token
             if not token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
-            
+
             headers = self._get_headers(token)
-            
+
             response = await self.client.get(
                 f"{self.base_url}/users/{user_id}",
                 headers=headers
             )
             response.raise_for_status()
-            
-            return response.json()
+
+            result = response.json()
+
+            # Record success
+            await circuit_breaker.record_success("zoom")
+            log_integration_complete(audit_ctx, {"user_id": user_id})
+
+            return result
         except httpx.HTTPError as e:
+            await circuit_breaker.record_failure("zoom", e)
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to get user: {e}")
             raise HTTPException(
                 status_code=400,
@@ -109,27 +145,61 @@ class ZoomService:
         access_token: str = None,
         page_size: int = 30
     ) -> Dict[str, Any]:
-        """List user's meetings"""
+        """List user's meetings with governance patterns"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoom", "list_meetings", {
+            "user_id": user_id,
+            "type": type,
+            "page_size": page_size
+        })
+
         try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoom"):
+                logger.warning("Zoom circuit breaker is open")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail="Zoom integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoom")
+            if is_limited:
+                logger.warning("Zoom rate limit exceeded")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail="Zoom rate limit exceeded"
+                )
+
             token = access_token or self.access_token
             if not token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
-            
+
             headers = self._get_headers(token)
             params = {
                 "type": type,
                 "page_size": page_size
             }
-            
+
             response = await self.client.get(
                 f"{self.base_url}/users/{user_id}/meetings",
                 headers=headers,
                 params=params
             )
             response.raise_for_status()
-            
-            return response.json()
+
+            result = response.json()
+
+            # Record success
+            await circuit_breaker.record_success("zoom")
+            log_integration_complete(audit_ctx, {"meeting_count": len(result.get("meetings", []))})
+
+            return result
         except httpx.HTTPError as e:
+            await circuit_breaker.record_failure("zoom", e)
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to list meetings: {e}")
             raise HTTPException(
                 status_code=400,
