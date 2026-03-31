@@ -22,7 +22,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Tuple, Dict
 
 # Integration names that already have governance
 HAS_GOVERNANCE = {"gmail", "jira", "mcp", "zoom"}

@@ -85,3 +85,48 @@ class FleetAnalyticsService:
             results.append(self.get_fleet_stats(chain.id))
         
         return results
+
+    def get_domain_performance_stats(self, tenant_id: str, domain: str) -> Dict[str, Any]:
+        """
+        Aggregates performance metrics for a specific domain across all chains for a tenant.
+        Used by the Optimization Service to suggest model tiers.
+        """
+        from core.models import ChainLink
+
+        # Filter links by domain (stored in context_json)
+        links = self.db.query(
+            func.count(ChainLink.id).label("total_interactions"),
+            func.avg(ChainLink.duration_ms).label("avg_duration_ms"),
+            func.sum(case((ChainLink.status == 'completed', 1), else_=0)).label("success_count"),
+            func.sum(case((ChainLink.status == 'failed', 1), else_=0)).label("failure_count")
+        ).join(DelegationChain).filter(
+            DelegationChain.tenant_id == tenant_id,
+            func.json_extract_path_text(ChainLink.context_json, 'domain') == domain
+        ).first()
+
+        # Aggregate HITL for this domain
+        hitl_stats = self.db.query(
+            func.count(HITLAction.id).label("total_hitl"),
+            func.sum(case((HITLAction.status == HITLActionStatus.APPROVED.value, 1), else_=0)).label("approved_count"),
+            func.sum(case((HITLAction.status == HITLActionStatus.REJECTED.value, 1), else_=0)).label("rejected_count")
+        ).filter(
+            HITLAction.tenant_id == tenant_id,
+            func.json_extract_path_text(HITLAction.params, 'domain') == domain
+        ).first()
+
+        success_count = links.success_count or 0
+        total_interactions = links.total_interactions or 0
+        success_rate = (success_count / total_interactions) if total_interactions > 0 else 0.0
+
+        approved_count = hitl_stats.approved_count or 0
+        total_hitl = hitl_stats.total_hitl or 0
+        hitl_approval_rate = (approved_count / total_hitl) if total_hitl > 0 else 1.0 # Default to 1.0 if no HITL
+
+        return {
+            "domain": domain,
+            "total_interactions": int(total_interactions),
+            "success_rate": round(float(success_rate), 4),
+            "avg_duration_ms": float(links.avg_duration_ms or 0),
+            "hitl_approval_rate": round(float(hitl_approval_rate), 4),
+            "total_hitl_requests": int(total_hitl)
+        }
