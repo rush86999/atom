@@ -20,6 +20,7 @@ import traceback
 from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_fleet_service import AgentFleetService
+from analytics.fleet_optimization_service import FleetOptimizationService
 from core.capability_graduation_service import CapabilityGraduationService
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from integrations.mcp_service import mcp_service
@@ -852,10 +853,22 @@ What is your next step?"""
                 logger.info(f"Fleet initiated in Upstream: {chain.id} for goal: {goal}")
                 
                 fleet_members = []
+                optimizer = FleetOptimizationService(db)
+                
                 for i, st in enumerate(sub_tasks):
                     domain = st.get("domain", "general")
                     task_desc = st.get("task", "Analyze domain sub-task")
+                    use_optimizer = st.get("use_optimizer", True) # Default to true in Admiralty mode
                     
+                    optimization_metadata = None
+                    if use_optimizer:
+                        optimization_metadata = optimizer.get_optimization_parameters(
+                            tenant_id=self.tenant_id,
+                            domain=domain,
+                            task_description=task_desc
+                        )
+                        logger.info(f"Optimization for {domain}: {optimization_metadata['optimization_reason']}")
+
                     # 2. Recruit the specialist
                     agent = get_specialized_agent(domain, self.workspace_id)
                     
@@ -866,7 +879,8 @@ What is your next step?"""
                         child_agent_id=agent.id if agent else f"specialist_{domain}",
                         task_description=task_desc,
                         context_json={"fleet_goal": goal, "domain": domain},
-                        link_order=i
+                        link_order=i,
+                        optimization_metadata=optimization_metadata
                     )
                     
                     fleet_members.append({

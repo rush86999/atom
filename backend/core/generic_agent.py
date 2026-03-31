@@ -103,7 +103,10 @@ class GenericAgent:
             })
         
         # 2. ReAct Loop with Timeout
-        max_steps = self.config.get("max_steps", 5)
+        optimization = context.get("optimization", {})
+        max_steps = optimization.get("max_steps") or self.config.get("max_steps", 5)
+        mentorship_mode = optimization.get("mentorship_mode", False)
+        
         timeout_seconds = self.config.get("timeout_seconds", 300) # Default 5 mins
         steps = []
         final_answer = None
@@ -323,7 +326,15 @@ class GenericAgent:
 
         tool_descriptions = json.dumps([{"name": t["name"], "description": t.get("description", "")} for t in unique_active_tools], indent=2)
         
-        system_prompt = f"""{self.system_prompt}
+        optimization = context.get("optimization", {})
+        agent_model_tier = optimization.get("model") or "auto"
+        mentorship_mode = optimization.get("mentorship_mode", False)
+        
+        mentorship_focus = ""
+        if mentorship_mode:
+            mentorship_focus = f"\nMENTORSHIP FOCUS: This task has high historical complexity or rejection rates. Be extra cautious, verify all tool outputs, and provide detailed reasoning for every step.\n"
+
+        system_prompt = f"""{self.system_prompt}{mentorship_focus}
 
 AVAILABLE TOOLS:
 {tool_descriptions}
@@ -436,7 +447,7 @@ What is your next step?"""
             system_instruction=system_prompt,
             response_model=ReActStep,
             temperature=0.2,
-            model="reasoning",
+            model=agent_model_tier,
             agent_id=self.id,
             image_payload=image_payload
         )
@@ -451,7 +462,7 @@ What is your next step?"""
         raw_response = await self.llm.generate(
             prompt=user_prompt,
             system_instruction=system_prompt,
-            model="fast",
+            model=agent_model_tier if agent_model_tier != "reasoning" else "quality",
             temperature=0.3,
             agent_id=self.id
         )

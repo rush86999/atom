@@ -52,19 +52,25 @@ class AgentFleetService:
         child_agent_id: str,
         task_description: str,
         context_json: Optional[Dict[str, Any]] = None,
-        link_order: int = 0
+        link_order: int = 0,
+        optimization_metadata: Optional[Dict[str, Any]] = None
     ) -> ChainLink:
         """
         Adds a new specialized agent to an active fleet.
         """
         logger.info(f"Recruiting fleet member {child_agent_id} for chain {chain_id}")
         
+        # Merge optimization data into context
+        final_context = context_json or {}
+        if optimization_metadata:
+            final_context["optimization"] = optimization_metadata
+
         link = ChainLink(
             chain_id=chain_id,
             parent_agent_id=parent_agent_id,
             child_agent_id=child_agent_id,
             task_description=task_description,
-            context_json=context_json or {},
+            context_json=final_context,
             status="pending",
             link_order=link_order,
             started_at=datetime.now(timezone.utc)
