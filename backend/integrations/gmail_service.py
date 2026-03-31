@@ -32,6 +32,9 @@ except ImportError:
     )
 from core.oauth_handler import GOOGLE_OAUTH_CONFIG
 from core.token_storage import token_storage
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 
 
 class GmailService:
@@ -172,16 +175,37 @@ class GmailService:
             return None
 
     def get_messages(self, query: str = "", max_results: int = 50, include_spam_trash: bool = False, token: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Get messages from Gmail"""
+        """Get messages from Gmail with governance decorators"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("gmail", "get_messages", {
+            "query": query,
+            "max_results": max_results,
+            "include_spam_trash": include_spam_trash
+        })
+
         try:
+            # Check circuit breaker
+            if not circuit_breaker.is_enabled("gmail"):
+                logger.warning("Gmail circuit breaker is open")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                return []
+
+            # Check rate limiter
+            is_limited, remaining = rate_limiter.is_rate_limited("gmail")
+            if is_limited:
+                logger.warning(f"Gmail rate limit exceeded")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                return []
+
             service = self._get_service_with_token(token)
             if not service:
                 logger.warning("Gmail service not available")
+                log_integration_complete(audit_ctx, error=Exception("Service not available"))
                 return []
 
             messages = []
             page_token = None
-            
+
             while len(messages) < max_results:
                 try:
                     result = service.users().messages().list(
@@ -191,27 +215,38 @@ class GmailService:
                         pageToken=page_token,
                         includeSpamTrash=include_spam_trash
                     ).execute()
-                    
+
                     messages.extend(result.get('messages', []))
                     page_token = result.get('nextPageToken')
-                    
+
                     if not page_token:
                         break
-                        
+
                 except HttpError as e:
+                    # Check if error is retryable
+                    if should_retry(e.resp.status):
+                        circuit_breaker.record_failure("gmail", e)
+                    log_integration_complete(audit_ctx, error=e)
                     logger.error(f"Error fetching messages: {e}")
                     break
-            
+
             # Fetch full message details for each message
             full_messages = []
             for msg in messages[:max_results]:
                 full_msg = self.get_message(msg['id'], token=token)
                 if full_msg:
                     full_messages.append(full_msg)
-            
+
+            # Record success
+            circuit_breaker.record_success("gmail")
+            duration = log_integration_complete(audit_ctx, {"count": len(full_messages)})
+            logger.info(f"Retrieved {len(full_messages)} messages in {duration:.2f}ms")
+
             return full_messages
-            
+
         except Exception as e:
+            circuit_breaker.record_failure("gmail", e)
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to get messages: {e}")
             return []
     
@@ -295,31 +330,53 @@ class GmailService:
             return ""
     
     def send_message(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "", thread_id: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Send an email"""
+        """Send an email with governance decorators"""
+        audit_ctx = log_integration_attempt("gmail", "send_message", {
+            "to": to,
+            "subject": subject,
+            "cc": cc,
+            "bcc": bcc,
+            "thread_id": thread_id
+        })
+
         try:
+            # Check circuit breaker
+            if not circuit_breaker.is_enabled("gmail"):
+                logger.warning("Gmail circuit breaker is open")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                return None
+
+            # Check rate limiter
+            is_limited, remaining = rate_limiter.is_rate_limited("gmail")
+            if is_limited:
+                logger.warning(f"Gmail rate limit exceeded")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                return None
+
             service = self._get_service_with_token(token)
             if not service:
                 logger.error("Cannot send email: No Gmail service available")
+                log_integration_complete(audit_ctx, error=Exception("Service not available"))
                 return None
 
             message = MIMEMultipart()
             message['to'] = to
             message['subject'] = subject
-            
+
             if cc:
                 message['cc'] = cc
             if bcc:
                 message['bcc'] = bcc
-            
+
             message.attach(MIMEText(body, 'plain'))
-            
+
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-            
+
             message_data = {
                 'raw': raw,
                 'threadId': thread_id
             }
-            
+
             if thread_id:
                 result = service.users().messages().send(
                     userId='me',
@@ -330,10 +387,17 @@ class GmailService:
                     userId='me',
                     body={'raw': raw}
                 ).execute()
-            
+
+            # Record success
+            circuit_breaker.record_success("gmail")
+            duration = log_integration_complete(audit_ctx, {"message_id": result.get('id')})
+            logger.info(f"Email sent successfully in {duration:.2f}ms")
+
             return result
-            
+
         except Exception as e:
+            circuit_breaker.record_failure("gmail", e)
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to send message: {e}")
             return None
     
