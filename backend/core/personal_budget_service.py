@@ -1,23 +1,16 @@
 """
-Personal Budget Service for ATOM Upstream
+Personal Budget Service for ATOM (Single-Tenant Open-Source Version)
 
-Simplified budget tracking for personal/open-source deployment without billing enforcement.
-
-Key differences from SaaS BudgetService:
-- No tenant_id filtering (single-tenant/global budget)
-- No Stripe integration or payment processing
-- No hard-stop enforcement (warnings only)
-- No quota checks or usage tracking
-- User-responsible cost management
+This service provides simplified budget management for personal use without
+billing enforcement, payment processing, or multi-tenancy patterns.
 
 Ported from: rush86999/atom-saas/backend-saas/core/budget_service.py
-Changes: Removed tenant_id, billing enforcement, hard-stop blocking, Stripe integration
+Changes: Removed Stripe, billing enforcement, tenant isolation, hard-stop blocking
 """
 
 import logging
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-from typing import Dict, Optional
-from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from core.models import User
 
@@ -26,239 +19,225 @@ logger = logging.getLogger(__name__)
 
 class PersonalBudgetService:
     """
-    Simplified budget tracking for personal/open-source ATOM deployment.
-
-    Features:
-    - Track ACU and API costs
-    - Budget alerts (email, in-app)
-    - Soft-stop enforcement (warnings, not blocks)
-    - Budget forecasting
-
-    NO:
-    - Stripe integration
-    - Payment processing
-    - Hard-stop blocking
-    - Tenant isolation
-    - Usage quota enforcement
+    Simplified budget tracking service for personal/open-source deployment.
+    
+    Key differences from SaaS version:
+    - No Stripe integration (personal use = user's responsibility)
+    - No billing enforcement (warnings only, no blocking)
+    - No tenant-scoped budget (global budget for entire instance)
+    - No hard-stop enforcement (user can exceed budget with warnings)
+    - No payment processing (cost management is user's responsibility)
+    
+    Purpose: Help users track AI/LLM costs for personal automation without
+    enforcing hard limits. Budget warnings only.
     """
-
-    def check_budget(self, user_id: str, budget_limit_usd: float = 100.0) -> Dict[str, any]:
+    
+    def __init__(self):
+        self.budget_limit_usd = 0.0
+        self.current_spend_usd = 0.0
+        
+    def check_budget(self, budget_limit_usd: float, estimated_cost: float = 0.0) -> bool:
         """
-        Check if user is within budget limit (WARNING ONLY, no blocking).
-
+        Check if budget is available (warning only, does not block execution).
+        
         Args:
-            user_id: User ID (single-tenant, no tenant_id)
-            budget_limit_usd: Budget limit in USD (default: $100)
-
+            budget_limit_usd: Monthly budget limit in USD
+            estimated_cost: Estimated cost for upcoming operation
+            
         Returns:
-            Dict with budget status (never blocks execution)
-            {
-                "within_budget": bool,
-                "remaining_budget": float,
-                "current_spend": float,
-                "budget_limit": float,
-                "percent_used": float,
-                "warning": str or None
-            }
+            True if under budget, False if exceeded (but does NOT block execution)
+            
+        Note:
+            This is a soft check only. Even if False is returned, execution
+            continues because this is personal use (user's responsibility).
+        """
+        current_spend = self.get_current_spend_usd()
+        remaining = budget_limit_usd - current_spend
+        
+        if remaining <= estimated_cost:
+            logger.warning(
+                f"Budget exceeded or will be exceeded. "
+                f"Limit: ${budget_limit_usd:.2f}, "
+                f"Spent: ${current_spend:.2f}, "
+                f"Remaining: ${remaining:.2f}, "
+                f"Estimated: ${estimated_cost:.2f}. "
+                f"Continuing anyway (personal use = user responsibility)."
+            )
+            return False
+            
+        return True
+    
+    def get_current_spend_usd(self) -> float:
+        """
+        Get total spend for current month.
+        
+        Returns:
+            Total spend in USD for current month
         """
         db = SessionLocal()
         try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                logger.warning(f"User {user_id} not found for budget check.")
-                return {
-                    "within_budget": True,  # Don't block if user not found
-                    "remaining_budget": budget_limit_usd,
-                    "current_spend": 0.0,
-                    "budget_limit": budget_limit_usd,
-                    "percent_used": 0.0,
-                    "warning": None
-                }
-
-            # Get current spend from user record (or default to 0)
-            current_spend = getattr(user, 'current_spend_usd', 0.0)
-            remaining = budget_limit_usd - current_spend
-            percent_used = (current_spend / budget_limit_usd * 100) if budget_limit_usd > 0 else 0
-
-            # Generate warning if over budget
-            warning = None
-            if remaining <= 0:
-                warning = f"Budget exceeded by ${abs(remaining):.2f}. Consider reducing usage or increasing budget limit."
-                logger.warning(f"User {user_id} exceeded budget. Spend: ${current_spend:.2f}, Limit: ${budget_limit_usd:.2f}")
-            elif percent_used >= 90:
-                warning = f"Budget at {percent_used:.1f}% capacity. ${remaining:.2f} remaining."
-
-            # ALWAYS return within_budget=True (no blocking)
-            return {
-                "within_budget": True,  # Never block execution (personal use)
-                "remaining_budget": max(0, remaining),
-                "current_spend": current_spend,
-                "budget_limit": budget_limit_usd,
-                "percent_used": min(100, percent_used),
-                "warning": warning
-            }
-        finally:
-            db.close()
-
-    def get_current_spend_usd(self, user_id: str) -> float:
-        """
-        Get total spend in USD for user.
-
-        Args:
-            user_id: User ID
-
-        Returns:
-            Current spend in USD
-        """
-        db = SessionLocal()
-        try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if user:
-                return getattr(user, 'current_spend_usd', 0.0)
+            # For single-tenant, aggregate across all agent executions
+            from core.models import AgentExecution
+            
+            # Get current month's start
+            now = datetime.utcnow()
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            
+            # Query total spend from agent executions
+            executions = db.query(AgentExecution).filter(
+                AgentExecution.created_at >= month_start,
+                AgentExecution.status == 'completed'
+            ).all()
+            
+            # Sum up all costs (ACU + API costs)
+            total_spend = sum(
+                (e.acu_cost_usd or 0.0) + (e.api_cost_usd or 0.0)
+                for e in executions
+            )
+            
+            return total_spend
+        except Exception as e:
+            logger.error(f"Error getting current spend: {e}")
             return 0.0
         finally:
             db.close()
-
-    def record_spend(self, user_id: str, amount_usd: float, description: str = ""):
+    
+    def get_budget_forecast(self, budget_limit_usd: float) -> Dict[str, Any]:
         """
-        Record spend for user (updates user.current_spend_usd).
-
+        Predict when budget will be exhausted based on current spending rate.
+        
         Args:
-            user_id: User ID
-            amount_usd: Amount spent in USD
-            description: Optional description of the spend
-        """
-        if amount_usd <= 0:
-            return
-
-        db = SessionLocal()
-        try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if user:
-                # Add current_spend_usd column if it doesn't exist
-                if not hasattr(user, 'current_spend_usd'):
-                    logger.info(f"Adding current_spend_usd column to user {user_id}")
-                    # Column would be added via migration
-                    return
-
-                user.current_spend_usd = getattr(user, 'current_spend_usd', 0.0) + amount_usd
-                db.commit()
-                logger.info(f"Recorded ${amount_usd:.4f} spend for user {user_id}: {description}. New total: ${user.current_spend_usd:.4f}")
-        except Exception as e:
-            logger.error(f"Failed to record spend: {e}")
-        finally:
-            db.close()
-
-    def get_budget_forecast(self, user_id: str, budget_limit_usd: float = 100.0, days: int = 30) -> Dict[str, any]:
-        """
-        Predict budget exhaustion based on recent spending.
-
-        Args:
-            user_id: User ID
-            budget_limit_usd: Budget limit in USD
-            days: Number of days to analyze (default: 30)
-
+            budget_limit_usd: Monthly budget limit in USD
+            
         Returns:
-            Dict with forecast data
-            {
-                "current_spend": float,
-                "budget_limit": float,
-                "daily_avg_spend": float,
-                "days_until_exhaustion": int or None,
-                "exhaustion_date": str or None,
-                "forecast": str
-            }
+            Dictionary with forecast data:
+            - current_spend_usd: Total spent this month
+            - daily_spend_usd: Average daily spend
+            - days_until_exhaustion: Days until budget exhausted (or None)
+            - projected_exhaustion_date: Date when budget will be exhausted (or None)
+            - budget_status: 'on_track', 'at_risk', 'exceeded'
         """
-        # Simplified forecast (would need spending history table for accuracy)
-        current_spend = self.get_current_spend_usd(user_id)
-        remaining = budget_limit_usd - current_spend
-
-        if remaining <= 0:
-            return {
-                "current_spend": current_spend,
-                "budget_limit": budget_limit_usd,
-                "daily_avg_spend": 0.0,
-                "days_until_exhaustion": 0,
-                "exhaustion_date": datetime.now().strftime("%Y-%m-%d"),
-                "forecast": "Budget already exceeded"
-            }
-
-        # TODO: Implement actual spending history tracking for accurate forecasts
-        # For now, use simple linear projection from current spend
-        days_elapsed = 30  # Assume 30 days since account creation
-        daily_avg_spend = current_spend / days_elapsed if days_elapsed > 0 else 0
-
-        if daily_avg_spend > 0:
-            days_until_exhaustion = int(remaining / daily_avg_spend)
-            exhaustion_date = (datetime.now() + timedelta(days=days_until_exhaustion)).strftime("%Y-%m-%d")
-            forecast = f"At current spending rate (${daily_avg_spend:.2f}/day), budget will be exhausted in {days_until_exhaustion} days ({exhaustion_date})"
+        current_spend = self.get_current_spend_usd()
+        
+        # Calculate daily spend rate
+        now = datetime.utcnow()
+        days_in_month = now.day  # Current day of month (1-31)
+        daily_spend = current_spend / max(days_in_month, 1)  # Avoid division by zero
+        
+        remaining_budget = budget_limit_usd - current_spend
+        days_remaining = (budget_limit_usd - current_spend) / max(daily_spend, 0.0001)
+        
+        # Determine status
+        if current_spend >= budget_limit_usd:
+            status = 'exceeded'
+            days_until_exhaustion = 0
+            projected_exhaustion_date = now
+        elif days_remaining < 7:
+            status = 'at_risk'
+            days_until_exhaustion = max(0, int(days_remaining))
+            projected_exhaustion_date = now + timedelta(days=days_until_exhaustion)
         else:
-            days_until_exhaustion = None
-            exhaustion_date = None
-            forecast = "Spending rate too low to forecast exhaustion"
-
+            status = 'on_track'
+            days_until_exhaustion = int(days_remaining) if days_remaining < 100 else None
+            projected_exhaustion_date = now + timedelta(days=days_until_exhaustion) if days_remaining < 100 else None
+        
         return {
-            "current_spend": current_spend,
-            "budget_limit": budget_limit_usd,
-            "daily_avg_spend": daily_avg_spend,
-            "days_until_exhaustion": days_until_exhaustion,
-            "exhaustion_date": exhaustion_date,
-            "forecast": forecast
+            'current_spend_usd': current_spend,
+            'daily_spend_usd': daily_spend,
+            'days_until_exhaustion': days_until_exhaustion,
+            'projected_exhaustion_date': projected_exhaustion_date.isoformat() if projected_exhaustion_date else None,
+            'budget_status': status,
+            'budget_limit_usd': budget_limit_usd,
+            'remaining_budget_usd': max(0, remaining_budget)
         }
-
-    def send_budget_alert(self, user_id: str, threshold_percent: int = 90) -> bool:
+    
+    def send_budget_alert(self, threshold_percent: float) -> bool:
         """
         Send budget alert when threshold is crossed.
-
+        
         Args:
-            user_id: User ID
-            threshold_percent: Alert threshold (default: 90%)
-
+            threshold_percent: Alert threshold (e.g., 80.0 for 80%)
+            
         Returns:
-            True if alert was sent, False otherwise
+            True if alert sent, False otherwise
+            
+        Note:
+            In personal deployment, this logs to console/warnings.
+            In production, integrate with email/notification systems.
         """
-        budget_limit = 100.0  # Default budget limit
-        status = self.check_budget(user_id, budget_limit)
-
-        if status["percent_used"] >= threshold_percent:
-            # TODO: Implement actual alert sending (email, in-app notification)
-            logger.warning(f"Budget alert for user {user_id}: {status['percent_used']:.1f}% used (${status['current_spend']:.2f} / ${status['budget_limit']:.2f})")
+        # Get budget limit from user settings or default
+        budget_limit_usd = self._get_budget_limit()
+        current_spend = self.get_current_spend_usd()
+        
+        usage_percent = (current_spend / budget_limit_usd) * 100 if budget_limit_usd > 0 else 0
+        
+        if usage_percent >= threshold_percent:
+            logger.warning(
+                f"🚨 BUDGET ALERT: {usage_percent:.1f}% of monthly budget used. "
+                f"Spent: ${current_spend:.2f} of ${budget_limit_usd:.2f}. "
+                f"Remaining: ${budget_limit_usd - current_spend:.2f}."
+            )
             return True
+        
         return False
-
-    def is_budget_exceeded(self, user_id: str, budget_limit_usd: float = 100.0) -> bool:
+    
+    def is_budget_exceeded(self) -> bool:
         """
-        Check if budget is exceeded (for warnings, NOT for blocking).
-
-        Args:
-            user_id: User ID
-            budget_limit_usd: Budget limit in USD
-
+        Check if budget has been exceeded.
+        
         Returns:
             True if budget exceeded, False otherwise
+            
+        Note:
+            This is for warning/logging only. Does NOT block execution
+            because personal use = user's choice.
         """
-        status = self.check_budget(user_id, budget_limit_usd)
-        return status["remaining_budget"] <= 0
-
-    def reset_spend(self, user_id: str):
+        budget_limit_usd = self._get_budget_limit()
+        current_spend = self.get_current_spend_usd()
+        
+        return current_spend >= budget_limit_usd
+    
+    def _get_budget_limit(self) -> float:
         """
-        Reset user's spend to $0 (useful for monthly reset or testing).
-
-        Args:
-            user_id: User ID
+        Get budget limit from user settings or default.
+        
+        Returns:
+            Budget limit in USD (default: $100/month)
         """
         db = SessionLocal()
         try:
-            user = db.query(User).filter(User.id == user_id).first()
-            if user and hasattr(user, 'current_spend_usd'):
-                user.current_spend_usd = 0.0
-                db.commit()
-                logger.info(f"Reset spend for user {user_id} to $0.00")
+            # For single-tenant, use first admin user's settings or default
+            user = db.query(User).filter(User.is_admin == True).first()
+            
+            if user and hasattr(user, 'budget_limit_usd') and user.budget_limit_usd:
+                return user.budget_limit_usd
+            
+            # Default budget limit for personal use
+            return 100.0
         except Exception as e:
-            logger.error(f"Failed to reset spend: {e}")
+            logger.error(f"Error getting budget limit: {e}")
+            return 100.0  # Default fallback
         finally:
             db.close()
+    
+    def record_spend(self, amount: float, execution_id: Optional[str] = None):
+        """
+        Record spend after agent execution (for tracking/forecasting).
+        
+        Args:
+            amount: Amount spent in USD
+            execution_id: Optional agent execution ID for attribution
+            
+        Note:
+            This is for tracking/forecasting only. Actual spend is recorded
+            in AgentExecution table during execution.
+        """
+        logger.info(
+            f"Recorded ${amount:.4f} spend"
+            + (f" for execution {execution_id}" if execution_id else "")
+            + f". Total this month: ${self.get_current_spend_usd():.2f}"
+        )
 
 
-# Singleton instance
+# Singleton instance for easy import
 personal_budget_service = PersonalBudgetService()
