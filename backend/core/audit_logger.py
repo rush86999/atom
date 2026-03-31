@@ -42,7 +42,7 @@ class IntegrationAuditLog:
             "params": self._sanitize_params(self.params),
             "result": self.result,
             "error": self.error,
-            "timestamp": datetime.fromtimestamp(self.timestamp).isoformat(),
+            "timestamp": datetime.fromtimestamp(self.timestamp).isoformat(timespec='milliseconds') + 'Z',
             "epoch": self.timestamp
         }
 
