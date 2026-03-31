@@ -4,6 +4,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +54,28 @@ class ShopifyService:
 
     async def get_products(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of products"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "exchange_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/products.json"
             headers = self._get_headers(access_token)
@@ -65,6 +92,28 @@ class ShopifyService:
 
     async def get_orders(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of orders"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_products", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/orders.json"
             headers = self._get_headers(access_token)
@@ -81,6 +130,28 @@ class ShopifyService:
 
     async def get_shop_info(self, access_token: str, shop: str) -> Dict[str, Any]:
         """Get shop information"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_orders", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/shop.json"
             headers = self._get_headers(access_token)
@@ -96,6 +167,28 @@ class ShopifyService:
 
     async def register_webhooks(self, access_token: str, shop: str, webhook_url: str) -> List[Dict[str, Any]]:
         """Register required webhooks for Phase 13 automation"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_shop_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         topics = ["orders/create", "orders/updated", "refunds/create"]
         results = []
         
@@ -129,6 +222,28 @@ class ShopifyService:
 
     async def get_inventory_levels(self, access_token: str, shop: str, location_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get inventory levels for shop"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "register_webhooks", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/inventory_levels.json"
             headers = self._get_headers(access_token)
@@ -146,6 +261,28 @@ class ShopifyService:
 
     async def get_locations(self, access_token: str, shop: str) -> List[Dict[str, Any]]:
         """Get shop locations"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_inventory_levels", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/locations.json"
             headers = self._get_headers(access_token)
@@ -163,6 +300,28 @@ class ShopifyService:
     # --- CUSTOMERS ---
     async def get_customers(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of customers"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_locations", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/customers.json"
             headers = self._get_headers(access_token)
@@ -178,6 +337,28 @@ class ShopifyService:
 
     async def get_customer(self, access_token: str, shop: str, customer_id: str) -> Dict[str, Any]:
         """Get a specific customer by ID"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_customers", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/customers/{customer_id}.json"
             headers = self._get_headers(access_token)
@@ -192,6 +373,28 @@ class ShopifyService:
 
     async def search_customers(self, access_token: str, shop: str, query: str) -> List[Dict[str, Any]]:
         """Search customers by email, name, etc."""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_customer", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/customers/search.json"
             headers = self._get_headers(access_token)
@@ -208,6 +411,28 @@ class ShopifyService:
     # --- FULFILLMENTS ---
     async def get_fulfillments(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
         """Get fulfillments for an order"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "search_customers", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillments.json"
             headers = self._get_headers(access_token)
@@ -221,9 +446,53 @@ class ShopifyService:
             raise HTTPException(status_code=500, detail=f"Failed to fetch fulfillments: {str(e)}")
 
     async def create_fulfillment(self, access_token: str, shop: str, order_id: str, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "create_fulfillment", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
                                   location_id: str, tracking_number: Optional[str] = None,
                                   tracking_company: Optional[str] = None) -> Dict[str, Any]:
         """Create a fulfillment for an order"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_fulfillments", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillments.json"
             headers = self._get_headers(access_token)
@@ -264,8 +533,52 @@ class ShopifyService:
             raise HTTPException(status_code=500, detail=f"Failed to fetch refunds: {str(e)}")
 
     async def calculate_refund(self, access_token: str, shop: str, order_id: str, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "calculate_refund", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
                                 line_items: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate refund amount for specified line items"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_refunds", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/refunds/calculate.json"
             headers = self._get_headers(access_token)
@@ -301,9 +614,53 @@ class ShopifyService:
             raise HTTPException(status_code=500, detail=f"Failed to fetch draft orders: {str(e)}")
 
     async def create_draft_order(self, access_token: str, shop: str, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "create_draft_order", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
                                   line_items: List[Dict[str, Any]], 
                                   customer_id: Optional[str] = None) -> Dict[str, Any]:
         """Create a new draft order"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_draft_orders", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/draft_orders.json"
             headers = self._get_headers(access_token)
@@ -342,6 +699,28 @@ class ShopifyService:
     # --- TRANSACTIONS ---
     async def get_transactions(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
         """Get transactions for an order"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "complete_draft_order", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/transactions.json"
             headers = self._get_headers(access_token)
@@ -357,6 +736,28 @@ class ShopifyService:
     # --- ANALYTICS & REPORTS ---
     async def get_order_count(self, access_token: str, shop: str, status: str = "any") -> int:
         """Get total order count"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_transactions", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/orders/count.json"
             headers = self._get_headers(access_token)
@@ -372,6 +773,28 @@ class ShopifyService:
 
     async def get_product_count(self, access_token: str, shop: str) -> int:
         """Get total product count"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_order_count", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/products/count.json"
             headers = self._get_headers(access_token)
@@ -386,6 +809,28 @@ class ShopifyService:
 
     async def get_customer_count(self, access_token: str, shop: str) -> int:
         """Get total customer count"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_product_count", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             url = f"{self._get_base_url(shop)}/customers/count.json"
             headers = self._get_headers(access_token)
@@ -400,6 +845,28 @@ class ShopifyService:
 
     async def get_shop_analytics(self, access_token: str, shop: str) -> Dict[str, Any]:
         """Get comprehensive shop analytics summary"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_customer_count", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )
+
         try:
             order_count = await self.get_order_count(access_token, shop)
             product_count = await self.get_product_count(access_token, shop)
@@ -421,3 +888,25 @@ class ShopifyService:
         except Exception as e:
             logger.error(f"Failed to get shop analytics: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch analytics: {str(e)}")
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("shopify", "get_shop_analytics", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("shopify"):
+                logger.warning(f"Circuit breaker is open for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Shopify integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("shopify")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for shopify")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for shopify"
+                )

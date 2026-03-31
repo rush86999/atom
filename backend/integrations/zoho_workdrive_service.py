@@ -9,6 +9,11 @@ import httpx
 from core.connection_service import connection_service
 from core.database import get_db_session
 from core.models import IngestedDocument, IntegrationMetric
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +56,28 @@ class ZohoWorkDriveService:
 
     async def get_teams(self, user_id: str) -> List[Dict[str, Any]]:
         """List WorkDrive teams for the user"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "get_access_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )
+
         token = await self.get_access_token(user_id)
         if not token:
             return []
@@ -67,6 +94,28 @@ class ZohoWorkDriveService:
 
     async def list_files(self, user_id: str, parent_id: str = "root") -> List[Dict[str, Any]]:
         """List files in a specific folder or 'root'"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "get_teams", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )
+
         token = await self.get_access_token(user_id)
         if not token:
             return []
@@ -98,6 +147,28 @@ class ZohoWorkDriveService:
 
     async def download_file(self, user_id: str, file_id: str) -> Optional[bytes]:
         """Download file content from WorkDrive"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "list_files", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )
+
         token = await self.get_access_token(user_id)
         if not token:
             return None
@@ -114,6 +185,28 @@ class ZohoWorkDriveService:
 
     async def ingest_file_to_memory(self, user_id: str, file_id: str) -> Dict[str, Any]:
         """Download a file and process it through the ingestion pipeline"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "download_file", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )
+
         content = await self.download_file(user_id, file_id)
         if not content:
             return {"success": False, "error": "Failed to download file"}
@@ -145,6 +238,28 @@ class ZohoWorkDriveService:
 
     async def sync_files_to_db(self, user_id: str, tenant_id: str = "default", workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """Sync Zoho WorkDrive file metadata to the persistent IngestedDocument table."""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "ingest_file_to_memory", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )
+
         try:
             files = await self.list_files(user_id)
             if not files:
@@ -207,6 +322,28 @@ class ZohoWorkDriveService:
 
     async def sync_to_postgres_cache(self, user_id: str, workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """Sync Zoho WorkDrive analytics to PostgreSQL IntegrationMetric table."""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "sync_files_to_db", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )
+
         try:
             # List files to get counts
             files = await self.list_files(user_id)
@@ -262,6 +399,28 @@ class ZohoWorkDriveService:
 
     async def full_sync(self, user_id: str, tenant_id: str = "default", workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Zoho WorkDrive"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "sync_to_postgres_cache", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )
+
         # Pipeline 1: Persistent Cache & Metrics
         cache_result = await self.sync_to_postgres_cache(user_id, workspace_id)
         
@@ -279,3 +438,25 @@ class ZohoWorkDriveService:
 
 # Singleton instance
 zoho_workdrive_service = ZohoWorkDriveService()
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_workdrive", "full_sync", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_workdrive"):
+                logger.warning(f"Circuit breaker is open for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_workdrive integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_workdrive")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_workdrive")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_workdrive"
+                )

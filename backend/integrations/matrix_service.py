@@ -8,6 +8,11 @@ import logging
 import os
 from typing import Any, Dict, Optional
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +24,28 @@ class MatrixService:
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
+        # Start audit logging
+        audit_ctx = log_integration_attempt("matrix", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("matrix"):
+                logger.warning(f"Circuit breaker is open for matrix")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Matrix integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("matrix")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for matrix")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for matrix"
+                )
+
         await self.client.aclose()
 
     async def send_message(self, room_id: str, text: str) -> bool:
@@ -50,6 +77,28 @@ class MatrixService:
             return False
 
     async def health_check(self) -> Dict[str, Any]:
+        # Start audit logging
+        audit_ctx = log_integration_attempt("matrix", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("matrix"):
+                logger.warning(f"Circuit breaker is open for matrix")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Matrix integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("matrix")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for matrix")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for matrix"
+                )
+
         return {
             "ok": True,
             "status": "healthy" if self.access_token else "degraded",
@@ -59,3 +108,25 @@ class MatrixService:
 
 # Singleton instance
 matrix_service = MatrixService()
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("matrix", "send_message", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("matrix"):
+                logger.warning(f"Circuit breaker is open for matrix")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Matrix integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("matrix")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for matrix")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for matrix"
+                )

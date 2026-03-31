@@ -12,6 +12,11 @@ import os
 from typing import Any, Dict, List, Optional, Union
 import httpx
 from pydantic import BaseModel
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -84,12 +89,56 @@ class FreshdeskService:
             raise
     
     async def get_tickets(self, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_tickets", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
                         page: int = 1,
                         per_page: int = 30,
                         status: Optional[str] = None,
                         priority: Optional[str] = None,
                         created_since: Optional[str] = None) -> Dict[str, Any]:
         """Retrieve tickets with optional filtering"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "create_ticket", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/tickets"
             params = {
@@ -128,6 +177,28 @@ class FreshdeskService:
     
     async def update_ticket(self, ticket_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update existing ticket"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_ticket", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/tickets/{ticket_id}"
             response = await self._handle_request(
@@ -143,6 +214,28 @@ class FreshdeskService:
     
     async def delete_ticket(self, ticket_id: int) -> bool:
         """Delete a ticket"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "update_ticket", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/tickets/{ticket_id}"
             await self._handle_request(self.client.delete, url)
@@ -154,6 +247,28 @@ class FreshdeskService:
     
     async def add_ticket_note(self, ticket_id: int, note_data: Dict[str, Any]) -> Dict[str, Any]:
         """Add note or comment to ticket"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "delete_ticket", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/tickets/{ticket_id}/notes"
             response = await self._handle_request(
@@ -169,6 +284,28 @@ class FreshdeskService:
     
     async def get_ticket_conversations(self, ticket_id: int) -> List[Dict[str, Any]]:
         """Get all conversations for a ticket"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "add_ticket_note", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/tickets/{ticket_id}/conversations"
             response = await self._handle_request(self.client.get, url)
@@ -182,6 +319,28 @@ class FreshdeskService:
     
     async def create_contact(self, contact_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new contact"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_ticket_conversations", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/contacts"
             response = await self._handle_request(
@@ -197,6 +356,28 @@ class FreshdeskService:
     
     async def get_contacts(self, page: int = 1, per_page: int = 30) -> Dict[str, Any]:
         """Retrieve contacts"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "create_contact", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/contacts"
             params = {
@@ -216,6 +397,28 @@ class FreshdeskService:
     
     async def get_contact(self, contact_id: int) -> Dict[str, Any]:
         """Get specific contact by ID"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_contacts", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/contacts/{contact_id}"
             response = await self._handle_request(self.client.get, url)
@@ -227,6 +430,28 @@ class FreshdeskService:
     
     async def update_contact(self, contact_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update existing contact"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_contact", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/contacts/{contact_id}"
             response = await self._handle_request(
@@ -244,6 +469,28 @@ class FreshdeskService:
     
     async def create_company(self, company_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new company"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "update_contact", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/companies"
             response = await self._handle_request(
@@ -259,6 +506,28 @@ class FreshdeskService:
     
     async def get_companies(self, page: int = 1, per_page: int = 30) -> Dict[str, Any]:
         """Retrieve companies"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "create_company", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/companies"
             params = {
@@ -278,6 +547,28 @@ class FreshdeskService:
     
     async def get_company(self, company_id: int) -> Dict[str, Any]:
         """Get specific company by ID"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_companies", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/companies/{company_id}"
             response = await self._handle_request(self.client.get, url)
@@ -291,6 +582,28 @@ class FreshdeskService:
     
     async def get_agents(self) -> List[Dict[str, Any]]:
         """Retrieve all agents"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_company", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/agents"
             response = await self._handle_request(self.client.get, url)
@@ -302,6 +615,28 @@ class FreshdeskService:
     
     async def get_agent(self, agent_id: int) -> Dict[str, Any]:
         """Get specific agent by ID"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_agents", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/agents/{agent_id}"
             response = await self._handle_request(self.client.get, url)
@@ -315,6 +650,28 @@ class FreshdeskService:
     
     async def get_groups(self) -> List[Dict[str, Any]]:
         """Retrieve all groups"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_agent", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/groups"
             response = await self._handle_request(self.client.get, url)
@@ -326,6 +683,28 @@ class FreshdeskService:
     
     async def get_group(self, group_id: int) -> Dict[str, Any]:
         """Get specific group by ID"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_groups", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/groups/{group_id}"
             response = await self._handle_request(self.client.get, url)
@@ -338,9 +717,53 @@ class FreshdeskService:
     # Analytics and Reporting Methods
     
     async def get_tickets_metrics(self, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_tickets_metrics", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
                              date_range: Optional[str] = None,
                              group_by: Optional[str] = None) -> Dict[str, Any]:
         """Get ticket metrics and analytics"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_group", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/reports/tickets"
             params = {}
@@ -362,6 +785,28 @@ class FreshdeskService:
             raise
     
     async def get_satisfaction_ratings(self, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_satisfaction_ratings", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
                                    ticket_id: Optional[int] = None,
                                    date_range: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get customer satisfaction ratings"""
@@ -409,6 +854,28 @@ class FreshdeskService:
     
     async def search_contacts(self, query: str) -> List[Dict[str, Any]]:
         """Search contacts"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "search_tickets", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/search/contacts"
             params = {"query": query}
@@ -428,6 +895,28 @@ class FreshdeskService:
     
     async def health_check(self) -> Dict[str, Any]:
         """Check Freshdesk API health status"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "search_contacts", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/health"
             response = await self._handle_request(self.client.get, url)
@@ -447,6 +936,28 @@ class FreshdeskService:
     
     async def get_account_info(self) -> Dict[str, Any]:
         """Get account information"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/account"
             response = await self._handle_request(self.client.get, url)
@@ -460,6 +971,28 @@ class FreshdeskService:
     
     async def upload_attachment(self, file_data: bytes, filename: str) -> Dict[str, Any]:
         """Upload file attachment"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "get_account_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         try:
             url = f"{self.base_url}/attachments"
             files = {"file": (filename, file_data)}
@@ -485,6 +1018,28 @@ class FreshdeskService:
     
     def get_status_name(self, status_code: int) -> str:
         """Get human-readable status name"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "upload_attachment", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
         status_map = {
             2: "Open",
             3: "Pending", 
@@ -512,6 +1067,28 @@ class FreshdeskService:
 # Factory function for creating Freshdesk service
 def create_freshdesk_service(api_key: str, domain: str, **kwargs) -> FreshdeskService:
     """Create Freshdesk service instance"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("freshdesk", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("freshdesk"):
+                logger.warning(f"Circuit breaker is open for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Freshdesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("freshdesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for freshdesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for freshdesk"
+                )
+
     config = FreshdeskConfig(
         api_key=api_key,
         domain=domain,

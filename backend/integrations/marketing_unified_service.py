@@ -7,6 +7,11 @@ from datetime import datetime
 from enum import Enum
 import logging
 from typing import Any, Dict, List, Optional
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 try:
     from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
@@ -46,3 +51,25 @@ class MarketingUnifiedService:
 
 # Global singleton
 marketing_service = MarketingUnifiedService({})
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("marketing_unified", "get_campaign_performance", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("marketing_unified"):
+                logger.warning(f"Circuit breaker is open for marketing_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Marketing_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("marketing_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for marketing_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for marketing_unified"
+                )

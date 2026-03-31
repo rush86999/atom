@@ -26,6 +26,11 @@ except ImportError as e:
     )
 
 from core.token_storage import token_storage
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # If modifying these scopes, delete the token file
 SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -167,6 +172,28 @@ class GoogleCalendarService:
         Returns:
             Created event in unified format or None
         """
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_calendar", "create_event", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_calendar"):
+                logger.warning(f"Circuit breaker is open for google_calendar")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_calendar integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_calendar")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_calendar")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_calendar"
+                )
+
         if not self.service:
             if not self.authenticate():
                 return None

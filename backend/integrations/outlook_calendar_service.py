@@ -16,6 +16,11 @@ import aiohttp
 # Load environment variables from .env file
 from dotenv import load_dotenv
 from msal import PublicClientApplication
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Load .env from project root (atom/.env)
 env_path = Path(__file__).parent.parent.parent / '.env'
@@ -202,6 +207,28 @@ class OutlookCalendarService:
         Returns:
             Created event in unified format or None
         """
+        # Start audit logging
+        audit_ctx = log_integration_attempt("outlook_calendar", "create_event", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("outlook_calendar"):
+                logger.warning(f"Circuit breaker is open for outlook_calendar")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Outlook_calendar integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("outlook_calendar")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for outlook_calendar")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for outlook_calendar"
+                )
+
         if not self._ensure_authenticated():
             return None
         
@@ -311,6 +338,28 @@ class OutlookCalendarService:
         end_time: datetime
     ) -> Dict:
         """
+        # Start audit logging
+        audit_ctx = log_integration_attempt("outlook_calendar", "delete_event", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("outlook_calendar"):
+                logger.warning(f"Circuit breaker is open for outlook_calendar")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Outlook_calendar integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("outlook_calendar")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for outlook_calendar")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for outlook_calendar"
+                )
+
         Check for scheduling conflicts
         
         Args:

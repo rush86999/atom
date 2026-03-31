@@ -18,6 +18,11 @@ import aiohttp
 import httpx
 import numpy as np
 import pandas as pd
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Import existing ATOM services
 try:
@@ -230,6 +235,28 @@ class AtomEnterpriseUnifiedService:
     
     async def create_enterprise_workflow(self, workflow_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Create enterprise workflow with security and compliance integration"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             workflow_id = f"enterprise_wf_{int(time.time())}_{hashlib.md5(workflow_data['name'].encode()).hexdigest()[:8]}"
             
@@ -326,6 +353,28 @@ class AtomEnterpriseUnifiedService:
     
     async def execute_enterprise_workflow(self, workflow_id: str, trigger_context: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Execute enterprise workflow with security and compliance checks"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "create_enterprise_workflow", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             enterprise_workflow = self.enterprise_workflows.get(workflow_id)
             if not enterprise_workflow:
@@ -417,6 +466,28 @@ class AtomEnterpriseUnifiedService:
     
     async def create_security_automation(self, automation_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Create security automation with workflow integration"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "execute_enterprise_workflow", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             automation_id = f"sec_auto_{int(time.time())}_{hashlib.md5(automation_data['name'].encode()).hexdigest()[:8]}"
             
@@ -503,6 +574,28 @@ class AtomEnterpriseUnifiedService:
     
     async def create_compliance_automation(self, automation_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Create compliance automation with workflow integration"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "create_security_automation", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             automation_id = f"comp_auto_{int(time.time())}_{hashlib.md5(automation_data['name'].encode()).hexdigest()[:8]}"
             
@@ -596,6 +689,28 @@ class AtomEnterpriseUnifiedService:
     
     async def handle_security_event(self, security_event: Dict[str, Any]) -> Dict[str, Any]:
         """Handle security event with automated workflows"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "create_compliance_automation", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             # Detect threat type
             threat_type = security_event.get('threat_type')
@@ -659,6 +774,28 @@ class AtomEnterpriseUnifiedService:
     
     async def handle_compliance_violation(self, compliance_violation: Dict[str, Any]) -> Dict[str, Any]:
         """Handle compliance violation with automated workflows"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "handle_security_event", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             # Get compliance standard
             standard = compliance_violation.get('standard')
@@ -720,6 +857,28 @@ class AtomEnterpriseUnifiedService:
     
     async def get_enterprise_workflows(self, user_id: str = None, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Get enterprise workflows with security and compliance details"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "handle_compliance_violation", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             filters = filters or {}
             workflows = []
@@ -766,6 +925,28 @@ class AtomEnterpriseUnifiedService:
     
     async def get_automations_status(self, automation_type: str = None) -> Dict[str, Any]:
         """Get automations status"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_enterprise_workflows", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             status_report = {
                 'total_automations': len(self.active_automations),
@@ -800,6 +981,28 @@ class AtomEnterpriseUnifiedService:
     # Private methods for integration
     async def _validate_enterprise_workflow(self, workflow: EnterpriseWorkflow) -> Dict[str, Any]:
         """Validate enterprise workflow security and compliance"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_automations_status", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         try:
             validation_result = {'valid': True, 'errors': [], 'warnings': []}
             
@@ -1289,6 +1492,28 @@ class AtomEnterpriseUnifiedService:
     
     async def get_enterprise_metrics(self) -> Dict[str, Any]:
         """Get enterprise unified service metrics"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_service_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         return {
             "total_workflows": self.enterprise_metrics['total_workflows'],
             "active_workflows": self.enterprise_metrics['active_workflows'],
@@ -1307,6 +1532,28 @@ class AtomEnterpriseUnifiedService:
     
     async def close(self):
         """Close enterprise unified service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "get_enterprise_metrics", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )
+
         logger.info("Enterprise Unified Service closed")
 
 # Global enterprise unified service instance
@@ -1328,3 +1575,24 @@ if _ai_integration:
     _enterprise_config['ai_integration'] = _ai_integration
 
 atom_enterprise_unified_service = AtomEnterpriseUnifiedService(_enterprise_config)
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_unified", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_unified"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_unified integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_unified")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_unified")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_unified"
+                )

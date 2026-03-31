@@ -9,6 +9,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +34,28 @@ class DropboxService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("dropbox", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("dropbox"):
+                logger.warning(f"Circuit breaker is open for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Dropbox integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("dropbox")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for dropbox"
+                )
+
         return {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
@@ -81,6 +108,28 @@ class DropboxService:
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """List files and folders"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("dropbox", "exchange_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("dropbox"):
+                logger.warning(f"Circuit breaker is open for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Dropbox integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("dropbox")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for dropbox"
+                )
+
         try:
             token = access_token or self.access_token
             if not token:
@@ -434,6 +483,28 @@ class DropboxService:
 
     async def get_space_usage(self, access_token: str = None) -> Dict[str, Any]:
         """Get account space usage"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("dropbox", "get_account_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("dropbox"):
+                logger.warning(f"Circuit breaker is open for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Dropbox integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("dropbox")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for dropbox"
+                )
+
         try:
             token = access_token or self.access_token
             if not token:
@@ -457,6 +528,28 @@ class DropboxService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Dropbox service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("dropbox", "get_space_usage", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("dropbox"):
+                logger.warning(f"Circuit breaker is open for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Dropbox integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("dropbox")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for dropbox"
+                )
+
         try:
             return {
                 "ok": True,
@@ -479,4 +572,26 @@ dropbox_service = DropboxService()
 
 def get_dropbox_service() -> DropboxService:
     """Get Dropbox service instance"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("dropbox", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("dropbox"):
+                logger.warning(f"Circuit breaker is open for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Dropbox integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("dropbox")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for dropbox")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for dropbox"
+                )
+
     return dropbox_service

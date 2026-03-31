@@ -11,6 +11,11 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +42,28 @@ class FigmaService:
 
     def _get_headers(self, access_token: str = None) -> Dict[str, str]:
         """Get headers for API requests"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         token = access_token or self.access_token
         return {
             "Authorization": f"Bearer {token}",
@@ -83,6 +110,28 @@ class FigmaService:
 
     async def refresh_access_token(self) -> Dict[str, Any]:
         """Refresh access token"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "exchange_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         if not self.refresh_token:
             raise HTTPException(status_code=400, detail="No refresh token available")
 
@@ -112,6 +161,28 @@ class FigmaService:
 
     async def get_user_info(self) -> Dict[str, Any]:
         """Get current user info"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "refresh_access_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         try:
             if not self.access_token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -128,6 +199,28 @@ class FigmaService:
 
     def is_token_valid(self) -> bool:
         """Check if token is valid"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "get_user_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         if not self.access_token:
             return False
         if self.token_expires_at and datetime.now() > self.token_expires_at - timedelta(minutes=5):
@@ -146,6 +239,28 @@ class FigmaService:
 
     def get_connection_status(self) -> Dict[str, Any]:
         """Get current connection status"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "ensure_valid_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         return {
             "connected": self.is_token_valid(),
             "has_access_token": bool(self.access_token),
@@ -172,6 +287,28 @@ class FigmaService:
 
     async def get_file_nodes(self, file_key: str, node_ids: List[str], access_token: str = None) -> Dict[str, Any]:
         """Get specific nodes from a file"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "get_file", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -191,6 +328,28 @@ class FigmaService:
 
     async def get_team_projects(self, team_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get projects from a team"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "get_file_nodes", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -206,6 +365,28 @@ class FigmaService:
 
     async def get_project_files(self, project_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get files from a project"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "get_team_projects", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -221,6 +402,28 @@ class FigmaService:
 
     async def get_comments(self, file_key: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get comments from a file"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "get_project_files", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -236,10 +439,54 @@ class FigmaService:
 
     async def search_files(self, query: str, team_id: Optional[str] = None, access_token: str = None) -> List[Dict[str, Any]]:
         """
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "get_comments", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         Search for Figma files based on a query string.
         Since Figma doesn't provide a direct global search API, 
         we list projects and files to find matches.
         """
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "search_files", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
+
         try:
             results = []
             token = access_token or await self.ensure_valid_token()
@@ -291,3 +538,25 @@ figma_service = FigmaService()
 
 def get_figma_service() -> FigmaService:
     return figma_service
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("figma", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("figma"):
+                logger.warning(f"Circuit breaker is open for figma")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Figma integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("figma")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for figma")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for figma"
+                )
