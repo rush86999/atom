@@ -49,7 +49,8 @@ class BudgetEnforcementService:
         self,
         tenant_id: str,
         agent_id: str,
-        action: str
+        action: str,
+        chain_id: Optional[str] = None # Phase 10
     ) -> Dict[str, Any]:
         """
         Check if action is allowed under current budget and enforcement mode.
@@ -94,6 +95,25 @@ class BudgetEnforcementService:
             budget_exceeded = utilization >= 100.0 or current_spend >= budget_limit
 
             if not budget_exceeded:
+                # Phase 10: Fleet Aggregate Check
+                if chain_id:
+                    from core.models import DelegationChain
+                    chain = self.db.query(DelegationChain).filter(DelegationChain.id == chain_id).first()
+                    if chain:
+                        fleet_spend = self.spend_service.get_fleet_spend(chain_id)
+                        fleet_limit = chain.total_spend_usd or 0.0 # Aggregate cap for this recruitment chain
+
+                        if fleet_limit > 0 and fleet_spend >= fleet_limit:
+                            logger.warning(f"Fleet aggregate budget exceeded for chain {chain_id}: ${fleet_spend:.2f} >= ${fleet_limit:.2f}")
+                            return {
+                                "allowed": False,
+                                "reason": f"Fleet aggregate budget limit (${fleet_limit:.2f}) reached.",
+                                "enforcement_mode": enforcement_mode,
+                                "current_spend_usd": fleet_spend,
+                                "budget_limit_usd": fleet_limit,
+                                "utilization_percent": (fleet_spend / fleet_limit * 100) if fleet_limit > 0 else 0
+                            }
+
                 return {
                     "allowed": True,
                     "reason": None,

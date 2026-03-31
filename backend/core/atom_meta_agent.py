@@ -19,6 +19,8 @@ from core.database import SessionLocal
 import traceback
 from core.agent_world_model import WorldModelService, AgentExperience
 from core.agent_governance_service import AgentGovernanceService
+from core.agent_fleet_service import AgentFleetService
+from core.capability_graduation_service import CapabilityGraduationService
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from integrations.mcp_service import mcp_service
 from ai.nlp_engine import NaturalLanguageEngine, CommandIntentResult, CommandType
@@ -166,6 +168,8 @@ class AtomMetaAgent:
         "ingest_knowledge_from_file",
         "query_knowledge_graph",
         "trigger_workflow",
+        "invoke_capability",
+        "recruit_fleet",    # NEW: Multi-agent orchestration
         "delegate_task",
         "request_human_intervention",
         "get_system_health",
@@ -189,6 +193,11 @@ class AtomMetaAgent:
         self.user = user
         self.world_model = WorldModelService(workspace_id=workspace_id, tenant_id=self.tenant_id)
         self.orchestrator = AdvancedWorkflowOrchestrator()
+        
+        # Capability Graduation Integration
+        with SessionLocal() as db:
+            self.graduation_service = CapabilityGraduationService(db)
+            
         self.spawned_agents: Dict[str, AgentRegistry] = {}
         self.mcp = mcp_service  # MCP access for tools
         
@@ -627,6 +636,10 @@ POWERS:
 - **IMPORTANT**: Use `save_business_fact` to store "Truths" (policies, rules). If you see a Fact in memory, VERIFY its citations (`verify_citation`) if it's critical.
 - **IMPORTANT**: You have a large toolkit. If you don't see a tool you need, use `mcp_tool_search` to find it.
 
+CORE DIFFERENCE:
+- **trigger_workflow**: Use for structured, pre-defined, multi-step business processes (e.g., "Monthly Payroll", "Order Fulfillment").
+- **invoke_capability**: Use for unstructured, complex, reasoning-heavy tasks that aren't workflows (e.g., "Advanced Market Analysis", "Deep Code Audit").
+
 SPECIALIZED AGENTS:
 You manage a team of experts. DELEGATE tasks using `delegate_task` if they match these domains:
 - "accounting": Bookkeeping, transactions, reconciliation
@@ -637,6 +650,12 @@ You manage a team of experts. DELEGATE tasks using `delegate_task` if they match
 - "purchasing": Procurement, vendors, purchase orders
 - "planning": Strategy, forecasting, hiring
 - "communications": Drafting emails, triaging messages
+
+FLEET ADMIRALTY (NEW):
+You are the Admiral of the Atom Fleet. For complex, multi-domain tasks, do NOT act alone. Use `recruit_fleet` to assemble a specialized team. 
+- You can recruit multiple specialists (Sales, Finance, Engineering) in parallel.
+- All recruited agents share a global 'Blackboard' context via their Delegation Chain.
+- You supervise their high-level coordination while they handle the domain specifics.
 
 {comm_instruction}
 
@@ -774,17 +793,101 @@ What is your next step?"""
             if tool_name == "trigger_workflow":
                 result = await self._trigger_workflow(args.get("workflow_id"), args.get("params", {}), context)
                 return result
-                
+
             elif tool_name == "delegate_task":
                 result = await self._execute_delegation(args.get("agent_name"), args.get("task"), context)
                 return result
-            
+
+            elif tool_name == "recruit_fleet":
+                # Handle fleet recruitment
+                sub_tasks = args.get("sub_tasks", [])
+                goal = args.get("goal", "Multi-Agent Coordination")
+                result = await self._recruit_fleet(goal, sub_tasks, context, step_callback)
+                return result
+
+            elif tool_name == "invoke_capability":
+                # Maturity-Gated Capability Invocation
+                capability_name = args.get("capability_name")
+                maturity = self.graduation_service.get_maturity(self.tenant_id, "atom_main", capability_name)
+
+                logger.info(f"Invoking capability '{capability_name}' at maturity level: {maturity}")
+
+                # Enforce gating (Student level requires HITL)
+                if maturity == "student":
+                    return f"Action 'invoke_capability({capability_name})' blocked. Capability is at STUDENT level and requires explicit governance authorization or HITL approval."
+
+                # Execute logic...
+                result = await self.mcp.call_tool(capability_name, args.get("params", {}), context=context)
+
+                # Record usage for graduation
+                self.graduation_service.record_usage(self.tenant_id, "atom_main", capability_name, success=True)
+                return str(result)
+
             # 2. Execute via MCP with governance check
             result = await self.mcp.call_tool(tool_name, args, context=context)
             return str(result)
-            
+
         except Exception as e:
             return f"Tool error: {str(e)}"
+
+    async def _recruit_fleet(self, goal: str, sub_tasks: List[Dict[str, str]], 
+                              context: Dict, step_callback: Optional[callable] = None) -> str:
+        """Orchestrate a fleet of specialized agents for a complex goal."""
+        try:
+            from core.business_agents import get_specialized_agent
+            tenant_id = self.tenant_id
+            
+            with SessionLocal() as db:
+                fleet_service = AgentFleetService(db)
+                
+                # 1. Initialize the Fleet (Delegation Chain)
+                chain = fleet_service.initialize_fleet(
+                    tenant_id=tenant_id,
+                    root_agent_id="atom_main",
+                    root_task=goal,
+                    root_execution_id=context.get("execution_id"),
+                    initial_metadata={"goal": goal, "sub_tasks_count": len(sub_tasks)}
+                )
+                
+                logger.info(f"Fleet initiated in Upstream: {chain.id} for goal: {goal}")
+                
+                fleet_members = []
+                for i, st in enumerate(sub_tasks):
+                    domain = st.get("domain", "general")
+                    task_desc = st.get("task", "Analyze domain sub-task")
+                    
+                    # 2. Recruit the specialist
+                    agent = get_specialized_agent(domain, self.workspace_id)
+                    
+                    # 3. Create the Link
+                    link = fleet_service.recruit_member(
+                        chain_id=chain.id,
+                        parent_agent_id="atom_main",
+                        child_agent_id=agent.id if agent else f"specialist_{domain}",
+                        task_description=task_desc,
+                        context_json={"fleet_goal": goal, "domain": domain},
+                        link_order=i
+                    )
+                    
+                    fleet_members.append({
+                        "agent": agent.name if agent else domain,
+                        "task": task_desc,
+                        "status": "recruited"
+                    })
+
+                if step_callback:
+                    await step_callback({
+                        "type": "fleet_recruited",
+                        "chain_id": chain.id,
+                        "members": fleet_members
+                    })
+                
+                member_summary = "\n".join([f"- {m['agent']}: {m['task']}" for m in fleet_members])
+                return f"Fleet Successfully Recruited in Upstream (Chain: {chain.id}).\nMembers:\n{member_summary}\n\nAll members are now synchronized via the Fleet Blackboard."
+
+        except Exception as e:
+            logger.error(f"Fleet recruitment failed in Upstream: {e}")
+            return f"Fleet recruitment error: {str(e)}"
 
     
     async def spawn_agent(self, template_name: str, custom_params: Dict[str, Any] = None,
@@ -798,6 +901,21 @@ What is your next step?"""
             persist: If True, register in database; else ephemeral
         """
         if template_name in SpecialtyAgentTemplate.TEMPLATES:
+            template = SpecialtyAgentTemplate.TEMPLATES[template_name]
+            
+            # Extract capabilities for graduation registration
+            initial_capabilities = template.get("capabilities", [])
+            
+            with SessionLocal() as db:
+                # Register capabilities at STUDENT level if they don't exist
+                for capability in initial_capabilities:
+                    self.graduation_service.reset_maturity(
+                        self.tenant_id, 
+                        # Use a deterministic ID placeholder if agent is not yet persisted
+                        "atom_specialty_init", 
+                        capability, 
+                        "initial_spawn_registration"
+                    )
             template = SpecialtyAgentTemplate.TEMPLATES[template_name]
         elif template_name == "custom" and custom_params:
             template = custom_params
