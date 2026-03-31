@@ -1,73 +1,36 @@
-# ATOM Upstream Infrastructure
+# Infrastructure Optimizations
 
-**Purpose:** Infrastructure optimizations and schemas for open-source ATOM platform.
+**Purpose:** Database schema optimizations and infrastructure patterns from ATOM SaaS, adapted for single-tenant open-source deployment.
 
-**Scope:** Single-tenant architecture (no tenant isolation, no billing, no quota enforcement).
+**Scope:** Single-tenant architecture (no tenant isolation, no RLS, no multi-tenancy patterns)
 
 ## Contents
 
-- `multitenancy_schema.sql` - Schema optimizations ported from SaaS (adapted for single-tenant)
-- `migrations/` - Future migration scripts (optional)
+- `multitenancy_schema.sql` - Schema optimizations from SaaS (adapted for single-tenant)
+- `migrations/` - Optional migration guides (future use)
 
-## Architecture Notes
+## Origin
 
-### Single-Tenant Design
+These infrastructure improvements were ported from `rush86999/atom-saas` (multi-tenant SaaS platform) and adapted for single-tenant use in the open-source version.
 
-This repository is designed for single-tenant deployments:
-
-- **No tenant_id columns** - All tables are global (no row-level security)
-- **No RLS policies** - No row-level security needed for single-tenant
-- **No billing/quota** - No payment processing, quota checks, or usage tracking
-- **Simplified indexes** - Adapted from SaaS multi-tenant indexes
-
-### Schema Optimizations
-
-Schema files in this directory benefit from optimizations developed in the SaaS version:
-
-- Composite indexes for query performance
-- Covering indexes to reduce table lookups
-- Constraint optimizations for data integrity
-
-All SaaS-specific patterns (tenant isolation, RLS, billing) have been removed.
-
-## SaaS vs Upstream
-
-| Feature               | SaaS (atom-saas)          | Upstream (atom-upstream) |
-| --------------------- | ------------------------- | ------------------------ |
-| Tenant isolation      | Multi-tenant (tenant_id)  | Single-tenant (global)   |
-| Row-level security    | Enabled (RLS policies)    | Disabled                 |
-| Billing enforcement   | Stripe + quota checks     | None                     |
-| Payment processing    | Yes                       | No                       |
-| Database indexes      | tenant-scoped             | Global                   |
-| Redis keys            | `tenant:{tenant_id}:...`  | Global keys              |
-| S3 paths              | `{tenant_id}/...`         | Global paths             |
+**Key adaptations:**
+- Removed all `tenant_id` columns
+- Removed all Row Level Security (RLS) policies
+- Removed all tenant-scoped indexes
+- Kept core optimizations (index improvements, constraint optimizations)
+- Kept query performance improvements
 
 ## Usage
 
-### Apply Schema
+This directory is for **reference only**. The open-source version of ATOM uses a single-tenant architecture, so multi-tenancy patterns have been removed.
 
-```bash
-psql -U postgres -d atom_upstream -f infra/multitenancy_schema.sql
-```
+Review these files to understand:
+- How SaaS optimizes database queries
+- Index strategies for agent operations
+- Schema patterns for high-performance AI workloads
 
-### Verify Single-Tenant
+## Security Note
 
-```bash
-# Check for tenant_id (should return empty)
-grep -n "tenant_id" infra/multitenancy_schema.sql
+**DO NOT** copy tenant isolation, RLS policies, or multi-tenancy patterns from SaaS to this repository. The open-source version is explicitly single-tenant by design.
 
-# Check for RLS (should return empty)
-grep -n "ROW LEVEL SECURITY\|ENABLE ROW LEVEL SECURITY" infra/multitenancy_schema.sql
-```
-
-## Security
-
-**Important:** This schema is for single-tenant deployments only. Do not add tenant isolation or multi-tenancy patterns to upstream.
-
-For multi-tenant SaaS deployment, use the schema from `atom-saas/database/multitenancy_schema.sql`.
-
-## References
-
-- SaaS Schema: `atom-saas/database/multitenancy_schema.sql`
-- Sync Patterns: `.planning/phases/232-ai-orchestration-alignment/SYNC-PATTERNS.md`
-- Verification: `.planning/phases/232-ai-orchestration-alignment/SYNC-VERIFICATION.md`
+For SaaS multi-tenancy patterns, see: `rush86999/atom-saas/backend-saas/database/`
