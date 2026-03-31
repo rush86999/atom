@@ -989,6 +989,7 @@ class AgentExecution(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     agent_id = Column(String, ForeignKey("agent_registry.id"), nullable=True, index=True)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True)
+    chain_id = Column(String, ForeignKey("delegation_chains.id"), nullable=True, index=True) # Phase 10
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
 
     status = Column(String, default=ExecutionStatus.RUNNING.value, index=True)
@@ -1118,6 +1119,7 @@ class TokenUsage(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id"), nullable=True, index=True)
     tenant_id = Column(String, nullable=False, index=True)
     execution_id = Column(String, ForeignKey("agent_executions.id"), nullable=True)
+    chain_id = Column(String, ForeignKey("delegation_chains.id"), nullable=True, index=True) # Phase 10
     
     prompt_tokens = Column(Integer, default=0)
     completion_tokens = Column(Integer, default=0)
@@ -1200,6 +1202,10 @@ class HITLAction(Base):
     action_type = Column(String, nullable=False) # e.g., "send_message"
     platform = Column(String, nullable=False) # e.g., "whatsapp", "meta"
     params = Column(JSONColumn, nullable=False) # Serialized action parameters
+
+    # NEW Phase 10: Delegation chain association
+    chain_id = Column(String, ForeignKey("delegation_chains.id"), nullable=True, index=True)
+    context_snapshot = Column(JSONColumn, nullable=True) # Snapshot of blackboard at time of HITL Request
     
     status = Column(String, default=HITLActionStatus.PENDING.value)
     reason = Column(String, nullable=True) # e.g., "Learning Phase: External Contact"
@@ -1626,6 +1632,99 @@ class AgentHandoff(Base):
     to_agent = relationship("AgentRegistry", foreign_keys=[to_agent_id], backref="received_handoffs")
     canvas = relationship("Canvas", back_populates="handoffs")
     tenant = relationship("Tenant", backref="agent_handoffs")
+
+
+class DelegationChain(Base):
+    """
+    Tracks complete delegation chains for audit and debugging.
+
+    A delegation chain represents a complete workflow where agents delegate
+    tasks to other agents, forming a tree structure of parent-child relationships.
+
+    Example:
+    - Agent A delegates to Agent B (link 1)
+    - Agent B delegates to Agent C (link 2)
+    - Agent A also delegates to Agent D (link 3, parallel)
+
+    This enables:
+    - Complete audit trail of who delegated to whom
+    - Debugging complex multi-agent workflows
+    - Visualization of delegation flows
+    - Performance analysis (timing, success rates)
+    """
+    __tablename__ = "delegation_chains"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Root delegation (where chain started)
+    root_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    root_task = Column(Text, nullable=True)
+    root_execution_id = Column(String, nullable=True)
+
+    # Chain lifecycle
+    status = Column(String(50), nullable=False, default="active")  # active, completed, failed, cancelled
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Statistics
+    total_links = Column(Integer, nullable=False, default=0)
+
+    # NEW Phase 10: Aggregate tracking and guardrails
+    total_spend_usd = Column(Float, nullable=False, default=0.0)
+    max_depth = Column(Integer, nullable=False, default=5) # Limit recursion depth
+
+    # Additional metadata
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="delegation_chains")
+    root_agent = relationship("AgentRegistry", foreign_keys=[root_agent_id], backref="initiated_chains")
+    links = relationship("ChainLink", back_populates="chain", cascade="all, delete-orphan")
+
+
+class ChainLink(Base):
+    """
+    Individual link in a delegation chain (parent -> child relationship).
+
+    Each link represents one delegation from a parent agent to a child agent.
+    Links form a tree structure representing the complete delegation flow.
+    """
+    __tablename__ = "chain_links"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    chain_id = Column(String, ForeignKey("delegation_chains.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Parent-child relationship
+    parent_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+    child_agent_id = Column(String, ForeignKey("agent_registry.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Delegation details
+    task_description = Column(Text, nullable=False)
+    context_json = Column(JSONColumn, nullable=True)
+    result_json = Column(JSONColumn, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    # Link lifecycle
+    status = Column(String(50), nullable=False, default="pending")  # pending, in_progress, completed, failed
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+
+    # Order within chain (for sequential flows)
+    link_order = Column(Integer, nullable=False)
+
+    # Additional metadata
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    chain = relationship("DelegationChain", back_populates="links")
+    parent_agent = relationship("AgentRegistry", foreign_keys=[parent_agent_id], backref="delegations_as_parent")
+    child_agent = relationship("AgentRegistry", foreign_keys=[child_agent_id], backref="delegations_as_child")
 
 
 class AgentCanvasPresence(Base):

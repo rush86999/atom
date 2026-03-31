@@ -20,6 +20,7 @@ class UsageRecord:
     cost_usd: float
     savings_usd: float = 0.0
     agent_id: Optional[str] = None
+    chain_id: Optional[str] = None # NEW Phase 11
     complexity: str = "moderate"
     is_managed_service: bool = True
     timestamp: datetime = field(default_factory=datetime.now)
@@ -48,6 +49,7 @@ class LLMUsageTracker:
         agent_id: Optional[str] = None,
         complexity: str = "moderate",
         is_managed_service: bool = True,
+        chain_id: Optional[str] = None, # NEW Phase 11
     ) -> None:
         """
         Record an LLM usage event.
@@ -73,6 +75,7 @@ class LLMUsageTracker:
             cost_usd=cost_usd,
             savings_usd=savings_usd,
             agent_id=agent_id,
+            chain_id=chain_id, # Phase 11
             complexity=complexity,
             is_managed_service=is_managed_service,
         )

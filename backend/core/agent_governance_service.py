@@ -300,6 +300,7 @@ class AgentGovernanceService:
         action_type: str,
         require_approval: bool = False,
         tenant_id: Optional[str] = None,
+        chain_id: Optional[str] = None, # NEW Phase 10
     ) -> Dict[str, Any]:
         """Hybrid maturity check with complexity-based enforcement"""
         agent = self.db.query(AgentRegistry).filter(
@@ -330,12 +331,23 @@ class AgentGovernanceService:
 
         # Budget Check
         if allowed:
+            import asyncio
             from core.budget_enforcement_service import BudgetEnforcementService
             budget_svc = BudgetEnforcementService(self.db)
-            budget_check = budget_svc.check_budget_sync(
-                tenant_id=tenant_id or "default",
-                agent_id=agent_id,
-                action=action_type
+            
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+            budget_check = loop.run_until_complete(
+                budget_svc.check_budget_before_action(
+                    tenant_id=tenant_id or "default",
+                    agent_id=agent_id,
+                    action=action_type,
+                    chain_id=chain_id # Phase 10
+                )
             )
             if not budget_check.get("allowed", True):
                 return {
@@ -344,6 +356,20 @@ class AgentGovernanceService:
                     "requires_approval": True,
                     "status_code": "BUDGET_EXCEEDED"
                 }
+
+        # NEW Phase 10: Fleet-wide recursion guardrails
+        if chain_id:
+            from core.models import DelegationChain
+            chain = self.db.query(DelegationChain).filter(DelegationChain.id == chain_id).first()
+            if chain:
+                if len(chain.links) >= chain.max_depth:
+                    logger.warning(f"Recursion depth limit reached (chain: {chain_id}). Blocking recruitment.")
+                    return {
+                        "allowed": False,
+                        "reason": f"Fleet recursion depth limit ({chain.max_depth}) reached.",
+                        "requires_approval": True,
+                        "status_code": "RECURSION_LIMIT"
+                    }
 
         return {
             "allowed": allowed,
@@ -360,10 +386,10 @@ class AgentGovernanceService:
         agent_id: str,
         action_type: str,
         action_details: Optional[Dict] = None,
-        tenant_id: Optional[str] = None
+        chain_id: Optional[str] = None # NEW Phase 10
     ) -> Dict[str, Any]:
         """Main entry point for action enforcement including guardrails"""
-        check = self.can_perform_action(agent_id, action_type, tenant_id=tenant_id)
+        check = self.can_perform_action(agent_id, action_type, tenant_id=tenant_id, chain_id=chain_id)
         
         if not check["allowed"]:
             return {"proceed": False, "status": "BLOCKED", "reason": check["reason"], "action_required": "HUMAN_APPROVAL"}
@@ -387,7 +413,14 @@ class AgentGovernanceService:
         search_svc = PGPolicySearchService(self.db)
         return await search_svc.search(query=context, domain=domain, limit=limit)
 
-    def request_approval(self, agent_id: str, action_type: str, params: Dict, reason: str) -> str:
+    def request_approval(
+        self, 
+        agent_id: str, 
+        action_type: str, 
+        params: Dict, 
+        reason: str,
+        chain_id: Optional[str] = None # NEW Phase 10
+    ) -> str:
         hitl = HITLAction(
             id=str(uuid.uuid4()),
             workspace_id=self.workspace_id,
@@ -397,8 +430,39 @@ class AgentGovernanceService:
             platform="internal",
             params=params,
             status=HITLActionStatus.PENDING.value,
-            reason=reason
+            reason=reason,
+            # NEW Phase 10 association
+            chain_id=chain_id
         )
+
+        # Capture blackboard snapshot if it's a fleet operation
+        if chain_id:
+            from core.models import DelegationChain
+            chain = self.db.query(DelegationChain).filter(DelegationChain.id == chain_id).first()
+            if chain:
+                hitl.context_snapshot = chain.metadata_json
+
         self.db.add(hitl)
         self.db.commit()
         return hitl.id
+
+    def get_approval_status(self, action_id: str) -> Dict[str, Any]:
+        """Check if a HITL action has been decided (Phase 10 Hardened)"""
+        hitl = self.db.query(HITLAction).filter(HITLAction.id == action_id).first()
+        if not hitl:
+            return {"status": "not_found"}
+        
+        return {
+            "id": hitl.id,
+            "status": hitl.status,
+            "chain_id": hitl.chain_id,
+            "context_snapshot": hitl.context_snapshot,
+            "user_feedback": hitl.user_feedback,
+            "reviewed_at": hitl.reviewed_at
+        }
+
+    async def record_outcome(self, agent_id: str, success: bool) -> None:
+        """Record the success/failure of an action for learning"""
+        # Placeholder for outcome recording logic
+        logger.info(f"Recorded outcome for {agent_id}: {'success' if success else 'failure'}")
+        self._update_confidence_score(agent_id, positive=success, impact_level="low")

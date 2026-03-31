@@ -733,6 +733,7 @@ class BYOKHandler:
         task_type: Optional[str] = None,
         prefer_cost: bool = True,
         agent_id: Optional[str] = None, # Phase 65
+        chain_id: Optional[str] = None, # NEW Phase 11
         image_payload: Optional[str] = None # Phase 14: Base64 or URL
     ) -> str:
         """
@@ -954,6 +955,7 @@ class BYOKHandler:
                                     cost_usd=cost,
                                     savings_usd=savings_usd,
                                     agent_id=agent_id,
+                                    chain_id=chain_id, # Phase 11
                                     complexity=complexity.value, # Phase 6.6
                                     is_managed_service=is_managed
                                 )
@@ -1197,6 +1199,7 @@ class BYOKHandler:
         temperature: float = 0.2,
         task_type: Optional[str] = None,
         agent_id: Optional[str] = None,
+        chain_id: Optional[str] = None, # NEW Phase 11
         image_payload: Optional[str] = None # Phase 14: Vision Support
     ) -> Any:
         """
@@ -1379,6 +1382,7 @@ class BYOKHandler:
                                     output_tokens=output_tokens,
                                     cost_usd=cost,
                                     agent_id=agent_id,
+                                    chain_id=chain_id, # Phase 11
                                     complexity=complexity.value,
                                     is_managed_service=is_managed
                                 )
