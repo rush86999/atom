@@ -1,314 +1,292 @@
 """
 Tests for Audit Logger
 
-Tests audit logging for security and compliance.
-Covers JSON format, required fields, filtering, rotation, and retention.
+Tests audit logging functionality:
+- Log integration call captures metadata
+- Log integration error captures error
+- Audit log format is structured
+- Audit log includes timestamp
+- Sensitive parameters are sanitized
 """
-
 import pytest
-import json
-import tempfile
-import os
-from datetime import datetime, timedelta
-from pathlib import Path
-
-from core.privsec.audit_logger import (
-    AuditLogger,
-    get_audit_logger,
+import time
+from core.audit_logger import (
+    IntegrationAuditLog,
+    log_integration_call,
+    log_integration_error,
+    log_integration_attempt,
+    log_integration_complete
 )
 
 
-# ============================================================================
-# AuditLogger Tests
-# ============================================================================
+class TestIntegrationAuditLog:
+    """Test IntegrationAuditLog model"""
 
-class TestAuditLogger:
-    """Test audit logger functionality."""
-
-    @pytest.fixture
-    def temp_log_dir(self):
-        """Create temporary directory for audit logs."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            yield tmp_dir
-
-    @pytest.fixture
-    def audit_logger(self, temp_log_dir, monkeypatch):
-        """Create AuditLogger with temporary log directory."""
-        # Set audit log path to temp directory
-        log_path = os.path.join(temp_log_dir, "audit.log")
-        monkeypatch.setenv("AUDIT_LOG_PATH", log_path)
-
-        return get_audit_logger()
-
-    def test_log_media_action_creates_entry(self, audit_logger):
-        """Test logging media action creates entry."""
-        # Should not raise exception
-        audit_logger.log_media_action(
-            user_id="user_123",
-            agent_id="agent_456",
-            action="spotify_play",
-            service="spotify",
-            details={"track": "Test Song", "artist": "Test Artist"},
-            result="success"
-        )
-        # If we got here, entry was created
-        assert True
-
-    def test_log_smarthome_action_creates_entry(self, audit_logger):
-        """Test logging smart home action creates entry."""
-        audit_logger.log_smarthome_action(
-            user_id="user_123",
-            agent_id="agent_456",
-            action="hue_set_light",
-            service="hue",
-            details={"light_id": "1", "state": {"on": True, "brightness": 200}},
-            result="success"
-        )
-        assert True
-
-    def test_log_creative_action_creates_entry(self, audit_logger):
-        """Test logging creative action creates entry."""
-        audit_logger.log_creative_action(
-            user_id="user_123",
-            agent_id="agent_456",
-            action="ffmpeg_trim",
-            service="ffmpeg",
-            details={"input": "/app/data/media/input.mp4", "output": "/app/data/media/output.mp4"},
-            result="success"
-        )
-        assert True
-
-    def test_log_local_only_block_creates_entry(self, audit_logger):
-        """Test logging local-only mode block creates entry."""
-        audit_logger.log_local_only_block(
-            user_id="user_123",
-            agent_id="agent_456",
-            blocked_service="spotify",
-            details={"reason": "Local-only mode enabled"}
-        )
-        assert True
-
-    def test_get_user_audit_log_returns_filtered_entries(self, audit_logger):
-        """Test getting audit log filtered by user."""
-        # Log multiple entries for different users
-        audit_logger.log_media_action(user_id="user_1", agent_id="agent_1", action="action1", service="spotify", details={}, result="success")
-        audit_logger.log_smarthome_action(user_id="user_2", agent_id="agent_2", action="action2", service="hue", details={}, result="success")
-        audit_logger.log_media_action(user_id="user_1", agent_id="agent_3", action="action3", service="notion", details={}, result="success")
-
-        # Get logs for user_1
-        user_logs = audit_logger.get_user_audit_log("user_1")
-
-        # Should return list (may be empty if log file parsing not implemented)
-        assert isinstance(user_logs, list)
-
-    def test_get_service_audit_log_returns_filtered_entries(self, audit_logger):
-        """Test getting audit log filtered by service."""
-        # Log multiple entries for different services
-        audit_logger.log_media_action(user_id="user_1", agent_id="agent_1", action="action1", service="spotify", details={}, result="success")
-        audit_logger.log_smarthome_action(user_id="user_2", agent_id="agent_2", action="action2", service="hue", details={}, result="success")
-        audit_logger.log_media_action(user_id="user_3", agent_id="agent_3", action="action3", service="spotify", details={}, result="success")
-
-        # Get logs for spotify service
-        service_logs = audit_logger.get_service_audit_log("spotify")
-
-        # Should return list (may be empty if log file parsing not implemented)
-        assert isinstance(service_logs, list)
-
-
-# ============================================================================
-# Log Rotation Tests
-# ============================================================================
-
-class TestAuditLogRotation:
-    """Test audit log rotation."""
-
-    @pytest.fixture
-    def temp_log_dir(self):
-        """Create temporary directory for audit logs."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            yield tmp_dir
-
-    @pytest.fixture
-    def audit_logger(self, temp_log_dir, monkeypatch):
-        """Create AuditLogger with temporary log directory."""
-        log_path = os.path.join(temp_log_dir, "audit.log")
-        monkeypatch.setenv("AUDIT_LOG_PATH", log_path)
-
-        return get_audit_logger()
-
-    def test_audit_log_rotation(self, audit_logger, temp_log_dir):
-        """Test daily log file creation for rotation."""
-        # Log an entry
-        audit_logger.log_media_action(
-            user_id="user_1",
-            agent_id="agent_1",
-            action="test_action",
-            service="test_service",
-            details={},
-            result="success"
+    def test_audit_log_creates_with_required_fields(self):
+        """Test that audit log is created with required fields"""
+        log = IntegrationAuditLog(
+            connector_id="gmail",
+            method="send_email",
+            params={"to": "test@example.com"}
         )
 
-        # Check that log file exists
-        log_path = Path(temp_log_dir) / "audit.log"
-        # File may or may not exist depending on implementation
-        assert True
+        assert log.connector_id == "gmail"
+        assert log.method == "send_email"
+        assert log.params == {"to": "test@example.com"}
+        assert log.result is None
+        assert log.error is None
+        assert log.timestamp > 0
 
-
-# ============================================================================
-# Log Retention Tests
-# ============================================================================
-
-class TestAuditLogRetention:
-    """Test audit log retention policies."""
-
-    @pytest.fixture
-    def temp_log_dir(self):
-        """Create temporary directory for audit logs."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            yield tmp_dir
-
-    @pytest.fixture
-    def audit_logger(self, temp_log_dir, monkeypatch):
-        """Create AuditLogger with temporary log directory."""
-        log_path = os.path.join(temp_log_dir, "audit.log")
-        monkeypatch.setenv("AUDIT_LOG_PATH", log_path)
-        monkeypatch.setenv("AUDIT_LOG_RETENTION_DAYS", "7")
-
-        return get_audit_logger()
-
-    def test_audit_log_retention(self, audit_logger, temp_log_dir):
-        """Test old logs are deleted after retention period."""
-        # Run retention cleanup
-        audit_logger.cleanup_old_audit_logs()
-
-        # Should not raise exception
-        assert True
-
-
-# ============================================================================
-# JSON Format Tests
-# ============================================================================
-
-class TestAuditLogJSONFormat:
-    """Test audit log entries are valid JSON."""
-
-    @pytest.fixture
-    def temp_log_dir(self):
-        """Create temporary directory for audit logs."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            yield tmp_dir
-
-    @pytest.fixture
-    def audit_logger(self, temp_log_dir, monkeypatch):
-        """Create AuditLogger with temporary log directory."""
-        log_path = os.path.join(temp_log_dir, "audit.log")
-        monkeypatch.setenv("AUDIT_LOG_PATH", log_path)
-
-        return get_audit_logger()
-
-    def test_log_entries_are_valid_json(self, audit_logger, temp_log_dir):
-        """Test log entries can be parsed as JSON."""
-        audit_logger.log_media_action(
-            user_id="user_123",
-            agent_id="agent_456",
-            action="test_action",
-            service="test_service",
-            details={"key": "value"},
-            result="success"
+    def test_audit_log_to_dict_is_structured(self):
+        """Test that audit log to_dict returns structured format"""
+        log = IntegrationAuditLog(
+            connector_id="slack",
+            method="send_message",
+            params={"channel": "#general", "text": "Hello"},
+            result={"success": True}
         )
 
-        # Read log file and verify JSON format (if file exists)
-        log_path = Path(temp_log_dir) / "audit.log"
-        if log_path.exists():
-            with open(log_path, 'r') as f:
-                for line in f:
-                    if line.strip():  # Skip empty lines
-                        entry = json.loads(line.strip())
-                        assert "user_id" in entry or "timestamp" in entry
+        log_dict = log.to_dict()
 
+        assert isinstance(log_dict, dict)
+        assert "connector_id" in log_dict
+        assert "method" in log_dict
+        assert "params" in log_dict
+        assert "result" in log_dict
+        assert "timestamp" in log_dict
+        assert "epoch" in log_dict
 
-# ============================================================================
-# Singleton Tests
-# ============================================================================
-
-class TestAuditLoggerSingleton:
-    """Test AuditLogger singleton pattern."""
-
-    def test_singleton_returns_same_instance(self, monkeypatch):
-        """Test get_audit_logger returns same instance."""
-        log_path = os.path.join(tempfile.gettempdir(), "audit_singleton.log")
-        monkeypatch.setenv("AUDIT_LOG_PATH", log_path)
-
-        logger1 = get_audit_logger()
-        logger2 = get_audit_logger()
-
-        assert logger1 is logger2
-
-
-# ============================================================================
-# Required Fields Tests
-# ============================================================================
-
-class TestRequiredFields:
-    """Test required fields are present in log entries."""
-
-    @pytest.fixture
-    def temp_log_dir(self):
-        """Create temporary directory for audit logs."""
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            yield tmp_dir
-
-    @pytest.fixture
-    def audit_logger(self, temp_log_dir, monkeypatch):
-        """Create AuditLogger with temporary log directory."""
-        log_path = os.path.join(temp_log_dir, "audit.log")
-        monkeypatch.setenv("AUDIT_LOG_PATH", log_path)
-
-        return get_audit_logger()
-
-    def test_media_action_has_required_fields(self, audit_logger):
-        """Test media action has required fields."""
-        # Should not raise exception - required fields are validated internally
-        audit_logger.log_media_action(
-            user_id="user_123",
-            agent_id="agent_456",
-            action="test_action",
-            service="spotify",
-            details={},
-            result="success"
+    def test_audit_log_includes_timestamp(self):
+        """Test that audit log includes timestamp"""
+        before_time = time.time()
+        log = IntegrationAuditLog(
+            connector_id="jira",
+            method="create_issue",
+            params={}
         )
-        assert True
+        after_time = time.time()
 
-    def test_smarthome_action_has_required_fields(self, audit_logger):
-        """Test smarthome action has required fields."""
-        audit_logger.log_smarthome_action(
-            user_id="user_123",
-            agent_id="agent_456",
-            action="test_action",
-            service="hue",
-            details={},
-            result="success"
-        )
-        assert True
+        assert log.timestamp >= before_time
+        assert log.timestamp <= after_time
 
-    def test_creative_action_has_required_fields(self, audit_logger):
-        """Test creative action has required fields."""
-        audit_logger.log_creative_action(
-            user_id="user_123",
-            agent_id="agent_456",
-            action="test_action",
-            service="ffmpeg",
-            details={},
-            result="success"
-        )
-        assert True
+        # Check ISO format in to_dict
+        log_dict = log.to_dict()
+        assert "T" in log_dict["timestamp"]  # ISO format
+        assert "Z" in log_dict["timestamp"] or "+" in log_dict["timestamp"]
 
-    def test_local_only_block_has_required_fields(self, audit_logger):
-        """Test local-only block has required fields."""
-        audit_logger.log_local_only_block(
-            user_id="user_123",
-            agent_id="agent_456",
-            blocked_service="spotify",
-            details={}
+    def test_audit_log_sanitizes_sensitive_params(self):
+        """Test that sensitive parameters are redacted"""
+        log = IntegrationAuditLog(
+            connector_id="gmail",
+            method="send_email",
+            params={
+                "to": "test@example.com",
+                "password": "secret123",
+                "api_key": "key_abc",
+                "subject": "Test"
+            }
         )
-        assert True
+
+        log_dict = log.to_dict()
+
+        # Sensitive fields should be redacted
+        assert log_dict["params"]["password"] == "***REDACTED***"
+        assert log_dict["params"]["api_key"] == "***REDACTED***"
+
+        # Non-sensitive fields should remain
+        assert log_dict["params"]["to"] == "test@example.com"
+        assert log_dict["params"]["subject"] == "Test"
+
+    def test_audit_log_sanitizes_nested_sensitive_params(self):
+        """Test that nested sensitive parameters are redacted"""
+        log = IntegrationAuditLog(
+            connector_id="slack",
+            method="send_message",
+            params={
+                "message": "Hello",
+                "credentials": {
+                    "token": "xoxb-secret",
+                    "refresh_token": "refresh-secret"
+                }
+            }
+        )
+
+        log_dict = log.to_dict()
+
+        # Nested sensitive fields should be redacted
+        assert log_dict["params"]["credentials"]["token"] == "***REDACTED***"
+        assert log_dict["params"]["credentials"]["refresh_token"] == "***REDACTED***"
+        assert log_dict["params"]["message"] == "Hello"
+
+
+class TestLogIntegrationCall:
+    """Test log_integration_call function"""
+
+    def test_log_integration_call_creates_audit_log(self):
+        """Test that log_integration_call creates an audit log entry"""
+        log = log_integration_call(
+            connector_id="gmail",
+            method="send_email",
+            params={"to": "test@example.com"},
+            result={"success": True, "message_id": "123"}
+        )
+
+        assert isinstance(log, IntegrationAuditLog)
+        assert log.connector_id == "gmail"
+        assert log.method == "send_email"
+        assert log.result == {"success": True, "message_id": "123"}
+        assert log.error is None
+
+    def test_log_integration_call_captures_metadata(self):
+        """Test that log_integration_call captures all metadata"""
+        log = log_integration_call(
+            connector_id="jira",
+            method="get_issue",
+            params={"issue_key": "PROJ-123"},
+            result={"summary": "Test issue"}
+        )
+
+        log_dict = log.to_dict()
+
+        assert log_dict["connector_id"] == "jira"
+        assert log_dict["method"] == "get_issue"
+        assert log_dict["params"]["issue_key"] == "PROJ-123"
+        assert log_dict["result"]["summary"] == "Test issue"
+        assert "timestamp" in log_dict
+
+
+class TestLogIntegrationError:
+    """Test log_integration_error function"""
+
+    def test_log_integration_error_creates_audit_log(self):
+        """Test that log_integration_error creates an audit log entry"""
+        error = Exception("API rate limit exceeded")
+
+        log = log_integration_error(
+            connector_id="slack",
+            method="send_message",
+            error=error,
+            params={"channel": "#general"}
+        )
+
+        assert isinstance(log, IntegrationAuditLog)
+        assert log.connector_id == "slack"
+        assert log.method == "send_message"
+        assert log.error == "API rate limit exceeded"
+        assert log.result is None
+
+    def test_log_integration_error_captures_error(self):
+        """Test that log_integration_error captures error details"""
+        error = ValueError("Invalid credentials")
+
+        log = log_integration_error(
+            connector_id="jira",
+            method="create_issue",
+            error=error
+        )
+
+        assert log.error == "Invalid credentials"
+        assert log.params == {}  # Default empty params
+
+
+class TestLogIntegrationTiming:
+    """Test log_integration_attempt and log_integration_complete"""
+
+    def test_log_integration_attempt_creates_context(self):
+        """Test that log_integration_attempt creates timing context"""
+        context = log_integration_attempt(
+            connector_id="gmail",
+            method="send_email",
+            params={"to": "test@example.com"}
+        )
+
+        assert isinstance(context, dict)
+        assert "connector_id" in context
+        assert "method" in context
+        assert "start_time" in context
+        assert "params" in context
+
+    def test_log_integration_complete_calculates_duration(self):
+        """Test that log_integration_complete calculates duration"""
+        context = log_integration_attempt(
+            connector_id="slack",
+            method="send_message",
+            params={"channel": "#general"}
+        )
+
+        # Simulate some work
+        import time
+        time.sleep(0.01)
+
+        duration_ms = log_integration_complete(
+            context=context,
+            result={"success": True}
+        )
+
+        assert duration_ms >= 10  # At least 10ms
+        assert duration_ms < 100  # Less than 100ms
+
+    def test_log_integration_complete_handles_error(self):
+        """Test that log_integration_complete handles errors"""
+        context = log_integration_attempt(
+            connector_id="jira",
+            method="get_issue",
+            params={"issue_key": "PROJ-123"}
+        )
+
+        error = Exception("Issue not found")
+        duration_ms = log_integration_complete(
+            context=context,
+            error=error
+        )
+
+        assert duration_ms >= 0
+        # Error should be logged internally
+
+
+class TestAuditLogFormatting:
+    """Test audit log formatting and structure"""
+
+    def test_audit_log_format_is_structured(self):
+        """Test that audit log has consistent structured format"""
+        log = IntegrationAuditLog(
+            connector_id="gmail",
+            method="send_email",
+            params={"to": "test@example.com"},
+            result={"success": True}
+        )
+
+        log_dict = log.to_dict()
+
+        # Check all required fields exist
+        required_fields = ["connector_id", "method", "params", "result", "error", "timestamp", "epoch"]
+        for field in required_fields:
+            assert field in log_dict, f"Missing field: {field}"
+
+        # Check data types
+        assert isinstance(log_dict["connector_id"], str)
+        assert isinstance(log_dict["method"], str)
+        assert isinstance(log_dict["params"], dict)
+        assert isinstance(log_dict["timestamp"], str)
+        assert isinstance(log_dict["epoch"], float)
+
+    def test_multiple_audit_logs_have_unique_timestamps(self):
+        """Test that multiple audit logs have unique timestamps"""
+        import time
+
+        log1 = IntegrationAuditLog(
+            connector_id="gmail",
+            method="send_email",
+            params={}
+        )
+
+        time.sleep(0.01)  # Small delay
+
+        log2 = IntegrationAuditLog(
+            connector_id="slack",
+            method="send_message",
+            params={}
+        )
+
+        assert log1.timestamp != log2.timestamp
+        assert log2.timestamp > log1.timestamp

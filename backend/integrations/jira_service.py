@@ -12,6 +12,10 @@ from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode, urljoin
 import requests
 
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+
 logger = logging.getLogger(__name__)
 
 class JiraService:
@@ -109,24 +113,52 @@ class JiraService:
     
     def search_issues(self, jql: str, start_at: int = 0, max_results: int = 50,
                    fields: List[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
-        """Search issues using JQL"""
+        """Search issues using JQL with governance decorators"""
+        audit_ctx = log_integration_attempt("jira", "search_issues", {
+            "jql": jql,
+            "start_at": start_at,
+            "max_results": max_results
+        })
+
         try:
+            # Check circuit breaker
+            if not circuit_breaker.is_enabled("jira"):
+                logger.warning("Jira circuit breaker is open")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                return {"issues": [], "total": 0, "startAt": 0, "maxResults": 0}
+
+            # Check rate limiter
+            is_limited, remaining = rate_limiter.is_rate_limited("jira")
+            if is_limited:
+                logger.warning(f"Jira rate limit exceeded")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                return {"issues": [], "total": 0, "startAt": 0, "maxResults": 0}
+
             if fields is None:
-                fields = ['summary', 'status', 'assignee', 'reporter', 'priority', 
+                fields = ['summary', 'status', 'assignee', 'reporter', 'priority',
                          'created', 'updated', 'issuetype', 'project']
-            
+
             params = {
                 'jql': jql,
                 'startAt': start_at,
                 'maxResults': max_results,
                 'fields': ','.join(fields)
             }
-            
+
             response = self._make_request("GET", "/rest/api/3/search", params=params, token=token)
             response.raise_for_status()
-            return response.json()
-            
+            result = response.json()
+
+            # Record success
+            circuit_breaker.record_success("jira")
+            duration = log_integration_complete(audit_ctx, {"issue_count": len(result.get("issues", []))})
+            logger.info(f"Jira search returned {len(result.get('issues', []))} issues in {duration:.2f}ms")
+
+            return result
+
         except Exception as e:
+            circuit_breaker.record_failure("jira", e)
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to search issues: {e}")
             return {"issues": [], "total": 0, "startAt": 0, "maxResults": 0}
     
@@ -143,8 +175,27 @@ class JiraService:
     def create_issue(self, project_key: str, summary: str, issue_type: str,
                    description: str = "", priority: str = None,
                    assignee: str = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
-        """Create a new issue"""
+        """Create a new issue with governance decorators"""
+        audit_ctx = log_integration_attempt("jira", "create_issue", {
+            "project_key": project_key,
+            "summary": summary,
+            "issue_type": issue_type
+        })
+
         try:
+            # Check circuit breaker
+            if not circuit_breaker.is_enabled("jira"):
+                logger.warning("Jira circuit breaker is open")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                return None
+
+            # Check rate limiter
+            is_limited, remaining = rate_limiter.is_rate_limited("jira")
+            if is_limited:
+                logger.warning(f"Jira rate limit exceeded")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                return None
+
             data = {
                 "fields": {
                     "project": {"key": project_key},
@@ -163,18 +214,27 @@ class JiraService:
                     "issuetype": {"name": issue_type}
                 }
             }
-            
+
             if priority:
                 data["fields"]["priority"] = {"name": priority}
-            
+
             if assignee:
                 data["fields"]["assignee"] = {"name": assignee}
-            
+
             response = self._make_request("POST", "/rest/api/3/issue", json=data, token=token)
             response.raise_for_status()
-            return response.json()
-            
+            result = response.json()
+
+            # Record success
+            circuit_breaker.record_success("jira")
+            duration = log_integration_complete(audit_ctx, {"issue_key": result.get("key")})
+            logger.info(f"Jira issue {result.get('key')} created in {duration:.2f}ms")
+
+            return result
+
         except Exception as e:
+            circuit_breaker.record_failure("jira", e)
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to create issue: {e}")
             return None
     
