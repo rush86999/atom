@@ -22,6 +22,11 @@ from cryptography.fernet import Fernet
 import httpx
 import jwt
 import msal
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -270,6 +275,28 @@ class TeamsRateLimiter:
 class TeamsEnhancedService:
     """Enhanced Teams service with full production capabilities"""
     
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "check_limit", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.client_id = config.get('client_id') or os.getenv('TEAMS_CLIENT_ID')
@@ -519,6 +546,28 @@ class TeamsEnhancedService:
     
     async def test_connection(self, workspace_id: str) -> Dict[str, Any]:
         """Test connection to Teams workspace"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "exchange_code_for_tokens", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
         try:
             self.connection_status[workspace_id] = TeamsConnectionStatus.CONNECTING
             
@@ -571,6 +620,28 @@ class TeamsEnhancedService:
     
     async def get_workspaces(self, user_id: str = None) -> List[TeamsWorkspace]:
         """Get all workspaces or user's workspaces"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "test_connection", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
         try:
             if self.db:
                 # Get from database
@@ -601,9 +672,53 @@ class TeamsEnhancedService:
             return []
     
     async def get_channels(self, workspace_id: str, user_id: str = None,
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "get_channels", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
                          include_private: bool = False, include_archived: bool = False,
                          limit: int = 100) -> List[TeamsChannel]:
         """Get channels for workspace"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "get_workspaces", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'channels_list'):
@@ -677,6 +792,28 @@ class TeamsEnhancedService:
             return []
     
     async def send_message(self, workspace_id: str, channel_id: str, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "send_message", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
                          text: str, thread_id: str = None,
                          importance: str = 'normal',
                          subject: str = None, attachments: List[Dict] = None) -> Dict[str, Any]:
@@ -741,6 +878,28 @@ class TeamsEnhancedService:
             }
     
     async def get_channel_messages(self, workspace_id: str, channel_id: str,
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "get_channel_messages", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
                                 limit: int = 100, latest: str = None,
                                 oldest: str = None) -> List[TeamsMessage]:
         """Get messages from channel"""
@@ -823,6 +982,28 @@ class TeamsEnhancedService:
             return []
     
     async def search_messages(self, workspace_id: str, query: str,
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "search_messages", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
                            channel_id: str = None, user_id: str = None,
                            limit: int = 100) -> Dict[str, Any]:
         """Search messages in workspace"""
@@ -921,6 +1102,28 @@ class TeamsEnhancedService:
             }
     
     async def upload_file(self, workspace_id: str, channel_id: str, file_path: str,
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "upload_file", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
                         title: str = None, description: str = None) -> Dict[str, Any]:
         """Upload file to Teams channel"""
         try:
@@ -1065,6 +1268,28 @@ class TeamsEnhancedService:
     
     async def close(self):
         """Close all connections and cleanup"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "get_service_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )
+
         # Clear clients
         self.graph_clients.clear()
         self.teams_clients.clear()
@@ -1087,3 +1312,24 @@ teams_enhanced_service = TeamsEnhancedService({
         'client': None  # Would be actual Redis client
     }
 })
+        # Start audit logging
+        audit_ctx = log_integration_attempt("teams_enhanced", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("teams_enhanced"):
+                logger.warning(f"Circuit breaker is open for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Teams_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("teams_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for teams_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for teams_enhanced"
+                )

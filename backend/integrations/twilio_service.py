@@ -10,6 +10,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +32,28 @@ class TwilioService:
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("twilio", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("twilio"):
+                logger.warning(f"Circuit breaker is open for twilio")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Twilio integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("twilio")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for twilio")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for twilio"
+                )
+
         credentials = f"{self.account_sid}:{self.auth_token}"
         b64_credentials = base64.b64encode(credentials.encode()).decode()
         
@@ -195,6 +222,28 @@ class TwilioService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Twilio service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("twilio", "get_account_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("twilio"):
+                logger.warning(f"Circuit breaker is open for twilio")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Twilio integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("twilio")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for twilio")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for twilio"
+                )
+
         try:
             return {
                 "ok": True,
@@ -217,4 +266,26 @@ twilio_service = TwilioService()
 
 def get_twilio_service() -> TwilioService:
     """Get Twilio service instance"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("twilio", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("twilio"):
+                logger.warning(f"Circuit breaker is open for twilio")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Twilio integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("twilio")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for twilio")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for twilio"
+                )
+
     return twilio_service

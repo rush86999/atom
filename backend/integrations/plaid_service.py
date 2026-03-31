@@ -9,6 +9,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +38,28 @@ class PlaidService:
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("plaid", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("plaid"):
+                logger.warning(f"Circuit breaker is open for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Plaid integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for plaid"
+                )
+
         return {
             "Content-Type": "application/json"
         }
@@ -112,6 +139,28 @@ class PlaidService:
 
     async def get_accounts(self, access_token: str) -> List[Dict[str, Any]]:
         """Get accounts for an item"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("plaid", "exchange_public_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("plaid"):
+                logger.warning(f"Circuit breaker is open for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Plaid integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for plaid"
+                )
+
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -140,6 +189,28 @@ class PlaidService:
 
     async def get_balance(self, access_token: str) -> Dict[str, Any]:
         """Get real-time balance for accounts"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("plaid", "get_accounts", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("plaid"):
+                logger.warning(f"Circuit breaker is open for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Plaid integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for plaid"
+                )
+
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -174,6 +245,28 @@ class PlaidService:
         offset: int = 0
     ) -> Dict[str, Any]:
         """Get transactions for an item"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("plaid", "get_balance", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("plaid"):
+                logger.warning(f"Circuit breaker is open for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Plaid integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for plaid"
+                )
+
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -234,6 +327,28 @@ class PlaidService:
 
     async def remove_item(self, access_token: str) -> Dict[str, Any]:
         """Remove an item (disconnect bank connection)"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("plaid", "get_identity", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("plaid"):
+                logger.warning(f"Circuit breaker is open for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Plaid integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for plaid"
+                )
+
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -261,6 +376,28 @@ class PlaidService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Plaid service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("plaid", "remove_item", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("plaid"):
+                logger.warning(f"Circuit breaker is open for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Plaid integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for plaid"
+                )
+
         try:
             return {
                 "ok": True,
@@ -283,3 +420,25 @@ plaid_service = PlaidService()
 
 def get_plaid_service() -> PlaidService:
     return plaid_service
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("plaid", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("plaid"):
+                logger.warning(f"Circuit breaker is open for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Plaid integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for plaid")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for plaid"
+                )

@@ -4,6 +4,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +35,28 @@ class ZohoProjectsService:
 
     async def get_projects(self, access_token: str, portal_id: str) -> List[Dict[str, Any]]:
         """Fetch projects within a portal"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_projects", "get_portals", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_projects"):
+                logger.warning(f"Circuit breaker is open for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_projects integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_projects")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_projects"
+                )
+
         try:
             url = f"{self.base_url}/portal/{portal_id}/projects/"
             headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
@@ -42,6 +69,28 @@ class ZohoProjectsService:
 
     async def get_tasks(self, access_token: str, portal_id: str, project_id: str) -> List[Dict[str, Any]]:
         """Fetch tasks for a specific project"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_projects", "get_projects", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_projects"):
+                logger.warning(f"Circuit breaker is open for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_projects integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_projects")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_projects"
+                )
+
         try:
             url = f"{self.base_url}/portal/{portal_id}/projects/{project_id}/tasks/"
             headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
@@ -54,6 +103,28 @@ class ZohoProjectsService:
 
     async def get_all_active_tasks(self, access_token: str, portal_id: str, limit: int = 50) -> List[Dict[str, Any]]:
         """Fetch all tasks across all projects in a portal"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_projects", "get_tasks", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_projects"):
+                logger.warning(f"Circuit breaker is open for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_projects integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_projects")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_projects"
+                )
+
         try:
             # First get projects
             projects = await self.get_projects(access_token, portal_id)
@@ -75,3 +146,25 @@ class ZohoProjectsService:
         except Exception as e:
             logger.error(f"Failed to fetch all Zoho tasks: {e}")
             return []
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_projects", "get_all_active_tasks", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_projects"):
+                logger.warning(f"Circuit breaker is open for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_projects integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_projects")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_projects")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_projects"
+                )

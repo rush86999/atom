@@ -9,6 +9,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,28 @@ class ZendeskService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zendesk", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zendesk"):
+                logger.warning(f"Circuit breaker is open for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zendesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zendesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zendesk"
+                )
+
         return {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
@@ -81,6 +108,28 @@ class ZendeskService:
         sort_order: str = "desc"
     ) -> List[Dict[str, Any]]:
         """Get tickets from Zendesk"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zendesk", "exchange_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zendesk"):
+                logger.warning(f"Circuit breaker is open for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zendesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zendesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zendesk"
+                )
+
         try:
             token = access_token or self.access_token
             if not token:
@@ -143,6 +192,28 @@ class ZendeskService:
         requester_email: str = None
     ) -> Dict[str, Any]:
         """Create a new ticket"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zendesk", "get_ticket", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zendesk"):
+                logger.warning(f"Circuit breaker is open for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zendesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zendesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zendesk"
+                )
+
         try:
             token = access_token or self.access_token
             if not token:
@@ -269,4 +340,26 @@ zendesk_service = ZendeskService()
 
 def get_zendesk_service() -> ZendeskService:
     """Get Zendesk service instance"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zendesk", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zendesk"):
+                logger.warning(f"Circuit breaker is open for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zendesk integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zendesk")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zendesk")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zendesk"
+                )
+
     return zendesk_service

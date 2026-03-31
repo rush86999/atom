@@ -5,6 +5,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +40,28 @@ class OpenClawService:
 
     async def send_message(self, recipient_id: str, content: str, thread_ts: Optional[str] = None) -> Dict[str, Any]:
         """
+        # Start audit logging
+        audit_ctx = log_integration_attempt("openclaw", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("openclaw"):
+                logger.warning(f"Circuit breaker is open for openclaw")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Openclaw integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("openclaw")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for openclaw")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for openclaw"
+                )
+
         Send a message to an OpenClaw instance.
         
         Args:
@@ -42,6 +69,28 @@ class OpenClawService:
             content: The message text
             thread_ts: Optional thread ID to reply to
         """
+        # Start audit logging
+        audit_ctx = log_integration_attempt("openclaw", "send_message", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("openclaw"):
+                logger.warning(f"Circuit breaker is open for openclaw")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Openclaw integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("openclaw")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for openclaw")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for openclaw"
+                )
+
         if not self.webhook_url:
             logger.warning("OPENCLAW_WEBHOOK_URL not configured. Cannot send message.")
             return {"status": "skipped", "reason": "configuration_missing"}
@@ -102,3 +151,25 @@ class OpenClawService:
 
 # Singleton instance
 openclaw_service = OpenClawService()
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("openclaw", "health_check", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("openclaw"):
+                logger.warning(f"Circuit breaker is open for openclaw")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Openclaw integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("openclaw")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for openclaw")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for openclaw"
+                )

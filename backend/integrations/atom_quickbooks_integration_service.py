@@ -22,6 +22,11 @@ import httpx
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel, Field
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Import existing ATOM services
 try:
@@ -338,6 +343,28 @@ class AtomQuickBooksIntegrationService:
     
     async def create_invoice(self, invoice_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new invoice in QuickBooks"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+
         try:
             start_time = time.time()
             
@@ -430,6 +457,28 @@ class AtomQuickBooksIntegrationService:
     
     async def create_payment(self, payment_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create payment in QuickBooks"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_invoice", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+
         try:
             start_time = time.time()
             
@@ -538,6 +587,28 @@ class AtomQuickBooksIntegrationService:
     
     async def create_expense(self, expense_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create expense in QuickBooks"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_payment", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+
         try:
             start_time = time.time()
             
@@ -645,6 +716,28 @@ class AtomQuickBooksIntegrationService:
 
     async def create_customer(self, display_name: str, email: str) -> Dict[str, Any]:
         """Create a new customer in QuickBooks"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_expense", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+
         try:
             headers = await self._get_auth_headers()
             
@@ -675,8 +768,52 @@ class AtomQuickBooksIntegrationService:
             return {'success': False, 'error': str(e)}
 
     async def generate_financial_report(self, report_type: FinancialReportType, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "generate_financial_report", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+
                                      start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Generate financial report"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_customer", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+
         try:
             start_time = time.time()
             
@@ -983,6 +1120,28 @@ class AtomQuickBooksIntegrationService:
     
     async def close(self):
         """Close QuickBooks Integration Service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "get_service_status", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+
         try:
             logger.info("QuickBooks Integration Service closed")
             
@@ -1029,3 +1188,24 @@ if _atom_ai:
 
 # Alias for compatibility with test imports
 AtomQuickbooksIntegrationService = AtomQuickBooksIntegrationService
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )

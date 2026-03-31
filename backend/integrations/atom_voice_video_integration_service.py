@@ -17,6 +17,11 @@ import aiohttp
 import httpx
 import numpy as np
 import pandas as pd
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Import existing ATOM services
 try:
@@ -295,6 +300,28 @@ class AtomVoiceVideoIntegrationService:
     
     async def process_voice_video_request(self, request: VoiceVideoRequest) -> VoiceVideoResponse:
         """Process voice and video AI request"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_voice_video_integration", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_voice_video_integration"):
+                logger.warning(f"Circuit breaker is open for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_voice_video_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_video_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_voice_video_integration"
+                )
+
         try:
             start_time = time.time()
             
@@ -357,8 +384,52 @@ class AtomVoiceVideoIntegrationService:
             return self._create_error_response(request, str(e))
     
     async def start_real_time_session(self, session_id: str, platform: VoiceVideoPlatform, user_id: str, 
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_voice_video_integration", "start_real_time_session", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_voice_video_integration"):
+                logger.warning(f"Circuit breaker is open for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_voice_video_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_video_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_voice_video_integration"
+                )
+
                                    task_type: VoiceVideoTaskType, config: Dict[str, Any]) -> bool:
         """Start real-time processing session"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_voice_video_integration", "process_voice_video_request", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_voice_video_integration"):
+                logger.warning(f"Circuit breaker is open for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_voice_video_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_video_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_voice_video_integration"
+                )
+
         try:
             if not self.voice_video_config['real_time_processing']:
                 return False
@@ -421,6 +492,28 @@ class AtomVoiceVideoIntegrationService:
     
     async def _initialize_voice_ai(self):
         """Initialize Voice AI Service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_voice_video_integration", "stop_real_time_session", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_voice_video_integration"):
+                logger.warning(f"Circuit breaker is open for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_voice_video_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_video_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_voice_video_integration"
+                )
+
         try:
             if atom_voice_ai_service:
                 success = await atom_voice_ai_service.initialize()
@@ -976,6 +1069,28 @@ class AtomVoiceVideoIntegrationService:
     
     async def close(self):
         """Close Voice and Video Integration Service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_voice_video_integration", "get_service_status", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_voice_video_integration"):
+                logger.warning(f"Circuit breaker is open for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_voice_video_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_video_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_voice_video_integration"
+                )
+
         try:
             # Stop all active real-time sessions
             for session_id in list(self.active_sessions.keys()):
@@ -1025,3 +1140,24 @@ if _atom_ai:
     _atom_voice_video_config['ai_service'] = _atom_ai
 
 atom_voice_video_integration_service = AtomVoiceVideoIntegrationService(_atom_voice_video_config)
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_voice_video_integration", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_voice_video_integration"):
+                logger.warning(f"Circuit breaker is open for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_voice_video_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_video_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_voice_video_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_voice_video_integration"
+                )

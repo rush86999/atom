@@ -4,6 +4,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +49,28 @@ class ZohoBooksService:
 
     async def get_organizations(self, access_token: str) -> List[Dict[str, Any]]:
         """Get connected Zoho organizations"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_books", "exchange_token", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_books"):
+                logger.warning(f"Circuit breaker is open for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_books integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_books")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_books"
+                )
+
         try:
             url = f"{self.base_url}/organizations"
             headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
@@ -56,6 +83,28 @@ class ZohoBooksService:
 
     async def get_chart_of_accounts(self, access_token: str, organization_id: str) -> List[Dict[str, Any]]:
         """Fetch CoA from Zoho"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_books", "get_organizations", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_books"):
+                logger.warning(f"Circuit breaker is open for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_books integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_books")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_books"
+                )
+
         try:
             url = f"{self.base_url}/chartofaccounts"
             headers = self._get_headers(access_token, organization_id)
@@ -69,6 +118,28 @@ class ZohoBooksService:
 
     async def get_bank_transactions(self, access_token: str, organization_id: str, account_id: str) -> List[Dict[str, Any]]:
         """Fetch bank transactions from Zoho"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_books", "get_chart_of_accounts", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_books"):
+                logger.warning(f"Circuit breaker is open for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_books integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_books")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_books"
+                )
+
         try:
             url = f"{self.base_url}/banktransactions"
             headers = self._get_headers(access_token, organization_id)
@@ -85,6 +156,28 @@ class ZohoBooksService:
 
     async def create_contact(self, access_token: str, organization_id: str, contact_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a customer in Zoho Books"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_books", "get_bank_transactions", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_books"):
+                logger.warning(f"Circuit breaker is open for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_books integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_books")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_books"
+                )
+
         try:
             url = f"{self.base_url}/contacts"
             headers = self._get_headers(access_token, organization_id)
@@ -98,6 +191,28 @@ class ZohoBooksService:
 
     async def create_invoice(self, access_token: str, organization_id: str, invoice_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create an invoice in Zoho Books"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_books", "create_contact", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_books"):
+                logger.warning(f"Circuit breaker is open for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_books integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_books")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_books"
+                )
+
         try:
             url = f"{self.base_url}/invoices"
             headers = self._get_headers(access_token, organization_id)
@@ -108,3 +223,25 @@ class ZohoBooksService:
         except Exception as e:
             logger.error(f"Failed to create Zoho invoice: {e}")
             raise HTTPException(status_code=500, detail="Zoho Invoice creation failed")
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_books", "create_invoice", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_books"):
+                logger.warning(f"Circuit breaker is open for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_books integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_books")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_books")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_books"
+                )

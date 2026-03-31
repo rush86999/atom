@@ -22,6 +22,11 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -253,6 +258,28 @@ class GoogleChatRateLimiter:
 class GoogleChatEnhancedService:
     """Enhanced Google Chat service with full ecosystem integration"""
     
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "check_limit", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.client_id = config.get('client_id') or os.getenv('GOOGLE_CHAT_CLIENT_ID')
@@ -566,6 +593,28 @@ class GoogleChatEnhancedService:
     
     async def test_connection(self, space_id: str) -> Dict[str, Any]:
         """Test connection to Google Chat space"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "exchange_code_for_tokens", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
         try:
             self.connection_status[space_id] = GoogleChatConnectionStatus.CONNECTING
             
@@ -608,6 +657,28 @@ class GoogleChatEnhancedService:
     
     def _get_user_space_by_id(self, space_id: str) -> Optional[GoogleChatSpace]:
         """Get space by ID from database"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "test_connection", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
         try:
             if self.db:
                 # Get from database
@@ -658,8 +729,52 @@ class GoogleChatEnhancedService:
             return []
     
     async def send_message(self, space_id: str, text: str, thread_id: str = None,
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "send_message", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
                          message_format: str = 'TEXT', card_v2: List[Dict] = None) -> Dict[str, Any]:
         """Send message to Google Chat space"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "get_spaces", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(space_id, 'messages_send'):
@@ -756,6 +871,28 @@ class GoogleChatEnhancedService:
             }
     
     async def get_space_messages(self, space_id: str, limit: int = 100,
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "get_space_messages", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
                               page_token: str = None, filter: str = None) -> List[GoogleChatMessage]:
         """Get messages from Google Chat space"""
         try:
@@ -850,6 +987,28 @@ class GoogleChatEnhancedService:
             return []
     
     async def search_messages(self, space_id: str, query: str,
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "search_messages", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
                            page_size: int = 50, page_token: str = None) -> Dict[str, Any]:
         """Search messages in Google Chat space"""
         try:
@@ -979,6 +1138,28 @@ class GoogleChatEnhancedService:
     
     async def close(self):
         """Close all connections and cleanup"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "get_service_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )
+
         # Clear clients
         self.chat_services.clear()
         
@@ -999,3 +1180,24 @@ google_chat_enhanced_service = GoogleChatEnhancedService({
         'client': None  # Would be actual Redis client
     }
 })
+        # Start audit logging
+        audit_ctx = log_integration_attempt("google_chat_enhanced", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("google_chat_enhanced"):
+                logger.warning(f"Circuit breaker is open for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Google_chat_enhanced integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("google_chat_enhanced")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for google_chat_enhanced")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for google_chat_enhanced"
+                )

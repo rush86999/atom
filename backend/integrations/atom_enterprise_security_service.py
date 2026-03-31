@@ -26,6 +26,11 @@ import httpx
 import jwt
 import numpy as np
 import pandas as pd
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 # Import existing ATOM services
 try:
@@ -258,6 +263,28 @@ class AtomEnterpriseSecurityService:
     
     async def create_security_policy(self, policy_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Create enterprise security policy"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             policy_id = f"policy_{int(time.time())}_{hashlib.md5(policy_data['name'].encode()).hexdigest()[:8]}"
             
@@ -313,6 +340,28 @@ class AtomEnterpriseSecurityService:
     
     async def detect_threat(self, event_data: Dict[str, Any]) -> ThreatDetection:
         """Detect security threats using AI and pattern matching"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "create_security_policy", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             start_time = time.time()
             
@@ -379,6 +428,28 @@ class AtomEnterpriseSecurityService:
     
     async def audit_event(self, event_data: Dict[str, Any]) -> SecurityAudit:
         """Audit security events"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "detect_threat", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             audit_id = f"audit_{int(time.time())}_{hashlib.md5(str(event_data).encode()).hexdigest()[:8]}"
             
@@ -416,6 +487,28 @@ class AtomEnterpriseSecurityService:
     
     async def check_compliance(self, standard: ComplianceStandard, period: str = 'monthly') -> ComplianceReport:
         """Generate compliance report"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "audit_event", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             report_id = f"compliance_{standard.value}_{period}_{int(time.time())}"
             
@@ -459,6 +552,28 @@ class AtomEnterpriseSecurityService:
     
     async def encrypt_data(self, data: str, context: Dict[str, Any] = None) -> str:
         """Encrypt sensitive data"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "check_compliance", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             # Add context to data if provided
             if context:
@@ -477,6 +592,28 @@ class AtomEnterpriseSecurityService:
     
     async def decrypt_data(self, encrypted_data: str) -> Tuple[str, Optional[Dict[str, Any]]]:
         """Decrypt sensitive data"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "encrypt_data", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             # Decode and decrypt
             encrypted_bytes = base64.b64decode(encrypted_data.encode())
@@ -496,6 +633,28 @@ class AtomEnterpriseSecurityService:
     
     async def validate_password(self, password: str, user_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Validate password against security policy"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "decrypt_data", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             password_policy = self.security_config['password_policy']
             validation_result = {
@@ -562,6 +721,28 @@ class AtomEnterpriseSecurityService:
     
     async def analyze_user_behavior(self, user_id: str, timeframe: str = '24h') -> Dict[str, Any]:
         """Analyze user behavior for security threats"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "validate_password", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         try:
             # Get user activity data
             user_activities = await self._get_user_activities(user_id, timeframe)
@@ -591,6 +772,28 @@ class AtomEnterpriseSecurityService:
     # Private methods for threat detection
     async def _pattern_based_detection(self, event_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Pattern-based threat detection"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "analyze_user_behavior", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         threats = []
         
         # Check against malicious patterns
@@ -1093,6 +1296,28 @@ class AtomEnterpriseSecurityService:
     
     async def get_security_metrics(self) -> Dict[str, Any]:
         """Get security service metrics"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "get_service_info", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         return {
             "total_threats_detected": self.security_metrics['total_threats_detected'],
             "threats_mitigated": self.security_metrics['threats_mitigated'],
@@ -1108,6 +1333,28 @@ class AtomEnterpriseSecurityService:
     
     async def close(self):
         """Close enterprise security service"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "get_security_metrics", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )
+
         # Close HTTP session
         await self.http_session.close()
         
@@ -1140,3 +1387,24 @@ atom_enterprise_security_service = AtomEnterpriseSecurityService({
         ComplianceStandard.ISO27001
     ]
 })
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_enterprise_security", "close", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_enterprise_security"):
+                logger.warning(f"Circuit breaker is open for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_enterprise_security integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_enterprise_security")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_enterprise_security")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_enterprise_security"
+                )

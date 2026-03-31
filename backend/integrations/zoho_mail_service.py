@@ -4,6 +4,11 @@ import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +36,28 @@ class ZohoMailService:
 
     async def get_messages(self, access_token: str, account_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Fetch recent messages for a specific account"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_mail", "get_accounts", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_mail"):
+                logger.warning(f"Circuit breaker is open for zoho_mail")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_mail integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_mail")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_mail")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_mail"
+                )
+
         try:
             # We look at the 'inbox' folder by default (folderId: 1 usually)
             url = f"{self.base_url}/accounts/{account_id}/messages/view"
@@ -46,6 +73,28 @@ class ZohoMailService:
 
     async def get_recent_inbox(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Fetch messages from the primary account's inbox"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_mail", "get_messages", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_mail"):
+                logger.warning(f"Circuit breaker is open for zoho_mail")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_mail integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_mail")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_mail")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_mail"
+                )
+
         try:
             accounts = await self.get_accounts(access_token)
             if not accounts:
@@ -57,3 +106,25 @@ class ZohoMailService:
         except Exception as e:
             logger.error(f"Failed to fetch recent Zoho Mail: {e}")
             return []
+
+        # Start audit logging
+        audit_ctx = log_integration_attempt("zoho_mail", "get_recent_inbox", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("zoho_mail"):
+                logger.warning(f"Circuit breaker is open for zoho_mail")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Zoho_mail integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_mail")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for zoho_mail")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for zoho_mail"
+                )

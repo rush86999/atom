@@ -7,6 +7,11 @@ import os
 from typing import Any, Dict, List, Optional
 import urllib.parse
 import aiohttp
+from core.circuit_breaker import circuit_breaker
+from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
+from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from fastapi import HTTPException
+
 
 logger = logging.getLogger(__name__)
 
@@ -427,6 +432,28 @@ class OutlookService:
         token: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get calendar events with time range filtering"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("outlook", "delete_email", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("outlook"):
+                logger.warning(f"Circuit breaker is open for outlook")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Outlook integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("outlook")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for outlook")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for outlook"
+                )
+
         try:
             # Build query parameters
             params = {"$top": max_results, "$orderby": "start/dateTime"}
@@ -699,6 +726,28 @@ class OutlookService:
         self, user_id: str, max_results: int = 50, token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get unread emails"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("outlook", "get_user_profile", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("outlook"):
+                logger.warning(f"Circuit breaker is open for outlook")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Outlook integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("outlook")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for outlook")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for outlook"
+                )
+
         try:
             params = {
                 "$top": max_results,
