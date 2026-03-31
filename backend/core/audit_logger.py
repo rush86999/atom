@@ -62,15 +62,16 @@ class IntegrationAuditLog:
         sanitized = {}
         sensitive_keys = {
             "password", "token", "api_key", "secret", "access_token",
-            "refresh_token", "private_key", "credentials"
+            "refresh_token", "private_key"
         }
 
         for key, value in params.items():
-            if any(sensitive in key.lower() for sensitive in sensitive_keys):
-                # Redact sensitive values
-                sanitized[key] = "***REDACTED***"
-            elif isinstance(value, dict):
+            if isinstance(value, dict):
+                # Recursively sanitize nested dictionaries
                 sanitized[key] = self._sanitize_params(value)
+            elif any(sensitive in key.lower() for sensitive in sensitive_keys):
+                # Redact sensitive values (only at leaf level)
+                sanitized[key] = "***REDACTED***"
             else:
                 sanitized[key] = value
 
