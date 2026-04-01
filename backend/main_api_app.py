@@ -533,6 +533,16 @@ try:
         from api.entity_type_routes import router as entity_type_router
         app.include_router(entity_type_router)
         logger.info("✓ Entity Type Routes Loaded")
+    except ImportError as e:
+        logger.warning(f"Failed to load entity type routes: {e}")
+
+    # BYOK (Bring Your Own Key) Routes - AI Provider Management & Pricing
+    try:
+        from api.byok_routes import router as byok_router
+        app.include_router(byok_router)
+        logger.info("✓ BYOK Routes Loaded (AI Provider Management + Pricing)")
+    except ImportError as e:
+        logger.warning(f"Failed to load BYOK routes: {e}")
     except Exception as e:
         logger.warning(f"Failed to load entity type routes: {e}")
 

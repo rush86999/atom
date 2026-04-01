@@ -23,7 +23,8 @@ Usage:
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from sqlalchemy.orm import Session
 
 # Import daemon manager
 import sys
@@ -33,7 +34,8 @@ from cli.daemon import DaemonManager
 
 # Import authentication and authorization
 from core.admin_endpoints import get_super_admin
-from core.models import User
+from core.models import User, DelegationChain
+from core.database import get_db
 
 router = APIRouter(prefix="/api/agent", tags=["agent-control"])
 
@@ -377,3 +379,55 @@ async def execute_atom_command(
         result="Command execution not yet implemented",
         note="Use POST /api/agent/start to run Atom as service instead"
     )
+
+
+@router.get("/{chain_id}/bottlenecks")
+async def analyze_chain_bottlenecks(
+    chain_id: str,
+    db: Session = Depends(get_db),
+    # For Upstream, we restrict this to admins as it reveals internal telemetry
+    current_user: User = Depends(get_super_admin)
+):
+    """
+    Perform diagnostic analysis to identify bottlenecks in the delegation chain.
+    
+    RESTRICTED: Super Admin only.
+    """
+    # 1. Verify chain existence
+    chain = db.query(DelegationChain).filter(DelegationChain.id == chain_id).first()
+    if not chain:
+        raise HTTPException(
+            status_code=404,
+            detail="Delegation chain not found"
+        )
+
+    # 2. Run analysis
+    from analytics.fleet_optimization_service import FleetOptimizationService
+    service = FleetOptimizationService(db)
+    report = service.analyze_bottlenecks(chain_id)
+
+    return {
+        "chain_id": chain_id,
+        "report": report,
+        "summary": {
+            "total_issues": len(report),
+            "critical_issues": len([r for r in report if r["severity"] == "critical"]),
+            "warnings": len([r for r in report if r["severity"] == "warning"])
+        }
+    }
+
+@router.get("/fleet/health")
+async def get_fleet_health_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_super_admin)
+):
+    """
+    Get fleet-wide health metrics for the supervisor dashboard.
+    
+    RESTRICTED: Super Admin only.
+    """
+    from analytics.fleet_optimization_service import FleetOptimizationService
+    service = FleetOptimizationService(db)
+    # Scoped to the current admin's tenant if applicable
+    tenant_id = getattr(current_user, "tenant_id", None)
+    return service.get_fleet_health_summary(tenant_id)

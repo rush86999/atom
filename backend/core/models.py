@@ -1683,6 +1683,7 @@ class DelegationChain(Base):
     tenant = relationship("Tenant", backref="delegation_chains")
     root_agent = relationship("AgentRegistry", foreign_keys=[root_agent_id], backref="initiated_chains")
     links = relationship("ChainLink", back_populates="chain", cascade="all, delete-orphan")
+    healing_events = relationship("FleetHealingEvent", back_populates="chain", cascade="all, delete-orphan")
 
 
 class ChainLink(Base):
@@ -1725,6 +1726,50 @@ class ChainLink(Base):
     chain = relationship("DelegationChain", back_populates="links")
     parent_agent = relationship("AgentRegistry", foreign_keys=[parent_agent_id], backref="delegations_as_parent")
     child_agent = relationship("AgentRegistry", foreign_keys=[child_agent_id], backref="delegations_as_child")
+
+
+class FleetHealingEvent(Base):
+    """
+    Tracks automated self-healing operations for fleet resilience.
+    
+    Records every time the SelfHealService triggers a recovery action
+    (e.g., retry with quality override) due to a link failure or 
+    performance bottleneck.
+    """
+    __tablename__ = "fleet_healing_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    chain_id = Column(String, ForeignKey("delegation_chains.id", ondelete="CASCADE"), nullable=False, index=True)
+    link_id = Column(String, ForeignKey("chain_links.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Healing trigger details
+    trigger_type = Column(String(50), nullable=False)  # "failed_link", "critical_bottleneck"
+    trigger_reason = Column(Text, nullable=True)  # Error message or bottleneck description
+
+    # Recovery action taken
+    recovery_action = Column(String(50), nullable=False)  # "retry_with_quality", "consensus_committee"
+    
+    # Status of the healing operation
+    status = Column(String(50), nullable=False, default="in_progress")  # in_progress, succeeded, failed
+    
+    # Outcome tracking (links created by this healing event)
+    retry_link_id = Column(String, ForeignKey("chain_links.id", ondelete="SET NULL"), nullable=True)
+
+    # Metadata for the healing operation (models used, overrides)
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="fleet_healing_events")
+    chain = relationship("DelegationChain", back_populates="healing_events")
+    link = relationship("ChainLink", foreign_keys=[link_id], backref="healing_triggers")
+    retry_link = relationship("ChainLink", foreign_keys=[retry_link_id], backref="healing_source")
+
+    def __repr__(self):
+        return f"<FleetHealingEvent(id={self.id}, trigger={self.trigger_type}, status={self.status})>"
 
 
 class AgentCanvasPresence(Base):
