@@ -423,6 +423,7 @@ class ATOMConfig:
 
 # Global configuration instance
 config = ATOMConfig.from_env()
+settings = config  # Alias for compatibility with SaaS code
 
 def get_config() -> ATOMConfig:
     """Get global configuration instance"""

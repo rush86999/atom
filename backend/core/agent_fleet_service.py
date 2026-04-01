@@ -141,6 +141,18 @@ class AgentFleetService:
         self.db.commit()
         logger.info(f"Link {link_id} updated to {status}")
 
+        # Trigger Self-Healing (Async)
+        if status in ["completed", "failed"]:
+            try:
+                from core.fleet.self_heal_service import SelfHealService
+                import asyncio
+                
+                self_heal = SelfHealService(self.db)
+                # In Upstream, we also use background tasks to ensure low latency for the orchestrator
+                asyncio.create_task(self_heal.process_link_update(link_id))
+            except Exception as e:
+                logger.error(f"⚠️ Self-Heal Trigger Failed: {e}")
+
     def complete_chain(self, chain_id: str, status: str = "completed"):
         """
         Marks a delegation chain as finished.
