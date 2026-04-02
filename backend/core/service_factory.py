@@ -37,6 +37,7 @@ from core.policy_search_service import PGPolicySearchService
 from core.docling_processor import DoclingDocumentProcessor
 from core.messaging_action_dispatcher import MessagingActionDispatcher
 from core.universal_communication_bridge import UniversalCommunicationBridge
+from core.episode_service import EpisodeService
 from core.integrations.adapters.zoho import ZohoAdapter
 from core.integrations.adapters.hubspot import HubSpotAdapter
 from core.integrations.adapters.notion import NotionAdapter
