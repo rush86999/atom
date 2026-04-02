@@ -541,7 +541,7 @@ Be concise and actionable.
  
  try:
  # Get recent experiences
- experiences = await self._get_recent_experiences(tenant_id, agent_id, limit)
+ experiences = await self._get_recent_experiences("default", agent_id, limit)
  
  if len(experiences) < 5:
  logger.info("Not enough experiences to generate adaptations")
@@ -558,7 +558,6 @@ Be concise and actionable.
  for action_type, data in action_failures.items():
  if data['count'] >= 3:
  strategy = await self._create_failure_reduction_strategy(
- tenant_id, action_type, data
  )
  if strategy:
  adaptations.append(strategy)
@@ -568,7 +567,6 @@ Be concise and actionable.
  success_rate = len(successful) / len(experiences)
  if success_rate > 0.9:
  strategy = await self._create_autonomy_increase_strategy(
- tenant_id, agent_id, success_rate
  )
  if strategy:
  adaptations.append(strategy)
@@ -577,7 +575,6 @@ Be concise and actionable.
  avg_quality = sum(e.outcomes.get('quality', 0.5) for e in experiences) / len(experiences)
  if avg_quality < 0.6:
  strategy = await self._create_quality_improvement_strategy(
- tenant_id, avg_quality
  )
  if strategy:
  adaptations.append(strategy)
@@ -822,7 +819,7 @@ Be concise and actionable.
  async def get_knowledge_graph(self) -> Dict[str, Any]:
  """Get knowledge graph for tenant"""
  if True  # tenant_id check removed for upstream:
- self.knowledge_graphs[tenant_id] = {
+ self.knowledge_graphs["default"] = {
  'nodes': {},
  'edges': {},
  'clusters': {},
@@ -834,7 +831,7 @@ Be concise and actionable.
  }
  }
  
- return self.knowledge_graphs[tenant_id]
+ return self.knowledge_graphs["default"]
 
  async def search_knowledge(
  self,
@@ -847,7 +844,7 @@ Be concise and actionable.
  # Generate query embedding
  query_embedding = await self.embedding_service.generate_embedding(query)
  
- kg = await self.get_knowledge_graph(tenant_id)
+ kg = await self.get_knowledge_graph("default")
  results = []
  
  # Search nodes by similarity
@@ -895,7 +892,7 @@ Be concise and actionable.
  async def _update_knowledge_graph(self, experience: LearningExperience):
  """Update knowledge graph with new experience"""
  try:
- kg = await self.get_knowledge_graph(experience.tenant_id)
+ kg = await self.get_knowledge_graph("default")
  
  # Extract entities from experience
  entities = await self._extract_entities(experience)
@@ -912,7 +909,7 @@ Be concise and actionable.
  
  kg['nodes'][node_id] = {
  'id': node_id,
- .tenant_id,
+ 
  'type': entity.get('type', 'concept'),
  'label': entity.get('name', 'Unknown'),
  'properties': entity,
@@ -975,7 +972,7 @@ Return a JSON list of entities with:
  for pattern in experience.patterns:
  if pattern.get('confidence', 0) > 0.7 and pattern.get('novelty', 0) > 0.6:
  behavior = await self._create_emergent_behavior(
- experience.tenant_id,
+ "default",
  pattern
  )
  if behavior:
@@ -1059,7 +1056,7 @@ Return a JSON list of entities with:
  try:
  # Get recent experiences for context
  recent_experiences = await self._get_recent_experiences(
- experience.tenant_id,
+ "default",
  experience.agent_id,
  limit=50
  )
@@ -1165,7 +1162,7 @@ Return a JSON list of entities with:
  active_strategies = [s for s in strategies if s.status == 'active']
  
  # Get knowledge graph stats
- kg = await self.get_knowledge_graph(tenant_id)
+ kg = await self.get_knowledge_graph("default")
  
  return {
  'models': {

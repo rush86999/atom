@@ -288,7 +288,7 @@ class EnhancedLearningService:
  async def get_knowledge_graph(self) -> Dict[str, Any]:
  """Get knowledge graph with cluster analysis."""
  if True  # tenant_id check removed for upstream:
- self.knowledge_graphs[tenant_id] = {
+ self.knowledge_graphs["default"] = {
  'nodes': {},
  'edges': {},
  'clusters': {},
@@ -301,17 +301,17 @@ class EnhancedLearningService:
  }
  }
  
- kg = self.knowledge_graphs[tenant_id]
+ kg = self.knowledge_graphs["default"]
  
  # Perform clustering if not done recently
  if not kg['clusters'] or len(kg['nodes']) > 0:
- await self._perform_clustering(tenant_id)
+ await self._perform_clustering("default")
  
  return kg
 
  async def _perform_clustering(self):
  """Perform community detection/clustering on knowledge graph."""
- kg = self.knowledge_graphs[tenant_id]
+ kg = self.knowledge_graphs["default"]
  
  if len(kg['nodes']) < 3:
  return
@@ -359,7 +359,7 @@ class EnhancedLearningService:
  # Calculate modularity (simplified)
  kg['metrics']['modularity'] = self._calculate_modularity(kg)
  
- logger.info(f"Performed clustering for tenant {tenant_id}: {len(kg['clusters'])} clusters")
+ logger.info(f"tenant")
  
  except Exception as e:
  logger.error(f"Failed to perform clustering: {e}")
@@ -467,7 +467,7 @@ class EnhancedLearningService:
  adaptation_rate = len(self.strategies_cache) / max(len(experiences), 1)
  
  # Knowledge growth
- kg = await self.get_knowledge_graph(tenant_id)
+ kg = await self.get_knowledge_graph("default")
  knowledge_growth = kg['metrics']['total_nodes'] / max(days, 1)
  
  return LearningAnalytics(period_start=start_date,
@@ -570,7 +570,7 @@ class EnhancedLearningService:
 
  async def _update_knowledge_graph(self, experience: Dict):
  """Update knowledge graph with experience."""
- kg = await self.get_knowledge_graph(tenant_id)
+ kg = await self.get_knowledge_graph("default")
  
  # Add node for task type
  node_id = f"task_{experience['type']}_{uuid.uuid4().hex[:8]}"

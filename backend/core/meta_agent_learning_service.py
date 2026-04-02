@@ -67,7 +67,7 @@ class MetaAgentLearningService:
  self.db.commit()
 
  # Calculate quality impact
- quality_impact = self._calculate_quality_impact(tenant_id, pattern_signature)
+ quality_impact = self._calculate_quality_impact("default", pattern_signature)
 
  return {
  "recorded": True,
@@ -120,10 +120,10 @@ class MetaAgentLearningService:
  approval_rate = approval_count / total_decisions if total_decisions > 0 else 0.0
 
  # Pattern-specific approval rates
- pattern_rates = self._calculate_pattern_approval_rates(tenant_id, cutoff_date)
+ pattern_rates = self._calculate_pattern_approval_rates("default", cutoff_date)
 
  # Confidence calibration (predicted vs actual)
- calibration = self._calculate_confidence_calibration(tenant_id, cutoff_date)
+ calibration = self._calculate_confidence_calibration("default", cutoff_date)
 
  return {
  
@@ -180,13 +180,13 @@ class MetaAgentLearningService:
  Dict with learning insights including progress, top patterns, calibration
  """
  # Get 30-day quality metrics
- quality = self.calculate_suggestion_quality(tenant_id, days=30)
+ quality = self.calculate_suggestion_quality(days=30)
 
  # Get top performing patterns
- top_patterns = self._get_top_patterns(tenant_id, limit=5)
+ top_patterns = self._get_top_patterns(limit=5)
 
  # Get learning progress over time
- progress = self._get_learning_progress(tenant_id)
+ progress = self._get_learning_progress("default")
 
  return {
  
@@ -209,7 +209,7 @@ class MetaAgentLearningService:
 
  def _calculate_quality_impact(self, pattern_signature: str) -> str:
  """Calculate the impact of this feedback on quality"""
- quality = self.calculate_suggestion_quality(tenant_id, days=30)
+ quality = self.calculate_suggestion_quality(days=30)
  pattern_rate = quality['pattern_approval_rates'].get(pattern_signature, 0.5)
 
  if pattern_rate > 0.8:
@@ -306,7 +306,7 @@ class MetaAgentLearningService:
  previous_cutoff = datetime.utcnow() - timedelta(days=14)
 
  # Recent period
- recent_quality = self.calculate_suggestion_quality(tenant_id, days=7)
+ recent_quality = self.calculate_suggestion_quality(days=7)
  recent_rate = recent_quality['approval_rate']
 
  # Previous period

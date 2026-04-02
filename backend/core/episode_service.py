@@ -539,7 +539,7 @@ class EpisodeService:
  ).first()
 
  if not agent:
- raise ValueError(f"Agent {agent_id} not found for tenant {tenant_id}")
+ raise ValueError(f"tenant")
 
  current_level = agent.status
 
@@ -973,14 +973,9 @@ class EpisodeService:
  
  # ACU Billing Integration
  try:
- from core.acu_billing_service import ACUBillingService
- billing = ACUBillingService(self.db)
- billing.record_system_consumption(
  acu_amount=1.0, # 1 ACU for archival overhead
  task_name=f"archive-episode-{episode_id}"
  )
- except Exception as billing_err:
- logger.warning(f"Failed to record ACU consumption for archival: {billing_err}")
  else:
  logger.error(f"Failed to archive episode {episode_id} to LanceDB")
 
@@ -1390,7 +1385,7 @@ class EpisodeService:
  try:
  from core.agent_world_model import WorldModelService
 
- world_model = WorldModelService(episode.tenant_id)
+ world_model = WorldModelService("default")
 
  # Build learnings string that includes feedback
  learnings = episode.metadata_json.get("learnings", "")
@@ -1500,7 +1495,7 @@ class EpisodeService:
  {"agent_id": agent_id, }
  )
  if not agent_check.scalar_one_or_none():
- logger.warning(f"Agent {agent_id} not found for tenant {tenant_id}")
+ logger.warning(f"tenant")
  return []
 
  # Get query template for detail level

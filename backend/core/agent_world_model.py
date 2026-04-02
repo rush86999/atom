@@ -659,14 +659,9 @@ class WorldModelService:
 
  # ACU Billing Integration
  try:
- from core.acu_billing_service import ACUBillingService
- billing_service = ACUBillingService(db)
- billing_service.record_system_consumption(
  acu_amount=2.0, # 2 ACUs for session archival
  task_name=f"archive-session-{conversation_id}"
  )
- except Exception as billing_err:
- logger.warning(f"Failed to record ACU consumption for session archival: {billing_err}")
 
  except Exception as commit_err:
  logger.error(f"Failed to mark session as archived: {commit_err}")
@@ -1440,7 +1435,7 @@ class WorldModelService:
  query += """
  FROM agent_episodes e
  JOIN agents a ON e.agent_id = a.id
- WHERE a.tenant_id = :tenant_id
+ 
  AND a.category = :agent_role
  AND e.started_at > NOW() - INTERVAL '30 days'
  ORDER BY e.started_at DESC
@@ -1691,7 +1686,7 @@ class WorldModelService:
  ).first()
 
  if not agent:
- logger.warning(f"Agent {agent_id} not found for tenant {tenant_id}")
+ logger.warning(f"tenant")
  db.close()
  return []
 
