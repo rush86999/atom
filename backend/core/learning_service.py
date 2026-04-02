@@ -77,7 +77,7 @@ class LearningService:
 
  logger.info(
  f"Recorded user correction for agent {agent_id}: "
- f"{correction_type} in tenant {tenant_id}"
+ f"tenant"
  )
 
  return experience_id
@@ -281,7 +281,7 @@ class LearningService:
  self.db.add(experience)
  self.db.commit()
 
- logger.info(f"Recorded user rejection for agent {agent_id}: {action_type} in tenant {tenant_id}")
+ logger.info(f"tenant")
  return experience_id
 
  except Exception as e:
@@ -334,7 +334,7 @@ class LearningService:
 
  logger.info(
  f"Recorded adaptation for agent {agent_id}: "
- f"{adaptation_type} in tenant {tenant_id}"
+ f"tenant"
  )
 
  return memory_id
