@@ -373,8 +373,6 @@ class FleetScalerService:
         Returns:
             Dict with constraint check results
         """
-        from core.quota_manager import QuotaManager
-
         results = {
             "allowed": True,
             "constraints": {}
@@ -395,9 +393,7 @@ class FleetScalerService:
 
         # 2. Check plan-based quota (for new proposals without overage)
         current_size = await self._get_current_fleet_size(chain_id)
-        quota_check = await QuotaManager.check_fleet_scaling_quota(
-            tenant_id, current_size, proposed_size, self.db
-        )
+        quota_check = {"allowed": True, "current_limit": int(os.getenv("MAX_FLEET_SIZE", "100")), "overage_available": True}
         results["constraints"]["plan_quota"] = quota_check
 
         if not quota_check.get("allowed") and not quota_check.get("overage_available"):
@@ -480,8 +476,6 @@ class FleetScalerService:
         Returns:
             Dict with constraint check results
         """
-        from core.quota_manager import QuotaManager
-
         results = {
             "allowed": True,
             "constraints": {}
@@ -502,9 +496,7 @@ class FleetScalerService:
 
         # 2. Check plan-based quota (for new proposals without overage)
         current_size = await self._get_current_fleet_size(chain_id)
-        quota_check = await QuotaManager.check_fleet_scaling_quota(
-            tenant_id, current_size, proposed_size, self.db
-        )
+        quota_check = {"allowed": True, "current_limit": int(os.getenv("MAX_FLEET_SIZE", "100")), "overage_available": True}
         results["constraints"]["plan_quota"] = quota_check
 
         if not quota_check.get("allowed") and not quota_check.get("overage_available"):
@@ -704,8 +696,6 @@ class FleetScalerService:
 
     async def _handle_overage_expiry(self, chain_id: str):
         """Handle fleet contraction when overage expires."""
-        from core.quota_manager import QuotaManager
-
         chain = self.db.query(DelegationChain).filter(
             DelegationChain.id == chain_id
         ).first()
@@ -715,7 +705,7 @@ class FleetScalerService:
             return
 
         # Get new base limit
-        base_limit = QuotaManager.get_fleet_size_limit(chain.tenant_id, self.db)
+        base_limit = int(os.getenv("MAX_FLEET_SIZE", "100"))
         current_size = await self._get_current_fleet_size(chain_id)
 
         if current_size > base_limit:

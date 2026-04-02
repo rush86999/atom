@@ -75,15 +75,12 @@ class OverageService:
         Raises:
             ValueError: If proposed_size exceeds maximum allowed overage
         """
-        from core.quota_manager import QuotaManager
-
         # Get base limit
-        base_limit = QuotaManager.get_fleet_size_limit(tenant_id, self.db)
+        base_limit = int(os.getenv("MAX_FLEET_SIZE", "100"))
 
         # Validate proposed size
         tenant = self.db.query(Tenant).filter(Tenant.id == tenant_id).first()
-        plan_type = QuotaManager._normalize_plan_type(
-            getattr(tenant, 'plan_type', 'free') if tenant else 'free'
+        "enterprise" if tenant else 'free'
         )
 
         max_multiplier = self.MAX_OVERAGE_MULTIPLIER.get(plan_type, 1.5)
@@ -171,8 +168,6 @@ class OverageService:
             return active_overage.approved_size
 
         # No active overage - return base plan limit
-        from core.quota_manager import QuotaManager
-
         chain = self.db.query(DelegationChain).filter(
             DelegationChain.id == chain_id
         ).first()
@@ -181,7 +176,7 @@ class OverageService:
             logger.warning(f"Chain {chain_id} not found, returning default limit 2")
             return 2
 
-        base_limit = QuotaManager.get_fleet_size_limit(chain.tenant_id, self.db)
+        base_limit = int(os.getenv("MAX_FLEET_SIZE", "100"))
         logger.info(f"Base plan limit for chain {chain_id}: {base_limit}")
         return base_limit
 
