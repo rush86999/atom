@@ -18,7 +18,6 @@ from .task_decomposition_service import SubTask
 
 logger = logging.getLogger(__name__)
 
-
 class DependencyGraphService:
     """
     Service for building and analyzing task dependency graphs.
@@ -60,6 +59,12 @@ class DependencyGraphService:
         if not subtasks:
             self.logger.warning("build_graph: Empty subtask list, returning empty graph")
             return nx.DiGraph()
+
+        # Validate no duplicate IDs
+        subtask_ids = [s.id for s in subtasks]
+        if len(subtask_ids) != len(set(subtask_ids)):
+            duplicates = [id for id in subtask_ids if subtask_ids.count(id) > 1]
+            raise ValueError(f"Duplicate subtask IDs detected: {set(duplicates)}")
 
         G = nx.DiGraph()
 
@@ -138,8 +143,21 @@ class DependencyGraphService:
         if not graph or graph.number_of_nodes() == 0:
             return []
 
+        # Validate graph is acyclic before processing
+        if not nx.is_directed_acyclic_graph(graph):
+            raise ValueError(
+                "Cannot generate execution groups: graph contains cycles. "
+                "Call validate_cycles() first."
+            )
+
         # Get topological order
-        topo_order = list(nx.topological_sort(graph))
+        try:
+            topo_order = list(nx.topological_sort(graph))
+        except nx.NetworkXUnfeasible:
+            raise ValueError(
+                "Cannot generate execution groups: graph contains cycles. "
+                "Call validate_cycles() first."
+            )
 
         # Calculate longest path depth for each node
         node_depths = {}
@@ -209,7 +227,6 @@ class DependencyGraphService:
 
         return critical_path, total_tokens
 
-
 # Convenience functions for direct import (matching plan requirements)
 
 def build_graph(subtasks: List[SubTask]) -> nx.DiGraph:
@@ -224,7 +241,6 @@ def build_graph(subtasks: List[SubTask]) -> nx.DiGraph:
     """
     service = DependencyGraphService()
     return service.build_graph(subtasks)
-
 
 def validate_cycles(graph: nx.DiGraph) -> List[List[str]]:
     """
@@ -242,7 +258,6 @@ def validate_cycles(graph: nx.DiGraph) -> List[List[str]]:
     service = DependencyGraphService()
     return service.validate_cycles(graph)
 
-
 def get_execution_groups(graph: nx.DiGraph) -> List[List[str]]:
     """
     Convenience function to generate execution groups.
@@ -258,7 +273,6 @@ def get_execution_groups(graph: nx.DiGraph) -> List[List[str]]:
     """
     service = DependencyGraphService()
     return service.get_execution_groups(graph)
-
 
 def detect_critical_path(
     graph: nx.DiGraph,
