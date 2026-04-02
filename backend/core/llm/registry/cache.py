@@ -56,7 +56,7 @@ class RegistryCacheService:
         self.cache = UniversalCacheService()
         logger.debug("RegistryCacheService initialized")
 
-    def _model_key(self provider: str, model_name: str) -> str:
+    def _model_key(self, provider: str, model_name: str) -> str:
         """
         Build tenant-scoped cache key for individual model.
 
@@ -73,7 +73,7 @@ class RegistryCacheService:
         """
         return f"{MODEL_KEY_PREFIX}:{provider}:{model_name}"
 
-    def _list_key(self provider: Optional[str] = None) -> str:
+    def _list_key(self, provider: Optional[str] = None) -> str:
         """
         Build tenant-scoped cache key for model list.
 

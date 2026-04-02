@@ -148,7 +148,7 @@ class LLMRegistryService:
 
         return stats
 
-    def upsert_model(self model_data: Dict[str, Any]) -> LLMModel:
+    def upsert_model(self, model_data: Dict[str, Any]) -> LLMModel:
         """
         Create or update a model in the database.
 
