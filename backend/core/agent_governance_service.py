@@ -138,15 +138,13 @@ class AgentGovernanceService:
     }
 
     def __init__(
-        self, 
-        db: Session, 
-        workspace_id: str = "default", 
-        tenant_id: Optional[str] = None,
+        self,
+        db: Session,
+        workspace_id: str = "default",
         activity_publisher: Optional[ActivityPublisher] = None
     ):
         self.db = db
         self.workspace_id = workspace_id
-        self.tenant_id = tenant_id
         self.activity_publisher = activity_publisher
         self.continuous_learning = ContinuousLearningService(db)
 
@@ -178,7 +176,6 @@ class AgentGovernanceService:
                 handle=handle,
                 display_name=display_name,
                 workspace_id=self.workspace_id,
-                tenant_id=self.tenant_id,
                 status=AgentStatus.STUDENT.value,
                 confidence_score=0.5
             )
@@ -216,7 +213,6 @@ class AgentGovernanceService:
             agent_id=agent_id,
             user_id=user_id,
             workspace_id=self.workspace_id,
-            tenant_id=self.tenant_id,
             original_output=original_output,
             user_correction=user_correction,
             input_context=input_context,
@@ -281,7 +277,6 @@ class AgentGovernanceService:
             logger.info(f"Agent {agent.name} transitioned: {prev_status} -> {agent.status}")
             if self.activity_publisher:
                 self.activity_publisher.publish_activity(
-                    tenant_id=self.tenant_id or "default",
                     workspace_id=self.workspace_id,
                     agent_id=agent_id,
                     activity_type='learning',
@@ -299,7 +294,6 @@ class AgentGovernanceService:
         agent_id: str,
         action_type: str,
         require_approval: bool = False,
-        tenant_id: Optional[str] = None,
         chain_id: Optional[str] = None, # NEW Phase 10
     ) -> Dict[str, Any]:
         """Hybrid maturity check with complexity-based enforcement"""
@@ -343,7 +337,6 @@ class AgentGovernanceService:
                 
             budget_check = loop.run_until_complete(
                 budget_svc.check_budget_before_action(
-                    tenant_id=tenant_id or "default",
                     agent_id=agent_id,
                     action=action_type,
                     chain_id=chain_id # Phase 10
@@ -389,7 +382,7 @@ class AgentGovernanceService:
         chain_id: Optional[str] = None # NEW Phase 10
     ) -> Dict[str, Any]:
         """Main entry point for action enforcement including guardrails"""
-        check = self.can_perform_action(agent_id, action_type, tenant_id=tenant_id, chain_id=chain_id)
+        check = self.can_perform_action(agent_id, action_type, chain_id=chain_id)
         
         if not check["allowed"]:
             return {"proceed": False, "status": "BLOCKED", "reason": check["reason"], "action_required": "HUMAN_APPROVAL"}
@@ -399,7 +392,7 @@ class AgentGovernanceService:
 
         # Autonomous Guardrails
         if check["agent_status"] == AgentStatus.AUTONOMOUS.value:
-            gr = AutonomousGuardrailService(self.db, workspace_id=self.workspace_id, tenant_id=tenant_id)
+            gr = AutonomousGuardrailService(self.db, workspace_id=self.workspace_id)
             gr_check = gr.check_guardrails(agent_id, action_type, action_details or {})
             if not gr_check["proceed"]:
                 if gr_check.get("requires_downgrade"):
@@ -424,7 +417,6 @@ class AgentGovernanceService:
         hitl = HITLAction(
             id=str(uuid.uuid4()),
             workspace_id=self.workspace_id,
-            tenant_id=self.tenant_id,
             agent_id=agent_id,
             action_type=action_type,
             platform="internal",
