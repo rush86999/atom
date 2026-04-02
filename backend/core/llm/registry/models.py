@@ -2,12 +2,11 @@
 
 This module defines the SQLAlchemy model for the LLM model registry,
 which stores metadata about LLM models from multiple providers
-(OpenAI, Anthropic, OpenRouter, etc.) with tenant isolation.
+(OpenAI, Anthropic, OpenRouter, etc.).
 
 The registry supports:
 - Multi-provider model registration
 - Hybrid metadata storage (structured columns + JSONB)
-- Tenant isolation via Row Level Security (RLS)
 - Pricing and capability tracking
 """
 from typing import Optional, Dict, Any, List, Set
@@ -27,12 +26,10 @@ class LLMModel(Base):
     LLM Model Registry Entry
 
     Represents a single LLM model from a provider with its metadata,
-    pricing, and capabilities. Each model is scoped to a tenant for
-    multi-tenancy support.
+    pricing, and capabilities.
 
     Attributes:
         id: Unique identifier for the model entry
-        tenant_id: Tenant identifier for multi-tenancy
         provider: Provider name (e.g., 'openai', 'anthropic', 'openrouter')
         model_name: Model identifier (e.g., 'gpt-4', 'claude-3-opus')
         context_window: Maximum context window in tokens
@@ -51,13 +48,6 @@ class LLMModel(Base):
         UUID,
         primary_key=True,
         default=uuid.uuid4
-    )
-
-    # Tenant isolation (required for multi-tenancy)
-    tenant_id: Mapped[str] = Column(
-        String,
-        nullable=False,
-        index=True
     )
 
     # Provider identification
@@ -161,12 +151,10 @@ class LLMModel(Base):
     # Table constraints
     __table_args__ = (
         UniqueConstraint(
-            'tenant_id',
             'provider',
             'model_name',
             name='llm_models_unique_model'
         ),
-        Index('idx_llm_models_tenant_provider_model', 'tenant_id', 'provider', 'model_name'),
         # Partial indexes on hybrid columns (only index TRUE values for efficiency)
         Index('idx_llm_models_vision_partial',
               'supports_vision',
@@ -186,8 +174,7 @@ class LLMModel(Base):
         # Partial index on is_deprecated (only index FALSE values for efficient filtering)
         Index('idx_llm_models_deprecated_partial',
               'is_deprecated',
-              postgresql_where=text('is_deprecated = FALSE')),
-    )
+              postgresql_where=text('is_deprecated = FALSE')))
 
     # Common capabilities that have dedicated hybrid columns
     HYBRID_CAPABILITIES = {'vision', 'tools', 'function_calling', 'audio', 'computer_use'}

@@ -53,7 +53,7 @@ class ModelSyncJob:
         self.registry_service = LLMRegistryService(db, use_cache=True)
         self.logger = logging.getLogger(__name__)
 
-    async def run(self, tenant_id: str = 'default') -> Dict[str, Any]:
+    async def run(self= 'default') -> Dict[str, Any]:
         """
         Execute the sync job for a tenant.
 
@@ -136,7 +136,7 @@ class ModelSyncJob:
 
         return result
 
-    def _update_sync_timestamp(self, tenant_id: str) -> None:
+    def _update_sync_timestamp(self) -> None:
         """
         Update last_sync_timestamp in database for all models.
 
@@ -170,7 +170,7 @@ class ModelSyncJob:
             raise
 
     @staticmethod
-    def should_sync(tenant_id: str, db: Session, interval_hours: int = 720) -> bool:
+    def should_sync(db: Session, interval_hours: int = 720) -> bool:
         """
         Check if sync is needed based on last sync timestamp.
 

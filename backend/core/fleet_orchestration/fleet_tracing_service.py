@@ -91,9 +91,7 @@ class TraceContext:
             span_id=str(uuid.uuid4()),
             parent_span_id=self.span_id,
             chain_id=self.chain_id,
-            agent_id=agent_id,
-            tenant_id=self.tenant_id
-        )
+            agent_id=agent_id)
 
 class FleetTracingService:
     """
@@ -135,7 +133,7 @@ class FleetTracingService:
             root_task: Root task description (will be truncated to 200 chars)
 
         Returns:
-            TraceContext with trace_id, span_id, tenant_id, chain_id
+            TraceContext with trace_id, span_id, chain_id
         """
         # Generate trace and span IDs
         trace_id = generate_trace_id()
@@ -148,14 +146,12 @@ class FleetTracingService:
             parent_span_id=None,  # Root span has no parent
             chain_id=chain_id,
             agent_id=None,  # Root span not tied to specific agent
-            tenant_id=tenant_id[:8]  # Truncate for PII protection
-        )
+                    )
 
         # Bind context to thread-local storage
         bind_context(
             self.logger,
-            tenant_id=tenant_id,
-            trace_id=trace_id,
+                        trace_id=trace_id,
             span_id=span_id,
             parent_span_id=None
         )
@@ -166,7 +162,6 @@ class FleetTracingService:
             extra={
                 "event": "fleet_trace_start",
                 "chain_id": chain_id,
-                "tenant_id": tenant_id[:8],
                 "trace_id": trace_id,
                 "span_id": span_id,
                 "root_task": root_task[:200],  # Truncate to prevent log bloat
@@ -216,8 +211,7 @@ class FleetTracingService:
                 span_id=generate_span_id(),
                 parent_span_id=_span_id.get(),  # Current span becomes parent
                 chain_id=chain_id,
-                agent_id=agent_id,
-                tenant_id=None  # Will be inherited from context
+                agent_id=agent_id# Will be inherited from context
             )
 
         # Bind span context to thread-local storage
@@ -322,5 +316,4 @@ class FleetTracingService:
             parent_span_id=_parent_span_id.get(),
             chain_id=None,  # Not stored in contextvars
             agent_id=None,  # Not stored in contextvars
-            tenant_id=None  # Not stored in contextvars
-        )
+                    )

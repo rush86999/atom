@@ -278,11 +278,11 @@ class ScalingProposalService:
 
             # Check for expansion need
             expansion_proposal = await self._check_expansion_need(
-                chain_id, tenant_id, metrics
+                chain_id, metrics
             )
             if expansion_proposal:
                 # Check hysteresis
-                if await self._check_hysteresis(chain_id, tenant_id, "expansion"):
+                if await self._check_hysteresis(chain_id, "expansion"):
                     return expansion_proposal
                 else:
                     logger.info(f"Expansion proposal suppressed by hysteresis for chain {chain_id}")
@@ -290,11 +290,11 @@ class ScalingProposalService:
 
             # Check for contraction need
             contraction_proposal = await self._check_contraction_need(
-                chain_id, tenant_id, metrics
+                chain_id, metrics
             )
             if contraction_proposal:
                 # Check hysteresis
-                if await self._check_hysteresis(chain_id, tenant_id, "contraction"):
+                if await self._check_hysteresis(chain_id, "contraction"):
                     return contraction_proposal
                 else:
                     logger.info(f"Contraction proposal suppressed by hysteresis for chain {chain_id}")
@@ -319,24 +319,24 @@ class ScalingProposalService:
         if metrics.success_rate < thresholds["success_rate_critical"]:
             reason = f"Critical success rate ({metrics.success_rate:.1f}% < {thresholds['success_rate_critical']:.1f}%)"
             return await self._create_expansion_proposal(
-                chain_id, tenant_id, metrics, reason
+                chain_id, metrics, reason
             )
         elif metrics.success_rate < thresholds["success_rate_warning"]:
             reason = f"Low success rate ({metrics.success_rate:.1f}% < {thresholds['success_rate_warning']:.1f}%)"
             return await self._create_expansion_proposal(
-                chain_id, tenant_id, metrics, reason, urgency="warning"
+                chain_id, metrics, reason, urgency="warning"
             )
 
         # Check latency
         if metrics.avg_latency_ms > thresholds["latency_critical_ms"]:
             reason = f"Critical latency ({metrics.avg_latency_ms:.0f}ms > {thresholds['latency_critical_ms']:.0f}ms)"
             return await self._create_expansion_proposal(
-                chain_id, tenant_id, metrics, reason
+                chain_id, metrics, reason
             )
         elif metrics.avg_latency_ms > thresholds["latency_warning_ms"]:
             reason = f"High latency ({metrics.avg_latency_ms:.0f}ms > {thresholds['latency_warning_ms']:.0f}ms)"
             return await self._create_expansion_proposal(
-                chain_id, tenant_id, metrics, reason, urgency="warning"
+                chain_id, metrics, reason, urgency="warning"
             )
 
         return None
@@ -357,7 +357,7 @@ class ScalingProposalService:
             if metrics.throughput_per_minute < 2.0:  # Less than 2 tasks/min
                 reason = f"Underutilized fleet (success rate {metrics.success_rate:.1f}%, throughput {metrics.throughput_per_minute:.1f} tasks/min)"
                 return await self._create_contraction_proposal(
-                    chain_id, tenant_id, metrics, reason
+                    chain_id, metrics, reason
                 )
 
         return None
@@ -385,8 +385,7 @@ class ScalingProposalService:
 
         return ScalingProposal(
             chain_id=chain_id,
-            tenant_id=tenant_id,
-            proposal_type=ScalingProposalType.EXPANSION,
+                        proposal_type=ScalingProposalType.EXPANSION,
             current_fleet_size=current_size,
             proposed_fleet_size=proposed_size,
             reason=reason,
@@ -424,8 +423,7 @@ class ScalingProposalService:
 
         return ScalingProposal(
             chain_id=chain_id,
-            tenant_id=tenant_id,
-            proposal_type=ScalingProposalType.CONTRACTION,
+                        proposal_type=ScalingProposalType.CONTRACTION,
             current_fleet_size=current_size,
             proposed_fleet_size=proposed_size,
             reason=reason,
@@ -544,7 +542,7 @@ class ScalingProposalService:
         """
         # Validate fleet size limit first
         validation = await self.validate_fleet_size_limit(
-            chain_id, tenant_id, proposed_size
+            chain_id, proposed_size
         )
 
         if not validation["allowed"]:
@@ -572,8 +570,7 @@ class ScalingProposalService:
 
         proposal = ScalingProposal(
             chain_id=chain_id,
-            tenant_id=tenant_id,
-            proposal_type=ScalingProposalType.EXPANSION,
+                        proposal_type=ScalingProposalType.EXPANSION,
             current_fleet_size=current_size,
             proposed_fleet_size=proposed_size,
             reason=reason,
@@ -618,8 +615,7 @@ class ScalingProposalService:
 
         proposal = ScalingProposal(
             chain_id=chain_id,
-            tenant_id=tenant_id,
-            proposal_type=ScalingProposalType.CONTRACTION,
+                        proposal_type=ScalingProposalType.CONTRACTION,
             current_fleet_size=current_size,
             proposed_fleet_size=proposed_size,
             reason=reason,
@@ -643,8 +639,7 @@ class ScalingProposalService:
             model = ScalingProposalRecord(
                 id=proposal.id,
                 chain_id=proposal.chain_id,
-                tenant_id=proposal.tenant_id,
-                proposal_type=proposal.proposal_type.value if hasattr(proposal.proposal_type, 'value') else proposal.proposal_type,
+                                proposal_type=proposal.proposal_type.value if hasattr(proposal.proposal_type, 'value') else proposal.proposal_type,
                 current_fleet_size=proposal.current_fleet_size,
                 proposed_fleet_size=proposal.proposed_fleet_size,
                 reason=proposal.reason,
@@ -674,8 +669,7 @@ class ScalingProposalService:
             ScalingProposal or None
         """
         model = self.db.query(ScalingProposalRecord).filter(
-            ScalingProposalRecord.id == proposal_id,
-            ScalingProposalRecord.tenant_id == tenant_id
+            ScalingProposalRecord.id == proposal_id
         ).first()
 
         if not model:
@@ -694,8 +688,7 @@ class ScalingProposalService:
             List of pending ScalingProposal objects
         """
         models = self.db.query(ScalingProposalRecord).filter(
-            ScalingProposalRecord.tenant_id == tenant_id,
-            ScalingProposalRecord.status == 'pending'
+            ScalingProposalRecord.            ScalingProposalRecord.status == 'pending'
         ).all()
 
         return [self._model_to_proposal(m) for m in models]
@@ -705,8 +698,7 @@ class ScalingProposalService:
         return ScalingProposal(
             id=model.id,
             chain_id=model.chain_id,
-            tenant_id=model.tenant_id,
-            proposal_type=model.proposal_type,
+                        proposal_type=model.proposal_type,
             current_fleet_size=model.current_fleet_size,
             proposed_fleet_size=model.proposed_fleet_size,
             reason=model.reason,
@@ -739,8 +731,7 @@ class ScalingProposalService:
             Updated ScalingProposal
         """
         model = self.db.query(ScalingProposalRecord).filter(
-            ScalingProposalRecord.id == proposal_id,
-            ScalingProposalRecord.tenant_id == tenant_id
+            ScalingProposalRecord.id == proposal_id
         ).first()
 
         if not model:
@@ -763,7 +754,7 @@ class ScalingProposalService:
 
         logger.info(f"Scaling proposal {proposal_id} approved by {approved_by}")
 
-        return await self.get_proposal(proposal_id, tenant_id)
+        return await self.get_proposal(proposal_id)
 
     async def reject_proposal(
         self,
@@ -785,8 +776,7 @@ class ScalingProposalService:
             Updated ScalingProposal
         """
         model = self.db.query(ScalingProposalRecord).filter(
-            ScalingProposalRecord.id == proposal_id,
-            ScalingProposalRecord.tenant_id == tenant_id
+            ScalingProposalRecord.id == proposal_id
         ).first()
 
         if not model:
@@ -810,7 +800,7 @@ class ScalingProposalService:
 
         logger.info(f"Scaling proposal {proposal_id} rejected by {rejected_by}: {reason}")
 
-        return await self.get_proposal(proposal_id, tenant_id)
+        return await self.get_proposal(proposal_id)
 
     async def estimate_scaling_cost(
         self,
@@ -882,11 +872,10 @@ class ScalingProposalService:
 
         # 2. Estimate scaling cost
         estimated_cost = await self.estimate_scaling_cost(
-            current_size, proposed_size, duration_hours, tenant_id
-        )
+            current_size, proposed_size, duration_hours)
 
         # 3. Check budget remaining
-        budget_remaining = await self._get_budget_remaining(tenant_id)
+        budget_remaining = await self._get_budget_remaining()
         budget_exceeded = estimated_cost > budget_remaining
 
         return {
@@ -919,8 +908,7 @@ class ScalingProposalService:
         try:
             from core.models import TenantBudget
             budget = self.db.query(TenantBudget).filter(
-                TenantBudget.tenant_id == tenant_id,
-                TenantBudget.period == 'monthly'
+                TenantBudget.                TenantBudget.period == 'monthly'
             ).first()
 
             if budget:
@@ -972,8 +960,7 @@ class ScalingProposalService:
         """
         # Calculate base cost for the specified duration
         base_cost = await self.estimate_scaling_cost(
-            current_size, proposed_size, duration_hours, tenant_id
-        )
+            current_size, proposed_size, duration_hours)
 
         # Extrapolate to different time horizons
         hourly_cost = base_cost / duration_hours if duration_hours > 0 else 0

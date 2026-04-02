@@ -106,7 +106,7 @@ class TaskDecompositionService:
             TaskDecomposition with subtasks, complexity, and recommendations
         """
         # Build domain catalog for LLM
-        available_domains_info = self._build_domain_catalog(tenant_id)
+        available_domains_info = self._build_domain_catalog()
 
         prompt = f"""You are an expert at multi-agent task decomposition and dependency analysis.
 
@@ -139,8 +139,7 @@ Return JSON matching the TaskDecomposition schema."""
                 system_instruction="You are an expert at multi-agent task decomposition and dependency analysis.",
                 response_model=TaskDecomposition,
                 temperature=0.3,  # Low temperature for deterministic decomposition
-                tenant_id=tenant_id
-            )
+                            )
 
             # Validate subtask count
             if len(result.subtasks) > max_subtasks:
@@ -181,7 +180,7 @@ Return JSON matching the TaskDecomposition schema."""
         except Exception as e:
             logger.error(f"[TaskDecomposition] LLM decomposition failed: {e}")
             # Fallback to rule-based templates
-            return self._fallback_decomposition(task_description, tenant_id, max_subtasks)
+            return self._fallback_decomposition(task_description, max_subtasks)
 
     def _build_domain_catalog(self) -> str:
         """Build formatted catalog of available domains for LLM."""

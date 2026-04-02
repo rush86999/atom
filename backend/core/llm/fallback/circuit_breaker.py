@@ -61,8 +61,7 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
         success_threshold: int = 2,
-        half_open_max_calls: int = 3,
-    ):
+        half_open_max_calls: int = 3):
         """Initialize circuit breaker.
 
         Args:

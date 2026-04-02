@@ -200,8 +200,7 @@ class FleetCoordinatorService:
         chain = self.db.query(DelegationChain).filter(
             DelegationChain.id == chain_id
         ).first()
-        tenant_id = chain.tenant_id if chain else None
-
+        
         # Start fleet trace (graceful degradation if tracing unavailable)
         fleet_trace_context = None
         try:
@@ -214,8 +213,7 @@ class FleetCoordinatorService:
                 root_task = f"{len(task_groups)} task groups, {sum(len(g) for g in task_groups)} total tasks"
                 fleet_trace_context = self.tracing_service.start_fleet_trace(
                     chain_id=chain_id,
-                    tenant_id=tenant_id or "unknown",
-                    root_task=root_task
+                                        root_task=root_task
                 )
         except Exception as e:
             logger.warning(f"Failed to start fleet trace: {e}")
@@ -722,7 +720,7 @@ class FleetCoordinatorService:
         # Lazy initialize services if not provided
         if not self.decomposition_service:
             from core.llm.byok_handler import BYOKHandler
-            llm_service = BYOKHandler(self.db, tenant_id)
+            llm_service = BYOKHandler(self.db)
             self.decomposition_service = TaskDecompositionService(
                 db=self.db,
                 llm_service=llm_service
@@ -738,8 +736,7 @@ class FleetCoordinatorService:
         logger.info(f"Step 1: Decomposing task into subtasks (max {max_subtasks})")
         decomposition = await self.decomposition_service.decompose_task(
             task_description=task_description,
-            tenant_id=tenant_id,
-            context=context or {},
+                        context=context or {},
             max_subtasks=max_subtasks
         )
 
@@ -784,9 +781,7 @@ class FleetCoordinatorService:
         logger.info("Step 5: Estimating optimal fleet size")
         estimated_fleet_size = self.complexity_estimator.estimate_fleet_size(
             decomposition=decomposition,
-            tenant_plan=tenant_plan,
-            tenant_id=tenant_id
-        )
+            tenant_plan=tenant_plan)
         logger.info(f"Estimated fleet size: {estimated_fleet_size} (plan: {tenant_plan})")
 
         # Step 6: Store decomposition in DelegationChain.metadata_json

@@ -15,8 +15,7 @@ from .base import (
     BaseEmbeddingProvider,
     EmbeddingProviderError,
     EmbeddingRateLimitError,
-    EmbeddingContextLimitError,
-)
+    EmbeddingContextLimitError)
 
 
 class OpenAIEmbeddingProvider(BaseEmbeddingProvider):

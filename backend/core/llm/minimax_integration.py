@@ -103,8 +103,7 @@ class MiniMaxIntegration:
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
-            timeout=30.0,
-        )
+            timeout=30.0)
         logger.info(f"MiniMaxIntegration initialized with model={model}")
 
     async def generate(
@@ -112,8 +111,7 @@ class MiniMaxIntegration:
         prompt: str,
         temperature: float = 0.7,
         max_tokens: int = 1000,
-        model: Optional[str] = None,
-    ) -> Optional[str]:
+        model: Optional[str] = None) -> Optional[str]:
         """
         Generate response using MiniMax model.
 
@@ -140,8 +138,7 @@ class MiniMaxIntegration:
                     "messages": [{"role": "user", "content": prompt}],
                     "temperature": clamped_temp,
                     "max_tokens": max_tokens,
-                },
-            )
+                })
             response.raise_for_status()
 
             data = response.json()
@@ -182,8 +179,7 @@ class MiniMaxIntegration:
                     "messages": [{"role": "user", "content": "Hi"}],
                     "max_tokens": 1,
                     "temperature": 0.01,
-                },
-            )
+                })
             is_valid = response.status_code == 200
             logger.info(f"MiniMax API connection test: {is_valid}")
             return is_valid

@@ -120,7 +120,7 @@ class EscalationManager:
         ...     pass
     """
 
-    def __init__(self, db_session=None, workspace_id: str = "default", tenant_id: Optional[str] = None):
+    def __init__(self, db_session=None, workspace_id: str = "default"):
         """
         Initialize the escalation manager.
 

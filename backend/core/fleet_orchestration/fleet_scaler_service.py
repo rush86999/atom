@@ -138,13 +138,12 @@ class FleetScalerService:
 
         # 2. Check for scaling need
         proposal = await self.proposal_service.analyze_scaling_need(
-            chain_id, tenant_id
-        )
+            chain_id)
 
         if proposal:
             # 3. Validate budget before creating
             budget_check = await self.proposal_service.validate_budget_for_proposal(
-                chain_id, tenant_id,
+                chain_id,
                 proposal.proposed_fleet_size,
                 proposal.duration_hours
             )
@@ -182,7 +181,7 @@ class FleetScalerService:
             ValueError: If proposal not found, not approved, or expired
         """
         # 1. Get and validate proposal
-        proposal = await self.proposal_service.get_proposal(proposal_id, tenant_id)
+        proposal = await self.proposal_service.get_proposal(proposal_id)
         if not proposal:
             raise ValueError(f"Proposal {proposal_id} not found")
 
@@ -196,8 +195,7 @@ class FleetScalerService:
         operation = ScalingOperation(
             id=str(uuid.uuid4()),
             chain_id=proposal.chain_id,
-            tenant_id=tenant_id,
-            proposal_id=proposal_id,
+                        proposal_id=proposal_id,
             operation_type="expand" if proposal.proposal_type == ScalingProposalType.EXPANSION else "contract",
             from_size=proposal.current_fleet_size,
             to_size=proposal.proposed_fleet_size,
@@ -437,8 +435,7 @@ class FleetScalerService:
         from core.models import ScalingProposal as ScalingProposalModel
         pending_proposals = self.db.query(ScalingProposalModel).filter(
             ScalingProposalModel.chain_id == chain_id,
-            ScalingProposalModel.tenant_id == tenant_id,
-            ScalingProposalModel.status == ScalingProposalStatus.PENDING.value
+            ScalingProposalModel.            ScalingProposalModel.status == ScalingProposalStatus.PENDING.value
         ).all()
 
         pending_list = [
@@ -557,8 +554,7 @@ class FleetScalerService:
             model = ScalingOperationModel(
                 id=operation.id,
                 chain_id=operation.chain_id,
-                tenant_id=operation.tenant_id,
-                proposal_id=operation.proposal_id,
+                                proposal_id=operation.proposal_id,
                 operation_type=operation.operation_type,
                 from_size=operation.from_size,
                 to_size=operation.to_size,
@@ -606,8 +602,7 @@ class FleetScalerService:
                 ScalingOperation(
                     id=m.id,
                     chain_id=m.chain_id,
-                    tenant_id=m.tenant_id,
-                    proposal_id=m.proposal_id,
+                                        proposal_id=m.proposal_id,
                     operation_type=m.operation_type,
                     from_size=m.from_size,
                     to_size=m.to_size,
@@ -646,12 +641,11 @@ class FleetScalerService:
             try:
                 # Get all active chains for tenant
                 active_chains = self.db.query(DelegationChain).filter(
-                    DelegationChain.tenant_id == tenant_id,
-                    DelegationChain.status == 'active'
+                    DelegationChain.                    DelegationChain.status == 'active'
                 ).all()
 
                 for chain in active_chains:
-                    await self.monitor_and_scale(chain.id, tenant_id)
+                    await self.monitor_and_scale(chain.id)
 
             except Exception as e:
                 logger.error(f"Error in monitoring loop: {e}")
@@ -733,8 +727,7 @@ class FleetScalerService:
 
             proposal = await self.proposal_service.create_contraction_proposal(
                 chain_id=chain_id,
-                tenant_id=chain.tenant_id,
-                current_size=current_size,
+                                current_size=current_size,
                 proposed_size=base_limit,
                 reason="Overage expired - returning to base plan limit"
             )
@@ -743,8 +736,7 @@ class FleetScalerService:
             try:
                 await self.proposal_service.approve_proposal(
                     proposal_id=proposal.id,
-                    tenant_id=chain.tenant_id,
-                    approved_by="system",
+                                        approved_by="system",
                     note="Auto-approved due to overage expiry"
                 )
                 logger.info(f"Auto-approved contraction proposal {proposal.id}")
@@ -790,14 +782,13 @@ class FleetScalerService:
             Execution result
         """
         # Get proposal
-        proposal = await self.proposal_service.get_proposal(proposal_id, tenant_id)
+        proposal = await self.proposal_service.get_proposal(proposal_id)
         if not proposal:
             raise ValueError(f"Proposal {proposal_id} not found")
 
         # Check constraints before execution
         constraints = await self.check_scaling_constraints(
             proposal.chain_id,
-            tenant_id,
             proposal.proposed_fleet_size
         )
 

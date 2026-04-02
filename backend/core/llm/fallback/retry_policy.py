@@ -56,8 +56,7 @@ class ExponentialBackoffStrategy:
         initial_delay: float = 1.0,
         max_delay: float = 60.0,
         exponential_base: float = 2.0,
-        jitter: bool = True,
-    ):
+        jitter: bool = True):
         """Initialize exponential backoff strategy.
 
         Args:
@@ -146,8 +145,7 @@ class RetryPolicy:
     def __init__(
         self,
         strategy: ExponentialBackoffStrategy,
-        retryable_errors: Optional[Set[RetryableError]] = None,
-    ):
+        retryable_errors: Optional[Set[RetryableError]] = None):
         """Initialize retry policy.
 
         Args:

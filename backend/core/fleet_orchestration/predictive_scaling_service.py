@@ -328,8 +328,7 @@ class PredictiveScalingService:
         # Create proposal
         proposal = self.proposal_service.create_scaling_proposal(
             chain_id=chain_id,
-            tenant_id=tenant_id,
-            proposal_type='expansion',
+                        proposal_type='expansion',
             current_fleet_size=current_fleet_size,
             proposed_fleet_size=proposed_size,
             reason="Proactive scaling: " + "; ".join(reasons),

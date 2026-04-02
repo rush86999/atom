@@ -172,7 +172,7 @@ class PerformanceMetricsService:
             await pipe.execute()
 
             # Schedule non-blocking database persistence
-            asyncio.create_task(self._persist_to_database(chain_id, result, tenant_id))
+            asyncio.create_task(self._persist_to_database(chain_id, result))
 
             logger.debug(f"Recorded metrics for chain {chain_id}: {result.total_tasks} tasks, {result.execution_time_ms}ms")
 
@@ -202,22 +202,19 @@ class PerformanceMetricsService:
             metrics = [
                 FleetPerformanceMetric(
                     chain_id=chain_id,
-                    tenant_id=tenant_id,
-                    metric_type="success_rate",
+                                        metric_type="success_rate",
                     metric_value=result.success_rate,
                     window_start=window_start,
                     window_end=window_end),
                 FleetPerformanceMetric(
                     chain_id=chain_id,
-                    tenant_id=tenant_id,
-                    metric_type="avg_latency",
+                                        metric_type="avg_latency",
                     metric_value=result.execution_time_ms or 0,
                     window_start=window_start,
                     window_end=window_end),
                 FleetPerformanceMetric(
                     chain_id=chain_id,
-                    tenant_id=tenant_id,
-                    metric_type="throughput",
+                                        metric_type="throughput",
                     metric_value=result.total_tasks,
                     window_start=window_start,
                     window_end=window_end),
@@ -328,7 +325,7 @@ class PerformanceMetricsService:
         Returns:
             List of PerformanceAlert for violated thresholds
         """
-        thresholds = self._get_thresholds(tenant_id)
+        thresholds = self._get_thresholds()
         alerts = []
 
         try:

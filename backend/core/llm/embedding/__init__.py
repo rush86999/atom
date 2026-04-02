@@ -12,15 +12,13 @@ from .base import (
     BaseEmbeddingProvider,
     EmbeddingProviderError,
     EmbeddingRateLimitError,
-    EmbeddingContextLimitError,
-)
+    EmbeddingContextLimitError)
 from .providers import (
     OpenAIEmbeddingProvider,
     CohereEmbeddingProvider,
     VoyageEmbeddingProvider,
     NomicEmbeddingProvider,
-    JinaEmbeddingProvider,
-)
+    JinaEmbeddingProvider)
 
 __all__ = [
     "BaseEmbeddingProvider",
