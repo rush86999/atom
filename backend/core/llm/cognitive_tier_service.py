@@ -63,22 +63,23 @@ class CognitiveTierService:
         ...     pass
     """
 
-    def __init__(self, workspace_id: str = "default", db_session=None):
+    def __init__(self, workspace_id: str = "default", db_session=None, tenant_id: Optional[str] = None):
         """
         Initialize the cognitive tier service.
 
         Args:
             workspace_id: Workspace identifier for preference isolation
             db_session: Optional SQLAlchemy session for database operations.
-            tenant_id: Optional tenant identifier for isolation
+            tenant_id: Optional tenant identifier for isolation (SaaS-only, ignored in upstream)
         """
         self.workspace_id = workspace_id
-        self.tenant_id = tenant_id
+        self.tenant_id = tenant_id  # SaaS-only field, unused in upstream
         self.db = db_session
 
         # Initialize tier components
         self.classifier = CognitiveClassifier()
-        self.escalation_manager = EscalationManager(db_session, workspace_id=workspace_id, tenant_id=tenant_id)
+        # Note: tenant_id is SaaS-only, EscalationManager in upstream doesn't use it
+        self.escalation_manager = EscalationManager(db_session, workspace_id=workspace_id)
 
         # Lazy initialize cache router (requires pricing fetcher)
         self._cache_router = None
