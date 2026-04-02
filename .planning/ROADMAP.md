@@ -1,223 +1,307 @@
-# Roadmap: Atom v9.0 Collaboration & Team Management
+# ROADMAP: Atom - v10.0 Quality & Stability
 
-## Overview
+**Milestone:** v10.0 Quality & Stability
+**Created:** 2026-04-02
+**Timeline:** 1 week (aggressive execution)
+**Depth:** Quick
+**Status:** 🚧 ACTIVE
 
-Atom v9.0 enables real-time collaboration and team management for workflows, agents, and canvases. This milestone delivers user presence, live updates, collaborative editing with conflict resolution, threaded comments, team-based RBAC, and shared resources. The journey begins with database models and basic RBAC, builds WebSocket infrastructure for real-time features, adds team management and permissions, implements conflict resolution with edit locks, delivers comments and collaboration sessions, and culminates in advanced features like live cursors, agent collaboration, and workflow co-editing.
+## Progress Summary
 
-## Milestones
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 247 - Build Fixes & Documentation | 0/3 | Not started | - |
+| 248 - Test Discovery & Documentation | 0/2 | Not started | - |
+| 249 - Critical Test Fixes | 0/3 | Not started | - |
+| 250 - All Test Fixes | 0/2 | Not started | - |
+| 251 - Backend Coverage Baseline | 0/3 | Not started | - |
+| 252 - Backend Coverage Push | 0/3 | Not started | - |
+| 253 - Backend 80% & Property Tests | 0/2 | Not started | - |
+| 254 - Frontend Coverage Baseline | 0/3 | Not started | - |
+| 255 - Frontend Coverage Push | 0/2 | Not started | - |
+| 256 - Frontend 80% | 0/2 | Not started | - |
+| 257 - TDD & Property Test Documentation | 0/2 | Not started | - |
+| 258 - Quality Gates & Final Documentation | 0/3 | Not started | - |
 
-- ✅ **v8.0 Automated Bug Discovery & QA Testing** - Phases 237-245 (shipped 2026-03-24)
-- 🚧 **v9.0 Collaboration & Team Management** - Phases 246-252 (in progress)
-- 📋 **v10.0 [Next Milestone]** - Phases 253+ (planned)
+**Overall:** 0/31 plans complete (0%)
 
 ## Phases
 
-<details>
-<summary>✅ v8.0 Automated Bug Discovery & QA Testing (Phases 237-245) - SHIPPED 2026-03-24</summary>
+- [ ] **Phase 247: Build Fixes & Documentation** - Fix frontend/backend builds and document build process
+- [ ] **Phase 248: Test Discovery & Documentation** - Run full test suite and document all failures
+- [ ] **Phase 249: Critical Test Fixes** - Fix critical/high-priority test failures using TDD
+- [ ] **Phase 250: All Test Fixes** - Fix remaining test failures and achieve 100% pass rate
+- [ ] **Phase 251: Backend Coverage Baseline** - Measure baseline and reach 70% backend coverage
+- [ ] **Phase 252: Backend Coverage Push** - Reach 75% backend coverage with property tests
+- [ ] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests
+- [ ] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage
+- [ ] **Phase 255: Frontend Coverage Push** - Reach 75% frontend coverage
+- [ ] **Phase 256: Frontend 80%** - Achieve 80% frontend coverage
+- [ ] **Phase 257: TDD & Property Test Documentation** - Document TDD workflow and property tests
+- [ ] **Phase 258: Quality Gates & Final Documentation** - Enforce quality gates and complete documentation
 
-### Phase 237: Bug Discovery Infrastructure Foundation
-**Goal**: Bug discovery integrates into existing pytest infrastructure with separate CI pipelines
-**Plans**: 5 plans
-**Completed**: 2026-03-24
+## Phase Details
 
-### Phase 238: Property-Based Testing Expansion
-**Goal**: 50+ new property tests validate critical invariants across agent execution, LLM routing, episodic memory, governance, and security
-**Plans**: 5 plans
-**Completed**: 2026-03-24
-
-### Phase 239: API Fuzzing Infrastructure
-**Goal**: Coverage-guided fuzzing for FastAPI endpoints discovers crashes in parsing/validation code
-**Plans**: 5 plans
-**Completed**: 2026-03-24
-
-### Phase 240: Headless Browser Bug Discovery
-**Goal**: Intelligent exploration agent discovers UI bugs through console errors, accessibility violations, broken links, visual regression
-**Plans**: 5 plans
-**Completed**: 2026-03-25
-
-### Phase 241: Chaos Engineering Integration
-**Goal**: Controlled failure injection tests resilience to network issues, resource exhaustion, and service crashes
-**Plans**: 7 plans
-**Status**: Not started
-
-### Phase 242: Unified Bug Discovery Pipeline
-**Goal**: Orchestrate all discovery methods with result aggregation, deduplication, automated triage, and GitHub filing
-**Plans**: TBD
-**Status**: Not started
-
-### Phase 243: Memory & Performance Bug Discovery
-**Goal**: Specialized discovery for memory leaks and performance regressions using memray and pytest-benchmark
-**Plans**: 5 plans
-**Completed**: 2026-03-25
-
-### Phase 244: AI-Enhanced Bug Discovery
-**Goal**: Multi-agent fuzzing orchestration and AI-generated invariants expand bug discovery coverage
-**Plans**: 4 plans
-**Completed**: 2026-03-25
-
-### Phase 245: Feedback Loops & ROI Tracking
-**Goal**: Close the loop with regression test generation, effectiveness metrics, and ROI tracking
-**Plans**: 6 plans
-**Status**: Complete (5/6 executed, 1 pending manual execution)
-
-</details>
-
-### 🚧 v9.0 Collaboration & Team Management (In Progress)
-
-**Milestone Goal:** Enable real-time collaboration and team management for workflows, agents, and canvases with user presence, live updates, collaborative editing, comments/threads, role-based access control (RBAC), and shared resources.
-
-- [ ] **Phase 246: Foundation Models & Basic RBAC** - Database models and ownership-based authorization
-- [ ] **Phase 247: WebSocket Infrastructure & Security** - Real-time communication with hardened security
-- [ ] **Phase 248: User Presence & Real-Time Activity** - Online/offline tracking and live updates
-- [ ] **Phase 249: Team-Based RBAC & Permissions** - Team management with role inheritance
-- [ ] **Phase 250: Conflict Resolution & Resource Sharing** - Edit locks and share links
-- [ ] **Phase 251: Comments & Collaboration Sessions** - Threaded comments and session management
-- [ ] **Phase 252: Advanced Features (Cursors, Agents, Co-Editing)** - Live cursors, agent collaboration, workflow co-editing
-
-#### Phase 246: Foundation Models & Basic RBAC
-**Goal**: Database foundation for collaboration with ownership-based authorization and version control
-**Depends on**: Nothing (first phase of v9.0)
-**Requirements**: DB-01, DB-02, DB-03, DB-04, DB-05, DB-06, RBAC-01, CONF-03
+### Phase 247: Build Fixes & Documentation
+**Goal**: Frontend and backend build successfully without errors, with documented build process
+**Depends on**: Nothing (first phase)
+**Requirements**: BUILD-01, BUILD-02, BUILD-03, BUILD-04, DOC-01
 **Success Criteria** (what must be TRUE):
-  1. System stores all collaboration data (sessions, comments, locks, shares, audit logs, participants) in PostgreSQL with proper relationships
-  2. Users cannot share or modify resources they don't own (ownership-based authorization enforced)
-  3. Workflow model has version field that detects concurrent modifications and raises conflicts on stale updates
-  4. All collaboration actions create audit log entries with before/after state, action type, user context, and timestamps
+  1. Frontend builds successfully with `npm run build` (zero errors)
+  2. Backend builds successfully with `python -m build` (zero errors)
+  3. All syntax errors resolved (e.g., asana_service.py:148)
+  4. Build process documented in BUILD.md with step-by-step instructions
+  5. Builds are reproducible across different environments
 **Plans**: TBD
 
-Plans:
-- [ ] 246-01: Create 6 collaboration database models (WorkflowCollaborationSession, CollaborationComment, EditLock, WorkflowShare, CollaborationAudit, CollaborationSessionParticipant)
-- [ ] 246-02: Implement ownership-based authorization decorator and service layer
-- [ ] 246-03: Add version field to Workflow model with optimistic locking and conflict detection
-- [ ] 246-04: Create CollaborationAudit middleware for audit logging
-
-#### Phase 247: WebSocket Infrastructure & Security
-**Goal**: Secure WebSocket infrastructure for real-time collaboration with heartbeat, cleanup, and deduplication
-**Depends on**: Phase 246
-**Requirements**: WS-01, WS-02, WS-03, WS-04
+### Phase 248: Test Discovery & Documentation
+**Goal**: Full test suite runs and all failures are documented with evidence
+**Depends on**: Phase 247 (builds must work to run tests)
+**Requirements**: TEST-01, TEST-02, TEST-03, TEST-04, DOC-02
 **Success Criteria** (what must be TRUE):
-  1. WebSocket connections require JWT token validation on connection AND re-validation on every sensitive action (prevents permission escalation)
-  2. Dead connections are detected within 30 seconds via heartbeat and cleaned up within 2 minutes of inactivity (prevents memory leaks)
-  3. Users with multiple connections receive notifications once per user (not per connection) to prevent duplicate notifications
-  4. Collaboration state persists to Redis and survives server restarts with client auto-reconnect using exponential backoff
+  1. Full test suite runs without syntax or import errors (472 tests collected)
+  2. All test failures documented in TEST_FAILURE_REPORT.md with reproduction steps
+  3. Test failures categorized by severity (critical/high/medium/low)
+  4. Test failure report generated with prioritization (what to fix first)
+  5. Test execution documented in TESTING.md (how to run, interpret results)
 **Plans**: TBD
 
-Plans:
-- [ ] 247-01: Extend ConnectionManager with presence events and room-based routing (workflow_{id} rooms)
-- [ ] 247-02: Implement CollaborationWebSocketManager with hardened handlers and per-message authorization
-- [ ] 247-03: Add heartbeat/ping mechanism (30s timeout) and periodic cleanup task (60s for >2min inactivity)
-- [ ] 247-04: Implement Redis-backed session state with client-side auto-reconnect and exponential backoff
-- [ ] 247-05: Add notification deduplication per user across multiple WebSocket connections
-
-#### Phase 248: User Presence & Real-Time Activity
-**Goal**: Real-time user presence tracking and live updates for collaboration awareness
-**Depends on**: Phase 247
-**Requirements**: PRES-01, PRES-02, PRES-03, REAL-01, REAL-02, REAL-03
+### Phase 249: Critical Test Fixes
+**Goal**: All critical and high-priority test failures fixed using TDD approach
+**Depends on**: Phase 248 (failure documentation)
+**Requirements**: FIX-01, FIX-02, TDD-01, TDD-02, TDD-03
 **Success Criteria** (what must be TRUE):
-  1. Users see online/offline/away status for all workspace members with last seen timestamps and current resource viewing
-  2. Presence changes broadcast in real-time to all workspace members via WebSocket when users join/leave/go idle
-  3. Workflow/agent/canvas changes appear instantly to all connected clients via WebSocket without requiring page refresh
-  4. Updates target only users viewing the affected resource (room-based broadcasting) to prevent broadcast storms
-  5. Stale presence auto-expires after 60 seconds of inactivity (2x heartbeat interval of 30s)
+  1. All critical test failures fixed (agents, workflows, API endpoints)
+  2. All high-priority test failures fixed (core services, integrations)
+  3. Bug fixes follow test-first approach (failing test written before fix)
+  4. All bug fixes have corresponding tests (100% coverage of fixes)
+  5. Test suite passes with zero critical/high failures
 **Plans**: TBD
 
-Plans:
-- [ ] 248-01: Implement UserPresenceService with Redis-backed presence tracking and heartbeat management
-- [ ] 248-02: Add presence broadcast events (user:join, user:leave, user:idle) with online/offline/away status
-- [ ] 248-03: Implement real-time update broadcasting for workflow/agent/canvas changes via WebSocket rooms
-- [ ] 248-04: Add Redis-based persistence for collaboration state with automatic cleanup on expiration
-- [ ] 248-05: Implement client-side auto-reconnect with exponential backoff (1s → 2s → 4s → 8s max)
-
-#### Phase 249: Team-Based RBAC & Permissions
-**Goal**: Team management with hierarchical roles and resource-level ACLs for fine-grained permissions
-**Depends on**: Phase 246 (Foundation Models & Basic RBAC)
-**Requirements**: TEAM-01, TEAM-02, TEAM-03, TEAM-04, TEAM-05, TEAM-06, RBAC-02, RBAC-03, RBAC-04, RBAC-05
+### Phase 250: All Test Fixes
+**Goal**: All test failures fixed, 100% pass rate achieved
+**Depends on**: Phase 249 (critical fixes)
+**Requirements**: FIX-03, FIX-04
 **Success Criteria** (what must be TRUE):
-  1. Authorized users can create teams with name, description, and default roles (owner/admin/member/viewer)
-  2. Team owners and admins can add/remove members with role assignment and hierarchical permission inheritance (owner > admin > member > viewer)
-  3. System supports resource-level ACLs with fine-grained permissions (resource_type, resource_id, permissions JSONB)
-  4. Permission checks complete in <50ms using GovernanceCache with cache invalidation on permission changes
-  5. RBAC checks apply to ALL users including guests and apply to WebSocket messages (not just REST API endpoints)
+  1. All medium-priority test failures fixed
+  2. All low-priority test failures fixed
+  3. 100% test pass rate achieved (zero failures or errors)
+  4. Test suite runs end-to-end without manual intervention
+  5. Test results are reproducible across multiple runs
 **Plans**: TBD
 
-Plans:
-- [ ] 249-01: Implement TeamManagementService (team CRUD, member management, role assignment)
-- [ ] 249-02: Extend RBACService with team-based permissions and role inheritance (team_lead inherits member permissions)
-- [ ] 249-03: Implement resource-level ACLs (resource_type, resource_id, permissions JSONB) with authorization decorator
-- [ ] 249-04: Integrate permission caching in GovernanceCache with <50ms lookups and cache invalidation
-- [ ] 249-05: Add Casbin integration with model.conf and policy.csv for policy-based RBAC
-- [ ] 249-06: Implement FastAPI dependency injection for route-level permissions and check_permission decorator
-
-#### Phase 250: Conflict Resolution & Resource Sharing
-**Goal**: Prevent concurrent edit conflicts with pessimistic locking and enable secure resource sharing
-**Depends on**: Phase 246 (Foundation Models & Basic RBAC), Phase 248 (User Presence)
-**Requirements**: CONF-01, CONF-02, CONF-04, SHARE-01, SHARE-02, SHARE-03, SHARE-04
+### Phase 251: Backend Coverage Baseline
+**Goal**: Backend coverage baseline measured and 70% coverage achieved
+**Depends on**: Phase 250 (all tests passing)
+**Requirements**: COV-B-01, COV-B-02, COV-B-05
 **Success Criteria** (what must be TRUE):
-  1. Users must acquire edit locks before editing resources to prevent concurrent edit conflicts
-  2. Edit locks expire after 30 minutes of inactivity with automatic release and users can extend active locks
-  3. System shows conflict resolution UI when concurrent edits detected warning users before overwriting changes
-  4. Workflow owners can create share links with customizable permissions (can_view/can_edit/can_share) and optional expiration
-  5. Share links use cryptographically secure random tokens and track usage count with revocation support
+  1. Backend coverage baseline measured (actual line coverage, not estimates)
+  2. Backend coverage reaches 70% (progressive threshold)
+  3. High-impact files covered first (>200 lines, critical services)
+  4. Coverage report generated with gap analysis
+  5. Coverage trends tracked (before/after metrics)
 **Plans**: TBD
 
-Plans:
-- [ ] 250-01: Implement ConflictResolutionService with pessimistic locking (acquire, release, check, extend)
-- [ ] 250-02: Add edit lock expiry handling (30-minute default) and lock status broadcasting via WebSocket
-- [ ] 250-03: Implement conflict resolution UI with warnings before overwriting concurrent changes
-- [ ] 250-04: Implement share link creation with permissions, expiration, usage tracking, and revocation
-- [ ] 250-05: Add share link access with permission validation and secure token generation (UUID4 or secrets.token_urlsafe())
-
-#### Phase 251: Comments & Collaboration Sessions
-**Goal**: Threaded comments with @mentions and collaboration session management for multi-user workflows
-**Depends on**: Phase 246 (Foundation Models), Phase 248 (User Presence), Phase 249 (Team RBAC)
-**Requirements**: COMM-01, COMM-02, COMM-03, COMM-04, COMM-05
+### Phase 252: Backend Coverage Push
+**Goal**: Backend coverage reaches 75% with property-based tests
+**Depends on**: Phase 251 (70% baseline)
+**Requirements**: COV-B-03, PROP-01, PROP-02
 **Success Criteria** (what must be TRUE):
-  1. Authorized users can create threaded comments on workflows/agents/canvases with context-aware placement (node/canvas/workflow-level)
-  2. Users can reply to comments forming nested threads with recursive CTE queries for retrieval and parent-child relationships
-  3. Users can @mention other users in comments which triggers notifications and mentioned users receive real-time alerts
-  4. Comment authors and authorized users can edit/delete their own comments with audit trail and version tracking
-  5. Users can resolve comment threads marking them as resolved with resolver tracking and resolution timestamp
+  1. Backend coverage reaches 75% (progressive threshold)
+  2. Property-based tests for critical invariants (governance, LLM, episodes)
+  3. Property-based tests for business logic (workflows, skills, canvas)
+  4. Property tests use Hypothesis with appropriate max_examples
+  5. Property tests document invariants being tested
 **Plans**: TBD
 
-Plans:
-- [ ] 251-01: Implement CommentService with threaded comments (recursive CTEs for nesting)
-- [ ] 251-02: Add comment CRUD operations (create, reply, edit, delete, resolve) with permissions linked to resource access
-- [ ] 251-03: Implement @mention parsing in comment content with notification delivery to mentioned users
-- [ ] 251-04: Add CollaborationSessionService (create, join, leave, list) with participant tracking
-- [ ] 251-05: Implement session state persistence (Redis + PostgreSQL) and real-time comment delivery via WebSocket
-
-#### Phase 252: Advanced Features (Cursors, Agents, Co-Editing)
-**Goal**: Live cursor tracking, agent collaboration governance, and workflow co-editing with presence indicators
-**Depends on**: Phase 247 (WebSocket Infrastructure), Phase 248 (User Presence), Phase 250 (Conflict Resolution)
-**Requirements**: CURS-01, CURS-02, CURS-03, AGENT-01, AGENT-02, AGENT-03, COED-01, COED-02
+### Phase 253: Backend 80% & Property Tests
+**Goal**: Backend coverage reaches 80% with data integrity property tests
+**Depends on**: Phase 252 (75% coverage)
+**Requirements**: COV-B-04, PROP-03
 **Success Criteria** (what must be TRUE):
-  1. System broadcasts real-time cursor positions to all users viewing the same workflow with user names and colors for visual identification
-  2. Multiple agents can coordinate on shared canvases with role-based permissions (STUDENT agents blocked, INTERN+ require approval)
-  3. Agent maturity levels (STUDENT/INTERN/SUPERVISED/AUTONOMOUS) are enforced in collaboration sessions with governance checks
-  4. Multiple users can view workflows simultaneously with presence indicators showing who is viewing each node/canvas
-  5. System uses pessimistic locking for edit conflicts with visual lock indicators showing who is editing what
+  1. Backend coverage reaches 80% (final target)
+  2. Property-based tests for data integrity (database, transactions)
+  3. All high-impact files covered (>200 lines)
+  4. Coverage gaps identified and documented
+  5. Property tests catch edge cases unit tests miss
 **Plans**: TBD
 
-Plans:
-- [ ] 252-01: Implement live cursor tracking with Redis storage (2-min TTL) and batched broadcasts (max 50 messages or 100ms)
-- [ ] 252-02: Extend CanvasCollaborationService to support both agent-to-agent and user-to-user collaboration
-- [ ] 252-03: Add agent maturity checks (STUDENT blocked, INTERN requires approval, SUPERVISED/AUTONOMOUS allowed) on collaboration session join
-- [ ] 252-04: Implement workflow co-editing with presence indicators showing who is viewing each node/canvas
-- [ ] 252-05: Add pessimistic lock acquisition before editing with visual lock indicators showing who is editing what
+### Phase 254: Frontend Coverage Baseline
+**Goal**: Frontend coverage baseline measured and 70% coverage achieved
+**Depends on**: Phase 250 (all tests passing)
+**Requirements**: COV-F-01, COV-F-02, COV-F-05
+**Success Criteria** (what must be TRUE):
+  1. Frontend coverage baseline measured (actual line coverage)
+  2. Frontend coverage reaches 70% (progressive threshold)
+  3. Critical components covered (auth, agents, workflows, canvas)
+  4. Coverage report generated with gap analysis
+  5. Component-level coverage breakdown available
+**Plans**: TBD
 
-## Progress
+### Phase 255: Frontend Coverage Push
+**Goal**: Frontend coverage reaches 75%
+**Depends on**: Phase 254 (70% baseline)
+**Requirements**: COV-F-03
+**Success Criteria** (what must be TRUE):
+  1. Frontend coverage reaches 75% (progressive threshold)
+  2. Coverage gaps in medium-priority components addressed
+  3. Edge cases and error paths covered
+  4. Integration tests for API calls
+  5. Component state management tested
+**Plans**: TBD
 
-**Execution Order:**
-Phases execute in numeric order: 246 → 247 → 248 → 249 → 250 → 251 → 252
+### Phase 256: Frontend 80%
+**Goal**: Frontend coverage reaches 80% final target
+**Depends on**: Phase 255 (75% coverage)
+**Requirements**: COV-F-04
+**Success Criteria** (what must be TRUE):
+  1. Frontend coverage reaches 80% (final target)
+  2. All critical components have comprehensive coverage
+  3. Edge cases, error paths, and integration points covered
+  4. Coverage trends tracked (before/after metrics)
+  5. Final coverage report generated
+**Plans**: TBD
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 246. Foundation Models & Basic RBAC | v9.0 | 0/4 | Not started | - |
-| 247. WebSocket Infrastructure & Security | v9.0 | 0/5 | Not started | - |
-| 248. User Presence & Real-Time Activity | v9.0 | 0/5 | Not started | - |
-| 249. Team-Based RBAC & Permissions | v9.0 | 0/6 | Not started | - |
-| 250. Conflict Resolution & Resource Sharing | v9.0 | 0/5 | Not started | - |
-| 251. Comments & Collaboration Sessions | v9.0 | 0/5 | Not started | - |
-| 252. Advanced Features (Cursors, Agents, Co-Editing) | v9.0 | 0/5 | Not started | - |
+### Phase 257: TDD & Property Test Documentation
+**Goal**: TDD workflow and property tests documented
+**Depends on**: Phase 253, Phase 256 (coverage targets met)
+**Requirements**: TDD-04, PROP-04
+**Success Criteria** (what must be TRUE):
+  1. TDD workflow documented in TDD_WORKFLOW.md with examples
+  2. Property-based test documentation created (invariants catalog)
+  3. Red-green-refactor cycle explained with real examples
+  4. Property test patterns documented (when to use Hypothesis vs unit tests)
+  5. Documentation includes common pitfalls and best practices
+**Plans**: TBD
 
-**Overall Progress:** 0/35 plans complete (0%)
+### Phase 258: Quality Gates & Final Documentation
+**Goal**: Quality gates enforced, metrics dashboard created, documentation complete
+**Depends on**: Phase 257 (documentation)
+**Requirements**: QUAL-01, QUAL-02, QUAL-03, QUAL-04, DOC-03, DOC-04
+**Success Criteria** (what must be TRUE):
+  1. Coverage thresholds enforced in CI/CD (70% → 75% → 80%)
+  2. 100% test pass rate enforced in CI/CD (build fails if tests fail)
+  3. Build gates prevent merging if build fails
+  4. Quality metrics dashboard created (coverage, pass rate, trends)
+  5. Bug fix process documented (TDD workflow)
+  6. Coverage report documentation complete (how to measure, improve)
+**Plans**: TBD
+
+## Coverage Map
+
+All 36 v10.0 requirements mapped to phases:
+
+| Requirement | Phase | Description |
+|-------------|-------|-------------|
+| BUILD-01 | 247 | Frontend builds successfully |
+| BUILD-02 | 247 | Backend builds successfully |
+| BUILD-03 | 247 | Syntax errors resolved |
+| BUILD-04 | 247 | Build process documented |
+| TEST-01 | 248 | Test suite runs successfully |
+| TEST-02 | 248 | Test failures documented |
+| TEST-03 | 248 | Failures categorized by severity |
+| TEST-04 | 248 | Test failure report generated |
+| FIX-01 | 249 | Critical test failures fixed |
+| FIX-02 | 249 | High-priority test failures fixed |
+| FIX-03 | 250 | Medium/low priority failures fixed |
+| FIX-04 | 250 | 100% test pass rate achieved |
+| COV-B-01 | 251 | Backend coverage baseline measured |
+| COV-B-02 | 251 | Backend coverage reaches 70% |
+| COV-B-03 | 252 | Backend coverage reaches 75% |
+| COV-B-04 | 253 | Backend coverage reaches 80% |
+| COV-B-05 | 251-253 | High-impact files covered |
+| COV-F-01 | 254 | Frontend coverage baseline measured |
+| COV-F-02 | 254 | Frontend coverage reaches 70% |
+| COV-F-03 | 255 | Frontend coverage reaches 75% |
+| COV-F-04 | 256 | Frontend coverage reaches 80% |
+| COV-F-05 | 254-256 | Critical components covered |
+| TDD-01 | 249-250 | Bug fixes follow test-first approach |
+| TDD-02 | 249-250 | Failing tests written before fixes |
+| TDD-03 | 249-250 | All bug fixes have tests |
+| TDD-04 | 257 | TDD workflow documented |
+| PROP-01 | 252 | Property tests for critical invariants |
+| PROP-02 | 252 | Property tests for business logic |
+| PROP-03 | 253 | Property tests for data integrity |
+| PROP-04 | 257 | Property test documentation |
+| QUAL-01 | 258 | Coverage thresholds enforced |
+| QUAL-02 | 258 | 100% pass rate enforced |
+| QUAL-03 | 258 | Build gates prevent merge failures |
+| QUAL-04 | 258 | Quality metrics dashboard |
+| DOC-01 | 247 | Build process documented |
+| DOC-02 | 248 | Test execution documented |
+| DOC-03 | 257 | Bug fix process documented |
+| DOC-04 | 258 | Coverage report documentation |
+
+**Coverage: 36/36 requirements mapped (100%) ✓**
+
+## Dependencies
+
+```
+Phase 247 (Build Fixes)
+    ↓
+Phase 248 (Test Discovery)
+    ↓
+Phase 249 (Critical Fixes)
+    ↓
+Phase 250 (All Fixes) ─────┐
+    ↓                      │
+Phase 251 (Backend 70%)    │
+    ↓                      │
+Phase 252 (Backend 75%)    │
+    ↓                      │
+Phase 253 (Backend 80%)    │
+    ↓                      ├────────────────────┐
+Phase 257 (TDD Docs)       │                    │
+    ↓                      │                    │
+Phase 258 (Quality Gates)  │                    │
+                          │                    │
+                    Phase 254 (Frontend 70%)   │
+                          ↓                    │
+                    Phase 255 (Frontend 75%)   │
+                          ↓                    │
+                    Phase 256 (Frontend 80%) ──┘
+```
+
+## Known Blockers
+
+1. **Frontend SWC Build Error**: Next.js build failing with SWC compilation error
+2. **Backend Syntax Error**: `asana_service.py:148` has syntax error blocking test collection
+3. **Test Suite Blocked**: 472 tests collected but cannot run due to syntax error
+
+## Success Criteria
+
+Milestone is complete when:
+- ✅ Frontend builds successfully (`npm run build` passes)
+- ✅ Backend builds successfully (`python -m build` passes)
+- ✅ All tests pass (100% pass rate, zero failures)
+- ✅ 80% test coverage achieved (backend and frontend)
+- ✅ All bugs fixed with TDD approach (tests written first)
+- ✅ Quality gates enforced in CI/CD
+- ✅ Documentation complete (build, test, TDD, coverage)
+
+## Timeline
+
+**Target:** 1 week (aggressive execution)
+**Phases:** 12 phases
+**Estimated Plans:** ~30-35 plans
+**Parallelization:** Enabled (backend/frontend coverage can run in parallel)
+
+## Anti-Patterns
+
+❌ **Don't skip phases**: Each phase delivers verifiable value
+❌ **Don't fix bugs without tests**: Violates TDD principle
+❌ **Don't ignore coverage gaps**: Track and address all gaps
+❌ **Don't defer documentation**: Document as you go
+❌ **Don't merge failing builds**: Quality gates enforce standards
+
+## Notes
+
+- **Quick depth**: Phases are compressed for 1-week timeline
+- **Parallel execution**: Backend (251-253) and frontend (254-256) coverage can run in parallel after Phase 250
+- **TDD enforced**: All bug fixes must have tests written first
+- **Progressive thresholds**: 70% → 75% → 80% coverage with enforcement at each stage
+- **Quality gates**: CI/CD prevents merging if builds fail, tests fail, or coverage drops
+
+---
+*Roadmap created: 2026-04-02*
+*Last updated: 2026-04-02*
