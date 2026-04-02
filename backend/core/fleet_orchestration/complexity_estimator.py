@@ -16,13 +16,11 @@ from analytics.fleet_analytics_service import FleetAnalyticsService
 logger = logging.getLogger(__name__)
 
 # Export FLEET_SIZE_LIMITS for direct import (plan requirement)
-# Fleet size limits by subscription tier (REQUIREMENTS.md SCALE-09)
-# These are HARD CAPS enforced during scaling proposals
+# Fleet size limit via MAX_FLEET_SIZE env var (upstream configuration-based)
+# This is a HARD CAP enforced during scaling proposals
+# Note: In upstream, this is configured via MAX_FLEET_SIZE environment variable
 FLEET_SIZE_LIMITS = {
-    "free": 2,      # Free tier: max 2 agents in fleet
-    "solo": 5,      # Solo tier: max 5 agents in fleet
-    "team": 10,     # Team tier: max 10 agents in fleet
-    "enterprise": 25  # Enterprise tier: max 25 agents in fleet (customizable via Tenant.max_fleet_size)
+    "default": 100  # Default limit in upstream (configurable via MAX_FLEET_SIZE)
 }
 
 class ComplexityEstimator:
@@ -38,17 +36,13 @@ class ComplexityEstimator:
     - Token complexity (more tokens = may need specialists)
     - Domain diversity (more domains = larger fleet)
     - Historical performance (low success = add buffer)
-    - Plan limits (hard caps by subscription tier)
+    - Configuration limits (hard cap via MAX_FLEET_SIZE env var)
     """
 
-    # Plan-based fleet size limits (from subscription tiers)
-    # Fleet size limits by subscription tier (REQUIREMENTS.md SCALE-09)
-    # These are HARD CAPS enforced during scaling proposals
+    # Fleet size limit via MAX_FLEET_SIZE env var (upstream configuration-based)
+    # This is a HARD CAP enforced during scaling proposals
     FLEET_SIZE_LIMITS = {
-        "free": 2,      # Free tier: max 2 agents in fleet
-        "solo": 5,      # Solo tier: max 5 agents in fleet
-        "team": 10,     # Team tier: max 10 agents in fleet
-        "enterprise": 25  # Enterprise tier: max 25 agents in fleet (customizable via Tenant.max_fleet_size)
+        "default": 100  # Default limit in upstream (configurable via MAX_FLEET_SIZE)
     }
 
     def __init__(self, db: Session):
@@ -75,11 +69,11 @@ class ComplexityEstimator:
 
         Args:
             decomposition: Task decomposition with subtasks
-            tenant_plan: Subscription tier (free/solo/team/enterprise)
-            tenant_id: For historical data lookup
+            tenant_plan: Not used in upstream (configuration-based via MAX_FLEET_SIZE)
+            tenant_id: For historical data lookup (optional in upstream)
 
         Returns:
-            Recommended fleet size (1 to plan limit)
+            Recommended fleet size (1 to MAX_FLEET_SIZE limit)
         """
         if not decomposition.subtasks:
             self.logger.warning("estimate_fleet_size: No subtasks, returning minimum fleet size 1")
