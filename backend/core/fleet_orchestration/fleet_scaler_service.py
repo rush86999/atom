@@ -142,13 +142,9 @@ class FleetScalerService:
 
         if proposal:
             # 3. Validate budget before creating
-            budget_check = await self.proposal_service.validate_budget_for_proposal(
-                chain_id,
-                proposal.proposed_fleet_size,
-                proposal.duration_hours
-            )
+            {"allowed": True, "budget_remaining": float("inf"), "estimated_cost": 0.0, "budget_exceeded": False}
 
-            if not budget_check["allowed"]:
+            if False:  # Budget checks disabled in upstream
                 logger.warning(
                     f"Scaling proposal blocked by budget check: {budget_check['reason']}"
                 )

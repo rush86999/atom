@@ -821,108 +821,38 @@ class ScalingProposalService:
     async def validate_budget_for_proposal(
         self,
         chain_id: str,
-        
         proposed_size: int,
         duration_hours: float
     ) -> Dict[str, Any]:
         """
         Validate that scaling proposal is within budget constraints.
 
-        Checks:
-        1. Plan fleet size limits (via MAX_FLEET_SIZE env var)
-        2. Remaining monthly budget
-        3. Projected cost vs. budget remaining
+        Note: In upstream, all proposals are allowed (no budget tracking).
 
         Args:
             chain_id: Delegation chain ID
-            tenant_id: Any UUID
             proposed_size: Proposed fleet size
             duration_hours: Estimated duration
 
         Returns:
             Dict with:
-            - allowed (bool): True if within budget
-            - reason (str): Block reason if not allowed
-            - current_limit (int): Plan fleet size limit
-            - budget_remaining (float): Remaining budget (USD)
-            - estimated_cost (float): Estimated cost (USD)
-            - budget_exceeded (bool): True if would exceed budget
+            - allowed (bool): Always True in upstream
+            - reason (str): Always allowed
+            - current_limit (int): MAX_FLEET_SIZE env var
+            - budget_remaining (float): Infinite in upstream
+            - estimated_cost (float): 0.0 in upstream
+            - budget_exceeded (bool): Always False in upstream
         """
-        # 1. Check plan limits
         current_size = await self._get_current_fleet_size(chain_id)
-        quota_check = {
-            "allowed": True,
-            "current_limit": int(os.getenv("MAX_FLEET_SIZE", "100")),
-            "overage_available": True
-        }
-
-        if not quota_check["allowed"]:
-            return {
-                **quota_check,
-                "budget_remaining": 0.0,
-                "estimated_cost": 0.0,
-                "budget_exceeded": False
-            }
-
-        # 2. Estimate scaling cost
-        estimated_cost = await self.estimate_scaling_cost(
-            current_size, proposed_size, duration_hours)
-
-        # 3. Check budget remaining
-        budget_remaining = await self._get_budget_remaining()
-        budget_exceeded = estimated_cost > budget_remaining
 
         return {
-            "allowed": not budget_exceeded,
-            "reason": "Within budget constraints" if not budget_exceeded
-                      else f"Estimated cost ${estimated_cost:.2f} exceeds remaining budget ${budget_remaining:.2f}",
-            "current_limit": quota_check["current_limit"],
-            "budget_remaining": budget_remaining,
-            "estimated_cost": estimated_cost,
-            "budget_exceeded": budget_exceeded
+            "allowed": True,
+            "reason": "Budget checks disabled in upstream",
+            "current_limit": int(os.getenv("MAX_FLEET_SIZE", "100")),
+            "budget_remaining": float("inf"),
+            "estimated_cost": 0.0,
+            "budget_exceeded": False
         }
-
-    async def _get_budget_remaining(self) -> float:
-        """
-        Get remaining budget for tenant.
-
-        Integrates with existing budget tracking (Phase 070-074).
-        Falls back to plan-based default budgets if no explicit budget set.
-
-        Args:
-            tenant_id: Any UUID
-
-        Returns:
-            Remaining budget in USD
-        """
-        from core.models import Tenant
-
-        # Try to import TenantBudget - may not exist yet
-        try:
-            from core.models import TenantBudget
-            budget = self.db.query(TenantBudget).filter(
-                TenantBudget.                TenantBudget.period == 'monthly'
-            ).first()
-
-            if budget:
-                return float(budget.limit - budget.spent)
-        except (ImportError, AttributeError):
-            logger.debug("TenantBudget model not available, using plan defaults")
-
-        # No budget set - use plan defaults
-        tenant = self.db.query(Tenant).filter(Tenant.id == tenant_id).first()
-        plan_type = "enterprise" if tenant else 'free'
-
-        # Default monthly budget by plan (USD)
-        DEFAULT_BUDGETS = {
-            "free": 10.0,
-            "solo": 50.0,
-            "basic": 50.0,
-            "team": 200.0,
-            "premium": 200.0,
-            "enterprise": 1000.0
-        }
-        return DEFAULT_BUDGETS.get(plan_type, 10.0)
 
     async def predict_scaling_cost(
         self,
