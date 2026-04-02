@@ -145,7 +145,6 @@ class AsanaService:
                     detail=f"Rate limit exceeded for asana"
                 )
 
-        try:
             result = self._make_request("GET", "/workspaces", access_token)
             workspaces = result.get("data", [])
 
@@ -194,7 +193,6 @@ class AsanaService:
                     detail=f"Rate limit exceeded for asana"
                 )
 
-        try:
             params = {
                 "limit": limit,
                 "opt_fields": "name,notes,color,created_at,modified_at",
@@ -435,7 +433,6 @@ class AsanaService:
                     detail=f"Rate limit exceeded for asana"
                 )
 
-        try:
             result = self._make_request(
                 "PUT", f"/tasks/{task_gid}", access_token, data={"data": updates}
             )
@@ -631,25 +628,3 @@ class AsanaService:
 
 # Global instance for easy access
 asana_service = AsanaService()
-
-        # Start audit logging
-        audit_ctx = log_integration_attempt("asana", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("asana"):
-                logger.warning(f"Circuit breaker is open for asana")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Asana integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("asana")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for asana")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for asana"
-                )
