@@ -43,7 +43,6 @@ class ScalingOperation(BaseModel):
     """Scaling operation execution tracking."""
     id: str = Field(..., description="Operation ID")
     chain_id: str = Field(..., description="Delegation chain ID")
-    = Field(..., description="Tenant UUID")
     proposal_id: str = Field(..., description="Associated proposal ID")
     operation_type: str = Field(..., description="Operation type (expand/contract)")
     from_size: int = Field(..., ge=0, description="Starting fleet size")
