@@ -56,17 +56,22 @@ class DiscordService:
                     detail=f"Rate limit exceeded for discord"
                 )
 
-        if use_bot_token and self.bot_token:
+            # Get headers
+            if use_bot_token and self.bot_token:
+                return {
+                    "Authorization": f"Bot {self.bot_token}",
+                    "Content-Type": "application/json"
+                }
+
+            token = access_token or self.access_token
             return {
-                "Authorization": f"Bot {self.bot_token}",
+                "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json"
             }
-        
-        token = access_token or self.access_token
-        return {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
+        except Exception as e:
+            logger.error(f"Discord get headers failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
     def get_authorization_url(
         self,
