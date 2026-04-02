@@ -1204,7 +1204,7 @@ class BYOKHandler:
     ) -> Any:
         """
         Generate a structured response using instructor with tenant-aware routing.
-        Works with both BYOK and Managed AI based on subscription.
+        Works with both BYOK and Managed AI.
         Supports multimodal inputs via `image_payload`.
         
         Args:
