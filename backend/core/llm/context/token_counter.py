@@ -257,8 +257,7 @@ class ContextValidator:
         text: str,
         model: str,
         max_tokens: int = 0,
-        reserve_for_output: int = 0,
-    ) -> str:
+        reserve_for_output: int = 0) -> str:
         """
         Truncate text to fit within context window.
 

@@ -6,7 +6,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import Redis from 'ioredis';
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+// Priority: DRAGONFLY_URL → UPSTASH_REDIS_URL → REDIS_URL
+const redisUrl = process.env.DRAGONFLY_URL || process.env.UPSTASH_REDIS_URL || process.env.REDIS_URL || 'redis://localhost:6379';
+const redis = new Redis(redisUrl);
 
 interface AnalyticsData {
   timestamp: string;

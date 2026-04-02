@@ -114,8 +114,7 @@ class OverageService:
         overage = FleetOverage(
             id=str(uuid.uuid4()),
             chain_id=chain_id,
-            tenant_id=tenant_id,
-            approved_size=proposed_size,
+                        approved_size=proposed_size,
             base_limit=base_limit,
             expires_at=expires_at,
             approved_by=user_id,
@@ -298,8 +297,7 @@ To extend, please submit a new scaling proposal before expiration.""",
             # Get tenant owner for notification
             from core.models import User
             owner = self.db.query(User).filter(
-                User.tenant_id == tenant_id,
-                User.role == "admin"
+                User.                User.role == "admin"
             ).first()
 
             if owner:

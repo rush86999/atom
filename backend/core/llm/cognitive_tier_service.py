@@ -63,7 +63,7 @@ class CognitiveTierService:
         ...     pass
     """
 
-    def __init__(self, workspace_id: str = "default", db_session=None, tenant_id: Optional[str] = None):
+    def __init__(self, workspace_id: str = "default", db_session=None):
         """
         Initialize the cognitive tier service.
 

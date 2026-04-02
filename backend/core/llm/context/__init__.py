@@ -3,8 +3,7 @@
 from .token_counter import (
     TokenCounter,
     ContextValidator,
-    ModelFamily,
-)
+    ModelFamily)
 
 __all__ = [
     "TokenCounter",

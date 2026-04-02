@@ -93,8 +93,7 @@ class FaultToleranceService:
             return None
 
         domain = original_agent.category  # e.g., "Finance", "Operations"
-        tenant_id = original_agent.tenant_id
-
+        
         # Build exclusion set
         exclude_ids = exclude_agent_ids or {failed_agent_id}
 
@@ -102,8 +101,7 @@ class FaultToleranceService:
         alternatives = self.db.query(AgentRegistry).filter(
             AgentRegistry.category == domain,
             AgentRegistry.id.notin_(exclude_ids),
-            AgentRegistry.tenant_id == tenant_id,
-            AgentRegistry.status == "active"  # Only active agents
+            AgentRegistry.            AgentRegistry.status == "active"  # Only active agents
         ).all()
 
         if not alternatives:
@@ -316,8 +314,7 @@ class FaultToleranceService:
             from core.models import FleetHealingEvent
 
             healing_event = FleetHealingEvent(
-                tenant_id=original_link.chain.tenant_id,
-                chain_id=original_link.chain_id,
+                                chain_id=original_link.chain_id,
                 link_id=original_link.id,
                 trigger_type="failed_link",
                 trigger_reason="Fault tolerance retry with alternative specialist",

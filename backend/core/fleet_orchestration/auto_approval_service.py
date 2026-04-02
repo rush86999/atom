@@ -68,8 +68,7 @@ class AutoApprovalService:
         """
         rule = ScalingAutoApproval(
             id=str(__import__('uuid').uuid4()),
-            tenant_id=tenant_id,
-            chain_id=chain_id,
+                        chain_id=chain_id,
             rule_name=rule_name,
             description=description,
             max_cost_per_hour=Decimal(str(max_cost_per_hour)) if max_cost_per_hour is not None else None,
@@ -108,8 +107,7 @@ class AutoApprovalService:
             List of active ScalingAutoApproval rules
         """
         query = self.db.query(ScalingAutoApproval).filter(
-            ScalingAutoApproval.tenant_id == tenant_id,
-            ScalingAutoApproval.is_active == True
+            ScalingAutoApproval.            ScalingAutoApproval.is_active == True
         )
 
         # Get chain-specific rules first, then tenant-wide rules
@@ -139,8 +137,7 @@ class AutoApprovalService:
             Tuple of (is_approved, matching_rule, reason)
         """
         rules = self.get_active_rules(
-            tenant_id=proposal.tenant_id,
-            chain_id=proposal.chain_id
+                        chain_id=proposal.chain_id
         )
 
         if not rules:
@@ -330,8 +327,7 @@ class AutoApprovalService:
             Updated ScalingAutoApproval or None if not found
         """
         rule = self.db.query(ScalingAutoApproval).filter(
-            ScalingAutoApproval.id == rule_id,
-            ScalingAutoApproval.tenant_id == tenant_id
+            ScalingAutoApproval.id == rule_id
         ).first()
 
         if not rule:
@@ -367,8 +363,7 @@ class AutoApprovalService:
             True if deleted, False if not found
         """
         rule = self.db.query(ScalingAutoApproval).filter(
-            ScalingAutoApproval.id == rule_id,
-            ScalingAutoApproval.tenant_id == tenant_id
+            ScalingAutoApproval.id == rule_id
         ).first()
 
         if not rule:
@@ -390,9 +385,7 @@ class AutoApprovalService:
         Returns:
             Dict with rule statistics
         """
-        rules = self.db.query(ScalingAutoApproval).filter(
-            ScalingAutoApproval.tenant_id == tenant_id
-        ).all()
+        rules = self.db.query(ScalingAutoApproval).all()
 
         active_rules = [r for r in rules if r.is_active]
         total_applications = sum(r.times_applied for r in rules)

@@ -56,7 +56,7 @@ class RegistryCacheService:
         self.cache = UniversalCacheService()
         logger.debug("RegistryCacheService initialized")
 
-    def _model_key(self, tenant_id: str, provider: str, model_name: str) -> str:
+    def _model_key(self provider: str, model_name: str) -> str:
         """
         Build tenant-scoped cache key for individual model.
 
@@ -73,7 +73,7 @@ class RegistryCacheService:
         """
         return f"{MODEL_KEY_PREFIX}:{provider}:{model_name}"
 
-    def _list_key(self, tenant_id: str, provider: Optional[str] = None) -> str:
+    def _list_key(self provider: Optional[str] = None) -> str:
         """
         Build tenant-scoped cache key for model list.
 
@@ -90,7 +90,6 @@ class RegistryCacheService:
 
     async def get_model(
         self,
-        tenant_id: str,
         provider: str,
         model_name: str
     ) -> Optional[Dict[str, Any]]:
@@ -112,7 +111,7 @@ class RegistryCacheService:
         """
         key = self._model_key(tenant_id, provider, model_name)
         try:
-            result = await self.cache.get_async(key, tenant_id)
+            result = await self.cache.get_async(key)
             if result:
                 logger.debug(f"Cache hit: {key} for tenant {tenant_id}")
             else:
@@ -124,7 +123,6 @@ class RegistryCacheService:
 
     async def set_model(
         self,
-        tenant_id: str,
         provider: str,
         model_name: str,
         model_data: Dict[str, Any]
@@ -151,7 +149,7 @@ class RegistryCacheService:
         """
         key = self._model_key(tenant_id, provider, model_name)
         try:
-            await self.cache.set_async(key, model_data, CACHE_TTL, tenant_id)
+            await self.cache.set_async(key, model_data, CACHE_TTL)
             logger.debug(f"Cache set: {key} for tenant {tenant_id}")
             return True
         except Exception as e:
@@ -160,7 +158,6 @@ class RegistryCacheService:
 
     async def get_models_list(
         self,
-        tenant_id: str,
         provider: Optional[str] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
@@ -182,7 +179,7 @@ class RegistryCacheService:
         """
         key = self._list_key(tenant_id, provider)
         try:
-            result = await self.cache.get_async(key, tenant_id)
+            result = await self.cache.get_async(key)
             if result:
                 logger.debug(f"Cache list hit: {key} for tenant {tenant_id}")
             else:
@@ -194,7 +191,6 @@ class RegistryCacheService:
 
     async def set_models_list(
         self,
-        tenant_id: str,
         models: List[Dict[str, Any]],
         provider: Optional[str] = None
     ) -> bool:
@@ -211,7 +207,7 @@ class RegistryCacheService:
         """
         key = self._list_key(tenant_id, provider)
         try:
-            await self.cache.set_async(key, models, CACHE_TTL, tenant_id)
+            await self.cache.set_async(key, models, CACHE_TTL)
             logger.debug(f"Cache list set: {key} for tenant {tenant_id} ({len(models)} models)")
             return True
         except Exception as e:
@@ -220,7 +216,6 @@ class RegistryCacheService:
 
     async def atomic_swap_registry(
         self,
-        tenant_id: str,
         models: List[Dict[str, Any]]
     ) -> bool:
         """
@@ -259,12 +254,12 @@ class RegistryCacheService:
         # Try to acquire lock
         try:
             # Check if lock exists
-            existing_lock = await self.cache.get_async(lock_key, tenant_id)
+            existing_lock = await self.cache.get_async(lock_key)
             if existing_lock:
                 raise Exception("Swap in progress - lock already held")
 
             # Acquire lock with 60-second TTL
-            await self.cache.set_async(lock_key, "swapping", LOCK_TTL, tenant_id)
+            await self.cache.set_async(lock_key, "swapping", LOCK_TTL)
             logger.info(f"Acquired swap lock for tenant {tenant_id}")
 
         except Exception as e:
@@ -314,12 +309,12 @@ class RegistryCacheService:
         finally:
             # Release lock
             try:
-                await self.cache.delete_async(lock_key, tenant_id)
+                await self.cache.delete_async(lock_key)
                 logger.debug(f"Released swap lock for tenant {tenant_id}")
             except Exception as e:
                 logger.error(f"Error releasing swap lock for tenant {tenant_id}: {e}")
 
-    async def invalidate_tenant(self, tenant_id: str) -> int:
+    async def invalidate_tenant(self) -> int:
         """
         Clear all cached data for a tenant.
 
@@ -348,7 +343,6 @@ class RegistryCacheService:
 
     async def warm_cache(
         self,
-        tenant_id: str,
         models: List[Dict[str, Any]]
     ) -> None:
         """
@@ -392,7 +386,6 @@ class RegistryCacheService:
 
     async def delete_model(
         self,
-        tenant_id: str,
         provider: str,
         model_name: str
     ) -> bool:
@@ -412,14 +405,14 @@ class RegistryCacheService:
         """
         key = self._model_key(tenant_id, provider, model_name)
         try:
-            await self.cache.delete_async(key, tenant_id)
+            await self.cache.delete_async(key)
             logger.debug(f"Deleted model from cache: {key} for tenant {tenant_id}")
 
             # Invalidate list caches (they'll be rebuilt on next request)
             list_key_all = self._list_key(tenant_id, provider=None)
             list_key_provider = self._list_key(tenant_id, provider=provider)
-            await self.cache.delete_async(list_key_all, tenant_id)
-            await self.cache.delete_async(list_key_provider, tenant_id)
+            await self.cache.delete_async(list_key_all)
+            await self.cache.delete_async(list_key_provider)
 
             return True
         except Exception as e:

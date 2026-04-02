@@ -7,13 +7,11 @@ cascading failures and enable graceful degradation when providers are unhealthy.
 from .circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerState,
-    CircuitBreakerOpenError,
-)
+    CircuitBreakerOpenError)
 from .retry_policy import (
     RetryPolicy,
     ExponentialBackoffStrategy,
-    RetryableError,
-)
+    RetryableError)
 
 __all__ = [
     "CircuitBreaker",
