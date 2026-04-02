@@ -80,8 +80,7 @@ class OverageService:
 
         # Validate proposed size
         tenant = self.db.query(Tenant).filter(Tenant.id == tenant_id).first()
-        "enterprise" if tenant else 'free'
-        )
+        plan_type = "enterprise" if tenant else 'free'
 
         max_multiplier = self.MAX_OVERAGE_MULTIPLIER.get(plan_type, 1.5)
         max_allowed = int(base_limit * max_multiplier)

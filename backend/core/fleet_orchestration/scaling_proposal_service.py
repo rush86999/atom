@@ -911,8 +911,7 @@ class ScalingProposalService:
 
         # No budget set - use plan defaults
         tenant = self.db.query(Tenant).filter(Tenant.id == tenant_id).first()
-        "enterprise" if tenant else 'free'
-        )
+        plan_type = "enterprise" if tenant else 'free'
 
         # Default monthly budget by plan (USD)
         DEFAULT_BUDGETS = {
