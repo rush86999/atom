@@ -10,7 +10,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 247 - Build Fixes & Documentation | 0/3 | Not started | - |
+| 247 - Build Fixes & Documentation | 0/3 | Planning | - |
 | 248 - Test Discovery & Documentation | 0/2 | Not started | - |
 | 249 - Critical Test Fixes | 0/3 | Not started | - |
 | 250 - All Test Fixes | 0/2 | Not started | - |
@@ -52,7 +52,10 @@
   3. All syntax errors resolved (e.g., asana_service.py:148)
   4. Build process documented in BUILD.md with step-by-step instructions
   5. Builds are reproducible across different environments
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 247-01-PLAN.md — Fix backend syntax errors in asana_service.py
+- [ ] 247-02-PLAN.md — Fix frontend SWC build error
+- [ ] 247-03-PLAN.md — Document build process in BUILD.md
 
 ### Phase 248: Test Discovery & Documentation
 **Goal**: Full test suite runs and all failures are documented with evidence
