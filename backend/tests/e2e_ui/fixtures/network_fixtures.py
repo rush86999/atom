@@ -22,7 +22,7 @@ import pytest
 
 # Add backend to path for imports
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 
 # =============================================================================
@@ -226,12 +226,13 @@ def timeout_api_context(browser: Browser) -> BrowserContext:
 
     def add_timeout_to_page(page: Page):
         """Add timeout interception to a specific page."""
+        def timeout_handler(route):
+            # Delay for 30 seconds before continuing
+            time.sleep(30)
+            route.continue_()
+
         for endpoint in timeout_endpoints:
-            page.route(endpoint, lambda route: {
-                # Delay for 30 seconds before continuing
-                time.sleep(30)
-                route.continue_()
-            })
+            page.route(endpoint, timeout_handler)
 
     # Add timeout to default page
     if context.pages:
