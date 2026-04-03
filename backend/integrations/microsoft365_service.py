@@ -97,12 +97,6 @@ class Microsoft365Service:
 
     async def get_user_profile(self, access_token: str) -> Dict[str, Any]:
         """Get Microsoft 365 user profile from Microsoft Graph API."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             # Use Microsoft Graph API to get user profile
             url = f"{self.base_url}/me"
@@ -137,12 +131,6 @@ class Microsoft365Service:
 
     async def list_teams(self, access_token: str) -> Dict[str, Any]:
         """List Microsoft Teams the user is a member of."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = f"{self.base_url}/me/joinedTeams"
             return await self._make_graph_request("GET", url, access_token)
@@ -152,12 +140,6 @@ class Microsoft365Service:
 
     async def list_channels(self, access_token: str, team_id: str) -> Dict[str, Any]:
         """List channels in a Microsoft Team."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = f"{self.base_url}/teams/{team_id}/channels"
             return await self._make_graph_request("GET", url, access_token)
@@ -169,12 +151,6 @@ class Microsoft365Service:
         self, access_token: str, folder_id: str = "inbox", top: int = 10
     ) -> Dict[str, Any]:
         """Get Outlook messages from specified folder."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = f"{self.base_url}/me/mailFolders/{folder_id}/messages?$top={top}&$select=id,subject,from,receivedDateTime,bodyPreview"
             return await self._make_graph_request("GET", url, access_token)
@@ -204,12 +180,6 @@ class Microsoft365Service:
 
     async def get_dynamics_deals(self, access_token: str, top: int = 10) -> Dict[str, Any]:
         """Get Dynamics 365 Sales opportunities."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             # Dynamics 365 data is often accessed via specific organization URLs, 
             # but basic integration can use Graph for data connectivity if configured.
@@ -223,12 +193,6 @@ class Microsoft365Service:
 
     async def get_dynamics_invoices(self, access_token: str, top: int = 10) -> Dict[str, Any]:
         """Get Dynamics 365 Finance invoices."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = f"{self.base_url}/me/insights/used?$top={top}" # Placeholder
             return await self._make_graph_request("GET", url, access_token)
@@ -238,12 +202,6 @@ class Microsoft365Service:
 
     async def _make_graph_request(self, method: str, url: str, token: str, json_data: Any = None) -> Dict[str, Any]:
         """Make an authenticated request to Microsoft Graph API."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         import aiohttp
         headers = {
             "Authorization": f"Bearer {token}",
@@ -349,12 +307,6 @@ class Microsoft365Service:
 
     async def _get_excel_table_columns(self, token: str, item_id: str, table_name: str) -> List[str]:
         """Get column names for an Excel table."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         url = f"{self.base_url}/me/drive/items/{item_id}/workbook/tables/{table_name}/columns"
         result = await self._make_graph_request("GET", url, token)
         
@@ -465,12 +417,6 @@ class Microsoft365Service:
 
     async def execute_powerbi_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Power BI action."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             if action == "refresh_dataset":
                 group_id = params.get("group_id") # Workspace ID
@@ -487,12 +433,6 @@ class Microsoft365Service:
 
     async def execute_teams_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Teams action."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             if action == "send_message":
                 team_id = params.get("team_id")
@@ -575,12 +515,6 @@ class Microsoft365Service:
 
     async def execute_outlook_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Outlook action."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             if action == "send_email":
                 to_recipients = params.get("to", [])
@@ -666,12 +600,6 @@ class Microsoft365Service:
 
     async def execute_planner_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Planner action."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             if action == "create_task":
                 plan_id = params.get("plan_id")
@@ -693,12 +621,6 @@ class Microsoft365Service:
 
     async def delete_item(self, token: str, item_type: str, item_id: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Delete an item (message, event, file)."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = ""
             if item_type == "message":
@@ -725,12 +647,6 @@ class Microsoft365Service:
 
     async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str) -> Dict[str, Any]:
         """Create a webhook subscription."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = f"{self.base_url}/subscriptions"
             payload = {
@@ -747,12 +663,6 @@ class Microsoft365Service:
 
     async def renew_subscription(self, token: str, subscription_id: str, expiration_datetime: str) -> Dict[str, Any]:
         """Renew a webhook subscription."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = f"{self.base_url}/subscriptions/{subscription_id}"
             payload = {
@@ -765,12 +675,6 @@ class Microsoft365Service:
 
     async def delete_subscription(self, token: str, subscription_id: str) -> Dict[str, Any]:
         """Delete a webhook subscription."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             url = f"{self.base_url}/subscriptions/{subscription_id}"
             return await self._make_graph_request("DELETE", url, token)
@@ -780,12 +684,6 @@ class Microsoft365Service:
 
     async def get_service_status(self, token: str) -> Dict[str, Any]:
         """Get Microsoft 365 service status (connectivity check)."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             # Simple connectivity check by fetching user profile
             url = f"{self.base_url}/me"
