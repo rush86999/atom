@@ -47,27 +47,6 @@ class WebexService:
 
     async def check_health(self) -> Dict[str, Any]:
         """Check Webex connectivity"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("webex", "list_rooms", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("webex"):
-                logger.warning(f"Circuit breaker is open for webex")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Webex integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("webex")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for webex")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for webex"
-                )
 
         return {
             "status": "active" if self.access_token else "partially_configured",
@@ -78,24 +57,3 @@ class WebexService:
 # Global instance
 webex_service = WebexService()
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("webex", "check_health", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("webex"):
-                logger.warning(f"Circuit breaker is open for webex")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Webex integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("webex")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for webex")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for webex"
-                )

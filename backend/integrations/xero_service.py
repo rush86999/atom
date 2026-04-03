@@ -61,27 +61,6 @@ class XeroService:
 
     async def get_tenants(self, access_token: str) -> List[Dict[str, Any]]:
         """Get connected tenants (organizations)"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("xero", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("xero"):
-                logger.warning(f"Circuit breaker is open for xero")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Xero integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("xero")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for xero")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for xero"
-                )
 
         try:
             url = "https://api.xero.com/connections"
@@ -97,27 +76,6 @@ class XeroService:
 
     async def get_invoices(self, access_token: str, tenant_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of invoices"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("xero", "get_tenants", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("xero"):
-                logger.warning(f"Circuit breaker is open for xero")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Xero integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("xero")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for xero")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for xero"
-                )
 
         try:
             url = f"{self.base_url}/Invoices"
@@ -137,27 +95,6 @@ class XeroService:
 
     async def get_contacts(self, access_token: str, tenant_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of contacts"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("xero", "get_invoices", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("xero"):
-                logger.warning(f"Circuit breaker is open for xero")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Xero integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("xero")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for xero")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for xero"
-                )
 
         try:
             url = f"{self.base_url}/Contacts"
@@ -173,24 +110,3 @@ class XeroService:
             logger.error(f"Failed to get contacts: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch contacts: {str(e)}")
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("xero", "get_contacts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("xero"):
-                logger.warning(f"Circuit breaker is open for xero")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Xero integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("xero")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for xero")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for xero"
-                )

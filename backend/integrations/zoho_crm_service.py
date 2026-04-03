@@ -35,27 +35,6 @@ class ZohoCRMService:
 
     async def create_lead(self, lead_data: Dict[str, Any], token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new lead in Zoho CRM"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_crm", "get_leads", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_crm"):
-                logger.warning(f"Circuit breaker is open for zoho_crm")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_crm integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_crm")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_crm")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_crm"
-                )
 
         try:
             active_token = token or self.access_token
@@ -73,27 +52,6 @@ class ZohoCRMService:
 
     async def get_deals(self, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch deals (Opportunities) from Zoho CRM"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_crm", "create_lead", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_crm"):
-                logger.warning(f"Circuit breaker is open for zoho_crm")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_crm integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_crm")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_crm")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_crm"
-                )
 
         try:
             active_token = token or self.access_token
@@ -108,24 +66,3 @@ class ZohoCRMService:
             logger.error(f"Failed to fetch Zoho CRM deals: {e}")
             return []
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_crm", "get_deals", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_crm"):
-                logger.warning(f"Circuit breaker is open for zoho_crm")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_crm integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_crm")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_crm")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_crm"
-                )

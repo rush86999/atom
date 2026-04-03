@@ -34,27 +34,6 @@ class LinearService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
 
         return {
             "Authorization": access_token,
@@ -102,27 +81,6 @@ class LinearService:
 
     async def _graphql_query(self, query: str, variables: Dict = None, access_token: str = None) -> Dict[str, Any]:
         """Execute a GraphQL query"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
 
         try:
             token = access_token or self.access_token
@@ -152,27 +110,6 @@ class LinearService:
     async def get_viewer(self, access_token: str = None) -> Dict[str, Any]:
         """Get current user information"""
         query = """
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "get_viewer", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
 
             query {
                 viewer {
@@ -228,27 +165,6 @@ class LinearService:
     async def get_teams(self, access_token: str = None, first: int = 50) -> List[Dict[str, Any]]:
         """Get teams"""
         query = f"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "get_teams", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
 
             query {{
                 teams(first: {first}) {{
@@ -268,27 +184,6 @@ class LinearService:
     async def get_projects(self, access_token: str = None, first: int = 50) -> List[Dict[str, Any]]:
         """Get projects"""
         query = f"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "get_projects", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
 
             query {{
                 projects(first: {first}) {{
@@ -413,26 +308,5 @@ linear_service = LinearService()
 
 def get_linear_service() -> LinearService:
     """Get Linear service instance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
 
     return linear_service

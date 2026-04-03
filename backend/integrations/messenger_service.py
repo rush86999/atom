@@ -24,27 +24,6 @@ class MessengerService:
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-        # Start audit logging
-        audit_ctx = log_integration_attempt("messenger", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("messenger"):
-                logger.warning(f"Circuit breaker is open for messenger")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Messenger integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("messenger")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for messenger")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for messenger"
-                )
 
         await self.client.aclose()
 
@@ -72,27 +51,6 @@ class MessengerService:
             return False
 
     async def health_check(self) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("messenger", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("messenger"):
-                logger.warning(f"Circuit breaker is open for messenger")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Messenger integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("messenger")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for messenger")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for messenger"
-                )
 
         return {
             "ok": True,
@@ -104,24 +62,3 @@ class MessengerService:
 # Singleton instance
 messenger_service = MessengerService()
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("messenger", "send_message", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("messenger"):
-                logger.warning(f"Circuit breaker is open for messenger")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Messenger integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("messenger")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for messenger")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for messenger"
-                )

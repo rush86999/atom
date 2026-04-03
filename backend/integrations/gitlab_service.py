@@ -49,27 +49,6 @@ class GitLabService:
 
     async def get_user(self, access_token: str) -> Dict[str, Any]:
         """Get authenticated user info"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("gitlab", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("gitlab"):
-                logger.warning(f"Circuit breaker is open for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Gitlab integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("gitlab")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for gitlab"
-                )
 
         try:
             url = f"{self.base_url}/user"
@@ -85,27 +64,6 @@ class GitLabService:
 
     async def get_projects(self, access_token: str, limit: int = 20, membership: bool = True) -> List[Dict[str, Any]]:
         """Get list of projects"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("gitlab", "get_user", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("gitlab"):
-                logger.warning(f"Circuit breaker is open for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Gitlab integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("gitlab")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for gitlab"
-                )
 
         try:
             url = f"{self.base_url}/projects"
@@ -126,27 +84,6 @@ class GitLabService:
 
     async def get_issues(self, access_token: str, project_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of issues (globally or for a project)"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("gitlab", "get_projects", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("gitlab"):
-                logger.warning(f"Circuit breaker is open for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Gitlab integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("gitlab")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for gitlab"
-                )
 
         try:
             if project_id:
@@ -167,27 +104,6 @@ class GitLabService:
 
     async def search_projects(self, access_token: str, query: str) -> List[Dict[str, Any]]:
         """Search for projects"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("gitlab", "get_issues", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("gitlab"):
-                logger.warning(f"Circuit breaker is open for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Gitlab integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("gitlab")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for gitlab"
-                )
 
         try:
             url = f"{self.base_url}/projects"
@@ -202,24 +118,3 @@ class GitLabService:
             logger.error(f"Search failed: {e}")
             raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("gitlab", "search_projects", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("gitlab"):
-                logger.warning(f"Circuit breaker is open for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Gitlab integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("gitlab")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for gitlab")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for gitlab"
-                )

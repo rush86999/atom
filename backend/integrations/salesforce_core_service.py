@@ -96,27 +96,6 @@ class SalesforceCoreService:
         Returns:
             SalesforceCredentials or None if not found
         """
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce_core", "get_credentials", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce_core"):
-                logger.warning(f"Circuit breaker is open for salesforce_core")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce_core integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce_core")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce_core")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce_core"
-                )
 
         try:
             from db_oauth_salesforce import get_user_salesforce_tokens

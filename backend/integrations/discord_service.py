@@ -34,28 +34,6 @@ class DiscordService:
 
     def _get_headers(self, access_token: str = None, use_bot_token: bool = False) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("discord", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("discord"):
-                logger.warning(f"Circuit breaker is open for discord")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Discord integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("discord")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for discord")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for discord"
-                )
-
         if use_bot_token and self.bot_token:
             return {
                 "Authorization": f"Bot {self.bot_token}",
@@ -120,27 +98,6 @@ class DiscordService:
 
     async def get_current_user(self, access_token: str = None) -> Dict[str, Any]:
         """Get current user information"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("discord", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("discord"):
-                logger.warning(f"Circuit breaker is open for discord")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Discord integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("discord")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for discord")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for discord"
-                )
 
         try:
             token = access_token or self.access_token
@@ -169,27 +126,6 @@ class DiscordService:
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Get guilds (servers) the user is a member of"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("discord", "get_current_user", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("discord"):
-                logger.warning(f"Circuit breaker is open for discord")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Discord integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("discord")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for discord")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for discord"
-                )
 
         try:
             token = access_token or self.access_token
@@ -320,26 +256,5 @@ discord_service = DiscordService()
 
 def get_discord_service() -> DiscordService:
     """Get Discord service instance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("discord", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("discord"):
-                logger.warning(f"Circuit breaker is open for discord")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Discord integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("discord")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for discord")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for discord"
-                )
 
     return discord_service

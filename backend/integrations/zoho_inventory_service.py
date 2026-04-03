@@ -40,27 +40,6 @@ class ZohoInventoryService:
 
     async def check_stock(self, item_id: str, token: Optional[str] = None, organization_id: Optional[str] = None) -> Dict[str, Any]:
         """Check current stock levels for an item"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_inventory", "get_items", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_inventory"):
-                logger.warning(f"Circuit breaker is open for zoho_inventory")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_inventory integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_inventory")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_inventory")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_inventory"
-                )
 
         try:
             active_token = token or self.access_token
@@ -88,27 +67,6 @@ class ZohoInventoryService:
 
     async def get_inventory_levels(self, token: Optional[str] = None, organization_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Fetch inventory levels for all active items"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_inventory", "check_stock", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_inventory"):
-                logger.warning(f"Circuit breaker is open for zoho_inventory")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_inventory integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_inventory")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_inventory")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_inventory"
-                )
 
         try:
             items = await self.get_items(token, organization_id)
@@ -128,24 +86,3 @@ class ZohoInventoryService:
 # Singleton instance
 zoho_inventory_service = ZohoInventoryService()
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_inventory", "get_inventory_levels", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_inventory"):
-                logger.warning(f"Circuit breaker is open for zoho_inventory")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_inventory integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_inventory")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_inventory")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_inventory"
-                )

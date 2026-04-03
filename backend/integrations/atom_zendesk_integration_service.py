@@ -332,27 +332,6 @@ class AtomZendeskIntegrationService:
     
     async def create_ticket(self, ticket_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new ticket in Zendesk"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "initialize", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
         try:
             start_time = time.time()
@@ -447,51 +426,9 @@ class AtomZendeskIntegrationService:
             return {'success': False, 'error': str(e)}
     
     async def update_ticket(self, ticket_id: str, update_data: Dict[str, Any], 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "update_ticket", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
                          platform: str = None, comment: str = None) -> Dict[str, Any]:
         """Update existing ticket in Zendesk"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
         try:
             start_time = time.time()
@@ -636,53 +573,11 @@ class AtomZendeskIntegrationService:
 
     async def get_ticket_info(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Public method to fetch ticket details"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_tickets", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
         return await self._get_ticket(ticket_id)
 
     async def create_ticket_comment(self, ticket_id: str, comment_body: str, public: bool = True) -> Dict[str, Any]:
         """Add a comment to an existing ticket"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_ticket_info", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
         try:
             headers = self._get_auth_headers()
@@ -710,51 +605,9 @@ class AtomZendeskIntegrationService:
             return {"success": False, "error": str(e)}
 
     async def generate_support_analytics(self, analytics_type: SupportAnalyticsType, 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "generate_support_analytics", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
                                      time_period: str = '7d') -> Dict[str, Any]:
         """Generate support analytics"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket_comment", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
         try:
             start_time = time.time()
@@ -1067,27 +920,6 @@ class AtomZendeskIntegrationService:
     
     async def close(self):
         """Close Zendesk Integration Service"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_service_status", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )
 
         try:
             logger.info("Zendesk Integration Service closed")
@@ -1132,24 +964,3 @@ if _ai_service:
     _zendesk_config['ai_service'] = _ai_service
 
 atom_zendesk_integration_service = AtomZendeskIntegrationService(_zendesk_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_zendesk_integration", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
-                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_zendesk_integration integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_zendesk_integration"
-                )

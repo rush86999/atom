@@ -24,27 +24,6 @@ class HubSpotService:
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         await self.client.aclose()
 
@@ -79,27 +58,6 @@ class HubSpotService:
 
     async def get_contacts(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot contacts"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "authenticate", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             # Use provided token or fall back to instance token or env
@@ -135,27 +93,6 @@ class HubSpotService:
 
     async def get_companies(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot companies"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "get_contacts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -189,27 +126,6 @@ class HubSpotService:
 
     async def get_deals(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot deals"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "get_companies", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -241,27 +157,6 @@ class HubSpotService:
 
     async def get_campaigns(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot campaigns"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "get_deals", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -292,27 +187,6 @@ class HubSpotService:
 
     async def search_content(self, query: str, object_type: str = "contact") -> Dict[str, Any]:
         """Search HubSpot content"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "get_campaigns", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             if not self.access_token:
@@ -342,27 +216,6 @@ class HubSpotService:
 
     async def create_contact(self, email: str, first_name: Optional[str] = None, last_name: Optional[str] = None, company: Optional[str] = None, phone: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot contact"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "search_content", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -403,27 +256,6 @@ class HubSpotService:
 
     async def create_company(self, name: str, domain: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot company"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "create_contact", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -461,27 +293,6 @@ class HubSpotService:
 
     async def create_deal(self, name: str, amount: float, company_id: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot deal"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "create_company", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -534,27 +345,6 @@ class HubSpotService:
 
     async def health_check(self) -> dict:
         """Health check for HubSpot service"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "create_deal", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
         try:
             # Basic health check - verify service can be initialized
@@ -579,26 +369,5 @@ hubspot_service = HubSpotService()
 
 def get_hubspot_service() -> HubSpotService:
     """Get HubSpot service instance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("hubspot", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("hubspot"):
-                logger.warning(f"Circuit breaker is open for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Hubspot integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("hubspot")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for hubspot")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for hubspot"
-                )
 
     return hubspot_service

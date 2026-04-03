@@ -172,27 +172,6 @@ class GoogleCalendarService:
         Returns:
             Created event in unified format or None
         """
-        # Start audit logging
-        audit_ctx = log_integration_attempt("google_calendar", "create_event", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("google_calendar"):
-                logger.warning(f"Circuit breaker is open for google_calendar")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Google_calendar integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("google_calendar")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for google_calendar")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for google_calendar"
-                )
         except HTTPException:
             raise
         except Exception as e:
