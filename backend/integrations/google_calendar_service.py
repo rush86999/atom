@@ -193,6 +193,11 @@ class GoogleCalendarService:
                     status_code=429,
                     detail=f"Rate limit exceeded for google_calendar"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         if not self.service:
             if not self.authenticate():

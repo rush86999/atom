@@ -58,6 +58,11 @@ class DocumentLogicService:
                     status_code=429,
                     detail=f"Rate limit exceeded for document_logic"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         logger.info(f"Ingesting {doc_type.value} from {file_path}")
         
