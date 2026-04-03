@@ -3,28 +3,33 @@ Zoom Service for ATOM Platform
 Provides comprehensive Zoom video conferencing integration functionality
 """
 
-from datetime import datetime
 import logging
-import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
+from fastapi import HTTPException
 
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class ZoomService:
-    def __init__(self):
-        self.client_id = os.getenv("ZOOM_CLIENT_ID")
-        self.client_secret = os.getenv("ZOOM_CLIENT_SECRET")
-        self.account_id = os.getenv("ZOOM_ACCOUNT_ID")
+class ZoomService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Zoom service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with client_id, client_secret, account_id, access_token
+        """
+        super().__init__(tenant_id, config)
+        self.client_id = config.get("client_id")
+        self.client_secret = config.get("client_secret")
+        self.account_id = config.get("account_id")
         self.base_url = "https://api.zoom.us/v2"
         self.auth_url = "https://zoom.us/oauth/authorize"
         self.token_url = "https://zoom.us/oauth/token"
-        self.access_token = None
+        self.access_token = config.get("access_token")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
@@ -84,54 +89,22 @@ class ZoomService:
             )
 
     async def get_user(self, user_id: str = "me", access_token: str = None) -> Dict[str, Any]:
-        """Get user information with governance patterns"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoom", "get_user", {
-            "user_id": user_id
-        })
-
+        """Get user information"""
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoom"):
-                logger.warning("Zoom circuit breaker is open")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail="Zoom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoom")
-            if is_limited:
-                logger.warning("Zoom rate limit exceeded")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail="Zoom rate limit exceeded"
-                )
-
             token = access_token or self.access_token
             if not token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
-
+            
             headers = self._get_headers(token)
-
+            
             response = await self.client.get(
                 f"{self.base_url}/users/{user_id}",
                 headers=headers
             )
             response.raise_for_status()
-
-            result = response.json()
-
-            # Record success
-            await circuit_breaker.record_success("zoom")
-            log_integration_complete(audit_ctx, {"user_id": user_id})
-
-            return result
+            
+            return response.json()
         except httpx.HTTPError as e:
-            await circuit_breaker.record_failure("zoom", e)
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to get user: {e}")
             raise HTTPException(
                 status_code=400,
@@ -145,61 +118,27 @@ class ZoomService:
         access_token: str = None,
         page_size: int = 30
     ) -> Dict[str, Any]:
-        """List user's meetings with governance patterns"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoom", "list_meetings", {
-            "user_id": user_id,
-            "type": type,
-            "page_size": page_size
-        })
-
+        """List user's meetings"""
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoom"):
-                logger.warning("Zoom circuit breaker is open")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail="Zoom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoom")
-            if is_limited:
-                logger.warning("Zoom rate limit exceeded")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail="Zoom rate limit exceeded"
-                )
-
             token = access_token or self.access_token
             if not token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
-
+            
             headers = self._get_headers(token)
             params = {
                 "type": type,
                 "page_size": page_size
             }
-
+            
             response = await self.client.get(
                 f"{self.base_url}/users/{user_id}/meetings",
                 headers=headers,
                 params=params
             )
             response.raise_for_status()
-
-            result = response.json()
-
-            # Record success
-            await circuit_breaker.record_success("zoom")
-            log_integration_complete(audit_ctx, {"meeting_count": len(result.get("meetings", []))})
-
-            return result
+            
+            return response.json()
         except httpx.HTTPError as e:
-            await circuit_breaker.record_failure("zoom", e)
-            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Failed to list meetings: {e}")
             raise HTTPException(
                 status_code=400,
@@ -278,23 +217,126 @@ class ZoomService:
                 detail=f"Failed to delete meeting: {str(e)}"
             )
 
-    async def health_check(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Zoom integration capabilities"""
+        return {
+            "operations": [
+                {
+                    "id": "create_meeting",
+                    "name": "Create Meeting",
+                    "description": "Create a Zoom meeting",
+                    "complexity": 3
+                },
+                {
+                    "id": "list_meetings",
+                    "name": "List Meetings",
+                    "description": "List user's meetings",
+                    "complexity": 2
+                },
+                {
+                    "id": "delete_meeting",
+                    "name": "Delete Meeting",
+                    "description": "Delete a meeting",
+                    "complexity": 3
+                },
+                {
+                    "id": "list_users",
+                    "name": "List Users",
+                    "description": "List users on the account",
+                    "complexity": 2
+                },
+                {
+                    "id": "list_recordings",
+                    "name": "List Recordings",
+                    "description": "List cloud recordings for a user",
+                    "complexity": 2
+                }
+            ],
+            "required_params": ["client_id", "client_secret", "account_id"],
+            "optional_params": ["access_token"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True
+        }
+
+    def health_check(self) -> Dict[str, Any]:
         """Health check for Zoom service"""
         try:
             return {
-                "ok": True,
-                "status": "healthy",
-                "service": "zoom",
-                "timestamp": datetime.now().isoformat(),
-                "version": "1.0.0",
+                "healthy": bool(self.client_id and self.client_secret),
+                "message": "Zoom service is operational" if self.client_id else "Zoom credentials not configured",
+                "last_check": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             return {
-                "ok": False,
-                "status": "unhealthy",
-                "service": "zoom",
+                "healthy": False,
+                "message": str(e),
+                "last_check": datetime.now(timezone.utc).isoformat()
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Zoom operation with tenant context.
+
+        Args:
+            operation: Operation name (e.g., "create_meeting", "list_meetings")
+            parameters: Operation parameters
+            context: Tenant context dict
+
+        Returns:
+            Dict with success, result, error, details
+        """
+        try:
+            if operation == "create_meeting":
+                result = await self.create_meeting(**parameters)
+                return {
+                    "success": True,
+                    "result": result,
+                    "details": {"operation": "create_meeting", "tenant_id": self.tenant_id}
+                }
+            elif operation == "list_meetings":
+                result = await self.list_meetings(**parameters)
+                return {
+                    "success": True,
+                    "result": result,
+                    "details": {"operation": "list_meetings", "tenant_id": self.tenant_id}
+                }
+            elif operation == "delete_meeting":
+                result = await self.delete_meeting(**parameters)
+                return {
+                    "success": True,
+                    "result": result,
+                    "details": {"operation": "delete_meeting", "tenant_id": self.tenant_id}
+                }
+            elif operation == "list_users":
+                result = await self.list_users(**parameters)
+                return {
+                    "success": True,
+                    "result": result,
+                    "details": {"operation": "list_users", "tenant_id": self.tenant_id}
+                }
+            elif operation == "list_recordings":
+                result = await self.list_recordings(**parameters)
+                return {
+                    "success": True,
+                    "result": result,
+                    "details": {"operation": "list_recordings", "tenant_id": self.tenant_id}
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "details": {"operation": operation}
+                }
+        except Exception as e:
+            return {
+                "success": False,
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "details": {"operation": operation, "tenant_id": self.tenant_id}
             }
 
     async def list_users(
@@ -369,8 +411,3 @@ class ZoomService:
                 status_code=400,
                 detail=f"Failed to list recordings: {str(e)}"
             )
-
-zoom_service = ZoomService()
-
-def get_zoom_service() -> ZoomService:
-    return zoom_service

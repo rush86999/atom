@@ -1,22 +1,27 @@
 import logging
-import os
 from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 from fastapi import HTTPException
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class WebexService:
+class WebexService(IntegrationService):
     """Cisco Webex API Service"""
-    
-    def __init__(self):
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Webex service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with access_token
+        """
+        super().__init__(tenant_id, config)
         self.base_url = "https://webexapis.com/v1"
-        self.access_token = os.getenv("WEBEX_ACCESS_TOKEN")
+        self.access_token = config.get("access_token")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     def _get_headers(self) -> Dict[str, str]:
@@ -45,15 +50,80 @@ class WebexService:
             logger.error(f"Webex list_rooms failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+<<<<<<< HEAD
     async def check_health(self) -> Dict[str, Any]:
         """Check Webex connectivity"""
 
+=======
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Webex integration capabilities"""
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
-            "status": "active" if self.access_token else "partially_configured",
-            "service": "webex",
-            "mode": "real" if self.access_token else "mock"
+            "operations": [
+                {
+                    "id": "list_rooms",
+                    "name": "List Rooms",
+                    "description": "List Webex rooms (Spaces)",
+                    "complexity": 1
+                },
+                {
+                    "id": "send_message",
+                    "name": "Send Message",
+                    "description": "Send message to a Webex room",
+                    "complexity": 3
+                }
+            ],
+            "required_params": ["access_token"],
+            "optional_params": [],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True
         }
 
-# Global instance
-webex_service = WebexService()
+    def health_check(self) -> Dict[str, Any]:
+        """Check Webex connectivity"""
+        return {
+            "healthy": bool(self.access_token),
+            "message": "Webex service is operational" if self.access_token else "Webex access token not configured",
+            "last_check": datetime.now(timezone.utc).isoformat()
+        }
 
+<<<<<<< HEAD
+=======
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Webex operation with tenant context.
+
+        Args:
+            operation: Operation name (e.g., "list_rooms", "send_message")
+            parameters: Operation parameters
+            context: Tenant context dict
+
+        Returns:
+            Dict with success, result, error, details
+        """
+        try:
+            if operation == "list_rooms":
+                result = await self.list_rooms()
+                return {
+                    "success": True,
+                    "result": result,
+                    "details": {"operation": "list_rooms", "tenant_id": self.tenant_id}
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "details": {"operation": operation}
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"operation": operation, "tenant_id": self.tenant_id}
+            }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

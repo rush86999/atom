@@ -16,7 +16,14 @@ from integrations.atom_communication_ingestion_pipeline import (
     LanceDBMemoryManager,
     get_memory_manager,
 )
-from integrations.stripe_service import stripe_service
+try:
+    from integrations.stripe_service import stripe_service
+HAS_STRIPE = True
+except ImportError:
+    # Stripe is SaaS-specific billing integration
+    stripe_service = None
+    HAS_STRIPE = False
+
 
 logger = logging.getLogger(__name__)
 

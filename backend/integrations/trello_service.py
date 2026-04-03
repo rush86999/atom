@@ -3,57 +3,63 @@ Trello Service for ATOM Platform
 Provides comprehensive Trello integration functionality
 """
 
-from datetime import datetime, timedelta
 import json
 import logging
 import os
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urlencode, urljoin
+from datetime import datetime, timezone, timedelta
 import requests
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+from urllib.parse import urljoin, urlencode
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class TrelloService:
+class TrelloService(IntegrationService):
     """Trello API integration service"""
-    
-    def __init__(self, api_key: Optional[str] = None, access_token: Optional[str] = None):
-        self.api_key = api_key or os.getenv('TRELLO_API_KEY')
-        self.access_token = access_token or os.getenv('TRELLO_ACCESS_TOKEN')
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Trello service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with api_key and token
+        """
+        super().__init__(tenant_id, config)
+
+        # For Trello, the API Key is usually global (from .env)
+        # but the Token is per-user/tenant.
+        self.api_key = config.get("api_key") or os.getenv('TRELLO_API_KEY') or os.getenv('TRELLO_CLIENT_ID')
+        self.access_token = config.get("access_token") or config.get("token") or os.getenv('TRELLO_ACCESS_TOKEN')
+        
         self.base_url = "https://api.trello.com/1"
-        
-        if not all([self.api_key, self.access_token]):
-            raise ValueError("Trello api_key and access_token are required")
-        
-        # Setup authentication parameters
-        self.auth_params = {
-            'key': self.api_key,
-            'token': self.access_token
-        }
-        
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ATOM-Platform/1.0',
-            'Accept': 'application/json'
-        })
+
+        if not self.api_key or not self.access_token:
+            logger.warning(f"TrelloService for tenant {tenant_id[:8]}...: credentials not found. Service will be disabled.")
+            self.enabled = False
+        else:
+            self.enabled = True
+            
+            self.session.headers.update({
+                'User-Agent': 'ATOM-Platform/1.0',
+                'Accept': 'application/json'
+            })
+
+            logger.info(f"TrelloService initialized for tenant {tenant_id[:8]}... using API Key/Token")
     
     def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None, 
                      data: Optional[Dict] = None, token: Optional[str] = None) -> requests.Response:
-        """Make request with optional dynamic token"""
-        # Start with default auth params
-        request_params = self.auth_params.copy()
+        """Make request with API Key and Token authentication"""
+        if not self.enabled:
+            raise ValueError("Trello service is disabled due to missing credentials")
+
+        request_params = params.copy() if params else {}
         
-        # Override with dynamic token if provided
-        if token:
-            request_params['token'] = token
-            
-        # Merge with method-specific params
-        if params:
-            request_params.update(params)
+        # Add authentication to query parameters
+        request_params['key'] = self.api_key
+        request_params['token'] = token or self.access_token
             
         url = endpoint if endpoint.startswith('http') else f"{self.base_url}{endpoint}"
         
@@ -61,14 +67,14 @@ class TrelloService:
             method=method,
             url=url,
             params=request_params,
-            data=data
+            json=data, # Use JSON for Trello API data
+            headers=self.session.headers
         )
 
     def test_connection(self) -> Dict[str, Any]:
         """Test Trello API connection"""
         try:
-            params = self.auth_params.copy()
-            response = self.session.get(f"{self.base_url}/members/me", params=params)
+            response = self._make_request("GET", "/members/me")
             if response.status_code == 200:
                 user_data = response.json()
                 return {
@@ -92,10 +98,14 @@ class TrelloService:
                 "authenticated": False
             }
     
-    def get_boards(self, filter: str = "open", token: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_boards(self, filter: str = "open", fields: Optional[List[str]] = None, 
+                  limit: int = 50, token: Optional[str] = None, **kwargs) -> List[Dict[str, Any]]:
         """Get boards for authenticated user"""
         try:
-            params = {'filter': filter}
+            params = {'filter': filter, 'limit': limit}
+            if fields:
+                params['fields'] = ','.join(fields)
+                
             response = self._make_request("GET", "/members/me/boards", params=params, token=token)
             response.raise_for_status()
             return response.json()
@@ -103,10 +113,15 @@ class TrelloService:
             logger.error(f"Failed to get boards: {e}")
             return []
     
-    def get_board(self, board_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_board(self, board_id: str, fields: Optional[List[str]] = None, 
+                  token: Optional[str] = None, **kwargs) -> Optional[Dict[str, Any]]:
         """Get specific board details"""
         try:
-            response = self._make_request("GET", f"/boards/{board_id}", token=token)
+            params = {}
+            if fields:
+                params['fields'] = ','.join(fields)
+                
+            response = self._make_request("GET", f"/boards/{board_id}", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -130,10 +145,15 @@ class TrelloService:
             logger.error(f"Failed to create board: {e}")
             return None
     
-    def get_lists(self, board_id: str, filter: str = "open", token: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_lists(self, board_id: str, filter: str = "open", 
+                  fields: Optional[List[str]] = None, limit: int = 50, 
+                  token: Optional[str] = None, **kwargs) -> List[Dict[str, Any]]:
         """Get lists on a board"""
         try:
-            params = {'filter': filter}
+            params = {'filter': filter, 'limit': limit}
+            if fields:
+                params['fields'] = ','.join(fields)
+                
             response = self._make_request("GET", f"/boards/{board_id}/lists", params=params, token=token)
             response.raise_for_status()
             return response.json()
@@ -157,10 +177,13 @@ class TrelloService:
             return None
     
     def get_cards(self, list_id: str = None, board_id: str = None,
-                  filter: str = "open", token: Optional[str] = None) -> List[Dict[str, Any]]:
+                  filter: str = "open", fields: Optional[List[str]] = None, 
+                  limit: int = 50, token: Optional[str] = None, **kwargs) -> List[Dict[str, Any]]:
         """Get cards from list or board"""
         try:
-            params = {'filter': filter}
+            params = {'filter': filter, 'limit': limit}
+            if fields:
+                params['fields'] = ','.join(fields)
             
             if list_id:
                 response = self._make_request("GET", f"/lists/{list_id}/cards", params=params, token=token)
@@ -175,10 +198,15 @@ class TrelloService:
             logger.error(f"Failed to get cards: {e}")
             return []
     
-    def get_card(self, card_id: str, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def get_card(self, card_id: str, fields: Optional[List[str]] = None, 
+                 token: Optional[str] = None, **kwargs) -> Optional[Dict[str, Any]]:
         """Get specific card details"""
         try:
-            response = self._make_request("GET", f"/cards/{card_id}", token=token)
+            params = {}
+            if fields:
+                params['fields'] = ','.join(fields)
+                
+            response = self._make_request("GET", f"/cards/{card_id}", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -187,7 +215,8 @@ class TrelloService:
     
     def create_card(self, name: str, list_id: str, description: str = "",
                    pos: str = "bottom", due: str = None, 
-                   labels: List[str] = None, members: List[str] = None, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                   labels: List[str] = None, members: List[str] = None, 
+                   token: Optional[str] = None, **kwargs) -> Optional[Dict[str, Any]]:
         """Create a new card"""
         try:
             params = {
@@ -211,8 +240,7 @@ class TrelloService:
             return response.json()
         except Exception as e:
             logger.error(f"Failed to create card: {e}")
-            return None
-    
+
     def update_card(self, card_id: str, update_data: Dict[str, Any], token: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Update a card"""
         try:
@@ -307,10 +335,15 @@ class TrelloService:
         """Move card to different list"""
         return self.update_card(card_id, {'idList': list_id, 'pos': pos}, token=token)
     
-    def get_members(self, board_id: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_members(self, board_id: str, fields: Optional[List[str]] = None, 
+                    token: Optional[str] = None, **kwargs) -> List[Dict[str, Any]]:
         """Get members of a board"""
         try:
-            response = self._make_request("GET", f"/boards/{board_id}/members", token=token)
+            params = {}
+            if fields:
+                params['fields'] = ','.join(fields)
+                
+            response = self._make_request("GET", f"/boards/{board_id}/members", params=params, token=token)
             response.raise_for_status()
             return response.json()
         except Exception as e:
@@ -384,9 +417,273 @@ class TrelloService:
             logger.error(f"Failed to remove label from card {card_id}: {e}")
             return False
 
-# Singleton instance for global access
-trello_service = TrelloService()
+    def sync_to_postgres_cache(self, workspace_id: str, token: Optional[str] = None) -> Dict[str, Any]:
+        """Sync Trello analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get boards and cards
+            boards = self.get_boards(token=token)
+            board_count = len(boards)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("trello_board_count", board_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="trello",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="trello",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Trello metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Trello metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Trello PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-def get_trello_service() -> TrelloService:
-    """Get Trello service instance"""
-    return trello_service
+    def get_user_profile(self, token: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Get current user profile"""
+        try:
+            response = self._make_request("GET", "/members/me", token=token)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Failed to get user profile: {e}")
+            return None
+
+    def search(self, query: str, model_types: str = "cards", 
+               board_id: Optional[str] = None, limit: int = 10, 
+               token: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Search for cards, boards, or members"""
+        try:
+            params = {
+                'query': query,
+                'modelTypes': model_types,
+                'limit': limit
+            }
+            if board_id:
+                params['idBoards'] = board_id
+                
+            response = self._make_request("GET", "/search", params=params, token=token)
+            response.raise_for_status()
+            return response.json().get('cards', [])
+        except Exception as e:
+            logger.error(f"Failed to search: {e}")
+            return []
+
+    def get_activities(self, board_id: str, limit: int = 50, since: Optional[str] = None, 
+                      token: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Get recent activities for a board"""
+        try:
+            params = {'limit': limit}
+            if since:
+                params['since'] = since
+                
+            response = self._make_request("GET", f"/boards/{board_id}/actions", params=params, token=token)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"Failed to get activities for board {board_id}: {e}")
+            return []
+
+    async def get_service_info(self) -> Dict[str, Any]:
+        """Get Trello service information"""
+        return {
+            "name": "Trello",
+            "description": "Project management and team collaboration",
+            "capabilities": [
+                "Manage boards and lists",
+                "Create and update cards",
+                "Track activities",
+                "Team member management"
+            ],
+            "auth_type": "OAuth2",
+            "status": "operational" if self.enabled else "disabled"
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Health check compliance for routes"""
+        connection = self.test_connection()
+        return {
+            "healthy": connection.get("status") == "success",
+            "message": connection.get("message", "Trello service check"),
+            "service": "trello",
+            "last_check": datetime.now(timezone.utc).isoformat(),
+            "details": connection
+        }
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Trello integration capabilities"""
+        return {
+            "operations": [
+                {"id": "create_card", "name": "Create Card", "description": "Create a new Trello card"},
+                {"id": "get_cards", "name": "Get Cards", "description": "Retrieve cards from boards/lists"},
+                {"id": "update_card", "name": "Update Card", "description": "Update existing card"},
+                {"id": "get_boards", "name": "Get Boards", "description": "List Trello boards"},
+                {"id": "add_comment", "name": "Add Comment", "description": "Add comment to card"},
+            ],
+            "required_params": ["api_key", "access_token"],
+            "optional_params": ["board_id", "list_id"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True,
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Trello operation with tenant context.
+
+        Args:
+            operation: Operation name (e.g., "create_card", "get_cards")
+            parameters: Operation parameters with variable substitution applied
+            context: Tenant context dict with tenant_id, agent_id, workspace_id, connector_id
+
+        Returns:
+            Dict with success status and result
+
+        CRITICAL: All operations validate tenant_id from context to prevent cross-tenant access.
+        """
+        # Validate tenant context
+        if context and 'tenant_id' in context:
+            tenant_id = context.get('tenant_id')
+            if tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: expected {self.tenant_id}, got {tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID mismatch",
+                    "operation": operation,
+                }
+
+        # Map operation names to methods
+        operation_map = {
+            "create_card": self._op_create_card,
+            "get_cards": self._op_get_cards,
+            "update_card": self._op_update_card,
+            "get_boards": self._op_get_boards,
+            "add_comment": self._op_add_comment,
+        }
+
+        if operation not in operation_map:
+            return {
+                "success": False,
+                "error": f"Unknown operation: {operation}",
+                "operation": operation,
+            }
+
+        try:
+            result = operation_map[operation](parameters, context)
+            return {
+                "success": True,
+                "result": result,
+                "operation": operation,
+                "details": {"tenant_id": self.tenant_id},
+            }
+        except Exception as e:
+            logger.error(f"Failed to execute Trello operation {operation}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "operation": operation,
+            }
+
+    # Operation implementations
+    def _op_create_card(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Create card operation"""
+        result = self.create_card(
+            name=parameters.get("name"),
+            list_id=parameters.get("list_id"),
+            description=parameters.get("desc", ""),
+            pos=parameters.get("pos", "bottom"),
+            due=parameters.get("due"),
+            labels=parameters.get("labels"),
+            members=parameters.get("members"),
+            token=parameters.get("token")
+        )
+        if not result:
+            raise Exception("Failed to create card")
+        return result
+
+    def _op_get_cards(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Get cards operation"""
+        cards = self.get_cards(
+            list_id=parameters.get("list_id"),
+            board_id=parameters.get("board_id"),
+            filter=parameters.get("filter", "open"),
+            fields=parameters.get("fields"),
+            limit=parameters.get("limit", 50),
+            token=parameters.get("token")
+        )
+        return cards
+
+    def _op_update_card(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Update card operation"""
+        card_id = parameters.get("card_id")
+        update_data = {k: v for k, v in parameters.items() if k != "card_id"}
+        result = self.update_card(card_id, update_data, token=parameters.get("token"))
+        if not result:
+            raise Exception(f"Failed to update card {card_id}")
+        return result
+
+    def _op_get_boards(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Get boards operation"""
+        boards = self.get_boards(
+            filter=parameters.get("filter", "open"),
+            fields=parameters.get("fields"),
+            limit=parameters.get("limit", 50),
+            token=parameters.get("token")
+        )
+        return boards
+
+    def _op_add_comment(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Add comment operation"""
+        result = self.add_comment(
+            card_id=parameters.get("card_id"),
+            text=parameters.get("text"),
+            token=parameters.get("token")
+        )
+        if not result:
+            raise Exception("Failed to add comment")
+        return result
+
+    def full_sync(self, workspace_id: str, token: Optional[str] = None) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Trello"""
+        cache_result = self.sync_to_postgres_cache(workspace_id, token)
+
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }

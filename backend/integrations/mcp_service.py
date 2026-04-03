@@ -1,39 +1,117 @@
-import asyncio
-from datetime import datetime
-import json
 import logging
+import json
+import asyncio
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timezone
 import os
-from typing import Any, Dict, List, Optional
 import httpx
-
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
 from .mcp_converter import MCPToolConverter
+from .tool_registry import tool_registry
+from . import internal_tools # Trigger registration
+
+from core.database import SessionLocal
+from core.byok_endpoints import get_byok_manager
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class MCPService:
+class MCPService(IntegrationService):
     """
     Model Context Protocol (MCP) Service.
     Enables agents to use tools from MCP servers and perform web search.
+
+    NOTE: This is a stateful singleton wrapper service that manages
+    tool execution across multiple MCP servers. The IntegrationService
+    interface is implemented for registry compatibility, but the
+    singleton pattern is preserved for cross-tenant tool access.
     """
-    
+
     _instance = None
-    
+
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
             cls._instance = super(MCPService, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self):
+    def __init__(self = "default", config: Dict[str, Any] = None):
+        # Singleton initialization - only run once
         if not hasattr(self, 'initialized'):
+            self.tenant_id = tenant_id
+            self.config = config or {}
             self.initialized = True
             self.active_servers = {}
             self.search_api_key = os.getenv("TAVILY_API_KEY") or os.getenv("BRAVE_SEARCH_API_KEY")
             logger.info("MCP Service initialized")
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return MCP integration capabilities"""
+        return {
+            "operations": [
+                {"id": "get_openai_tools", "name": "Get OpenAI Tools"},
+                {"id": "get_server_tools", "name": "Get Server Tools", "parameters": {"server_id": "string"}},
+                {"id": "call_tool", "name": "Call Tool", "parameters": {"tool_name": "string", "arguments": "object"}},
+                {"id": "search_tools", "name": "Search Tools", "parameters": {"query": "string", "limit": "integer"}},
+                {"id": "web_search", "name": "Web Search", "parameters": {"query": "string"}}
+            ],
+            "required_params": [],
+            "rate_limits": {"requests_per_minute": 200},
+            "supports_webhooks": False
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if MCP service is healthy"""
+        is_healthy = bool(self.initialized)
+        return {
+            "ok": is_healthy,
+            "status": "healthy" if is_healthy else "unhealthy",
+            "healthy": is_healthy,
+            "service": "mcp",
+            "message": "MCP service initialized" if is_healthy else "Service not initialized",
+            "active_servers": len(self.active_servers),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute an MCP operation with tenant context."""
+        try:
+            # Extract tenant_id from context for multi-tenancy
+            tenant_id = context.get("tenant_id") if context else self.tenant_id
+
+            if operation == "get_openai_tools":
+                tools = await self.get_openai_tools()
+                return {"success": True, "result": tools}
+            elif operation == "get_server_tools":
+                tools = await self.get_server_tools(parameters.get("server_id", "local-tools"))
+                return {"success": True, "result": tools}
+            elif operation == "call_tool":
+                result = await self.call_tool(
+                    parameters["tool_name"],
+                    parameters.get("arguments", {}),
+                    context
+                )
+                return {"success": True, "result": result}
+            elif operation == "search_tools":
+                tools = await self.search_tools(
+                    parameters.get("query", ""),
+                    parameters.get("limit", 5)
+                )
+                return {"success": True, "result": tools}
+            elif operation == "web_search":
+                result = await self.web_search(
+                    parameters["query"],
+                    tenant_id
+                )
+                return {"success": True, "result": result}
+            else:
+                return {"success": False, "error": f"Unknown operation: {operation}"}
+        except Exception as e:
+            logger.error(f"Error executing MCP operation {operation}: {e}")
+            return {"success": False, "error": str(e)}
 
 
     async def get_openai_tools(self) -> List[Dict[str, Any]]:
@@ -80,11 +158,6 @@ class MCPService:
                     "name": "search_contacts",
                     "description": "Search for contacts across CRM platforms (Salesforce, HubSpot, Zoho, Pipedrive, Intercom)",
                     "parameters": {"query": "string", "platform": "string (optional)"}
-                },
-                {
-                    "name": "reconcile_inventory",
-                    "description": "Compare inventory levels across systems to find discrepancies.",
-                    "parameters": {"skus": "string (optional, comma separated SKUs to check)"}
                 },
                 {
                     "name": "create_crm_lead",
@@ -236,7 +309,7 @@ class MCPService:
                 {
                     "name": "search_formulas",
                     "description": "Search for business logic, math definitions, and extracted Excel formulas in Atom's memory",
-                    "parameters": {"query": "string"}
+                    "parameters": {}
                 },
                 {
                     "name": "canvas_tool",
@@ -542,16 +615,8 @@ class MCPService:
                 },
 
                 # --- Specialized Specialty Agent Tools ---
-                {"name": "list_agents", "description": "List all available specialty agents from the database and templates", "parameters": {}},
+                {"name": "list_agents", "description": "List all available specialty agent templates", "parameters": {}},
                 {"name": "spawn_agent", "description": "Spawn a specialty agent to handle a sub-task", "parameters": {"template": "string", "task": "string"}},
-                {
-                    "name": "bridge_agent_delegate",
-                    "description": "Send a task to another agent via the Universal Bridge. This is the preferred way for agents to collaborate asynchronously.",
-                    "parameters": {
-                        "target_agent": "string (name or ID of the agent)",
-                        "message": "string (the task or message to send)"
-                    }
-                },
                 {"name": "list_workflows", "description": "List all available automated workflows", "parameters": {}},
                 {"name": "trigger_workflow", "description": "Trigger a specific workflow automation", "parameters": {"workflow_id": "string", "input_data": "dict (optional)"}},
                 
@@ -762,15 +827,6 @@ class MCPService:
                     "name": "browser_screenshot",
                     "description": "Capture a screenshot of the current virtual browser state",
                     "parameters": {}
-                },
-                {
-                    "name": "run_local_terminal",
-                    "description": "Execute a command on the user's LOCAL machine via Atom Satellite. Use this to run shell commands, scripts, or manage local files.",
-                    "parameters": {
-                        "command": "string",
-                        "cwd": "string (optional)",
-                        "wait_for_output": "boolean (optional, default true)"
-                    }
                 }
             ]
         return self.active_servers.get(server_id, {}).get("tools", [])
@@ -778,16 +834,232 @@ class MCPService:
     async def get_all_tools(self) -> List[Dict[str, Any]]:
         """Returns a unified list of all tools from all available servers."""
         all_tools = []
+        # Use dynamic Tool Registry for core tools
+        all_tools.extend(tool_registry.get_simplified_tools())
         
-        # 1. Hardcoded internal "servers"
-        all_tools.extend(await self.get_server_tools("google-search"))
-        all_tools.extend(await self.get_server_tools("local-tools"))
-        
-        # 2. Dynamic MCP server tools
-        for server_id in self.active_servers:
-            all_tools.extend(await self.get_server_tools(server_id))
+        # Add dynamic tools from action_registry (Ontology Actions)
+        from core.action_registry import action_registry
+        for action in action_registry.get_all_definitions():
+            simplified_params = {}
+            props = action.parameters_schema.get("properties", {})
+            required = action.parameters_schema.get("required", [])
+            for p_name, p_info in props.items():
+                p_type = p_info.get("type", "string")
+                is_optional = p_name not in required
+                simplified_params[p_name] = f"{p_type}{' (optional)' if is_optional else ''}"
             
+            all_tools.append({
+                "name": action.name,
+                "description": action.description,
+                "parameters": simplified_params
+            })
+        
+        # Add tools from connected MCP servers
+        for server_id, info in self.active_servers.items():
+            if server_id not in ["google-search", "local-tools"]:
+                all_tools.extend(info.get("tools", []))
+        
         return all_tools
+
+    async def register_integration_tools(
+        self,
+        tenant_id: str,
+        db: Optional[Any] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Discover and register all integration operations as MCP tools.
+
+        Makes integration operations discoverable to AI agents through
+        the MCP tool discovery mechanism.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            db: Optional database session
+
+        Returns:
+            List of registered tool definitions
+
+        CRITICAL: All TenantIntegration queries MUST filter by tenant_id.
+        CRITICAL: Cache key pattern must be `{tenant_id}:{connector_id}` to prevent cross-tenant cache poisoning.
+        """
+        from core.models import TenantIntegration
+        from core.integration_registry import IntegrationRegistry
+
+        # Use provided db or create new session
+        if not db:
+            db = SessionLocal()
+
+        try:
+            # Query active integrations for this tenant
+            # CRITICAL: Filter by tenant_id to prevent cross-tenant data exposure
+            integrations = db.query(TenantIntegration).filter(
+                TenantIntegration.tenant_id == tenant_id,
+                TenantIntegration.is_active == True
+            ).all()
+
+            registered_tools = []
+
+            # Initialize IntegrationRegistry
+            registry = IntegrationRegistry(db=db, use_cache=True)
+
+            for integration in integrations:
+                connector_id = integration.connector_id
+
+                try:
+                    # Get service instance for this integration
+                    service = await registry.get_service_instance(
+                        connector_id, tenant_id
+                    )
+
+                    if not service:
+                        logger.warning(
+                            f"No service instance found for connector '{connector_id}' "
+                            f"(tenant '{tenant_id}')"
+                        )
+                        continue
+
+                    # Get operations from service
+                    if hasattr(service, 'get_operations'):
+                        operations = service.get_operations()
+                    else:
+                        logger.warning(
+                            f"Service '{connector_id}' does not implement get_operations()"
+                        )
+                        continue
+
+                    # Register each operation as an MCP tool
+                    for operation in operations:
+                        tool_name = f"{connector_id}_{operation['name']}"
+
+                        tool_definition = {
+                            "name": tool_name,
+                            "description": operation.get('description', ''),
+                            "parameters": operation.get('parameters', {}),
+                            "server_id": "integration",
+                            "connector_id": connector_id,
+                            "operation_name": operation['name'],
+                            "complexity": operation.get('complexity', 2)
+                        }
+
+                        # Store in tools cache with tenant-scoped key
+                        # CRITICAL: Cache key includes tenant_id to prevent cross-tenant cache poisoning
+                        cache_key = f"{tenant_id}:{connector_id}:{operation['name']}"
+
+                        # Store tool definition in cache
+                        if not hasattr(self, 'tools_cache'):
+                            self.tools_cache = {}
+
+                        self.tools_cache[cache_key] = tool_definition
+
+                        registered_tools.append(tool_definition)
+
+                        logger.info(
+                            f"Registered integration tool: {tool_name} "
+                            f"(tenant '{tenant_id}')"
+                        )
+
+                except Exception as e:
+                    logger.error(
+                        f"Failed to register tools for connector '{connector_id}': {e}"
+                    )
+                    continue
+
+            logger.info(
+                f"Registered {len(registered_tools)} integration tools "
+                f"for tenant '{tenant_id}'"
+            )
+
+            return registered_tools
+
+        finally:
+            # Close session if we created it
+            if not db:
+                db.close()
+
+    async def execute_integration_tool(
+        self,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        context: Dict[str, Any],
+        db: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute integration tool via MCP protocol.
+
+        Called by AI agents through reasoning engine.
+        Delegates to EntitySkillExecutor.execute_integration_skill()
+        for governance enforcement.
+
+        Args:
+            tool_name: Tool name in format "{connector_id}_{operation_name}"
+            arguments: Tool execution arguments
+            context: Execution context dict (must contain tenant_id and agent_id)
+            db: Optional database session
+
+        Returns:
+            Dict with execution result
+
+        CRITICAL: Context must contain tenant_id and agent_id for governance.
+        CRITICAL: Delegate ALL execution to EntitySkillExecutor for consistency.
+        """
+        # Parse tool name: "{connector_id}_{operation_name}"
+        if "_" not in tool_name:
+            return {
+                "status": "error",
+                "error": f"Invalid tool name format: {tool_name}. Expected: '{{connector_id}}_{{operation_name}}'"
+            }
+
+        # Split on first underscore only
+        parts = tool_name.split("_", 1)
+        if len(parts) != 2:
+            return {
+                "status": "error",
+                "error": f"Invalid tool name format: {tool_name}. Expected: '{{connector_id}}_{{operation_name}}'"
+            }
+
+        connector_id, operation_name = parts
+
+        # Extract tenant_id and agent_id from context
+        tenant_id = context.get('tenant_id')
+        agent_id = context.get('agent_id')
+        workspace_id = context.get('workspace_id')
+
+        if not tenant_id or not agent_id:
+            return {
+                "status": "error",
+                "error": "Context must contain tenant_id and agent_id"
+            }
+
+        try:
+            # Import EntitySkillExecutor
+            from core.entity_skill_executor import get_entity_skill_executor
+
+            # Get executor instance
+            if not db:
+                executor = get_entity_skill_executor()
+            else:
+                executor = get_entity_skill_executor(db=db)
+
+            # Delegate to EntitySkillExecutor for governance enforcement
+            result = await executor.execute_integration_skill(
+                ,
+                agent_id=agent_id,
+                connector_id=connector_id,
+                operation_name=operation_name,
+                arguments=arguments,
+                workspace_id=workspace_id
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                f"Failed to execute integration tool '{tool_name}': {e}"
+            )
+            return {
+                "status": "error",
+                "error": str(e)
+            }
 
     async def search_tools(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
@@ -815,8 +1087,28 @@ class MCPService:
         return matches[:limit]
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
-        """Executes a tool by name, dynamically resolving the server_id."""
-        # 1. Check hardcoded internal servers
+        """
+        Executes a tool by name, dynamically resolving the server_id.
+
+        Enhanced to handle entity-bound skill execution when context contains entity_id.
+        """
+        # Check if this is an entity-bound execution
+        if context and context.get("entity_id"):
+            logger.info(
+                f"Entity-bound execution detected: tool={tool_name}, "
+                f"entity_id={context.get('entity_id')}, "
+                f"entity_type={context.get('entity_type_slug')}"
+            )
+            # Route through entity-aware execution path
+            return await self.execute_entity_tool(context, tool_name, arguments)
+
+        # 0. Check Ontology Action Registry first
+        from core.action_registry import action_registry
+        action = action_registry.get_action(tool_name)
+        if action:
+             return await action_registry.execute_action(tool_name, arguments, context or {})
+
+        # 1. Look in hardcoded servers
         for server_id in ["google-search", "local-tools"]:
             tools = await self.get_server_tools(server_id)
             if any(t["name"] == tool_name for t in tools):
@@ -829,144 +1121,161 @@ class MCPService:
 
         return {"error": f"Tool '{tool_name}' not found on any active server."}
 
-    async def _check_hitl_policy(self, tool_name: str, arguments: Dict[str, Any], context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    async def _check_hitl_policy(self, workspace_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
         """
-        Policy Engine for Human-in-the-Loop.
-        Returns a HITL interception result dict if action should be paused, else None.
-        """
-        risky_tools = ["send_email", "whatsapp_send_message", "whatsapp_send_template", "send_message", "create_invoice"]
-        
-        if tool_name not in risky_tools:
-            return None
+        Checks if the action violates tenant governance policies.
+        Returns the intervention result dict if paused, or None if allowed to proceed.
 
-        # 1. Gather Context
-        agent_id = context.get("agent_id")
-        user_id = context.get("user_id")
-        workspace_id = context.get("workspace_id", "default")
-        
-        should_intercept = True
-        
+        SECURITY: All workspaces (including "default") must undergo governance checks.
+        Early returns for "default" or missing workspace/tenant are SECURITY BYPASSES.
+        """
+        # SECURITY FIX: Remove early return for default workspace - all workspaces need governance
+        # if workspace_id == "default": return None  # REMOVED - Security bypass
+
         try:
-            from core.database import get_db_session
-            from core.models import AgentRegistry, User, Workspace
-            
-            with get_db_session() as db:
-                # 2. Check Agent Maturity & Overrides
-                if agent_id:
-                    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-                    
-                    if agent and agent.maturity_level >= 5: # Autonomous
-                        # Check Workspace/Tenant Policy
-                        workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
-                        allow_autonomous = False
-                        if workspace and workspace.metadata_json:
-                            # Replicating logic using Workspace as "Tenant" proxy
-                            allow_autonomous = workspace.metadata_json.get("governance", {}).get("allow_autonomous_external", False)
-                        
-                        # Check User Preference Override (Force HITL)
-                        user_force_hitl = False
-                        if user_id:
-                            user = db.query(User).filter(User.id == user_id).first()
-                            if user and user.preferences:
-                                user_force_hitl = user.preferences.get("force_agent_approval", False)
-                        
-                        if allow_autonomous and not user_force_hitl:
-                            should_intercept = False
-                            logger.info(f"HITL Bypass: Agent {agent_id} is Autonomous and allowed by policy.")
+            from core.database import SessionLocal
+            from core.models import Tenant, Workspace
+            with SessionLocal() as db:
+                workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+                # SECURITY FIX: Don't return None for missing workspace - log and raise error
+                if not workspace:
+                    logger.error(f"Security: Workspace {workspace_id} not found during HITL policy check")
+                    raise ValueError(f"Workspace {workspace_id} not found")
 
+                tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
+                # SECURITY FIX: Don't return None for missing tenant - log and raise error
+                if not tenant:
+                    logger.error(f"Security: Tenant not found for workspace {workspace_id} during HITL policy check")
+                    raise ValueError(f"Tenant not found for workspace {workspace_id}")
+                
+                # Check Policy
+                gov_config = tenant.metadata_json.get("governance", {}) if tenant.metadata_json else {}
+                require_hitl = gov_config.get("require_hitl_external", False)
+                allow_autonomous = gov_config.get("allow_autonomous_external", False)
+                roles_map = gov_config.get("roles", {})
+                
+                if require_hitl:
+                    # Risk classification
+                    risky_tools = ["send_email", "whatsapp_send_message", "whatsapp_send_template", "send_message"]
+                    
+                    if tool_name in risky_tools:
+                         # Phase 45: Check Maturity & Safety Overrides
+                         agent_id = context.get("agent_id") if context else None
+                         user_id = context.get("user_id") if context else None
+                         should_intercept = True
+                         
+                         # Check User-Level Safety Override & Tenant Context
+                         user_force_hitl = False
+                         tenant_id = None
+                         
+                         if user_id:
+                             user = db.query(User).filter(User.id == user_id).first()
+                             if user:
+                                 tenant_id = user.tenant_id
+                                 if user.preferences:
+                                     user_force_hitl = user.preferences.get("force_agent_approval", False)
+                         
+                         if agent_id:
+                             from core.models import AgentRegistry
+                             query = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id)
+                             if tenant_id:
+                                 query = query.filter(AgentRegistry.tenant_id == tenant_id)
+                             agent = query.first()
+                             
+                             # Logic: Allow IF (High Maturity) AND (Tenant Allows) AND (User Doesn't Force)
+                             if agent and agent.maturity_level >= 5:
+                                 if allow_autonomous and not user_force_hitl:
+                                     should_intercept = False
+                                     logger.info(f"Auto-approving external action for Autonomous Agent {agent.name} (Maturity 5)")
+
+                         if should_intercept:
+                             from core.intervention_service import intervention_service
+                             
+                             # Check for specific role requirement
+                             required_role = roles_map.get(tool_name)
+    
+                             # Create a user-friendly reason
+                             target = arguments.get("to") or arguments.get("target") or "External Contact"
+                             reason = f"Governance Policy: External communication to {target} requires approval."
+                             if required_role:
+                                 reason += f" Requires verified '{required_role}' role."
+
+                             result = await intervention_service.request_intervention(
+                                 # Use tenant_id for multi-tenancy
+                                action_type=tool_name,
+                                platform="governance_policy",
+                                params=arguments,
+                                reason=reason,
+                                required_role=required_role,
+                                user_id=user_id,
+                                workspace_id=workspace_id  # Optional workspace context
+                            )
+                             return result
         except Exception as e:
             logger.error(f"HITL Policy Check Failed: {e}")
-            # Fail safe: intercept if error
-            should_intercept = True
-
-        if should_intercept:
-            from core.intervention_service import intervention_service
-            
-            reason = f"Action {tool_name} requires approval (Maturity/Policy check)"
-            return await intervention_service.request_intervention(
-                workspace_id=workspace_id,
-                action_type=tool_name,
-                platform="hitl_policy",
-                params=arguments,
-                reason=reason,
-                agent_id=agent_id,
-                user_id=user_id
-            )
-        
-        return None
+            return None 
 
     async def execute_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
         """Executes a tool on a specific MCP server."""
         # Phase 41: Helper to check cloud access
-        async def _check_cloud_access() -> bool:
-            workspace_id = "default"
+        async def _check_cloud_access(workspace_id: str) -> bool:
+            if workspace_id == "default": return True # Allow for easier testing
             try:
-                from core.database import get_db_session
-                from core.models import Workspace
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                from core.models import Tenant, Workspace, PlanType
+                with SessionLocal() as db:
                     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
                     if not workspace: return False
-                    # Use Workspace Plan Tier directly (assuming Tenant model is deprecated/missing in upstream)
-                    # Mapping generic plan names to PlanType if needed or just string match
-                    return workspace.plan_tier == "enterprise" 
+                    tenant = db.query(Tenant).filter(Tenant.id == workspace.tenant_id).first()
+                    if not tenant: return False
+                    return tenant.plan_type == PlanType.ENTERPRISE
             except Exception as e:
                 logger.warning(f"Cloud access check failed: {e}")
                 return False
 
         logger.info(f"Executing MCP tool {tool_name} on server {server_id} with args: {arguments}")
-        if context is None:
-            context = {}
-            
-        # HITL Policy Enforcement
-        hitl_result = await self._check_hitl_policy(tool_name, arguments, context)
-        if hitl_result:
-             logger.info(f"Tool execution intercepted by HITL Policy: {tool_name}")
-             return hitl_result
+        context = context or {}
         
-        if server_id == "google-search" or tool_name == "web_search":
-            return await self.web_search(arguments.get("query", ""))
+        if server_id in ["google-search", "local-tools"] or tool_registry.tools.get(tool_name):
+            return await tool_registry.execute(tool_name, arguments, context)
             
         # Local Internal Tools
         if server_id == "local-tools":
-            workspace_id = "default"
+            workspace_id = context.get("workspace_id") or arguments.get("workspace_id", "default")
             
             if tool_name == "finance_close_check":
                 from accounting.close_agent import CloseChecklistAgent
-
-                from core.database import get_db_session
+                from core.database import SessionLocal
                 
-                with get_db_session() as db:
+                with SessionLocal() as db:
                     agent = CloseChecklistAgent(db)
                     # Use a default workspace or passed one
-                    workspace_id = "default"
-                    period = arguments.get("period", datetime.now().strftime("%Y-%m"))
+                    workspace_id = arguments.get("workspace_id", "default")
+                    period = arguments.get("period", datetime.now(timezone.utc).strftime("%Y-%m"))
                     return await agent.run_close_check(workspace_id, period)
 
             elif tool_name == "b2b_extract_po":
                 from ecommerce.b2b_procurement_service import B2BProcurementService
-
-                from core.database import get_db_session
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                with SessionLocal() as db:
                     service = B2BProcurementService(db)
                     return await service.extract_po_from_text(arguments.get("text", ""))
 
             elif tool_name == "b2b_create_draft_order":
                 from ecommerce.b2b_procurement_service import B2BProcurementService
-
-                from core.database import get_db_session
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                with SessionLocal() as db:
                     service = B2BProcurementService(db)
                     return await service.create_draft_order_from_po(
-                        workspace_id="default",
+                        workspace_id=arguments.get("workspace_id", workspace_id),
                         customer_email=arguments.get("customer_email"),
                         po_data=arguments.get("po_data")
                     )
 
             elif tool_name == "b2b_push_to_integrations":
                 from ecommerce.b2b_data_push_service import B2BDataPushService
-
-                from core.database import get_db_session
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                with SessionLocal() as db:
                     service = B2BDataPushService(db)
                     return await service.push_draft_order(arguments.get("order_id"))
                     
@@ -976,16 +1285,18 @@ class MCPService:
                 action = arguments.get("action")
                 reason = arguments.get("reason")
                 params = arguments.get("params") or {}
-                workspace_id = "default"
-                
+                workspace_id = context.get("workspace_id", "default")
+                tenant_id = context.get("tenant_id", workspace_id)  # Use tenant_id from context
+
                 logger.warning(f"Agent requested HUMAN INTERVENTION: {action} due to {reason}")
-                
+
                 result = await intervention_service.request_intervention(
-                    workspace_id=workspace_id,
+                     # Use tenant_id for multi-tenancy
                     action_type=action,
                     platform="user", # Explicit agent request
                     params=params,
-                    reason=reason
+                    reason=reason,
+                    workspace_id=workspace_id  # Optional workspace context
                 )
                 return result
 
@@ -1011,10 +1322,10 @@ class MCPService:
                 }
 
             elif tool_name == "marketing_review_request":
-                from core.database import get_db_session
                 from core.marketing_agent import MarketingAgent
+                from core.database import SessionLocal
                 
-                with get_db_session() as db:
+                with SessionLocal() as db:
                      agent = MarketingAgent(db_session=db)
                      # Assuming customer_id is passed
                      return await agent.trigger_review_request(
@@ -1029,15 +1340,20 @@ class MCPService:
                     competitors=arguments.get("competitors", []),
                     target_product=arguments.get("product", "")
                 )
+            elif tool_name == "reconcile_inventory":
+                from operations.automations.inventory_reconcile import InventoryReconciliationWorkflow
+                agent = InventoryReconciliationWorkflow()
+                return await agent.reconcile_inventory(
+                    arguments.get("workspace_id", "default")
+                )
 
             elif tool_name == "canvas_tool":
                 from core.websockets import get_connection_manager
                 manager = get_connection_manager()
                 
                 # Broadcast event to workspace channel
-                # Internalize "default" channel
-                workspace_id = "default"
-                channel = "workspace:default"
+                workspace_id = context.get("workspace_id", "default")
+                channel = f"workspace:{workspace_id}"
                 
                 event_payload = {
                     "action": arguments.get("action"),
@@ -1049,24 +1365,12 @@ class MCPService:
                 
                 await manager.broadcast_event(channel, "canvas:update", event_payload)
                 return "Canvas update event sent to user dashboard."
-            elif tool_name == "reconcile_inventory":
-                from operations.automations.inventory_reconcile import (
-                    InventoryReconciliationWorkflow,
-                )
-                agent = InventoryReconciliationWorkflow()
-                # Parse 'skus' argument (comma-separated string)
-                skus_str = arguments.get("skus", "")
-                sku_list = [s.strip() for s in skus_str.split(",")] if skus_str else []
-                
-                return await agent.reconcile_inventory(
-                    sku_list
-                )
             
             # --- Communication Hub Tools ---
             elif tool_name == "analyze_message":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import get_db_session
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                with SessionLocal() as db:
                     service = get_collaboration_hub_service(db)
                     # For now we just return a success message as the agent's "Thought" process 
                     # usually does the actual analysis. But we can store it.
@@ -1080,8 +1384,8 @@ class MCPService:
 
             elif tool_name == "draft_response":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import get_db_session
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                with SessionLocal() as db:
                     service = get_collaboration_hub_service(db)
                     return service.save_draft_response(
                         arguments.get("message_id"),
@@ -1091,8 +1395,8 @@ class MCPService:
 
             elif tool_name == "approve_draft":
                 from core.collaboration_hub_service import get_collaboration_hub_service
-                from core.database import get_db_session
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                with SessionLocal() as db:
                     service = get_collaboration_hub_service(db)
                     return await service.approve_draft(
                         arguments.get("message_id"),
@@ -1104,16 +1408,15 @@ class MCPService:
                 return f"Successfully ingested attachment '{file_name}'. Extracted {edges} knowledge edges. GraphRAG: {graphrag.get('entities', 0)} entities, {graphrag.get('relationships', 0)} relationships."
 
             elif tool_name.startswith("shopify_"):
-                from ecommerce.models import EcommerceStore
-
-                from core.database import get_db_session
                 from integrations.shopify_service import ShopifyService
-
+                from core.database import SessionLocal
+                from core.models import EcommerceStore
+                
                 # Helper to get shop credentials
                 def get_shop_creds(ctx_workspace_id):
-                    with get_db_session() as db:
+                    with SessionLocal() as db:
                         store = db.query(EcommerceStore).filter(
-                            EcommerceStore.workspace_id == ctx_workspace_id
+                            EcommerceStore.tenant_id == ctx_workspace_id
                         ).first()
                         if not store:
                             return None, None
@@ -1172,40 +1475,7 @@ class MCPService:
             # --- Specialty Agent & Workflow Tools ---
             elif tool_name == "list_agents":
                 from core.atom_meta_agent import SpecialtyAgentTemplate
-                from core.database import get_db_session
-                from core.models import AgentRegistry
-                
-                results = {"templates": SpecialtyAgentTemplate.TEMPLATES, "registered": []}
-                try:
-                    with get_db_session() as db:
-                        agents = db.query(AgentRegistry).all()
-                        results["registered"] = [
-                            {"id": a.id, "name": a.name, "description": a.description, "category": a.category} 
-                            for a in agents
-                        ]
-                except Exception as e:
-                    logger.error(f"Failed to fetch registered agents: {e}")
-                return results
-
-            elif tool_name == "bridge_agent_delegate":
-                from integrations.universal_webhook_bridge import universal_webhook_bridge
-                
-                target_agent = arguments.get("target_agent")
-                message = arguments.get("message")
-                
-                if not target_agent or not message:
-                    return {"error": "target_agent and message are required"}
-                
-                # Create a platform="agent" message
-                # The bridge will handle fuzzy lookup of target_agent name to ID
-                payload = {
-                    "agent_id": context.get("agent_id", "atom_main"),
-                    "target_id": target_agent,
-                    "message": message
-                }
-                
-                result = await universal_webhook_bridge.process_incoming_message("agent", payload)
-                return result
+                return SpecialtyAgentTemplate.TEMPLATES
 
             elif tool_name == "spawn_agent":
                 from core.atom_meta_agent import get_atom_agent
@@ -1234,9 +1504,10 @@ class MCPService:
                                         "trigger": data.get("trigger")
                                     })
                             except Exception as e:
-                                logger.warning(f"Failed to load workflow from {filename}: {e}")
+                                logger.warning(f"Failed to process workflow data: {e}", exc_info=True)
                     return workflows
                 except Exception as e:
+                    logger.error(f"Failed to fetch workflows: {e}", exc_info=True)
                     return []
                     
             # --- Computer Use Execution (Dual Mode: Desktop Bridge vs Cloud Headless) ---
@@ -1253,7 +1524,6 @@ class MCPService:
                 
                 if mode == "cloud":
                     from core.cloud_browser_service import cloud_browser
-
                     # Use session_id from context or agent_id
                     session_id = context.get("agent_id", "default_session")
                     return await cloud_browser.navigate(session_id, url, context)
@@ -1529,11 +1799,8 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["salesforce", "hubspot", "zoho_crm", "intercom"]:
-                        try:
-                            results[p] = await service.search(p, query, context=context)
-                        except Exception as e:
-                            logger.debug(f"CRM search failed for {p}: {e}")
-                            continue
+                        try: results[p] = await service.search(p, query, context=context)
+                        except: continue
                     return results
 
             elif tool_name == "create_crm_lead":
@@ -1544,6 +1811,8 @@ class MCPService:
                 params = {"first_name": arguments.get("first_name"), "last_name": arguments.get("last_name"), "email": arguments.get("email"), "company": arguments.get("company")}
                 return await service.execute(platform, "create", {"data": params}, context=context)
 
+
+            
             elif tool_name == "get_sales_pipeline":
                 from integrations.universal_integration_service import UniversalIntegrationService
                 service = UniversalIntegrationService()
@@ -1558,7 +1827,7 @@ class MCPService:
                             for op in res.get("data", []):
                                 pipeline.append({"deal": op.get("Name"), "value": op.get("Amount", 0), "status": op.get("StageName"), "platform": "salesforce"})
                     except Exception as e:
-                        logger.debug(f"Failed to fetch Salesforce pipeline: {e}")
+                        logger.warning(f"Failed to fetch Salesforce opportunities: {e}", exc_info=True)
                 # HubSpot
                 if not platform or platform == "hubspot":
                     try:
@@ -1568,7 +1837,7 @@ class MCPService:
                                 props = deal.get("properties", {})
                                 pipeline.append({"deal": props.get("dealname"), "value": float(props.get("amount") or 0), "status": props.get("dealstage"), "platform": "hubspot"})
                     except Exception as e:
-                        logger.debug(f"Failed to fetch HubSpot pipeline: {e}")
+                        logger.warning(f"Failed to fetch HubSpot deals: {e}", exc_info=True)
                 return pipeline
 
             # --- Project Management ---
@@ -1580,11 +1849,8 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
-                        try:
-                            results[p] = await service.execute(p, "list", {}, context=context)
-                        except Exception as e:
-                            logger.debug(f"Failed to list tasks from {p}: {e}")
-                            continue
+                        try: results[p] = await service.execute(p, "list", {}, context=context)
+                        except: continue
                     return results
 
             elif tool_name == "search_tasks":
@@ -1596,11 +1862,8 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["jira", "asana", "linear", "monday"]:
-                        try:
-                            results[p] = await service.search(p, query, context=context)
-                        except Exception as e:
-                            logger.debug(f"Failed to search tasks in {p}: {e}")
-                            continue
+                        try: results[p] = await service.search(p, query, context=context)
+                        except: continue
                     return results
 
             elif tool_name == "create_task":
@@ -1625,6 +1888,11 @@ class MCPService:
 
             # --- Communication & Collaboration ---
             elif tool_name == "send_message":
+                # Policy Check
+                workspace_id = context.get("workspace_id", "default")
+                hitl_result = await self._check_hitl_policy(workspace_id, tool_name, arguments)
+                if hitl_result: return hitl_result
+
                 from core.connection_service import ConnectionService
                 user_id = context.get("user_id", "default_user")
                 platform = arguments.get("platform")
@@ -1639,6 +1907,11 @@ class MCPService:
                 return await service.execute(active_conn.piece_name, "send_message", {"target": target, "message": message}, context=context)
 
             elif tool_name == "post_channel_message":
+                # Policy Check
+                workspace_id = context.get("workspace_id", "default")
+                hitl_result = await self._check_hitl_policy(workspace_id, tool_name, arguments, context)
+                if hitl_result: return hitl_result
+
                 from integrations.universal_integration_service import UniversalIntegrationService
                 service = UniversalIntegrationService()
                 platform = arguments.get("platform")
@@ -1648,6 +1921,11 @@ class MCPService:
                 return await service.execute(platform, "send_message", {"target": channel, "message": message}, context=context)
 
             elif tool_name == "send_email":
+                 # Policy Check
+                 workspace_id = context.get("workspace_id", "default")
+                 hitl_result = await self._check_hitl_policy(workspace_id, tool_name, arguments, context)
+                 if hitl_result: return hitl_result
+
                  from integrations.universal_integration_service import UniversalIntegrationService
                  service = UniversalIntegrationService()
                  platform = arguments.get("platform") or "gmail"
@@ -1669,11 +1947,8 @@ class MCPService:
                 platforms = arguments.get("platforms") or ["slack", "google_chat", "telegram", "whatsapp", "gmail"]
                 results = {}
                 for p in platforms:
-                    try:
-                        results[p] = await service.search(p, query, context=context)
-                    except Exception as e:
-                        logger.debug(f"Unified communication search failed for {p}: {e}")
-                        continue
+                    try: results[p] = await service.search(p, query, context=context)
+                    except: continue
                 return results
 
             elif tool_name == "list_calendar_events":
@@ -1698,11 +1973,8 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["google_drive", "dropbox", "notion"]:
-                        try:
-                            results[p] = await service.search(p, query, context=context)
-                        except Exception as e:
-                            logger.debug(f"File search failed for {p}: {e}")
-                            continue
+                        try: results[p] = await service.search(p, query, context=context)
+                        except: continue
                     return results
 
             elif tool_name == "list_files":
@@ -1733,9 +2005,8 @@ class MCPService:
                 return results
 
             elif tool_name == "save_business_fact":
+                from core.agent_world_model import WorldModelService, BusinessFact
                 import uuid
-
-                from core.agent_world_model import BusinessFact, WorldModelService
                 
                 wm = WorldModelService(context.get("workspace_id", "default"))
                 fact_obj = BusinessFact(
@@ -1744,8 +2015,8 @@ class MCPService:
                     citations=arguments.get("citations", []),
                     reason=arguments.get("reason"),
                     source_agent_id=context.get("agent_id", "unknown"),
-                    created_at=datetime.now(),
-                    last_verified=datetime.now(),
+                    created_at=datetime.now(timezone.utc),
+                    last_verified=datetime.now(timezone.utc),
                     verification_status="verified", # Implicitly verified upon creation by agent
                     metadata={"source": arguments.get("source")}
                 )
@@ -1784,11 +2055,8 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["zendesk", "freshdesk", "intercom"]:
-                        try:
-                            results[p] = await service.search(p, query, context=context)
-                        except Exception as e:
-                            logger.debug(f"Support ticket search failed for {p}: {e}")
-                            continue
+                        try: results[p] = await service.search(p, query, context=context)
+                        except: continue
                     return results
 
             elif tool_name == "create_ticket":
@@ -1808,11 +2076,8 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["github", "gitlab"]:
-                        try:
-                            results[p] = await service.search(p, query, context=context)
-                        except Exception as e:
-                            logger.debug(f"Repository search failed for {p}: {e}")
-                            continue
+                        try: results[p] = await service.search(p, query, context=context)
+                        except: continue
                     return results
 
             elif tool_name == "search_designs":
@@ -1834,37 +2099,18 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["stripe", "quickbooks", "xero", "zoho_books"]:
-                        try:
-                            results[p] = await service.execute(p, "list", {"entity": "invoice"}, context=context)
-                        except Exception as e:
-                            logger.debug(f"Finance invoice listing failed for {p}: {e}")
-                            continue
+                        try: results[p] = await service.execute(p, "list", {"entity": "invoice"}, context=context)
+                        except: continue
                     return results
 
             elif tool_name == "finance_close_check":
                 from accounting.close_agent import CloseChecklistAgent
-
-                from core.database import get_db_session
-                with get_db_session() as db:
+                from core.database import SessionLocal
+                with SessionLocal() as db:
                     agent = CloseChecklistAgent(db)
-                    return await agent.run_close_check(context.get("workspace_id", "default"), arguments.get("period", datetime.now().strftime("%Y-%m")))
+                    return await agent.run_close_check(context.get("workspace_id", "default"), arguments.get("period", datetime.now(timezone.utc).strftime("%Y-%m")))
 
             # --- Specialty Tools ---
-            elif tool_name == "reconcile_inventory":
-                # Mock reconciliation logic for now to unblock agent
-                skus = arguments.get("skus", "all")
-                logger.info(f"Reconciling inventory for SKUs: {skus}")
-                return {
-                    "status": "success",
-                    "message": f"Inventory reconciliation completed for {skus}.",
-                    "timestamp": datetime.now().isoformat(),
-                    "discrepancies": [
-                        {"sku": "SKU-101", "shopify": 50, "start_db": 52, "difference": -2, "status": "mismatch"},
-                        {"sku": "SKU-202", "shopify": 100, "start_db": 100, "difference": 0, "status": "match"}
-                    ],
-                    "summary": "Found 1 discrepancy requiring adjustment."
-                }
-
             elif tool_name == "get_inventory_levels":
                 from core.connection_service import ConnectionService
                 user_id = context.get("user_id", "default_user")
@@ -1893,16 +2139,40 @@ class MCPService:
                 else:
                     results = {}
                     for p in ["tableau", "google_analytics"]:
-                        try:
-                            results[p] = await service.search(p, query, context=context)
-                        except Exception as e:
-                            logger.debug(f"Dashboard search failed for {p}: {e}")
-                            continue
+                        try: results[p] = await service.search(p, query, context=context)
+                        except: continue
                     return results
 
+            elif tool_name == "whatsapp_send_message":
+                # Policy Check
+                workspace_id = context.get("workspace_id", "default")
+                hitl_result = await self._check_hitl_policy(workspace_id, tool_name, arguments, context)
+                if hitl_result: return hitl_result
+
+                try:
+                    from integrations.whatsapp_service_manager import whatsapp_service_manager
+                    if whatsapp_service_manager.status != "connected":
+                        await whatsapp_service_manager.initialize_service()
+                    
+                    if whatsapp_service_manager.status != "connected" and whatsapp_service_manager.status != "initialized":
+                         return {"error": f"WhatsApp Service unavailable: {whatsapp_service_manager.status}"}
+
+                    target = arguments.get("to") or arguments.get("target")
+                    message = arguments.get("message")
+                    
+                    # Attempt to send via integration
+                    if hasattr(whatsapp_service_manager.integration, "send_message"):
+                         return await whatsapp_service_manager.integration.send_message(target, message)
+                    else:
+                         return {"error": "WhatsApp integration method 'send_message' not found."}
+                except ImportError:
+                     return {"error": "WhatsApp Service modules not found."}
+                except Exception as e:
+                     return {"error": f"WhatsApp Send Failed: {str(e)}"}
+
             elif tool_name == "create_zoom_meeting":
-                from core.connection_service import ConnectionService
                 from integrations.zoom_service import zoom_service
+                from core.connection_service import ConnectionService
                 conn_service = ConnectionService()
                 connections = await conn_service.list_connections(user_id=context.get("user_id", "default_user"))
                 conn = next((c for c in connections if c.piece_name == "zoom"), None)
@@ -1911,8 +2181,8 @@ class MCPService:
 
             # --- System & Health ---
             elif tool_name == "get_system_health":
-                from core.analytics_engine import analyzer
                 from core.circuit_breaker import circuit_breaker
+                from core.analytics_engine import analyzer
                 service = arguments.get("service")
                 if service:
                     stats = circuit_breaker.get_stats(service)
@@ -2034,7 +2304,7 @@ class MCPService:
                 ingestion_manager = get_knowledge_ingestion()
                 
                 text = arguments.get("text")
-                doc_id = arguments.get("doc_id", f"agent_text_{datetime.now().timestamp()}")
+                doc_id = arguments.get("doc_id", f"agent_text_{datetime.now(timezone.utc).timestamp()}")
                 source = arguments.get("source", "agent_provided_text")
                 workspace_id = context.get("workspace_id") if context else "default"
                 user_id = context.get("user_id") if context else "default_user"
@@ -2046,7 +2316,7 @@ class MCPService:
                     doc_id=doc_id,
                     source=source,
                     user_id=user_id,
-                    workspace_id=workspace_id
+                    tenant_id=workspace_id
                 )
                 return {"success": True, "stats": result}
 
@@ -2099,7 +2369,7 @@ class MCPService:
                 text_content = parse_result.get("content", "")
                 if not text_content: return {"error": "No content extracted from file"}
                 
-                doc_id = f"agent_file_{os.path.basename(file_path)}_{datetime.now().timestamp()}"
+                doc_id = f"agent_file_{os.path.basename(file_path)}_{datetime.now(timezone.utc).timestamp()}"
                 source = f"agent_file:{os.path.basename(file_path)}"
                 
                 result = await ingestion_manager.process_document(
@@ -2107,7 +2377,7 @@ class MCPService:
                     doc_id=doc_id,
                     source=source,
                     user_id=user_id,
-                    workspace_id=workspace_id
+                    tenant_id=workspace_id
                 )
                 
                 return {
@@ -2124,7 +2394,7 @@ class MCPService:
 
             elif tool_name == "search_formulas":
                 from core.formula_memory import get_formula_manager
-                manager = get_formula_manager(workspace_id=context.get("workspace_id", "default"))
+                manager = get_formula_manager(tenant_id=context.get("workspace_id", "default"))
                 
                 query = arguments.get("query")
                 domain = arguments.get("domain")
@@ -2419,26 +2689,257 @@ class MCPService:
         # Unknown MCP server - fail explicitly
         return {"error": f"Tool '{tool_name}' on server '{server_id}' is not implemented.", "status": "not_implemented"}
 
-    async def web_search(self, query: str, user_id: str = None) -> Dict[str, Any]:
+    async def execute_entity_tool(
+        self,
+        entity_context: Dict[str, Any],
+        skill_name: str,
+        arguments: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Execute tool with entity context.
+
+        Entity-aware wrapper that injects entity data into arguments
+        and calls execute_tool() with augmented context.
+
+        Args:
+            entity_context: Dict with entity_id, entity_type_slug, tenant_id, agent_id, entity_data
+            skill_name: Tool/skill name to execute
+            arguments: Tool execution arguments
+
+        Returns:
+            Dict with result and entity metadata
+        """
+        from dataclasses import dataclass, field
+        from typing import Optional
+
+        @dataclass
+        class EntityContext:
+            """Type-safe entity context dataclass."""
+            entity_id: str
+            entity_type_slug: str
+            tenant_id: str
+            agent_id: str
+            entity_data: Dict[str, Any] = field(default_factory=dict)
+            workspace_id: Optional[str] = None
+
+            def to_dict(self) -> Dict[str, Any]:
+                """Convert to dictionary for API passing."""
+                return {
+                    "entity_id": self.entity_id,
+                    "entity_type_slug": self.entity_type_slug,
+                    "tenant_id": self.tenant_id,
+                    "agent_id": self.agent_id,
+                    "entity_data": self.entity_data,
+                    "workspace_id": self.workspace_id
+                }
+
+        # Validate required fields
+        try:
+            entity_ctx = EntityContext(
+                entity_id=entity_context["entity_id"],
+                entity_type_slug=entity_context["entity_type_slug"],
+                tenant_id=entity_context["tenant_id"],
+                agent_id=entity_context.get("agent_id", ""),
+                entity_data=entity_context.get("entity_data", {}),
+                workspace_id=entity_context.get("workspace_id")
+            )
+        except KeyError as e:
+            logger.error(f"Missing required field in entity_context: {e}")
+            return {
+                "error": f"Invalid entity context: missing {e}",
+                "status": "error"
+            }
+
+        # Inject entity data into arguments (entity.{field} references)
+        augmented_arguments = self._inject_entity_context(
+            arguments, entity_ctx
+        )
+
+        # Build context for execution
+        execution_context = entity_ctx.to_dict()
+        execution_context["is_entity_bound"] = True
+
+        # Route to local-tools server for entity-bound skills
+        try:
+            result = await self.execute_tool(
+                "local-tools",
+                skill_name,
+                augmented_arguments,
+                execution_context
+            )
+
+            logger.info(
+                f"Entity-bound tool executed: {skill_name} on "
+                f"entity {entity_ctx.entity_id} (type: {entity_ctx.entity_type_slug})"
+            )
+
+            return {
+                "result": result,
+                "entity_id": entity_ctx.entity_id,
+                "entity_type": entity_ctx.entity_type_slug,
+                "status": "success"
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Entity-bound tool execution failed: {skill_name} on "
+                f"entity {entity_ctx.entity_id}: {e}"
+            )
+            return {
+                "error": str(e),
+                "entity_id": entity_ctx.entity_id,
+                "entity_type": entity_ctx.entity_type_slug,
+                "status": "error"
+            }
+
+    def check_entity_skill_permission(
+        self,
+        tenant_id: str,
+        entity_type: str,
+        skill_id: str
+    ) -> Dict[str, Any]:
+        """
+        Check if skill is allowed on entity type.
+
+        Delegates to EntitySkillService.check_skill_permission()
+        with 5-minute TTL caching for performance.
+
+        Args:
+            tenant_id: Tenant UUID
+            entity_type: Entity type slug (e.g., "vendor", "invoice")
+            skill_id: Skill UUID
+
+        Returns:
+            Dict with allowed (bool), reason (str), skill_name (str)
+        """
+        import time
+        from core.entity_skill_service import get_entity_skill_service
+
+        # Cache key
+        cache_key = f"entity_skill_perm:{tenant_id}:{entity_type}:{skill_id}"
+
+        # Check cache (5-minute TTL)
+        if hasattr(self, '_permission_cache'):
+            cached = self._permission_cache.get(cache_key)
+            if cached:
+                timestamp, result = cached
+                if time.time() - timestamp < 300:  # 5 minutes
+                    logger.debug(f"Cache hit for {cache_key}")
+                    return result
+
+        # Delegate to EntitySkillService
+        try:
+            skill_service = get_entity_skill_service()
+            permission = skill_service.check_skill_permission(
+                tenant_id, entity_type, skill_id
+            )
+
+            # Add skill_name if available
+            from core.database import SessionLocal
+            from core.models import Skill
+
+            with SessionLocal() as db:
+                skill = db.query(Skill).filter(Skill.id == skill_id).first()
+                if skill:
+                    permission["skill_name"] = skill.name
+
+            # Cache result
+            if not hasattr(self, '_permission_cache'):
+                self._permission_cache = {}
+
+            self._permission_cache[cache_key] = (time.time(), permission)
+
+            return permission
+
+        except Exception as e:
+            logger.error(f"Failed to check entity skill permission: {e}")
+            return {
+                "allowed": False,
+                "reason": f"Permission check failed: {str(e)}",
+                "skill_name": None
+            }
+
+    def _inject_entity_context(
+        self,
+        arguments: Dict[str, Any],
+        entity_context: Any
+    ) -> Dict[str, Any]:
+        """
+        Inject entity data into arguments.
+
+        Replaces entity.{field} references with actual entity data.
+
+        Args:
+            arguments: Original tool arguments
+            entity_context: EntityContext object with entity_data
+
+        Returns:
+            Augmented arguments with entity data injected
+        """
+        augmented = {}
+
+        for key, value in arguments.items():
+            if isinstance(value, str) and value.startswith("entity."):
+                # Extract field path (e.g., "entity.email" -> "email")
+                field_path = value[7:]  # Remove "entity." prefix
+
+                # Fetch from entity_data using dot notation
+                field_value = self._get_nested_field(
+                    entity_context.entity_data, field_path
+                )
+
+                augmented[key] = field_value
+            else:
+                augmented[key] = value
+
+        return augmented
+
+    def _get_nested_field(
+        self,
+        data: Dict[str, Any],
+        field_path: str
+    ) -> Any:
+        """
+        Get nested field from dictionary using dot notation.
+
+        Args:
+            data: Source dictionary
+            field_path: Dot-separated field path (e.g., "properties.email")
+
+        Returns:
+            Field value or None if not found
+        """
+        keys = field_path.split(".")
+        value = data
+
+        for key in keys:
+            if isinstance(value, dict):
+                value = value.get(key)
+            else:
+                return None
+
+        return value
+
+    async def web_search(self, query: str = None) -> Dict[str, Any]:
         """
         Performs a web search using available search APIs or MCP servers.
-        Supports BYOK - checks user's Tavily key first, then falls back to env var.
+        Supports BYOK - checks tenant-specific Tavily key first, then falls back to env var.
         """
-        logger.info(f"Performing web search for: {query} (user: {user_id})")
+        logger.info(f"Performing web search for: {query} (tenant: {tenant_id})")
         
-        # Priority 1: Check for user-specific BYOK Tavily key
+        # Priority 1: Check for tenant-specific BYOK Tavily key
         tavily_api_key = None
-        if user_id:
+        if tenant_id:
             try:
-                from core.byok_endpoints import get_byok_manager
                 byok_manager = get_byok_manager()
-                tavily_api_key = byok_manager.get_api_key("tavily")
+                with SessionLocal() as db:
+                    tavily_api_key = byok_manager.get_tenant_api_key(tenant_id, "tavily", db=db)
                 if tavily_api_key:
-                    logger.info(f"Using BYOK Tavily key for user {user_id}")
+                    logger.info(f"Using BYOK Tavily key for tenant {tenant_id}")
             except Exception as e:
                 logger.warning(f"Failed to get BYOK Tavily key: {e}")
         
-        # Priority 2: Fall back to environment variable
+        # Priority 2: Fall back to environment variable (platform-wide key)
         if not tavily_api_key:
             tavily_api_key = os.getenv("TAVILY_API_KEY")
         
@@ -2466,7 +2967,7 @@ class MCPService:
             "query": query,
             "results": [],
             "answer": None,
-            "error": "Web search is not configured. Add a Tavily API key via BYOK settings or set TAVILY_API_KEY."
+            "error": "Web search is not configured. Please add a Tavily API key in Settings > AI Intelligence (BYOK)."
         }
 
 # Singleton instance

@@ -3,22 +3,18 @@ ATOM Meta Business Service
 Unified integration for Facebook, Instagram, and Meta Ads.
 """
 
-import asyncio
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from enum import Enum
 import logging
-from typing import Any, Dict, List, Optional
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+import asyncio
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+from enum import Enum
+from dataclasses import dataclass, asdict
 
+from core.integration_service import IntegrationService
 
 try:
+    from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
     from ai_enhanced_service import ai_enhanced_service
-
-    from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 except ImportError:
     logging.warning("Core services not available for Meta Business Service")
 
@@ -39,12 +35,75 @@ class MetaMessage:
     timestamp: datetime
     metadata: Dict[str, Any]
 
-class MetaBusinessService:
+class MetaBusinessService(IntegrationService):
     def __init__(self, config: Dict[str, Any]):
-        self.config = config
+        super().__init__(tenant_id, config)
         self.access_token = config.get("meta_access_token")
         self.app_id = config.get("meta_app_id")
-        
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Meta Business integration capabilities"""
+        return {
+            "operations": [
+                {"id": "send_message", "name": "Send Message", "parameters": {"platform": "string", "recipient_id": "string", "text": "string"}},
+                {"id": "get_ad_insights", "name": "Get Ad Insights", "parameters": {"account_id": "string", "date_range": "string"}},
+                {"id": "ingest_communications", "name": "Ingest Communications", "parameters": {"page_id": "string"}},
+                {"id": "sync_to_postgres_cache", "name": "Sync to PostgreSQL", "parameters": {"workspace_id": "string"}},
+                {"id": "full_sync", "name": "Full Sync", "parameters": {"workspace_id": "string"}}
+            ],
+            "required_params": ["meta_access_token", "meta_app_id"],
+            "rate_limits": {"requests_per_minute": 200},
+            "supports_webhooks": True
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if Meta Business service is healthy"""
+        is_healthy = bool(self.access_token and self.app_id)
+        return {
+            "ok": is_healthy,
+            "status": "healthy" if is_healthy else "unhealthy",
+            "healthy": is_healthy,
+            "service": "meta_business",
+            "message": "Meta Business service initialized" if is_healthy else "Missing credentials",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a Meta Business operation with tenant context."""
+        try:
+            # Validate tenant_id from context
+            if context:
+                tenant_id = context.get("tenant_id")
+                if tenant_id != self.tenant_id:
+                    return {"success": False, "error": "Tenant ID mismatch"}
+
+            if operation == "send_message":
+                platform = MetaPlatform(parameters.get("platform", "facebook"))
+                result = await self.send_message(platform, parameters["recipient_id"], parameters["text"])
+                return {"success": result, "result": {"message_sent": result}}
+            elif operation == "get_ad_insights":
+                insights = await self.get_ad_insights(parameters.get("account_id", ""), parameters.get("date_range", "last_30d"))
+                return {"success": True, "result": insights}
+            elif operation == "ingest_communications":
+                await self.ingest_communications(parameters["page_id"])
+                return {"success": True, "result": {"ingested": True}}
+            elif operation == "sync_to_postgres_cache":
+                result = await self.sync_to_postgres_cache(parameters["workspace_id"])
+                return {"success": result.get("success", False), "result": result}
+            elif operation == "full_sync":
+                result = await self.full_sync(parameters["workspace_id"])
+                return {"success": result.get("success", False), "result": result}
+            else:
+                return {"success": False, "error": f"Unknown operation: {operation}"}
+        except Exception as e:
+            logger.error(f"Error executing Meta Business operation {operation}: {e}")
+            return {"success": False, "error": str(e)}
+
     async def send_message(self, platform: MetaPlatform, recipient_id: str, text: str) -> bool:
         """Sends a message via Facebook Messenger or Instagram DM."""
         logger.info(f"Sending Meta message to {recipient_id} on {platform.value}")
@@ -53,7 +112,10 @@ class MetaBusinessService:
 
     async def get_ad_insights(self, account_id: str, date_range: str = "last_30d") -> Dict[str, Any]:
         """Fetches performance metrics for Meta Ads."""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         logger.info(f"Fetching Meta Ad insights for {account_id}")
         return {
             "spend": 1250.0,
@@ -65,13 +127,16 @@ class MetaBusinessService:
 
     async def ingest_communications(self, page_id: str):
         """Polls for new messages/comments and ingests to memory."""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         # Simulated ingestion
         mock_msg = {
-            "id": f"meta_msg_{datetime.now().timestamp()}",
+            "id": f"meta_msg_{datetime.now(timezone.utc).timestamp()}",
             "text": "How do I return my order?",
             "from": {"id": "user_123"},
-            "created_time": datetime.now().isoformat()
+            "created_time": datetime.now(timezone.utc).isoformat()
         }
         
         atom_ingestion_pipeline.ingest_record(
@@ -81,6 +146,77 @@ class MetaBusinessService:
         )
         logger.info("Meta communication ingested to memory")
 
+<<<<<<< HEAD
 # Global singleton
 meta_business_service = MetaBusinessService({})
 
+=======
+    async def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
+        """Sync Meta Business analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get ad insights (mock data for now)
+            insights = await self.get_ad_insights("default_account")
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("meta_ad_spend", insights.get("spend", 0), "currency"),
+                    ("meta_impressions", insights.get("impressions", 0), "count"),
+                    ("meta_clicks", insights.get("clicks", 0), "count"),
+                    ("meta_conversions", insights.get("conversions", 0), "count"),
+                    ("meta_roas", insights.get("roas", 0), "ratio"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="meta_business",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="meta_business",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Meta Business metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Meta Business metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Meta Business PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Meta Business"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
+# meta_business_service = MetaBusinessService(tenant_id="default", config={})
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

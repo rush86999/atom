@@ -3,31 +3,28 @@ Figma Service for ATOM Platform
 Provides comprehensive Figma design collaboration integration functionality
 """
 
-from datetime import datetime, timedelta
 import logging
 import os
 import secrets
 from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
-from fastapi import HTTPException
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
-
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class FigmaService:
-    def __init__(self):
-        self.client_id = os.getenv("FIGMA_CLIENT_ID")
-        self.client_secret = os.getenv("FIGMA_CLIENT_SECRET")
-        self.redirect_uri = os.getenv("FIGMA_REDIRECT_URI", "http://localhost:3000/api/auth/callback/figma")
+class FigmaService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.client_id = self.config.get("figma_client_id") or os.getenv("FIGMA_CLIENT_ID")
+        self.client_secret = self.config.get("figma_client_secret") or os.getenv("FIGMA_CLIENT_SECRET")
+        self.redirect_uri = self.config.get("figma_redirect_uri") or os.getenv("FIGMA_REDIRECT_URI", "http://localhost:3000/api/auth/callback/figma")
         
         # Token storage
-        self.access_token = os.getenv("FIGMA_ACCESS_TOKEN")
-        self.refresh_token = None
+        self.access_token = self.config.get("access_token") or os.getenv("FIGMA_ACCESS_TOKEN")
+        self.refresh_token = self.config.get("refresh_token")
         self.token_expires_at = None
         self.user_info = None
         
@@ -42,7 +39,10 @@ class FigmaService:
 
     def _get_headers(self, access_token: str = None) -> Dict[str, str]:
         """Get headers for API requests"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         token = access_token or self.access_token
         return {
             "Authorization": f"Bearer {token}",
@@ -80,7 +80,7 @@ class FigmaService:
             self.refresh_token = token_data.get("refresh_token")
             
             expires_in = token_data.get("expires_in", 7776000) # 90 days
-            self.token_expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+            self.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
             
             return token_data
         except httpx.HTTPError as e:
@@ -89,7 +89,10 @@ class FigmaService:
 
     async def refresh_access_token(self) -> Dict[str, Any]:
         """Refresh access token"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if not self.refresh_token:
             raise HTTPException(status_code=400, detail="No refresh token available")
 
@@ -110,7 +113,7 @@ class FigmaService:
                 self.refresh_token = token_data.get("refresh_token")
                 
             expires_in = token_data.get("expires_in", 7776000)
-            self.token_expires_at = datetime.now() + timedelta(seconds=int(expires_in))
+            self.token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
             
             return token_data
         except httpx.HTTPError as e:
@@ -119,7 +122,10 @@ class FigmaService:
 
     async def get_user_info(self) -> Dict[str, Any]:
         """Get current user info"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.access_token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -136,10 +142,13 @@ class FigmaService:
 
     def is_token_valid(self) -> bool:
         """Check if token is valid"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if not self.access_token:
             return False
-        if self.token_expires_at and datetime.now() > self.token_expires_at - timedelta(minutes=5):
+        if self.token_expires_at and datetime.now(timezone.utc) > self.token_expires_at - timedelta(minutes=5):
             return False
         return True
 
@@ -155,7 +164,10 @@ class FigmaService:
 
     def get_connection_status(self) -> Dict[str, Any]:
         """Get current connection status"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "connected": self.is_token_valid(),
             "has_access_token": bool(self.access_token),
@@ -182,7 +194,10 @@ class FigmaService:
 
     async def get_file_nodes(self, file_key: str, node_ids: List[str], access_token: str = None) -> Dict[str, Any]:
         """Get specific nodes from a file"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -202,7 +217,10 @@ class FigmaService:
 
     async def get_team_projects(self, team_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get projects from a team"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -218,7 +236,10 @@ class FigmaService:
 
     async def get_project_files(self, project_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get files from a project"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -234,7 +255,10 @@ class FigmaService:
 
     async def get_comments(self, file_key: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get comments from a file"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -248,6 +272,7 @@ class FigmaService:
             logger.error(f"Failed to get comments: {e}")
             raise HTTPException(status_code=400, detail=f"Failed to get comments: {str(e)}")
 
+<<<<<<< HEAD
     async def search_files(self, query: str, team_id: Optional[str] = None, access_token: str = None) -> List[Dict[str, Any]]:
         """
 
@@ -286,25 +311,142 @@ class FigmaService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Figma service"""
+=======
+    def health_check(self) -> Dict[str, Any]:
+        """Synchronous health check for Figma service"""
+        import requests
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
+            if not self.access_token:
+                return {
+                    "ok": False,
+                    "status": "unhealthy",
+                    "healthy": False,
+                    "service": "figma",
+                    "message": "Missing access token",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            headers = self._get_headers(self.access_token)
+            response = requests.get(f"{self.base_url}/me", headers=headers, timeout=10)
+            is_healthy = response.status_code == 200
             return {
-                "ok": True,
-                "status": "healthy",
+                "ok": is_healthy,
+                "status": "healthy" if is_healthy else "unhealthy",
+                "healthy": is_healthy,
                 "service": "figma",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
             return {
                 "ok": False,
                 "status": "unhealthy",
+                "healthy": False,
                 "service": "figma",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-figma_service = FigmaService()
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": [
+                {"id": "get_file", "name": "Get Figma File"},
+                {"id": "get_file_nodes", "name": "Get File Nodes"},
+                {"id": "get_team_projects", "name": "Get Team Projects"}
+            ],
+            "required_params": [],
+            "rate_limits": {"requests_per_minute": 60},
+            "supports_webhooks": False
+        }
 
+<<<<<<< HEAD
 def get_figma_service() -> FigmaService:
     return figma_service
 
+=======
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        try:
+            if operation == "get_file":
+                res = await self.get_file(parameters["file_key"])
+                return {"success": True, "result": res}
+            elif operation == "get_file_nodes":
+                res = await self.get_file_nodes(parameters["file_key"], parameters["node_ids"])
+                return {"success": True, "result": res}
+            elif operation == "get_team_projects":
+                res = await self.get_team_projects(parameters["team_id"])
+                return {"success": True, "result": res}
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported for Figma")
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
+        """Sync Figma analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get user info for connectivity check
+            is_connected = 1 if self.access_token else 0
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("figma_connected", is_connected, "boolean"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="figma",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="figma",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Figma metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Figma metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Figma PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Figma"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# Singleton instance removed - use IntegrationRegistry instead
+# figma_service = FigmaService(tenant_id="system", config={})
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

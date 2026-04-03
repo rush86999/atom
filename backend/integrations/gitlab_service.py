@@ -2,24 +2,128 @@
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
-import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+from datetime import datetime, timezone
 
+import httpx
+from fastapi import HTTPException
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class GitLabService:
+class GitLabService(IntegrationService):
     """GitLab API Service Implementation"""
-    
-    def __init__(self):
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize GitLab service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with client_id, client_secret
+        """
+        super().__init__(tenant_id, config)
         self.base_url = "https://gitlab.com/api/v4"
-        self.client_id = os.getenv("GITLAB_CLIENT_ID")
-        self.client_secret = os.getenv("GITLAB_CLIENT_SECRET")
+        self.client_id = config.get('client_id') or os.getenv("GITLAB_CLIENT_ID")
+        self.client_secret = config.get('client_secret') or os.getenv("GITLAB_CLIENT_SECRET")
         self.client = httpx.AsyncClient(timeout=30.0)
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return GitLab integration capabilities"""
+        return {
+            "operations": [
+                {"id": "get_user", "description": "Get authenticated user info"},
+                {"id": "list_projects", "description": "List GitLab projects"},
+                {"id": "list_issues", "description": "List GitLab issues"},
+                {"id": "search_projects", "description": "Search for projects"},
+                {"id": "sync_metrics", "description": "Sync analytics to PostgreSQL"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["project_id", "limit", "query"],
+            "rate_limits": {"requests_per_minute": 200},
+            "supports_webhooks": True
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if GitLab service is healthy"""
+        return {
+            "healthy": bool(self.client_id and self.client_secret),
+            "message": "GitLab service configured" if self.client_id else "GitLab client not configured",
+            "last_check": datetime.now().isoformat()
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a GitLab operation with tenant context.
+
+        Args:
+            operation: Operation name
+            parameters: Operation parameters
+            context: Tenant context dict with tenant_id
+
+        Returns:
+            Dict with success status and result
+        """
+        # Validate tenant context
+        if context and 'tenant_id' in context:
+            tenant_id = context.get('tenant_id')
+            if tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: expected {self.tenant_id}, got {tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID mismatch",
+                    "operation": operation
+                }
+
+        # Execute operation based on operation name
+        try:
+            access_token = parameters.get('access_token')
+            if operation == "get_user":
+                user = await self.get_user(access_token)
+                return {"success": True, "result": user}
+            elif operation == "list_projects":
+                projects = await self.get_projects(
+                    access_token,
+                    limit=parameters.get('limit', 20),
+                    membership=parameters.get('membership', True)
+                )
+                return {"success": True, "result": projects}
+            elif operation == "list_issues":
+                issues = await self.get_issues(
+                    access_token,
+                    project_id=parameters.get('project_id'),
+                    limit=parameters.get('limit', 20)
+                )
+                return {"success": True, "result": issues}
+            elif operation == "search_projects":
+                results = await self.search_projects(
+                    access_token,
+                    query=parameters.get('query', '')
+                )
+                return {"success": True, "result": results}
+            elif operation == "sync_metrics":
+                result = await self.sync_to_postgres_cache(
+                    workspace_id=parameters.get('workspace_id', self.tenant_id),
+                    access_token=access_token
+                )
+                return {"success": result.get("success", False), "result": result}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "operation": operation
+                }
+        except Exception as e:
+            logger.error(f"Error executing GitLab operation {operation}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "operation": operation
+            }
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         return {
@@ -49,7 +153,10 @@ class GitLabService:
 
     async def get_user(self, access_token: str) -> Dict[str, Any]:
         """Get authenticated user info"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/user"
             headers = self._get_headers(access_token)
@@ -64,7 +171,10 @@ class GitLabService:
 
     async def get_projects(self, access_token: str, limit: int = 20, membership: bool = True) -> List[Dict[str, Any]]:
         """Get list of projects"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/projects"
             headers = self._get_headers(access_token)
@@ -84,7 +194,10 @@ class GitLabService:
 
     async def get_issues(self, access_token: str, project_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of issues (globally or for a project)"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if project_id:
                 url = f"{self.base_url}/projects/{project_id}/issues"
@@ -104,7 +217,10 @@ class GitLabService:
 
     async def search_projects(self, access_token: str, query: str) -> List[Dict[str, Any]]:
         """Search for projects"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/projects"
             headers = self._get_headers(access_token)
@@ -118,3 +234,70 @@ class GitLabService:
             logger.error(f"Search failed: {e}")
             raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
+<<<<<<< HEAD
+=======
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync GitLab analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from datetime import datetime, timezone
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get projects
+            projects = await self.get_projects(access_token)
+            project_count = len(projects)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("gitlab_project_count", project_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="gitlab",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="gitlab",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} GitLab metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving GitLab metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"GitLab PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for GitLab"""
+        from datetime import datetime, timezone
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

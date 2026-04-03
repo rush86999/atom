@@ -3,30 +3,35 @@ Notion Service for ATOM Platform
 Provides comprehensive Notion integration functionality
 """
 
-from datetime import datetime, timedelta
 import json
 import logging
 import os
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urljoin
+from datetime import datetime, timezone, timedelta
 import requests
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+from urllib.parse import urljoin
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class NotionService:
+class NotionService(IntegrationService):
     """Notion API integration service"""
-    
-    def __init__(self, access_token: Optional[str] = None):
-        self.access_token = access_token or os.getenv('NOTION_ACCESS_TOKEN')
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Notion service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with access_token
+        """
+        super().__init__(tenant_id, config)
+        self.access_token = config.get("access_token")
         self.base_url = "https://api.notion.com/v1"
         self.api_version = "2022-06-28"
         self.session = requests.Session()
-        
+
         if self.access_token:
             self.session.headers.update({
                 'Authorization': f'Bearer {self.access_token}',
@@ -35,6 +40,89 @@ class NotionService:
                 'User-Agent': 'ATOM-Platform/1.0'
             })
     
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Notion integration capabilities"""
+        return {
+            "operations": [
+                {"id": "read", "description": "Read pages and databases"},
+                {"id": "create", "description": "Create pages and databases"},
+                {"id": "update", "description": "Update existing pages"},
+                {"id": "delete", "description": "Delete blocks and pages"},
+                {"id": "search", "description": "Search workspace content"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": [],
+            "rate_limits": {"requests_per_second": 3},
+            "supports_webhooks": False,
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Health check for Notion service"""
+        try:
+            # Basic health check - verify service can be initialized
+            return {
+                "healthy": True,
+                "message": "Notion service is healthy",
+                "service": "notion",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "message": str(e),
+                "service": "notion",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Notion operation with tenant context.
+
+        Args:
+            operation: Operation name (e.g., "search", "get_page", "create_page")
+            parameters: Operation parameters
+            context: Tenant context dict with tenant_id, agent_id, workspace_id
+
+        Returns:
+            Dict with success status and result
+        """
+        # Validate tenant context
+        if context and 'tenant_id' in context:
+            tenant_id = context.get('tenant_id')
+            if tenant_id != self.tenant_id:
+                return {
+                    "success": False,
+                    "error": f"Tenant mismatch: expected {self.tenant_id}, got {tenant_id}",
+                }
+
+        try:
+            if operation == "search":
+                result = self.search(**parameters)
+                return {"success": True, "result": result}
+            elif operation == "get_page":
+                result = self.get_page(**parameters)
+                return {"success": True, "result": result}
+            elif operation == "create_page":
+                result = self.create_page(**parameters)
+                return {"success": True, "result": result}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported operation: {operation}",
+                }
+        except Exception as e:
+            logger.error(f"Notion operation {operation} failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "operation": operation,
+            }
+
     def test_connection(self) -> Dict[str, Any]:
         """Test Notion API connection"""
         try:
@@ -337,9 +425,82 @@ class NotionService:
             logger.error(f"Failed to search databases: {e}")
             return []
 
-# Singleton instance for global access
-notion_service = NotionService()
+    async def sync_to_postgres_cache(self) -> Dict[str, Any]:
+        """Sync Notion analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Search to get counts of pages and databases
+            pages = self.search_pages_in_workspace()
+            databases = self.search_databases_in_workspace()
+            
+            page_count = len(pages)
+            db_count = len(databases)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("notion_page_count", page_count, "count"),
+                    ("notion_database_count", db_count, "count"),
+                ]
+                
+                # Use "me" or workspace identifier if available
+                # Notion token is often per-workspace
+                workspace_id = "default"
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="notion",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="notion",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Notion metrics to PostgreSQL cache")
+            except Exception as e:
+                logger.error(f"Error saving Notion metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Notion PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-def get_notion_service() -> NotionService:
-    """Get Notion service instance"""
-    return notion_service
+    async def full_sync(self) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Notion"""
+        # Pipeline 1: Atom Memory
+        # Triggered via notion_memory_ingestion or similar
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache()
+        
+        return {
+            "success": True,
+            "workspace_id": "default",
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
+# from core.integration_registry import IntegrationRegistry
+# registry = IntegrationRegistry(db)
+# notion_service = await registry.get_service_instance("notion", tenant_id)

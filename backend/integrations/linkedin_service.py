@@ -3,28 +3,25 @@ LinkedIn Service for ATOM Platform
 Provides comprehensive LinkedIn professional networking integration functionality
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
-
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class LinkedInService:
-    def __init__(self):
-        self.client_id = os.getenv("LINKEDIN_CLIENT_ID")
-        self.client_secret = os.getenv("LINKEDIN_CLIENT_SECRET")
+class LinkedInService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.client_id = self.config.get("linkedin_client_id") or os.getenv("LINKEDIN_CLIENT_ID")
+        self.client_secret = self.config.get("linkedin_client_secret") or os.getenv("LINKEDIN_CLIENT_SECRET")
         self.base_url = "https://api.linkedin.com/v2"
         self.auth_url = "https://www.linkedin.com/oauth/v2/authorization"
         self.token_url = "https://www.linkedin.com/oauth/v2/accessToken"
-        self.access_token = os.getenv("LINKEDIN_ACCESS_TOKEN")
+        self.access_token = self.config.get("access_token") or os.getenv("LINKEDIN_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
@@ -33,7 +30,10 @@ class LinkedInService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
@@ -88,7 +88,10 @@ class LinkedInService:
 
     async def get_profile(self, access_token: str = None) -> Dict[str, Any]:
         """Get user profile information"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -112,7 +115,10 @@ class LinkedInService:
 
     async def get_email(self, access_token: str = None) -> Dict[str, Any]:
         """Get user email address"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -143,7 +149,10 @@ class LinkedInService:
         visibility: str = "PUBLIC"
     ) -> Dict[str, Any]:
         """Share an update/post on LinkedIn"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -186,29 +195,139 @@ class LinkedInService:
                 detail=f"Failed to share update: {str(e)}"
             )
 
-    async def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> Dict[str, Any]:
         """Health check for LinkedIn service"""
         try:
             return {
                 "ok": True,
                 "status": "healthy",
+                "healthy": True,
                 "service": "linkedin",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
             return {
                 "ok": False,
                 "status": "unhealthy",
+                "healthy": False,
                 "service": "linkedin",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-# Singleton instance
-linkedin_service = LinkedInService()
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return LinkedIn integration capabilities"""
+        return {
+            "operations": [
+                {"id": "post_share", "name": "Share Post"},
+                {"id": "get_profile", "name": "Get Profile"},
+                {"id": "get_email", "name": "Get Email"},
+                {"id": "get_connections", "name": "Get Connections"}
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["visibility"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": False
+        }
 
+<<<<<<< HEAD
 def get_linkedin_service() -> LinkedInService:
     """Get LinkedIn service instance"""
+=======
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a LinkedIn operation"""
+        try:
+            access_token = parameters.get("access_token") or (context.get("access_token") if context else None)
 
-    return linkedin_service
+            if operation == "post_share":
+                res = await self.share_update(
+                    parameters.get("text"),
+                    access_token,
+                    parameters.get("visibility", "PUBLIC")
+                )
+                return {"success": True, "result": res}
+            elif operation == "get_profile":
+                res = await self.get_profile(access_token)
+                return {"success": True, "result": res}
+            elif operation == "get_email":
+                res = await self.get_email(access_token)
+                return {"success": True, "result": res}
+            elif operation == "get_connections":
+                # Stub implementation
+                return {"success": True, "result": {"connections": []}}
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported for LinkedIn")
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
+
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
+        """Sync LinkedIn analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Check if connected
+            is_connected = 1 if (access_token or self.access_token) else 0
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("linkedin_connected", is_connected, "boolean"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="linkedin",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="linkedin",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} LinkedIn metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving LinkedIn metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"LinkedIn PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for LinkedIn"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# Singleton instance removed - use IntegrationRegistry instead
+# linkedin_service = LinkedInService()

@@ -1,16 +1,16 @@
 
-from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
-import json
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Tuple
-from bytewax.connectors.stdio import StdOutSink
-from bytewax.dataflow import Dataflow
-from bytewax.inputs import DynamicSource, StatelessSourcePartition
+import json
+from datetime import datetime, timedelta, timezone
+from typing import Dict, Any, List, Optional, Tuple, Iterable
+from dataclasses import asdict
 
 # Bytewax imports
 import bytewax.operators as op
+from bytewax.dataflow import Dataflow
+from bytewax.inputs import DynamicSource, StatelessSourcePartition
 from bytewax.outputs import DynamicSink, StatelessSinkPartition
+from bytewax.connectors.stdio import StdOutSink
 
 # Vectorization
 try:
@@ -35,9 +35,9 @@ class DocumentParsingOperator:
     Bytewax operator for parsing documents using the existing DocumentLogicService.
     Mirrors the legacy pipeline's document handling but in a streaming context.
     """
-    def __init__(self, workspace_id: str = "default"):
-        self.workspace_id = workspace_id
-        self.service = None
+    def __init__(self, workspace_id: Optional[str] = None):
+        import os
+        self.workspace_id = workspace_id or os.getenv("DEFAULT_WORKSPACE_ID")
     
     def _get_service(self):
         if self.service is None:
@@ -58,7 +58,10 @@ class DocumentParsingOperator:
         Returns:
             List of data packets ready for normalization
         """
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         service = self._get_service()
         if not service:
             return []
@@ -152,9 +155,9 @@ class KnowledgeExtractionOperator:
     - Knowledge graph edges (entity relationships)
     - GraphRAG for hierarchical queries
     """
-    def __init__(self, workspace_id: str = "default"):
-        self.workspace_id = workspace_id
-        self.knowledge_manager = None
+    def __init__(self, workspace_id: Optional[str] = None):
+        import os
+        self.workspace_id = workspace_id or os.getenv("DEFAULT_WORKSPACE_ID")
         self.graphrag_engine = None
         self.automation_settings = None
     
@@ -217,8 +220,8 @@ class KnowledgeExtractionOperator:
         if isinstance(metadata, str):
             metadata = json.loads(metadata) if metadata else {}
         
-        workspace_id = metadata.get("workspace_id", self.workspace_id)
-        user_id = metadata.get("user_id", "default_user")
+        workspace_id = metadata.get("workspace_id") or self.workspace_id
+        user_id = metadata.get("user_id")
         
         # 1. Trigger Knowledge Extraction (async in background if loop exists)
         if self.knowledge_manager:
@@ -231,7 +234,7 @@ class KnowledgeExtractionOperator:
                             doc_id=record.id,
                             source=record.app_type,
                             user_id=user_id,
-                            workspace_id=workspace_id
+                            tenant_id=workspace_id
                         ))
                         logger.info(f"[KnowledgeExtract] Triggered extraction for {record.id}")
                 except RuntimeError:
@@ -241,7 +244,7 @@ class KnowledgeExtractionOperator:
                         doc_id=record.id,
                         source=record.app_type,
                         user_id=user_id,
-                        workspace_id=workspace_id
+                        tenant_id=workspace_id
                     ))
                     logger.info(f"[KnowledgeExtract] Sync extraction for {record.id}")
             except Exception as e:
@@ -251,7 +254,7 @@ class KnowledgeExtractionOperator:
         elif self.graphrag_engine:
             try:
                 stats = self.graphrag_engine.ingest_document(
-                    workspace_id=workspace_id,
+                    tenant_id=workspace_id,
                     doc_id=record.id,
                     text=record.content,
                     source=record.app_type,
@@ -275,9 +278,9 @@ class FormulaExtractionOperator:
     
     Uses: core/formula_extractor.py → FormulaMemoryManager
     """
-    def __init__(self, workspace_id: str = "default"):
-        self.workspace_id = workspace_id
-        self.extractor = None
+    def __init__(self, workspace_id: Optional[str] = None):
+        import os
+        self.workspace_id = workspace_id or os.getenv("DEFAULT_WORKSPACE_ID")
     
     def _get_extractor(self):
         """Lazy initialization of formula extractor."""
@@ -327,7 +330,7 @@ class FormulaExtractionOperator:
             return record
         
         try:
-            user_id = metadata.get("user_id", "default_user")
+            user_id = metadata.get("user_id")
             formulas = extractor.extract_from_file(
                 file_path=file_path,
                 user_id=user_id,
@@ -372,11 +375,11 @@ class UnifiedNormalizationOperator:
             
             # Normalize logic (ported from AtomIngestionPipeline)
             normalized = {
-                "id": data.get("id") or data.get("Id") or f"{app_type}_{record_type_str}_{datetime.now().timestamp()}",
+                "id": data.get("id") or data.get("Id") or f"{app_type}_{record_type_str}_{datetime.now(timezone.utc).timestamp()}",
                 "app_type": app_type,
                 "record_type": RecordType(record_type_str), # Ensure Enum
                 "content": "",
-                "timestamp": datetime.now(),
+                "timestamp": datetime.now(timezone.utc),
                 "metadata": data
             }
 
@@ -480,24 +483,22 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
             metadata = json.loads(metadata) if metadata else {}
         
         # 1. Trigger Workflow Events
-        # 1. Trigger Workflow Events
         try:
-            from advanced_workflow_orchestrator import get_orchestrator
+            from advanced_workflow_orchestrator import orchestrator
             event_data = {
                 "text": item.content,
                 "doc_id": doc_id,
                 "source": item.app_type,
-                "metadata": metadata,
-                "triggered_at": datetime.now(timezone.utc).isoformat()
+                "metadata": metadata
             }
             
             try:
                 loop = asyncio.get_running_loop()
-                asyncio.create_task(get_orchestrator().trigger_event("document_uploaded", event_data))
+                asyncio.create_task(orchestrator.trigger_event("document_uploaded", event_data))
                 logger.debug(f"[Bytewax] Async workflow trigger for {doc_id}")
             except RuntimeError:
                 # No running event loop - run synchronously
-                asyncio.run(get_orchestrator().trigger_event("document_uploaded", event_data))
+                asyncio.run(orchestrator.trigger_event("document_uploaded", event_data))
                 logger.debug(f"[Bytewax] Sync workflow trigger for {doc_id}")
         except ImportError:
             logger.debug("Workflow orchestrator not available")
@@ -520,7 +521,7 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                     data=trigger_data,
                     source=item.app_type or "bytewax_ingestion",
                     workspace_id=self.handler.workspace_id,
-                    user_id=metadata.get("user_id", "default_user"),
+                    user_id=metadata.get("user_id"),
                     metadata=metadata
                 ))
                 logger.debug(f"[Bytewax] Async AI trigger for {doc_id}")
@@ -530,7 +531,7 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                     data=trigger_data,
                     source=item.app_type or "bytewax_ingestion",
                     workspace_id=self.handler.workspace_id,
-                    user_id=metadata.get("user_id", "default_user"),
+                    user_id=metadata.get("user_id"),
                     metadata=metadata
                 ))
                 logger.info(f"[Bytewax] Sync AI trigger for {doc_id}")
@@ -560,7 +561,7 @@ class LanceDBStatelessSinkPartition(StatelessSinkPartition):
                         text=item.content,
                         source=item.app_type,
                         metadata=metadata,
-                        user_id=metadata.get("user_id", "default_user"),
+                        user_id=metadata.get("user_id"),
                         extract_knowledge=False
                     )
                     logger.info(f"[LanceDBSink] [CREATE] Persisted {item.id}: {success}")
@@ -602,7 +603,7 @@ class LanceDBSink(DynamicSink):
 
 class BytewaxIngestionService:
     @staticmethod
-    def create_dataflow(input_source: DynamicSource, workspace_id: str = "default") -> Dataflow:
+    def create_dataflow(input_source: DynamicSource, workspace_id: Optional[str] = None) -> Dataflow:
         """
         Create the Atom ingestion dataflow with full agent support.
         
@@ -647,11 +648,6 @@ class BytewaxIngestionService:
 # Shared queue for streaming integration from connectors
 import queue
 import threading
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
 
 # Thread-safe queue for real-time ingestion
 _bytewax_queue = queue.Queue()
@@ -702,7 +698,7 @@ class BytewaxQueueSource(DynamicSource):
 # Test Execution (for manual verification)
 if __name__ == "__main__":
     from bytewax.testing import TestingSource
-
+    
     # Mock Data
     test_data = [
         {"app_type": "whatsapp", "record_type": "communication", "text": "Hello form Bytewax!", "id": "msg_1", "operation": "CREATE"},
@@ -715,7 +711,6 @@ if __name__ == "__main__":
     flow = BytewaxIngestionService.create_dataflow(source)
     
     from bytewax.execution import run_main
-
     # This runs the dataflow in the current process
     # Bytewax 0.19+ uses run_main or similar entry points
     try:

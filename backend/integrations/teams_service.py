@@ -3,26 +3,24 @@ Teams Service for ATOM Platform
 Provides comprehensive Microsoft Teams integration functionality
 """
 
-from datetime import datetime, timedelta
 import json
 import logging
 import os
 from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urlencode, urljoin
+from datetime import datetime, timedelta
 import requests
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+from urllib.parse import urljoin, urlencode
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class TeamsService:
+class TeamsService(IntegrationService):
     """Microsoft Teams API integration service"""
     
-    def __init__(self, access_token: Optional[str] = None):
-        self.access_token = access_token or os.getenv('TEAMS_ACCESS_TOKEN')
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.access_token = config.get("access_token") or os.getenv('TEAMS_ACCESS_TOKEN')
         self.base_url = "https://graph.microsoft.com/v1.0"
         self.session = requests.Session()
         
@@ -374,9 +372,34 @@ class TeamsService:
             logger.error(f"Failed to set user presence: {e}")
             return False
 
-# Singleton instance for global access
-teams_service = TeamsService()
+    def health_check(self) -> Dict[str, Any]:
+        """Health check for Teams service"""
+        test = self.test_connection()
+        return {
+            "healthy": test.get("authenticated", False),
+            "message": test.get("message", ""),
+            "timestamp": datetime.now().isoformat()
+        }
 
-def get_teams_service() -> TeamsService:
-    """Get Teams service instance"""
-    return teams_service
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": [
+                {"id": "get_teams", "name": "Get Teams", "complexity": 1},
+                {"id": "send_message", "name": "Send Message", "complexity": 3},
+            ],
+            "supports_webhooks": True
+        }
+
+    async def execute_operation(self, operation: str, parameters: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        if operation == "get_teams":
+            result = self.get_teams()
+            return {"success": True, "result": result}
+        elif operation == "send_message":
+            result = self.send_message(
+                parameters.get("team_id"),
+                parameters.get("channel_id"),
+                parameters.get("content")
+            )
+            return {"success": True, "result": result}
+        else:
+            raise NotImplementedError(f"Operation {operation} not supported")

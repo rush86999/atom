@@ -3,30 +3,64 @@ Tableau Service for ATOM Platform
 Provides comprehensive Tableau analytics and data visualization integration functionality
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
-
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class TableauService:
-    def __init__(self):
-        self.client_id = os.getenv("TABLEAU_CLIENT_ID")
-        self.client_secret = os.getenv("TABLEAU_CLIENT_SECRET")
-        self.server_url = os.getenv("TABLEAU_SERVER_URL", "https://10ax.online.tableau.com")
-        self.site_id = os.getenv("TABLEAU_SITE_ID", "")
+class TableauService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.client_id = self.config.get("tableau_client_id") or os.getenv("TABLEAU_CLIENT_ID")
+        self.client_secret = self.config.get("tableau_client_secret") or os.getenv("TABLEAU_CLIENT_SECRET")
+        self.server_url = self.config.get("tableau_server_url") or os.getenv("TABLEAU_SERVER_URL", "https://10ax.online.tableau.com")
+        self.site_id = self.config.get("tableau_site_id") or os.getenv("TABLEAU_SITE_ID", "")
         self.base_url = f"{self.server_url}/api/3.19"
-        self.auth_token = None
-        self.site_uuid = None
+        self.auth_token = self.config.get("access_token")
+        self.site_uuid = self.config.get("tableau_site_uuid")
         self.client = httpx.AsyncClient(timeout=30.0)
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": [
+                {"id": "get_workbooks", "name": "Get Workbooks"},
+                {"id": "get_views", "name": "Get Views"},
+                {"id": "get_datasources", "name": "Get Data Sources"}
+            ],
+            "required_params": [],
+            "rate_limits": {"requests_per_minute": 60},
+            "supports_webhooks": False
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        try:
+            token = parameters.get("access_token") or (context.get("access_token") if context else self.auth_token)
+            if not token:
+                return {"success": False, "error": "Missing Tableau access token"}
+                
+            if operation == "get_workbooks":
+                res = await self.get_workbooks(token)
+                return {"success": True, "result": res}
+            elif operation == "get_views":
+                res = await self.get_views(token)
+                return {"success": True, "result": res}
+            elif operation == "get_datasources":
+                res = await self.get_datasources(token)
+                return {"success": True, "result": res}
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported for Tableau")
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -34,7 +68,10 @@ class TableauService:
 
     def _get_headers(self, auth_token: str = None) -> Dict[str, str]:
         """Get headers for API requests"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         token = auth_token or self.auth_token
         return {
             "X-Tableau-Auth": token,
@@ -75,7 +112,10 @@ class TableauService:
 
     async def get_workbooks(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get workbooks from Tableau"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = auth_token or self.auth_token
             if not token:
@@ -101,7 +141,10 @@ class TableauService:
 
     async def get_views(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get views from Tableau"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = auth_token or self.auth_token
             if not token:
@@ -127,7 +170,10 @@ class TableauService:
 
     async def get_datasources(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get data sources from Tableau"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = auth_token or self.auth_token
             if not token:
@@ -151,28 +197,42 @@ class TableauService:
                 detail=f"Failed to get datasources: {str(e)}"
             )
 
+<<<<<<< HEAD
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Tableau service"""
 
+=======
+    def health_check(self) -> Dict[str, Any]:
+        """Synchronous health check for Tableau service"""
+        import requests
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
+            is_healthy = bool(self.server_url)
             return {
-                "ok": True,
-                "status": "healthy",
+                "ok": is_healthy,
+                "status": "healthy" if is_healthy else "unhealthy",
+                "healthy": is_healthy,
                 "service": "tableau",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
             return {
                 "ok": False,
                 "status": "unhealthy",
+                "healthy": False,
                 "service": "tableau",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+<<<<<<< HEAD
 tableau_service = TableauService()
 
 def get_tableau_service() -> TableauService:
     return tableau_service
 
+=======
+# Singleton instance removed - use IntegrationRegistry instead
+# tableau_service = TableauService(tenant_id="system", config={})
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

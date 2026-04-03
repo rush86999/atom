@@ -1,86 +1,55 @@
-"""
-Dropbox Service for ATOM Platform
-Provides comprehensive Dropbox file storage integration functionality
-"""
 
-from datetime import datetime
-import logging
 import os
-from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
-import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+import logging
+import asyncio
+from typing import Dict, List, Optional, Any
+from datetime import datetime, timezone
+import base64
+import dropbox
+from dropbox.exceptions import ApiError, AuthError
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class DropboxService:
-    def __init__(self):
-        self.client_id = os.getenv("DROPBOX_CLIENT_ID")
-        self.client_secret = os.getenv("DROPBOX_CLIENT_SECRET")
-        self.base_url = "https://api.dropboxapi.com/2"
-        self.content_url = "https://content.dropboxapi.com/2"
-        self.auth_url = "https://www.dropbox.com/oauth2/authorize"
-        self.token_url = "https://api.dropboxapi.com/oauth2/token"
-        self.access_token = os.getenv("DROPBOX_ACCESS_TOKEN")
-        self.client = httpx.AsyncClient(timeout=60.0)
+class DropboxService(IntegrationService):
+    """Standardized Dropbox API integration service"""
 
+<<<<<<< HEAD
     async def close(self):
         """Close the HTTP client connection"""
         await self.client.aclose()
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
+=======
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.api_base_url = "https://api.dropboxapi.com/2"
+        self.client_id = self.config.get("dropbox_client_id") or os.getenv("DROPBOX_APP_KEY")
+        self.client_secret = self.config.get("dropbox_client_secret") or os.getenv("DROPBOX_APP_SECRET")
+        self.access_token = self.config.get("access_token")
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
+    def get_capabilities(self) -> Dict[str, Any]:
         return {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
+            "operations": [
+                {"id": "list_files", "name": "List Files"},
+                {"id": "search_files", "name": "Search Files"},
+                {"id": "download_file", "name": "Download File"},
+                {"id": "upload_file", "name": "Upload File"},
+                {"id": "create_folder", "name": "Create Folder"},
+                {"id": "delete_item", "name": "Delete Item"},
+                {"id": "get_space_usage", "name": "Get Space Usage"}
+            ],
+            "required_params": [],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True
         }
 
-    def get_authorization_url(self, redirect_uri: str, state: str = None) -> str:
-        """Generate OAuth authorization URL"""
-        params = {
-            "client_id": self.client_id,
-            "response_type": "code",
-            "redirect_uri": redirect_uri,
-            "token_access_type": "offline"
-        }
-        if state:
-            params["state"] = state
-        
-        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
-        return f"{self.auth_url}?{query_string}"
-
-    async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
-        """Exchange authorization code for access token"""
-        try:
-            data = {
-                "code": code,
-                "grant_type": "authorization_code",
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "redirect_uri": redirect_uri
-            }
-            
-            response = await self.client.post(self.token_url, data=data)
-            response.raise_for_status()
-            
-            token_data = response.json()
-            self.access_token = token_data.get("access_token")
-            
-            return token_data
-        except httpx.HTTPError as e:
-            logger.error(f"Dropbox token exchange failed: {e}")
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Token exchange failed: {str(e)}"
-            )
-
-    async def list_folder(
+    async def execute_operation(
         self,
+<<<<<<< HEAD
         path: str = "",
         access_token: str = None,
         recursive: bool = False,
@@ -159,13 +128,20 @@ class DropboxService:
         self,
         path: str,
         access_token: str = None
+=======
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
     ) -> Dict[str, Any]:
-        """Get metadata for a file or folder"""
         try:
-            token = access_token or self.access_token
+            token = parameters.get("access_token") or self.access_token
             if not token:
-                raise HTTPException(status_code=401, detail="Not authenticated")
+                return {"success": False, "error": "Missing Dropbox access token"}
+                
+            dbx = dropbox.Dropbox(token)
             
+<<<<<<< HEAD
             headers = self._get_headers(token)
             payload = {"path": path}
             
@@ -465,16 +441,43 @@ class DropboxService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Dropbox service"""
+=======
+            if operation == "list_files":
+                path = parameters.get("path", "")
+                res = dbx.files_list_folder(path)
+                entries = [{"id": e.id if hasattr(e, "id") else None, "name": e.name, "path": e.path_display, "type": "folder" if isinstance(e, dropbox.files.FolderMetadata) else "file"} for e in res.entries]
+                return {"success": True, "result": {"entries": entries, "cursor": res.cursor, "has_more": res.has_more}}
+                
+            elif operation == "search_files":
+                query = parameters.get("query", "")
+                res = dbx.files_search_v2(query)
+                matches = [{"name": m.metadata.get_metadata().name, "path": m.metadata.get_metadata().path_display} for m in res.matches]
+                return {"success": True, "result": {"matches": matches, "has_more": res.has_more}}
+                
+            elif operation == "get_space_usage":
+                res = dbx.users_get_space_usage()
+                return {"success": True, "result": {"used": res.used, "allocation": str(res.allocation)}}
+                
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported for Dropbox")
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
+    def health_check(self) -> Dict[str, Any]:
+        """Synchronous health check for Dropbox service"""
         try:
+            is_healthy = bool(self.access_token or self.client_id)
             return {
-                "ok": True,
-                "status": "healthy",
+                "ok": is_healthy,
+                "status": "healthy" if is_healthy else "unhealthy",
+                "healthy": is_healthy,
                 "service": "dropbox",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
+<<<<<<< HEAD
             return {
                 "ok": False,
                 "status": "unhealthy",
@@ -490,3 +493,6 @@ def get_dropbox_service() -> DropboxService:
     """Get Dropbox service instance"""
 
     return dropbox_service
+=======
+            return {"ok": False, "status": "unhealthy", "healthy": False, "service": "dropbox", "error": str(e), "timestamp": datetime.now(timezone.utc).isoformat()}
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

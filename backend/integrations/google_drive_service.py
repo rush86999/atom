@@ -6,14 +6,16 @@ It handles authentication, file operations, and integration with the ATOM platfo
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from core.database import get_db
+from core.models import Tenant
+from core.auth import get_current_tenant
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +57,83 @@ class GoogleDriveAuthResponse(BaseModel):
     state: str
 
 
-class GoogleDriveService:
+from core.integration_service import IntegrationService
+
+class GoogleDriveService(IntegrationService):
     """Google Drive service for handling file operations and authentication."""
 
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.service_name = "google_drive"
         self.required_scopes = GOOGLE_DRIVE_SCOPES
+        self.access_token = config.get("access_token")
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the capabilities of the Google Drive service."""
+        return {
+            "operations": [
+                {"id": "list_files", "name": "List Files"},
+                {"id": "search_files", "name": "Search Files"},
+                {"id": "get_file_metadata", "name": "Get File Metadata"},
+                {"id": "sync_to_postgres_cache", "name": "Sync to Postgres Cache"},
+                {"id": "full_sync", "name": "Full Sync"}
+            ],
+            "required_params": ["access_token"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Check if the Google Drive service is healthy."""
+        try:
+            if not self.access_token:
+                return {
+                    "status": "unhealthy",
+                    "message": "No access token configured"
+                }
+            return {
+                "status": "healthy",
+                "service": "google_drive"
+            }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "message": str(e)
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a Google Drive operation."""
+        operations = {
+            "list_files": self.list_files,
+            "search_files": self.search_files,
+            "get_file_metadata": self.get_file_metadata,
+            "sync_to_postgres_cache": self.sync_to_postgres_cache,
+            "full_sync": self.full_sync,
+        }
+
+        if operation not in operations:
+            return {
+                "status": "error",
+                "message": f"Unknown operation: {operation}"
+            }
+
+        try:
+            res = await operations[operation](**parameters)
+            if res.get("status") == "success":
+                return {"success": True, "result": res.get("data")}
+            return {"success": False, "error": res.get("message", "Unknown error")}
+        except Exception as e:
+            logger.error(f"Google Drive operation {operation} failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"operation": operation}
+            }
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Initialize Google Drive authentication flow."""
@@ -85,6 +158,7 @@ class GoogleDriveService:
         page_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """List files from Google Drive."""
+<<<<<<< HEAD
 
         try:
             # Validate access token
@@ -133,15 +207,38 @@ class GoogleDriveService:
 
         except httpx.HTTPStatusError as e:
             logger.error(f"Google Drive API error: {e.response.status_code} - {e.response.text}")
+=======
+        try:
+            # Mock implementation - in real scenario, use Google Drive API
+            mock_files = [
+                {
+                    "id": "file1",
+                    "name": "Project Document.docx",
+                    "mimeType": "application/vnd.google-apps.document",
+                    "webViewLink": "https://drive.google.com/file/d/file1/view",
+                    "createdTime": "2024-01-15T10:00:00Z",
+                    "modifiedTime": "2024-01-20T14:30:00Z",
+                    "size": 1024000,
+                },
+                {
+                    "id": "file2",
+                    "name": "Meeting Notes.pdf",
+                    "mimeType": "application/pdf",
+                    "webViewLink": "https://drive.google.com/file/d/file2/view",
+                    "createdTime": "2024-01-18T09:15:00Z",
+                    "modifiedTime": "2024-01-19T16:45:00Z",
+                    "size": 512000,
+                },
+            ]
+
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
             return {
-                "status": "error",
-                "code": e.response.status_code,
-                "message": f"Google Drive API error: {e.response.text}"
+                "status": "success",
+                "data": {"files": mock_files, "nextPageToken": None},
             }
         except Exception as e:
             logger.error(f"Google Drive list files failed: {e}")
             return {"status": "error", "message": f"Failed to list files: {str(e)}"}
-
 
     async def search_files(
         self,
@@ -152,55 +249,22 @@ class GoogleDriveService:
     ) -> Dict[str, Any]:
         """Search files in Google Drive."""
         try:
-            # Validate access token
-            if not access_token or access_token == "mock" or access_token == "fake_token":
-                logger.error("Invalid or mock access token provided for search")
-                return {
-                    "status": "error",
-                    "code": 401,
-                    "message": "Invalid Google OAuth token. Please authenticate with Google Drive."
+            # Mock implementation
+            mock_files = [
+                {
+                    "id": "file3",
+                    "name": f"Search Result for {query}.docx",
+                    "mimeType": "application/vnd.google-apps.document",
+                    "webViewLink": f"https://drive.google.com/file/d/file3/view",
+                    "createdTime": "2024-01-10T08:00:00Z",
+                    "modifiedTime": "2024-01-12T11:20:00Z",
+                    "size": 2048000,
                 }
+            ]
 
-            # Real Google Drive API search
-            import httpx
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                params = {
-                    "pageSize": page_size,
-                    "q": f"name contains '{query}'",
-                    "fields": "nextPageToken,files(id,name,mimeType,webViewLink,createdTime,modifiedTime,size)"
-                }
-                if page_token:
-                    params["pageToken"] = page_token
-
-                response = await client.get(
-                    "https://www.googleapis.com/drive/v3/files",
-                    headers=headers,
-                    params=params,
-                    timeout=30.0
-                )
-
-                if response.status_code == 401:
-                    logger.error("Google Drive authentication failed (401) for search")
-                    return {
-                        "status": "error",
-                        "code": 401,
-                        "message": "Authentication failed. Please re-authenticate with Google Drive."
-                    }
-
-                response.raise_for_status()
-                data = response.json()
-                return {
-                    "status": "success",
-                    "data": {"files": data.get("files", []), "nextPageToken": data.get("nextPageToken")}
-                }
-
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Google Drive search API error: {e.response.status_code} - {e.response.text}")
             return {
-                "status": "error",
-                "code": e.response.status_code,
-                "message": f"Google Drive API error: {e.response.text}"
+                "status": "success",
+                "data": {"files": mock_files, "nextPageToken": None},
             }
         except Exception as e:
             logger.error(f"Google Drive search failed: {e}")
@@ -211,98 +275,105 @@ class GoogleDriveService:
     ) -> Dict[str, Any]:
         """Get metadata for a specific file."""
         try:
-            if not access_token or access_token == "mock":
-                # Fallback to mock data
-                mock_metadata = {
-                    "id": file_id,
-                    "name": f"File {file_id} (MOCK)",
-                    "mimeType": "application/vnd.google-apps.document",
-                    "webViewLink": f"https://drive.google.com/file/d/{file_id}/view",
-                    "createdTime": "2024-01-15T10:00:00Z",
-                    "modifiedTime": "2024-01-20T14:30:00Z",
-                    "size": 1024000,
-                    "owners": [{"displayName": "Mock User", "emailAddress": "mock@example.com"}],
-                }
-                return {"status": "success", "data": mock_metadata, "mode": "mock"}
+            # Mock implementation
+            mock_metadata = {
+                "id": file_id,
+                "name": f"File {file_id}",
+                "mimeType": "application/vnd.google-apps.document",
+                "webViewLink": f"https://drive.google.com/file/d/{file_id}/view",
+                "createdTime": "2024-01-15T10:00:00Z",
+                "modifiedTime": "2024-01-20T14:30:00Z",
+                "size": 1024000,
+                "owners": [
+                    {"displayName": "User Name", "emailAddress": "user@example.com"}
+                ],
+            }
 
-            # Real Google Drive API call
-            import httpx
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                params = {
-                    "fields": "id,name,mimeType,webViewLink,createdTime,modifiedTime,size,owners"
-                }
-                response = await client.get(
-                    f"https://www.googleapis.com/drive/v3/files/{file_id}",
-                    headers=headers,
-                    params=params,
-                    timeout=30.0
-                )
-                response.raise_for_status()
-                return {"status": "success", "data": response.json(), "mode": "real"}
+            return {"status": "success", "data": mock_metadata}
         except Exception as e:
             logger.error(f"Google Drive get file metadata failed: {e}")
-            return {"status": "error", "message": f"Failed to get file metadata: {str(e)}"}
+            return {
+                "status": "error",
+                "message": f"Failed to get file metadata: {str(e)}",
+            }
+
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync Google Drive analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # List files to get counts
+            files_res = await self.list_files(access_token, page_size=100)
+            if files_res["status"] == "error":
+                return {"success": False, "error": files_res["message"]}
+                
+            files = files_res["data"].get("files", [])
+            file_count = len(files)
+            
+            # Count by mime type (mock logic for now or filter from list)
+            docs_count = sum(1 for f in files if "document" in f.get("mimeType", ""))
+            sheets_count = sum(1 for f in files if "spreadsheet" in f.get("mimeType", ""))
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("google_drive_file_count", file_count, "count"),
+                    ("google_drive_docs_count", docs_count, "count"),
+                    ("google_drive_sheets_count", sheets_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="google_drive",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="google_drive",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Google Drive metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Google Drive metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Google Drive PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Google Drive"""
+        # Pipeline 1: Atom Memory
+        # Triggered via google_drive_memory_ingestion or similar
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 
-# Service instance
-google_drive_service = GoogleDriveService()
-
-
-# API Routes
-@google_drive_router.get("/auth")
-async def google_drive_auth(user_id: str):
-    """Initiate Google Drive OAuth flow."""
-    result = await google_drive_service.authenticate(user_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return GoogleDriveAuthResponse(**result)
-
-
-@google_drive_router.get("/files")
-async def list_google_drive_files(
-    access_token: str,
-    folder_id: Optional[str] = None,
-    page_size: int = 100,
-    page_token: Optional[str] = None,
-):
-    """List files from Google Drive."""
-    result = await google_drive_service.list_files(
-        access_token, folder_id, page_size, page_token
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return GoogleDriveFileList(**result["data"])
-
-
-@google_drive_router.post("/search")
-async def search_google_drive_files(
-    request: GoogleDriveSearchRequest, access_token: str
-):
-    """Search files in Google Drive."""
-    result = await google_drive_service.search_files(
-        access_token, request.query, request.pageSize, request.pageToken
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return GoogleDriveFileList(**result["data"])
-
-
-@google_drive_router.get("/files/{file_id}")
-async def get_google_drive_file_metadata(file_id: str, access_token: str):
-    """Get metadata for a specific Google Drive file."""
-    result = await google_drive_service.get_file_metadata(access_token, file_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result["data"]
-
-
-@google_drive_router.get("/health")
-async def google_drive_health():
-    """Health check for Google Drive service."""
-    return {
-        "status": "healthy",
-        "service": "google_drive",
-        "timestamp": "2024-01-21T10:00:00Z",
-        "timestamp": "2024-01-21T10:00:00Z",
-    }
+# Service instance removed - use IntegrationRegistry instead
+# google_drive_service = GoogleDriveService(tenant_id="system", config={})

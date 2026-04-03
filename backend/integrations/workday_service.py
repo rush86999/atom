@@ -1,25 +1,50 @@
 import logging
 import os
 from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 from fastapi import HTTPException
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class WorkdayService:
+class WorkdayService(IntegrationService):
     """Workday API Service (REST/RaaS focus)"""
     
-    def __init__(self):
-        self.base_url = os.getenv("WORKDAY_BASE_URL", "https://wd3-impl-services1.workday.com/ccx/service/v1")
-        self.tenant = os.getenv("WORKDAY_TENANT")
-        self.username = os.getenv("WORKDAY_USERNAME")
-        self.password = os.getenv("WORKDAY_PASSWORD")
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.base_url = self.config.get("workday_base_url", "https://wd3-impl-services1.workday.com/ccx/service/v1")
+        self.workday_tenant = self.config.get("workday_tenant")
+        self.username = self.config.get("workday_username")
+        self.password = self.config.get("workday_password")
         self.client = httpx.AsyncClient(timeout=30.0)
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": [{"id": "get_worker_profile", "name": "Get Worker Profile"}],
+            "required_params": [],
+            "rate_limits": {"requests_per_minute": 60},
+            "supports_webhooks": False
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        try:
+            if operation == "get_worker_profile":
+                worker_id = parameters.get("worker_id")
+                if not worker_id:
+                    return {"success": False, "error": "Missing worker_id", "details": {}}
+                result = await self.get_worker_profile(worker_id)
+                return {"success": True, "result": result, "error": None, "details": {}}
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported")
+        except Exception as e:
+            logger.error(f"Workday error for {operation}: {e}")
+            return {"success": False, "error": str(e), "details": {}}
 
     def _get_auth(self) -> tuple:
         if not all([self.username, self.password]):
@@ -29,7 +54,8 @@ class WorkdayService:
     async def get_worker_profile(self, worker_id: str) -> Dict[str, Any]:
         """Get worker profile by ID"""
         try:
-            url = f"{self.base_url}/{self.tenant}/workers/{worker_id}"
+            tenant_path = self.workday_tenant or "default_tenant"
+            url = f"{self.base_url}/{tenant_path}/workers/{worker_id}"
             auth = self._get_auth()
             
             if not auth:
@@ -49,15 +75,25 @@ class WorkdayService:
             logger.error(f"Workday get_worker failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def check_health(self) -> Dict[str, Any]:
+    def health_check(self) -> Dict[str, Any]:
         """Check Workday connectivity"""
+<<<<<<< HEAD
 
+=======
+        has_creds = bool(self.username and self.password)
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
-            "status": "active" if self.username else "partially_configured",
+            "healthy": has_creds,
+            "status": "active" if has_creds else "partially_configured",
             "service": "workday",
-            "mode": "real" if self.username else "mock"
+            "mode": "real" if has_creds else "mock",
+            "message": "Configured" if has_creds else "Missing credentials",
+            "last_check": datetime.now(timezone.utc).isoformat()
         }
+<<<<<<< HEAD
 
 # Global instance
 workday_service = WorkdayService()
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

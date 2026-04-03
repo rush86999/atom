@@ -4,7 +4,13 @@ from typing import Any, Dict, List, Tuple
 from accounting.models import Account, Transaction, TransactionStatus
 from sqlalchemy.orm import Session
 
-from integrations.stripe_service import stripe_service
+try:
+    from integrations.stripe_service import stripe_service
+    HAS_STRIPE = True
+except ImportError:
+    # Stripe is SaaS-specific billing integration, not available in upstream
+    stripe_service = None
+    HAS_STRIPE = False
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +31,18 @@ class ReconciliationService:
     ) -> Dict[str, Any]:
         """
         Compare Stripe charges with internal transactions.
+        Note: Stripe integration is SaaS-specific and not available in upstream.
         """
+        if not HAS_STRIPE:
+            logger.warning("Stripe reconciliation not available - SaaS-specific feature")
+            return {
+                "status": "skipped",
+                "reason": "Stripe integration not available in upstream",
+                "missing_in_ledger": [],
+                "matched": [],
+                "duplicates": []
+            }
+
         # 1. Fetch external transactions from Stripe
         created_filter = {
             "gte": int((datetime.utcnow() - timedelta(days=days_to_look_back)).timestamp())

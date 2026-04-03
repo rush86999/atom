@@ -3,31 +3,29 @@ QuickBooks Service for ATOM Platform
 Provides comprehensive QuickBooks accounting integration functionality
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class QuickBooksService:
-    def __init__(self):
-        self.client_id = os.getenv("QUICKBOOKS_CLIENT_ID")
-        self.client_secret = os.getenv("QUICKBOOKS_CLIENT_SECRET")
+class QuickBooksService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.client_id = config.get("client_id") or os.getenv("QUICKBOOKS_CLIENT_ID")
+        self.client_secret = config.get("client_secret") or os.getenv("QUICKBOOKS_CLIENT_SECRET")
         self.base_url = "https://quickbooks.api.intuit.com/v3"
         self.sandbox_url = "https://sandbox-quickbooks.api.intuit.com/v3"
         self.auth_url = "https://appcenter.intuit.com/connect/oauth2"
         self.token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
-        self.access_token = os.getenv("QUICKBOOKS_ACCESS_TOKEN")
-        self.realm_id = os.getenv("QUICKBOOKS_REALM_ID")
-        self.use_sandbox = os.getenv("QUICKBOOKS_USE_SANDBOX", "false").lower() == "true"
+        self.access_token = config.get("access_token") or os.getenv("QUICKBOOKS_ACCESS_TOKEN")
+        self.realm_id = config.get("realm_id") or os.getenv("QUICKBOOKS_REALM_ID")
+        self.use_sandbox = str(config.get("use_sandbox", os.getenv("QUICKBOOKS_USE_SANDBOX", "false"))).lower() == "true"
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
@@ -36,7 +34,10 @@ class QuickBooksService:
 
     def _get_api_url(self) -> str:
         """Get the appropriate API URL based on environment"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return self.sandbox_url if self.use_sandbox else self.base_url
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
@@ -95,7 +96,10 @@ class QuickBooksService:
 
     async def get_company_info(self, realm_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """Get company information"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             realm = realm_id or self.realm_id
@@ -125,7 +129,10 @@ class QuickBooksService:
         max_results: int = 100
     ) -> List[Dict[str, Any]]:
         """Get customers"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             realm = realm_id or self.realm_id
@@ -222,7 +229,7 @@ class QuickBooksService:
                 "ok": True,
                 "status": "healthy",
                 "service": "quickbooks",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
@@ -231,13 +238,139 @@ class QuickBooksService:
                 "status": "unhealthy",
                 "service": "quickbooks",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+<<<<<<< HEAD
 # Singleton instance
 quickbooks_service = QuickBooksService()
 
 def get_quickbooks_service() -> QuickBooksService:
     """Get QuickBooks service instance"""
+=======
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a QuickBooks operation with tenant context."""
+        try:
+            realm_id = parameters.get("realm_id") or self.realm_id
+            access_token = parameters.get("access_token") or self.access_token
 
-    return quickbooks_service
+            if operation == "get_company_info":
+                result = await self.get_company_info(realm_id, access_token)
+                return {"success": True, "result": result}
+            elif operation == "get_customers":
+                result = await self.get_customers(
+                    realm_id, access_token, 
+                    max_results=parameters.get("max_results", 100)
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_invoices":
+                result = await self.get_invoices(
+                    realm_id, access_token, 
+                    max_results=parameters.get("max_results", 100)
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_expenses":
+                result = await self.get_expenses(
+                    realm_id, access_token, 
+                    max_results=parameters.get("max_results", 100)
+                )
+                return {"success": True, "result": result}
+            elif operation == "full_sync":
+                result = await self.full_sync(
+                    user_id=parameters.get("user_id", self.tenant_id),
+                    realm_id=realm_id,
+                    access_token=access_token
+                )
+                return {"success": True, "result": result}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}"
+                }
+        except Exception as e:
+            logger.error(f"Error executing QuickBooks operation {operation}: {e}")
+            return {"success": False, "error": str(e)}
+    async def sync_to_postgres_cache(self, user_id: str, realm_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync QuickBooks analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Fetch invoices to get counts
+            invoices = await self.get_invoices(realm_id, access_token, max_results=100)
+            invoice_count = len(invoices)
+            
+            # Fetch customers to get counts
+            customers = await self.get_customers(realm_id, access_token, max_results=100)
+            customer_count = len(customers)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("quickbooks_invoice_count", invoice_count, "count"),
+                    ("quickbooks_customer_count", customer_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        workspace_id=user_id,
+                        integration_type="quickbooks",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            workspace_id=user_id,
+                            integration_type="quickbooks",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} QuickBooks metrics to PostgreSQL cache for user {user_id}")
+            except Exception as e:
+                logger.error(f"Error saving QuickBooks metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"QuickBooks PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
+
+    async def full_sync(self, user_id: str, realm_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for QuickBooks"""
+        # Pipeline 1: Atom Memory
+        # Triggered via quickbooks_memory_ingestion or similar
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(user_id, realm_id, access_token)
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
+# quickbooks_service = QuickBooksService("default", {})
+# 
+# def get_quickbooks_service() -> QuickBooksService:
+#     """Get QuickBooks service instance"""
+#     return quickbooks_service

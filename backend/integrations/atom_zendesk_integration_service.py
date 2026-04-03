@@ -333,9 +333,7 @@ class AtomZendeskIntegrationService:
     async def create_ticket(self, ticket_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new ticket in Zendesk"""
 
-        try:
             start_time = time.time()
-            
             # Update analytics
             self.analytics_metrics['total_tickets'] += 1
             self.analytics_metrics['tickets_created_today'] += 1
@@ -343,18 +341,15 @@ class AtomZendeskIntegrationService:
             self.analytics_metrics['ticket_volume_by_type'][ticket_data.get('type', 'question')] += 1
             if platform:
                 self.analytics_metrics['ticket_volume_by_channel'][platform] += 1
-            
             # Security and compliance check
             if self.zendesk_config['enable_enterprise_features']:
                 security_check = await self._perform_security_check(ticket_data)
                 if not security_check['passed']:
                     return {'success': False, 'error': security_check['reason']}
-            
             # AI analysis for priority classification and sentiment
             if self.zendesk_config['priority_auto_classification'] or self.zendesk_config['sentiment_analysis']:
                 ai_analysis = await self._analyze_ticket_with_ai(ticket_data)
                 ticket_data.update(ai_analysis)
-            
             # Prepare ticket payload
             ticket_payload = {
                 'ticket': {
@@ -371,13 +366,11 @@ class AtomZendeskIntegrationService:
                     'custom_fields': ticket_data.get('custom_fields', {})
                 }
             }
-            
             # Add assignee if auto-assignment is enabled
             if self.zendesk_config['ticket_auto_assignment']:
                 assignee_id = await self._auto_assign_ticket(ticket_data)
                 if assignee_id:
                     ticket_payload['ticket']['assignee_id'] = assignee_id
-            
             # Create ticket via API
             headers = self._get_auth_headers()
             async with httpx.AsyncClient() as client:
@@ -387,28 +380,21 @@ class AtomZendeskIntegrationService:
                     json=ticket_payload,
                     timeout=30.0
                 )
-                
                 if response.status_code == 201:
                     ticket = response.json().get('ticket')
-                    
                     # Update performance metrics
                     creation_time = time.time() - start_time
                     self.performance_metrics['ticket_creation_time'] = creation_time
-                    
                     # Store ticket in local cache
                     await self._cache_ticket(ticket)
-                    
                     # Sync with Salesforce if enabled
                     if self.salesforce_integration:
                         await self._sync_ticket_to_salesforce(ticket)
-                    
                     # Notify relevant platforms
                     if platform and platform in self.platform_integrations:
                         await self._notify_platform_ticket_created(ticket, platform)
-                    
                     # Trigger workflows
                     await self._trigger_ticket_workflows(ticket, 'created')
-                    
                     logger.info(f"Ticket created successfully: {ticket['id']}")
                     return {
                         'success': True,
@@ -420,16 +406,60 @@ class AtomZendeskIntegrationService:
                     error_msg = f"Failed to create ticket: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating ticket: {e}")
             return {'success': False, 'error': str(e)}
     
     async def update_ticket(self, ticket_id: str, update_data: Dict[str, Any], 
+<<<<<<< HEAD
 
                          platform: str = None, comment: str = None) -> Dict[str, Any]:
         """Update existing ticket in Zendesk"""
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "update_ticket", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+                         platform: str = None, comment: str = None) -> Dict[str, Any]:
+        """Update existing ticket in Zendesk"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -515,9 +545,7 @@ class AtomZendeskIntegrationService:
     
     async def get_tickets(self, filter_params: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Get tickets from Zendesk with optional filtering"""
-        try:
             start_time = time.time()
-            
             # Build query parameters
             params = {}
             if filter_params:
@@ -531,22 +559,17 @@ class AtomZendeskIntegrationService:
                     params['created_since'] = filter_params['created_since']
                 if 'limit' in filter_params:
                     params['per_page'] = min(filter_params['limit'], 100)
-            
             # Fetch tickets via API
             headers = self._get_auth_headers()
             all_tickets = []
-            
             async with httpx.AsyncClient() as client:
                 url = f"{self.zendesk_config['base_url']}{self.api_endpoints['tickets']}"
-                
                 while url:
                     response = await client.get(url, headers=headers, params=params, timeout=30.0)
-                    
                     if response.status_code == 200:
                         data = response.json()
                         tickets = data.get('tickets', [])
                         all_tickets.extend(tickets)
-                        
                         # Check for pagination
                         if 'next_page' in data and data['next_page']:
                             url = data['next_page']
@@ -556,29 +579,72 @@ class AtomZendeskIntegrationService:
                         error_msg = f"Failed to fetch tickets: {response.status_code} - {response.text}"
                         logger.error(error_msg)
                         return []
-            
             # Update performance metrics
             fetch_time = time.time() - start_time
             self.performance_metrics['api_response_time'] = fetch_time
-            
             # Update analytics
             self.analytics_metrics['open_tickets'] = len([t for t in all_tickets if t['status'] in ['new', 'open', 'pending', 'hold']])
             self.analytics_metrics['closed_tickets'] = len([t for t in all_tickets if t['status'] in ['solved', 'closed']])
-            
             return all_tickets
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error fetching tickets: {e}")
             return []
 
     async def get_ticket_info(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Public method to fetch ticket details"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_tickets", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return await self._get_ticket(ticket_id)
 
     async def create_ticket_comment(self, ticket_id: str, comment_body: str, public: bool = True) -> Dict[str, Any]:
         """Add a comment to an existing ticket"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_ticket_info", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             headers = self._get_auth_headers()
             payload = {
@@ -605,10 +671,53 @@ class AtomZendeskIntegrationService:
             return {"success": False, "error": str(e)}
 
     async def generate_support_analytics(self, analytics_type: SupportAnalyticsType, 
+<<<<<<< HEAD
 
                                      time_period: str = '7d') -> Dict[str, Any]:
         """Generate support analytics"""
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "generate_support_analytics", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+                                     time_period: str = '7d') -> Dict[str, Any]:
+        """Generate support analytics"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "create_ticket_comment", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -676,9 +785,7 @@ class AtomZendeskIntegrationService:
     
     async def _analyze_ticket_with_ai(self, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze ticket with AI for priority classification and sentiment"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for analysis
             ai_request = AIRequest(
                 request_id=f"ticket_analysis_{int(time.time())}",
@@ -696,12 +803,9 @@ class AtomZendeskIntegrationService:
                 },
                 platform='zendesk'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 analysis_result = ai_response.output_data
-                
                 ai_suggestions = {
                     'suggested_priority': analysis_result.get('suggested_priority', 'normal'),
                     'sentiment': analysis_result.get('sentiment', 'neutral'),
@@ -721,14 +825,14 @@ class AtomZendeskIntegrationService:
                     'response_suggestion': '',
                     'estimated_resolution_time': 60
                 }
-            
             # Update performance metrics
             analysis_time = time.time() - start_time
             self.performance_metrics['ai_analysis_time'] = analysis_time
-            
             return ai_suggestions
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing ticket with AI: {e}")
             return {
                 'suggested_priority': ticket_data.get('priority', 'normal'),
@@ -742,13 +846,10 @@ class AtomZendeskIntegrationService:
     
     async def _auto_assign_ticket(self, ticket_data: Dict[str, Any]) -> Optional[str]:
         """Auto-assign ticket to appropriate agent"""
-        try:
             # Get suggested skills from AI analysis
             suggested_skills = ticket_data.get('suggested_agent_skills', [])
-            
             # Find available agents with matching skills
             available_agents = await self._get_available_agents()
-            
             for agent in available_agents:
                 agent_skills = self.agent_skills.get(agent['id'], [])
                 if any(skill in agent_skills for skill in suggested_skills):
@@ -756,33 +857,30 @@ class AtomZendeskIntegrationService:
                     agent_workload = await self._get_agent_workload(agent['id'])
                     if agent_workload < 5:  # Max 5 tickets per agent
                         return agent['id']
-            
             # If no specific match, assign to agent with lowest workload
             if available_agents:
                 min_workload_agent = min(available_agents, 
                                        key=lambda a: self.analytics_metrics['agent_performance'].get(a['id'], {}).get('open_tickets', 0))
                 return min_workload_agent['id']
-            
             return None
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error auto-assigning ticket: {e}")
             return None
     
     async def _initialize_salesforce_integration(self):
         """Initialize Salesforce integration"""
-        try:
             from atom_salesforce_integration import atom_salesforce_integration
             self.salesforce_integration = atom_salesforce_integration
             logger.info("Salesforce integration initialized")
-            
         except ImportError:
             logger.warning("Salesforce integration not available")
             self.salesforce_integration = None
     
     async def _test_zendesk_connection(self):
         """Test Zendesk API connection"""
-        try:
             headers = self._get_auth_headers()
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -790,14 +888,15 @@ class AtomZendeskIntegrationService:
                     headers=headers,
                     timeout=10.0
                 )
-                
                 if response.status_code == 200:
                     logger.info("Zendesk API connection test successful")
                     return True
                 else:
                     raise Exception(f"Zendesk API test failed: {response.status_code}")
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Zendesk connection test failed: {e}")
             raise
     
@@ -820,23 +919,23 @@ class AtomZendeskIntegrationService:
     
     async def _cache_ticket(self, ticket: Dict[str, Any]):
         """Cache ticket data locally"""
-        try:
             if self.cache:
                 cache_key = f"zendesk_ticket:{ticket['id']}"
                 await self.cache.set(cache_key, ticket, ttl=3600)  # 1 hour
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error caching ticket: {e}")
     
     async def _get_ticket(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Get ticket from Zendesk API or cache"""
-        try:
             # Try cache first
             if self.cache:
                 cache_key = f"zendesk_ticket:{ticket_id}"
                 cached_ticket = await self.cache.get(cache_key)
                 if cached_ticket:
                     return cached_ticket
-            
             # Fetch from API
             headers = self._get_auth_headers()
             async with httpx.AsyncClient() as client:
@@ -845,21 +944,21 @@ class AtomZendeskIntegrationService:
                     headers=headers,
                     timeout=10.0
                 )
-                
                 if response.status_code == 200:
                     ticket = response.json().get('ticket')
                     await self._cache_ticket(ticket)
                     return ticket
                 else:
                     return None
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error fetching ticket: {e}")
             return None
     
     async def _get_available_agents(self) -> List[Dict[str, Any]]:
         """Get list of available agents"""
-        try:
             headers = self._get_auth_headers()
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -867,34 +966,35 @@ class AtomZendeskIntegrationService:
                     headers=headers,
                     timeout=10.0
                 )
-                
                 if response.status_code == 200:
                     users = response.json().get('users', [])
                     return [user for user in users if user.get('role') == 'agent']
                 else:
                     return []
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error fetching available agents: {e}")
             return []
     
     async def _get_agent_workload(self, agent_id: str) -> int:
         """Get agent's current workload"""
-        try:
             filter_params = {
                 'assignee_id': agent_id,
                 'status': 'new,open,pending,hold'
             }
             tickets = await self.get_tickets(filter_params)
             return len(tickets)
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error getting agent workload: {e}")
             return 0
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Zendesk Integration service status"""
-        try:
             return {
                 'service': 'zendesk_integration',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -915,12 +1015,36 @@ class AtomZendeskIntegrationService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'zendesk_integration'}
     
     async def close(self):
         """Close Zendesk Integration Service"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_service_status", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             logger.info("Zendesk Integration Service closed")
             
@@ -964,3 +1088,25 @@ if _ai_service:
     _zendesk_config['ai_service'] = _ai_service
 
 atom_zendesk_integration_service = AtomZendeskIntegrationService(_zendesk_config)
+<<<<<<< HEAD
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "close", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

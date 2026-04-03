@@ -3,92 +3,143 @@ Google Calendar Real API Integration Service
 Provides real Google Calendar API access for event management and conflict detection
 """
 
-from datetime import datetime, timedelta, timezone
+import os
 import json
 import logging
-import os
-from typing import Any, Dict, List, Optional
-
-logger = logging.getLogger(__name__)
+from typing import Dict, List, Optional, Any
+from datetime import datetime, timedelta, timezone
 
 # Make Google APIs optional for calendar integration
 try:
-    from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
+    from google.auth.transport.requests import Request
+    from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
     GOOGLE_APIS_AVAILABLE = True
 except ImportError as e:
     GOOGLE_APIS_AVAILABLE = False
-    logger.warning(
-        f"Google APIs not available: {e}. "
-        "Install with: pip install google-api-python-client google-auth-oauthlib"
-    )
+    # Create dummy classes to prevent type errors
+    class Credentials: pass
+    class Request: pass
+    class InstalledAppFlow: pass
+    class HttpError(Exception): pass
+    def build(*args, **kwargs): return None
 
-from core.token_storage import token_storage
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+logger = logging.getLogger(__name__)
 
 # If modifying these scopes, delete the token file
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
-class GoogleCalendarService:
+from core.integration_service import IntegrationService
+
+class GoogleCalendarService(IntegrationService):
     """Service for real Google Calendar API interactions"""
     
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
         """
         Initialize Google Calendar service
         """
+        super().__init__(tenant_id, config)
+        self.credentials_json = config.get("credentials_json") or os.getenv("GOOGLE_CALENDAR_CREDENTIALS")
+        self.token_file = config.get("token_file", "token.json")
         self.service = None
         self.creds = None
+
+    def _get_service_with_token(self, token: Optional[str] = None):
+        """Get Google Calendar service using provided token or internal credentials"""
+        if token:
+            creds = Credentials(token)
+            return build('calendar', 'v3', credentials=creds)
+        
+        if not self.service:
+             if not self.authenticate():
+                 return None
+        return self.service
         
     def authenticate(self) -> bool:
-        """Authenticate with Google Calendar API using stored tokens"""
+        """Authenticate with Google Calendar API"""
         if not GOOGLE_APIS_AVAILABLE:
             logger.warning("Google APIs not available - calendar integration disabled")
             return False
 
         try:
-            # Retrieve token from storage
-            token_data = token_storage.get_token("google")
+            # Load existing token if available
+            if os.path.exists(self.token_file):
+                self.creds = Credentials.from_authorized_user_file(self.token_file, SCOPES)
             
-            if not token_data:
-                logger.warning("No Google Calendar token found in storage")
-                return False
+            # If no valid credentials, refresh or get new ones
+            if not self.creds or not self.creds.valid:
+                if self.creds and self.creds.expired and self.creds.refresh_token:
+                    self.creds.refresh(Request())
+                else:
+                    if not self.credentials_json:
+                        logger.error("No Google Calendar credentials provided")
+                        return False
+                    
+                    # Check if credentials_json is a file path or JSON string
+                    if os.path.isfile(self.credentials_json):
+                        flow = InstalledAppFlow.from_client_secrets_file(
+                            self.credentials_json, SCOPES)
+                    else:
+                        # Assume it's a JSON string
+                        client_config = json.loads(self.credentials_json)
+                        flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+                    
+                    # Custom local server flow to handle Web Client "No Trailing Slash" requirement
+                    # The standard flow.run_local_server() forces a trailing slash which Google rejects for Web clients
+                    import socket
+                    from wsgiref.simple_server import make_server, WSGIRequestHandler
+                    
+                    # Define the exact redirect URI (NO trailing slash)
+                    redirect_uri = "http://localhost:8080"
+                    flow.redirect_uri = redirect_uri
+                    
+                    # Create a simple WSGI app to catch the auth code
+                    auth_code = None
+                    
+                    def simple_app(environ, start_response):
+                        nonlocal auth_code
+                        from urllib.parse import parse_qs
+                        
+                        query = parse_qs(environ['QUERY_STRING'])
+                        if 'code' in query:
+                            auth_code = query['code'][0]
+                            start_response('200 OK', [('Content-type', 'text/html')])
+                            return [b'<html><body><h1>Authentication successful!</h1><p>You can close this window.</p><script>window.close()</script></body></html>']
+                        
+                        start_response('404 Not Found', [('Content-type', 'text/plain')])
+                        return [b'Not Found']
 
-            # Create credentials object
-            from core.oauth_handler import GOOGLE_OAUTH_CONFIG
+                    # Start local server on port 8080
+                    try:
+                        httpd = make_server('localhost', 8080, simple_app)
+                    except OSError as e:
+                        print(f"⚠️ Port 8080 is in use. Please free it or use a different port. Error: {e}")
+                        raise e
 
-            # Construct credentials from stored token
-            self.creds = Credentials(
-                token=token_data.get("access_token"),
-                refresh_token=token_data.get("refresh_token"),
-                token_uri=GOOGLE_OAUTH_CONFIG.token_url,
-                client_id=GOOGLE_OAUTH_CONFIG.client_id,
-                client_secret=GOOGLE_OAUTH_CONFIG.client_secret,
-                scopes=SCOPES
-            )
+                    # Print auth URL and open browser
+                    auth_url, _ = flow.authorization_url(prompt='consent')
+                    print(f"\n🔗 AUTHORIZATION URL: {auth_url}\n")
+                    print("Opening browser...")
+                    
+                    import webbrowser
+                    webbrowser.open(auth_url)
+                    
+                    # Wait for request
+                    print("Waiting for authentication...")
+                    httpd.handle_request()
+                    
+                    if auth_code:
+                        flow.fetch_token(code=auth_code)
+                        self.creds = flow.credentials
+                    else:
+                        raise Exception("Failed to catch auth code")
+
+                # Save credentials for next run
+                with open(self.token_file, 'w') as token:
+                    token.write(self.creds.to_json())
             
-            # Refresh if expired
-            if self.creds.expired and self.creds.refresh_token:
-                logger.info("Google Calendar token expired, refreshing...")
-                self.creds.refresh(Request())
-                
-                # Update storage with new token
-                new_token_data = {
-                    "access_token": self.creds.token,
-                    "refresh_token": self.creds.refresh_token,
-                    "token_uri": self.creds.token_uri,
-                    "client_id": self.creds.client_id,
-                    "client_secret": self.creds.client_secret,
-                    "scopes": self.creds.scopes
-                }
-                # Preserve other fields from original if needed
-                token_storage.save_token("google", new_token_data)
-
             # Build the service
             self.service = build('calendar', 'v3', credentials=self.creds)
             logger.info("✅ Google Calendar service authenticated successfully")
@@ -98,12 +149,25 @@ class GoogleCalendarService:
             logger.error(f"Failed to authenticate with Google Calendar: {e}")
             return False
     
+    async def list_calendars(self, token: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List user's calendars"""
+        try:
+            service = self._get_service_with_token(token)
+            if not service:
+                return []
+            result = service.calendarList().list().execute()
+            return result.get('items', [])
+        except Exception as e:
+            logger.error(f"Failed to list Google Calendars: {e}")
+            return []
+
     async def get_events(
         self, 
         calendar_id: str = 'primary',
         time_min: Optional[datetime] = None,
         time_max: Optional[datetime] = None,
-        max_results: int = 100
+        max_results: int = 100,
+        token: Optional[str] = None
     ) -> List[Dict]:
         """
         Get events from Google Calendar
@@ -120,14 +184,15 @@ class GoogleCalendarService:
         if not GOOGLE_APIS_AVAILABLE:
             logger.warning("Google APIs not available - cannot get events")
             return []
-        if not self.service:
-            if not self.authenticate():
-                return []
+        
+        service = self._get_service_with_token(token)
+        if not service:
+            return []
         
         try:
             # Default to next 7 days if not specified
             if not time_min:
-                time_min = datetime.utcnow()
+                time_min = datetime.now(timezone.utc)
             if not time_max:
                 time_max = time_min + timedelta(days=7)
             
@@ -144,7 +209,7 @@ class GoogleCalendarService:
                 time_max_str = time_max.isoformat() + 'Z'
             
             # Call the Calendar API
-            events_result = self.service.events().list(
+            events_result = service.events().list(
                 calendarId=calendar_id,
                 timeMin=time_min_str,
                 timeMax=time_max_str,
@@ -162,12 +227,13 @@ class GoogleCalendarService:
             logger.error(f"Google Calendar API error: {error}")
             return []
     
-    async def create_event(self, event_data: Dict) -> Optional[Dict]:
+    async def create_event(self, event_data: Dict, token: Optional[str] = None) -> Optional[Dict]:
         """
         Create an event in Google Calendar
 
         Args:
             event_data: Event data in unified format
+<<<<<<< HEAD
 
         Returns:
             Created event in unified format or None
@@ -175,13 +241,23 @@ class GoogleCalendarService:
         if not self.service:
             if not self.authenticate():
                 return None
+=======
+            token: Optional OAuth token
+            
+        Returns:
+            Created event in unified format or None
+        """
+        service = self._get_service_with_token(token)
+        if not service:
+            return None
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         
         try:
             # Convert unified format to Google format
             google_event = self._convert_unified_to_google(event_data)
             
             # Create the event
-            event = self.service.events().insert(
+            event = service.events().insert(
                 calendarId='primary',
                 body=google_event
             ).execute()
@@ -370,6 +446,75 @@ class GoogleCalendarService:
         
         return google_event
 
+    async def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
+        """Sync Google Calendar analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get event count
+            event_count = 0
+            try:
+                events = await self.get_events()
+                event_count = len(events)
+            except Exception:
+                pass
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("google_calendar_event_count", event_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="google_calendar",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="google_calendar",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Google Calendar metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Google Calendar metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Google Calendar PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-# Singleton instance (will be initialized when credentials are available)
-google_calendar_service = GoogleCalendarService()
+    async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Google Calendar"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+
+# NOTE: Singleton instance removed - use IntegrationRegistry instead
+# from core.integration_registry import IntegrationRegistry
+# registry = IntegrationRegistry(db)
+# calendar_service = await registry.get_service_instance("google_calendar", tenant_id)

@@ -8654,7 +8654,6 @@ class EntityTypeVersionHistory(Base):
     change_summary = Column(String(500), nullable=True)
     changed_by = Column(String(255), nullable=True)
     schema_hash = Column(String(64), nullable=False)
-
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
@@ -8833,40 +8832,32 @@ if hasattr(User, '__mapper__'):
 
 class TenantIntegrationConfig(Base):
     """
-    Tenant-level configuration for integrations.
+    Tenant-specific integration configuration and feature flags.
     
-    Controls which integrations are enabled for a tenant and their settings.
+    Note: Ported from SaaS (backend-saas/core/models.py) with tenant_id field intact.
+    Upstream needs this for multi-instance integration management.
     """
     __tablename__ = "tenant_integration_configs"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    integration_id = Column(String(100), nullable=False, index=True)  # salesforce, hubspot, slack, etc.
     
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False)
-    integration_id = Column(String(255), nullable=False)  # Integration identifier (e.g., "slack", "github")
+    # State
+    enabled = Column(Boolean, default=True, nullable=False)
+    config_json = Column(JSONColumn, default={}, nullable=False)
     
-    # Configuration
-    enabled = Column(Boolean, nullable=False, default=True)
-    sync_settings = Column(JSONColumn, nullable=True)  # Integration-specific sync settings
-    
-    # Activity tracking
-    connected_user_count = Column(Integer, nullable=False, default=0)
-    last_activity_at = Column(DateTime(timezone=True), nullable=True)
-    last_sync_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    
-    # Relationships
-    tenant = relationship("Tenant", back_populates="integration_configs")
-    
-    __table_args__ = (
-        Index('idx_tenant_integration_tenant_id', 'tenant_id'),
-        Index('idx_tenant_integration_integration_id', 'integration_id'),
-        Index('idx_tenant_integration_unique', 'tenant_id', 'integration_id', unique=True),
-    )
-    
-    def __repr__(self):
-        return f"<TenantIntegrationConfig(tenant_id={self.tenant_id}, integration_id={self.integration_id}, enabled={self.enabled})>"
+    # Metadata
+    description = Column(Text, nullable=True)
+    available_skills = Column(JSONColumn, nullable=True)
+
+    # Change metadata
+    change_summary = Column(String(500), nullable=True)
+    changed_by = Column(String(255), nullable=True)
+    schema_hash = Column(String(64), nullable=False)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
 
 # Add back-reference to Tenant
@@ -8874,4 +8865,142 @@ if hasattr(Tenant, '__mapper__'):
     Tenant.integration_configs = relationship("TenantIntegrationConfig", back_populates="tenant", cascade="all, delete-orphan")
 
 
+class FleetPerformanceMetric(Base):
+    """
+    Historical performance metrics for fleet execution.
 
+    Stores aggregated metrics for long-term analysis and trend detection.
+    Used by PerformanceMetricsService for adaptive scaling decisions.
+
+    Note: Ported from SaaS (backend-saas/core/models.py) without tenant_id field.
+    Upstream is not SaaS multi-tenant, so tenant isolation is not needed.
+    """
+    __tablename__ = "fleet_performance_metrics"
+
+    # Use Integer for SQLite compatibility (BigInteger autoincrement not supported in SQLite)
+    # PostgreSQL handles Integer fine (up to 2^31-1 = 2.1B records)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    chain_id = Column(String(255), nullable=False, index=True)
+    metric_type = Column(String(50), nullable=False)  # success_rate, avg_latency, throughput
+    metric_value = Column(Numeric(precision=10, scale=4), nullable=False)
+    window_start = Column(DateTime(timezone=True), nullable=False)
+    window_end = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<FleetPerformanceMetric(chain_id={self.chain_id}, type={self.metric_type}, value={self.metric_value})>"
+
+
+class FleetOverage(Base):
+    """
+    Track temporary fleet size expansions beyond base limits.
+
+    Note: Ported from SaaS (backend-saas/core/models.py) without tenant_id field.
+    Upstream doesn't have SaaS plan limits, so this tracks temporary expansions
+    approved by users for specific delegation chains.
+
+    SCALE-08: Users can approve temporary fleet expansion with explicit consent.
+    Overages expire automatically based on expires_at timestamp.
+    """
+    __tablename__ = "fleet_overages"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    chain_id = Column(String(255), ForeignKey("delegation_chains.id"), nullable=False, index=True)
+
+    # Approved temporary limit
+    approved_size = Column(Integer, nullable=False)
+    # Original base limit before overage
+    base_limit = Column(Integer, nullable=False)
+
+    # Expiry timestamp
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Audit trail
+    approved_by = Column(String(255), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Status tracking
+    status = Column(String(50), nullable=False, default="active")  # active, expired, cancelled
+
+    # Relationship to chain
+    chain = relationship("DelegationChain", backref="fleet_overages")
+
+    def __repr__(self):
+        return f"<FleetOverage(chain={self.chain_id}, {self.base_limit}->{self.approved_size}, expires={self.expires_at})>"
+
+
+class ScalingProposal(Base):
+    """
+    Scaling proposal for adaptive fleet sizing.
+
+    Note: Ported from SaaS (backend-saas/core/models.py) without tenant_id field.
+    Upstream doesn't have SaaS cost tracking, so cost_estimate is retained for
+    informational purposes but not enforced.
+
+    Stores expansion/contraction proposals with cost estimates and human approval workflow.
+    Used by ScalingProposalService for HITL scaling decisions.
+    """
+    __tablename__ = "scaling_proposals"
+
+    id = Column(String(255), primary_key=True)
+    chain_id = Column(String(255), nullable=False, index=True)
+    proposal_type = Column(String(50), nullable=False)  # 'expansion' or 'contraction'
+    current_fleet_size = Column(Integer, nullable=False)
+    proposed_fleet_size = Column(Integer, nullable=False)
+    reason = Column(Text, nullable=False)
+    metrics_json = Column(JSONColumn, nullable=True)
+    cost_estimate = Column(Numeric(precision=10, scale=4), nullable=False)
+    duration_hours = Column(Numeric(precision=10, scale=2), nullable=False)
+    status = Column(String(50), nullable=False, default='pending', index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    approved_by = Column(String(255), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+    executed_at = Column(DateTime(timezone=True), nullable=True)
+    is_proactive = Column(Boolean, nullable=True, default=False)  # True if created by predictive scaling
+
+    def __repr__(self):
+        return f"<ScalingProposal(id={self.id}, type={self.proposal_type}, current={self.current_fleet_size}, proposed={self.proposed_fleet_size}, status={self.status})>"
+
+
+class ScalingAutoApproval(Base):
+    """
+    Auto-approval rules for scaling proposals.
+
+    Note: Ported from SaaS (backend-saas/core/models.py) without tenant_id field.
+    Upstream doesn't have SaaS multi-tenancy, so rules apply globally or per-chain.
+
+    Defines conditions under which scaling proposals are automatically approved
+    without human intervention. Rules are evaluated based on cost, fleet size,
+    and performance metrics thresholds.
+    """
+    __tablename__ = "scaling_auto_approval_rules"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    chain_id = Column(String(255), nullable=True, index=True)  # NULL = applies to all chains
+    rule_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Auto-approval conditions
+    max_cost_per_hour = Column(Numeric(precision=10, scale=4), nullable=True)  # Max $/hour
+    max_fleet_size = Column(Integer, nullable=True)  # Max agents
+    max_size_increase = Column(Integer, nullable=True)  # Max agents to add
+    min_success_rate_threshold = Column(Numeric(precision=5, scale=2), nullable=True)  # Min success rate %
+    max_latency_threshold = Column(Integer, nullable=True)  # Max latency ms
+
+    # Rule status
+    is_active = Column(Boolean, nullable=False, default=True)
+    priority = Column(Integer, nullable=False, default=100)  # Lower = higher priority
+
+    # Statistics
+    times_applied = Column(Integer, nullable=False, default=0)
+    last_applied_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Audit
+    created_by = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<ScalingAutoApproval(id={self.id}, rule_name={self.rule_name})>"

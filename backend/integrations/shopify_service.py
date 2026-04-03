@@ -2,23 +2,22 @@
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
-import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+import httpx
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
-class ShopifyService:
+from core.integration_service import IntegrationService
+
+class ShopifyService(IntegrationService):
     """Shopify API Service Implementation"""
     
-    def __init__(self):
-        self.api_key = os.getenv("SHOPIFY_API_KEY")
-        self.api_secret = os.getenv("SHOPIFY_API_SECRET")
-        self.shop_name = os.getenv("SHOPIFY_SHOP_NAME") # Default shop name if available
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.api_key = config.get("api_key") or os.getenv("SHOPIFY_API_KEY")
+        self.api_secret = config.get("api_secret") or os.getenv("SHOPIFY_API_SECRET")
+        self.shop_name = config.get("shop_name") or os.getenv("SHOPIFY_SHOP_NAME")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     def _get_base_url(self, shop: str) -> str:
@@ -54,7 +53,10 @@ class ShopifyService:
 
     async def get_products(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of products"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/products.json"
             headers = self._get_headers(access_token)
@@ -71,7 +73,10 @@ class ShopifyService:
 
     async def get_orders(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of orders"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/orders.json"
             headers = self._get_headers(access_token)
@@ -88,7 +93,10 @@ class ShopifyService:
 
     async def get_shop_info(self, access_token: str, shop: str) -> Dict[str, Any]:
         """Get shop information"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/shop.json"
             headers = self._get_headers(access_token)
@@ -104,7 +112,10 @@ class ShopifyService:
 
     async def register_webhooks(self, access_token: str, shop: str, webhook_url: str) -> List[Dict[str, Any]]:
         """Register required webhooks for Phase 13 automation"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         topics = ["orders/create", "orders/updated", "refunds/create"]
         results = []
         
@@ -138,7 +149,10 @@ class ShopifyService:
 
     async def get_inventory_levels(self, access_token: str, shop: str, location_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get inventory levels for shop"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/inventory_levels.json"
             headers = self._get_headers(access_token)
@@ -156,7 +170,10 @@ class ShopifyService:
 
     async def get_locations(self, access_token: str, shop: str) -> List[Dict[str, Any]]:
         """Get shop locations"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/locations.json"
             headers = self._get_headers(access_token)
@@ -174,7 +191,10 @@ class ShopifyService:
     # --- CUSTOMERS ---
     async def get_customers(self, access_token: str, shop: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of customers"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/customers.json"
             headers = self._get_headers(access_token)
@@ -190,7 +210,10 @@ class ShopifyService:
 
     async def get_customer(self, access_token: str, shop: str, customer_id: str) -> Dict[str, Any]:
         """Get a specific customer by ID"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/customers/{customer_id}.json"
             headers = self._get_headers(access_token)
@@ -205,7 +228,10 @@ class ShopifyService:
 
     async def search_customers(self, access_token: str, shop: str, query: str) -> List[Dict[str, Any]]:
         """Search customers by email, name, etc."""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/customers/search.json"
             headers = self._get_headers(access_token)
@@ -222,7 +248,10 @@ class ShopifyService:
     # --- FULFILLMENTS ---
     async def get_fulfillments(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
         """Get fulfillments for an order"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillments.json"
             headers = self._get_headers(access_token)
@@ -236,11 +265,17 @@ class ShopifyService:
             raise HTTPException(status_code=500, detail=f"Failed to fetch fulfillments: {str(e)}")
 
     async def create_fulfillment(self, access_token: str, shop: str, order_id: str, 
+<<<<<<< HEAD
 
                                   location_id: str, tracking_number: Optional[str] = None,
                                   tracking_company: Optional[str] = None) -> Dict[str, Any]:
         """Create a fulfillment for an order"""
 
+=======
+                                  location_id: str, tracking_number: Optional[str] = None,
+                                  tracking_company: Optional[str] = None) -> Dict[str, Any]:
+        """Create a fulfillment for an order"""
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/fulfillments.json"
             headers = self._get_headers(access_token)
@@ -281,10 +316,15 @@ class ShopifyService:
             raise HTTPException(status_code=500, detail=f"Failed to fetch refunds: {str(e)}")
 
     async def calculate_refund(self, access_token: str, shop: str, order_id: str, 
+<<<<<<< HEAD
 
                                 line_items: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate refund amount for specified line items"""
 
+=======
+                                line_items: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate refund amount for specified line items"""
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/refunds/calculate.json"
             headers = self._get_headers(access_token)
@@ -320,11 +360,17 @@ class ShopifyService:
             raise HTTPException(status_code=500, detail=f"Failed to fetch draft orders: {str(e)}")
 
     async def create_draft_order(self, access_token: str, shop: str, 
+<<<<<<< HEAD
 
                                   line_items: List[Dict[str, Any]], 
                                   customer_id: Optional[str] = None) -> Dict[str, Any]:
         """Create a new draft order"""
 
+=======
+                                  line_items: List[Dict[str, Any]], 
+                                  customer_id: Optional[str] = None) -> Dict[str, Any]:
+        """Create a new draft order"""
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/draft_orders.json"
             headers = self._get_headers(access_token)
@@ -363,7 +409,10 @@ class ShopifyService:
     # --- TRANSACTIONS ---
     async def get_transactions(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
         """Get transactions for an order"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/orders/{order_id}/transactions.json"
             headers = self._get_headers(access_token)
@@ -379,7 +428,10 @@ class ShopifyService:
     # --- ANALYTICS & REPORTS ---
     async def get_order_count(self, access_token: str, shop: str, status: str = "any") -> int:
         """Get total order count"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/orders/count.json"
             headers = self._get_headers(access_token)
@@ -395,7 +447,10 @@ class ShopifyService:
 
     async def get_product_count(self, access_token: str, shop: str) -> int:
         """Get total product count"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/products/count.json"
             headers = self._get_headers(access_token)
@@ -410,7 +465,10 @@ class ShopifyService:
 
     async def get_customer_count(self, access_token: str, shop: str) -> int:
         """Get total customer count"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self._get_base_url(shop)}/customers/count.json"
             headers = self._get_headers(access_token)
@@ -425,7 +483,10 @@ class ShopifyService:
 
     async def get_shop_analytics(self, access_token: str, shop: str) -> Dict[str, Any]:
         """Get comprehensive shop analytics summary"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             order_count = await self.get_order_count(access_token, shop)
             product_count = await self.get_product_count(access_token, shop)
@@ -448,3 +509,157 @@ class ShopifyService:
             logger.error(f"Failed to get shop analytics: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch analytics: {str(e)}")
 
+<<<<<<< HEAD
+=======
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": [
+                {"id": "get_products", "name": "Get Products", "complexity": 1},
+                {"id": "get_orders", "name": "Get Orders", "complexity": 1},
+                {"id": "create_fulfillment", "name": "Create Fulfillment", "complexity": 3},
+                {"id": "get_shop_analytics", "name": "Get Shop Analytics", "complexity": 1},
+            ],
+            "supports_webhooks": True
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        try:
+            # Simple check if api_key exists
+            return {
+                "healthy": bool(self.api_key),
+                "message": "Connected" if self.api_key else "Missing API key",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        except Exception as e:
+            return {"healthy": False, "message": str(e)}
+
+    async def execute_operation(self, operation: str, parameters: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        token = parameters.get("access_token") or self.config.get("access_token")
+        shop = parameters.get("shop") or self.shop_name
+        
+        if operation == "handle_webhook_event":
+            return await self.handle_webhook_event(parameters["payload"], parameters.get("topic"))
+            
+        if operation == "get_products":
+            result = await self.get_products(token, shop, limit=parameters.get("limit", 20))
+            return {"success": True, "result": result}
+        elif operation == "get_orders":
+            result = await self.get_orders(token, shop, limit=parameters.get("limit", 20))
+            return {"success": True, "result": result}
+        elif operation == "get_customers":
+            result = await self.get_customers(token, shop, limit=parameters.get("limit", 20))
+            return {"success": True, "result": result}
+        elif operation == "get_customer":
+            result = await self.get_customer(token, shop, customer_id=parameters["customer_id"])
+            return {"success": True, "result": result}
+        elif operation == "search_customers":
+            result = await self.search_customers(token, shop, query=parameters["query"])
+            return {"success": True, "result": result}
+        elif operation == "get_fulfillments":
+            result = await self.get_fulfillments(token, shop, order_id=parameters["order_id"])
+            return {"success": True, "result": result}
+        elif operation == "create_fulfillment":
+            result = await self.create_fulfillment(
+                token, shop, 
+                order_id=parameters["order_id"],
+                location_id=parameters["location_id"],
+                tracking_number=parameters.get("tracking_number"),
+                tracking_company=parameters.get("tracking_company")
+            )
+            return {"success": True, "result": result}
+        elif operation == "get_refunds":
+            result = await self.get_refunds(token, shop, order_id=parameters["order_id"])
+            return {"success": True, "result": result}
+        elif operation == "get_shop_analytics":
+            result = await self.get_shop_analytics(token, shop)
+            return {"success": True, "result": result}
+        elif operation == "full_sync":
+            result = await self.full_sync(workspace_id=parameters.get("workspace_id", self.tenant_id))
+            return {"success": True, "result": result}
+        else:
+            raise NotImplementedError(f"Operation {operation} not supported")
+
+    async def handle_webhook_event(self, payload: Dict[str, Any], topic: Optional[str]) -> Dict[str, Any]:
+        """Standardize Shopify webhook data and trigger internal processing."""
+        logger.info(f"ShopifyService: Processing webhook topic {topic}")
+        
+        # 1. Standardize based on topic
+        if topic == "orders/create":
+            # This would trigger identity resolution and order persistence
+            # For now, we return the standardized event for the bridge
+            return {
+                "success": True,
+                "result": {
+                    "platform": "shopify",
+                    "sender_id": payload.get("customer", {}).get("email", "anonymous"),
+                    "recipient_id": self.shop_name,
+                    "text": f"New Shopify Order: {payload.get('order_number')}",
+                    "metadata": {"topic": topic, "order_id": payload.get("id")},
+                    "raw_payload": payload
+                }
+            }
+            
+        return {"success": True, "result": None}
+
+    async def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
+        """Sync Shopify analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            token = self.config.get("access_token")
+            shop = self.shop_name
+            if not token or not shop:
+                return {"success": False, "error": "Missing Shopify credentials"}
+
+            analytics = await self.get_shop_analytics(token, shop)
+            metrics = analytics.get("metrics", {})
+            
+            db = SessionLocal()
+            try:
+                metrics_to_save = [
+                    ("shopify_total_orders", metrics.get("total_orders", 0), "count"),
+                    ("shopify_total_products", metrics.get("total_products", 0), "count"),
+                    ("shopify_total_customers", metrics.get("total_customers", 0), "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="shopify",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="shopify",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                db.commit()
+                return {"success": True, "metrics_synced": len(metrics_to_save)}
+            except Exception as e:
+                db.rollback()
+                raise e
+            finally:
+                db.close()
+        except Exception as e:
+            logger.error(f"Shopify sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
+        """Trigger full sync for Shopify"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id)
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

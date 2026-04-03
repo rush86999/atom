@@ -389,22 +389,17 @@ class AtomVideoAIService:
     async def process_video_request(self, request: VideoRequest) -> VideoResponse:
         """Process video AI request"""
 
-        try:
             start_time = time.time()
-            
             # Update analytics
             self.analytics_metrics['total_video_requests'] += 1
             self.analytics_metrics['platform_distribution'][request.platform] += 1
-            
             # Security and compliance check
             if self.video_config['enable_enterprise_features']:
                 security_check = await self._perform_security_check(request)
                 if not security_check['passed']:
                     return self._create_error_response(request, security_check['reason'])
-            
             # Preprocess video
             video_data = await self._preprocess_video(request)
-            
             # Process based on task type
             if request.task_type == VideoTaskType.SUMMARIZATION:
                 response = await self._summarize_video(request, video_data)
@@ -424,7 +419,6 @@ class AtomVideoAIService:
                 response = await self._moderate_content(request, video_data)
             else:
                 response = self._create_error_response(request, "Unsupported task type")
-            
             # Update performance metrics
             processing_time = time.time() - start_time
             response.processing_time = processing_time
@@ -432,20 +426,41 @@ class AtomVideoAIService:
             self.analytics_metrics['average_processing_time'] = (
                 self.analytics_metrics['average_processing_time'] * (self.analytics_metrics['total_video_requests'] - 1) + processing_time
             ) / self.analytics_metrics['total_video_requests']
-            
             # Log request for enterprise compliance
             if self.video_config['enable_enterprise_features']:
                 await self._log_video_request(request, response)
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error processing video request: {e}")
             return self._create_error_response(request, str(e))
     
     async def _load_video_models(self):
         """Load video AI models"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_video_ai", "process_video_request", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_video_ai"):
+                logger.warning(f"Circuit breaker is open for atom_video_ai")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_video_ai integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_video_ai")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_video_ai")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_video_ai"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -477,12 +492,9 @@ class AtomVideoAIService:
     
     async def _summarize_video(self, request: VideoRequest, video_data: bytes) -> VideoResponse:
         """Summarize video content"""
-        try:
             start_time = time.time()
-            
             # Extract frames from video
             frames = await self._extract_frames(video_data, num_frames=10)
-            
             # Generate captions for frames using BLIP
             captions = []
             for frame in frames:
@@ -491,12 +503,10 @@ class AtomVideoAIService:
                     outputs = self.blip_model.generate(**inputs, max_length=50)
                 caption = self.blip_processor.decode(outputs[0], skip_special_tokens=True)
                 captions.append(caption)
-            
             # Use AI to generate comprehensive summary
             summary_prompt = f"""
             Generate a comprehensive summary of a video based on these frame captions:
             {', '.join(captions)}
-            
             Include:
             1. Main topics/themes
             2. Key events/actions
@@ -504,7 +514,6 @@ class AtomVideoAIService:
             4. Overall context
             5. Duration and setting
             """
-            
             ai_request = AIRequest(
                 request_id=f"video_summary_{int(time.time())}",
                 task_type=AITaskType.CONTENT_ANALYSIS,
@@ -526,9 +535,7 @@ class AtomVideoAIService:
                 },
                 platform='video_ai'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 summary_text = ai_response.output_data.get('summary', 'Unable to generate summary')
                 key_points = ai_response.output_data.get('key_points', [])
@@ -537,13 +544,11 @@ class AtomVideoAIService:
                 summary_text = "Unable to generate summary"
                 key_points = []
                 topics = []
-            
             # Update analytics
             summarization_time = time.time() - start_time
             self.performance_metrics['summarization_time'] = summarization_time
             self.analytics_metrics['total_summarizations'] += 1
             self.analytics_metrics['successful_summarizations'] += 1
-            
             # Create response
             response = VideoResponse(
                 request_id=request.request_id,
@@ -572,7 +577,6 @@ class AtomVideoAIService:
                     'duration': request.duration
                 }
             )
-            
             # Store summary
             summary = VideoSummary(
                 summary_id=f"summary_{request.request_id}",
@@ -589,21 +593,18 @@ class AtomVideoAIService:
                 metadata={'captions': captions}
             )
             self.video_summaries[summary.summary_id] = summary
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error summarizing video: {e}")
             return self._create_error_response(request, str(e))
     
     async def _analyze_video_content(self, request: VideoRequest, video_data: bytes) -> VideoResponse:
         """Analyze video content comprehensively"""
-        try:
             start_time = time.time()
-            
             # Extract frames for analysis
             frames = await self._extract_frames(video_data, num_frames=15)
-            
             # Detect objects in frames
             objects_detected = []
             for frame in frames:
@@ -618,13 +619,10 @@ class AtomVideoAIService:
                                 'confidence': confidence,
                                 'bbox': obj.xyxy[0].tolist()
                             })
-            
             # Classify video content
             video_class = await self._classify_video_content(frames)
-            
             # Analyze quality
             quality_score = await self._analyze_video_quality(video_data)
-            
             # Update analytics
             analysis_time = time.time() - start_time
             self.performance_metrics['content_analysis_time'] = analysis_time
@@ -632,7 +630,6 @@ class AtomVideoAIService:
             self.analytics_metrics['successful_analyses'] += 1
             self.analytics_metrics['content_distribution'][video_class] += 1
             self.analytics_metrics['quality_distribution'][self._get_quality_category(quality_score)] += 1
-            
             # Create response
             response = VideoResponse(
                 request_id=request.request_id,
@@ -661,7 +658,6 @@ class AtomVideoAIService:
                     'frame_count': len(frames)
                 }
             )
-            
             # Store analysis
             analysis = VideoAnalysis(
                 analysis_id=f"analysis_{request.request_id}",
@@ -677,25 +673,21 @@ class AtomVideoAIService:
                 metadata={'frame_count': len(frames)}
             )
             self.video_analyses[analysis.analysis_id] = analysis
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error analyzing video content: {e}")
             return self._create_error_response(request, str(e))
     
     async def _detect_objects(self, request: VideoRequest, video_data: bytes) -> VideoResponse:
         """Detect objects in video"""
-        try:
             start_time = time.time()
-            
             # Extract frames for object detection
             frames = await self._extract_frames(video_data, num_frames=20)
-            
             # Detect objects in all frames
             all_objects = []
             object_counts = defaultdict(int)
-            
             for frame in frames:
                 results = self.yolo_model(frame)
                 for result in results:
@@ -711,16 +703,13 @@ class AtomVideoAIService:
                                 'frame_index': len(all_objects)
                             })
                             object_counts[class_name] += 1
-            
             # Calculate unique objects and statistics
             unique_objects = list(object_counts.keys())
             most_common = max(object_counts.items(), key=lambda x: x[1]) if object_counts else None
-            
             # Update analytics
             detection_time = time.time() - start_time
             self.performance_metrics['object_detection_time'] = detection_time
             self.analytics_metrics['total_object_detections'] += 1
-            
             # Create response
             response = VideoResponse(
                 request_id=request.request_id,
@@ -749,30 +738,25 @@ class AtomVideoAIService:
                     'confidence_threshold': 0.5
                 }
             )
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error detecting objects: {e}")
             return self._create_error_response(request, str(e))
     
     async def _extract_frames(self, video_data: bytes, num_frames: int = 10) -> List[np.ndarray]:
         """Extract frames from video data"""
-        try:
             import tempfile
             import cv2
-            
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
                 temp_file.write(video_data)
                 temp_file.flush()
-                
                 # Open video file
                 cap = cv2.VideoCapture(temp_file.name)
-                
                 frames = []
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 frame_interval = max(1, total_frames // num_frames)
-                
                 for i in range(0, total_frames, frame_interval):
                     cap.set(cv2.CAP_PROP_POS_FRAMES, i)
                     ret, frame = cap.read()
@@ -780,26 +764,23 @@ class AtomVideoAIService:
                         # Convert BGR to RGB
                         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         frames.append(frame_rgb)
-                    
                     if len(frames) >= num_frames:
                         break
-                
                 cap.release()
                 os.unlink(temp_file.name)
-            
             return frames
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error extracting frames: {e}")
             return []
     
     async def _classify_video_content(self, frames: List[np.ndarray]) -> str:
         """Classify video content"""
-        try:
             # Simple classification based on detected objects
             # In a real implementation, this would use a trained video classifier
             common_classes = ['person', 'car', 'computer', 'phone', 'whiteboard', 'desk']
-            
             class_counts = defaultdict(int)
             for frame in frames:
                 results = self.yolo_model(frame)
@@ -811,7 +792,6 @@ class AtomVideoAIService:
                             class_name = result.names[class_id]
                             if class_name in common_classes:
                                 class_counts[class_name] += 1
-            
             # Determine content type
             if class_counts.get('person', 0) > 10:
                 if class_counts.get('computer', 0) > 5:
@@ -826,42 +806,38 @@ class AtomVideoAIService:
                 return 'tutorial'
             else:
                 return 'general'
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error classifying video content: {e}")
             return 'unknown'
     
     async def _analyze_video_quality(self, video_data: bytes) -> float:
         """Analyze video quality"""
-        try:
             import tempfile
             import cv2
-            
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
                 temp_file.write(video_data)
                 temp_file.flush()
-                
                 cap = cv2.VideoCapture(temp_file.name)
-                
                 # Quality metrics
                 frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 fps = cap.get(cv2.CAP_PROP_FPS)
                 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                
                 # Calculate quality score based on resolution and frame rate
                 resolution_score = (width * height) / (1920 * 1080)  # Normalize to 1080p
                 fps_score = min(fps / 30.0, 1.0)  # Normalize to 30fps
-                
                 # Simple quality calculation
                 quality_score = (resolution_score * 0.6 + fps_score * 0.4) * 100
-                
                 cap.release()
                 os.unlink(temp_file.name)
-            
             return min(quality_score, 100.0)
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing video quality: {e}")
             return 50.0  # Default quality score
     
@@ -882,7 +858,6 @@ class AtomVideoAIService:
     
     async def _setup_content_moderation(self):
         """Setup content moderation policies"""
-        try:
             self.content_moderation_policies = {
                 'adult_content': {'enabled': True, 'threshold': 0.7, 'action': 'flag'},
                 'violence': {'enabled': True, 'threshold': 0.6, 'action': 'flag'},
@@ -890,15 +865,15 @@ class AtomVideoAIService:
                 'spam_content': {'enabled': True, 'threshold': 0.75, 'action': 'filter'},
                 'copyright_content': {'enabled': True, 'threshold': 0.65, 'action': 'flag'}
             }
-            
             logger.info("Content moderation policies setup complete")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up content moderation: {e}")
     
     async def _setup_enterprise_features(self):
         """Setup enterprise features"""
-        try:
             # Setup video retention policies
             self.video_retention_policies = {
                 'meeting_recordings': 365,  # days
@@ -906,7 +881,6 @@ class AtomVideoAIService:
                 'analysis_data': 180,         # days
                 'auto_delete': True
             }
-            
             # Setup video security policies
             self.video_security_policies = {
                 'encryption_at_rest': True,
@@ -915,31 +889,30 @@ class AtomVideoAIService:
                 'audit_logging': True,
                 'watermarking': True
             }
-            
             logger.info("Enterprise features setup complete")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up enterprise features: {e}")
     
     async def _setup_security_and_compliance(self):
         """Setup security and compliance monitoring"""
-        try:
             # Setup monitoring for security events
             if self.video_config['enable_enterprise_features']:
                 # Security monitoring
                 await self._setup_security_monitoring()
-                
                 # Compliance monitoring
                 await self._setup_compliance_monitoring()
-            
             logger.info("Security and compliance setup complete")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up security and compliance: {e}")
     
     async def _setup_security_monitoring(self):
         """Setup security monitoring"""
-        try:
             self.security_monitoring = {
                 'video_anomaly_detection': {
                     'enabled': True,
@@ -957,15 +930,15 @@ class AtomVideoAIService:
                     'action': 'flag'
                 }
             }
-            
             logger.info("Security monitoring setup complete")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up security monitoring: {e}")
     
     async def _setup_compliance_monitoring(self):
         """Setup compliance monitoring"""
-        try:
             self.compliance_monitoring = {
                 'content_compliance_checking': {
                     'enabled': True,
@@ -983,63 +956,61 @@ class AtomVideoAIService:
                     'action': 'manage'
                 }
             }
-            
             logger.info("Compliance monitoring setup complete")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up compliance monitoring: {e}")
     
     async def _load_existing_video_data(self):
         """Load existing video data"""
-        try:
             # Mock implementation - would load from database
             logger.info("Existing video data loaded")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error loading existing video data: {e}")
     
     async def _preprocess_video(self, request: VideoRequest) -> bytes:
         """Preprocess video data"""
-        try:
             start_time = time.time()
-            
             # Convert video to standard format if needed
             if request.format != VideoFormat.MP4:
                 # Convert to MP4
                 video_data = request.video_data or b''
             else:
                 video_data = request.video_data or b''
-            
             # Update preprocessing time
             preprocessing_time = time.time() - start_time
             self.performance_metrics['video_preprocessing_time'] = preprocessing_time
-            
             return video_data
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error preprocessing video: {e}")
             return request.video_data or b''
     
     async def _perform_security_check(self, request: VideoRequest) -> Dict[str, Any]:
         """Perform security check on video request"""
-        try:
             if not self.enterprise_security:
                 return {'passed': True}
-            
             # Check user permissions
             # Check video size limits
             # Check content policies
             # Check rate limits
-            
             return {'passed': True}
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing security check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _log_video_request(self, request: VideoRequest, response: VideoResponse):
         """Log video request for enterprise compliance"""
-        try:
             if self.enterprise_security:
                 await self.enterprise_security.audit_event({
                     'event_type': 'video_ai_request',
@@ -1060,8 +1031,10 @@ class AtomVideoAIService:
                         'request_id': request.request_id
                     }
                 })
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error logging video request: {e}")
     
     def _create_error_response(self, request: VideoRequest, error_message: str) -> VideoResponse:
@@ -1087,7 +1060,6 @@ class AtomVideoAIService:
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Video AI service status"""
-        try:
             return {
                 'service': 'video_ai',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -1108,12 +1080,36 @@ class AtomVideoAIService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'video_ai'}
     
     async def close(self):
         """Close Video AI Service"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_video_ai", "get_service_status", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_video_ai"):
+                logger.warning(f"Circuit breaker is open for atom_video_ai")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_video_ai integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_video_ai")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_video_ai")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_video_ai"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Unload models
             self.blip_model = None
@@ -1162,3 +1158,25 @@ if _atom_voice:
     _atom_video_config['voice_ai_service'] = _atom_voice
 
 atom_video_ai_service = AtomVideoAIService(_atom_video_config)
+<<<<<<< HEAD
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_video_ai", "close", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_video_ai"):
+                logger.warning(f"Circuit breaker is open for atom_video_ai")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_video_ai integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_video_ai")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_video_ai")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_video_ai"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

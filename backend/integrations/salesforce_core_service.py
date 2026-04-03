@@ -4,22 +4,18 @@
 Enterprise-grade Salesforce API integration with comprehensive business object support
 """
 
-import asyncio
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+import os
 import json
 import logging
-import os
-from typing import Any, Dict, List, Optional, Union
-from urllib.parse import urlencode, urljoin
-import asyncpg
 import requests
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+import asyncio
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Optional, Any, List, Union
+from dataclasses import dataclass, asdict
+from urllib.parse import urljoin, urlencode
+from enum import Enum
 
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +92,10 @@ class SalesforceCoreService:
         Returns:
             SalesforceCredentials or None if not found
         """
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             from db_oauth_salesforce import get_user_salesforce_tokens
             
@@ -191,7 +190,7 @@ class SalesforceCoreService:
                     error_data = response.json()
                     error_message = error_data.get('error_description', error_data.get('error', 'Unknown error'))
                     error_code = error_data.get('error_code', 'UNKNOWN_ERROR')
-                except Exception as e:
+                except:
                     error_message = response.text
                     error_code = 'HTTP_ERROR'
                 

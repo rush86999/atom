@@ -3,19 +3,14 @@ ATOM Ecommerce Unified Service
 Aggregates data from Amazon Seller, Etsy, WooCommerce, and Shopify.
 """
 
-from dataclasses import dataclass
-from datetime import datetime
-from enum import Enum
 import logging
-from typing import Any, Dict, List, Optional
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+from enum import Enum
+from dataclasses import dataclass
 
 try:
-    from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
+    from integrations.atom_ingestion_pipeline import atom_ingestion_pipeline, RecordType
 except ImportError:
     logging.warning("Core services not available for Ecommerce Service")
 

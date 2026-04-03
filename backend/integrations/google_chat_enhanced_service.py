@@ -3,30 +3,25 @@ ATOM Google Chat Enhanced Service
 Complete Google Chat integration within unified ATOM communication ecosystem
 """
 
-import asyncio
-import base64
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
-import io
+import os
 import json
 import logging
-import os
+import asyncio
+import base64
 import time
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
-from cryptography.fernet import Fernet
+from datetime import datetime, timezone, timezone, timedelta
+from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
+from dataclasses import dataclass, asdict
+from enum import Enum
+import httpx
 import google.auth
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
-import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+import io
+from cryptography.fernet import Fernet
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -97,7 +92,7 @@ class GoogleChatSpace:
     
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
         if self.space_admins is None:
             self.space_admins = []
         if self.scopes is None:
@@ -110,15 +105,15 @@ class GoogleChatMessage:
     """Google Chat message model"""
     message_id: str
     text: str
+    formatted_text: Optional[str] = None
     user_id: str
     user_name: str
     user_email: str
-    space_id: str
-    timestamp: str
-    formatted_text: Optional[str] = None
     user_avatar: Optional[str] = None
+    space_id: str
     thread_id: Optional[str] = None
     reply_to_id: Optional[str] = None
+    timestamp: str
     created_at: datetime = None
     last_modified_at: Optional[str] = None
     message_type: str = "MESSAGE"
@@ -146,7 +141,7 @@ class GoogleChatMessage:
     
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
         if self.card_v2 is None:
             self.card_v2 = []
         if self.annotations is None:
@@ -179,8 +174,8 @@ class GoogleChatFile:
     user_name: str
     user_email: str
     space_id: str
-    timestamp: str
     thread_id: Optional[str] = None
+    timestamp: str
     created_at: datetime = None
     url: Optional[str] = None
     download_url: Optional[str] = None
@@ -197,7 +192,7 @@ class GoogleChatFile:
     
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
         if self.tags is None:
             self.tags = []
         if self.metadata is None:
@@ -255,24 +250,25 @@ class GoogleChatRateLimiter:
             self.local_limits[key]['count'] += 1
             return True
 
-class GoogleChatEnhancedService:
+class GoogleChatEnhancedService(IntegrationService):
     """Enhanced Google Chat service with full ecosystem integration"""
 
     def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.config = config
-        self.client_id = config.get('client_id') or os.getenv('GOOGLE_CHAT_CLIENT_ID')
-        self.client_secret = config.get('client_secret') or os.getenv('GOOGLE_CHAT_CLIENT_SECRET')
-        self.redirect_uri = config.get('redirect_uri') or os.getenv('GOOGLE_CHAT_REDIRECT_URI')
-        
+        self.client_id = config.get('client_id')
+        self.client_secret = config.get('client_secret')
+        self.redirect_uri = config.get('redirect_uri')
+
         # Database connection
         self.db = config.get('database')
-        
+
         # Redis for caching and rate limiting
         redis_config = config.get('redis', {})
         self.redis_client = redis_config.get('client')
-        
+
         # Encryption for tokens
-        self.encryption_key = config.get('encryption_key') or os.getenv('ENCRYPTION_KEY')
+        self.encryption_key = config.get('encryption_key')
         self.cipher = Fernet(self.encryption_key.encode()) if self.encryption_key else None
         
         # Rate limiter
@@ -524,7 +520,7 @@ class GoogleChatEnhancedService:
                     space_type=space_data.get('spaceType', 'SPACE'),
                     space_uri=space_data.get('spaceUri'),
                     space_permission_level=space_data.get('spacePermissionLevel', 'UNKNOWN'),
-                    created_at=datetime.fromisoformat(space_data.get('createTime').replace('Z', '+00:00')) if space_data.get('createTime') else datetime.utcnow(),
+                    created_at=datetime.fromisoformat(space_data.get('createTime').replace('Z', '+00:00')) if space_data.get('createTime') else datetime.now(timezone.utc),
                     last_modified_at=space_data.get('lastModifiedTime'),
                     single_user_bot_dm=space_data.get('singleUserBotDm', False),
                     threaded=space_data.get('spaceThreadingState') == 'THREADING_ENABLED',
@@ -717,7 +713,7 @@ class GoogleChatEnhancedService:
                     space_id=space_id,
                     thread_id=result.get('thread', {}).get('name') if result.get('thread') else None,
                     timestamp=result.get('createTime'),
-                    created_at=datetime.fromisoformat(result.get('createTime').replace('Z', '+00:00')) if result.get('createTime') else datetime.utcnow(),
+                    created_at=datetime.fromisoformat(result.get('createTime').replace('Z', '+00:00')) if result.get('createTime') else datetime.now(timezone.utc),
                     message_type='MESSAGE',
                     sender_type='BOT',
                     card_v2=card_v2 or [],
@@ -733,7 +729,7 @@ class GoogleChatEnhancedService:
                 if self.db:
                     self.db.execute(
                         "UPDATE google_chat_spaces SET message_count = message_count + 1, last_modified_at = ? WHERE space_id = ?",
-                        (datetime.utcnow().isoformat(), space_id)
+                        (datetime.now(timezone.utc).isoformat(), space_id)
                     )
                     self.db.commit()
                 
@@ -806,7 +802,7 @@ class GoogleChatEnhancedService:
                     thread_id=msg_data.get('thread', {}).get('name') if msg_data.get('thread') else None,
                     reply_to_id=msg_data.get('replyToId'),
                     timestamp=msg_data.get('createTime'),
-                    created_at=datetime.fromisoformat(msg_data.get('createTime').replace('Z', '+00:00')) if msg_data.get('createTime') else datetime.utcnow(),
+                    created_at=datetime.fromisoformat(msg_data.get('createTime').replace('Z', '+00:00')) if msg_data.get('createTime') else datetime.now(timezone.utc),
                     last_modified_at=msg_data.get('lastModifiedTime'),
                     message_type=msg_data.get('type', 'MESSAGE'),
                     card_v2=msg_data.get('cardsV2', []),
@@ -907,7 +903,7 @@ class GoogleChatEnhancedService:
                     space_id=space_id,
                     thread_id=msg_data.get('thread', {}).get('name') if msg_data.get('thread') else None,
                     timestamp=msg_data.get('createTime'),
-                    created_at=datetime.fromisoformat(msg_data.get('createTime').replace('Z', '+00:00')) if msg_data.get('createTime') else datetime.utcnow(),
+                    created_at=datetime.fromisoformat(msg_data.get('createTime').replace('Z', '+00:00')) if msg_data.get('createTime') else datetime.now(timezone.utc),
                     message_type=msg_data.get('type', 'MESSAGE'),
                     card_v2=msg_data.get('cardsV2', []),
                     annotations=msg_data.get('annotations', []),
@@ -981,7 +977,124 @@ class GoogleChatEnhancedService:
             },
             "scopes": self.required_scopes
         }
-    
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Google Chat integration capabilities"""
+        return {
+            "operations": [
+                {
+                    "id": "send_message",
+                    "name": "Send Message",
+                    "description": "Send a message to a Google Chat space",
+                    "parameters": {
+                        "space_id": {"type": "string", "required": True},
+                        "text": {"type": "string", "required": True},
+                        "thread_id": {"type": "string", "required": False}
+                    },
+                    "complexity": 3
+                },
+                {
+                    "id": "get_space_messages",
+                    "name": "Get Space Messages",
+                    "description": "Get messages from a Google Chat space",
+                    "parameters": {
+                        "space_id": {"type": "string", "required": True},
+                        "limit": {"type": "integer", "required": False, "default": 100}
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "search_messages",
+                    "name": "Search Messages",
+                    "description": "Search for messages in Google Chat",
+                    "parameters": {
+                        "space_id": {"type": "string", "required": True},
+                        "query": {"type": "string", "required": True}
+                    },
+                    "complexity": 2
+                }
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["client_id", "client_secret", "redirect_uri"],
+            "rate_limits": {
+                "requests_per_minute": 100,
+                "burst_limit": 50
+            },
+            "supports_webhooks": True
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if Google Chat service is healthy"""
+        return {
+            "healthy": bool(self.client_id and self.client_secret),
+            "message": "Google Chat service initialized" if self.client_id else "Missing client credentials",
+            "last_check": datetime.now(timezone.utc).isoformat()
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Google Chat operation
+
+        Args:
+            operation: Operation name (e.g., "send_message", "get_space_messages")
+            parameters: Operation parameters
+            context: Context dict with tenant_id, agent_id, etc.
+
+        Returns:
+            Dict with success, result, error, details
+        """
+        try:
+            # Validate tenant_id from context
+            if context and context.get('tenant_id') != self.tenant_id:
+                return {
+                    "success": False,
+                    "error": "Tenant mismatch",
+                    "details": {"context_tenant": context.get('tenant_id'), "service_tenant": self.tenant_id}
+                }
+
+            # Route to appropriate method
+            if operation == "send_message":
+                result = await self.send_message(
+                    space_id=parameters['space_id'],
+                    text=parameters['text'],
+                    thread_id=parameters.get('thread_id')
+                )
+                return {"success": result.get('ok', False), "result": result, "details": {}}
+
+            elif operation == "get_space_messages":
+                messages = await self.get_space_messages(
+                    space_id=parameters['space_id'],
+                    limit=parameters.get('limit', 100)
+                )
+                return {"success": True, "result": [asdict(m) for m in messages], "details": {}}
+
+            elif operation == "search_messages":
+                result = await self.search_messages(
+                    space_id=parameters['space_id'],
+                    query=parameters['query']
+                )
+                return {"success": result.get('ok', False), "result": result, "details": {}}
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "details": {"available_operations": [op["id"] for op in self.get_capabilities()["operations"]]}
+                }
+
+        except Exception as e:
+            logger.error(f"Error executing Google Chat operation {operation}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"operation": operation, "tenant_id": self.tenant_id}
+            }
+
     async def close(self):
         """Close all connections and cleanup"""
         # Clear clients
@@ -993,6 +1106,7 @@ class GoogleChatEnhancedService:
         
         logger.info("Google Chat Enhanced Service closed")
 
+<<<<<<< HEAD
 # Global service instance
 google_chat_enhanced_service = GoogleChatEnhancedService({
     'client_id': os.getenv('GOOGLE_CHAT_CLIENT_ID'),
@@ -1004,3 +1118,7 @@ google_chat_enhanced_service = GoogleChatEnhancedService({
         'client': None  # Would be actual Redis client
     }
 })
+=======
+# Singleton export deprecated - use IntegrationRegistry instead
+# google_chat_enhanced_service = GoogleChatEnhancedService(...)
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
