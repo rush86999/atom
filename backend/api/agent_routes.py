@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 import uuid
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from fastapi import BackgroundTasks, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -34,9 +34,11 @@ router = BaseAPIRouter(prefix="/api/agents", tags=["Agents"])
 
 # --- Data Models ---
 class AgentRunRequest(BaseModel):
-    parameters: Dict[str, Any] = {}
+    agent_id: str
+    parameters: Dict[str, Any] = Field(default_factory=dict)
 
 class AgentUpdateRequest(BaseModel):
+    agent_id: str
     name: Optional[str] = None
     description: Optional[str] = None
 
