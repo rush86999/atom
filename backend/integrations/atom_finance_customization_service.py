@@ -395,27 +395,6 @@ class AtomFinanceCustomizationService:
     
     async def create_customer(self, customer_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new customer with finance compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_finance_customization", "initialize", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_finance_customization"):
-                logger.warning(f"Circuit breaker is open for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_finance_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_finance_customization"
-                )
 
         try:
             start_time = time.time()
@@ -539,27 +518,6 @@ class AtomFinanceCustomizationService:
     
     async def process_transaction(self, transaction_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Process transaction with fraud detection"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_finance_customization", "create_customer", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_finance_customization"):
-                logger.warning(f"Circuit breaker is open for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_finance_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_finance_customization"
-                )
 
         try:
             start_time = time.time()
@@ -680,51 +638,9 @@ class AtomFinanceCustomizationService:
             return {'success': False, 'error': str(e)}
     
     async def generate_financial_analytics(self, analytics_type: FinancialAnalyticsType,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_finance_customization", "generate_financial_analytics", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_finance_customization"):
-                logger.warning(f"Circuit breaker is open for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_finance_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_finance_customization"
-                )
 
                                         time_period: str = '7d', department: str = None) -> Dict[str, Any]:
         """Generate financial analytics with compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_finance_customization", "process_transaction", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_finance_customization"):
-                logger.warning(f"Circuit breaker is open for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_finance_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_finance_customization"
-                )
 
         try:
             start_time = time.time()
@@ -1265,27 +1181,6 @@ class AtomFinanceCustomizationService:
 
     def _initialize_banking_core_integration(self):
         """Initialize banking core integration (stub)"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_finance_customization", "get_service_status", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_finance_customization"):
-                logger.warning(f"Circuit breaker is open for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_finance_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_finance_customization"
-                )
 
         logger.info("Banking core integration not implemented")
         return None
@@ -1348,24 +1243,3 @@ if _ai_service:
     _finance_config['ai_service'] = _ai_service
 
 atom_finance_customization_service = AtomFinanceCustomizationService(_finance_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_finance_customization", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_finance_customization"):
-                logger.warning(f"Circuit breaker is open for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_finance_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_finance_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_finance_customization"
-                )
