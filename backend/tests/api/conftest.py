@@ -28,23 +28,27 @@ def api_test_client() -> Generator[TestClient, None, None]:
     """
     Create TestClient with proper isolation for API testing.
 
-    Note: This is a placeholder fixture. Individual test files should
-    create their own TestClient with specific routers to avoid
+    Provides a TestClient with the main API app for OpenAPI and
+    schema validation tests. Uses per-fixture app creation to avoid
     SQLAlchemy metadata conflicts.
 
     Usage in test files:
-        from fastapi import FastAPI
-        from api.health_routes import router
-
-        app = FastAPI()
-        app.include_router(router)
-
-        def test_something():
-            client = TestClient(app)
-            response = client.get("/health/live")
+        def test_openapi_schema(api_test_client):
+            response = api_test_client.get("/openapi.json")
+            assert response.status_code == 200
     """
-    # Return None - tests should create their own TestClient
-    yield None
+    from fastapi import FastAPI
+    from api.agent_routes import router as agent_router
+    from api.canvas_routes import router as canvas_router
+    from api.health_routes import router as health_router
+
+    app = FastAPI(title="Atom API Test")
+    app.include_router(agent_router)
+    app.include_router(canvas_router)
+    app.include_router(health_router)
+
+    client = TestClient(app)
+    yield client
 
 
 @pytest.fixture(scope="function")
