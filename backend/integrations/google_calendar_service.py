@@ -165,19 +165,13 @@ class GoogleCalendarService:
     async def create_event(self, event_data: Dict) -> Optional[Dict]:
         """
         Create an event in Google Calendar
-        
+
         Args:
             event_data: Event data in unified format
-            
+
         Returns:
             Created event in unified format or None
         """
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         if not self.service:
             if not self.authenticate():
                 return None
