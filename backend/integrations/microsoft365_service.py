@@ -966,6 +966,21 @@ class Microsoft365Service(IntegrationService):
             return await self._make_graph_request("POST", url, token, payload)
 >>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         except Exception as e:
+            logger.error(f"Service status check failed: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def _send_message(self, team_id: str, channel_id: str, content: str) -> Dict[str, Any]:
+        """Send message to Microsoft Teams channel."""
+        try:
+            token = self.config.get("access_token")
+            if not token:
+                return {"status": "error", "message": "No access token configured"}
+
+            url = f"{self.base_url}/teams/{team_id}/channels/{channel_id}/messages"
+            payload = {"body": {"content": content}}
+
+            return await self._make_graph_request("POST", url, token, payload)
+        except Exception as e:
             logger.error(f"Send message failed: {e}")
             return {"status": "error", "message": str(e)}
 
@@ -996,13 +1011,8 @@ class Microsoft365Service(IntegrationService):
             return {"status": "error", "message": str(e)}
 
 
-<<<<<<< HEAD
 # Service instance
 microsoft365_service = Microsoft365Service()
-=======
-# Service instance - REMOVED: Use IntegrationRegistry instead
-# microsoft365_service = Microsoft365Service()
-
 
 # API Routes
 @microsoft365_router.get("/auth")
@@ -1082,4 +1092,3 @@ async def microsoft365_health():
         "service": "microsoft365",
         "timestamp": "2024-01-21T10:00:00Z",
     }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

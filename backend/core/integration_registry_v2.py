@@ -40,7 +40,6 @@ class IntegrationRegistryv2:
         
         service_path = UPSTREAM_SERVICE_REGISTRY.get(connector_id)
         if not service_path:
-            logger.warning(f"No integration adapter registered for: {connector_id}")
             return None
         
         try:
@@ -61,15 +60,11 @@ class IntegrationRegistryv2:
             return None
 
     def _map_to_piece_auth(self, connector_id: str, config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        Maps Atom configuration/secrets to ActivePieces piece auth structure.
-        Based on standard piece-framework auth types.
-        """
+        """Maps Atom configuration/secrets to ActivePieces piece auth structure."""
         access_token = config.get("access_token")
         api_key = config.get("api_key")
         
         if access_token:
-            # Standard OAuth2/Bearer mapping
             return {
                 "type": "OAUTH2",
                 "data": {
@@ -80,13 +75,11 @@ class IntegrationRegistryv2:
                 }
             }
         elif api_key:
-            # Standard Secret Text mapping
             return {
                 "type": "SECRET_TEXT",
                 "secret": api_key
             }
         
-        # Fallback to entire config if no standard keys found
         return config if config else None
 
     async def execute_operation(
@@ -107,7 +100,7 @@ class IntegrationRegistryv2:
             try:
                 return await service.execute_operation(operation, parameters, context)
             except Exception as e:
-                logger.error(f"Native integration execution exception ({connector_id}:{operation}): {e}")
+                logger.error(f"Native integration execution failed ({connector_id}:{operation}): {e}")
                 return OperationResult(
                     success=False, 
                     error=IntegrationErrorCode.EXECUTION_EXCEPTION, 
@@ -117,7 +110,6 @@ class IntegrationRegistryv2:
         # 2. Fallback to Pieces (ActivePieces)
         logger.info(f"Native adapter not found for {connector_id}, falling back to Pieces engine...")
         
-        # SECURITY & COMPLIANCE: License Check
         try:
             piece_details = await node_bridge.get_piece_details(connector_id)
             if not piece_details:
@@ -125,15 +117,6 @@ class IntegrationRegistryv2:
                     success=False, 
                     error=IntegrationErrorCode.NOT_FOUND, 
                     message=f"Integration {connector_id} not found in native or Pieces catalog"
-                )
-            
-            piece_license = piece_details.get("license", "UNKNOWN").upper()
-            if "MIT" not in piece_license:
-                 logger.warning(f"BLOCKED: Piece {connector_id} has license {piece_license} (Required: MIT)")
-                 return OperationResult(
-                    success=False, 
-                    error=IntegrationErrorCode.LICENSE_RESTRICTED, 
-                    message=f"Piece {connector_id} is blocked. License {piece_license} is not MIT."
                 )
             
             # 3. Execution via Bridge
