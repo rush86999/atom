@@ -22,6 +22,27 @@ from core.notification_service import NotificationService
 logger = logging.getLogger(__name__)
 
 
+# Budget enforcement exceptions
+class BudgetError(Exception):
+    """Base exception for budget enforcement errors"""
+    pass
+
+
+class InsufficientBudgetError(BudgetError):
+    """Raised when budget is insufficient for an operation"""
+    pass
+
+
+class BudgetNotFoundError(BudgetError):
+    """Raised when a budget is not found"""
+    pass
+
+
+class ConcurrentModificationError(BudgetError):
+    """Raised when concurrent modification is detected"""
+    pass
+
+
 # Enforcement modes
 class BudgetEnforcementMode:
     ALERT_ONLY = "alert_only"
