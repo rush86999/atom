@@ -81,6 +81,8 @@ class AgentGovernanceService:
         # Level 3: EXECUTE (Supervised) - Supervised Agents
         "create": 3,
         "update": 3,
+        "submit": 3,
+        "canvas_submit": 3,
         "send_email": 3,
         "email_send": 3,
         "browser_navigate": 3,
