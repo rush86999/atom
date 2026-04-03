@@ -284,7 +284,8 @@ def create_development_roadmap():
                 ],
                 "estimated_time": "2 minutes"
             },
-            "step_4": "Set up testing infrastructure",
+            "step_4": {
+                "description": "Set up testing infrastructure",
                 "commands": [
                     "mkdir -p tests/whatsapp",
                     "mkdir -p tests/e2e",

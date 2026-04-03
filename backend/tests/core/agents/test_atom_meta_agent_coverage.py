@@ -58,12 +58,12 @@ def mock_workspace():
 class TestAtomMetaAgentInitialization:
     """Test AtomMetaAgent initialization (lines 168-180)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
-    def test_agent_init_default_workspace(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    def test_agent_init_default_workspace(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test initialization with default workspace"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -73,23 +73,23 @@ class TestAtomMetaAgentInitialization:
         assert agent.session_tools == []
         assert agent.queen is None
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
-    def test_agent_init_with_workspace_id(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model, mock_workspace):
+    def test_agent_init_with_workspace_id(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator, mock_workspace):
         """Test initialization with custom workspace ID"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent(workspace_id="custom-workspace")
         assert agent.workspace_id == "custom-workspace"
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
-    def test_agent_init_with_user(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model, mock_user):
+    def test_agent_init_with_user(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator, mock_user):
         """Test initialization with user context"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent(user=mock_user)
@@ -197,12 +197,12 @@ class TestAtomMetaAgentConstants:
 class TestAtomMetaAgentHelperMethods:
     """Test simple helper methods (lines 883-965)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
-    def test_get_atom_registry(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    def test_get_atom_registry(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test _get_atom_registry returns correct AgentRegistry"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -213,10 +213,10 @@ class TestAtomMetaAgentHelperMethods:
         assert registry.status == AgentStatus.AUTONOMOUS.value
         assert registry.confidence_score == 1.0
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     def test_get_communication_instruction_no_user(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -226,10 +226,10 @@ class TestAtomMetaAgentHelperMethods:
         instruction = agent._get_communication_instruction({})
         assert instruction == ""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     def test_get_communication_instruction_no_user_in_context(self, mock_session, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
@@ -244,13 +244,13 @@ class TestAtomMetaAgentHelperMethods:
 class TestAtomMetaAgentSpawnAgent:
     """Test spawn_agent method (lines 738-787)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_spawn_agent_from_template_finance_analyst(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_spawn_agent_from_template_finance_analyst(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test spawning finance_analyst from template"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -260,13 +260,13 @@ class TestAtomMetaAgentSpawnAgent:
         assert spawned.status == AgentStatus.STUDENT.value
         assert spawned.confidence_score == 0.5
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_spawn_agent_from_template_sales_assistant(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_spawn_agent_from_template_sales_assistant(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test spawning sales_assistant from template"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -274,26 +274,26 @@ class TestAtomMetaAgentSpawnAgent:
         assert spawned.name == "Sales Assistant"
         assert spawned.category == "Sales"
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_spawn_agent_unknown_template_raises_error(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_spawn_agent_unknown_template_raises_error(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test spawning unknown template raises ValueError"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
         with pytest.raises(ValueError, match="Unknown agent template"):
             await agent.spawn_agent("nonexistent_template")
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_spawn_agent_ephemeral_stores_in_memory(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_spawn_agent_ephemeral_stores_in_memory(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test spawning ephemeral agent stores in _spawned_agents dict"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -305,13 +305,13 @@ class TestAtomMetaAgentSpawnAgent:
 class TestAtomMetaAgentQueryMemory:
     """Test query_memory method (lines 789-806)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_query_memory_all_scope(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_query_memory_all_scope(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test query_memory with scope='all'"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -327,13 +327,13 @@ class TestAtomMetaAgentQueryMemory:
         assert "knowledge" in result
         mock_world_model_instance.recall_experiences.assert_called_once()
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_query_memory_experiences_scope(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_query_memory_experiences_scope(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test query_memory with scope='experiences'"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -348,13 +348,13 @@ class TestAtomMetaAgentQueryMemory:
         assert "experiences" in result
         assert result["experiences"] == ["exp1"]
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_query_memory_knowledge_scope(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_query_memory_knowledge_scope(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test query_memory with scope='knowledge'"""
         mock_canvas.return_value = MagicMock()
         mock_world_model_instance = MagicMock()
@@ -429,13 +429,13 @@ class TestAtomMetaAgentTriggerHandlers:
 class TestAtomMetaAgentExecuteDelegation:
     """Test _execute_delegation method (lines 525-547)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_execute_delegation_unknown_agent(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_delegation_unknown_agent(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test delegation to unknown agent returns error message"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -451,13 +451,13 @@ class TestAtomMetaAgentExecuteDelegation:
         assert result is not None
         assert "Delegation failed" in result or "Error" in result
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @pytest.mark.asyncio
-    async def test_execute_delegation_specialized_not_found(self, mock_canvas, mock_byok, mock_mcp, mock_orchestrator, mock_world_model):
+    async def test_execute_delegation_specialized_not_found(self, mock_service_factory, mock_canvas, mock_mcp, mock_orchestrator):
         """Test delegation when specialized agent not found"""
         mock_canvas.return_value = MagicMock()
         agent = AtomMetaAgent()
@@ -477,10 +477,10 @@ class TestAtomMetaAgentExecuteDelegation:
 class TestAtomMetaAgentExecuteToolGovernance:
     """Test _execute_tool_with_governance method (lines 677-735)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -504,10 +504,10 @@ class TestAtomMetaAgentExecuteToolGovernance:
         assert result is not None
         assert ("Governance blocked" in result or "Tool error" in result or "blocked" in result.lower())
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -535,10 +535,10 @@ class TestAtomMetaAgentWaitForApproval:
     """Test _wait_for_approval method (lines 894-916)"""
 
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @patch('core.atom_meta_agent.asyncio.sleep')
@@ -556,10 +556,10 @@ class TestAtomMetaAgentWaitForApproval:
         result = await agent._wait_for_approval("action-123")
         assert result is False
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @patch('core.atom_meta_agent.asyncio.sleep')
@@ -581,10 +581,10 @@ class TestAtomMetaAgentWaitForApproval:
 class TestAtomMetaAgentRecordExecution:
     """Test _record_execution method (lines 918-943)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -609,10 +609,10 @@ class TestAtomMetaAgentRecordExecution:
         # Should not raise exception
         assert result is None
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -642,10 +642,10 @@ class TestAtomMetaAgentRecordExecution:
 class TestAtomMetaAgentGenerateMentorshipGuidance:
     """Test generate_mentorship_guidance method (lines 808-879)"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -672,10 +672,10 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
         )
         assert guidance is not None
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -702,10 +702,10 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
         )
         assert guidance is not None
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -732,10 +732,10 @@ class TestAtomMetaAgentGenerateMentorshipGuidance:
 class TestAtomMetaAgentExecuteBasicCoverage:
     """Test basic execute() method coverage (lines 181-523) - ACKNOWLEDGED as too complex for full coverage"""
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -757,10 +757,10 @@ class TestAtomMetaAgentExecuteBasicCoverage:
             assert e.status_code == 404
 
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -810,10 +810,10 @@ class TestAtomMetaAgentExecuteBasicCoverage:
         assert result is not None
         assert result.get("status") == "max_steps_exceeded" or "final_output" in result
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio
@@ -871,10 +871,10 @@ class TestAtomMetaAgentExecuteBasicCoverage:
         # Should process canvas context
         assert result is not None
 
-    @patch('core.atom_meta_agent.WorldModelService')
+    @patch('core.service_factory.ServiceFactory')
     @patch('core.atom_meta_agent.AdvancedWorkflowOrchestrator')
     @patch('core.atom_meta_agent.mcp_service')
-    @patch('core.atom_meta_agent.LLMService')
+    
     @patch('core.atom_meta_agent.get_canvas_provider')
     @patch('core.atom_meta_agent.SessionLocal')
     @pytest.mark.asyncio

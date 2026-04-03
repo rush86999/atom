@@ -222,7 +222,7 @@ class AgentSocialLayer:
         metadata = post.post_metadata or {}
         post_data = {
             "id": post.id,
-            "sender_type": post.author_type.value,  # Map author_type -> sender_type
+            "sender_type": post.author_type.value if hasattr(post.author_type, "value") else post.author_type,  # Map author_type -> sender_type
             "sender_id": post.author_id,  # Map author_id -> sender_id
             "sender_name": metadata.get("sender_name"),
             "sender_maturity": metadata.get("sender_maturity"),
@@ -232,7 +232,7 @@ class AgentSocialLayer:
             "is_public": metadata.get("is_public", True),
             "channel_id": metadata.get("channel_id"),
             "channel_name": metadata.get("channel_name"),
-            "post_type": post.post_type.value,
+            "post_type": post.post_type.value if hasattr(post.post_type, "value") else post.post_type,
             "content": post.content,
             "mentioned_agent_ids": metadata.get("mentioned_agent_ids", []),
             "mentioned_user_ids": metadata.get("mentioned_user_ids", []),
@@ -241,7 +241,7 @@ class AgentSocialLayer:
             "reactions": [],  # Will be loaded from PostReaction relationship
             "reply_count": 0,  # Will be calculated from replies
             "auto_generated": metadata.get("auto_generated", False),
-            "created_at": post.created_at.isoformat()
+            "created_at": post.created_at.isoformat() if post.created_at else None
         }
 
         await agent_event_bus.broadcast_post(post_data)
@@ -293,7 +293,7 @@ class AgentSocialLayer:
             query = query.filter(SocialPost.post_type == post_type)
 
         if sender_filter:
-            query = query.filter(SocialPost.sender_id == sender_filter)
+            query = query.filter(SocialPost.author_id == sender_filter)
 
         if channel_id:
             query = query.filter(SocialPost.channel_id == channel_id)
@@ -564,7 +564,7 @@ class AgentSocialLayer:
         if post_type:
             query = query.filter(SocialPost.post_type == post_type)
         if sender_filter:
-            query = query.filter(SocialPost.sender_id == sender_filter)
+            query = query.filter(SocialPost.author_id == sender_filter)
         if channel_id:
             query = query.filter(SocialPost.channel_id == channel_id)
         if is_public is not None:
@@ -1180,8 +1180,8 @@ class AgentSocialLayer:
         try:
             # Get agent's posts
             posts = db.query(SocialPost).filter(
-                SocialPost.sender_id == agent_id,
-                SocialPost.sender_type == "agent"
+                SocialPost.author_id == agent_id,
+                SocialPost.author_type == "agent"
             ).all()
 
             # Calculate metrics
@@ -1313,8 +1313,8 @@ class AgentSocialLayer:
             # Get posts in last 30 days
             thirty_days_ago = datetime.utcnow() - timedelta(days=30)
             posts = db.query(SocialPost).filter(
-                SocialPost.sender_id == agent_id,
-                SocialPost.sender_type == "agent",
+                SocialPost.author_id == agent_id,
+                SocialPost.author_type == "agent",
                 SocialPost.created_at >= thirty_days_ago
             ).all()
 
@@ -1494,8 +1494,8 @@ class AgentSocialLayer:
             one_hour_ago = datetime.utcnow() - timedelta(hours=1)
 
             post_count = db.query(SocialPost).filter(
-                SocialPost.sender_id == agent_id,
-                SocialPost.sender_type == "agent",
+                SocialPost.author_id == agent_id,
+                SocialPost.author_type == "agent",
                 SocialPost.created_at >= one_hour_ago
             ).count()
 
@@ -1566,8 +1566,8 @@ class AgentSocialLayer:
             # Count posts last hour
             one_hour_ago = datetime.utcnow() - timedelta(hours=1)
             posts_last_hour = db.query(SocialPost).filter(
-                SocialPost.sender_id == agent_id,
-                SocialPost.sender_type == "agent",
+                SocialPost.author_id == agent_id,
+                SocialPost.author_type == "agent",
                 SocialPost.created_at >= one_hour_ago
             ).count()
 

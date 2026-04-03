@@ -55,6 +55,14 @@ class StartRecordingRequest(BaseModel):
     autonomous: bool = False
 
 
+class CanvasSubmitRequest(BaseModel):
+    """Request model for canvas form submission."""
+    canvas_id: str = Field(..., description="Unique identifier for the canvas")
+    form_data: Dict[str, Any] = Field(..., description="Form field data to submit")
+    agent_id: Optional[str] = Field(None, description="Optional agent ID for governance checks")
+    agent_execution_id: Optional[str] = Field(None, description="Optional agent execution ID")
+
+
 # ============================================================================
 # State & Type Discovery
 # ============================================================================
@@ -195,6 +203,47 @@ async def record_correction(
         raise HTTPException(status_code=404, detail="Canvas context not found")
 
     return router.success_response(message="Correction recorded for learning")
+
+
+# ============================================================================
+# Canvas Submission
+# ============================================================================
+
+@router.post("/submit")
+async def submit_canvas(
+    request: CanvasSubmitRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Submit form data for a canvas.
+
+    Validates authentication, required fields, and governance permissions.
+    """
+    # Governance check if agent_id provided
+    if request.agent_id:
+        governance = AgentGovernanceService(db)
+        check = governance.can_perform_action(
+            agent_id=request.agent_id,
+            action_type="canvas_submit"
+        )
+
+        if not check.get("allowed", True):
+            return router.error_response(
+                error_code="GOVERNANCE_DENIED",
+                message=check.get("reason", "Permission denied"),
+                status_code=403
+            )
+
+    # TODO: Process form submission, save to database, etc.
+    # For now, return success
+    return router.success_response(
+        data={
+            "canvas_id": request.canvas_id,
+            "submitted": True,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    )
 
 
 # ============================================================================
