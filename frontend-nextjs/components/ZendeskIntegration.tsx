@@ -277,12 +277,12 @@ interface ZendeskView {
     conditions: {
         all: Array<{
             field: string;
-            operator: string;
+            op: string;
             value: any;
         }>;
         any: Array<{
             field: string;
-            operator: string;
+            op: string;
             value: any;
         }>;
     };

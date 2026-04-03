@@ -55,7 +55,7 @@ const AutomationsPage: React.FC = () => {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Build workflows with AI • 30+ integrations</p>
                 </div>
               </div>
-              <Button onClick={() => { setActiveTab('flows'); setTriggerNew(n => n + 1); }}>
+              <Button onClick={() => { setActiveTab('flows'); setTriggerNew(function(n) { return n + 1; }); }}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Automation
               </Button>
