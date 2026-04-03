@@ -36,27 +36,6 @@ class QuickBooksService:
 
     def _get_api_url(self) -> str:
         """Get the appropriate API URL based on environment"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("quickbooks", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("quickbooks"):
-                logger.warning(f"Circuit breaker is open for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Quickbooks integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("quickbooks")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for quickbooks"
-                )
 
         return self.sandbox_url if self.use_sandbox else self.base_url
 
@@ -116,27 +95,6 @@ class QuickBooksService:
 
     async def get_company_info(self, realm_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """Get company information"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("quickbooks", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("quickbooks"):
-                logger.warning(f"Circuit breaker is open for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Quickbooks integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("quickbooks")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for quickbooks"
-                )
 
         try:
             token = access_token or self.access_token
@@ -167,27 +125,6 @@ class QuickBooksService:
         max_results: int = 100
     ) -> List[Dict[str, Any]]:
         """Get customers"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("quickbooks", "get_company_info", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("quickbooks"):
-                logger.warning(f"Circuit breaker is open for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Quickbooks integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("quickbooks")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for quickbooks"
-                )
 
         try:
             token = access_token or self.access_token
@@ -302,26 +239,5 @@ quickbooks_service = QuickBooksService()
 
 def get_quickbooks_service() -> QuickBooksService:
     """Get QuickBooks service instance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("quickbooks", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("quickbooks"):
-                logger.warning(f"Circuit breaker is open for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Quickbooks integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("quickbooks")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for quickbooks")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for quickbooks"
-                )
 
     return quickbooks_service

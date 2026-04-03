@@ -24,27 +24,6 @@ class LineService:
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-        # Start audit logging
-        audit_ctx = log_integration_attempt("line", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("line"):
-                logger.warning(f"Circuit breaker is open for line")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Line integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("line")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for line")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for line"
-                )
 
         await self.client.aclose()
 
@@ -80,27 +59,6 @@ class LineService:
             return False
 
     async def health_check(self) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("line", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("line"):
-                logger.warning(f"Circuit breaker is open for line")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Line integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("line")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for line")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for line"
-                )
 
         return {
             "ok": True,
@@ -112,24 +70,3 @@ class LineService:
 # Singleton instance
 line_service = LineService()
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("line", "send_message", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("line"):
-                logger.warning(f"Circuit breaker is open for line")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Line integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("line")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for line")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for line"
-                )

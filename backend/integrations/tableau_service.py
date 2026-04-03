@@ -34,27 +34,6 @@ class TableauService:
 
     def _get_headers(self, auth_token: str = None) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("tableau", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("tableau"):
-                logger.warning(f"Circuit breaker is open for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Tableau integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("tableau")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for tableau"
-                )
 
         token = auth_token or self.auth_token
         return {
@@ -96,27 +75,6 @@ class TableauService:
 
     async def get_workbooks(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get workbooks from Tableau"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("tableau", "sign_in", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("tableau"):
-                logger.warning(f"Circuit breaker is open for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Tableau integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("tableau")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for tableau"
-                )
 
         try:
             token = auth_token or self.auth_token
@@ -143,27 +101,6 @@ class TableauService:
 
     async def get_views(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get views from Tableau"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("tableau", "get_workbooks", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("tableau"):
-                logger.warning(f"Circuit breaker is open for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Tableau integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("tableau")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for tableau"
-                )
 
         try:
             token = auth_token or self.auth_token
@@ -190,27 +127,6 @@ class TableauService:
 
     async def get_datasources(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get data sources from Tableau"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("tableau", "get_views", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("tableau"):
-                logger.warning(f"Circuit breaker is open for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Tableau integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("tableau")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for tableau"
-                )
 
         try:
             token = auth_token or self.auth_token
@@ -237,27 +153,6 @@ class TableauService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Tableau service"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("tableau", "get_datasources", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("tableau"):
-                logger.warning(f"Circuit breaker is open for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Tableau integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("tableau")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for tableau"
-                )
 
         try:
             return {
@@ -281,24 +176,3 @@ tableau_service = TableauService()
 def get_tableau_service() -> TableauService:
     return tableau_service
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("tableau", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("tableau"):
-                logger.warning(f"Circuit breaker is open for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Tableau integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("tableau")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for tableau")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for tableau"
-                )

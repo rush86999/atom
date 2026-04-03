@@ -48,27 +48,6 @@ class OktaService:
 
     async def check_health(self) -> Dict[str, Any]:
         """Check Okta connectivity"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("okta", "list_users", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("okta"):
-                logger.warning(f"Circuit breaker is open for okta")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Okta integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("okta")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for okta")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for okta"
-                )
 
         return {
             "status": "active" if self.api_token else "partially_configured",
@@ -79,24 +58,3 @@ class OktaService:
 # Global instance
 okta_service = OktaService()
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("okta", "check_health", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("okta"):
-                logger.warning(f"Circuit breaker is open for okta")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Okta integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("okta")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for okta")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for okta"
-                )

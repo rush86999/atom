@@ -97,27 +97,6 @@ class Microsoft365Service:
 
     async def get_user_profile(self, access_token: str) -> Dict[str, Any]:
         """Get Microsoft 365 user profile from Microsoft Graph API."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "authenticate", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -158,27 +137,6 @@ class Microsoft365Service:
 
     async def list_teams(self, access_token: str) -> Dict[str, Any]:
         """List Microsoft Teams the user is a member of."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "get_user_profile", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -194,27 +152,6 @@ class Microsoft365Service:
 
     async def list_channels(self, access_token: str, team_id: str) -> Dict[str, Any]:
         """List channels in a Microsoft Team."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "list_teams", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -232,27 +169,6 @@ class Microsoft365Service:
         self, access_token: str, folder_id: str = "inbox", top: int = 10
     ) -> Dict[str, Any]:
         """Get Outlook messages from specified folder."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "list_channels", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -288,27 +204,6 @@ class Microsoft365Service:
 
     async def get_dynamics_deals(self, access_token: str, top: int = 10) -> Dict[str, Any]:
         """Get Dynamics 365 Sales opportunities."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "get_planner_tasks", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -328,27 +223,6 @@ class Microsoft365Service:
 
     async def get_dynamics_invoices(self, access_token: str, top: int = 10) -> Dict[str, Any]:
         """Get Dynamics 365 Finance invoices."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "get_dynamics_deals", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -364,27 +238,6 @@ class Microsoft365Service:
 
     async def _make_graph_request(self, method: str, url: str, token: str, json_data: Any = None) -> Dict[str, Any]:
         """Make an authenticated request to Microsoft Graph API."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "get_dynamics_invoices", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -496,27 +349,6 @@ class Microsoft365Service:
 
     async def _get_excel_table_columns(self, token: str, item_id: str, table_name: str) -> List[str]:
         """Get column names for an Excel table."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "execute_onedrive_action", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -633,27 +465,6 @@ class Microsoft365Service:
 
     async def execute_powerbi_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Power BI action."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "execute_excel_action", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -676,27 +487,6 @@ class Microsoft365Service:
 
     async def execute_teams_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Teams action."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "execute_powerbi_action", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -785,27 +575,6 @@ class Microsoft365Service:
 
     async def execute_outlook_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Outlook action."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "execute_teams_action", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -897,27 +666,6 @@ class Microsoft365Service:
 
     async def execute_planner_action(self, token: str, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """Execute Planner action."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "execute_outlook_action", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -945,27 +693,6 @@ class Microsoft365Service:
 
     async def delete_item(self, token: str, item_type: str, item_id: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """Delete an item (message, event, file)."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "execute_planner_action", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -998,27 +725,6 @@ class Microsoft365Service:
 
     async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str) -> Dict[str, Any]:
         """Create a webhook subscription."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "delete_item", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -1041,27 +747,6 @@ class Microsoft365Service:
 
     async def renew_subscription(self, token: str, subscription_id: str, expiration_datetime: str) -> Dict[str, Any]:
         """Renew a webhook subscription."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "create_subscription", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -1080,27 +765,6 @@ class Microsoft365Service:
 
     async def delete_subscription(self, token: str, subscription_id: str) -> Dict[str, Any]:
         """Delete a webhook subscription."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "renew_subscription", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -1116,27 +780,6 @@ class Microsoft365Service:
 
     async def get_service_status(self, token: str) -> Dict[str, Any]:
         """Get Microsoft 365 service status (connectivity check)."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "delete_subscription", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
         except HTTPException:
             raise
         except Exception as e:

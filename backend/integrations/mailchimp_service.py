@@ -15,27 +15,6 @@ class MailchimpService:
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-        # Start audit logging
-        audit_ctx = log_integration_attempt("mailchimp", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("mailchimp"):
-                logger.warning(f"Circuit breaker is open for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Mailchimp integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("mailchimp")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for mailchimp"
-                )
 
         await self.client.aclose()
 
@@ -49,27 +28,6 @@ class MailchimpService:
         }
 
     async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("mailchimp", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("mailchimp"):
-                logger.warning(f"Circuit breaker is open for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Mailchimp integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("mailchimp")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for mailchimp"
-                )
 
         url = "https://login.mailchimp.com/oauth2/token"
         data = {
@@ -84,27 +42,6 @@ class MailchimpService:
         return response.json()
 
     async def get_metadata(self, access_token: str) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("mailchimp", "get_metadata", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("mailchimp"):
-                logger.warning(f"Circuit breaker is open for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Mailchimp integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("mailchimp")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for mailchimp"
-                )
 
         url = "https://login.mailchimp.com/oauth2/metadata"
         headers = {"Authorization": f"OAuth {access_token}"}
@@ -113,27 +50,6 @@ class MailchimpService:
         return response.json()
 
     async def get_audiences(self, access_token: str, server_prefix: str, limit: int = 20) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("mailchimp", "get_audiences", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("mailchimp"):
-                logger.warning(f"Circuit breaker is open for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Mailchimp integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("mailchimp")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for mailchimp"
-                )
 
         url = f"{self._get_base_url(server_prefix)}/lists"
         headers = self._get_headers(access_token)
@@ -143,27 +59,6 @@ class MailchimpService:
         return response.json().get("lists", [])
 
     async def get_campaigns(self, access_token: str, server_prefix: str, limit: int = 20, status: Optional[str] = None) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("mailchimp", "get_campaigns", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("mailchimp"):
-                logger.warning(f"Circuit breaker is open for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Mailchimp integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("mailchimp")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for mailchimp"
-                )
 
         url = f"{self._get_base_url(server_prefix)}/campaigns"
         headers = self._get_headers(access_token)
@@ -175,27 +70,6 @@ class MailchimpService:
         return response.json().get("campaigns", [])
 
     async def get_account_info(self, access_token: str, server_prefix: str) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("mailchimp", "get_account_info", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("mailchimp"):
-                logger.warning(f"Circuit breaker is open for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Mailchimp integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("mailchimp")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for mailchimp")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for mailchimp"
-                )
 
         url = f"{self._get_base_url(server_prefix)}/"
         headers = self._get_headers(access_token)

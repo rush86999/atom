@@ -243,27 +243,6 @@ class SlackRateLimiter:
 class SlackEnhancedService:
     """Enhanced Slack service with full production capabilities"""
     
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "check_limit", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -557,27 +536,6 @@ class SlackEnhancedService:
     
     async def test_connection(self, workspace_id: str) -> Dict[str, Any]:
         """Test connection to Slack workspace"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "exchange_code_for_tokens", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
         try:
             self.connection_status[workspace_id] = SlackConnectionStatus.CONNECTING
@@ -649,27 +607,6 @@ class SlackEnhancedService:
     
     async def get_workspaces(self, user_id: str = None) -> List[SlackWorkspace]:
         """Get all workspaces or user's workspaces"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "test_connection", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
         try:
             if self.db:
@@ -701,52 +638,10 @@ class SlackEnhancedService:
             return []
     
     async def get_channels(self, workspace_id: str, user_id: str = None,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "get_channels", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                          include_private: bool = False, include_archived: bool = False,
                          limit: int = 100) -> List[SlackChannel]:
         """Get channels for workspace"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "get_workspaces", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
         try:
             # Check rate limit
@@ -818,27 +713,6 @@ class SlackEnhancedService:
             return []
     
     async def send_message(self, workspace_id: str, channel_id: str, 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "send_message", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                          text: str, thread_ts: str = None,
                          blocks: List[Dict] = None, attachments: List[Dict] = None) -> Dict[str, Any]:
@@ -899,27 +773,6 @@ class SlackEnhancedService:
             }
     
     async def get_channel_history(self, workspace_id: str, channel_id: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "get_channel_history", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                                 limit: int = 100, latest: str = None,
                                 oldest: str = None, include_threads: bool = True) -> List[SlackMessage]:
@@ -987,27 +840,6 @@ class SlackEnhancedService:
             return []
     
     async def upload_file(self, workspace_id: str, channel_id: str, file_path: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "upload_file", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                         title: str = None, initial_comment: str = None) -> Dict[str, Any]:
         """Upload file to channel"""
@@ -1088,27 +920,6 @@ class SlackEnhancedService:
             }
     
     async def search_messages(self, workspace_id: str, query: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "search_messages", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                            channel_id: str = None, user_id: str = None,
                            sort: str = 'timestamp', sort_dir: str = 'desc',
@@ -1187,27 +998,6 @@ class SlackEnhancedService:
             }
 
     async def add_reaction(self, workspace_id: str, channel_id: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "add_reaction", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                           timestamp: str, reaction: str) -> Dict[str, Any]:
         """Add reaction to a message"""
@@ -1255,27 +1045,6 @@ class SlackEnhancedService:
             }
 
     async def send_dm(self, workspace_id: str, user_id: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "send_dm", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                      text: str, blocks: List[Dict] = None,
                      unfurl_links: bool = True, unfurl_media: bool = True) -> Dict[str, Any]:
@@ -1337,27 +1106,6 @@ class SlackEnhancedService:
             }
 
     async def create_channel(self, workspace_id: str, name: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "create_channel", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                             is_private: bool = False,
                             description: str = None) -> Dict[str, Any]:
@@ -1414,27 +1162,6 @@ class SlackEnhancedService:
             }
 
     async def invite_to_channel(self, workspace_id: str, channel_id: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "invite_to_channel", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                                 user_ids: List[str]) -> Dict[str, Any]:
         """Invite users to a channel"""
@@ -1496,27 +1223,6 @@ class SlackEnhancedService:
             }
 
     async def pin_message(self, workspace_id: str, channel_id: str,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "pin_message", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
                          timestamp: str) -> Dict[str, Any]:
         """Pin a message to a channel"""
@@ -1587,27 +1293,6 @@ class SlackEnhancedService:
     
     async def handle_webhook_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle incoming Slack webhook event"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "verify_webhook_signature", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
         try:
             event_type = event_data.get('event', {}).get('type')
@@ -1654,27 +1339,6 @@ class SlackEnhancedService:
     
     def register_event_handler(self, event_type: SlackEventType, handler: Callable):
         """Register event handler"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "handle_webhook_event", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
         if handler not in self.event_handlers[event_type]:
             self.event_handlers[event_type].append(handler)
@@ -1768,27 +1432,6 @@ class SlackEnhancedService:
     
     async def close(self):
         """Close all connections and cleanup"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "get_service_info", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )
 
         for client in self.clients.values():
             await client.close()
@@ -1815,24 +1458,3 @@ slack_enhanced_service = SlackEnhancedService({
         'db': int(os.getenv('REDIS_DB', 0))
     }
 })
-        # Start audit logging
-        audit_ctx = log_integration_attempt("slack_enhanced", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("slack_enhanced"):
-                logger.warning(f"Circuit breaker is open for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Slack_enhanced integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("slack_enhanced")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for slack_enhanced")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for slack_enhanced"
-                )

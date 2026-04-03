@@ -53,27 +53,6 @@ class MetaBusinessService:
 
     async def get_ad_insights(self, account_id: str, date_range: str = "last_30d") -> Dict[str, Any]:
         """Fetches performance metrics for Meta Ads."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("meta_business", "send_message", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("meta_business"):
-                logger.warning(f"Circuit breaker is open for meta_business")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Meta_business integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("meta_business")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for meta_business")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for meta_business"
-                )
 
         logger.info(f"Fetching Meta Ad insights for {account_id}")
         return {
@@ -86,27 +65,6 @@ class MetaBusinessService:
 
     async def ingest_communications(self, page_id: str):
         """Polls for new messages/comments and ingests to memory."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("meta_business", "get_ad_insights", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("meta_business"):
-                logger.warning(f"Circuit breaker is open for meta_business")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Meta_business integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("meta_business")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for meta_business")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for meta_business"
-                )
 
         # Simulated ingestion
         mock_msg = {
@@ -126,24 +84,3 @@ class MetaBusinessService:
 # Global singleton
 meta_business_service = MetaBusinessService({})
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("meta_business", "ingest_communications", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("meta_business"):
-                logger.warning(f"Circuit breaker is open for meta_business")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Meta_business integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("meta_business")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for meta_business")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for meta_business"
-                )

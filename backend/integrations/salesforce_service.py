@@ -344,27 +344,6 @@ class SalesforceService:
         self._cache = {}
 
     async def get_client(self, user_id: str, db_conn_pool) -> Optional[Salesforce]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "get_client", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await get_salesforce_client(user_id, db_conn_pool)
         
@@ -372,276 +351,45 @@ class SalesforceService:
         return create_client_with_token(access_token, instance_url)
 
     async def list_contacts(self, sf: Salesforce) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "list_contacts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await list_contacts(sf)
 
     async def list_accounts(self, sf: Salesforce) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "list_accounts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await list_accounts(sf)
 
     async def list_opportunities(self, sf: Salesforce) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "list_opportunities", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await list_opportunities(sf)
 
     async def list_leads(self, sf: Salesforce) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "list_leads", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await list_leads(sf)
 
     async def create_contact(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "create_contact", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await create_contact(sf, **kwargs)
 
     async def create_account(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "create_account", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await create_account(sf, **kwargs)
 
     async def create_opportunity(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "create_opportunity", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await create_opportunity(sf, **kwargs)
 
     async def create_lead(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "create_lead", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await create_lead(sf, **kwargs)
 
     async def get_opportunity(self, sf: Salesforce, opportunity_id: str) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "get_opportunity", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await get_opportunity(sf, opportunity_id)
 
     async def update_opportunity(self, sf: Salesforce, opportunity_id: str, fields: Dict[str, Any]) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "update_opportunity", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await update_opportunity(sf, opportunity_id, fields)
     
     async def execute_query(self, sf: Salesforce, query: str) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("salesforce", "execute_query", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("salesforce"):
-                logger.warning(f"Circuit breaker is open for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Salesforce integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("salesforce")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for salesforce")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for salesforce"
-                )
 
         return await execute_soql_query(sf, query)

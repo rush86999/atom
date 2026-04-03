@@ -99,27 +99,6 @@ class BoxService:
         offset: int = 0,
     ) -> Dict[str, Any]:
         """List files from Box."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("box", "authenticate", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("box"):
-                logger.warning(f"Circuit breaker is open for box")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Box integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("box")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for box")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for box"
-                )
 
         try:
             if not access_token or access_token == "mock":
@@ -270,27 +249,6 @@ class BoxService:
         self, access_token: str, parent_folder_id: str, folder_name: str
     ) -> Dict[str, Any]:
         """Create a new folder in Box."""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("box", "download_file", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("box"):
-                logger.warning(f"Circuit breaker is open for box")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Box integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("box")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for box")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for box"
-                )
 
         try:
             # Mock implementation

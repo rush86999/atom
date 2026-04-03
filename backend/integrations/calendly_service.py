@@ -33,27 +33,6 @@ class CalendlyService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("calendly", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("calendly"):
-                logger.warning(f"Circuit breaker is open for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Calendly integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("calendly")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for calendly"
-                )
 
         return {
             "Authorization": f"Bearer {access_token}",
@@ -100,27 +79,6 @@ class CalendlyService:
 
     async def get_current_user(self, access_token: str = None) -> Dict[str, Any]:
         """Get current user information"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("calendly", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("calendly"):
-                logger.warning(f"Circuit breaker is open for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Calendly integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("calendly")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for calendly"
-                )
 
         try:
             token = access_token or self.access_token
@@ -146,27 +104,6 @@ class CalendlyService:
         count: int = 20
     ) -> List[Dict[str, Any]]:
         """Get event types for a user"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("calendly", "get_current_user", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("calendly"):
-                logger.warning(f"Circuit breaker is open for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Calendly integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("calendly")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for calendly"
-                )
 
         try:
             token = access_token or self.access_token
@@ -251,26 +188,5 @@ calendly_service = CalendlyService()
 
 def get_calendly_service() -> CalendlyService:
     """Get Calendly service instance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("calendly", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("calendly"):
-                logger.warning(f"Circuit breaker is open for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Calendly integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("calendly")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for calendly")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for calendly"
-                )
 
     return calendly_service

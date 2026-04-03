@@ -71,27 +71,6 @@ class AsanaRealService:
     
     async def create_task(self, task_data: Dict) -> Dict:
         """Create task in Asana"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "create_task", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("asana_real"):
-                logger.warning(f"Circuit breaker is open for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Asana_real integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for asana_real"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -121,27 +100,6 @@ class AsanaRealService:
     
     async def update_task(self, task_id: str, updates: Dict) -> Dict:
         """Update task in Asana"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "update_task", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("asana_real"):
-                logger.warning(f"Circuit breaker is open for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Asana_real integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for asana_real"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -167,27 +125,6 @@ class AsanaRealService:
     
     async def delete_task(self, task_id: str) -> bool:
         """Delete task from Asana"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "delete_task", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("asana_real"):
-                logger.warning(f"Circuit breaker is open for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Asana_real integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for asana_real"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -199,27 +136,6 @@ class AsanaRealService:
     
     async def get_projects(self, limit: int = 100) -> List[Dict]:
         """Get projects from Asana workspace"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "get_projects", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("asana_real"):
-                logger.warning(f"Circuit breaker is open for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Asana_real integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for asana_real"
-                )
         except HTTPException:
             raise
         except Exception as e:
@@ -236,27 +152,6 @@ class AsanaRealService:
     
     async def create_project(self, project_data: Dict) -> Dict:
         """Create project in Asana"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "create_project", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("asana_real"):
-                logger.warning(f"Circuit breaker is open for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Asana_real integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for asana_real"
-                )
         except HTTPException:
             raise
         except Exception as e:

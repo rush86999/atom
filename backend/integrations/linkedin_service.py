@@ -33,27 +33,6 @@ class LinkedInService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linkedin", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linkedin"):
-                logger.warning(f"Circuit breaker is open for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linkedin integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linkedin")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linkedin"
-                )
 
         return {
             "Authorization": f"Bearer {access_token}",
@@ -109,27 +88,6 @@ class LinkedInService:
 
     async def get_profile(self, access_token: str = None) -> Dict[str, Any]:
         """Get user profile information"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linkedin", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linkedin"):
-                logger.warning(f"Circuit breaker is open for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linkedin integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linkedin")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linkedin"
-                )
 
         try:
             token = access_token or self.access_token
@@ -154,27 +112,6 @@ class LinkedInService:
 
     async def get_email(self, access_token: str = None) -> Dict[str, Any]:
         """Get user email address"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linkedin", "get_profile", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linkedin"):
-                logger.warning(f"Circuit breaker is open for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linkedin integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linkedin")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linkedin"
-                )
 
         try:
             token = access_token or self.access_token
@@ -206,27 +143,6 @@ class LinkedInService:
         visibility: str = "PUBLIC"
     ) -> Dict[str, Any]:
         """Share an update/post on LinkedIn"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linkedin", "get_email", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linkedin"):
-                logger.warning(f"Circuit breaker is open for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linkedin integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linkedin")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linkedin"
-                )
 
         try:
             token = access_token or self.access_token
@@ -294,26 +210,5 @@ linkedin_service = LinkedInService()
 
 def get_linkedin_service() -> LinkedInService:
     """Get LinkedIn service instance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linkedin", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linkedin"):
-                logger.warning(f"Circuit breaker is open for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linkedin integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linkedin")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linkedin")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linkedin"
-                )
 
     return linkedin_service
