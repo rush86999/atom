@@ -123,7 +123,7 @@ class AsanaService:
 
     async def get_workspaces(self, access_token: str) -> Dict:
         """Get user's Asana workspaces"""
-
+        try:
             result = self._make_request("GET", "/workspaces", access_token)
             workspaces = result.get("data", [])
 
@@ -150,7 +150,7 @@ class AsanaService:
         limit: int = 50,
     ) -> Dict:
         """Get projects from workspace or team"""
-
+        try:
             params = {
                 "limit": limit,
                 "opt_fields": "name,notes,color,created_at,modified_at",
