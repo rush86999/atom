@@ -571,12 +571,6 @@ class GoogleChatEnhancedService:
     
     async def test_connection(self, space_id: str) -> Dict[str, Any]:
         """Test connection to Google Chat space"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             self.connection_status[space_id] = GoogleChatConnectionStatus.CONNECTING
             
@@ -671,12 +665,6 @@ class GoogleChatEnhancedService:
     async def send_message(self, space_id: str, text: str, thread_id: str = None,
                          message_format: str = 'TEXT', card_v2: List[Dict] = None) -> Dict[str, Any]:
         """Send message to Google Chat space"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(space_id, 'messages_send'):
@@ -775,12 +763,6 @@ class GoogleChatEnhancedService:
     async def get_space_messages(self, space_id: str, limit: int = 100,
                               page_token: str = None, filter: str = None) -> List[GoogleChatMessage]:
         """Get messages from Google Chat space"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(space_id, 'messages_list'):
@@ -875,12 +857,6 @@ class GoogleChatEnhancedService:
     async def search_messages(self, space_id: str, query: str,
                            page_size: int = 50, page_token: str = None) -> Dict[str, Any]:
         """Search messages in Google Chat space"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(space_id, 'search_messages'):
