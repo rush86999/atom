@@ -40,12 +40,6 @@ class TokenCounter:
 
     Uses tiktoken for OpenAI/Anthropic models when available,
     with character-based fallback for other providers.
-
-    Example:
-        >>> counter = TokenCounter()
-        >>> tokens = counter.count_tokens("Hello world", "gpt-4o")
-        >>> print(f"Token count: {tokens}")
-        Token count: 2
     """
 
     # Encoding cache for tiktoken
@@ -107,12 +101,6 @@ class TokenCounter:
     def get_model_family(self, model: str) -> ModelFamily:
         """
         Detect model family from model name.
-
-        Args:
-            model: Model identifier
-
-        Returns:
-            ModelFamily enum
         """
         model_lower = model.lower()
 
@@ -141,18 +129,11 @@ class TokenCounter:
     def _get_encoding(self, family: ModelFamily) -> Any:
         """
         Get cached tiktoken encoding for model family.
-
-        Args:
-            family: Model family enum
-
-        Returns:
-            tiktoken encoding object
         """
         if family not in self._encoding_cache:
             if family == ModelFamily.OPENAI:
                 self._encoding_cache[family] = tiktoken.get_encoding("cl100k_base")
             elif family == ModelFamily.ANTHROPIC:
-                # Claude 3 uses cl100k_base
                 self._encoding_cache[family] = tiktoken.get_encoding("cl100k_base")
             else:
                 raise ValueError(f"No tiktoken encoding for family: {family}")
@@ -163,20 +144,10 @@ class TokenCounter:
 class ContextValidator:
     """
     Context window validation and truncation for LLM requests.
-
-    Prevents requests from exceeding model context limits with
-    intelligent truncation and validation.
-
-    Example:
-        >>> validator = ContextValidator()
-        >>> fits = validator.validate_request_fits(long_text, "gpt-4o", max_tokens=1000)
-        >>> if not fits:
-        ...     truncated = validator.truncate_to_fit(long_text, "gpt-4o")
     """
 
     # Model context limits (tokens)
     MODEL_CONTEXT_LIMITS: Dict[str, int] = {
-        # OpenAI
         "gpt-4o": 128000,
         "gpt-4o-mini": 128000,
         "gpt-4-turbo": 128000,
@@ -184,25 +155,20 @@ class ContextValidator:
         "gpt-3.5-turbo": 16385,
         "o1": 200000,
         "o3": 200000,
-        # Anthropic
         "claude-3-5-sonnet": 200000,
         "claude-3-5-haiku": 200000,
         "claude-3-opus": 200000,
         "claude-3-sonnet": 200000,
         "claude-3-haiku": 200000,
-        # Google
         "gemini-1.5-pro": 2800000,
         "gemini-1.5-flash": 2800000,
-        # Cohere
         "command-r": 128000,
         "command-r-plus": 128000,
-        # Embedding models
         "text-embedding-3-large": 8191,
         "text-embedding-3-small": 8191,
         "text-embedding-ada-002": 8191,
     }
 
-    # Default context limit for unknown models
     DEFAULT_CONTEXT_LIMIT: int = 128000
 
     def __init__(self):
@@ -212,44 +178,21 @@ class ContextValidator:
     def validate_request_fits(
         self, text: str, model: str, max_tokens: int = 0
     ) -> bool:
-        """
-        Check if request fits within model context window.
-
-        Args:
-            text: Input text
-            model: Model identifier
-            max_tokens: Reserved tokens for output (default: 0)
-
-        Returns:
-            True if request fits, False otherwise
-        """
+        """Check if request fits within model context window."""
         context_limit = self.get_model_context_limit(model)
         input_tokens = self.token_counter.count_tokens(text, model)
-
         return input_tokens + max_tokens <= context_limit
 
     def get_model_context_limit(self, model: str) -> int:
-        """
-        Get context window size for model.
-
-        Args:
-            model: Model identifier
-
-        Returns:
-            Maximum context window in tokens
-        """
-        # Try exact match first
-        if model in self.MODEL_CONTEXT_LIMITS:
-            return self.MODEL_CONTEXT_LIMITS[model]
-
-        # Try prefix match for model families
+        """Get context window size for model."""
         model_lower = model.lower()
         for known_model, limit in self.MODEL_CONTEXT_LIMITS.items():
-            if model_lower.startswith(known_model.split("-")[0]):
+            if known_model.lower() == model_lower:
                 return limit
-
-        # Default fallback
-        logger.warning(f"Unknown model {model}, using default context limit")
+        sorted_keys = sorted(self.MODEL_CONTEXT_LIMITS.keys(), key=len, reverse=True)
+        for known_model in sorted_keys:
+            if model_lower.startswith(known_model):
+                return self.MODEL_CONTEXT_LIMITS[known_model]
         return self.DEFAULT_CONTEXT_LIMIT
 
     def truncate_to_fit(
@@ -257,89 +200,41 @@ class ContextValidator:
         text: str,
         model: str,
         max_tokens: int = 0,
-        reserve_for_output: int = 0) -> str:
-        """
-        Truncate text to fit within context window.
-
-        Args:
-            text: Input text
-            model: Model identifier
-            max_tokens: Maximum tokens for input (default: 0 = use model limit)
-            reserve_for_output: Reserved tokens for output (default: 0)
-
-        Returns:
-            Truncated text that fits within limits
-        """
+        reserve_for_output: int = 0,
+    ) -> str:
+        """Truncate text to fit within context window."""
         context_limit = self.get_model_context_limit(model)
         available_tokens = context_limit - reserve_for_output
-
         if max_tokens > 0:
             available_tokens = min(available_tokens, max_tokens)
-
-        # Count current tokens
         current_tokens = self.token_counter.count_tokens(text, model)
-
         if current_tokens <= available_tokens:
             return text
-
-        # Truncate with buffer
         target_ratio = (available_tokens * 0.95) / current_tokens
         target_chars = int(len(text) * target_ratio)
-
         truncated = text[:target_chars]
-
-        # Try to truncate at sentence boundary
         truncated = self._truncate_at_boundary(truncated)
-
         return truncated
 
     def estimate_request_tokens(self, messages: List[Dict], model: str) -> int:
-        """
-        Estimate tokens for chat message list.
-
-        Args:
-            messages: List of chat messages with role/content
-            model: Model identifier
-
-        Returns:
-            Estimated token count
-        """
+        """Estimate tokens for chat message list."""
         total_tokens = 0
-
         for message in messages:
-            # Count message content
             content = message.get("content", "")
             total_tokens += self.token_counter.count_tokens(content, model)
-
-            # Add overhead for role/formatting (approximate)
-            total_tokens += 10  # Rough estimate for message formatting
-
+            total_tokens += 10
         return total_tokens
 
     def _truncate_at_boundary(self, text: str) -> str:
-        """
-        Try to truncate at sentence/word boundary for cleaner output.
-
-        Args:
-            text: Text to truncate
-
-        Returns:
-            Text truncated at natural boundary
-        """
+        """Try to truncate at sentence/word boundary."""
         if not text:
             return text
-
-        # Try to end at sentence boundary
         sentence_ends = [". ", "! ", "? ", "\n"]
         for end in reversed(sentence_ends):
             last_pos = text.rfind(end)
-            if last_pos > len(text) * 0.8:  # Within last 20%
+            if last_pos > len(text) * 0.8:
                 return text[: last_pos + len(end)]
-
-        # Try to end at word boundary
         last_space = text.rfind(" ")
-        if last_space > len(text) * 0.9:  # Within last 10%
+        if last_space > len(text) * 0.9:
             return text[:last_space]
-
-        # Fallback: just return as-is
         return text

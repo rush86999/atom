@@ -14,7 +14,8 @@ from enum import Enum
 
 from pydantic import BaseModel
 from core.llm.byok_handler import BYOKHandler, QueryComplexity
-from core.llm.cognitive_tier_system import CognitiveTier
+from core.llm.cognitive_tier_system import CognitiveTier, CognitiveClassifier
+from core.llm.context.token_counter import TokenCounter, ContextValidator
 from core.llm_usage_tracker import llm_usage_tracker
 from core.continuous_learning_service import ContinuousLearningService
 
@@ -99,6 +100,9 @@ class LLMService:
         # But we preserve tenant_id for compatibility.
         self._handler = BYOKHandler(workspace_id=self._workspace_id, tenant_id=self._tenant_id, db_session=db)
         self.continuous_learning = ContinuousLearningService(db) if db else None
+        self._token_counter = TokenCounter()
+        self._context_validator = ContextValidator()
+        self._cognitive_classifier = CognitiveClassifier()
 
     @property
     def handler(self) -> BYOKHandler:
@@ -404,21 +408,13 @@ class LLMService:
         )
         return {"text": response.text}
 
-    def estimate_tokens(self, text: str, model: str = "gpt-4o-mini") -> int:
-        """Estimate token count for text."""
-        try:
-            import tiktoken
-            try:
-                if "gpt-4" in model or "gpt-3.5" in model or "o1" in model or "o3" in model:
-                    encoding = tiktoken.encoding_for_model("gpt-4o")
-                else:
-                    encoding = tiktoken.get_encoding("cl100k_base")
-            except Exception:
-                encoding = tiktoken.get_encoding("cl100k_base")
-            return len(encoding.encode(text))
-        except Exception:
-            # Fallback: ~4 chars per token
-            return max(1, len(text) // 4)
+    def estimate_tokens(self, text: Union[str, List[Dict[str, str]]], model: str = "gpt-4o-mini") -> int:
+        """Estimate tokens for text or a list of chat messages."""
+        if isinstance(text, str):
+            return self._token_counter.count_tokens(text, model)
+        elif isinstance(text, list):
+            return self._context_validator.estimate_request_tokens(text, model)
+        return 0
 
     def estimate_cost(self, input_tokens: int, output_tokens: int, model: str) -> float:
         """Estimate cost in USD."""

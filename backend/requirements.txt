@@ -60,6 +60,7 @@ click>=8.1.0,<9.0.0
 colorama>=0.4.6,<1.0.0
 tqdm>=4.64.0,<5.0.0
 psutil>=6.0.0
+sqlparse>=0.4.4
 
 # File Processing
 # docling>=2.0.0  # OPTIONAL: Advanced OCR/document parsing (install separately or via: pip install docling)
