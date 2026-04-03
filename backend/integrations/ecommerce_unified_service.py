@@ -63,12 +63,6 @@ class EcommerceUnifiedService:
 
     async def update_inventory(self, sku: str, quantity: int, platform: Optional[EcommercePlatform] = None):
         """Updates stock levels across one or all platforms."""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         platforms = [platform] if platform else list(EcommercePlatform)
         for p in platforms:
             logger.info(f"Updating {p.value} inventory for {sku} to {quantity}")

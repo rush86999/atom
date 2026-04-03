@@ -71,12 +71,6 @@ class AsanaRealService:
     
     async def create_task(self, task_data: Dict) -> Dict:
         """Create task in Asana"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         asana_data = {
             "data": {
                 "name": task_data.get("title"),
@@ -100,12 +94,6 @@ class AsanaRealService:
     
     async def update_task(self, task_id: str, updates: Dict) -> Dict:
         """Update task in Asana"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         asana_updates = {"data": {}}
         
         if "title" in updates:
@@ -125,23 +113,11 @@ class AsanaRealService:
     
     async def delete_task(self, task_id: str) -> bool:
         """Delete task from Asana"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         result = await self._make_request("DELETE", f"tasks/{task_id}")
         return result.get("success", False)
     
     async def get_projects(self, limit: int = 100) -> List[Dict]:
         """Get projects from Asana workspace"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         endpoint = f"workspaces/{self.workspace_gid}/projects?limit={limit}&opt_fields=name,notes,color,created_at,modified_at"
         
         result = await self._make_request("GET", endpoint)
@@ -152,12 +128,6 @@ class AsanaRealService:
     
     async def create_project(self, project_data: Dict) -> Dict:
         """Create project in Asana"""
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         asana_data = {
             "data": {
                 "name": project_data.get("name"),

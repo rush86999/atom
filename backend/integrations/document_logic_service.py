@@ -37,12 +37,6 @@ class DocumentLogicService:
         """
         Parses a document and extracts logic/rules to be stored in LanceDB.
         """
-        except HTTPException:
-            raise
-        except Exception as e:
-            log_integration_complete(audit_ctx, error=e)
-            raise
-
         logger.info(f"Ingesting {doc_type.value} from {file_path}")
         
         # 1. Extraction (Simulated for Now)
