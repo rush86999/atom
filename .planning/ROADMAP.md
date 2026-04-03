@@ -25,6 +25,8 @@
 
 **Overall:** 5/33 plans complete (15%)
 
+**Total:** 33 plans across 12 phases
+
 ## Phases
 
 - [x] **Phase 247: Build Fixes & Documentation** - Fix frontend/backend builds and document build process
@@ -81,7 +83,10 @@
   3. Bug fixes follow test-first approach (failing test written before fix)
   4. All bug fixes have corresponding tests (100% coverage of fixes)
   5. Test suite passes with zero critical/high failures
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 249-01-PLAN.md — Fix Pydantic v2 DTO validation issues (DTO-001, DTO-002, DTO-003)
+- [ ] 249-02-PLAN.md — Fix OpenAPI schema alignment tests (DTO-004)
+- [ ] 249-03-PLAN.md — Fix Canvas submission error handling (CANVAS-001, CANVAS-002, CANVAS-003)
 
 ### Phase 250: All Test Fixes
 **Goal**: All test failures fixed, 100% pass rate achieved
