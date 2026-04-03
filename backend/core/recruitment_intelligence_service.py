@@ -15,7 +15,7 @@ Ported from: rush86999/atom-saas@6c5f4e3d4
 Changes: Removed SaaS-specific features (billing, quota, multi-tenancy)
 """
 
-from typing import List, Dict, Optional, Set
+from typing import List, Dict, Optional, Set, Any
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 import logging
@@ -27,7 +27,6 @@ from core.recruitment_analytics_service import RecruitmentAnalyticsService
 from core.agent_fleet_service import AgentFleetService
 from analytics.fleet_optimization_service import FleetOptimizationService
 from core.agent_governance_service import AgentGovernanceService
-# BudgetEnforcementService NOT imported in upstream (SaaS-only)
 from core.models import AgentRegistry, DelegationChain, ChainLink
 
 logger = logging.getLogger(__name__)
@@ -51,8 +50,13 @@ class RecruitmentIntelligenceService:
     This replaces the hardcoded _recruit_fleet() method with automatic
     specialist discovery and matching.
 
-    SINGLE-TENANT: Uses user_id instead of tenant_id. No budget checks.
-    Budget parameter is optional and gracefully skipped if not provided.
+    SINGLE-TENANT ARCHITECTURE:
+    - budget parameter is optional (None in upstream)
+    - No quota enforcement
+    - Uses user_id instead of tenant_id
+
+    Ported from: rush86999/atom-saas@6c5f4e3d4
+    Changes: Made budget optional, removed quota checks, replaced tenant_id with user_id
     """
 
     # Available domains (should match DOMAIN_ALIASES in SpecialistMatcher)
@@ -122,7 +126,7 @@ Return JSON matching the RecruitmentPlan schema."""
         try:
             result = await self.llm.generate_structured_response(
                 prompt=prompt,
-                system_prompt="You are an expert at multi-agent task decomposition and domain analysis.",
+                system_instruction="You are an expert at multi-agent task decomposition and domain analysis.",
                 response_model=RecruitmentPlan,
                 temperature=0.3,
                 user_id=user_id  # Changed from tenant_id
@@ -145,14 +149,15 @@ Return JSON matching the RecruitmentPlan schema."""
             # Fallback to simple keyword matching
             return self._fallback_domain_analysis(goal, user_id, max_specialists)
 
-    def _build_domain_catalog(self, user_id: str) -> str:  # Changed from tenant_id
+    def _build_domain_catalog(self, user_id: str) -> str:
         """Build formatted catalog of available domains for LLM."""
         domains = self.matcher.get_all_available_domains(user_id)
 
         catalog_lines = []
         for domain in domains:
-            # Count agents for this domain (no tenant_id filtering in upstream)
+            # Count agents for this domain
             agent_count = self.db.query(AgentRegistry).filter(
+                AgentRegistry.user_id == user_id,
                 AgentRegistry.category.ilike(f"%{domain}%")
             ).count()
 
@@ -163,7 +168,7 @@ Return JSON matching the RecruitmentPlan schema."""
     def _fallback_domain_analysis(
         self,
         goal: str,
-        user_id: str,  # Changed from tenant_id
+        user_id: str,
         max_specialists: int
     ) -> RecruitmentPlan:
         """
@@ -204,7 +209,7 @@ Return JSON matching the RecruitmentPlan schema."""
     async def orchestrate_recruitment(
         self,
         goal: str,
-        user_id: str,  # Changed from tenant_id
+        user_id: str,
         context: Dict,
         max_specialists: int = 5,
         chain_id: Optional[str] = None
@@ -230,7 +235,7 @@ Return JSON matching the RecruitmentPlan schema."""
             # Step 1: Analyze goal to identify domains
             recruitment_plan = await self.analyze_goal_domains(
                 goal=goal,
-                user_id=user_id,  # Changed from tenant_id
+                user_id=user_id,
                 max_specialists=max_specialists
             )
 
@@ -244,7 +249,7 @@ Return JSON matching the RecruitmentPlan schema."""
             # Step 2: Match domains to available specialists
             specialist_matches = self.matcher.find_specialists_for_domains(
                 domains=recruitment_plan.required_domains,
-                user_id=user_id,  # Changed from tenant_id
+                user_id=user_id,
                 limit_per_domain=3
             )
 
@@ -267,7 +272,7 @@ Return JSON matching the RecruitmentPlan schema."""
                 for specialist in matches:
                     # Check governance
                     can_recruit = await self.governance.can_perform_action(
-                        user_id=user_id,  # Changed from tenant_id
+                        user_id=user_id,
                         agent_id=specialist["agent_id"],
                         action="recruit_specialist"
                     )
@@ -279,12 +284,10 @@ Return JSON matching the RecruitmentPlan schema."""
                             "recruitment_plan": recruitment_plan.dict()
                         }
 
-            # Step 4: Budget check (SKIPPED in upstream - no billing)
-            # SaaS version: Estimate fleet cost and check against budget
-            # Upstream: No budget checks, unlimited usage
+            # Step 4: Budget check (upstream: no budget enforcement)
+            # SaaS version checks budget here, but upstream skips this step
+            estimated_cost = 0.0
             if self.budget:
-                # This block will never execute in upstream (self.budget is None)
-                # But kept for code parity with SaaS version
                 estimated_cost = self._estimate_fleet_cost(specialist_matches, user_id)
 
                 if chain_id:
@@ -299,7 +302,8 @@ Return JSON matching the RecruitmentPlan schema."""
                                 "recruitment_plan": recruitment_plan.dict()
                             }
             else:
-                logger.debug("[RecruitmentIntelligence] Budget check skipped (no budget service in upstream)")
+                # Upstream: No budget checks, fleet recruitment is unlimited
+                logger.debug("[RecruitmentIntelligence] No budget enforcement (single-tenant)")
 
             # Step 5: Build recruitment roster with optimization
             recruitment_roster = []
@@ -316,7 +320,7 @@ Return JSON matching the RecruitmentPlan schema."""
                     )
 
                     opt_params = await self.optimizer.get_optimization_parameters(
-                        user_id=user_id,  # Changed from tenant_id
+                        user_id=user_id,
                         domain=domain,
                         task_description=sub_task
                     )
@@ -333,7 +337,7 @@ Return JSON matching the RecruitmentPlan schema."""
             if chain_id:
                 self.analytics.record_recruitment_decision(
                     chain_id=chain_id,
-                    user_id=user_id,  # Changed from tenant_id
+                    user_id=user_id,
                     goal=goal,
                     identified_domains=recruitment_plan.required_domains,
                     domain_rationale=recruitment_plan.domain_rationale,
@@ -349,7 +353,7 @@ Return JSON matching the RecruitmentPlan schema."""
                 "success": True,
                 "recruitment_plan": recruitment_plan.dict(),
                 "recruitment_roster": recruitment_roster,
-                "estimated_cost": 0.0  # No cost in upstream
+                "estimated_cost": estimated_cost
             }
 
         except Exception as e:
@@ -363,13 +367,12 @@ Return JSON matching the RecruitmentPlan schema."""
     def _estimate_fleet_cost(
         self,
         specialist_matches: Dict[str, List[Dict]],
-        user_id: str  # Changed from tenant_id
+        user_id: str
     ) -> float:
         """
         Estimate fleet cost based on specialist optimization parameters.
 
         Simplified estimation - actual cost will vary.
-
         NOTE: This method is not used in upstream (no billing), but kept for
         code parity with SaaS version.
         """
