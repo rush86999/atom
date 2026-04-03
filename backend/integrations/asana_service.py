@@ -369,7 +369,7 @@ class AsanaService:
         self, access_token: str, task_gid: str, updates: Dict
     ) -> Dict:
         """Update an existing task"""
-
+        try:
             result = self._make_request(
                 "PUT", f"/tasks/{task_gid}", access_token, data={"data": updates}
             )
