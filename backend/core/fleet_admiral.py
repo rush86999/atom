@@ -7,9 +7,6 @@ Wraps AgentFleetService with meta-agent responsibilities:
 - Coordinates fleet execution
 - Manages blackboard state
 
-This is a thin wrapper around existing services to avoid reimplementing
-fleet orchestration logic.
-
 SINGLE-TENANT ARCHITECTURE:
 - Uses user_id instead of tenant_id
 - No BudgetEnforcementService (no billing/quota in upstream)
@@ -22,6 +19,7 @@ Changes: Removed SaaS-specific features (billing, quota, multi-tenancy)
 
 import logging
 import uuid
+import json
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
@@ -78,8 +76,6 @@ class FleetAdmiral:
         self.fleet_service = AgentFleetService(db)
 
         # Initialize recruitment intelligence for specialist matching
-        # Note: This requires additional dependencies that will be injected
-        # when recruit_and_execute is called
         self.recruitment_intelligence: Optional[RecruitmentIntelligenceService] = None
 
     def _initialize_recruitment_intelligence(self):
@@ -98,7 +94,6 @@ class FleetAdmiral:
         from core.recruitment_analytics_service import RecruitmentAnalyticsService
         from analytics.fleet_optimization_service import FleetOptimizationService
         from core.agent_governance_service import AgentGovernanceService
-        # BudgetEnforcementService NOT imported in upstream (SaaS-only)
 
         self.recruitment_intelligence = RecruitmentIntelligenceService(
             db=self.db,
@@ -149,7 +144,7 @@ Return JSON matching the TaskAnalysis schema."""
         try:
             analysis: TaskAnalysis = await self.llm.generate_structured_response(
                 prompt=prompt,
-                system_prompt="You are an expert at task decomposition and multi-agent orchestration.",
+                system_instruction="You are an expert at task decomposition and multi-agent orchestration.",
                 response_model=TaskAnalysis,
                 temperature=0.3,
                 user_id=user_id  # Changed from tenant_id
