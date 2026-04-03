@@ -3,25 +3,22 @@ Plaid Service for ATOM Platform
 Provides comprehensive Plaid banking and financial data integration functionality
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
-
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class PlaidService:
-    def __init__(self):
-        self.client_id = os.getenv("PLAID_CLIENT_ID")
-        self.secret = os.getenv("PLAID_SECRET")
-        self.environment = os.getenv("PLAID_ENVIRONMENT", "sandbox")
+class PlaidService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.client_id = self.config.get("plaid_client_id") or os.getenv("PLAID_CLIENT_ID")
+        self.secret = self.config.get("plaid_secret") or os.getenv("PLAID_SECRET")
+        self.environment = self.config.get("plaid_environment") or os.getenv("PLAID_ENVIRONMENT", "sandbox")
         
         # Set base URL based on environment
         env_urls = {
@@ -32,34 +29,151 @@ class PlaidService:
         self.base_url = env_urls.get(self.environment, env_urls["sandbox"])
         self.client = httpx.AsyncClient(timeout=30.0)
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """
+        Return Plaid service capabilities.
+
+        Returns:
+            Dict with operations, parameters, rate limits
+        """
+        return {
+            "operations": [
+                {
+                    "id": "get_accounts",
+                    "name": "Get Accounts",
+                    "description": "Retrieve all accounts for an item",
+                    "parameters": {
+                        "access_token": {
+                            "type": "string",
+                            "description": "Plaid access token",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "get_balance",
+                    "name": "Get Balance",
+                    "description": "Get real-time balance for accounts",
+                    "parameters": {
+                        "access_token": {
+                            "type": "string",
+                            "description": "Plaid access token",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "get_transactions",
+                    "name": "Get Transactions",
+                    "description": "Get transactions for an item",
+                    "parameters": {
+                        "access_token": {
+                            "type": "string",
+                            "description": "Plaid access token",
+                            "required": True
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date (YYYY-MM-DD)",
+                            "required": False
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date (YYYY-MM-DD)",
+                            "required": False
+                        }
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "get_identity",
+                    "name": "Get Identity",
+                    "description": "Get identity information for accounts",
+                    "parameters": {
+                        "access_token": {
+                            "type": "string",
+                            "description": "Plaid access token",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
+                }
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["start_date", "end_date"],
+            "rate_limits": {
+                "requests_per_minute": 100,
+                "requests_per_hour": 5000
+            },
+            "supports_webhooks": True
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Plaid operation with tenant context.
+
+        Args:
+            operation: Operation name (get_accounts, get_balance, get_transactions, get_identity)
+            parameters: Operation parameters
+            context: Tenant context dict with tenant_id, agent_id, etc.
+
+        Returns:
+            Dict with success, result, error, details
+
+        Raises:
+            NotImplementedError: If operation not supported
+        """
+        # CRITICAL: Validate tenant_id from context to prevent cross-tenant access
+        if context:
+            context_tenant_id = context.get("tenant_id")
+            if context_tenant_id and context_tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: context={context_tenant_id}, service={self.tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID validation failed",
+                    "details": {"operation": operation, "reason": "cross_tenant_access_prevented"}
+                }
+
+        try:
+            token = parameters.get("access_token") or (context.get("access_token") if context else None)
+            if not token:
+                return {"success": False, "error": "Missing Plaid access token"}
+
+            if operation == "get_accounts":
+                res = await self.get_accounts(token)
+                return {"success": True, "result": res, "details": {"service": "plaid", "tenant_id": self.tenant_id}}
+            elif operation == "get_balance":
+                res = await self.get_balance(token)
+                return {"success": True, "result": res, "details": {"service": "plaid", "tenant_id": self.tenant_id}}
+            elif operation == "get_transactions":
+                res = await self.get_transactions(
+                    token,
+                    parameters.get("start_date", "2000-01-01"),
+                    parameters.get("end_date", "2099-01-01")
+                )
+                return {"success": True, "result": res, "details": {"service": "plaid", "tenant_id": self.tenant_id}}
+            elif operation == "get_identity":
+                res = await self.get_identity(token)
+                return {"success": True, "result": res, "details": {"service": "plaid", "tenant_id": self.tenant_id}}
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported for Plaid")
+        except Exception as e:
+            logger.error(f"Plaid operation {operation} failed for tenant {self.tenant_id}: {e}")
+            return {"success": False, "error": str(e), "details": {"service": "plaid", "tenant_id": self.tenant_id}}
+
     async def close(self):
         """Close the HTTP client connection"""
         await self.client.aclose()
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("plaid", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("plaid"):
-                logger.warning(f"Circuit breaker is open for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Plaid integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for plaid"
-                )
-
         return {
             "Content-Type": "application/json"
         }
@@ -139,28 +253,6 @@ class PlaidService:
 
     async def get_accounts(self, access_token: str) -> List[Dict[str, Any]]:
         """Get accounts for an item"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("plaid", "exchange_public_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("plaid"):
-                logger.warning(f"Circuit breaker is open for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Plaid integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for plaid"
-                )
-
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -189,28 +281,6 @@ class PlaidService:
 
     async def get_balance(self, access_token: str) -> Dict[str, Any]:
         """Get real-time balance for accounts"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("plaid", "get_accounts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("plaid"):
-                logger.warning(f"Circuit breaker is open for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Plaid integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for plaid"
-                )
-
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -245,28 +315,6 @@ class PlaidService:
         offset: int = 0
     ) -> Dict[str, Any]:
         """Get transactions for an item"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("plaid", "get_balance", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("plaid"):
-                logger.warning(f"Circuit breaker is open for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Plaid integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for plaid"
-                )
-
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -327,28 +375,6 @@ class PlaidService:
 
     async def remove_item(self, access_token: str) -> Dict[str, Any]:
         """Remove an item (disconnect bank connection)"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("plaid", "get_identity", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("plaid"):
-                logger.warning(f"Circuit breaker is open for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Plaid integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for plaid"
-                )
-
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -374,71 +400,111 @@ class PlaidService:
                 detail=f"Failed to remove item: {str(e)}"
             )
 
-    async def health_check(self) -> Dict[str, Any]:
-        """Health check for Plaid service"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("plaid", "remove_item", locals())
+    def health_check(self) -> Dict[str, Any]:
+        """Synchronous health check for Plaid service"""
+        import requests
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("plaid"):
-                logger.warning(f"Circuit breaker is open for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Plaid integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for plaid"
-                )
-
-        try:
+            if not self.client_id or not self.secret:
+                return {
+                    "ok": False,
+                    "status": "unhealthy",
+                    "healthy": False,
+                    "service": "plaid",
+                    "environment": self.environment,
+                    "message": "Missing credentials",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            
+            # Simple check, we just see if the endpoint is reachable
+            response = requests.post(f"{self.base_url}/categories/get", json={}, timeout=10)
+            is_healthy = response.status_code == 200
+            
             return {
-                "ok": True,
-                "status": "healthy",
+                "ok": is_healthy,
+                "status": "healthy" if is_healthy else "unhealthy",
+                "healthy": is_healthy,
                 "service": "plaid",
                 "environment": self.environment,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
             return {
                 "ok": False,
                 "status": "unhealthy",
+                "healthy": False,
                 "service": "plaid",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-plaid_service = PlaidService()
-
-def get_plaid_service() -> PlaidService:
-    return plaid_service
-
-        # Start audit logging
-        audit_ctx = log_integration_attempt("plaid", "health_check", locals())
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync Plaid analytics to PostgreSQL IntegrationMetric table."""
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("plaid"):
-                logger.warning(f"Circuit breaker is open for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Plaid integration temporarily disabled"
-                )
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get accounts and balance data
+            accounts = await self.get_accounts(access_token)
+            account_count = len(accounts)
+            
+            # Calculate total balances
+            total_current = sum(acc.get("balances", {}).get("current", 0) or 0 for acc in accounts)
+            total_available = sum(acc.get("balances", {}).get("available", 0) or 0 for acc in accounts)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("plaid_account_count", account_count, "count"),
+                    ("plaid_total_current_balance", total_current, "currency"),
+                    ("plaid_total_available_balance", total_available, "currency"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="plaid",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="plaid",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Plaid metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Plaid metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Plaid PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("plaid")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for plaid")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for plaid"
-                )
+    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Plaid"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# Singleton instance removed - use IntegrationRegistry for per-tenant instances

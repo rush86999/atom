@@ -2062,7 +2062,13 @@ Use the available tools as needed to complete the action. Return your response i
     async def _execute_stripe_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Stripe service actions"""
         try:
-            from integrations.stripe_service import StripeService
+            try:
+    from integrations.stripe_service import StripeService
+    HAS_STRIPE = True
+except ImportError:
+    # Stripe is SaaS-specific billing integration
+    StripeService = None
+    HAS_STRIPE = False
             service = StripeService()
             
             token_data = token_storage.get_token(connection_id) if connection_id else None

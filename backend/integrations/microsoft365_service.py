@@ -61,8 +61,8 @@ from core.integration_service import IntegrationService
 class Microsoft365Service(IntegrationService):
     """Microsoft 365 service for handling unified Microsoft platform integration."""
 
-    def __init__(self, workspace_id: Optional[str] = None, config: Optional[Dict[str, Any]] = None):
-        super().__init__(workspace_id, config)
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.service_name = "microsoft365"
         self.required_scopes = MICROSOFT365_SCOPES
         self.base_url = "https://graph.microsoft.com/v1.0"
@@ -88,12 +88,14 @@ class Microsoft365Service(IntegrationService):
                 return {
                     "status": "healthy",
                     "service": "microsoft365",
-                    }
+                    "tenant_id": self.tenant_id,
+                }
             else:
                 return {
                     "status": "unconfigured",
                     "service": "microsoft365",
-                    }
+                    "tenant_id": self.tenant_id,
+                }
         except Exception as e:
             logger.error(f"Microsoft 365 health check failed: {e}")
             return {

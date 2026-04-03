@@ -1,24 +1,22 @@
-from datetime import datetime
 import logging
 import os
-from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 from fastapi import HTTPException
-
 
 logger = logging.getLogger(__name__)
 
-class ZohoMailService:
+from core.integration_service import IntegrationService
+
+class ZohoMailService(IntegrationService):
     """Zoho Mail API Service Implementation"""
     
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.base_url = "https://mail.zoho.com/api/v1"
-        self.client_id = os.getenv("ZOHO_CLIENT_ID")
-        self.client_secret = os.getenv("ZOHO_CLIENT_SECRET")
+        self.client_id = config.get("client_id") or os.getenv("ZOHO_CLIENT_ID")
+        self.client_secret = config.get("client_secret") or os.getenv("ZOHO_CLIENT_SECRET")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def get_accounts(self, access_token: str) -> List[Dict[str, Any]]:
@@ -36,28 +34,6 @@ class ZohoMailService:
 
     async def get_messages(self, access_token: str, account_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Fetch recent messages for a specific account"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_mail", "get_accounts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_mail"):
-                logger.warning(f"Circuit breaker is open for zoho_mail")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_mail integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_mail")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_mail")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_mail"
-                )
-
         try:
             # We look at the 'inbox' folder by default (folderId: 1 usually)
             url = f"{self.base_url}/accounts/{account_id}/messages/view"
@@ -73,28 +49,6 @@ class ZohoMailService:
 
     async def get_recent_inbox(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Fetch messages from the primary account's inbox"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_mail", "get_messages", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_mail"):
-                logger.warning(f"Circuit breaker is open for zoho_mail")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_mail integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_mail")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_mail")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_mail"
-                )
-
         try:
             accounts = await self.get_accounts(access_token)
             if not accounts:
@@ -106,25 +60,79 @@ class ZohoMailService:
         except Exception as e:
             logger.error(f"Failed to fetch recent Zoho Mail: {e}")
             return []
-
-        # Start audit logging
-        audit_ctx = log_integration_attempt("zoho_mail", "get_recent_inbox", locals())
+    async def sync_to_postgres_cache(self, user_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync Zoho Mail analytics to PostgreSQL IntegrationMetric table."""
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("zoho_mail"):
-                logger.warning(f"Circuit breaker is open for zoho_mail")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Zoho_mail integration temporarily disabled"
-                )
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Fetch accounts to get basic info
+            accounts = await self.get_accounts(access_token)
+            if not accounts:
+                return {"success": False, "error": "No accounts found"}
+                
+            account_id = accounts[0].get("accountId")
+            
+            # Fetch messages to get a sense of volume
+            messages = await self.get_messages(access_token, account_id, limit=100)
+            message_count = len(messages)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("zoho_mail_account_count", len(accounts), "count"),
+                    ("zoho_mail_recent_messages", message_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        workspace_id=user_id,
+                        integration_type="zoho_mail",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            workspace_id=user_id,
+                            integration_type="zoho_mail",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Zoho Mail metrics to PostgreSQL cache for user {user_id}")
+            except Exception as e:
+                logger.error(f"Error saving Zoho Mail metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Zoho Mail PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("zoho_mail")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for zoho_mail")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for zoho_mail"
-                )
+    async def full_sync(self, user_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Zoho Mail"""
+        # Pipeline 1: Atom Memory
+        # Triggered via zoho_mail_memory_ingestion or similar
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(user_id, access_token)
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+

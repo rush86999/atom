@@ -118,7 +118,6 @@ class AsanaRealService:
         """Update task in Asana"""
         # Start audit logging
         audit_ctx = log_integration_attempt("asana_real", "create_task", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -127,7 +126,6 @@ class AsanaRealService:
                     status_code=503,
                     detail=f"Asana_real integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
             if is_limited:
@@ -137,7 +135,6 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-
         asana_updates = {"data": {}}
         
         if "title" in updates:
@@ -159,7 +156,6 @@ class AsanaRealService:
         """Delete task from Asana"""
         # Start audit logging
         audit_ctx = log_integration_attempt("asana_real", "update_task", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -168,7 +164,6 @@ class AsanaRealService:
                     status_code=503,
                     detail=f"Asana_real integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
             if is_limited:
@@ -178,7 +173,6 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-
         result = await self._make_request("DELETE", f"tasks/{task_id}")
         return result.get("success", False)
     
@@ -186,7 +180,6 @@ class AsanaRealService:
         """Get projects from Asana workspace"""
         # Start audit logging
         audit_ctx = log_integration_attempt("asana_real", "delete_task", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -195,7 +188,6 @@ class AsanaRealService:
                     status_code=503,
                     detail=f"Asana_real integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
             if is_limited:
@@ -205,7 +197,6 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-
         endpoint = f"workspaces/{self.workspace_gid}/projects?limit={limit}&opt_fields=name,notes,color,created_at,modified_at"
         
         result = await self._make_request("GET", endpoint)
@@ -218,7 +209,6 @@ class AsanaRealService:
         """Create project in Asana"""
         # Start audit logging
         audit_ctx = log_integration_attempt("asana_real", "get_projects", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -227,7 +217,6 @@ class AsanaRealService:
                     status_code=503,
                     detail=f"Asana_real integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
             if is_limited:
@@ -237,7 +226,6 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-
         asana_data = {
             "data": {
                 "name": project_data.get("name"),
@@ -257,7 +245,6 @@ class AsanaRealService:
         """Convert Asana task format to unified format"""
         # Start audit logging
         audit_ctx = log_integration_attempt("asana_real", "create_project", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -266,7 +253,6 @@ class AsanaRealService:
                     status_code=503,
                     detail=f"Asana_real integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
             if is_limited:
@@ -276,7 +262,6 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-
         status = "completed" if asana_task.get("completed") else "todo"
         
         return {
