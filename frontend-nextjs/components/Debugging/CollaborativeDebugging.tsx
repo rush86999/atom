@@ -17,7 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 interface Collaborator {
   user_id: string;
-  permission: 'viewer' | 'operator' | 'owner';
+  permission: 'viewer' | 'op' | 'owner';
   added_at: string;
 }
 
@@ -39,7 +39,7 @@ export const CollaborativeDebugging: React.FC<CollaborativeDebuggingProps> = ({
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(false);
   const [addUserId, setAddUserId] = useState('');
-  const [addPermission, setAddPermission] = useState<'viewer' | 'operator' | 'owner'>('viewer');
+  const [addPermission, setAddPermission] = useState<'viewer' | 'op' | 'owner'>('viewer');
 
   useEffect(() => {
     if (sessionId) {
@@ -152,7 +152,7 @@ export const CollaborativeDebugging: React.FC<CollaborativeDebuggingProps> = ({
   const getPermissionBadge = (permission: string) => {
     const variants: Record<string, any> = {
       viewer: { variant: 'secondary', icon: Eye, label: 'Viewer' },
-      operator: { variant: 'default', icon: Shield, label: 'Operator' },
+      op: { variant: 'default', icon: Shield, label: 'Operator' },
       owner: { variant: 'outline', icon: Users, label: 'Owner' },
     };
 
@@ -208,7 +208,7 @@ export const CollaborativeDebugging: React.FC<CollaborativeDebuggingProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="viewer">Viewer</SelectItem>
-                  <SelectItem value="operator">Operator</SelectItem>
+                  <SelectItem value="op">Operator</SelectItem>
                   <SelectItem value="owner">Owner</SelectItem>
                 </SelectContent>
               </Select>

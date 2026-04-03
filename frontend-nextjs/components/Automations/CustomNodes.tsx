@@ -309,7 +309,7 @@ export const ConditionNode = memo(({ data, isConnectable }: any) => {
                     <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded border space-y-1">
                         <div className="flex items-center space-x-1">
                             <span className="font-semibold text-blue-600 bg-blue-50 px-1 rounded">{data.field || 'Field'}</span>
-                            <span className="font-bold text-gray-500 dark:text-gray-400">{data.operator || '=='}</span>
+                            <span className="font-bold text-gray-500 dark:text-gray-400">{data.op || data.operator || '=='}</span>
                             <span className="font-semibold text-green-600 bg-green-50 px-1 rounded">{data.value || 'Value'}</span>
                         </div>
                     </div>
