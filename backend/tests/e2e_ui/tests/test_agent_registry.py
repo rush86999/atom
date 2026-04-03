@@ -313,7 +313,7 @@ class TestAgentRegistryVerification:
 
             # Look for status indicator
             status_indicator = agent_card.locator('[data-testid="agent-status-indicator"]')
-            expect(status_indicator).to_have_text(/inactive/i, timeout=5000)
+            expect(status_indicator).to_have_text("inactive", timeout=5000)
         except AssertionError:
             # Status UI might not be implemented yet - database verification is sufficient
             pass

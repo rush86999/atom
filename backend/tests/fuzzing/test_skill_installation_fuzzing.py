@@ -427,7 +427,7 @@ def test_skill_yaml_parsing_fuzz(db_session: Session, authenticated_user):
 
             # Construct SKILL.md with YAML frontmatter
             skill_content = f"""---
-{name: {yaml_content}
+name: {name}
 description: {fdp.ConsumeRandomLengthString(200)}
 author: {fdp.ConsumeRandomLengthString(50)}
 version: {fdp.ConsumeRandomLengthString(20)}

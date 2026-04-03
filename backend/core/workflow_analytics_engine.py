@@ -234,9 +234,31 @@ class WorkflowAnalyticsEngine:
             cursor.execute("ALTER TABLE workflow_metrics ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default_user'")
         except sqlite3.OperationalError:
             pass # Column might already exist
-            
+
         try:
             cursor.execute("ALTER TABLE workflow_events ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default_user'")
+        except sqlite3.OperationalError:
+            pass # Column might already exist
+
+        # Migrations: Add workspace_id column if it doesn't exist
+        try:
+            cursor.execute("ALTER TABLE workflow_metrics ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
+        except sqlite3.OperationalError:
+            pass # Column might already exist
+
+        try:
+            cursor.execute("ALTER TABLE workflow_events ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'default'")
+        except sqlite3.OperationalError:
+            pass # Column might already exist
+
+        # Migrations: Add tenant_id column if it doesn't exist
+        try:
+            cursor.execute("ALTER TABLE workflow_metrics ADD COLUMN tenant_id TEXT")
+        except sqlite3.OperationalError:
+            pass # Column might already exist
+
+        try:
+            cursor.execute("ALTER TABLE workflow_events ADD COLUMN tenant_id TEXT")
         except sqlite3.OperationalError:
             pass # Column might already exist
 
