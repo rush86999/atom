@@ -17,9 +17,24 @@ const nextConfig = {
   transpilePackages: ["@chakra-ui/react", "@chakra-ui/icons", "@ark-ui/react"],
   outputFileTracingRoot: process.cwd(),
 
+  // Disable SWC minification to work around "erator is not defined" bug
+  // See: Phase 247-02 SUMMARY.md for details
+  productionBrowserSourceMaps: true,
+
   experimental: {
     externalDir: true,
   },
+
+  // Disable minification via webpack configuration
+  webpack: (config, { isServer }) => {
+    // Disable minification for both client and server
+    config.optimization = config.optimization || {};
+    config.optimization.minimize = false;
+    return config;
+  },
+
+  // Silence Turbopack + webpack config conflict
+  turbopack: {},
   async rewrites() {
     return [
       {
