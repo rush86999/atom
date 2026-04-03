@@ -259,6 +259,227 @@ async def test_adjudicate_feedback_untrusted_user():
     print("✓ Adjudicate feedback (untrusted user) tests passed")
 
 
+def test_enforce_action_allowed():
+    """Test enforce_action for allowed action"""
+    print("Testing enforce_action (allowed)...")
+    mock_db = MagicMock()
+    mock_query = MagicMock()
+    mock_agent = MagicMock()
+    mock_agent.id = "agent-001"
+    mock_agent.status = AgentStatus.AUTONOMOUS.value
+    mock_agent.confidence_score = 0.95
+    mock_query.filter.return_value.first.return_value = mock_agent
+    mock_db.query.return_value = mock_query
+    
+    service = AgentGovernanceService(db=mock_db, workspace_id="test-ws")
+    
+    # Mock guardrail service to avoid complex dependencies
+    with patch('core.agent_governance_service.AutonomousGuardrailService') as MockGuardrail:
+        mock_guardrail = MagicMock()
+        mock_guardrail.check_guardrails.return_value = {"proceed": True}
+        MockGuardrail.return_value = mock_guardrail
+        
+        result = service.enforce_action(
+            agent_id="agent-001",
+            action_type="create"
+        )
+        
+        assert result["proceed"] is True
+        assert result["status"] == "APPROVED"
+    
+    print("✓ enforce_action (allowed) tests passed")
+
+
+def test_enforce_action_denied():
+    """Test enforce_action for denied action"""
+    print("Testing enforce_action (denied)...")
+    mock_db = MagicMock()
+    mock_query = MagicMock()
+    mock_agent = MagicMock()
+    mock_agent.id = "agent-001"
+    mock_agent.status = AgentStatus.STUDENT.value
+    mock_agent.confidence_score = 0.3
+    mock_query.filter.return_value.first.return_value = mock_agent
+    mock_db.query.return_value = mock_query
+    
+    service = AgentGovernanceService(db=mock_db, workspace_id="test-ws")
+    
+    result = service.enforce_action(
+        agent_id="agent-001",
+        action_type="delete"
+    )
+    
+    assert result["proceed"] is False
+    assert result["status"] == "BLOCKED"
+    
+    print("✓ enforce_action (denied) tests passed")
+
+
+def test_can_perform_action_paused_agent():
+    """Test can_perform_action for paused agent"""
+    print("Testing can_perform_action (paused agent)...")
+    mock_db = MagicMock()
+    mock_query = MagicMock()
+    mock_agent = MagicMock()
+    mock_agent.id = "agent-001"
+    mock_agent.status = AgentStatus.PAUSED.value
+    mock_query.filter.return_value.first.return_value = mock_agent
+    mock_db.query.return_value = mock_query
+    
+    service = AgentGovernanceService(db=mock_db, workspace_id="test-ws")
+    
+    result = service.can_perform_action(
+        agent_id="agent-001",
+        action_type="create"
+    )
+    
+    assert result["allowed"] is False
+    assert "Agent is paused" in result.get("reason", "")
+    
+    print("✓ can_perform_action (paused agent) tests passed")
+
+
+def test_can_perform_action_stopped_agent():
+    """Test can_perform_action for stopped agent"""
+    print("Testing can_perform_action (stopped agent)...")
+    mock_db = MagicMock()
+    mock_query = MagicMock()
+    mock_agent = MagicMock()
+    mock_agent.id = "agent-001"
+    mock_agent.status = AgentStatus.STOPPED.value
+    mock_query.filter.return_value.first.return_value = mock_agent
+    mock_db.query.return_value = mock_query
+    
+    service = AgentGovernanceService(db=mock_db, workspace_id="test-ws")
+    
+    result = service.can_perform_action(
+        agent_id="agent-001",
+        action_type="create"
+    )
+    
+    assert result["allowed"] is False
+    assert "Agent is stopped" in result.get("reason", "")
+    
+    print("✓ can_perform_action (stopped agent) tests passed")
+
+
+def test_can_perform_action_require_approval():
+    """Test can_perform_action with require_approval flag"""
+    print("Testing can_perform_action (require approval)...")
+    mock_db = MagicMock()
+    mock_query = MagicMock()
+    mock_agent = MagicMock()
+    mock_agent.id = "agent-001"
+    mock_agent.status = AgentStatus.AUTONOMOUS.value
+    mock_query.filter.return_value.first.return_value = mock_agent
+    mock_db.query.return_value = mock_query
+    
+    service = AgentGovernanceService(db=mock_db, workspace_id="test-ws")
+    
+    result = service.can_perform_action(
+        agent_id="agent-001",
+        action_type="create",
+        require_approval=True
+    )
+    
+    assert result["allowed"] is True
+    assert result["requires_approval"] is True
+    
+    print("✓ can_perform_action (require approval) tests passed")
+
+
+def test_can_perform_action_supervised_complexity():
+    """Test can_perform_action for SUPERVISED agent with complexity 3"""
+    print("Testing can_perform_action (supervised complexity)...")
+    mock_db = MagicMock()
+    mock_query = MagicMock()
+    mock_agent = MagicMock()
+    mock_agent.id = "agent-001"
+    mock_agent.status = AgentStatus.SUPERVISED.value
+    mock_agent.confidence_score = 0.8
+    mock_query.filter.return_value.first.return_value = mock_agent
+    mock_db.query.return_value = mock_query
+    
+    service = AgentGovernanceService(db=mock_db, workspace_id="test-ws")
+    
+    result = service.can_perform_action(
+        agent_id="agent-001",
+        action_type="send_email"
+    )
+    
+    assert result["allowed"] is True
+    assert result["requires_approval"] is True  # SUPERVISED + complexity 3 needs approval
+    
+    print("✓ can_perform_action (supervised complexity) tests passed")
+
+
+def test_action_complexity_search():
+    """Test action complexity for search actions (level 1)"""
+    print("Testing action complexity (search)...")
+    assert AgentGovernanceService.ACTION_COMPLEXITY["search"] == 1
+    assert AgentGovernanceService.ACTION_COMPLEXITY["read"] == 1
+    assert AgentGovernanceService.ACTION_COMPLEXITY["get"] == 1
+    print("✓ Action complexity (search) tests passed")
+
+
+def test_action_complexity_propose():
+    """Test action complexity for propose actions (level 2)"""
+    print("Testing action complexity (propose)...")
+    assert AgentGovernanceService.ACTION_COMPLEXITY["analyze"] == 2
+    assert AgentGovernanceService.ACTION_COMPLEXITY["suggest"] == 2
+    assert AgentGovernanceService.ACTION_COMPLEXITY["draft"] == 2
+    print("✓ Action complexity (propose) tests passed")
+
+
+def test_action_complexity_execute():
+    """Test action complexity for execute actions (level 3)"""
+    print("Testing action complexity (execute)...")
+    assert AgentGovernanceService.ACTION_COMPLEXITY["create"] == 3
+    assert AgentGovernanceService.ACTION_COMPLEXITY["update"] == 3
+    assert AgentGovernanceService.ACTION_COMPLEXITY["send_email"] == 3
+    print("✓ Action complexity (execute) tests passed")
+
+
+def test_action_complexity_critical():
+    """Test action complexity for critical actions (level 4)"""
+    print("Testing action complexity (critical)...")
+    assert AgentGovernanceService.ACTION_COMPLEXITY["delete"] == 4
+    assert AgentGovernanceService.ACTION_COMPLEXITY["execute"] == 4
+    assert AgentGovernanceService.ACTION_COMPLEXITY["deploy"] == 4
+    print("✓ Action complexity (critical) tests passed")
+
+
+def test_maturity_requirements_all_levels():
+    """Test maturity requirements for all levels"""
+    print("Testing maturity requirements (all levels)...")
+    assert AgentGovernanceService.MATURITY_REQUIREMENTS[1] == AgentStatus.STUDENT
+    assert AgentGovernanceService.MATURITY_REQUIREMENTS[2] == AgentStatus.INTERN
+    assert AgentGovernanceService.MATURITY_REQUIREMENTS[3] == AgentStatus.SUPERVISED
+    assert AgentGovernanceService.MATURITY_REQUIREMENTS[4] == AgentStatus.AUTONOMOUS
+    print("✓ Maturity requirements (all levels) tests passed")
+
+
+def test_agent_not_found_can_perform():
+    """Test can_perform_action when agent not found"""
+    print("Testing can_perform_action (agent not found)...")
+    mock_db = MagicMock()
+    mock_query = MagicMock()
+    mock_query.filter.return_value.first.return_value = None
+    mock_db.query.return_value = mock_query
+    
+    service = AgentGovernanceService(db=mock_db, workspace_id="test-ws")
+    
+    result = service.can_perform_action(
+        agent_id="nonexistent-agent",
+        action_type="create"
+    )
+    
+    assert result["allowed"] is False
+    assert "Agent not found" in result.get("reason", "")
+    
+    print("✓ can_perform_action (agent not found) tests passed")
+
+
 def test_update_confidence_score_positive():
     """Test positive confidence score update"""
     print("Testing confidence score update (positive)...")
@@ -486,6 +707,18 @@ async def main():
         test_can_perform_action_denied()
         test_can_perform_action_unknown_action()
         test_agent_not_found()
+        test_enforce_action_allowed()
+        test_enforce_action_denied()
+        test_can_perform_action_paused_agent()
+        test_can_perform_action_stopped_agent()
+        test_can_perform_action_require_approval()
+        test_can_perform_action_supervised_complexity()
+        test_action_complexity_search()
+        test_action_complexity_propose()
+        test_action_complexity_execute()
+        test_action_complexity_critical()
+        test_maturity_requirements_all_levels()
+        test_agent_not_found_can_perform()
         
         # Async tests
         await test_submit_feedback()
