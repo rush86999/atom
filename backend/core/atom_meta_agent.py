@@ -1564,6 +1564,274 @@ async def handle_manual_trigger(request: str, user: User,
     return result
 
 
+"""
+Meta-Agent Routing Methods (Single-Tenant Version)
+
+Ported from: rush869ark99/atom-saas@6c5f4e3d4
+Changes: Replaced tenant_id with user_id, removed SaaS-specific features
+"""
+
+import logging
+from typing import Dict, Any, Optional
+from core.agent_governance_service import AgentGovernanceService
+from core.intent_classifier import IntentCategory, IntentClassification
+
+logger = logging.getLogger(__name__)
+
+
+async def _check_governance(
+    self,
+    user_id: str,
+    agent_id: str,
+    route_category: str
+) -> tuple[bool, str | None]:
+    """
+    Check if agent has permission for routing category.
+
+    Args:
+        user_id: User identifier (single-tenant architecture)
+        agent_id: Agent UUID
+        route_category: Route category (chat, workflow, task)
+
+    Returns:
+        (allowed, reason) - allowed=True if governance check passes
+    """
+    from core.database import SessionLocal
+    
+    with SessionLocal() as db:
+        governance = AgentGovernanceService(db)
+        decision = await governance.canPerformAction(
+            user_id=user_id,
+            agent_id=agent_id,
+            action=f"route_to_{route_category}"
+        )
+
+        if not decision.allowed:
+            # Log governance denial (simplified - no AuditLogger in upstream)
+            logger.warning(
+                f"[MetaAgent] Governance denied {route_category} routing: "
+                f"{decision.reason}"
+            )
+            return False, decision.reason
+
+        return True, None
+
+
+async def route_with_governance(
+    self,
+    request: str,
+    intent: IntentClassification,
+    user_id: str,
+    agent_id: str = "atom_main"
+) -> Dict[str, Any]:
+    """
+    Route request with governance checks.
+
+    CHAT bypasses governance (simple conversational queries).
+    WORKFLOW/TASK require governance checks.
+
+    Args:
+        request: User's natural language request
+        intent: Classified intent from IntentClassifier
+        user_id: User identifier (single-tenant architecture)
+        agent_id: Agent UUID (default: atom_main)
+
+    Returns:
+        Routing result with handler and status
+    """
+    # CHAT bypasses governance
+    if intent.category == IntentCategory.CHAT:
+        return await self._route_to_chat(request, user_id)
+
+    # WORKFLOW/TASK require governance
+    allowed, reason = await self._check_governance(
+        user_id, agent_id, intent.category.value
+    )
+
+    if not allowed:
+        # Auto-takeover proposal mode: propose CHAT alternative
+        return await self._propose_chat_alternative(
+            original_request=request,
+            denied_route=intent.category.value,
+            denial_reason=reason,
+            user_id=user_id
+        )
+
+    # Proceed with routing
+    if intent.category == IntentCategory.WORKFLOW:
+        return await self._route_to_workflow(request, user_id)
+    else:  # TASK
+        return await self._route_to_task(request, user_id, agent_id)
+
+
+async def _route_to_chat(
+    self,
+    request: str,
+    user_id: str
+) -> Dict[str, Any]:
+    """
+    Route CHAT intent to LLMService for simple conversational response.
+
+    Args:
+        request: User's natural language request
+        user_id: User identifier (single-tenant architecture)
+
+    Returns:
+        LLM response
+    """
+    logger.info(f"Routing CHAT intent to LLMService: {request[:50]}...")
+
+    response = await self.llm.generate_response(
+        prompt=request,
+        system_prompt="You are a helpful AI assistant.",
+        user_id=user_id
+    )
+
+    return {
+        "route": "CHAT",
+        "handler": "LLMService",
+        "response": response,
+        "status": "chat_complete"
+    }
+
+
+async def _route_to_workflow(
+    self,
+    request: str,
+    user_id: str,
+    execution_mode: str = "one-off"
+) -> Dict[str, Any]:
+    """
+    Route WORKFLOW intent to QueenAgent for blueprint generation.
+
+    Args:
+        request: User's natural language request
+        user_id: User identifier (single-tenant architecture)
+        execution_mode: Execution mode (one-off or recurring_automation)
+
+    Returns:
+        Blueprint generation result
+    """
+    from core.database import SessionLocal
+    
+    logger.info(f"Routing WORKFLOW intent to QueenAgent: {request[:50]}...")
+
+    with SessionLocal() as db:
+        if not self.queen:
+            from core.agents.queen_agent import QueenAgent
+            self.queen = QueenAgent(db, self.llm, workspace_id=user_id)
+
+        blueprint = await self.queen.generate_blueprint(
+            goal=request,
+            user_id=user_id,
+            execution_mode=execution_mode
+        )
+
+        return {
+            "route": "WORKFLOW",
+            "handler": "QueenAgent",
+            "blueprint_id": blueprint.get("blueprint_id"),
+            "architecture_name": blueprint.get("architecture_name"),
+            "node_count": len(blueprint.get("nodes", [])),
+            "status": "blueprint_generated"
+        }
+
+
+async def _route_to_task(
+    self,
+    request: str,
+    user_id: str,
+    agent_id: str = "atom_main"
+) -> Dict[str, Any]:
+    """
+    Route TASK intent to FleetAdmiral for dynamic agent recruitment.
+
+    Args:
+        request: User's natural language request
+        user_id: User identifier (single-tenant architecture)
+        agent_id: Agent UUID
+
+    Returns:
+        Fleet recruitment result
+    """
+    from core.database import SessionLocal
+    from core.fleet_admiral import FleetAdmiral
+    
+    logger.info(f"Routing TASK intent to FleetAdmiral: {request[:50]}...")
+
+    with SessionLocal() as db:
+        fleet_admiral = FleetAdmiral(db, self.llm)
+        
+        result = await fleet_admiral.recruit_and_execute(
+            task=request,
+            user_id=user_id,
+            root_agent_id=agent_id
+        )
+
+        return {
+            "route": "TASK",
+            "handler": "FleetAdmiral",
+            "result": result,
+            "status": "task_routed"
+        }
+
+
+async def _propose_chat_alternative(
+    self,
+    original_request: str,
+    denied_route: str,
+    denial_reason: str,
+    user_id: str
+) -> Dict[str, Any]:
+    """
+    Auto-takeover proposal mode: When governance denies WORKFLOW/TASK,
+    automatically propose CHAT-based alternative without human intervention.
+
+    This generates a helpful response explaining:
+    1. Why the original request was denied (governance reason)
+    2. What CHAT can do instead (limited but safe alternative)
+    3. How to upgrade agent maturity for future access
+
+    Args:
+        original_request: User's original request
+        denied_route: Route category that was denied (workflow/task)
+        denial_reason: Governance denial reason
+        user_id: User identifier (single-tenant architecture)
+
+    Returns:
+        Dict with chat_response and proposal metadata
+    """
+    # Generate proposal explanation using LLM
+    proposal_prompt = f"""
+The user requested: "{original_request}"
+This was routed to {denied_route} but denied by governance because: {denial_reason}
+
+Generate a helpful response that:
+1. Acknowledges the request
+2. Explains why it cannot be executed as {denied_route} (agent maturity restriction)
+3. Offers to answer via CHAT mode instead (informational response, no actions)
+4. Suggests upgrading agent maturity level for future {denied_route} access
+
+Keep it concise (2-3 sentences) and helpful. Do not be apologetic - be informative.
+"""
+
+    chat_response = await self.llm.generate_response(
+        prompt=proposal_prompt,
+        system_prompt="You are a helpful AI assistant explaining routing decisions.",
+        user_id=user_id
+    )
+
+    return {
+        "route": "CHAT",
+        "handler": "LLMService",
+        "auto_takeover": True,
+        "original_route": denied_route,
+        "denial_reason": denial_reason,
+        "proposal": chat_response,
+        "status": "auto_takeover_proposal"
+    }
+
+
 # Singleton for easy access
 _atom_instance: Optional[AtomMetaAgent] = None
 
