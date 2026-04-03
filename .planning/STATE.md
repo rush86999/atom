@@ -2,31 +2,32 @@
 
 **Milestone:** v10.0 Quality & Stability
 **Last Updated:** 2026-04-03
-**Status:** 🚧 ACTIVE (Phase 248 in progress)
+**Status:** 🚧 ACTIVE (Phase 249 in progress)
 
 ## Current Position
 
-**Phase:** Phase 248 - Test Discovery and Documentation
-**Plan:** 02 - Run Test Suite and Document Failures
-**Status:** ✅ COMPLETE
-**Progress:** [██████████] 100%
+**Phase:** Phase 249 - Critical Test Fixes
+**Plan:** 02 - Canvas Error Handling Fixes (Next)
+**Status:** IN PROGRESS
+**Progress:** [███░░░░░░] 33% (1/3 plans completed)
 
 ### Current Focus
 
-Phase 248-02 complete - test suite executed and documented:
-- Test suite executed ✅ COMPLETE (101 tests: 84 passed, 17 failed)
-- Test failure report ✅ COMPLETE (TEST_FAILURE_REPORT.md, 477 lines)
-- Testing guide ✅ COMPLETE (TESTING.md, 425 lines)
-- Collection errors fixed ✅ COMPLETE (10 issues resolved)
+Phase 249-01 complete - Pydantic v2 DTO validation fixes:
+- AgentRunRequest DTO fixed ✅ COMPLETE (added agent_id field)
+- AgentUpdateRequest DTO fixed ✅ COMPLETE (added agent_id field)
+- Pydantic v2 compliance ✅ COMPLETE (Field import, default_factory pattern)
+- Test results: 3/3 DTO tests now pass (DTO-001, DTO-002, DTO-003 fixed)
+- No regressions ✅ VERIFIED (31/35 DTO tests passing)
 
-**Next:** Phase 248-03 (if exists) or Phase 249 - Critical Bug Fixes
+**Next:** Phase 249-02 - Canvas error handling fixes
 
 ### Progress Bar
 
 ```
 Phase 247: [████████░] 100% (3/3 plans completed)
 Phase 248: [████████░] 50% (1/2 plans completed)
-Phase 249: [░░░░░░░░░░] 0%
+Phase 249: [███░░░░░░] 33% (1/3 plans completed)
 Phase 250: [░░░░░░░░░░] 0%
 Phase 251: [░░░░░░░░░░] 0%
 Phase 252: [░░░░░░░░░░] 0%
@@ -37,7 +38,7 @@ Phase 256: [░░░░░░░░░░] 0%
 Phase 257: [░░░░░░░░░░] 0%
 Phase 258: [░░░░░░░░░░] 0%
 
-Overall: [█░░░░░░░░░] 4% (4/31 plans completed)
+Overall: [█░░░░░░░░░] 5% (5/31 plans completed)
 ```
 
 ## Performance Metrics
@@ -157,6 +158,7 @@ Fix all build failures, achieve 80% test coverage, fix all test failures, and us
    - Impact: Can now run ~100 tests (vs 0 before)
    - Status: ✅ COMPLETE - Commits 830536d4b, bc9699e0e, 8153f3dee
 - [Phase 247]: Single try-except block pattern for circuit breaker + rate limiter + API call
+- [Phase 249]: Added agent_id as required field to AgentRunRequest and AgentUpdateRequest DTOs using Pydantic v2 Field(default_factory=dict) pattern for mutable defaults
 
 ### Technical Decisions
 
@@ -224,6 +226,7 @@ Fix all build failures, achieve 80% test coverage, fix all test failures, and us
 | Test failures (17 failures) | 248-02 | ⚠️ DOCUMENTED | 17 test failures documented in TEST_FAILURE_REPORT.md with severity categorization. Ready for Phase 249 fixes. |
 | Pydantic v2 DTO validation broken | 249 | Not Started | 7 DTO validation failures documented. Need Pydantic v2 migration. |
 | Canvas error handling broken | 249 | Not Started | 10 canvas route failures documented. Error codes don't match expectations. |
+| Phase 249 P01 | 270 | 5 tasks | 1 files |
 
 ### Risks
 
