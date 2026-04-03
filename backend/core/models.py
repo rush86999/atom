@@ -4699,13 +4699,13 @@ class Subscription(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    tier_id = Column(String, ForeignKey("saas_tiers.id"), nullable=True)
+    tier_id = Column(String, nullable=True)  # Reserved for future use (open-source compatible)
     current_period_usage = Column(JSONColumn, nullable=True)
 
     customer = relationship("EcommerceCustomer", back_populates="subscriptions")
     orders = relationship("EcommerceOrder", back_populates="subscription")
     audit_logs = relationship("SubscriptionAudit", back_populates="subscription")
-    tier = relationship("SaaSTier")
+    # tier relationship removed - open-source version doesn't use SaaS tiers
 
 class SubscriptionAudit(Base):
     __tablename__ = "ecommerce_subscription_audit"
@@ -8518,6 +8518,221 @@ class EntityTypeVersionHistory(Base):
 
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+
+# ============================================================================
+# User Activity Models (for supervision routing)
+# ============================================================================
+
+class UserState(str, enum.Enum):
+    """User availability state for supervision"""
+    ONLINE = "online"       # Active within 5 minutes - can supervise
+    AWAY = "away"          # Active 5-15 minutes ago - can supervise
+    OFFLINE = "offline"     # No activity for 15+ minutes - cannot supervise
+
+
+class UserActivity(Base):
+    """
+    Track user activity state for supervision routing.
+    
+    Used to determine if users are available to supervise INTERN and SUPERVISED agents.
+    """
+    __tablename__ = "user_activities"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, unique=True)
+    
+    # State tracking
+    state = Column(SQLEnum(UserState, name='userstate'), nullable=False, default=UserState.OFFLINE)
+    last_activity_at = Column(DateTime(timezone=True), nullable=False)
+    
+    # Manual override (optional)
+    manual_state = Column(SQLEnum(UserState, name='userstate_manual'), nullable=True)
+    manual_state_expiry = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="activity")
+    sessions = relationship("UserActivitySession", back_populates="activity", cascade="all, delete-orphan")
+    
+    __table_args__ = (
+        Index('idx_user_activity_user_id', 'user_id', unique=True),
+        Index('idx_user_activity_state', 'state'),
+    )
+    
+    def __repr__(self):
+        return f"<UserActivity(id={self.id}, user_id={self.user_id}, state={self.state.value})>"
+
+
+class UserActivitySession(Base):
+    """
+    Track individual user sessions (web, desktop, etc).
+    
+    Multiple sessions can exist per user. User is online if ANY session is recent.
+    """
+    __tablename__ = "user_activity_sessions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    activity_id = Column(String, ForeignKey('user_activities.id', ondelete='CASCADE'), nullable=False)
+    
+    # Session info
+    session_type = Column(String(50), nullable=False, default="web")  # web, desktop, mobile
+    session_token = Column(String(255), nullable=False, unique=True)
+    user_agent = Column(Text, nullable=True)
+    ip_address = Column(String(45), nullable=True)  # IPv6 max length
+    
+    # Heartbeat tracking
+    last_heartbeat = Column(DateTime(timezone=True), nullable=False)
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    terminated_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    activity = relationship("UserActivity", back_populates="sessions")
+    
+    __table_args__ = (
+        Index('idx_user_activity_session_token', 'session_token', unique=True),
+        Index('idx_user_activity_session_user_id', 'user_id'),
+        Index('idx_user_activity_session_activity_id', 'activity_id'),
+        Index('idx_user_activity_session_last_heartbeat', 'last_heartbeat'),
+    )
+    
+    def __repr__(self):
+        return f"<UserActivitySession(id={self.id}, user_id={self.user_id}, type={self.session_type})>"
+
+
+# Add back-reference to User model
+if hasattr(User, '__mapper__'):
+    User.activity = relationship("UserActivity", back_populates="user", uselist=False)
+
+
+# ============================================================================
+# Supervised Queue Models (for SUPERVISED agent execution)
+# ============================================================================
+
+class QueueStatus(str, enum.Enum):
+    """Status of queued executions"""
+    PENDING = "pending"       # Waiting for user to be available
+    PROCESSING = "processing" # Currently being executed
+    COMPLETED = "completed"   # Successfully executed
+    FAILED = "failed"         # Execution failed
+    EXPIRED = "expired"       # Queue item expired
+
+
+class SupervisedExecutionQueue(Base):
+    """
+    Queue for SUPERVISED agent executions when users are unavailable.
+    
+    When SUPERVISED agents need to execute but the user is away/offline,
+    executions are queued and automatically processed when the user returns.
+    """
+    __tablename__ = "supervised_execution_queue"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False)
+    agent_id = Column(String(255), ForeignKey('agent_registry.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(String(255), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    
+    # Execution details
+    trigger_type = Column(String(100), nullable=False)  # WORKFLOW_ENGINE, DATA_SYNC, etc.
+    execution_context = Column(JSONColumn, nullable=False)
+    priority = Column(Integer, nullable=False, default=0)
+    
+    # Status tracking
+    status = Column(SQLEnum(QueueStatus, name='queuestatus'), nullable=False, default=QueueStatus.PENDING)
+    attempts = Column(Integer, nullable=False, default=0)
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    last_error = Column(Text, nullable=True)
+    
+    # Timing
+    queued_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Result
+    execution_result = Column(JSONColumn, nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    agent = relationship("AgentRegistry", back_populates="queued_executions")
+    user = relationship("User", back_populates="queued_executions")
+    
+    __table_args__ = (
+        Index('idx_supervised_queue_status', 'status'),
+        Index('idx_supervised_queue_user_id', 'user_id'),
+        Index('idx_supervised_queue_agent_id', 'agent_id'),
+        Index('idx_supervised_queue_expires_at', 'expires_at'),
+        Index('idx_supervised_queue_priority', 'priority'),
+    )
+    
+    def __repr__(self):
+        return f"<SupervisedExecutionQueue(id={self.id}, agent_id={self.agent_id}, status={self.status.value})>"
+
+
+# Add back-references
+if hasattr(AgentRegistry, '__mapper__'):
+    AgentRegistry.queued_executions = relationship("SupervisedExecutionQueue", back_populates="agent", cascade="all, delete-orphan")
+
+if hasattr(User, '__mapper__'):
+    User.queued_executions = relationship("SupervisedExecutionQueue", back_populates="user", cascade="all, delete-orphan")
+
+
+# ============================================================================
+# Integration Models (for integration catalog)
+# ============================================================================
+
+class TenantIntegrationConfig(Base):
+    """
+    Tenant-level configuration for integrations.
+    
+    Controls which integrations are enabled for a tenant and their settings.
+    """
+    __tablename__ = "tenant_integration_configs"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String(255), ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False)
+    integration_id = Column(String(255), nullable=False)  # Integration identifier (e.g., "slack", "github")
+    
+    # Configuration
+    enabled = Column(Boolean, nullable=False, default=True)
+    sync_settings = Column(JSONColumn, nullable=True)  # Integration-specific sync settings
+    
+    # Activity tracking
+    connected_user_count = Column(Integer, nullable=False, default=0)
+    last_activity_at = Column(DateTime(timezone=True), nullable=True)
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    tenant = relationship("Tenant", back_populates="integration_configs")
+    
+    __table_args__ = (
+        Index('idx_tenant_integration_tenant_id', 'tenant_id'),
+        Index('idx_tenant_integration_integration_id', 'integration_id'),
+        Index('idx_tenant_integration_unique', 'tenant_id', 'integration_id', unique=True),
+    )
+    
+    def __repr__(self):
+        return f"<TenantIntegrationConfig(tenant_id={self.tenant_id}, integration_id={self.integration_id}, enabled={self.enabled})>"
+
+
+# Add back-reference to Tenant
+if hasattr(Tenant, '__mapper__'):
+    Tenant.integration_configs = relationship("TenantIntegrationConfig", back_populates="tenant", cascade="all, delete-orphan")
 
 
 
