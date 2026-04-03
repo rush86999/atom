@@ -1728,6 +1728,145 @@ class ChainLink(Base):
     child_agent = relationship("AgentRegistry", foreign_keys=[child_agent_id], backref="delegations_as_child")
 
 
+class FleetPerformanceMetric(Base):
+    """
+    Tracks performance metrics for fleet execution.
+
+    Records metrics like execution time, success rate, throughput
+    for fleet scaling and optimization decisions.
+    """
+    __tablename__ = "fleet_performance_metrics"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    chain_id = Column(String, ForeignKey("delegation_chains.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Metric details
+    metric_type = Column(String(50), nullable=False, index=True)  # execution_time, success_rate, throughput
+    metric_value = Column(Float, nullable=False)
+    window_start = Column(DateTime(timezone=True), nullable=False, index=True)
+    window_end = Column(DateTime(timezone=True), nullable=False)
+
+    # Additional context
+    agent_count = Column(Integer, nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    chain = relationship("DelegationChain", backref="performance_metrics")
+
+
+class FleetOverage(Base):
+    """
+    Tracks temporary fleet expansion overages.
+
+    Allows fleets to temporarily exceed base plan limits
+    during scaling proposals or special circumstances.
+    """
+    __tablename__ = "fleet_overages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    chain_id = Column(String, ForeignKey("delegation_chains.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Overage details
+    base_limit = Column(Integer, nullable=False)
+    temporary_limit = Column(Integer, nullable=False)
+    current_size = Column(Integer, nullable=False)
+
+    # Expiry tracking
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    is_active = Column(Boolean, default=True, index=True)
+
+    # Metadata
+    reason = Column(Text, nullable=True)
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    chain = relationship("DelegationChain", backref="overages")
+    approver = relationship("User", backref="approved_overages")
+
+
+class ScalingAutoApproval(Base):
+    """
+    Stores auto-approval rules for scaling operations.
+
+    Defines thresholds and conditions under which scaling
+    proposals can be automatically approved without human review.
+    """
+    __tablename__ = "scaling_auto_approvals"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Rule configuration
+    max_agents = Column(Integer, nullable=False)  # Maximum agents for auto-approval
+    max_cost_increase_percent = Column(Float, nullable=False)  # Maximum cost increase percentage
+    risk_threshold = Column(Float, default=0.3)  # Maximum risk score for auto-approval
+
+    # Status
+    is_active = Column(Boolean, default=True, index=True)
+
+    # Metadata
+    description = Column(Text, nullable=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    creator = relationship("User", backref="auto_approval_rules")
+
+
+class ScalingProposal(Base):
+    """
+    Tracks scaling proposals for fleet expansion/contraction.
+
+    Records proposals to change fleet size, their approval status,
+    and execution history.
+    """
+    __tablename__ = "scaling_proposals"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    chain_id = Column(String, ForeignKey("delegation_chains.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    # Proposal details
+    proposal_type = Column(String(50), nullable=False)  # expansion, contraction
+    current_agents = Column(Integer, nullable=False)
+    proposed_agents = Column(Integer, nullable=False)
+    reason = Column(Text, nullable=False)
+    risk_score = Column(Float, default=0.5)
+
+    # Approval tracking
+    status = Column(String(50), default="pending", index=True)  # pending, approved, rejected, expired, executed
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    # Execution tracking
+    executed_at = Column(DateTime(timezone=True), nullable=True)
+    execution_result = Column(JSONColumn, nullable=True)
+
+    # Expiry
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Metadata
+    metadata_json = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    chain = relationship("DelegationChain", backref="scaling_proposals")
+    approver = relationship("User", backref="approved_scaling_proposals")
+
+
 class FleetHealingEvent(Base):
     """
     Tracks automated self-healing operations for fleet resilience.
