@@ -1,46 +1,142 @@
-from datetime import datetime
-import logging
 import os
-from typing import Any, Dict, List, Optional
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timezone
+import logging
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class IntercomService:
-    def __init__(self):
+class IntercomService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.base_url = "https://api.intercom.io"
-        self.client_id = os.getenv("INTERCOM_CLIENT_ID")
-        self.client_secret = os.getenv("INTERCOM_CLIENT_SECRET")
+        self.client_id = self.config.get("intercom_client_id") or os.getenv("INTERCOM_CLIENT_ID")
+        self.client_secret = self.config.get("intercom_client_secret") or os.getenv("INTERCOM_CLIENT_SECRET")
         self.client = httpx.AsyncClient(timeout=30.0)
 
-    async def close(self):
-        # Start audit logging
-        audit_ctx = log_integration_attempt("intercom", "close", locals())
+    def get_capabilities(self) -> Dict[str, Any]:
+        """
+        Return Intercom service capabilities.
+
+        Returns:
+            Dict with operations, parameters, rate limits
+        """
+        return {
+            "operations": [
+                {
+                    "id": "search_contacts",
+                    "name": "Search Contacts",
+                    "description": "Search for contacts by name",
+                    "parameters": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query",
+                            "required": False
+                        },
+                        "access_token": {
+                            "type": "string",
+                            "description": "Intercom access token",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "get_contacts",
+                    "name": "Get Contacts",
+                    "description": "Retrieve all contacts",
+                    "parameters": {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of contacts to retrieve",
+                            "required": False
+                        },
+                        "access_token": {
+                            "type": "string",
+                            "description": "Intercom access token",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "get_conversations",
+                    "name": "Get Conversations",
+                    "description": "Retrieve all conversations",
+                    "parameters": {
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of conversations to retrieve",
+                            "required": False
+                        },
+                        "access_token": {
+                            "type": "string",
+                            "description": "Intercom access token",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "get_admins",
+                    "name": "Get Admins",
+                    "description": "Retrieve all administrators",
+                    "parameters": {
+                        "access_token": {
+                            "type": "string",
+                            "description": "Intercom access token",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
+                }
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["query", "limit"],
+            "rate_limits": {
+                "requests_per_minute": 200,
+                "requests_per_hour": 10000
+            },
+            "supports_webhooks": True
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("intercom"):
-                logger.warning(f"Circuit breaker is open for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Intercom integration temporarily disabled"
-                )
+            if context and context.get("tenant_id") and context.get("tenant_id") != self.tenant_id:
+                return {"success": False, "error": "Tenant mismatch", "details": {}}
+                
+            access_token = self.config.get("intercom_access_token") or parameters.get("access_token")
+            if not access_token:
+                return {"success": False, "error": "Missing access token", "details": {}}
+                
+            if operation == "search_contacts":
+                query = parameters.get("query", "")
+                res = await self.search_contacts(access_token, query)
+                return {"success": True, "result": res, "error": None, "details": {}}
+            elif operation == "get_contacts":
+                limit = parameters.get("limit", 20)
+                res = await self.get_contacts(access_token, limit)
+                return {"success": True, "result": res, "error": None, "details": {}}
+            elif operation == "get_conversations":
+                limit = parameters.get("limit", 20)
+                res = await self.get_conversations(access_token, limit)
+                return {"success": True, "result": res, "error": None, "details": {}}
+            elif operation == "get_admins":
+                res = await self.get_admins(access_token)
+                return {"success": True, "result": res, "error": None, "details": {}}
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported")
+        except Exception as e:
+            logger.error(f"Error in Intercom operations: {e}")
+            return {"success": False, "error": str(e), "details": {}}
 
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("intercom")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for intercom"
-                )
-
+    async def close(self):
         await self.client.aclose()
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
@@ -51,28 +147,6 @@ class IntercomService:
         }
 
     async def exchange_token(self, code: str) -> Dict[str, Any]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("intercom", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("intercom"):
-                logger.warning(f"Circuit breaker is open for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Intercom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("intercom")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for intercom"
-                )
-
         url = f"{self.base_url}/auth/eagle/token"
         data = {
             "code": code,
@@ -84,28 +158,6 @@ class IntercomService:
         return response.json()
 
     async def get_admins(self, access_token: str) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("intercom", "get_admins", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("intercom"):
-                logger.warning(f"Circuit breaker is open for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Intercom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("intercom")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for intercom"
-                )
-
         url = f"{self.base_url}/admins"
         headers = self._get_headers(access_token)
         response = await self.client.get(url, headers=headers)
@@ -113,28 +165,6 @@ class IntercomService:
         return response.json().get("admins", [])
 
     async def get_contacts(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("intercom", "get_contacts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("intercom"):
-                logger.warning(f"Circuit breaker is open for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Intercom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("intercom")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for intercom"
-                )
-
         url = f"{self.base_url}/contacts"
         headers = self._get_headers(access_token)
         params = {"per_page": limit}
@@ -143,28 +173,6 @@ class IntercomService:
         return response.json().get("data", [])
 
     async def get_conversations(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("intercom", "get_conversations", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("intercom"):
-                logger.warning(f"Circuit breaker is open for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Intercom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("intercom")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for intercom"
-                )
-
         url = f"{self.base_url}/conversations"
         headers = self._get_headers(access_token)
         params = {"per_page": limit}
@@ -173,28 +181,6 @@ class IntercomService:
         return response.json().get("conversations", [])
 
     async def search_contacts(self, access_token: str, query: str) -> List[Dict[str, Any]]:
-        # Start audit logging
-        audit_ctx = log_integration_attempt("intercom", "search_contacts", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("intercom"):
-                logger.warning(f"Circuit breaker is open for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Intercom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("intercom")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for intercom"
-                )
-
         url = f"{self.base_url}/contacts/search"
         headers = self._get_headers(access_token)
         data = {
@@ -208,42 +194,20 @@ class IntercomService:
         response.raise_for_status()
         return response.json().get("data", [])
 
-    async def health_check(self) -> Dict[str, Any]:
-        """Health check for Intercom service"""
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Check Intercom API connectivity.
+
+        Returns:
+            Dict with health status
+        """
+        has_credentials = bool(self.client_id and self.client_secret)
         return {
-            "ok": True,
-            "status": "healthy",
+            "healthy": has_credentials,
+            "status": "healthy" if has_credentials else "unconfigured",
+            "message": "Configured" if has_credentials else "Missing credentials",
             "service": "intercom",
-            "timestamp": datetime.now().isoformat(),
-            "configured": bool(self.client_id and self.client_secret)
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "configured": has_credentials,
+            "last_check": datetime.now(timezone.utc).isoformat()
         }
-
-
-intercom_service = IntercomService()
-
-
-def get_intercom_service() -> IntercomService:
-    return intercom_service
-
-
-        # Start audit logging
-        audit_ctx = log_integration_attempt("intercom", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("intercom"):
-                logger.warning(f"Circuit breaker is open for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Intercom integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("intercom")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for intercom")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for intercom"
-                )

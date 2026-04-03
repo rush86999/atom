@@ -1,29 +1,57 @@
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class OpenClawService:
+class OpenClawService(IntegrationService):
     """
     Service for interacting with OpenClaw (self-hosted AI automation instances).
     Supports sending messages and triggering workflows via remote webhook.
     """
-    def __init__(self):
-        # The user should configure their OpenClaw gateway URL here
-        # e.g. https://openclaw.my-domain.com/webhook/atom or an ngrok URL
-        self.webhook_url = os.getenv("OPENCLAW_WEBHOOK_URL")
-        self.api_key = os.getenv("OPENCLAW_API_KEY") # Optional auth
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.webhook_url = self.config.get("openclaw_webhook_url")
+        self.api_key = self.config.get("openclaw_api_key")
         self.client = httpx.AsyncClient(timeout=30.0)
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": [{"id": "send_message", "name": "Send Message"}],
+            "required_params": ["webhook_url"],
+            "optional_params": ["api_key"],
+            "rate_limits": {"requests_per_minute": 60},
+            "supports_webhooks": True
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        try:
+            if context and context.get("tenant_id") and context.get("tenant_id") != self.tenant_id:
+                return {"success": False, "error": "Tenant mismatch validation failed", "details": {}}
+                
+            if operation == "send_message":
+                recipient_id = parameters.get("recipient_id")
+                content = parameters.get("content")
+                if not recipient_id or not content:
+                    return {"success": False, "error": "Missing recipient_id or content", "details": {}}
+                thread_ts = parameters.get("thread_ts")
+                res = await self.send_message(recipient_id, content, thread_ts)
+                is_success = res.get("status") not in ["error", "skipped"]
+                return {"success": is_success, "result": res, "error": res.get("message"), "details": {}}
+            else:
+                raise NotImplementedError(f"Operation {operation} not supported")
+        except Exception as e:
+            return {"success": False, "error": str(e), "details": {}}
 
     async def close(self):
         """Close the HTTP client connection"""
@@ -40,28 +68,6 @@ class OpenClawService:
 
     async def send_message(self, recipient_id: str, content: str, thread_ts: Optional[str] = None) -> Dict[str, Any]:
         """
-        # Start audit logging
-        audit_ctx = log_integration_attempt("openclaw", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("openclaw"):
-                logger.warning(f"Circuit breaker is open for openclaw")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Openclaw integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("openclaw")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for openclaw")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for openclaw"
-                )
-
         Send a message to an OpenClaw instance.
         
         Args:
@@ -69,28 +75,6 @@ class OpenClawService:
             content: The message text
             thread_ts: Optional thread ID to reply to
         """
-        # Start audit logging
-        audit_ctx = log_integration_attempt("openclaw", "send_message", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("openclaw"):
-                logger.warning(f"Circuit breaker is open for openclaw")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Openclaw integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("openclaw")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for openclaw")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for openclaw"
-                )
-
         if not self.webhook_url:
             logger.warning("OPENCLAW_WEBHOOK_URL not configured. Cannot send message.")
             return {"status": "skipped", "reason": "configuration_missing"}
@@ -99,7 +83,7 @@ class OpenClawService:
             "type": "message",
             "recipient_id": recipient_id,
             "content": content,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
         if thread_ts:
             payload["thread_ts"] = thread_ts
@@ -117,59 +101,39 @@ class OpenClawService:
             logger.error(f"Failed to send message to OpenClaw: {e}")
             return {"status": "error", "message": str(e)}
 
-    async def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> Dict[str, Any]:
         """Check if OpenClaw webhook URL is reachable"""
+        import requests
         if not self.webhook_url:
              return {
-                "ok": False,
+                "healthy": False,
                 "status": "not_configured",
                 "service": "openclaw",
-                "message": "OPENCLAW_WEBHOOK_URL not set"
+                "message": "webhook_url not set in config",
+                "last_check": datetime.now(timezone.utc).isoformat()
             }
             
         try:
-            # We assume the webhook endpoint accepts a health check ping or returns 405/200
-            # Sending a dummy ping
-            response = await self.client.post(
+            response = requests.post(
                 self.webhook_url,
                 json={"type": "ping"},
-                headers=self._get_headers()
+                headers=self._get_headers(),
+                timeout=10.0
             )
+            is_healthy = response.status_code < 500
             return {
-                "ok": response.status_code < 500,
-                "status": "reachable" if response.status_code < 500 else "error",
+                "healthy": is_healthy,
+                "status": "reachable" if is_healthy else "error",
                 "service": "openclaw",
-                "status_code": response.status_code
+                "status_code": response.status_code,
+                "message": "Connected" if is_healthy else f"Status {response.status_code}",
+                "last_check": datetime.now(timezone.utc).isoformat()
             }
         except Exception as e:
             return {
-                "ok": False,
+                "healthy": False,
                 "status": "unreachable",
                 "service": "openclaw",
-                "error": str(e)
+                "error": str(e),
+                "last_check": datetime.now(timezone.utc).isoformat()
             }
-
-# Singleton instance
-openclaw_service = OpenClawService()
-
-        # Start audit logging
-        audit_ctx = log_integration_attempt("openclaw", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("openclaw"):
-                logger.warning(f"Circuit breaker is open for openclaw")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Openclaw integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("openclaw")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for openclaw")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for openclaw"
-                )

@@ -386,23 +386,18 @@ class AtomVoiceAIService:
                     detail=f"Rate limit exceeded for atom_voice_ai"
                 )
 
-        try:
             start_time = time.time()
-            
             # Update analytics
             self.analytics_metrics['total_voice_requests'] += 1
             self.analytics_metrics['platform_distribution'][request.platform] += 1
             self.analytics_metrics['language_distribution'][request.language.value] += 1
-            
             # Security and compliance check
             if self.voice_config['enable_enterprise_features']:
                 security_check = await self._perform_security_check(request)
                 if not security_check['passed']:
                     return self._create_error_response(request, security_check['reason'])
-            
             # Preprocess audio
             audio_data = await self._preprocess_audio(request)
-            
             # Process based on task type
             if request.task_type == VoiceTaskType.TRANSCRIPTION:
                 response = await self._transcribe_audio(request, audio_data)
@@ -416,7 +411,6 @@ class AtomVoiceAIService:
                 response = await self._detect_emotion(request, audio_data)
             else:
                 response = self._create_error_response(request, "Unsupported task type")
-            
             # Update performance metrics
             processing_time = time.time() - start_time
             response.processing_time = processing_time
@@ -424,14 +418,13 @@ class AtomVoiceAIService:
             self.analytics_metrics['average_processing_time'] = (
                 self.analytics_metrics['average_processing_time'] * (self.analytics_metrics['total_voice_requests'] - 1) + processing_time
             ) / self.analytics_metrics['total_voice_requests']
-            
             # Log request for enterprise compliance
             if self.voice_config['enable_enterprise_features']:
                 await self._log_voice_request(request, response)
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error processing voice request: {e}")
             return self._create_error_response(request, str(e))
     
@@ -439,7 +432,6 @@ class AtomVoiceAIService:
         """Load voice AI models"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_voice_ai", "process_voice_request", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):
                 logger.warning(f"Circuit breaker is open for atom_voice_ai")
@@ -448,7 +440,6 @@ class AtomVoiceAIService:
                     status_code=503,
                     detail=f"Atom_voice_ai integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_ai")
             if is_limited:
@@ -458,7 +449,6 @@ class AtomVoiceAIService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_voice_ai"
                 )
-
         try:
             start_time = time.time()
             
@@ -491,27 +481,21 @@ class AtomVoiceAIService:
     
     async def _transcribe_audio(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Transcribe audio to text"""
-        try:
             start_time = time.time()
-            
             # Use Whisper for transcription
             import tempfile
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_file.write(audio_data)
                 temp_file.flush()
-                
                 # Transcribe with Whisper
                 result = self.whisper_model.transcribe(
                     temp_file.name,
                     language=request.language.value if request.language != VoiceLanguage.ENGLISH else None
                 )
-                
                 text = result['text']
                 confidence = result.get('avg_logprob', 0.0)
-                
                 # Clean up temp file
                 os.unlink(temp_file.name)
-            
             # Update analytics
             transcription_time = time.time() - start_time
             self.performance_metrics['transcription_time'] = transcription_time
@@ -520,7 +504,6 @@ class AtomVoiceAIService:
             self.analytics_metrics['average_confidence'] = (
                 self.analytics_metrics['average_confidence'] * (self.analytics_metrics['total_transcriptions'] - 1) + confidence
             ) / self.analytics_metrics['total_transcriptions']
-            
             # Create response
             response = VoiceResponse(
                 request_id=request.request_id,
@@ -537,44 +520,36 @@ class AtomVoiceAIService:
                 processing_time=transcription_time,
                 metadata={'model': 'whisper', 'segments': result.get('segments', [])}
             )
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error transcribing audio: {e}")
             return self._create_error_response(request, str(e))
     
     async def _translate_speech(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Translate speech from one language to another"""
-        try:
             start_time = time.time()
-            
             # First transcribe the audio
             transcription_response = await self._transcribe_audio(request, audio_data)
             if not transcription_response.success:
                 return transcription_response
-            
             # Then translate the transcribed text
             translator = pipeline("translation", model=self.translation_model)
-            
             # Determine source and target languages
             source_lang = request.language.value
             target_lang = request.metadata.get('target_language', 'en')
-            
             translation_result = translator(
                 transcription_response.text,
                 src_lang=source_lang,
                 tgt_lang=target_lang
             )
-            
             translated_text = translation_result[0]['translation_text']
-            
             # Update analytics
             translation_time = time.time() - start_time
             self.performance_metrics['translation_time'] = translation_time
             self.analytics_metrics['total_translations'] += 1
             self.analytics_metrics['successful_translations'] += 1
-            
             # Create response
             response = VoiceResponse(
                 request_id=request.request_id,
@@ -598,28 +573,24 @@ class AtomVoiceAIService:
                     'translation_model': self.voice_config['translation_model']
                 }
             )
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error translating speech: {e}")
             return self._create_error_response(request, str(e))
     
     async def _recognize_command(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Recognize voice command"""
-        try:
             start_time = time.time()
-            
             # First transcribe the audio
             transcription_response = await self._transcribe_audio(request, audio_data)
             if not transcription_response.success:
                 return transcription_response
-            
             # Analyze text for command patterns
             command_text = transcription_response.text.lower().strip()
             matched_command = None
             highest_confidence = 0.0
-            
             for command_type, patterns in self.command_patterns.items():
                 for pattern in patterns['patterns']:
                     if pattern in command_text:
@@ -632,16 +603,13 @@ class AtomVoiceAIService:
                                 'parameters': self._extract_command_parameters(command_text, pattern),
                                 'confidence': confidence
                             }
-            
             # Update analytics
             command_time = time.time() - start_time
             self.performance_metrics['command_recognition_time'] = command_time
             self.analytics_metrics['total_command_recognitions'] += 1
-            
             if matched_command:
                 self.analytics_metrics['successful_commands'] += 1
                 self.analytics_metrics['command_distribution'][matched_command['type']] += 1
-            
             # Create response
             response = VoiceResponse(
                 request_id=request.request_id,
@@ -661,28 +629,24 @@ class AtomVoiceAIService:
                     'command_patterns': list(self.command_patterns.keys())
                 }
             )
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error recognizing command: {e}")
             return self._create_error_response(request, str(e))
     
     async def _analyze_sentiment(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Analyze sentiment from voice"""
-        try:
             start_time = time.time()
-            
             # First transcribe the audio
             transcription_response = await self._transcribe_audio(request, audio_data)
             if not transcription_response.success:
                 return transcription_response
-            
             # Analyze sentiment
             sentiment_result = self.sentiment_model(transcription_response.text)
             sentiment_label = sentiment_result[0]['label'].upper()
             sentiment_confidence = sentiment_result[0]['score']
-            
             # Map to sentiment enum
             if 'POSITIVE' in sentiment_label:
                 sentiment = VoiceSentiment.POSITIVE
@@ -690,13 +654,11 @@ class AtomVoiceAIService:
                 sentiment = VoiceSentiment.NEGATIVE
             else:
                 sentiment = VoiceSentiment.NEUTRAL
-            
             # Update analytics
             sentiment_time = time.time() - start_time
             self.performance_metrics['sentiment_analysis_time'] = sentiment_time
             self.analytics_metrics['total_sentiment_analyses'] += 1
             self.analytics_metrics['sentiment_distribution'][sentiment.value] += 1
-            
             # Create response
             response = VoiceResponse(
                 request_id=request.request_id,
@@ -717,41 +679,34 @@ class AtomVoiceAIService:
                     'sentiment_score': sentiment_confidence
                 }
             )
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error analyzing sentiment: {e}")
             return self._create_error_response(request, str(e))
     
     async def _detect_emotion(self, request: VoiceRequest, audio_data: bytes) -> VoiceResponse:
         """Detect emotion from voice"""
-        try:
             start_time = time.time()
-            
             # For emotion detection, we need to analyze the audio directly
             # This would use a specialized emotion recognition model
             # For now, we'll use a simplified approach
-            
             # Load audio for analysis
             import tempfile
             with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
                 temp_file.write(audio_data)
                 temp_file.flush()
-                
                 # Analyze audio features (simplified)
                 y, sr = librosa.load(temp_file.name, sr=16000)
-                
                 # Extract audio features
                 mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
                 spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
                 zero_crossing_rate = librosa.feature.zero_crossing_rate(y)
-                
                 # Simple emotion detection based on audio features
                 # In a real implementation, this would use a trained model
                 avg_centroid = np.mean(spectral_centroid)
                 avg_zcr = np.mean(zero_crossing_rate)
-                
                 # Simple heuristic for emotion detection
                 if avg_centroid > 2000 and avg_zcr > 0.1:
                     emotion = VoiceEmotion.EXCITED
@@ -761,18 +716,14 @@ class AtomVoiceAIService:
                     emotion = VoiceEmotion.ANGRY
                 else:
                     emotion = VoiceEmotion.NEUTRAL
-                
                 confidence = 0.7  # Simplified confidence score
-                
                 # Clean up temp file
                 os.unlink(temp_file.name)
-            
             # Update analytics
             emotion_time = time.time() - start_time
             self.performance_metrics['emotion_detection_time'] = emotion_time
             self.analytics_metrics['total_emotion_detections'] += 1
             self.analytics_metrics['emotion_distribution'][emotion.value] += 1
-            
             # Create response
             response = VoiceResponse(
                 request_id=request.request_id,
@@ -793,18 +744,16 @@ class AtomVoiceAIService:
                     'avg_zcr': avg_zcr
                 }
             )
-            
             return response
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error detecting emotion: {e}")
             return self._create_error_response(request, str(e))
     
     async def _preprocess_audio(self, request: VoiceRequest) -> bytes:
         """Preprocess audio data"""
-        try:
             start_time = time.time()
-            
             # Convert audio to standard format if needed
             if request.format != VoiceFormat.WAV:
                 audio = AudioSegment.from_file(request.audio_path if request.audio_path else BytesIO(request.audio_data))
@@ -813,20 +762,19 @@ class AtomVoiceAIService:
                 audio_data = audio.export(format='wav').read()
             else:
                 audio_data = request.audio_data
-            
             # Update preprocessing time
             preprocessing_time = time.time() - start_time
             self.performance_metrics['audio_preprocessing_time'] = preprocessing_time
-            
             return audio_data
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error preprocessing audio: {e}")
             return request.audio_data or b''
     
     async def _initialize_command_patterns(self):
         """Initialize voice command patterns"""
-        try:
             self.command_patterns = {
                 'start_meeting': {
                     'patterns': ['start meeting', 'begin meeting', 'create meeting', 'schedule meeting'],
@@ -861,37 +809,35 @@ class AtomVoiceAIService:
                     'parameters': ['type', 'scope']
                 }
             }
-            
             logger.info("Voice command patterns initialized")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error initializing command patterns: {e}")
     
     def _extract_command_parameters(self, command_text: str, pattern: str) -> Dict[str, Any]:
         """Extract parameters from command text"""
-        try:
             # Simplified parameter extraction
             # In a real implementation, this would use NLP techniques
             parameters = {}
-            
             # Remove the pattern from the command text
             remaining_text = command_text.replace(pattern, '').strip()
-            
             # Simple parameter parsing
             if 'to' in remaining_text:
                 parts = remaining_text.split('to')
                 if len(parts) > 1:
                     parameters['target_language'] = parts[1].strip()
-            
             return parameters
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error extracting command parameters: {e}")
             return {}
     
     async def _setup_enterprise_features(self):
         """Setup enterprise features"""
-        try:
             # Setup voice data retention policies
             self.voice_data_retention = {
                 'transcriptions': 365,  # days
@@ -899,7 +845,6 @@ class AtomVoiceAIService:
                 'analysis_data': 180, # days
                 'auto_delete': True
             }
-            
             # Setup voice compliance monitoring
             self.voice_compliance_monitoring = {
                 'content_filtering': True,
@@ -907,15 +852,15 @@ class AtomVoiceAIService:
                 'speaker_identification': True,
                 'encryption_required': True
             }
-            
             logger.info("Enterprise features setup complete")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up enterprise features: {e}")
     
     async def _setup_security_and_compliance(self):
         """Setup security and compliance monitoring"""
-        try:
             # Setup voice security policies
             self.voice_security_policies = {
                 'voice_authentication': {
@@ -934,7 +879,6 @@ class AtomVoiceAIService:
                     'user_permissions': True
                 }
             }
-            
             # Setup compliance standards
             self.voice_compliance_standards = {
                 'gdpr': {
@@ -953,41 +897,41 @@ class AtomVoiceAIService:
                     'data_protection': True
                 }
             }
-            
             logger.info("Security and compliance setup complete")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up security and compliance: {e}")
     
     async def _load_voice_profiles(self):
         """Load existing voice profiles"""
-        try:
             # Mock implementation - would load from database
             logger.info("Voice profiles loaded")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error loading voice profiles: {e}")
     
     async def _perform_security_check(self, request: VoiceRequest) -> Dict[str, Any]:
         """Perform security check on voice request"""
-        try:
             if not self.enterprise_security:
                 return {'passed': True}
-            
             # Check user permissions
             # Check audio size limits
             # Check content policies
             # Check rate limits
-            
             return {'passed': True}
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing security check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _log_voice_request(self, request: VoiceRequest, response: VoiceResponse):
         """Log voice request for enterprise compliance"""
-        try:
             if self.enterprise_security:
                 await self.enterprise_security.audit_event({
                     'event_type': 'voice_ai_request',
@@ -1007,8 +951,10 @@ class AtomVoiceAIService:
                         'request_id': request.request_id
                     }
                 })
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error logging voice request: {e}")
     
     def _create_error_response(self, request: VoiceRequest, error_message: str) -> VoiceResponse:
@@ -1031,7 +977,6 @@ class AtomVoiceAIService:
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Voice AI service status"""
-        try:
             return {
                 'service': 'voice_ai',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -1053,6 +998,8 @@ class AtomVoiceAIService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'voice_ai'}
     
@@ -1060,7 +1007,6 @@ class AtomVoiceAIService:
         """Close Voice AI Service"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_voice_ai", "get_service_status", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):
                 logger.warning(f"Circuit breaker is open for atom_voice_ai")
@@ -1069,7 +1015,6 @@ class AtomVoiceAIService:
                     status_code=503,
                     detail=f"Atom_voice_ai integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_ai")
             if is_limited:
@@ -1079,7 +1024,6 @@ class AtomVoiceAIService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_voice_ai"
                 )
-
         try:
             # Unload models
             self.whisper_model = None
@@ -1126,7 +1070,6 @@ if _atom_ai:
 atom_voice_ai_service = AtomVoiceAIService(_atom_voice_config)
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_voice_ai", "close", locals())
-        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("atom_voice_ai"):
                 logger.warning(f"Circuit breaker is open for atom_voice_ai")
@@ -1135,7 +1078,6 @@ atom_voice_ai_service = AtomVoiceAIService(_atom_voice_config)
                     status_code=503,
                     detail=f"Atom_voice_ai integration temporarily disabled"
                 )
-
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("atom_voice_ai")
             if is_limited:

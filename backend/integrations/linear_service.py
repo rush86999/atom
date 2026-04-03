@@ -3,29 +3,27 @@ Linear Service for ATOM Platform
 Provides comprehensive Linear project management integration functionality
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
-
 
 logger = logging.getLogger(__name__)
 
-class LinearService:
-    def __init__(self):
-        self.client_id = os.getenv("LINEAR_CLIENT_ID")
-        self.client_secret = os.getenv("LINEAR_CLIENT_SECRET")
+from core.integration_service import IntegrationService
+
+class LinearService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.client_id = config.get("client_id") or os.getenv("LINEAR_CLIENT_ID")
+        self.client_secret = config.get("client_secret") or os.getenv("LINEAR_CLIENT_SECRET")
         self.base_url = "https://api.linear.app"
         self.graphql_url = "https://api.linear.app/graphql"
         self.auth_url = "https://linear.app/oauth/authorize"
         self.token_url = "https://api.linear.app/oauth/token"
-        self.access_token = os.getenv("LINEAR_ACCESS_TOKEN")
+        self.access_token = config.get("access_token") or os.getenv("LINEAR_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
@@ -34,28 +32,6 @@ class LinearService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
-
         return {
             "Authorization": access_token,
             "Content-Type": "application/json"
@@ -102,28 +78,6 @@ class LinearService:
 
     async def _graphql_query(self, query: str, variables: Dict = None, access_token: str = None) -> Dict[str, Any]:
         """Execute a GraphQL query"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "exchange_token", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
-
         try:
             token = access_token or self.access_token
             if not token:
@@ -152,28 +106,6 @@ class LinearService:
     async def get_viewer(self, access_token: str = None) -> Dict[str, Any]:
         """Get current user information"""
         query = """
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "get_viewer", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
-
             query {
                 viewer {
                     id
@@ -228,28 +160,6 @@ class LinearService:
     async def get_teams(self, access_token: str = None, first: int = 50) -> List[Dict[str, Any]]:
         """Get teams"""
         query = f"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "get_teams", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
-
             query {{
                 teams(first: {first}) {{
                     nodes {{
@@ -268,28 +178,6 @@ class LinearService:
     async def get_projects(self, access_token: str = None, first: int = 50) -> List[Dict[str, Any]]:
         """Get projects"""
         query = f"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "get_projects", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
-                )
-
             query {{
                 projects(first: {first}) {{
                     nodes {{
@@ -389,50 +277,159 @@ class LinearService:
         result = await self._graphql_query(query, variables, access_token)
         return result.get("data", {}).get("projectCreate", {})
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Linear integration capabilities"""
+        return {
+            "operations": [
+                {"id": "get_issues", "description": "Get issues from Linear"},
+                {"id": "create_issue", "description": "Create a new issue"},
+                {"id": "get_teams", "description": "Get teams"},
+                {"id": "get_projects", "description": "Get projects"},
+                {"id": "create_project", "description": "Create a new project"},
+                {"id": "get_viewer", "description": "Get current user info"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["team_id", "first"],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True,
+        }
+
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Linear service"""
         try:
             return {
-                "ok": True,
-                "status": "healthy",
-                "service": "linear",
-                "timestamp": datetime.now().isoformat(),
-                "version": "1.0.0",
+                "healthy": True,
+                "message": "Linear service is healthy",
+                "last_check": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
             return {
-                "ok": False,
-                "status": "unhealthy",
-                "service": "linear",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "healthy": False,
+                "message": f"Linear service unhealthy: {str(e)}",
+                "last_check": datetime.now(timezone.utc).isoformat(),
             }
 
-# Singleton instance
-linear_service = LinearService()
-
-def get_linear_service() -> LinearService:
-    """Get Linear service instance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("linear", "health_check", locals())
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute Linear operation with tenant context"""
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("linear"):
-                logger.warning(f"Circuit breaker is open for linear")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Linear integration temporarily disabled"
-                )
+            access_token = parameters.get("access_token")
 
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("linear")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for linear")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for linear"
+            if operation == "get_issues":
+                issues = await self.get_issues(
+                    access_token=access_token,
+                    first=parameters.get("first", 50),
+                    team_id=parameters.get("team_id")
                 )
+                return {"success": True, "result": issues}
 
-    return linear_service
+            elif operation == "create_issue":
+                issue = await self.create_issue(
+                    title=parameters["title"],
+                    team_id=parameters["team_id"],
+                    access_token=access_token,
+                    description=parameters.get("description"),
+                    priority=parameters.get("priority"),
+                    assignee_id=parameters.get("assignee_id")
+                )
+                return {"success": True, "result": issue}
+
+            elif operation == "get_teams":
+                teams = await self.get_teams(access_token=access_token)
+                return {"success": True, "result": teams}
+
+            elif operation == "get_projects":
+                projects = await self.get_projects(access_token=access_token)
+                return {"success": True, "result": projects}
+
+            elif operation == "create_project":
+                project = await self.create_project(
+                    name=parameters["name"],
+                    team_ids=parameters["team_ids"],
+                    access_token=access_token,
+                    description=parameters.get("description"),
+                    state=parameters.get("state", "planned")
+                )
+                return {"success": True, "result": project}
+
+            elif operation == "get_viewer":
+                viewer = await self.get_viewer(access_token=access_token)
+                return {"success": True, "result": viewer}
+
+            else:
+                return {"success": False, "error": f"Unknown operation: {operation}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
+        """Sync Linear analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get issues and teams
+            issues = await self.get_issues(access_token)
+            teams = await self.get_teams(access_token)
+            projects = await self.get_projects(access_token)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("linear_issue_count", len(issues), "count"),
+                    ("linear_team_count", len(teams), "count"),
+                    ("linear_project_count", len(projects), "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="linear",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="linear",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Linear metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Linear metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Linear PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Linear"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+

@@ -3,26 +3,30 @@ GitHub Service for ATOM Platform
 Provides comprehensive GitHub integration functionality
 """
 
-from datetime import datetime, timedelta
 import json
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlencode
+from datetime import datetime, timezone, timedelta
 import requests
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+from urllib.parse import urlencode
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class GitHubService:
+class GitHubService(IntegrationService):
     """GitHub API integration service"""
-    
-    def __init__(self, access_token: Optional[str] = None):
-        self.access_token = access_token or os.getenv('GITHUB_ACCESS_TOKEN')
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize GitHub service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with access_token
+        """
+        super().__init__(tenant_id, config)
+        self.access_token = config.get('access_token')
         self.base_url = "https://api.github.com"
         self.session = requests.Session()
         if self.access_token:
@@ -31,7 +35,162 @@ class GitHubService:
                 'Accept': 'application/vnd.github.v3+json',
                 'User-Agent': 'ATOM-Platform/1.0'
             })
-    
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return GitHub integration capabilities"""
+        return {
+            "operations": [
+                {"id": "list_repositories", "description": "List user repositories"},
+                {"id": "get_repository", "description": "Get repository details"},
+                {"id": "create_repository", "description": "Create a new repository"},
+                {"id": "list_issues", "description": "List repository issues"},
+                {"id": "create_issue", "description": "Create a new issue"},
+                {"id": "list_pulls", "description": "List pull requests"},
+                {"id": "create_pull", "description": "Create a pull request"},
+                {"id": "search_repositories", "description": "Search repositories"},
+                {"id": "get_commits", "description": "Get repository commits"},
+                {"id": "get_workflow_runs", "description": "Get GitHub Actions workflows"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["owner", "repo", "state", "sort"],
+            "rate_limits": {"requests_per_hour": 5000},
+            "supports_webhooks": True
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if GitHub service is healthy"""
+        try:
+            response = self.session.get(f"{self.base_url}/user")
+            if response.status_code == 200:
+                user_data = response.json()
+                return {
+                    "healthy": True,
+                    "message": "GitHub connection successful",
+                    "user": user_data.get('login'),
+                    "last_check": datetime.now(timezone.utc).isoformat()
+                }
+            else:
+                return {
+                    "healthy": False,
+                    "message": f"Authentication failed: {response.status_code}",
+                    "last_check": datetime.now(timezone.utc).isoformat()
+                }
+        except Exception as e:
+            logger.error(f"GitHub health check failed: {e}")
+            return {
+                "healthy": False,
+                "message": str(e),
+                "last_check": datetime.now(timezone.utc).isoformat()
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a GitHub operation with tenant context.
+
+        Args:
+            operation: Operation name
+            parameters: Operation parameters
+            context: Tenant context dict with tenant_id
+
+        Returns:
+            Dict with success status and result
+        """
+        # Validate tenant context
+        if context and 'tenant_id' in context:
+            tenant_id = context.get('tenant_id')
+            if tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: expected {self.tenant_id}, got {tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID mismatch",
+                    "operation": operation
+                }
+
+        # Execute operation based on operation name
+        try:
+            if operation == "list_repositories":
+                repos = self.get_user_repositories(
+                    type=parameters.get('type', 'all')
+                )
+                return {"success": True, "result": repos}
+            elif operation == "get_repository":
+                repo = self.get_repository(
+                    owner=parameters.get('owner'),
+                    repo=parameters.get('repo')
+                )
+                return {"success": bool(repo), "result": repo}
+            elif operation == "list_issues":
+                issues = self.get_repository_issues(
+                    owner=parameters.get('owner'),
+                    repo=parameters.get('repo'),
+                    state=parameters.get('state', 'open')
+                )
+                return {"success": True, "result": issues}
+            elif operation == "create_issue":
+                issue = self.create_issue(
+                    owner=parameters.get('owner'),
+                    repo=parameters.get('repo'),
+                    title=parameters.get('title'),
+                    body=parameters.get('body', ''),
+                    labels=parameters.get('labels')
+                )
+                return {"success": bool(issue), "result": issue}
+            elif operation == "list_pulls":
+                pulls = self.get_repository_pulls(
+                    owner=parameters.get('owner'),
+                    repo=parameters.get('repo'),
+                    state=parameters.get('state', 'open')
+                )
+                return {"success": True, "result": pulls}
+            elif operation == "create_pull":
+                pr = self.create_pull_request(
+                    owner=parameters.get('owner'),
+                    repo=parameters.get('repo'),
+                    title=parameters.get('title'),
+                    head=parameters.get('head'),
+                    base=parameters.get('base'),
+                    body=parameters.get('body', '')
+                )
+                return {"success": bool(pr), "result": pr}
+            elif operation == "search_repositories":
+                results = self.search_repositories(
+                    query=parameters.get('query', ''),
+                    sort=parameters.get('sort', 'updated'),
+                    order=parameters.get('order', 'desc')
+                )
+                return {"success": True, "result": results}
+            elif operation == "get_commits":
+                commits = self.get_user_commits(
+                    owner=parameters.get('owner'),
+                    repo=parameters.get('repo'),
+                    since=parameters.get('since')
+                )
+                return {"success": True, "result": commits}
+            elif operation == "get_workflow_runs":
+                workflows = self.get_workflow_runs(
+                    owner=parameters.get('owner'),
+                    repo=parameters.get('repo')
+                )
+                return {"success": True, "result": workflows}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "operation": operation
+                }
+        except Exception as e:
+            logger.error(f"Error executing GitHub operation {operation}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "operation": operation
+            }
+
     def test_connection(self) -> Dict[str, Any]:
         """Test GitHub API connection"""
         try:
@@ -210,9 +369,65 @@ class GitHubService:
             logger.error(f"Failed to get user profile: {e}")
             return None
 
-# Singleton instance for global access
-github_service = GitHubService()
+    def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
+        """Sync GitHub analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get repositories
+            repos = self.get_user_repositories()
+            repo_count = len(repos)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("github_repository_count", repo_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="github",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="github",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} GitHub metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving GitHub metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"GitHub PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-def get_github_service() -> GitHubService:
-    """Get GitHub service instance"""
-    return github_service
+    def full_sync(self, workspace_id: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for GitHub"""
+        cache_result = self.sync_to_postgres_cache(workspace_id)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }

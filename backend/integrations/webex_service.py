@@ -1,22 +1,27 @@
 import logging
-import os
 from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
 from fastapi import HTTPException
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class WebexService:
+class WebexService(IntegrationService):
     """Cisco Webex API Service"""
-    
-    def __init__(self):
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Webex service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with access_token
+        """
+        super().__init__(tenant_id, config)
         self.base_url = "https://webexapis.com/v1"
-        self.access_token = os.getenv("WEBEX_ACCESS_TOKEN")
+        self.access_token = config.get("access_token")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     def _get_headers(self) -> Dict[str, str]:
@@ -45,57 +50,71 @@ class WebexService:
             logger.error(f"Webex list_rooms failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    async def check_health(self) -> Dict[str, Any]:
-        """Check Webex connectivity"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("webex", "list_rooms", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("webex"):
-                logger.warning(f"Circuit breaker is open for webex")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Webex integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("webex")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for webex")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for webex"
-                )
-
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Webex integration capabilities"""
         return {
-            "status": "active" if self.access_token else "partially_configured",
-            "service": "webex",
-            "mode": "real" if self.access_token else "mock"
+            "operations": [
+                {
+                    "id": "list_rooms",
+                    "name": "List Rooms",
+                    "description": "List Webex rooms (Spaces)",
+                    "complexity": 1
+                },
+                {
+                    "id": "send_message",
+                    "name": "Send Message",
+                    "description": "Send message to a Webex room",
+                    "complexity": 3
+                }
+            ],
+            "required_params": ["access_token"],
+            "optional_params": [],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True
         }
 
-# Global instance
-webex_service = WebexService()
+    def health_check(self) -> Dict[str, Any]:
+        """Check Webex connectivity"""
+        return {
+            "healthy": bool(self.access_token),
+            "message": "Webex service is operational" if self.access_token else "Webex access token not configured",
+            "last_check": datetime.now(timezone.utc).isoformat()
+        }
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("webex", "check_health", locals())
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Webex operation with tenant context.
+
+        Args:
+            operation: Operation name (e.g., "list_rooms", "send_message")
+            parameters: Operation parameters
+            context: Tenant context dict
+
+        Returns:
+            Dict with success, result, error, details
+        """
         try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("webex"):
-                logger.warning(f"Circuit breaker is open for webex")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Webex integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("webex")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for webex")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for webex"
-                )
+            if operation == "list_rooms":
+                result = await self.list_rooms()
+                return {
+                    "success": True,
+                    "result": result,
+                    "details": {"operation": "list_rooms", "tenant_id": self.tenant_id}
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "details": {"operation": operation}
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"operation": operation, "tenant_id": self.tenant_id}
+            }
