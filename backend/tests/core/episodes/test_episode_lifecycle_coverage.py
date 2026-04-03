@@ -44,7 +44,8 @@ class TestEpisodeDecay:
             task_description="Old task",
             status="completed",
             started_at=datetime.now() - timedelta(days=100),
-            decay_score=1.0
+            decay_score=1.0,
+            outcome="success"
         )
         db_session.add(old_episode)
         db_session.commit()
@@ -80,7 +81,8 @@ class TestEpisodeDecay:
             task_description="Test task",
             status="completed",
             started_at=datetime.now() - timedelta(days=30),
-            decay_score=0.0
+            decay_score=0.0,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -103,7 +105,8 @@ class TestEpisodeDecay:
             task_description="Test task",
             status="completed",
             started_at=None,
-            decay_score=0.0
+            decay_score=0.0,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -125,7 +128,8 @@ class TestEpisodeDecay:
             task_description="Test task",
             status="completed",
             started_at=datetime.now() - timedelta(days=30),
-            decay_score=0.0
+            decay_score=0.0,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -225,7 +229,8 @@ class TestEpisodeConsolidation:
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
-            consolidated_into=None
+            consolidated_into=None,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -250,7 +255,8 @@ class TestEpisodeConsolidation:
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
-            consolidated_into=None
+            consolidated_into=None,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -279,7 +285,8 @@ class TestEpisodeArchival:
             agent_id="agent1",
             task_description="Test task",
             status="completed",
-            started_at=datetime.now()
+            started_at=datetime.now(),
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -313,7 +320,8 @@ class TestEpisodeArchival:
             agent_id="agent1",
             task_description="Test task",
             status="completed",
-            started_at=datetime.now()
+            started_at=datetime.now(),
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -343,7 +351,8 @@ class TestImportanceScores:
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
-            importance_score=0.5
+            importance_score=0.5,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -385,7 +394,8 @@ class TestImportanceScores:
             task_description="Test task",
             status="completed",
             started_at=datetime.now(),
-            importance_score=0.5
+            importance_score=0.5,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -454,7 +464,8 @@ class TestAccessCountUpdates:
             task_description="Task",
             status="completed",
             started_at=datetime.now(),
-            access_count=0
+            access_count=0,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -480,7 +491,8 @@ class TestArchiveEligibleEpisodes:
             task_description="Old task",
             status="completed",
             started_at=datetime.now() - timedelta(days=200),
-            decay_score=1.0
+            decay_score=1.0,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()
@@ -504,7 +516,8 @@ class TestArchiveEligibleEpisodes:
             task_description="Recent task",
             status="completed",
             started_at=datetime.now() - timedelta(days=30),
-            decay_score=0.3
+            decay_score=0.3,
+            outcome="success"
         )
         db_session.add(episode)
         db_session.commit()

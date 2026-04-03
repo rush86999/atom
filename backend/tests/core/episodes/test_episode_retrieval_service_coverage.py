@@ -54,7 +54,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 1",
             started_at=now - timedelta(hours=2),
             status="active",
-            maturity_at_time="INTERN"
+            maturity_at_time="INTERN",
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -63,7 +64,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 2",
             started_at=now,
             status="active",
-            maturity_at_time="INTERN"
+            maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add_all([ep1, ep2])
         db_session.commit()
@@ -120,7 +122,8 @@ class TestEpisodeRetrievalServiceCoverage:
             session_id="session1",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add_all([session, ep1])
         db_session.commit()
@@ -155,7 +158,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent task",
             started_at=now - timedelta(hours=1),
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -209,7 +213,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Machine learning workflow",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -269,7 +274,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Test task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -334,7 +340,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Sequential task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         seg1 = EpisodeSegment(
             id="seg1",
@@ -409,7 +416,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             canvas_ids=["canvas1"],
-            feedback_ids=["feedback1"]
+            feedback_ids=["feedback1"],
+            outcome="success"
         )
         seg1 = EpisodeSegment(
             id="seg1",
@@ -453,7 +461,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             canvas_ids=["canvas1"],
-            feedback_ids=["feedback1"]
+            feedback_ids=["feedback1"],
+            outcome="success"
         )
         seg1 = EpisodeSegment(
             id="seg1",
@@ -495,7 +504,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             canvas_action_count=1,
-            aggregate_feedback_score=0.5
+            aggregate_feedback_score=0.5,
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -504,7 +514,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Data processing task",
             started_at=now - timedelta(hours=1),
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add_all([ep1, ep2])
         db_session.commit()
@@ -550,7 +561,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             canvas_action_count=5,
-            aggregate_feedback_score=0.8  # Positive feedback
+            aggregate_feedback_score=0.8,  # Positive feedback
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -560,7 +572,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now - timedelta(hours=1),
             status="active",
             canvas_action_count=0,
-            aggregate_feedback_score=-0.5  # Negative feedback
+            aggregate_feedback_score=-0.5,  # Negative feedback
+            outcome="success"
         )
         db_session.add_all([ep1, ep2])
         db_session.commit()
@@ -605,7 +618,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             canvas_action_count=5,
-            feedback_ids=["feedback1"]
+            feedback_ids=["feedback1"],
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -614,7 +628,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task without canvas",
             started_at=now - timedelta(hours=1),
             status="active",
-            canvas_action_count=0
+            canvas_action_count=0,
+            outcome="success"
         )
         db_session.add_all([ep1, ep2])
         db_session.commit()
@@ -671,7 +686,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Test task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -709,7 +725,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Test task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -793,7 +810,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Test episode",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -818,7 +836,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Minimal episode",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -1007,7 +1026,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Canvas task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         seg1 = EpisodeSegment(
             id="seg1",
@@ -1064,7 +1084,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Sheets task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -1107,7 +1128,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Canvas task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         seg1 = EpisodeSegment(
             id="seg1",
@@ -1230,7 +1252,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Invoice approval task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         seg1 = EpisodeSegment(
             id="seg1",
@@ -1278,7 +1301,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="High revenue task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         seg1 = EpisodeSegment(
             id="seg1",
@@ -1358,7 +1382,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Spreadsheet task",
             started_at=now,
             status="active",
-            canvas_action_count=1
+            canvas_action_count=1,
+            outcome="success"
         )
         db_session.add_all([canvas, ep1])
         db_session.commit()
@@ -1399,7 +1424,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Form submission task",
             started_at=now,
             status="active",
-            canvas_action_count=1
+            canvas_action_count=1,
+            outcome="success"
         )
         db_session.add_all([canvas, ep1])
         db_session.commit()
@@ -1440,7 +1466,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Document task",
             started_at=now - timedelta(hours=1),
             status="active",
-            canvas_action_count=1
+            canvas_action_count=1,
+            outcome="success"
         )
         db_session.add_all([canvas, ep1])
         db_session.commit()
@@ -1477,7 +1504,8 @@ class TestEpisodeRetrievalServiceCoverage:
             supervisor_rating=5,
             intervention_count=1,
             intervention_types=["correction"],
-            supervision_feedback="Good performance"
+            supervision_feedback="Good performance",
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -1517,7 +1545,8 @@ class TestEpisodeRetrievalServiceCoverage:
             status="active",
             supervisor_id="supervisor1",
             supervisor_rating=5,
-            intervention_count=0
+            intervention_count=0,
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -1528,7 +1557,8 @@ class TestEpisodeRetrievalServiceCoverage:
             status="active",
             supervisor_id="supervisor1",
             supervisor_rating=2,
-            intervention_count=5
+            intervention_count=5,
+            outcome="success"
         )
         db_session.add_all([ep1, ep2])
         db_session.commit()
@@ -1575,7 +1605,8 @@ class TestEpisodeRetrievalServiceCoverage:
             status="active",
             supervisor_id="supervisor1",
             supervisor_rating=5,
-            intervention_count=0
+            intervention_count=0,
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -1586,7 +1617,8 @@ class TestEpisodeRetrievalServiceCoverage:
             status="active",
             supervisor_id="supervisor1",
             supervisor_rating=4,
-            intervention_count=1
+            intervention_count=1,
+            outcome="success"
         )
         db_session.add_all([ep1, ep2])
         db_session.commit()
@@ -1633,7 +1665,8 @@ class TestEpisodeRetrievalServiceCoverage:
             status="active",
             supervisor_id="supervisor1",
             supervisor_rating=4,
-            intervention_count=1
+            intervention_count=1,
+            outcome="success"
         )
         db_session.add(ep1)
         db_session.commit()
@@ -1701,7 +1734,8 @@ class TestEpisodeRetrievalServiceCoverage:
             supervisor_rating=5,
             intervention_count=2,
             intervention_types=["correction", "guidance"],
-            supervision_feedback="Needs improvement on accuracy"
+            supervision_feedback="Needs improvement on accuracy",
+            outcome="success"
         )
 
         context = service._create_supervision_context(ep1)
@@ -1729,7 +1763,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Unsupervised task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
 
         context = service._create_supervision_context(ep1)
@@ -1775,7 +1810,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             supervisor_rating=5,
-            intervention_count=0
+            intervention_count=0,
+            outcome="success"
         )
         quality = service._assess_outcome_quality(ep_excellent)
         assert quality == "excellent"
@@ -1789,7 +1825,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             supervisor_rating=5,
-            intervention_count=1
+            intervention_count=1,
+            outcome="success"
         )
         quality = service._assess_outcome_quality(ep_excellent2)
         assert quality == "excellent"
@@ -1803,7 +1840,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             supervisor_rating=4,
-            intervention_count=2
+            intervention_count=2,
+            outcome="success"
         )
         quality = service._assess_outcome_quality(ep_good)
         assert quality == "good"
@@ -1817,7 +1855,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             supervisor_rating=5,
-            intervention_count=2
+            intervention_count=2,
+            outcome="success"
         )
         quality = service._assess_outcome_quality(ep_good2)
         assert quality == "good"
@@ -1831,7 +1870,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             supervisor_rating=3,
-            intervention_count=3
+            intervention_count=3,
+            outcome="success"
         )
         quality = service._assess_outcome_quality(ep_fair)
         assert quality == "fair"
@@ -1845,7 +1885,8 @@ class TestEpisodeRetrievalServiceCoverage:
             started_at=now,
             status="active",
             supervisor_rating=2,
-            intervention_count=5
+            intervention_count=5,
+            outcome="success"
         )
         quality = service._assess_outcome_quality(ep_poor)
         assert quality == "poor"
@@ -1858,7 +1899,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Unknown task",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         quality = service._assess_outcome_quality(ep_unknown)
         assert quality == "unknown"
@@ -1878,7 +1920,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent high rated",
             started_at=now,
             status="active",
-            supervisor_rating=5
+            supervisor_rating=5,
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -1887,7 +1930,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent medium rated",
             started_at=now - timedelta(hours=1),
             status="active",
-            supervisor_rating=4
+            supervisor_rating=4,
+            outcome="success"
         )
         ep3 = Episode(
             id="ep3",
@@ -1896,7 +1940,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier low rated",
             started_at=now - timedelta(days=1),
             status="active",
-            supervisor_rating=2
+            supervisor_rating=2,
+            outcome="success"
         )
         ep4 = Episode(
             id="ep4",
@@ -1905,7 +1950,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier medium rated",
             started_at=now - timedelta(days=2),
             status="active",
-            supervisor_rating=3
+            supervisor_rating=3,
+            outcome="success"
         )
         ep5 = Episode(
             id="ep5",
@@ -1914,7 +1960,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier low rated 2",
             started_at=now - timedelta(days=3),
             status="active",
-            supervisor_rating=2
+            supervisor_rating=2,
+            outcome="success"
         )
 
         episodes = [ep1, ep2, ep3, ep4, ep5]
@@ -1938,7 +1985,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 1",
             started_at=now,
             status="active",
-            supervisor_rating=5
+            supervisor_rating=5,
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -1947,7 +1995,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 2",
             started_at=now - timedelta(hours=1),
             status="active",
-            supervisor_rating=3
+            supervisor_rating=3,
+            outcome="success"
         )
 
         episodes = [ep1, ep2]
@@ -1971,7 +2020,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 1",
             started_at=now,
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -1980,7 +2030,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 2",
             started_at=now - timedelta(hours=1),
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         ep3 = Episode(
             id="ep3",
@@ -1989,7 +2040,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 3",
             started_at=now - timedelta(days=1),
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         ep4 = Episode(
             id="ep4",
@@ -1998,7 +2050,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 4",
             started_at=now - timedelta(days=2),
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
         ep5 = Episode(
             id="ep5",
@@ -2007,7 +2060,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Task 5",
             started_at=now - timedelta(days=3),
             status="active",
-        maturity_at_time="INTERN"
+        maturity_at_time="INTERN",
+            outcome="success"
         )
 
         episodes = [ep1, ep2, ep3, ep4, ep5]
@@ -2031,7 +2085,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent low rated",
             started_at=now,
             status="active",
-            supervisor_rating=2
+            supervisor_rating=2,
+            outcome="success"
         )
         ep2 = Episode(
             id="ep2",
@@ -2040,7 +2095,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Recent medium rated",
             started_at=now - timedelta(hours=1),
             status="active",
-            supervisor_rating=3
+            supervisor_rating=3,
+            outcome="success"
         )
         ep3 = Episode(
             id="ep3",
@@ -2049,7 +2105,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier high rated",
             started_at=now - timedelta(days=1),
             status="active",
-            supervisor_rating=5
+            supervisor_rating=5,
+            outcome="success"
         )
         ep4 = Episode(
             id="ep4",
@@ -2058,7 +2115,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier high rated 2",
             started_at=now - timedelta(days=2),
             status="active",
-            supervisor_rating=4
+            supervisor_rating=4,
+            outcome="success"
         )
         ep5 = Episode(
             id="ep5",
@@ -2067,7 +2125,8 @@ class TestEpisodeRetrievalServiceCoverage:
             task_description="Earlier high rated 3",
             started_at=now - timedelta(days=3),
             status="active",
-            supervisor_rating=5
+            supervisor_rating=5,
+            outcome="success"
         )
 
         episodes = [ep1, ep2, ep3, ep4, ep5]

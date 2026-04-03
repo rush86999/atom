@@ -1,0 +1,64 @@
+version: '3.8'
+services:
+  atom-app-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    environment:
+      NODE_ENV: test
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: atom_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test_password_123}
+      DATABASE_URL: postgresql://test_user:${POSTGRES_PASSWORD:-test_password_123}@postgres:5432/atom_test
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET:-test_jwt_secret_key_for_testing}
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    networks:
+      - atom-test-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: atom_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-test_password_123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    networks:
+      - atom-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d atom_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - atom-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+networks:
+  atom-test-network:
+    driver: bridge

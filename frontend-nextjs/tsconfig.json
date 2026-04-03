@@ -16,7 +16,7 @@
     "strictNullChecks": false,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "baseUrl": ".",
@@ -97,7 +97,7 @@
         "./shared/property-tests/*"
       ]
     },
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
       {

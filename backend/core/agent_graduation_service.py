@@ -200,6 +200,10 @@ class AgentGraduationService:
         if not agent:
             return {"error": "Agent not found"}
 
+        # Validate target maturity level
+        if target_maturity not in self.CRITERIA:
+            return {"error": f"Unknown maturity level: {target_maturity}"}
+
         current_maturity = agent.status.value if hasattr(agent.status, 'value') else str(agent.status)
 
         # Use Ported EpisodeService for weighted readiness formula

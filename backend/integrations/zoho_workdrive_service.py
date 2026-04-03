@@ -161,7 +161,7 @@ class ZohoWorkDriveService:
                 return {"success": True, "files_synced": 0}
             
             with get_db_session() as db:
-            synced_count = 0
+                synced_count = 0
             try:
                 for f in files:
                     if f["type"] == "folder":

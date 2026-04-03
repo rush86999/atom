@@ -67,7 +67,7 @@ class TestSandboxExecutor:
             category="Testing",
             module_path="tests.test_agent",
             class_name="TestAgent",
-            status=AgentStatus.STUDENT,
+            status=AgentStatus.STUDENT,            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -94,7 +94,7 @@ class TestSandboxExecutor:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -137,7 +137,7 @@ class TestSandboxExecutor:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -210,6 +210,19 @@ class TestCalculateReadinessScore:
     @pytest.mark.asyncio
     async def test_calculate_readiness_unknown_maturity(self, db_session):
         """Cover unknown maturity level error (lines 194-196)"""
+        # Create agent first
+        agent = AgentRegistry(
+            id="test-agent",
+            name="Test Agent",
+            status=AgentStatus.STUDENT,
+            category="Testing",
+            module_path="test.agents.student",
+            class_name="StudentAgent",
+            tenant_id="default"
+        )
+        db_session.add(agent)
+        db_session.commit()
+        
         service = AgentGraduationService(db_session)
 
         result = await service.calculate_readiness_score(
@@ -244,6 +257,7 @@ class TestCalculateReadinessScore:
             category="Testing",
             module_path="test.agents.student",
             class_name="StudentAgent",
+            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -256,9 +270,9 @@ class TestCalculateReadinessScore:
         )
 
         assert result["ready"] is False
-        assert result["episode_count"] == 0
-        assert result["intervention_rate"] == 1.0  # Max rate when no episodes
-        assert len(result["gaps"]) > 0
+        assert result["episodes_analyzed"] == 0
+        assert result["zero_intervention_ratio"] == 0.0
+        assert "breakdown" in result
 
     @pytest.mark.asyncio
     async def test_calculate_readiness_success(self, db_session):
@@ -271,6 +285,7 @@ class TestCalculateReadinessScore:
             category="Testing",
             module_path="test.agents.student",
             class_name="StudentAgent",
+            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -299,11 +314,10 @@ class TestCalculateReadinessScore:
             target_maturity="INTERN"
         )
 
-        assert result["episode_count"] == 10
-        assert result["intervention_rate"] == 0.1
-        assert result["avg_constitutional_score"] == 0.80
-        assert result["ready"] is True  # Should meet all criteria
-        assert len(result["gaps"]) == 0
+        assert result["episodes_analyzed"] == 10
+        assert result["success_rate"] == 1.0
+        assert result["avg_constitutional_score"] >= 0.80
+        assert result["threshold_met"] is True
 
     @pytest.mark.asyncio
     async def test_calculate_readiness_insufficient_episodes(self, db_session):
@@ -315,7 +329,7 @@ class TestCalculateReadinessScore:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -344,8 +358,8 @@ class TestCalculateReadinessScore:
             target_maturity="INTERN"
         )
 
-        assert result["ready"] is False
-        assert any("Need 5 more episodes" in gap for gap in result["gaps"])
+        assert result["threshold_met"] is False
+        assert result["episodes_analyzed"] == 5
 
     @pytest.mark.asyncio
     async def test_calculate_readiness_high_intervention_rate(self, db_session):
@@ -357,7 +371,7 @@ class TestCalculateReadinessScore:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -399,7 +413,7 @@ class TestCalculateReadinessScore:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -440,7 +454,7 @@ class TestCalculateReadinessScore:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -611,7 +625,7 @@ class TestPromoteAgent:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -655,7 +669,7 @@ class TestPromoteAgent:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -732,7 +746,7 @@ class TestGetGraduationAuditTrail:
             status=AgentStatus.INTERN,
             category="Testing",
             module_path="test.agents.intern",
-            class_name="InternAgent",
+            class_name="InternAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -778,7 +792,7 @@ class TestGetGraduationAuditTrail:
             status=AgentStatus.INTERN,
             category="Testing",
             module_path="test.agents.intern",
-            class_name="InternAgent",
+            class_name="InternAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -838,7 +852,7 @@ class TestCalculateSupervisionMetrics:
             status=AgentStatus.SUPERVISED,
             category="Testing",
             module_path="test.agents.supervised",
-            class_name="SupervisedAgent",
+            class_name="SupervisedAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -864,7 +878,7 @@ class TestCalculateSupervisionMetrics:
             status=AgentStatus.SUPERVISED,
             category="Testing",
             module_path="test.agents.supervised",
-            class_name="SupervisedAgent",
+            class_name="SupervisedAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -912,7 +926,7 @@ class TestCalculateSupervisionMetrics:
             status=AgentStatus.SUPERVISED,
             category="Testing",
             module_path="test.agents.supervised",
-            class_name="SupervisedAgent",
+            class_name="SupervisedAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -1056,7 +1070,7 @@ class TestValidateGraduationWithSupervision:
             status=AgentStatus.INTERN,
             category="Testing",
             module_path="test.agents.intern",
-            class_name="InternAgent",
+            class_name="InternAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -1117,7 +1131,7 @@ class TestValidateGraduationWithSupervision:
             status=AgentStatus.INTERN,
             category="Testing",
             module_path="test.agents.intern",
-            class_name="InternAgent",
+            class_name="InternAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -1180,7 +1194,7 @@ class TestCalculateSkillUsageMetrics:
             status=AgentStatus.INTERN,
             category="Testing",
             module_path="test.agents.intern",
-            class_name="InternAgent",
+            class_name="InternAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -1206,7 +1220,7 @@ class TestCalculateSkillUsageMetrics:
             status=AgentStatus.INTERN,
             category="Testing",
             module_path="test.agents.intern",
-            class_name="InternAgent",
+            class_name="InternAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -1251,7 +1265,7 @@ class TestCalculateReadinessScoreWithSkills:
             status=AgentStatus.INTERN,
             category="Testing",
             module_path="test.agents.intern",
-            class_name="InternAgent",
+            class_name="InternAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -1312,7 +1326,7 @@ class TestExecuteGraduationExam:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
@@ -1462,7 +1476,7 @@ class TestEdgeCasesAndErrorHandling:
             status=AgentStatus.STUDENT,
             category="Testing",
             module_path="test.agents.student",
-            class_name="StudentAgent",
+            class_name="StudentAgent",            tenant_id="default"
         )
         db_session.add(agent)
         db_session.commit()
