@@ -7,11 +7,18 @@
 ## Current Position
 
 **Phase:** Phase 249 - Critical Test Fixes
-**Plan:** 02 - Canvas Error Handling Fixes (Next)
+**Plan:** 03 - Canvas Error Handling Fixes (Next)
 **Status:** IN PROGRESS
-**Progress:** [███░░░░░░] 33% (1/3 plans completed)
+**Progress:** [██████████] 67%
 
 ### Current Focus
+
+Phase 249-02 complete ✅ - OpenAPI Schema Alignment Tests fixed:
+- api_test_client fixture implemented ✅ COMPLETE (creates FastAPI app per-fixture)
+- OpenAPI endpoint accessible ✅ VERIFIED (status 200, OpenAPI 3.1.0)
+- Test results: 4/4 OpenAPI tests now pass (DTO-004 fixed)
+- No regressions ✅ VERIFIED (fixture works for all tests)
+- Commit: b955c64c6
 
 Phase 249-01 complete - Pydantic v2 DTO validation fixes:
 - AgentRunRequest DTO fixed ✅ COMPLETE (added agent_id field)
@@ -20,14 +27,14 @@ Phase 249-01 complete - Pydantic v2 DTO validation fixes:
 - Test results: 3/3 DTO tests now pass (DTO-001, DTO-002, DTO-003 fixed)
 - No regressions ✅ VERIFIED (31/35 DTO tests passing)
 
-**Next:** Phase 249-02 - Canvas error handling fixes
+**Next:** Phase 249-03 - Canvas error handling fixes
 
 ### Progress Bar
 
 ```
 Phase 247: [████████░] 100% (3/3 plans completed)
 Phase 248: [████████░] 50% (1/2 plans completed)
-Phase 249: [███░░░░░░] 33% (1/3 plans completed)
+Phase 249: [██████░░░░] 67% (2/3 plans completed)
 Phase 250: [░░░░░░░░░░] 0%
 Phase 251: [░░░░░░░░░░] 0%
 Phase 252: [░░░░░░░░░░] 0%
@@ -38,7 +45,7 @@ Phase 256: [░░░░░░░░░░] 0%
 Phase 257: [░░░░░░░░░░] 0%
 Phase 258: [░░░░░░░░░░] 0%
 
-Overall: [█░░░░░░░░░] 5% (5/31 plans completed)
+Overall: [█░░░░░░░░░] 6% (6/31 plans completed)
 ```
 
 ## Performance Metrics
@@ -159,6 +166,7 @@ Fix all build failures, achieve 80% test coverage, fix all test failures, and us
    - Status: ✅ COMPLETE - Commits 830536d4b, bc9699e0e, 8153f3dee
 - [Phase 247]: Single try-except block pattern for circuit breaker + rate limiter + API call
 - [Phase 249]: Added agent_id as required field to AgentRunRequest and AgentUpdateRequest DTOs using Pydantic v2 Field(default_factory=dict) pattern for mutable defaults
+- [Phase 249]: Implemented functional api_test_client fixture for OpenAPI tests (creates per-fixture FastAPI app to avoid SQLAlchemy metadata conflicts)
 
 ### Technical Decisions
 
@@ -227,6 +235,7 @@ Fix all build failures, achieve 80% test coverage, fix all test failures, and us
 | Pydantic v2 DTO validation broken | 249 | Not Started | 7 DTO validation failures documented. Need Pydantic v2 migration. |
 | Canvas error handling broken | 249 | Not Started | 10 canvas route failures documented. Error codes don't match expectations. |
 | Phase 249 P01 | 270 | 5 tasks | 1 files |
+| Phase 249 P02 | 318 | 4 tasks | 1 files |
 
 ### Risks
 
