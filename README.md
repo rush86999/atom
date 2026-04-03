@@ -44,6 +44,41 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ---
 
+
+---
+
+## Architecture
+
+### Single-Tenant Deployment
+
+Atom is designed for **single-tenant deployment**, unlike multi-tenant SaaS platforms. This means:
+
+- **Simpler Setup**: No tenant isolation, no subdomain routing
+- **Better Performance**: Direct database access without RLS policy overhead
+- **Self-Hosted**: Your data never leaves your infrastructure
+- **Unlimited Usage**: No subscription fees or quota limits
+
+**Key Differences from SaaS Version:**
+- Uses `user_id` instead of `tenant_id` (no multi-tenancy)
+- No billing system or quota enforcement
+- Fleet recruitment limited by system resources only
+- All governance, routing, and graduation features work identically
+
+[Full Architecture Guide →](SINGLE_TENANT.md)
+
+### Meta-Agent Routing ✨ NEW
+
+Intelligent request routing with governance checks:
+
+- **Intent Classification**: Automatically categorize requests as CHAT/WORKFLOW/TASK
+- **Governance Checks**: Maturity-based permissions for WORKFLOW/TASK routing
+- **Auto-Takeover**: Propose CHAT alternatives when governance denies actions
+- **Dynamic Fleet Recruitment**: TASK routing uses FleetAdmiral for specialist recruitment
+
+**Ported from atom-saas v13.0** with SaaS features removed (billing, quota, multi-tenancy).
+
+---
+
 ## Quick Start
 
 ```bash
