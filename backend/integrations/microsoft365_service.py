@@ -118,6 +118,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             # Use Microsoft Graph API to get user profile
@@ -174,6 +179,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             url = f"{self.base_url}/me/joinedTeams"
@@ -205,6 +215,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             url = f"{self.base_url}/teams/{team_id}/channels"
@@ -238,6 +253,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             url = f"{self.base_url}/me/mailFolders/{folder_id}/messages?$top={top}&$select=id,subject,from,receivedDateTime,bodyPreview"
@@ -289,6 +309,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             # Dynamics 365 data is often accessed via specific organization URLs, 
@@ -324,6 +349,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             url = f"{self.base_url}/me/insights/used?$top={top}" # Placeholder
@@ -355,6 +385,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         import aiohttp
         headers = {
@@ -482,6 +517,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         url = f"{self.base_url}/me/drive/items/{item_id}/workbook/tables/{table_name}/columns"
         result = await self._make_graph_request("GET", url, token)
@@ -614,6 +654,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             if action == "refresh_dataset":
@@ -652,6 +697,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             if action == "send_message":
@@ -756,6 +806,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             if action == "send_email":
@@ -863,6 +918,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             if action == "create_task":
@@ -906,6 +966,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             url = ""
@@ -954,6 +1019,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             url = f"{self.base_url}/subscriptions"
@@ -970,7 +1040,7 @@ class Microsoft365Service:
             return {"status": "error", "message": str(e)}
 
     async def renew_subscription(self, token: str, subscription_id: str, expiration_datetime: str) -> Dict[str, Any]:
-         """Renew a webhook subscription."""
+        """Renew a webhook subscription."""
         # Start audit logging
         audit_ctx = log_integration_attempt("microsoft365", "create_subscription", locals())
         try:
@@ -992,14 +1062,19 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
-         try:
+        try:
             url = f"{self.base_url}/subscriptions/{subscription_id}"
             payload = {
                 "expirationDateTime": expiration_datetime
             }
             return await self._make_graph_request("PATCH", url, token, payload)
-         except Exception as e:
+        except Exception as e:
             logger.error(f"Renew subscription failed: {e}")
             return {"status": "error", "message": str(e)}
 
@@ -1026,6 +1101,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             url = f"{self.base_url}/subscriptions/{subscription_id}"
@@ -1057,6 +1137,11 @@ class Microsoft365Service:
                     status_code=429,
                     detail=f"Rate limit exceeded for microsoft365"
                 )
+        except HTTPException:
+            raise
+        except Exception as e:
+            log_integration_complete(audit_ctx, error=e)
+            raise
 
         try:
             # Simple connectivity check by fetching user profile
@@ -1087,26 +1172,3 @@ class Microsoft365Service:
 
 # Service instance
 microsoft365_service = Microsoft365Service()
-
-
-        # Start audit logging
-        audit_ctx = log_integration_attempt("microsoft365", "get_service_status", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("microsoft365"):
-                logger.warning(f"Circuit breaker is open for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Microsoft365 integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("microsoft365")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for microsoft365")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for microsoft365"
-                )
