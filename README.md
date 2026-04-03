@@ -22,6 +22,8 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 **Key Difference**: Unlike SaaS alternatives, Atom runs entirely on your infrastructure. Your data never leaves your environment.
 
+> **Note**: This is the open-source version of Atom with single-tenant deployment. For multi-tenant SaaS features (billing, quotas, tenant isolation), see [atom-saas](https://github.com/rush86999/atom-saas). See [SINGLE_TENANT.md](SINGLE_TENANT.md) for architecture details.
+
 > **Comparing alternatives?** See [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) for a detailed feature comparison.
 
 ---
@@ -86,6 +88,8 @@ That's it! 🚀
 - **Hive Orchestration**: Autonomous multi-agent coordination with **Queen** (Architectural Design) and **King** (Execution Orchestration). ✨ NEW
 - **Intelligent request routing**: Automatic intent classification to route requests to the most capable specialty agent. ✨ NEW
 - **Autonomous Workflow Realization**: Convert natural language requests into persistent, executable blueprints via the Queen Agent. ✨ NEW
+- **Meta-Agent Routing**: Governance-gated routing with CHAT/WORKFLOW/TASK intent classification and auto-takeover proposal mode. ✨ NEW (v13.0)
+- **Dynamic Fleet Recruitment**: FleetAdmiral automatically recruits specialist agents based on task requirements. ✨ NEW (v13.0)
 - **Governance**: Progress from "Student" to "Autonomous" as they gain trust
 
 ### 🎨 Canvas Presentations & Real-Time Guidance ✨
