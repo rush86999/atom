@@ -29,28 +29,6 @@ class AirtableService:
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("airtable", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("airtable"):
-                logger.warning(f"Circuit breaker is open for airtable")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Airtable integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("airtable")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for airtable")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for airtable"
-                )
-
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -230,24 +208,3 @@ airtable_service = AirtableService()
 def get_airtable_service() -> AirtableService:
     return airtable_service
 
-        # Start audit logging
-        audit_ctx = log_integration_attempt("airtable", "health_check", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("airtable"):
-                logger.warning(f"Circuit breaker is open for airtable")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Airtable integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("airtable")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for airtable")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for airtable"
-                )

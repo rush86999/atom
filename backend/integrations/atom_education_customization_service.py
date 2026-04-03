@@ -430,27 +430,6 @@ class AtomEducationCustomizationService:
     
     async def create_student(self, student_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new student with FERPA compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "initialize", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
 
         try:
             start_time = time.time()
@@ -555,27 +534,6 @@ class AtomEducationCustomizationService:
     
     async def create_course(self, course_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new course with FERPA compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "create_student", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
 
         try:
             start_time = time.time()
@@ -673,27 +631,6 @@ class AtomEducationCustomizationService:
     
     async def create_assignment(self, assignment_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new assignment with FERPA compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "create_course", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
 
         try:
             start_time = time.time()
@@ -785,52 +722,10 @@ class AtomEducationCustomizationService:
             return {'success': False, 'error': str(e)}
     
     async def generate_learning_analytics(self, analytics_type: LearningAnalyticsType,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "generate_learning_analytics", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
 
                                          time_period: str = '7d', student_id: str = None,
                                          course_id: str = None, instructor_id: str = None) -> Dict[str, Any]:
         """Generate learning analytics with FERPA compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "create_assignment", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
 
         try:
             start_time = time.time()
@@ -1399,27 +1294,6 @@ class AtomEducationCustomizationService:
     
     async def close(self):
         """Close Education Customization Service"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "get_service_status", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )
 
         try:
             logger.info("Education Customization Service closed")
@@ -1469,24 +1343,3 @@ if _ai_service:
     _education_config['ai_service'] = _ai_service
 
 atom_education_customization_service = AtomEducationCustomizationService(_education_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_education_customization", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_education_customization"):
-                logger.warning(f"Circuit breaker is open for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_education_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_education_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_education_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_education_customization"
-                )

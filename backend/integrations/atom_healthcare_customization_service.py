@@ -364,27 +364,6 @@ class AtomHealthcareCustomizationService:
     
     async def create_patient(self, patient_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new patient with HIPAA compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_healthcare_customization", "initialize", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
-                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_healthcare_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_healthcare_customization"
-                )
 
         try:
             start_time = time.time()
@@ -481,27 +460,6 @@ class AtomHealthcareCustomizationService:
     
     async def create_medical_record(self, record_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new medical record with HIPAA compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_healthcare_customization", "create_patient", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
-                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_healthcare_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_healthcare_customization"
-                )
 
         try:
             start_time = time.time()
@@ -596,51 +554,9 @@ class AtomHealthcareCustomizationService:
             return {'success': False, 'error': str(e)}
     
     async def generate_medical_analytics(self, analytics_type: MedicalAnalyticsType,
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_healthcare_customization", "generate_medical_analytics", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
-                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_healthcare_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_healthcare_customization"
-                )
 
                                       time_period: str = '7d', department: str = None) -> Dict[str, Any]:
         """Generate medical analytics with HIPAA compliance"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_healthcare_customization", "create_medical_record", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
-                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_healthcare_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_healthcare_customization"
-                )
 
         try:
             start_time = time.time()
@@ -1095,27 +1011,6 @@ class AtomHealthcareCustomizationService:
     
     async def close(self):
         """Close Healthcare Customization Service"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_healthcare_customization", "get_service_status", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
-                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_healthcare_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_healthcare_customization"
-                )
 
         try:
             logger.info("Healthcare Customization Service closed")
@@ -1163,24 +1058,3 @@ if _ai_service:
     _healthcare_config['ai_service'] = _ai_service
 
 atom_healthcare_customization_service = AtomHealthcareCustomizationService(_healthcare_config)
-        # Start audit logging
-        audit_ctx = log_integration_attempt("atom_healthcare_customization", "close", locals())
-        try:
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
-                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_healthcare_customization integration temporarily disabled"
-                )
-
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for atom_healthcare_customization"
-                )
