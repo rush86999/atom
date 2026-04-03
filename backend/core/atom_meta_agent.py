@@ -12,8 +12,9 @@ from enum import Enum
 from fastapi import HTTPException
 
 from core.models import (
-    AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution, 
-    Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode
+    AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution,
+    Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode,
+    MetaAgentDecision  # For routing decision logging
 )
 from core.database import SessionLocal
 import traceback
@@ -50,6 +51,28 @@ class ReActStep(BaseModel):
     action: Optional[ToolCall] = Field(None, description="The tool to call if further action is needed")
     final_answer: Optional[str] = Field(None, description="The final response if the task is complete")
     confidence: float = Field(0.9, description="Confidence score for this step")
+
+
+# ============================================================================
+# INTENT CLASSIFICATION (Phase 256-07)
+# ============================================================================
+
+class IntentCategory(Enum):
+    """Categories for intent classification."""
+    CHAT = "chat"
+    WORKFLOW = "workflow"
+    TASK = "task"
+
+
+class IntentClassification(BaseModel):
+    """Result of intent classification."""
+    category: IntentCategory = Field(description="Classified intent category")
+    confidence: float = Field(description="Classification confidence (0-1)")
+    reasoning: str = Field(description="Explanation of classification")
+    is_structured: bool = Field(default=False, description="Request has structured format")
+    is_long_horizon: bool = Field(default=False, description="Long-running task")
+    requires_agent_recruitment: bool = Field(default=False, description="Needs specialist agents")
+    blueprint_applicable: bool = Field(default=False, description="Workflow blueprint applicable")
 
 
 class SpecialtyAgentTemplate:
@@ -1146,6 +1169,284 @@ Provide your Mentorship Guidance:"""
             return ""
         finally:
             db.close()
+
+    # ============================================================================
+    # GOVERNANCE-GATED ROUTING (Phase 256-07)
+    # Ported from atom-saas with SaaS features removed
+    # ============================================================================
+
+    async def _check_governance(
+        self,
+        user_id: str,  # Changed from tenant_id
+        agent_id: str,
+        route_category: str
+    ) -> tuple[bool, str | None]:
+        """
+        Check if agent has permission for routing category.
+
+        Args:
+            user_id: User UUID (single-tenant deployment)
+            agent_id: Agent UUID
+            route_category: Route category (chat, workflow, task)
+
+        Returns:
+            (allowed, reason) - allowed=True if governance check passes
+        """
+        with SessionLocal() as db:
+            governance = AgentGovernanceService(db)
+            decision = await governance.canPerformAction(
+                user_id=user_id,  # Changed from tenant_id
+                agent_id=agent_id,
+                action=f"route_to_{route_category}"
+            )
+
+            if not decision.allowed:
+                # Log governance denial
+                from core.audit_logger import AuditLogger
+                AuditLogger.log_decision(
+                    db=db,
+                    user_id=user_id,  # Changed from tenant_id
+                    decision_type="governance_denial",
+                    decision_id=str(uuid.uuid4()),
+                    trigger_source="meta_agent_routing",
+                    reasoning_summary=f"Governance denied {route_category} routing",
+                    explanation=decision.reason
+                )
+                return False, decision.reason
+
+            return True, None
+
+    async def route_with_governance(
+        self,
+        request: str,
+        intent: IntentClassification,
+        user_id: str,  # Changed from tenant_id
+        agent_id: str = "atom_main"
+    ) -> Dict[str, Any]:
+        """
+        Route request with governance checks.
+
+        CHAT bypasses governance (simple conversational queries).
+        WORKFLOW/TASK require governance checks.
+
+        Args:
+            request: User's natural language request
+            intent: Classified intent from IntentClassifier
+            user_id: User UUID (single-tenant deployment)
+            agent_id: Agent UUID (default: atom_main)
+
+        Returns:
+            Routing result with handler and status
+        """
+        # CHAT bypasses governance
+        if intent.category == IntentCategory.CHAT:
+            result = await self._route_to_chat(request, user_id)
+            return {
+                **result,
+                "decision_id": str(uuid.uuid4()),
+                "governance_checked": False
+            }
+
+        # WORKFLOW/TASK require governance
+        allowed, reason = await self._check_governance(
+            user_id, agent_id, intent.category.value
+        )
+
+        if not allowed:
+            # Auto-takeover proposal mode: propose CHAT alternative
+            result = await self._propose_chat_alternative(
+                original_request=request,
+                denied_route=intent.category.value,
+                denial_reason=reason,
+                user_id=user_id
+            )
+            return {
+                **result,
+                "decision_id": str(uuid.uuid4()),
+                "governance_checked": True,
+                "governance_allowed": False
+            }
+
+        # Proceed with routing
+        if intent.category == IntentCategory.WORKFLOW:
+            result = await self._route_to_workflow(request, user_id)
+            return {
+                **result,
+                "decision_id": str(uuid.uuid4()),
+                "governance_checked": True,
+                "governance_allowed": True
+            }
+        else:  # TASK
+            result = await self._route_to_task(request, user_id, agent_id)
+            return {
+                **result,
+                "decision_id": str(uuid.uuid4()),
+                "governance_checked": True,
+                "governance_allowed": True
+            }
+
+    async def _route_to_chat(
+        self,
+        request: str,
+        user_id: str  # Changed from tenant_id
+    ) -> Dict[str, Any]:
+        """
+        Route CHAT intent to LLMService for simple conversational response.
+
+        Args:
+            request: User's natural language request
+            user_id: User UUID (single-tenant deployment)
+
+        Returns:
+            LLM response
+        """
+        logger.info(f"Routing CHAT intent to LLMService: {request[:50]}...")
+
+        response = await self.llm.generate_response(
+            prompt=request,
+            system_prompt="You are a helpful AI assistant.",
+            user_id=user_id  # Changed from tenant_id
+        )
+
+        return {
+            "route": "CHAT",
+            "handler": "LLMService",
+            "response": response,
+            "status": "chat_complete"
+        }
+
+    async def _route_to_workflow(
+        self,
+        request: str,
+        user_id: str,  # Changed from tenant_id
+        execution_mode: str = "one-off"
+    ) -> Dict[str, Any]:
+        """
+        Route WORKFLOW intent to QueenAgent for blueprint generation.
+
+        Args:
+            request: User's natural language request
+            user_id: User UUID (single-tenant deployment)
+            execution_mode: Execution mode (one-off or recurring_automation)
+
+        Returns:
+            Blueprint generation result
+        """
+        logger.info(f"Routing WORKFLOW intent to QueenAgent: {request[:50]}...")
+
+        with SessionLocal() as db:
+            if not self.queen:
+                self.queen = QueenAgent(db, self.llm, user_id=user_id)  # Changed from tenant_id
+
+            blueprint = await self.queen.generate_blueprint(
+                goal=request,
+                user_id=user_id,  # Changed from tenant_id
+                execution_mode=execution_mode
+            )
+
+            return {
+                "route": "WORKFLOW",
+                "handler": "QueenAgent",
+                "blueprint_id": blueprint.get("blueprint_id"),
+                "architecture_name": blueprint.get("architecture_name"),
+                "node_count": len(blueprint.get("nodes", [])),
+                "status": "blueprint_generated"
+            }
+
+    async def _route_to_task(
+        self,
+        request: str,
+        user_id: str,  # Changed from tenant_id
+        agent_id: str = "atom_main"
+    ) -> Dict[str, Any]:
+        """
+        Route TASK intent to FleetAdmiral for dynamic agent recruitment.
+
+        Args:
+            request: User's natural language request
+            user_id: User UUID (single-tenant deployment)
+            agent_id: Agent UUID
+
+        Returns:
+            Fleet recruitment result
+        """
+        logger.info(f"Routing TASK intent to FleetAdmiral: {request[:50]}...")
+
+        # Import FleetAdmiral
+        from core.fleet_admiral import FleetAdmiral
+
+        with SessionLocal() as db:
+            admiral = FleetAdmiral(db, self.llm)
+
+            result = await admiral.recruit_and_execute(
+                task=request,
+                user_id=user_id,  # Changed from tenant_id
+                root_agent_id=agent_id
+            )
+
+            return {
+                "route": "TASK",
+                "handler": "FleetAdmiral",
+                "chain_id": result.get("chain_id"),
+                "specialists_count": result.get("specialists_count"),
+                "status": "task_routed",
+                "result": result
+            }
+
+    async def _propose_chat_alternative(
+        self,
+        original_request: str,
+        denied_route: str,
+        denial_reason: str,
+        user_id: str  # Changed from tenant_id
+    ) -> Dict[str, Any]:
+        """
+        Auto-takeover proposal mode: When governance denies WORKFLOW/TASK,
+        automatically propose CHAT-based alternative without human intervention.
+
+        This generates a helpful response explaining:
+        1. Why the original request was denied (governance reason)
+        2. What CHAT can do instead (limited but safe alternative)
+        3. How to upgrade agent maturity for future access
+
+        Args:
+            original_request: User's original request
+            denied_route: Route category that was denied (workflow/task)
+            denial_reason: Governance denial reason
+            user_id: User UUID (single-tenant deployment)
+
+        Returns:
+            Dict with chat_response and proposal metadata
+        """
+        # Generate proposal explanation using LLM
+        proposal_prompt = f"""
+The user requested: "{original_request}"
+This was routed to {denied_route} but denied by governance because: {denial_reason}
+
+Generate a helpful response that:
+1. Acknowledges the request
+2. Explains why it cannot be executed as {denied_route} (agent maturity restriction)
+3. Offers to answer via CHAT mode instead (informational response, no actions)
+4. Suggests upgrading agent maturity level for future {denied_route} access
+
+Keep it concise (2-3 sentences) and helpful. Do not be apologetic - be informative.
+"""
+
+        chat_response = await self.llm.generate_response(
+            prompt=proposal_prompt,
+            system_prompt="You are a helpful AI assistant explaining routing decisions.",
+            user_id=user_id  # Changed from tenant_id
+        )
+
+        return {
+            "route": "CHAT",
+            "handler": "LLMService",
+            "auto_takeover": True,
+            "original_route": denied_route,
+            "denial_reason": denial_reason,
+            "proposal": chat_response,
+            "status": "auto_takeover_proposal"
+        }
 
 
 # ==================== TRIGGER HANDLERS ====================
