@@ -428,8 +428,8 @@ ORCHESTRATION POWERS:
 
         user_prompt = f"""Request: {task_input}
 
-{f"SEMANTIC UI LAYOUT (SCREEN READER):\n{semantic_ui_summary}\n\n" if semantic_ui_summary else ""}
-{f"SELF-EVOLUTION CRITIQUES (LEARN FROM THESE):\n{critique_display}\n\n" if critique_display else ""}
+{f"SEMANTIC UI LAYOUT (SCREEN READER):{semantic_ui_summary}" if semantic_ui_summary else ""}
+{f"SELF-EVOLUTION CRITIQUES (LEARN FROM THESE):{critique_display}" if critique_display else ""}
 MEMORY CONTEXT:
 {memory_display}
 

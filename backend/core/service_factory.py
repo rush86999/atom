@@ -210,7 +210,7 @@ class ServiceFactory:
         """Get or create EpisodeService instance."""
         if not hasattr(cls._thread_local, 'episode_service'):
             publisher = cls.get_activity_publisher()
-            cls._thread_local.episode_service = EpisodeService(db, workspace_id=workspace_id, tenant_id=tenant_id, activity_publisher=publisher)
+            cls._thread_local.episode_service = EpisodeService(db, tenant_api_key=None, activity_publisher=publisher)
         return cls._thread_local.episode_service
 
     @classmethod
@@ -337,7 +337,7 @@ class ServiceFactory:
         return cls._thread_local.group_reflection_service
 
     @classmethod
-    def get_push_notification_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> PushNotificationService:
+    def get_push_notification_service(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> "PushNotificationService":
         """Get or create push notification service."""
         if not hasattr(cls._thread_local, 'push_notification_service'):
             from core.push_notifications import PushNotificationService
@@ -345,7 +345,7 @@ class ServiceFactory:
         return cls._thread_local.push_notification_service
 
     @classmethod
-    def get_workflow_analytics_engine(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> WorkflowAnalyticsEngine:
+    def get_workflow_analytics_engine(cls, db: Session, workspace_id: str = "default", tenant_id: Optional[str] = None) -> "WorkflowAnalyticsEngine":
         """Get or create WorkflowAnalyticsEngine instance."""
         if not hasattr(cls._thread_local, 'workflow_analytics_engine'):
             from core.workflow_analytics import WorkflowAnalyticsEngine
