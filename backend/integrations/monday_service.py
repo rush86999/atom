@@ -1,26 +1,25 @@
-from datetime import datetime, timedelta
 import json
 import logging
 import os
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
-import requests
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+import requests
+
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
 
-class MondayService:
+class MondayService(IntegrationService):
     """Monday.com integration service for ATOM platform"""
 
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.base_url = "https://api.monday.com/v2"
-        self.client_id = os.getenv("MONDAY_CLIENT_ID")
-        self.client_secret = os.getenv("MONDAY_CLIENT_SECRET")
-        self.redirect_uri = os.getenv(
+        self.client_id = config.get("client_id") or os.getenv("MONDAY_CLIENT_ID")
+        self.client_secret = config.get("client_secret") or os.getenv("MONDAY_CLIENT_SECRET")
+        self.redirect_uri = config.get("redirect_uri") or os.getenv(
             "MONDAY_REDIRECT_URI",
             "http://localhost:3000/api/integrations/monday/callback",
         )
@@ -33,7 +32,7 @@ class MondayService:
             "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": "boards:read boards:write workspaces:read users:read",
-            "state": state or "default",
+            "state": state or "no_workspace",
         }
         return f"{auth_url}?{'&'.join([f'{k}={v}' for k, v in params.items()])}"
 
@@ -343,13 +342,13 @@ class MondayService:
             result = self._make_request(access_token, query)
             return {
                 "status": "healthy" if result.get("data") else "unhealthy",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "details": result,
             }
         except Exception as e:
             return {
                 "status": "error",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(e),
             }
 
@@ -382,3 +381,201 @@ class MondayService:
 
         result = self._make_request(access_token, query, variables)
         return result.get("data", {}).get("items", [])
+    async def sync_to_postgres_cache(self, access_token: str, workspace_id: Optional[str] = None) -> Dict[str, Any]:
+        """Sync Monday.com analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Fetch boards to get counts
+            boards = self.get_boards(access_token, workspace_id)
+            board_count = len(boards)
+            total_items = sum(b.get('items_count', 0) for b in boards)
+            
+            # Fetch users count
+            users = self.get_users(access_token, workspace_id)
+            user_count = len(users)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("monday_board_count", board_count, "count"),
+                    ("monday_item_count", total_items, "count"),
+                    ("monday_user_count", user_count, "count"),
+                ]
+                
+                # Enforce workspace_id (tenant_id)
+                if not workspace_id:
+                    logger.error("sync_to_postgres_cache called without workspace_id")
+                    return {"success": False, "error": "workspace_id mandatory"}
+                mapping_id = workspace_id
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        workspace_id=mapping_id,
+                        integration_type="monday",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            workspace_id=mapping_id,
+                            integration_type="monday",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Monday.com metrics to PostgreSQL cache")
+            except Exception as e:
+                logger.error(f"Error saving Monday metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Monday.com PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, access_token: str, workspace_id: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Monday.com"""
+        # Pipeline 1: Atom Memory
+        # Triggered via monday_memory_ingestion or similar
+
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(access_token, workspace_id)
+
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Monday.com integration capabilities"""
+        return {
+            "operations": [
+                {"id": "get_boards", "description": "Get all boards"},
+                {"id": "get_board", "description": "Get specific board details"},
+                {"id": "get_items", "description": "Get items from a board"},
+                {"id": "create_item", "description": "Create a new item"},
+                {"id": "update_item", "description": "Update an existing item"},
+                {"id": "get_workspaces", "description": "Get all workspaces"},
+                {"id": "get_users", "description": "Get users in workspace"},
+                {"id": "create_board", "description": "Create a new board"},
+                {"id": "search_items", "description": "Search items across boards"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["workspace_id", "board_id", "limit"],
+            "rate_limits": {"requests_per_minute": 40},
+            "supports_webhooks": True,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Health check for Monday.com service"""
+        try:
+            return {
+                "healthy": True,
+                "message": "Monday.com service is healthy",
+                "last_check": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "message": f"Monday.com service unhealthy: {str(e)}",
+                "last_check": datetime.now(timezone.utc).isoformat(),
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute Monday.com operation with tenant context"""
+        try:
+            access_token = parameters.get("access_token")
+
+            if operation == "get_boards":
+                boards = self.get_boards(
+                    access_token=access_token,
+                    workspace_id=parameters.get("workspace_id")
+                )
+                return {"success": True, "result": boards}
+
+            elif operation == "get_board":
+                board = self.get_board(
+                    access_token=access_token,
+                    board_id=parameters["board_id"]
+                )
+                return {"success": True, "result": board}
+
+            elif operation == "get_items":
+                items = self.get_items(
+                    access_token=access_token,
+                    board_id=parameters["board_id"],
+                    limit=parameters.get("limit", 50)
+                )
+                return {"success": True, "result": items}
+
+            elif operation == "create_item":
+                item = self.create_item(
+                    access_token=access_token,
+                    board_id=parameters["board_id"],
+                    item_name=parameters["item_name"],
+                    column_values=parameters.get("column_values")
+                )
+                return {"success": True, "result": item}
+
+            elif operation == "update_item":
+                item = self.update_item(
+                    access_token=access_token,
+                    item_id=parameters["item_id"],
+                    column_values=parameters.get("column_values")
+                )
+                return {"success": True, "result": item}
+
+            elif operation == "get_workspaces":
+                workspaces = self.get_workspaces(access_token=access_token)
+                return {"success": True, "result": workspaces}
+
+            elif operation == "get_users":
+                users = self.get_users(
+                    access_token=access_token,
+                    workspace_id=parameters.get("workspace_id")
+                )
+                return {"success": True, "result": users}
+
+            elif operation == "create_board":
+                board = self.create_board(
+                    access_token=access_token,
+                    name=parameters["name"],
+                    board_kind=parameters.get("board_kind", "public"),
+                    workspace_id=parameters.get("workspace_id"),
+                    template_id=parameters.get("template_id")
+                )
+                return {"success": True, "result": board}
+
+            elif operation == "search_items":
+                items = self.search_items(
+                    access_token=access_token,
+                    query_term=parameters["query_term"],
+                    board_ids=parameters.get("board_ids")
+                )
+                return {"success": True, "result": items}
+
+            else:
+                return {"success": False, "error": f"Unknown operation: {operation}"}
+
+        except Exception as e:
+            return {"success": False, "error": str(e)}

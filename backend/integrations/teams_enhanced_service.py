@@ -3,30 +3,27 @@ ATOM Microsoft Teams Enhanced Service
 Complete Teams integration with advanced features and unified architecture
 """
 
-import asyncio
-import base64
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
-import hashlib
-import hmac
+import os
 import json
 import logging
-import os
+import asyncio
+import hashlib
+import hmac
+import base64
 import time
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
-from azure.graph import GraphServiceClient
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
+from dataclasses import dataclass, asdict
+from enum import Enum
+import httpx
+import msal
+import jwt
+from cryptography.fernet import Fernet
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.teams import TeamsClient
-from cryptography.fernet import Fernet
-import httpx
-import jwt
-import msal
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
+from azure.graph import GraphServiceClient
 
+from core.integration_service import IntegrationService
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -126,7 +123,7 @@ class TeamsChannel:
     
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
 
 @dataclass
 class TeamsMessage:
@@ -272,36 +269,41 @@ class TeamsRateLimiter:
             self.local_limits[key]['count'] += 1
             return True
 
-class TeamsEnhancedService:
+class TeamsEnhancedService(IntegrationService):
     """Enhanced Teams service with full production capabilities"""
+<<<<<<< HEAD
     
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
     def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.config = config
-        self.client_id = config.get('client_id') or os.getenv('TEAMS_CLIENT_ID')
-        self.client_secret = config.get('client_secret') or os.getenv('TEAMS_CLIENT_SECRET')
-        self.tenant_id = config.get('tenant_id') or os.getenv('TEAMS_TENANT_ID')
-        self.redirect_uri = config.get('redirect_uri') or os.getenv('TEAMS_REDIRECT_URI')
-        
+        self.client_id = config.get('client_id')
+        self.client_secret = config.get('client_secret')
+        self.redirect_uri = config.get('redirect_uri')
+
         # Database connection
         self.db = config.get('database')
-        
+
         # Redis for caching and rate limiting
         redis_config = config.get('redis', {})
         self.redis_client = redis_config.get('client')
-        
+
         # Encryption for tokens
-        self.encryption_key = config.get('encryption_key') or os.getenv('ENCRYPTION_KEY')
+        self.encryption_key = config.get('encryption_key')
         self.cipher = Fernet(self.encryption_key.encode()) if self.encryption_key else None
         
         # Rate limiter
         self.rate_limiter = TeamsRateLimiter(self.redis_client)
         
         # MSAL application
+        # Use tenant_id from IntegrationService base class
+        msal_tenant_id = config.get('msal_tenant_id') or 'common'
         self.msal_app = msal.ConfidentialClientApplication(
             client_id=self.client_id,
             client_credential=self.client_secret,
-            authority=f"https://login.microsoftonline.com/{self.tenant_id}"
+            authority=f"https://login.microsoftonline.com/{msal_tenant_id}"
         )
         
         # Graph clients cache
@@ -491,7 +493,7 @@ class TeamsEnhancedService:
                 display_name=decoded_token.get('name', 'Default Team'),
                 visibility='public',
                 mail_nickname=decoded_token.get('upn', '').split('@')[0],
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
                 created_by=decoded_token.get('oid'),
                 tenant_id=decoded_token.get('tid'),
                 internal_id=decoded_token.get('oid'),
@@ -525,7 +527,10 @@ class TeamsEnhancedService:
     
     async def test_connection(self, workspace_id: str) -> Dict[str, Any]:
         """Test connection to Teams workspace"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             self.connection_status[workspace_id] = TeamsConnectionStatus.CONNECTING
             
@@ -546,7 +551,7 @@ class TeamsEnhancedService:
                 self.connection_status[workspace_id] = TeamsConnectionStatus.CONNECTED
                 workspace = self._get_workspace(workspace_id)
                 if workspace:
-                    workspace.last_sync = datetime.utcnow()
+                    workspace.last_sync = datetime.now(timezone.utc)
                     self._save_workspace(workspace)
                 
                 team = result.value[0]
@@ -578,7 +583,10 @@ class TeamsEnhancedService:
     
     async def get_workspaces(self, user_id: str = None) -> List[TeamsWorkspace]:
         """Get all workspaces or user's workspaces"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if self.db:
                 # Get from database
@@ -609,11 +617,17 @@ class TeamsEnhancedService:
             return []
     
     async def get_channels(self, workspace_id: str, user_id: str = None,
+<<<<<<< HEAD
 
                          include_private: bool = False, include_archived: bool = False,
                          limit: int = 100) -> List[TeamsChannel]:
         """Get channels for workspace"""
 
+=======
+                         include_private: bool = False, include_archived: bool = False,
+                         limit: int = 100) -> List[TeamsChannel]:
+        """Get channels for workspace"""
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'channels_list'):
@@ -641,7 +655,7 @@ class TeamsEnhancedService:
                     name=channel_data.display_name,
                     display_name=channel_data.display_name,
                     description=channel_data.description,
-                    workspace_id=workspace_id,
+                    tenant_id=workspace_id,
                     channel_type=channel_data.membership_type,
                     email=channel_data.email,
                     web_url=channel_data.web_url,
@@ -687,7 +701,10 @@ class TeamsEnhancedService:
             return []
     
     async def send_message(self, workspace_id: str, channel_id: str, 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                          text: str, thread_id: str = None,
                          importance: str = 'normal',
                          subject: str = None, attachments: List[Dict] = None) -> Dict[str, Any]:
@@ -752,7 +769,10 @@ class TeamsEnhancedService:
             }
     
     async def get_channel_messages(self, workspace_id: str, channel_id: str,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                                 limit: int = 100, latest: str = None,
                                 oldest: str = None) -> List[TeamsMessage]:
         """Get messages from channel"""
@@ -786,12 +806,11 @@ class TeamsEnhancedService:
                     message_id=msg_data.id,
                     text=msg_data.body.content if msg_data.body else '',
                     html=msg_data.body.content if msg_data.body else '',
-                    user_id=getattr(msg_data, 'from', {}).additional_data.get('user', {}).get('id'),
-                    user_name=getattr(msg_data, 'from', {}).additional_data.get('user', {}).get('displayName'),
-                    user_email=getattr(msg_data, 'from', {}).additional_data.get('user', {}).get('emailAddress'),
+                    user_id=getattr(msg_data, "from").additional_data.get('user', {}).get('id'),
+                    user_name=getattr(msg_data, "from").additional_data.get('user', {}).get('displayName'),
+                    user_email=getattr(msg_data, "from").additional_data.get('user', {}).get('emailAddress'),
                     channel_id=channel_id,
-                    workspace_id=workspace_id,
-                    tenant_id=msg_data.additional_data.get('tenantId'),
+                    tenant_id=workspace_id,
                     timestamp=msg_data.created_datetime,
                     thread_id=msg_data.reply_to_id,
                     reply_to_id=msg_data.reply_to_id,
@@ -835,7 +854,10 @@ class TeamsEnhancedService:
             return []
     
     async def search_messages(self, workspace_id: str, query: str,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                            channel_id: str = None, user_id: str = None,
                            limit: int = 100) -> Dict[str, Any]:
         """Search messages in workspace"""
@@ -893,8 +915,7 @@ class TeamsEnhancedService:
                             user_name=resource.get('from', {}).get('displayName'),
                             user_email=resource.get('from', {}).get('emailAddress'),
                             channel_id=resource.get('channelIdentity', {}).get('channelId'),
-                            workspace_id=workspace_id,
-                            tenant_id=resource.get('tenantId'),
+                            tenant_id=workspace_id,
                             timestamp=resource.get('createdDateTime'),
                             thread_id=resource.get('replyToId'),
                             reply_to_id=resource.get('replyToId'),
@@ -934,7 +955,10 @@ class TeamsEnhancedService:
             }
     
     async def upload_file(self, workspace_id: str, channel_id: str, file_path: str,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                         title: str = None, description: str = None) -> Dict[str, Any]:
         """Upload file to Teams channel"""
         try:
@@ -993,7 +1017,6 @@ class TeamsEnhancedService:
                         user_name='ATOM Enhanced Service',
                         user_email='system@atom.com',
                         channel_id=channel_id,
-                        workspace_id=workspace_id,
                         tenant_id=workspace_id,  # Would be actual tenant
                         timestamp=file_data.get('createdDateTime'),
                         created_at=datetime.fromisoformat(file_data.get('createdDateTime').replace('Z', '+00:00')),
@@ -1077,9 +1100,233 @@ class TeamsEnhancedService:
             }
         }
     
+    async def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
+        """Sync Teams analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Fetch channels to get counts
+            channels = await self.get_channels(workspace_id)
+            channel_count = len(channels)
+            
+            # Fetch message counts from channels (simplified for analytics)
+            total_messages = sum(c.message_count for c in channels)
+            
+            # Fetch member count from workspace
+            workspace = self._get_workspace(workspace_id)
+            member_count = workspace.member_count if workspace else 0
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("teams_channel_count", channel_count, "count"),
+                    ("teams_message_count", total_messages, "count"),
+                    ("teams_member_count", member_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="microsoft_teams",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="microsoft_teams",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Teams metrics to PostgreSQL cache")
+            except Exception as e:
+                logger.error(f"Error saving Teams metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Teams PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Teams"""
+        # Pipeline 1: Atom Memory (in a real scenario, we'd trigger ingestion here)
+        # For now, we'll assume memory ingestion is handled or triggered elsewhere
+
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(workspace_id)
+
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Teams integration capabilities"""
+        return {
+            "operations": [
+                {
+                    "id": "send_message",
+                    "name": "Send Message",
+                    "description": "Send a message to a Teams channel",
+                    "parameters": {
+                        "workspace_id": {"type": "string", "required": True},
+                        "channel_id": {"type": "string", "required": True},
+                        "text": {"type": "string", "required": True},
+                        "thread_id": {"type": "string", "required": False},
+                        "importance": {"type": "string", "required": False}
+                    },
+                    "complexity": 3
+                },
+                {
+                    "id": "get_channel_messages",
+                    "name": "Get Channel Messages",
+                    "description": "Get messages from a Teams channel",
+                    "parameters": {
+                        "workspace_id": {"type": "string", "required": True},
+                        "channel_id": {"type": "string", "required": True},
+                        "limit": {"type": "integer", "required": False, "default": 100}
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "list_channels",
+                    "name": "List Channels",
+                    "description": "List all channels in a Teams workspace",
+                    "parameters": {
+                        "workspace_id": {"type": "string", "required": True},
+                        "include_private": {"type": "boolean", "required": False, "default": False}
+                    },
+                    "complexity": 1
+                },
+                {
+                    "id": "search_messages",
+                    "name": "Search Messages",
+                    "description": "Search for messages in Teams",
+                    "parameters": {
+                        "workspace_id": {"type": "string", "required": True},
+                        "query": {"type": "string", "required": True}
+                    },
+                    "complexity": 2
+                }
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["client_id", "client_secret", "redirect_uri"],
+            "rate_limits": {
+                "requests_per_minute": 30,
+                "burst_limit": 10
+            },
+            "supports_webhooks": True
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if Teams service is healthy"""
+        is_healthy = bool(self.client_id and self.client_secret)
+        return {
+            "ok": is_healthy,
+            "status": "healthy" if is_healthy else "unhealthy",
+            "healthy": is_healthy,
+            "service": "teams",
+            "message": "Teams service initialized" if is_healthy else "Missing client credentials",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "version": "1.0.0"
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Teams operation
+
+        Args:
+            operation: Operation name (e.g., "send_message", "list_channels")
+            parameters: Operation parameters
+            context: Context dict with tenant_id, agent_id, etc.
+
+        Returns:
+            Dict with success, result, error, details
+        """
+        try:
+            # Validate tenant_id from context
+            if context and context.get('tenant_id') != self.tenant_id:
+                return {
+                    "success": False,
+                    "error": "Tenant mismatch",
+                    "details": {"context_tenant": context.get('tenant_id'), "service_tenant": self.tenant_id}
+                }
+
+            # Route to appropriate method
+            if operation == "send_message":
+                result = await self.send_message(
+                    workspace_id=parameters['workspace_id'],
+                    channel_id=parameters['channel_id'],
+                    text=parameters['text'],
+                    thread_id=parameters.get('thread_id'),
+                    importance=parameters.get('importance', 'normal')
+                )
+                return {"success": result.get('ok', False), "result": result, "details": {}}
+
+            elif operation == "get_channel_messages":
+                messages = await self.get_channel_messages(
+                    workspace_id=parameters['workspace_id'],
+                    channel_id=parameters['channel_id'],
+                    limit=parameters.get('limit', 100)
+                )
+                return {"success": True, "result": [asdict(m) for m in messages], "details": {}}
+
+            elif operation == "list_channels":
+                channels = await self.get_channels(
+                    workspace_id=parameters['workspace_id'],
+                    include_private=parameters.get('include_private', False)
+                )
+                return {"success": True, "result": [asdict(c) for c in channels], "details": {}}
+
+            elif operation == "search_messages":
+                result = await self.search_messages(
+                    workspace_id=parameters['workspace_id'],
+                    query=parameters['query']
+                )
+                return {"success": result.get('ok', False), "result": result, "details": {}}
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "details": {"available_operations": [op["id"] for op in self.get_capabilities()["operations"]]}
+                }
+
+        except Exception as e:
+            logger.error(f"Error executing Teams operation {operation}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"operation": operation, "tenant_id": self.tenant_id}
+            }
+
     async def close(self):
         """Close all connections and cleanup"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         # Clear clients
         self.graph_clients.clear()
         self.teams_clients.clear()
@@ -1090,6 +1337,7 @@ class TeamsEnhancedService:
         
         logger.info("Teams Enhanced Service closed")
 
+<<<<<<< HEAD
 # Global service instance
 teams_enhanced_service = TeamsEnhancedService({
     'client_id': os.getenv('TEAMS_CLIENT_ID'),
@@ -1102,3 +1350,7 @@ teams_enhanced_service = TeamsEnhancedService({
         'client': None  # Would be actual Redis client
     }
 })
+=======
+# Service instance removed - use IntegrationRegistry instead
+# teams_enhanced_service = TeamsEnhancedService(tenant_id="system", config={})
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

@@ -344,24 +344,19 @@ class AtomQuickBooksIntegrationService:
     async def create_invoice(self, invoice_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new invoice in QuickBooks"""
 
-        try:
             start_time = time.time()
-            
             # Update analytics
             self.analytics_metrics['total_invoices'] += 1
             self.analytics_metrics['revenue'] += invoice_data.get('amount', 0.0)
-            
             # Security and compliance check
             if self.quickbooks_config['enable_enterprise_features']:
                 security_check = await self._perform_security_check(invoice_data)
                 if not security_check['passed']:
                     return {'success': False, 'error': security_check['reason']}
-            
             # AI analysis for invoice optimization
             if self.quickbooks_config['auto_categorization']:
                 ai_analysis = await self._analyze_invoice_with_ai(invoice_data)
                 invoice_data.update(ai_analysis)
-            
             # Prepare invoice payload for QuickBooks
             invoice_payload = {
                 'Invoice': {
@@ -380,7 +375,6 @@ class AtomQuickBooksIntegrationService:
                     'CustomField': invoice_data.get('custom_fields', [])
                 }
             }
-            
             # Create invoice via QuickBooks API
             headers = await self._get_auth_headers()
             async with httpx.AsyncClient() as client:
@@ -390,34 +384,26 @@ class AtomQuickBooksIntegrationService:
                     json=invoice_payload,
                     timeout=30.0
                 )
-                
                 if response.status_code == 200:
                     invoice = response.json().get('Invoice', {})
-                    
                     # Update performance metrics
                     creation_time = time.time() - start_time
                     self.performance_metrics['api_response_time'] = creation_time
-                    
                     # Update analytics
                     self.analytics_metrics['average_invoice_amount'] = (
                         (self.analytics_metrics['average_invoice_amount'] * (self.analytics_metrics['total_invoices'] - 1) + 
                          invoice.get('TotalAmt', 0.0)) / self.analytics_metrics['total_invoices']
                     )
-                    
                     # Store invoice locally
                     await self._cache_invoice(invoice)
-                    
                     # Sync with Stripe if enabled
                     if self.stripe_integration:
                         await self._create_stripe_payment_intent(invoice)
-                    
                     # Notify relevant platforms
                     if platform and platform in self.platform_integrations:
                         await self._notify_platform_invoice_created(invoice, platform)
-                    
                     # Trigger workflows
                     await self._trigger_payment_workflows(invoice, 'created')
-                    
                     logger.info(f"Invoice created successfully: {invoice.get('Id')}")
                     return {
                         'success': True,
@@ -429,14 +415,37 @@ class AtomQuickBooksIntegrationService:
                     error_msg = f"Failed to create invoice: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating invoice: {e}")
             return {'success': False, 'error': str(e)}
     
     async def create_payment(self, payment_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create payment in QuickBooks"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_invoice", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -545,7 +554,29 @@ class AtomQuickBooksIntegrationService:
     
     async def create_expense(self, expense_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create expense in QuickBooks"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_payment", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -653,7 +684,29 @@ class AtomQuickBooksIntegrationService:
 
     async def create_customer(self, display_name: str, email: str) -> Dict[str, Any]:
         """Create a new customer in QuickBooks"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_expense", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             headers = await self._get_auth_headers()
             
@@ -684,10 +737,53 @@ class AtomQuickBooksIntegrationService:
             return {'success': False, 'error': str(e)}
 
     async def generate_financial_report(self, report_type: FinancialReportType, 
+<<<<<<< HEAD
 
                                      start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Generate financial report"""
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "generate_financial_report", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+                                     start_date: datetime, end_date: datetime) -> Dict[str, Any]:
+        """Generate financial report"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_customer", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -749,9 +845,7 @@ class AtomQuickBooksIntegrationService:
     
     async def _analyze_invoice_with_ai(self, invoice_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze invoice with AI for optimization"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for invoice analysis
             ai_request = AIRequest(
                 request_id=f"invoice_analysis_{int(time.time())}",
@@ -769,12 +863,9 @@ class AtomQuickBooksIntegrationService:
                 },
                 platform='quickbooks'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 analysis_result = ai_response.output_data
-                
                 ai_suggestions = {
                     'suggested_pricing_adjustment': analysis_result.get('suggested_pricing_adjustment', 0.0),
                     'optimal_payment_terms': analysis_result.get('optimal_payment_terms', '30'),
@@ -792,14 +883,14 @@ class AtomQuickBooksIntegrationService:
                     'invoice_optimization_tips': [],
                     'estimated_payment_time': 30
                 }
-            
             # Update performance metrics
             analysis_time = time.time() - start_time
             self.performance_metrics['categorization_time'] = analysis_time
-            
             return ai_suggestions
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing invoice with AI: {e}")
             return {
                 'suggested_pricing_adjustment': 0.0,
@@ -812,9 +903,7 @@ class AtomQuickBooksIntegrationService:
     
     async def _categorize_expense(self, expense_data: Dict[str, Any]) -> str:
         """Auto-categorize expense using AI"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for expense categorization
             ai_request = AIRequest(
                 request_id=f"expense_categorization_{int(time.time())}",
@@ -836,38 +925,33 @@ class AtomQuickBooksIntegrationService:
                 },
                 platform='quickbooks'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 category = ai_response.output_data.get('suggested_category', 'Other')
             else:
                 category = 'Other'
-            
             # Update performance metrics
             categorization_time = time.time() - start_time
             self.performance_metrics['categorization_time'] = categorization_time
-            
             return category
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error categorizing expense: {e}")
             return 'Other'
     
     async def _initialize_stripe_integration(self):
         """Initialize Stripe integration"""
-        try:
             from atom_stripe_integration import atom_stripe_integration
             self.stripe_integration = atom_stripe_integration
             logger.info("Stripe integration initialized")
-            
         except ImportError:
             logger.warning("Stripe integration not available")
             self.stripe_integration = None
     
     async def _test_quickbooks_connection(self):
         """Test QuickBooks API connection"""
-        try:
             headers = await self._get_auth_headers()
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -875,14 +959,15 @@ class AtomQuickBooksIntegrationService:
                     headers=headers,
                     timeout=10.0
                 )
-                
                 if response.status_code == 200:
                     logger.info("QuickBooks API connection test successful")
                     return True
                 else:
                     raise Exception(f"QuickBooks API test failed: {response.status_code}")
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"QuickBooks connection test failed: {e}")
             raise
     
@@ -899,77 +984,76 @@ class AtomQuickBooksIntegrationService:
     
     async def _cache_invoice(self, invoice: Dict[str, Any]):
         """Cache invoice data locally"""
-        try:
             if self.cache:
                 cache_key = f"quickbooks_invoice:{invoice.get('Id')}"
                 await self.cache.set(cache_key, invoice, ttl=3600)  # 1 hour
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error caching invoice: {e}")
     
     async def _cache_payment(self, payment: Dict[str, Any]):
         """Cache payment data locally"""
-        try:
             if self.cache:
                 cache_key = f"quickbooks_payment:{payment.get('Id')}"
                 await self.cache.set(cache_key, payment, ttl=3600)  # 1 hour
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error caching payment: {e}")
     
     async def _cache_expense(self, expense: Dict[str, Any]):
         """Cache expense data locally"""
-        try:
             if self.cache:
                 cache_key = f"quickbooks_expense:{expense.get('Id')}"
                 await self.cache.set(cache_key, expense, ttl=3600)  # 1 hour
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error caching expense: {e}")
     
     async def _perform_fraud_detection(self, payment_data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform fraud detection on payment"""
-        try:
             start_time = time.time()
-            
             # Simple fraud detection rules
             risk_score = 0
             risk_factors = []
-            
             # Check for unusual amount
             if payment_data.get('amount', 0) > 10000:
                 risk_score += 30
                 risk_factors.append('High amount')
-            
             # Check for unusual time
             payment_time = payment_data.get('date', datetime.utcnow())
             if payment_time.hour < 6 or payment_time.hour > 22:
                 risk_score += 20
                 risk_factors.append('Unusual payment time')
-            
             # Check for rapid payments from same customer
             if payment_data.get('rapid_sequence', False):
                 risk_score += 40
                 risk_factors.append('Rapid payment sequence')
-            
             # Update performance metrics
             detection_time = time.time() - start_time
             self.performance_metrics['fraud_detection_time'] = detection_time
-            
             # Determine if fraudulent
             is_fraudulent = risk_score > 50
-            
             return {
                 'is_fraudulent': is_fraudulent,
                 'risk_score': risk_score,
                 'risk_factors': risk_factors,
                 'detection_time': detection_time
             }
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing fraud detection: {e}")
             return {'is_fraudulent': False, 'risk_score': 0, 'risk_factors': []}
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get QuickBooks Integration service status"""
-        try:
             return {
                 'service': 'quickbooks_integration',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -989,12 +1073,36 @@ class AtomQuickBooksIntegrationService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'quickbooks_integration'}
     
     async def close(self):
         """Close QuickBooks Integration Service"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "get_service_status", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             logger.info("QuickBooks Integration Service closed")
             
@@ -1041,3 +1149,25 @@ if _atom_ai:
 
 # Alias for compatibility with test imports
 AtomQuickbooksIntegrationService = AtomQuickBooksIntegrationService
+<<<<<<< HEAD
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "close", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

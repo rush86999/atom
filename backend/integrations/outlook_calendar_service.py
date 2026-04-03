@@ -4,23 +4,19 @@ Provides real Microsoft Graph API access for event management and conflict detec
 Uses delegated permissions with device code flow (no admin consent required)
 """
 
-import asyncio
-from datetime import datetime, timedelta, timezone
-import json
-import logging
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Dict, List, Optional, Any
+from datetime import datetime, timedelta, timezone
 import aiohttp
+import asyncio
+import json
+from msal import PublicClientApplication
+from core.integration_service import IntegrationService
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
-from msal import PublicClientApplication
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
-
+from pathlib import Path
 
 # Load .env from project root (atom/.env)
 env_path = Path(__file__).parent.parent.parent / '.env'
@@ -28,20 +24,27 @@ load_dotenv(dotenv_path=env_path)
 
 logger = logging.getLogger(__name__)
 
-class OutlookCalendarService:
+class OutlookCalendarService(IntegrationService):
     """Service for real Outlook/Microsoft Graph Calendar API interactions"""
-    
-    def __init__(self):
-        """Initialize Outlook Calendar service with delegated permissions"""
-        self.client_id = os.getenv("OUTLOOK_CLIENT_ID")
-        self.tenant_id = os.getenv("OUTLOOK_TENANT_ID", "common")
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Outlook Calendar service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with credentials
+        """
+        super().__init__(tenant_id, config)
+        self.client_id = config.get("client_id") or os.getenv("OUTLOOK_CLIENT_ID")
+        self.tenant_id_config = config.get("tenant_id") or os.getenv("OUTLOOK_TENANT_ID", "common")
         self.access_token = None
         self.token_expiry = None
         self.app = None
-        self.token_cache_file = Path(__file__).parent.parent.parent / '.outlook_token_cache.json'
-        
+        self.token_cache_file = Path(__file__).parent.parent.parent / f'.outlook_token_cache_{tenant_id}.json'
+
         # Microsoft Graph API endpoints
-        self.authority = f"https://login.microsoftonline.com/{self.tenant_id}"
+        self.authority = f"https://login.microsoftonline.com/{self.tenant_id_config}"
         self.graph_url = "https://graph.microsoft.com/v1.0"
         # Delegated permissions (user consent, no admin required)
         self.scopes = ["Calendars.ReadWrite", "User.Read"]
@@ -85,7 +88,7 @@ class OutlookCalendarService:
                 result = self.app.acquire_token_silent(self.scopes, account=accounts[0])
                 if result and "access_token" in result:
                     self.access_token = result["access_token"]
-                    self.token_expiry = datetime.now() + timedelta(seconds=result.get("expires_in", 3600))
+                    self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=result.get("expires_in", 3600))
                     logger.info("✅ Outlook Calendar authenticated via cached token")
                     return True
             
@@ -108,7 +111,7 @@ class OutlookCalendarService:
             
             if "access_token" in result:
                 self.access_token = result["access_token"]
-                self.token_expiry = datetime.now() + timedelta(seconds=result.get("expires_in", 3600))
+                self.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=result.get("expires_in", 3600))
                 logger.info("✅ Outlook Calendar service authenticated successfully via device code")
                 return True
             else:
@@ -127,7 +130,7 @@ class OutlookCalendarService:
             return self.authenticate()
         
         # Refresh if token expires in less than 5 minutes
-        if datetime.now() >= self.token_expiry - timedelta(minutes=5):
+        if datetime.now(timezone.utc) >= self.token_expiry - timedelta(minutes=5):
             return self.authenticate()
         
         return True
@@ -207,7 +210,10 @@ class OutlookCalendarService:
         Returns:
             Created event in unified format or None
         """
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if not self._ensure_authenticated():
             return None
         
@@ -317,7 +323,10 @@ class OutlookCalendarService:
         end_time: datetime
     ) -> Dict:
         """
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         Check for scheduling conflicts
         
         Args:
@@ -435,6 +444,158 @@ class OutlookCalendarService:
         
         return outlook_event
 
+    async def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
+        """Sync Outlook Calendar analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get event count
+            event_count = 0
+            try:
+                events = await self.get_events()
+                event_count = len(events)
+            except Exception:
+                pass
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("outlook_calendar_event_count", event_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="outlook_calendar",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="outlook_calendar",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Outlook Calendar metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Outlook Calendar metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Outlook Calendar PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-# Singleton instance (will be initialized when credentials are available)
-outlook_calendar_service = OutlookCalendarService()
+    async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Outlook Calendar"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Outlook Calendar integration capabilities"""
+        return {
+            "operations": [
+                {"id": "get_events", "description": "Get calendar events"},
+                {"id": "create_event", "description": "Create calendar event"},
+                {"id": "update_event", "description": "Update calendar event"},
+                {"id": "delete_event", "description": "Delete calendar event"},
+                {"id": "check_conflicts", "description": "Check for scheduling conflicts"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["time_min", "time_max", "max_results"],
+            "rate_limits": {"requests_per_minute": 10000},
+            "supports_webhooks": True,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """Check if Outlook Calendar service is healthy"""
+        try:
+            return {
+                "healthy": bool(self.client_id),
+                "message": "Outlook Calendar service is configured" if self.client_id else "Missing client_id",
+                "last_check": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "message": str(e),
+                "last_check": datetime.now(timezone.utc).isoformat(),
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute an Outlook Calendar operation with tenant context.
+
+        CRITICAL: Validates tenant_id from context to prevent cross-tenant access.
+        """
+        # Validate tenant context
+        if context and "tenant_id" in context:
+            if context["tenant_id"] != self.tenant_id:
+                raise ValueError(f"Tenant ID mismatch: expected {self.tenant_id}, got {context['tenant_id']}")
+
+        try:
+            if operation == "get_events":
+                events = await self.get_events(
+                    time_min=parameters.get("time_min"),
+                    time_max=parameters.get("time_max"),
+                    max_results=parameters.get("max_results", 100),
+                )
+                return {"success": True, "result": events}
+
+            elif operation == "create_event":
+                result = await self.create_event(parameters["event_data"])
+                return {"success": result is not None, "result": result}
+
+            elif operation == "update_event":
+                result = await self.update_event(
+                    parameters["event_id"],
+                    parameters.get("updates", {})
+                )
+                return {"success": result is not None, "result": result}
+
+            elif operation == "delete_event":
+                result = await self.delete_event(parameters["event_id"])
+                return {"success": result, "result": None}
+
+            elif operation == "check_conflicts":
+                result = await self.check_conflicts(
+                    parameters["start_time"],
+                    parameters["end_time"]
+                )
+                return {"success": True, "result": result}
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}",
+                    "details": f"Supported operations: get_events, create_event, update_event, delete_event, check_conflicts",
+                }
+
+        except Exception as e:
+            logger.error(f"Error executing Outlook Calendar operation {operation}: {e}")
+            return {"success": False, "error": str(e)}

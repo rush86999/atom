@@ -7,7 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from integrations.microsoft365_service import microsoft365_service
-from integrations.stripe_service import stripe_service
+try:
+    from integrations.stripe_service import stripe_service
+HAS_STRIPE = True
+except ImportError:
+    # Stripe is SaaS-specific billing integration
+    stripe_service = None
+    HAS_STRIPE = False
+
 from integrations.xero_service import XeroService
 from integrations.zoho_books_service import ZohoBooksService
 

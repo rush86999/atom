@@ -7,13 +7,12 @@ It handles authentication, file operations, and integration with the ATOM platfo
 
 import logging
 from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +67,108 @@ class BoxAuthResponse(BaseModel):
     state: str
 
 
-class BoxService:
+class BoxService(IntegrationService):
     """Box service for handling file operations and authentication."""
 
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.service_name = "box"
         self.required_scopes = BOX_SCOPES
         self.base_url = "https://api.box.com/2.0"
+        self.access_token = config.get("access_token")
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the capabilities of the Box service."""
+        return {
+            "operations": [
+                {"id": "list_files", "description": "List files from Box"},
+                {"id": "search_files", "description": "Search files in Box"},
+                {"id": "get_file_metadata", "description": "Get file metadata"},
+                {"id": "download_file", "description": "Get download URL for a file"},
+                {"id": "create_folder", "description": "Create a new folder"},
+                {"id": "sync_to_postgres_cache", "description": "Sync metrics to PostgreSQL"},
+                {"id": "full_sync", "description": "Full sync operation"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": [],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True,
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Health check for Box service."""
+        try:
+            return {
+                "healthy": True,
+                "status": "healthy",
+                "service": "box",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "message": "Box service is operational",
+            }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "status": "unhealthy",
+                "service": "box",
+                "message": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a Box operation."""
+        operations = {
+            "list_files": self._execute_list_files,
+            "search_files": self._execute_search_files,
+            "get_file_metadata": self._execute_get_file_metadata,
+            "download_file": self._execute_download_file,
+            "create_folder": self._execute_create_folder,
+        }
+
+        if operation not in operations:
+            return {
+                "success": False,
+                "error": f"Unknown operation: {operation}",
+                "details": {"operation": operation}
+            }
+
+        try:
+            result = await operations[operation](**parameters)
+            # Transform result to match expected format
+            if result.get("status") == "success":
+                return {"success": True, "result": result.get("data")}
+            return {"success": False, "error": result.get("message", "Unknown error")}
+        except Exception as e:
+            logger.error(f"Box operation {operation} failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"operation": operation}
+            }
+
+    async def _execute_list_files(self, **kwargs) -> Any:
+        """Wrapper for list_files operation."""
+        return await self.list_files(**kwargs)
+
+    async def _execute_search_files(self, **kwargs) -> Any:
+        """Wrapper for search_files operation."""
+        return await self.search_files(**kwargs)
+
+    async def _execute_get_file_metadata(self, **kwargs) -> Any:
+        """Wrapper for get_file_metadata operation."""
+        return await self.get_file_metadata(**kwargs)
+
+    async def _execute_download_file(self, **kwargs) -> Any:
+        """Wrapper for download_file operation."""
+        return await self.download_file(**kwargs)
+
+    async def _execute_create_folder(self, **kwargs) -> Any:
+        """Wrapper for create_folder operation."""
+        return await self.create_folder(**kwargs)
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Initialize Box authentication flow."""
@@ -99,6 +193,7 @@ class BoxService:
         offset: int = 0,
     ) -> Dict[str, Any]:
         """List files from Box."""
+<<<<<<< HEAD
 
         try:
             if not access_token or access_token == "mock":
@@ -133,9 +228,61 @@ class BoxService:
                         "offset": data.get("offset", 0),
                         "limit": data.get("limit", limit),
                         "next_marker": data.get("next_marker")
+=======
+        try:
+            # Mock implementation - in real scenario, use Box API
+            mock_files = [
+                {
+                    "id": "file_123456789",
+                    "name": "Project Proposal.docx",
+                    "type": "file",
+                    "size": 1024000,
+                    "created_at": "2024-01-15T10:00:00Z",
+                    "modified_at": "2024-01-20T14:30:00Z",
+                    "shared_link": {
+                        "url": "https://app.box.com/s/file_123456789",
+                        "download_url": "https://app.box.com/shared/static/file_123456789.docx",
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                     },
-                    "mode": "real"
-                }
+                    "path_collection": {
+                        "total_count": 2,
+                        "entries": [
+                            {"id": "0", "name": "All Files"},
+                            {"id": "folder_123", "name": "Project Documents"},
+                        ],
+                    },
+                },
+                {
+                    "id": "file_987654321",
+                    "name": "Meeting Notes.pdf",
+                    "type": "file",
+                    "size": 512000,
+                    "created_at": "2024-01-18T09:15:00Z",
+                    "modified_at": "2024-01-19T16:45:00Z",
+                    "shared_link": {
+                        "url": "https://app.box.com/s/file_987654321",
+                        "download_url": "https://app.box.com/shared/static/file_987654321.pdf",
+                    },
+                    "path_collection": {
+                        "total_count": 2,
+                        "entries": [
+                            {"id": "0", "name": "All Files"},
+                            {"id": "folder_123", "name": "Project Documents"},
+                        ],
+                    },
+                },
+            ]
+
+            return {
+                "status": "success",
+                "data": {
+                    "entries": mock_files,
+                    "total_count": len(mock_files),
+                    "offset": offset,
+                    "limit": limit,
+                    "next_marker": None,
+                },
+            }
         except Exception as e:
             logger.error(f"Box list files failed: {e}")
             return {"status": "error", "message": f"Failed to list files: {str(e)}"}
@@ -149,40 +296,39 @@ class BoxService:
     ) -> Dict[str, Any]:
         """Search files in Box."""
         try:
-            if not access_token or access_token == "mock":
-                mock_files = [
-                    {
-                        "id": "mock_search_file",
-                        "name": f"Search Result: {query}.docx (MOCK)",
-                        "type": "file",
-                        "size": 2048000,
-                        "created_at": "2024-01-10T08:00:00Z",
-                        "modified_at": "2024-01-12T11:20:00Z",
-                    }
-                ]
-                return {"status": "success", "data": {"entries": mock_files, "total_count": 1, "offset": offset, "limit": limit, "next_marker": None}, "mode": "mock"}
-
-            # Real Box API search
-            import httpx
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                url = f"{self.base_url}/search"
-                params = {"query": query, "limit": limit, "offset": offset}
-
-                response = await client.get(url, headers=headers, params=params, timeout=30.0)
-                response.raise_for_status()
-                data = response.json()
-                return {
-                    "status": "success",
-                    "data": {
-                        "entries": data.get("entries", []),
-                        "total_count": data.get("total_count", 0),
-                        "offset": data.get("offset", 0),
-                        "limit": data.get("limit", limit),
-                        "next_marker": data.get("next_marker")
+            # Mock implementation
+            mock_files = [
+                {
+                    "id": "file_555555555",
+                    "name": f"Search Result: {query}.docx",
+                    "type": "file",
+                    "size": 2048000,
+                    "created_at": "2024-01-10T08:00:00Z",
+                    "modified_at": "2024-01-12T11:20:00Z",
+                    "shared_link": {
+                        "url": f"https://app.box.com/s/file_555555555",
+                        "download_url": f"https://app.box.com/shared/static/file_555555555.docx",
                     },
-                    "mode": "real"
+                    "path_collection": {
+                        "total_count": 2,
+                        "entries": [
+                            {"id": "0", "name": "All Files"},
+                            {"id": "folder_456", "name": "Search Results"},
+                        ],
+                    },
                 }
+            ]
+
+            return {
+                "status": "success",
+                "data": {
+                    "entries": mock_files,
+                    "total_count": len(mock_files),
+                    "offset": offset,
+                    "limit": limit,
+                    "next_marker": None,
+                },
+            }
         except Exception as e:
             logger.error(f"Box search failed: {e}")
             return {"status": "error", "message": f"Search failed: {str(e)}"}
@@ -249,7 +395,10 @@ class BoxService:
         self, access_token: str, parent_folder_id: str, folder_name: str
     ) -> Dict[str, Any]:
         """Create a new folder in Box."""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Mock implementation
             new_folder = {
@@ -266,80 +415,71 @@ class BoxService:
             logger.error(f"Box create folder failed: {e}")
             return {"status": "error", "message": f"Failed to create folder: {str(e)}"}
 
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync Box analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from datetime import datetime, timezone
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Get files to count
+            files_result = await self.list_files(access_token)
+            file_count = len(files_result.get("data", {}).get("entries", []))
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("box_file_count", file_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="box",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="box",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Box metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Box metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Box PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-# Service instance
-box_service = BoxService()
-
-
-# API Routes
-@box_router.get("/auth")
-async def box_auth(user_id: str):
-    """Initiate Box OAuth flow."""
-    result = await box_service.authenticate(user_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return BoxAuthResponse(**result)
-
-
-@box_router.get("/files")
-async def list_box_files(
-    access_token: str,
-    folder_id: str = "0",
-    limit: int = 100,
-    offset: int = 0,
-):
-    """List files from Box."""
-    result = await box_service.list_files(access_token, folder_id, limit, offset)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return BoxFileList(**result["data"])
-
-
-@box_router.post("/search")
-async def search_box_files(request: BoxSearchRequest, access_token: str):
-    """Search files in Box."""
-    result = await box_service.search_files(
-        access_token, request.query, request.limit, request.offset
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return BoxFileList(**result["data"])
-
-
-@box_router.get("/files/{file_id}")
-async def get_box_file_metadata(file_id: str, access_token: str):
-    """Get metadata for a specific Box file."""
-    result = await box_service.get_file_metadata(access_token, file_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result["data"]
-
-
-@box_router.get("/files/{file_id}/download")
-async def download_box_file(file_id: str, access_token: str):
-    """Get download URL for a Box file."""
-    result = await box_service.download_file(access_token, file_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result["data"]
-
-
-@box_router.post("/folders")
-async def create_box_folder(access_token: str, parent_folder_id: str, folder_name: str):
-    """Create a new folder in Box."""
-    result = await box_service.create_folder(
-        access_token, parent_folder_id, folder_name
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result["data"]
+    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Box"""
+        from datetime import datetime, timezone
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 
-@box_router.get("/health")
-async def box_health():
-    """Health check for Box service."""
-    return {
-        "status": "healthy",
-        "service": "box",
-        "timestamp": "2024-01-21T10:00:00Z",
-    }
+# Service instance removed - use IntegrationRegistry instead
+# box_service = BoxService(tenant_id="system", config={})

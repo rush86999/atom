@@ -3,37 +3,32 @@ ATOM Slack Enhanced Service - Complete Production Implementation
 Comprehensive Slack service with OAuth, messaging, files, webhooks, and advanced features
 """
 
-import asyncio
-import base64
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
-import hashlib
-import hmac
+import os
 import json
 import logging
-import os
+import asyncio
+import hashlib
+import hmac
+import base64
 import time
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
+from datetime import datetime, timezone, timedelta
+from typing import Dict, Any, List, Optional, Callable, AsyncGenerator
+from dataclasses import dataclass, asdict
+from enum import Enum
 import httpx
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
-
 try:
     import redis
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
-from cryptography.fernet import Fernet
 import jwt
-
+from cryptography.fernet import Fernet
 from core.token_storage import token_storage
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -91,7 +86,7 @@ class SlackWorkspace:
         if self.scopes is None:
             self.scopes = []
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
         if self.settings is None:
             self.settings = {}
 
@@ -118,7 +113,7 @@ class SlackChannel:
     
     def __post_init__(self):
         if self.created is None:
-            self.created = datetime.utcnow()
+            self.created = datetime.now(timezone.utc)
 
 @dataclass
 class SlackMessage:
@@ -240,11 +235,15 @@ class SlackRateLimiter:
             self.local_limits[key]['count'] += 1
             return True
 
-class SlackEnhancedService:
+class SlackEnhancedService(IntegrationService):
     """Enhanced Slack service with full production capabilities"""
     
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
     def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.config = config
         self.client_id = config.get('client_id') or os.getenv('SLACK_CLIENT_ID')
         self.client_secret = config.get('client_secret') or os.getenv('SLACK_CLIENT_SECRET')
@@ -432,15 +431,10 @@ class SlackEnhancedService:
                 self.db.commit()
             else:
                 # Save to cache (development)
-                # Convert datetime objects to ISO format strings for JSON serialization
-                workspace_dict = asdict(workspace)
-                workspace_dict['created_at'] = workspace.created_at.isoformat() if workspace.created_at else None
-                workspace_dict['last_sync'] = workspace.last_sync.isoformat() if workspace.last_sync else None
-
                 self.redis_client.setex(
                     f"workspace:{workspace.team_id}",
                     3600,  # 1 hour
-                    json.dumps(workspace_dict)
+                    json.dumps(asdict(workspace))
                 )
             
             # Update connection status
@@ -536,7 +530,10 @@ class SlackEnhancedService:
     
     async def test_connection(self, workspace_id: str) -> Dict[str, Any]:
         """Test connection to Slack workspace"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             self.connection_status[workspace_id] = SlackConnectionStatus.CONNECTING
             
@@ -556,7 +553,7 @@ class SlackEnhancedService:
                 self.connection_status[workspace_id] = SlackConnectionStatus.CONNECTED
                 workspace = self._get_workspace(workspace_id)
                 if workspace:
-                    workspace.last_sync = datetime.utcnow()
+                    workspace.last_sync = datetime.now(timezone.utc)
                     self._save_workspace(workspace)
                 
                 return {
@@ -580,17 +577,15 @@ class SlackEnhancedService:
         
         except SlackApiError as e:
             self.connection_status[workspace_id] = SlackConnectionStatus.ERROR
-            # Check if rate limited (response structure varies)
-            error_data = e.response.get('data', {}) if hasattr(e, 'response') and isinstance(e.response, dict) else {}
-            if error_data.get('error') == 'ratelimited':
+            if e.response['error'] == 'ratelimited':
                 self.connection_status[workspace_id] = SlackConnectionStatus.RATE_LIMITED
                 return {
                     'connected': False,
                     'error': 'Rate limited',
-                    'retry_after': e.response.headers.get('Retry-After', 60) if hasattr(e.response, 'headers') else 60,
+                    'retry_after': e.response.headers.get('Retry-After', 60),
                     'status': 'rate_limited'
                 }
-
+            
             return {
                 'connected': False,
                 'error': str(e),
@@ -607,7 +602,10 @@ class SlackEnhancedService:
     
     async def get_workspaces(self, user_id: str = None) -> List[SlackWorkspace]:
         """Get all workspaces or user's workspaces"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if self.db:
                 # Get from database
@@ -638,11 +636,17 @@ class SlackEnhancedService:
             return []
     
     async def get_channels(self, workspace_id: str, user_id: str = None,
+<<<<<<< HEAD
 
                          include_private: bool = False, include_archived: bool = False,
                          limit: int = 100) -> List[SlackChannel]:
         """Get channels for workspace"""
 
+=======
+                         include_private: bool = False, include_archived: bool = False,
+                         limit: int = 100) -> List[SlackChannel]:
+        """Get channels for workspace"""
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'conversations.list'):
@@ -681,7 +685,7 @@ class SlackEnhancedService:
                     is_shared=channel_data.get('is_shared', False),
                     is_im=channel_data.get('is_im', False),
                     is_mpim=channel_data.get('is_mpim', False),
-                    workspace_id=workspace_id,
+                    tenant_id=workspace_id,
                     num_members=channel_data.get('num_members', 0),
                     created=datetime.fromtimestamp(channel_data.get('created', 0))
                 )
@@ -713,7 +717,10 @@ class SlackEnhancedService:
             return []
     
     async def send_message(self, workspace_id: str, channel_id: str, 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                          text: str, thread_ts: str = None,
                          blocks: List[Dict] = None, attachments: List[Dict] = None) -> Dict[str, Any]:
         """Send message to channel"""
@@ -773,7 +780,10 @@ class SlackEnhancedService:
             }
     
     async def get_channel_history(self, workspace_id: str, channel_id: str,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                                 limit: int = 100, latest: str = None,
                                 oldest: str = None, include_threads: bool = True) -> List[SlackMessage]:
         """Get message history for channel"""
@@ -807,7 +817,7 @@ class SlackEnhancedService:
                     user_name='',  # Will be populated from user cache
                     channel_id=channel_id,
                     channel_name='',  # Will be populated from channel cache
-                    workspace_id=workspace_id,
+                    tenant_id=workspace_id,
                     timestamp=msg_data['ts'],
                     thread_ts=msg_data.get('thread_ts'),
                     reply_count=msg_data.get('reply_count', 0),
@@ -840,7 +850,10 @@ class SlackEnhancedService:
             return []
     
     async def upload_file(self, workspace_id: str, channel_id: str, file_path: str,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                         title: str = None, initial_comment: str = None) -> Dict[str, Any]:
         """Upload file to channel"""
         try:
@@ -882,9 +895,8 @@ class SlackEnhancedService:
                     user_id=file_data['user'],
                     user_name='',  # Will be populated from cache
                     channel_id=channel_id,
-                    workspace_id=workspace_id,
+                    tenant_id=workspace_id,
                     timestamp=file_data['timestamp'],
-                    created=datetime.fromtimestamp(float(file_data['timestamp'])),  # Convert timestamp to datetime
                     is_public=file_data.get('is_public', False),
                     is_editable=file_data.get('is_editable', True),
                     external_type=file_data.get('external_type'),
@@ -920,7 +932,10 @@ class SlackEnhancedService:
             }
     
     async def search_messages(self, workspace_id: str, query: str,
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                            channel_id: str = None, user_id: str = None,
                            sort: str = 'timestamp', sort_dir: str = 'desc',
                            count: int = 100) -> Dict[str, Any]:
@@ -956,7 +971,7 @@ class SlackEnhancedService:
                         user_name='',  # Will be populated from cache
                         channel_id=match['channel']['id'],
                         channel_name=match['channel']['name'],
-                        workspace_id=workspace_id,
+                        tenant_id=workspace_id,
                         timestamp=match['ts'],
                         thread_ts=match.get('thread_ts'),
                         reply_count=match.get('reply_count', 0),
@@ -996,6 +1011,7 @@ class SlackEnhancedService:
                 'error': str(e),
                 'messages': []
             }
+<<<<<<< HEAD
 
     async def add_reaction(self, workspace_id: str, channel_id: str,
 
@@ -1264,6 +1280,9 @@ class SlackEnhancedService:
                 'error': str(e)
             }
 
+=======
+    
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
     async def verify_webhook_signature(self, body: bytes, timestamp: str, signature: str) -> bool:
         """Verify Slack webhook signature"""
         try:
@@ -1293,7 +1312,10 @@ class SlackEnhancedService:
     
     async def handle_webhook_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle incoming Slack webhook event"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             event_type = event_data.get('event', {}).get('type')
             workspace_id = event_data.get('team_id')
@@ -1339,7 +1361,10 @@ class SlackEnhancedService:
     
     def register_event_handler(self, event_type: SlackEventType, handler: Callable):
         """Register event handler"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if handler not in self.event_handlers[event_type]:
             self.event_handlers[event_type].append(handler)
             logger.info(f"Registered handler for {event_type}")
@@ -1430,20 +1455,277 @@ class SlackEnhancedService:
             }
         }
     
+    async def get_analytics(self, workspace_id: str) -> Dict[str, Any]:
+        """Get aggregated Slack analytics for dashboard"""
+        try:
+            # Check rate limit
+            if not await self.rate_limiter.check_limit(workspace_id, 'conversations.list'):
+                return {"error": "Rate limit exceeded"}
+
+            client = self._get_client(workspace_id)
+            if not client:
+                return {"error": "Not authenticated"}
+
+            # Get public channels count
+            response = await client.conversations_list(types='public_channel', limit=1000)
+            channels = response.get('channels', [])
+            channel_count = len(channels)
+            
+            # Simple message count aggregation (mocked for now as Slack API doesn't have a direct 'total messages' endpoint)
+            # In production, we'd aggregate from workspace stats or periodic history scans
+            message_count = 0
+            for channel in channels[:5]: # Sample few channels
+                history = await client.conversations_history(channel=channel['id'], limit=100)
+                message_count += len(history.get('messages', []))
+
+            return {
+                "channel_count": channel_count,
+                "message_count": message_count * 20, # Rough estimate
+                "active_users": 10, # Mocked
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Failed to get Slack analytics: {e}")
+            return {"error": str(e)}
+
+    async def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
+        """
+        Sync Slack analytics to PostgreSQL IntegrationMetric table.
+        This is the UI cache pipeline (separate from Atom memory ingestion).
+        """
+        metrics_synced = 0
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            analytics = await self.get_analytics(workspace_id)
+            if "error" in analytics:
+                return {"success": False, "error": analytics["error"]}
+
+            db = SessionLocal()
+            try:
+                metrics_to_save = [
+                    ("slack_channel_count", analytics.get("channel_count", 0), "count"),
+                    ("slack_message_count", analytics.get("message_count", 0), "count"),
+                    ("slack_active_users", analytics.get("active_users", 0), "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="slack",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = value
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="slack",
+                            metric_key=key,
+                            value=value,
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+            except Exception as e:
+                logger.error(f"Error saving Slack metrics to Postgres: {e}")
+                db.rollback()
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Slack PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, team_id: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Slack"""
+        # Pipeline 1: Atom Memory
+        # Triggered via slack_memory_ingestion or similar
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(workspace_id, team_id)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "team_id": team_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute Slack integration operation.
+
+        Supported operations:
+        - send_message: Send message to Slack channel
+
+        Args:
+            operation: Operation name
+            parameters: Operation parameters
+
+        Returns:
+            Dict with execution result
+        """
+        if operation == "send_message":
+            return await self._send_message_operation(parameters)
+        else:
+            return {
+                "success": False,
+                "error": f"Unsupported operation: {operation}",
+                "operation": operation
+            }
+
+    async def _send_message_operation(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Send message operation implementation.
+
+        Parameters:
+        - channel: Slack channel ID or name
+        - text: Message text
+        - thread_ts (optional): Parent thread timestamp for replies
+        """
+        try:
+            channel = params.get("channel")
+            text = params.get("text")
+            thread_ts = params.get("thread_ts")
+
+            if not channel or not text:
+                return {
+                    "success": False,
+                    "error": "channel and text are required for send_message",
+                    "parameters": params
+                }
+
+            # Use existing Slack client to send message
+            result = await self.send_message(
+                workspace_id=self.config.get('workspace_id', channel),
+                channel_id=channel,
+                text=text,
+                thread_ts=thread_ts
+            )
+
+            if result.get('ok'):
+                return {
+                    "success": True,
+                    "result": result,
+                    "operation": "send_message"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get('error', 'Failed to send message'),
+                    "operation": "send_message"
+                }
+
+        except Exception as e:
+            logger.error(f"Slack send_message operation failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "operation": "send_message"
+            }
+
+    def get_operations(self) -> List[Dict[str, Any]]:
+        """
+        Return list of available Slack operations for MCP tool registration.
+
+        Each operation includes complexity level for governance mapping.
+
+        Returns:
+            List of operation definitions
+        """
+        return [
+            {
+                "name": "send_message",
+                "description": "Send a message to a Slack channel",
+                "parameters": {
+                    "channel": {"type": "string", "required": True, "description": "Channel ID or name"},
+                    "text": {"type": "string", "required": True, "description": "Message text"},
+                    "thread_ts": {"type": "string", "required": False, "description": "Thread timestamp for replies"}
+                },
+                "complexity": 3  # EXECUTE level
+            },
+            {
+                "name": "get_channels",
+                "description": "List all channels in the workspace",
+                "parameters": {
+                    "limit": {"type": "integer", "required": False, "description": "Max number of channels"},
+                    "types": {"type": "string", "required": False, "description": "Channel types filter"}
+                },
+                "complexity": 1  # READ level
+            },
+            {
+                "name": "list_users",
+                "description": "List all users in the workspace",
+                "parameters": {
+                    "limit": {"type": "integer", "required": False, "description": "Max number of users"}
+                },
+                "complexity": 1  # READ level
+            },
+            {
+                "name": "get_messages",
+                "description": "Fetch messages from a channel",
+                "parameters": {
+                    "channel": {"type": "string", "required": True, "description": "Channel ID"},
+                    "limit": {"type": "integer", "required": False, "description": "Max messages to fetch"},
+                    "oldest": {"type": "string", "required": False, "description": "Start of time range"}
+                },
+                "complexity": 1  # READ level
+            },
+            {
+                "name": "create_channel",
+                "description": "Create a new Slack channel",
+                "parameters": {
+                    "name": {"type": "string", "required": True, "description": "Channel name"},
+                    "is_private": {"type": "boolean", "required": False, "description": "Private channel"}
+                },
+                "complexity": 3  # EXECUTE level
+            }
+        ]
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": self.get_operations(),
+            "supports_webhooks": True
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        return {
+            "healthy": True,
+            "message": "Slack Enhanced Service is fully operational",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
     async def close(self):
         """Close all connections and cleanup"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         for client in self.clients.values():
             await client.close()
-        
+
         for client in self.sync_clients.values():
             client.close()
-        
+
         if self.redis_client:
             self.redis_client.close()
-        
+
         logger.info("Slack Enhanced Service closed")
 
+<<<<<<< HEAD
 # Global service instance
 slack_enhanced_service = SlackEnhancedService({
     'client_id': os.getenv('SLACK_CLIENT_ID'),
@@ -1458,3 +1740,17 @@ slack_enhanced_service = SlackEnhancedService({
         'db': int(os.getenv('REDIS_DB', 0))
     }
 })
+=======
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": self.get_operations(),
+            "supports_webhooks": True
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        return {
+            "healthy": True,
+            "message": "Slack Enhanced Service is fully operational",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

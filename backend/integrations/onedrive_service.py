@@ -6,14 +6,13 @@ It handles authentication, file operations, and integration with the ATOM platfo
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +56,102 @@ class OneDriveAuthResponse(BaseModel):
     state: str
 
 
-class OneDriveService:
+class OneDriveService(IntegrationService):
     """OneDrive service for handling file operations and authentication."""
 
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
         self.service_name = "onedrive"
         self.required_scopes = ONEDRIVE_SCOPES
         self.base_url = "https://graph.microsoft.com/v1.0/me/drive"
+        self.access_token = config.get("access_token")
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return the capabilities of the OneDrive service."""
+        return {
+            "operations": [
+                {"id": "list_files", "description": "List files from OneDrive"},
+                {"id": "search_files", "description": "Search files in OneDrive"},
+                {"id": "get_file_metadata", "description": "Get file metadata"},
+                {"id": "download_file", "description": "Get download URL for a file"},
+                {"id": "sync_to_postgres_cache", "description": "Sync metrics to PostgreSQL"},
+                {"id": "full_sync", "description": "Full sync operation"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": [],
+            "rate_limits": {"requests_per_minute": 100},
+            "supports_webhooks": True,
+        }
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Health check for OneDrive service."""
+        try:
+            return {
+                "healthy": True,
+                "status": "healthy",
+                "service": "onedrive",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "message": "OneDrive service is operational",
+            }
+        except Exception as e:
+            return {
+                "healthy": False,
+                "status": "unhealthy",
+                "service": "onedrive",
+                "message": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a OneDrive operation."""
+        operations = {
+            "list_files": self._execute_list_files,
+            "search_files": self._execute_search_files,
+            "get_file_metadata": self._execute_get_file_metadata,
+            "download_file": self._execute_download_file,
+        }
+
+        if operation not in operations:
+            return {
+                "success": False,
+                "error": f"Unknown operation: {operation}",
+                "details": {"operation": operation}
+            }
+
+        try:
+            result = await operations[operation](**parameters)
+            # Transform result to match expected format
+            if result.get("status") == "success":
+                return {"success": True, "result": result.get("data")}
+            return {"success": False, "error": result.get("message", "Unknown error")}
+        except Exception as e:
+            logger.error(f"OneDrive operation {operation} failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"operation": operation}
+            }
+
+    async def _execute_list_files(self, **kwargs) -> Any:
+        """Wrapper for list_files operation."""
+        return await self.list_files(**kwargs)
+
+    async def _execute_search_files(self, **kwargs) -> Any:
+        """Wrapper for search_files operation."""
+        return await self.search_files(**kwargs)
+
+    async def _execute_get_file_metadata(self, **kwargs) -> Any:
+        """Wrapper for get_file_metadata operation."""
+        return await self.get_file_metadata(**kwargs)
+
+    async def _execute_download_file(self, **kwargs) -> Any:
+        """Wrapper for download_file operation."""
+        return await self.download_file(**kwargs)
 
     async def authenticate(self, user_id: str) -> Dict[str, Any]:
         """Initialize OneDrive authentication flow."""
@@ -88,6 +176,7 @@ class OneDriveService:
         page_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """List files from OneDrive."""
+<<<<<<< HEAD
 
         try:
             if not access_token or access_token == "mock":
@@ -128,6 +217,45 @@ class OneDriveService:
                     "data": {"value": data.get("value", []), "nextLink": data.get("@odata.nextLink")},
                     "mode": "real"
                 }
+=======
+        try:
+            # Mock implementation - in real scenario, use Microsoft Graph API
+            mock_files = [
+                {
+                    "id": "file1",
+                    "name": "Project Document.docx",
+                    "webUrl": "https://onedrive.live.com/redir?resid=file1",
+                    "createdDateTime": "2024-01-15T10:00:00Z",
+                    "lastModifiedDateTime": "2024-01-20T14:30:00Z",
+                    "size": 1024000,
+                    "file": {
+                        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    },
+                },
+                {
+                    "id": "file2",
+                    "name": "Meeting Notes.pdf",
+                    "webUrl": "https://onedrive.live.com/redir?resid=file2",
+                    "createdDateTime": "2024-01-18T09:15:00Z",
+                    "lastModifiedDateTime": "2024-01-19T16:45:00Z",
+                    "size": 512000,
+                    "file": {"mimeType": "application/pdf"},
+                },
+                {
+                    "id": "folder1",
+                    "name": "Project Files",
+                    "webUrl": "https://onedrive.live.com/redir?resid=folder1",
+                    "createdDateTime": "2024-01-10T08:00:00Z",
+                    "lastModifiedDateTime": "2024-01-15T12:00:00Z",
+                    "folder": {"childCount": 5},
+                },
+            ]
+
+            return {
+                "status": "success",
+                "data": {"value": mock_files, "nextLink": None},
+            }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         except Exception as e:
             logger.error(f"OneDrive list files failed: {e}")
             return {"status": "error", "message": f"Failed to list files: {str(e)}"}
@@ -141,37 +269,25 @@ class OneDriveService:
     ) -> Dict[str, Any]:
         """Search files in OneDrive."""
         try:
-            if not access_token or access_token == "mock":
-                # Fallback to mock data
-                mock_files = [
-                    {
-                        "id": "mock_file3",
-                        "name": f"Search Result for {query}.docx (MOCK)",
-                        "webUrl": "https://onedrive.live.com/redir?resid=file3",
-                        "createdDateTime": "2024-01-10T08:00:00Z",
-                        "lastModifiedDateTime": "2024-01-12T11:20:00Z",
-                        "size": 2048000,
-                    }
-                ]
-                return {"status": "success", "data": {"value": mock_files, "nextLink": None}, "mode": "mock"}
-
-            # Real Microsoft Graph API search
-            import httpx
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                url = f"{self.base_url}/root/search(q='{query}')"
-                params = {"$top": page_size}
-                if page_token:
-                    params["$skiptoken"] = page_token
-
-                response = await client.get(url, headers=headers, params=params, timeout=30.0)
-                response.raise_for_status()
-                data = response.json()
-                return {
-                    "status": "success",
-                    "data": {"value": data.get("value", []), "nextLink": data.get("@odata.nextLink")},
-                    "mode": "real"
+            # Mock implementation
+            mock_files = [
+                {
+                    "id": "file3",
+                    "name": f"Search Result for {query}.docx",
+                    "webUrl": f"https://onedrive.live.com/redir?resid=file3",
+                    "createdDateTime": "2024-01-10T08:00:00Z",
+                    "lastModifiedDateTime": "2024-01-12T11:20:00Z",
+                    "size": 2048000,
+                    "file": {
+                        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    },
                 }
+            ]
+
+            return {
+                "status": "success",
+                "data": {"value": mock_files, "nextLink": None},
+            }
         except Exception as e:
             logger.error(f"OneDrive search failed: {e}")
             return {"status": "error", "message": f"Search failed: {str(e)}"}
@@ -221,6 +337,7 @@ class OneDriveService:
             logger.error(f"OneDrive download file failed: {e}")
             return {"status": "error", "message": f"Download failed: {str(e)}"}
 
+<<<<<<< HEAD
 
 # Service instance
 onedrive_service = OneDriveService()
@@ -230,63 +347,80 @@ onedrive_service = OneDriveService()
 @onedrive_router.get("/auth")
 async def onedrive_auth(user_id: str):
     """Initiate OneDrive OAuth flow."""
+=======
+    async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync OneDrive analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # List files to get counts
+            files_res = await self.list_files(access_token)
+            if files_res["status"] == "error":
+                return {"success": False, "error": files_res["message"]}
+                
+            items = files_res["data"].get("value", [])
+            file_count = sum(1 for item in items if "file" in item)
+            folder_count = sum(1 for item in items if "folder" in item)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("onedrive_file_count", file_count, "count"),
+                    ("onedrive_folder_count", folder_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="onedrive",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="onedrive",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} OneDrive metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving OneDrive metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"OneDrive PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
 
-    result = await onedrive_service.authenticate(user_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return OneDriveAuthResponse(**result)
+    async def full_sync(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for OneDrive"""
+        # Pipeline 1: Atom Memory
+        # Triggered via onedrive_memory_ingestion or similar
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(workspace_id, access_token)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
-
-@onedrive_router.get("/files")
-async def list_onedrive_files(
-    access_token: str,
-    folder_id: Optional[str] = None,
-    page_size: int = 100,
-    page_token: Optional[str] = None,
-):
-    """List files from OneDrive."""
-    result = await onedrive_service.list_files(
-        access_token, folder_id, page_size, page_token
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return OneDriveFileList(**result["data"])
-
-
-@onedrive_router.post("/search")
-async def search_onedrive_files(request: OneDriveSearchRequest, access_token: str):
-    """Search files in OneDrive."""
-    result = await onedrive_service.search_files(
-        access_token, request.query, request.pageSize, request.pageToken
-    )
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return OneDriveFileList(**result["data"])
-
-
-@onedrive_router.get("/files/{file_id}")
-async def get_onedrive_file_metadata(file_id: str, access_token: str):
-    """Get metadata for a specific OneDrive file."""
-    result = await onedrive_service.get_file_metadata(access_token, file_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result["data"]
-
-
-@onedrive_router.get("/files/{file_id}/download")
-async def download_onedrive_file(file_id: str, access_token: str):
-    """Get download URL for a OneDrive file."""
-    result = await onedrive_service.download_file(access_token, file_id)
-    if result["status"] == "error":
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result["data"]
-
-
-@onedrive_router.get("/health")
-async def onedrive_health():
-    """Health check for OneDrive service."""
-    return {
-        "status": "healthy",
-        "service": "onedrive",
-        "timestamp": "2024-01-21T10:00:00Z",
-    }
+# Service instance removed - use IntegrationRegistry instead
+# onedrive_service = OneDriveService(tenant_id="system", config={})

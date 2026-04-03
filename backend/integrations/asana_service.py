@@ -3,45 +3,47 @@ Comprehensive Asana API Integration Service
 Builds on the successful OAuth implementation to provide full Asana functionality
 """
 
-import asyncio
-from datetime import datetime, timedelta, timezone
 import json
 import logging
 import os
+import asyncio
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
-import requests
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+import requests
+
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
 
-class AsanaService:
+class AsanaService(IntegrationService):
     """Complete Asana API integration service"""
 
-    def __init__(self):
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Asana service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with access_token
+        """
+        super().__init__(tenant_id, config)
         self.api_base_url = "https://app.asana.com/api/1.0"
         self.timeout = 30
         self.max_retries = 3
 
-        # Load configuration from environment
-        self.client_id = os.getenv("ASANA_CLIENT_ID")
-        self.client_secret = os.getenv("ASANA_CLIENT_SECRET")
-        self.redirect_uri = os.getenv(
-            "ASANA_REDIRECT_URI", "http://localhost:8000/api/auth/asana/callback"
-        )
+        # Extract access token from config
+        self.access_token = config.get("access_token")
 
-        if self.client_id:
+        if self.access_token:
             logger.info(
-                f"AsanaService initialized with client_id: {self.client_id[:8]}..."
+                f"AsanaService initialized for tenant {tenant_id[:8]}... with access token"
             )
         else:
             logger.info(
-                "AsanaService initialized without client_id - will use placeholder credentials"
+                f"AsanaService initialized for tenant {tenant_id[:8]}... without access token"
             )
 
     def _make_request(
@@ -182,79 +184,6 @@ class AsanaService:
             }
         except Exception as e:
             logger.error(f"Failed to get projects: {e}")
-            return {"ok": False, "error": str(e)}
-
-    async def create_project(
-        self,
-        access_token: str,
-        workspace_gid: str,
-        name: str,
-        notes: str = None,
-        team_gid: str = None,
-        color: str = None,
-        **kwargs
-    ) -> Dict:
-        """
-        Create a new Asana project.
-
-        Args:
-            access_token: Asana OAuth access token
-            workspace_gid: Workspace GID (required)
-            name: Project name (required)
-            notes: Project description/notes
-            team_gid: Team GID (optional, for team projects)
-            color: Project color (optional, e.g., "light-green", "red")
-            **kwargs: Additional project fields (due_on, public, etc.)
-
-        Returns:
-            Created project data with GID
-
-        Raises:
-            Exception: If project creation fails
-
-        Example:
-            await asana.create_project(
-                access_token="...",
-                workspace_gid="123456789",
-                name="Q1 Marketing Campaign",
-                notes="Annual Q1 marketing initiatives",
-                team_gid="987654321"
-            )
-        """
-        try:
-            data = {
-                "workspace": workspace_gid,
-                "name": name,
-            }
-
-            if notes:
-                data["notes"] = notes
-            if team_gid:
-                data["team"] = team_gid
-            if color:
-                data["color"] = color
-
-            # Add any additional fields
-            data.update(kwargs)
-
-            result = self._make_request("POST", "/projects", access_token, data=data)
-            project = result.get("data", {})
-
-            return {
-                "ok": True,
-                "project": {
-                    "gid": project.get("gid"),
-                    "name": project.get("name"),
-                    "notes": project.get("notes"),
-                    "color": project.get("color"),
-                    "created_at": project.get("created_at"),
-                    "modified_at": project.get("modified_at"),
-                    "workspace_gid": project.get("workspace", {}).get("gid"),
-                    "team_gid": project.get("team", {}).get("gid") if team_gid else None,
-                }
-            }
-        except Exception as e:
-            logger.error(f"Failed to create project: {e}")
             return {"ok": False, "error": str(e)}
 
     async def get_tasks(
@@ -536,32 +465,311 @@ class AsanaService:
             logger.error(f"Failed to add task comment: {e}")
             return {"ok": False, "error": str(e)}
 
-    async def health_check(self, access_token: str) -> Dict:
+    def health_check(self) -> Dict[str, Any]:
         """Check Asana API connectivity and token validity"""
         try:
-            result = self._make_request("GET", "/users/me", access_token)
+            if not self.access_token:
+                return {
+                    "healthy": False,
+                    "message": "No access token configured",
+                    "last_check": datetime.now(timezone.utc).isoformat(),
+                }
+
+            result = self._make_request("GET", "/users/me", self.access_token)
             user_data = result.get("data", {})
 
             return {
-                "ok": True,
+                "healthy": True,
+                "message": "Asana API is connected",
                 "service": "asana",
                 "status": "connected",
                 "user": {
                     "name": user_data.get("name"),
                     "email": user_data.get("email"),
                 },
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:
             logger.error(f"Asana health check failed: {e}")
             return {
-                "ok": False,
+                "healthy": False,
+                "message": str(e),
                 "service": "asana",
                 "status": "disconnected",
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
             }
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return Asana integration capabilities"""
+        return {
+            "operations": [
+                {"id": "create_task", "name": "Create Task", "description": "Create a new Asana task"},
+                {"id": "get_tasks", "name": "Get Tasks", "description": "Retrieve tasks from projects/workspaces"},
+                {"id": "update_task", "name": "Update Task", "description": "Update existing task details"},
+                {"id": "get_projects", "name": "Get Projects", "description": "List projects"},
+                {"id": "add_comment", "name": "Add Comment", "description": "Add comment to task"},
+            ],
+            "required_params": ["access_token"],
+            "optional_params": ["workspace_gid", "project_gid"],
+            "rate_limits": {"requests_per_minute": 150},
+            "supports_webhooks": True,
+        }
 
+<<<<<<< HEAD
 # Global instance for easy access
 asana_service = AsanaService()
+=======
+    def get_operations(self) -> List[Dict[str, Any]]:
+        """
+        Return list of available Asana operations for MCP tool registration.
+
+        Each operation includes complexity level for governance mapping.
+
+        Returns:
+            List of operation definitions
+        """
+        return [
+            {
+                "name": "create_task",
+                "description": "Create a new task in Asana",
+                "parameters": {'name': {'type': 'string', 'required': True}, 'project': {'type': 'string', 'required': True}, 'notes': {'type': 'string', 'required': False}},
+                "complexity": 3
+            },
+            {
+                "name": "list_tasks",
+                "description": "List tasks from Asana",
+                "parameters": {'project': {'type': 'string', 'required': False}, 'assignee': {'type': 'string', 'required': False}},
+                "complexity": 1
+            },
+        ]
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute an Asana operation with tenant context.
+
+        Args:
+            operation: Operation name (e.g., "create_task", "get_projects")
+            parameters: Operation parameters with variable substitution applied
+            context: Tenant context dict with tenant_id, agent_id, workspace_id, connector_id
+
+        Returns:
+            Dict with success status and result
+
+        CRITICAL: All operations validate tenant_id from context to prevent cross-tenant access.
+        """
+        # Validate tenant context
+        if context and 'tenant_id' in context:
+            tenant_id = context.get('tenant_id')
+            if tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: expected {self.tenant_id}, got {tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID mismatch",
+                    "operation": operation,
+                }
+
+        # Map operation names to methods
+        operation_map = {
+            "create_task": self._op_create_task,
+            "get_tasks": self._op_get_tasks,
+            "update_task": self._op_update_task,
+            "get_projects": self._op_get_projects,
+            "add_comment": self._op_add_comment,
+        }
+
+        if operation not in operation_map:
+            return {
+                "success": False,
+                "error": f"Unknown operation: {operation}",
+                "operation": operation,
+            }
+
+        try:
+            result = await operation_map[operation](parameters, context)
+            return {
+                "success": True,
+                "result": result,
+                "operation": operation,
+                "details": {"tenant_id": self.tenant_id},
+            }
+        except Exception as e:
+            logger.error(f"Failed to execute Asana operation {operation}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "operation": operation,
+            }
+    async def create_project(self, project_data: Dict, access_token: Optional[str] = None) -> Dict:
+        """Create a new project in Asana"""
+        try:
+            active_token = access_token or self.access_token
+            if not active_token:
+                return {"ok": False, "error": "No access token configured"}
+
+            asana_data = {
+                "data": {
+                    "name": project_data.get("name"),
+                    "notes": project_data.get("description", ""),
+                    "workspace": project_data.get("workspace") or self.config.get("workspace_gid"),
+                }
+            }
+            
+            result = await asyncio.to_thread(
+                self._make_request, "POST", "/projects", active_token, data=asana_data
+            )
+            project = result.get("data", {})
+            return {
+                "ok": True,
+                "id": project.get("gid"),
+                "name": project.get("name"),
+                "url": project.get("url")
+            }
+        except Exception as e:
+            logger.error(f"Failed to create Asana project: {e}")
+            return {"ok": False, "error": str(e)}
+
+    async def sync_to_postgres_cache(self, workspace_gid: str = None) -> Dict[str, Any]:
+        """Sync Asana analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            if not self.access_token:
+                 return {"success": False, "error": "No access token configured"}
+
+            gid = workspace_gid or self.config.get("workspace_gid")
+            if not gid:
+                 return {"success": False, "error": "No workspace GID found"}
+            
+            # Fetch projects and tasks to get counts
+            projects_res = await self.get_projects(self.access_token, workspace_gid=gid)
+            tasks_res = await self.get_tasks(self.access_token, workspace_gid=gid)
+            
+            project_count = len(projects_res.get("projects", []))
+            tasks = tasks_res.get("tasks", [])
+            task_count = len(tasks)
+            completed_tasks = sum(1 for t in tasks if t.get("completed"))
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("asana_project_count", project_count, "count"),
+                    ("asana_task_count", task_count, "count"),
+                    ("asana_completed_tasks", completed_tasks, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        workspace_id=gid,
+                        integration_type="asana",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            workspace_id=gid,
+                            integration_type="asana",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Asana metrics to PostgreSQL cache for workspace {gid}")
+            except Exception as e:
+                logger.error(f"Error saving Asana metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Asana PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_gid: str = None) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Asana"""
+        gid = workspace_gid or self.config.get("workspace_gid")
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(gid)
+        
+        return {
+            "success": True,
+            "workspace_gid": gid,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    # Operation implementations
+    async def _op_create_task(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Create task operation"""
+        if not self.access_token:
+            raise ValueError("No access token configured")
+        result = await self.create_task(self.access_token, parameters)
+        if not result.get("ok"):
+            raise Exception(result.get("error", "Failed to create task"))
+        return result.get("task")
+
+    async def _op_get_tasks(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Get tasks operation"""
+        if not self.access_token:
+            raise ValueError("No access token configured")
+        result = await self.get_tasks(
+            self.access_token,
+            project_gid=parameters.get("project_gid"),
+            workspace_gid=parameters.get("workspace_gid"),
+            limit=parameters.get("limit", 50)
+        )
+        if not result.get("ok"):
+            raise Exception(result.get("error", "Failed to get tasks"))
+        return result.get("tasks", [])
+
+    async def _op_update_task(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Update task operation"""
+        if not self.access_token:
+            raise ValueError("No access token configured")
+        task_gid = parameters.get("task_gid")
+        updates = {k: v for k, v in parameters.items() if k != "task_gid"}
+        result = await self.update_task(self.access_token, task_gid, updates)
+        if not result.get("ok"):
+            raise Exception(result.get("error", "Failed to update task"))
+        return result.get("task")
+
+    async def _op_get_projects(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Get projects operation"""
+        if not self.access_token:
+            raise ValueError("No access token configured")
+        result = await self.get_projects(
+            self.access_token,
+            workspace_gid=parameters.get("workspace_gid"),
+            limit=parameters.get("limit", 50)
+        )
+        if not result.get("ok"):
+            raise Exception(result.get("error", "Failed to get projects"))
+        return result.get("projects", [])
+
+    async def _op_add_comment(self, parameters: Dict[str, Any], context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Add comment operation"""
+        if not self.access_token:
+            raise ValueError("No access token configured")
+        task_gid = parameters.get("task_gid")
+        text = parameters.get("text")
+        result = await self.add_task_comment(self.access_token, task_gid, text)
+        if not result.get("ok"):
+            raise Exception(result.get("error", "Failed to add comment"))
+        return result.get("story")
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

@@ -350,9 +350,7 @@ class AtomHubSpotIntegrationService:
     async def create_contact(self, contact_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new contact in HubSpot"""
 
-        try:
             start_time = time.time()
-            
             # Update analytics
             self.analytics_metrics['total_contacts'] += 1
             self.analytics_metrics['leads_generated_today'] += 1
@@ -360,18 +358,15 @@ class AtomHubSpotIntegrationService:
             self.analytics_metrics['lead_stages'][contact_data.get('lifecycle_stage', 'lead')] += 1
             today = datetime.utcnow().strftime('%Y-%m-%d')
             self.analytics_metrics['daily_leads'][today] += 1
-            
             # Security and compliance check
             if self.hubspot_config['enable_enterprise_features']:
                 security_check = await self._perform_security_check(contact_data)
                 if not security_check['passed']:
                     return {'success': False, 'error': security_check['reason']}
-            
             # AI-powered lead scoring
             if self.hubspot_config['enable_lead_scoring']:
                 lead_score = await self._score_lead(contact_data)
                 contact_data['lead_score'] = lead_score
-                
                 # Determine lifecycle stage based on score
                 if lead_score >= 80:
                     contact_data['lifecycle_stage'] = 'marketing_qualified_lead'
@@ -379,7 +374,6 @@ class AtomHubSpotIntegrationService:
                     contact_data['lifecycle_stage'] = 'lead'
                 else:
                     contact_data['lifecycle_stage'] = 'subscriber'
-            
             # Prepare contact payload for HubSpot
             contact_payload = {
                 'properties': {
@@ -397,11 +391,9 @@ class AtomHubSpotIntegrationService:
                     'hs_lead_score': contact_data.get('lead_score', 0)
                 }
             }
-            
             # Add custom properties if provided
             if contact_data.get('properties'):
                 contact_payload['properties'].update(contact_data['properties'])
-            
             # Create contact via HubSpot API
             headers = await self._get_auth_headers()
             async with httpx.AsyncClient() as client:
@@ -411,24 +403,18 @@ class AtomHubSpotIntegrationService:
                     json=contact_payload,
                     timeout=30.0
                 )
-                
                 if response.status_code == 201:
                     contact = response.json()
-                    
                     # Update performance metrics
                     creation_time = time.time() - start_time
                     self.performance_metrics['api_response_time'] = creation_time
-                    
                     # Store contact locally
                     await self._cache_contact(contact)
-                    
                     # Notify relevant platforms
                     if platform and platform in self.platform_integrations:
                         await self._notify_platform_lead_created(contact, platform)
-                    
                     # Trigger marketing automation workflows
                     await self._trigger_automation_workflows(contact, 'contact_created')
-                    
                     # Ingest to ATOM memory (LanceDB)
                     try:
                         if atom_ingestion_pipeline:
@@ -438,7 +424,6 @@ class AtomHubSpotIntegrationService:
                             logger.warning(f"Skipping ingestion: atom_ingestion_pipeline not available")
                     except Exception as me:
                         logger.error(f"Failed to ingest HubSpot contact to memory: {me}")
-                    
                     logger.info(f"Contact created successfully: {contact.get('id')}")
                     return {
                         'success': True,
@@ -451,14 +436,37 @@ class AtomHubSpotIntegrationService:
                     error_msg = f"Failed to create contact: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating contact: {e}")
             return {'success': False, 'error': str(e)}
     
     async def create_campaign(self, campaign_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new campaign in HubSpot"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_hubspot_integration", "create_contact", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
+                logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_hubspot_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_hubspot_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_hubspot_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -520,7 +528,6 @@ class AtomHubSpotIntegrationService:
                     await self._trigger_campaign_workflows(campaign, 'created')
                     
                     # Ingest to ATOM memory (LanceDB)
-                    try:
                         if atom_ingestion_pipeline:
                             atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CAMPAIGN.value, campaign)
                             logger.info(f"HubSpot campaign {campaign.get('id')} ingested to memory")
@@ -528,7 +535,6 @@ class AtomHubSpotIntegrationService:
                             logger.warning(f"Skipping ingestion: atom_ingestion_pipeline not available")
                     except Exception as me:
                         logger.error(f"Failed to ingest HubSpot campaign to memory: {me}")
-                    
                     logger.info(f"Campaign created successfully: {campaign.get('id')}")
                     return {
                         'success': True,
@@ -540,16 +546,60 @@ class AtomHubSpotIntegrationService:
                     error_msg = f"Failed to create campaign: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating campaign: {e}")
             return {'success': False, 'error': str(e)}
     
     async def generate_marketing_analytics(self, analytics_type: AnalyticsType, 
+<<<<<<< HEAD
 
                                          time_period: str = '7d') -> Dict[str, Any]:
         """Generate marketing analytics"""
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_hubspot_integration", "generate_marketing_analytics", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
+                logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_hubspot_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_hubspot_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_hubspot_integration"
+                )
+                                         time_period: str = '7d') -> Dict[str, Any]:
+        """Generate marketing analytics"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_hubspot_integration", "create_campaign", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
+                logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_hubspot_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_hubspot_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_hubspot_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -612,9 +662,7 @@ class AtomHubSpotIntegrationService:
     
     async def _score_lead(self, contact_data: Dict[str, Any]) -> float:
         """Score lead using AI-powered lead scoring"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for lead scoring
             ai_request = AIRequest(
                 request_id=f"lead_scoring_{int(time.time())}",
@@ -636,9 +684,7 @@ class AtomHubSpotIntegrationService:
                 },
                 platform='hubspot'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 lead_score = ai_response.output_data.get('lead_score', 50)
                 scoring_factors = ai_response.output_data.get('scoring_factors', {})
@@ -646,32 +692,28 @@ class AtomHubSpotIntegrationService:
                 # Fallback to rule-based scoring
                 lead_score = await self._rule_based_lead_scoring(contact_data)
                 scoring_factors = {'method': 'rule_based'}
-            
             # Update performance metrics
             scoring_time = time.time() - start_time
             self.performance_metrics['lead_scoring_time'] = scoring_time
-            
             # Update analytics
             self.analytics_metrics['average_lead_score'] = (
                 (self.analytics_metrics['average_lead_score'] * (self.analytics_metrics['total_contacts'] - 1) + lead_score) / 
                 self.analytics_metrics['total_contacts']
             )
-            
             return min(max(lead_score, 0), 100)  # Ensure score is between 0-100
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error scoring lead: {e}")
             return 50  # Default score
     
     async def _rule_based_lead_scoring(self, contact_data: Dict[str, Any]) -> float:
         """Fallback rule-based lead scoring"""
-        try:
             score = 0
-            
             # Company name (+10)
             if contact_data.get('company'):
                 score += 10
-            
             # Job title (+20 if decision maker)
             job_title = contact_data.get('job_title', '').lower()
             if any(keyword in job_title for keyword in ['ceo', 'cto', 'cfo', 'president', 'director', 'vp']):
@@ -682,38 +724,33 @@ class AtomHubSpotIntegrationService:
                 score += 10
             else:
                 score += 5
-            
             # Email domain (+5 if corporate)
             email = contact_data.get('email', '')
             if email and not any(domain in email for domain in ['gmail.com', 'yahoo.com', 'hotmail.com']):
                 score += 5
-            
             # Phone number (+5)
             if contact_data.get('phone'):
                 score += 5
-            
             # Website (+5)
             if contact_data.get('website'):
                 score += 5
-            
             # Source (+10 for qualified sources)
             source = contact_data.get('source', '')
             if source in ['referral', 'linkedin', 'trade_show', 'webinar']:
                 score += 10
             elif source in ['website', 'social_media', 'email']:
                 score += 5
-            
             return min(max(score, 0), 100)
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in rule-based lead scoring: {e}")
             return 50
     
     async def _optimize_campaign_with_ai(self, campaign_data: Dict[str, Any]) -> Dict[str, Any]:
         """Optimize campaign with AI"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for campaign optimization
             ai_request = AIRequest(
                 request_id=f"campaign_optimization_{int(time.time())}",
@@ -734,12 +771,9 @@ class AtomHubSpotIntegrationService:
                 },
                 platform='hubspot'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 optimization_result = ai_response.output_data
-                
                 ai_suggestions = {
                     'optimized_subject': optimization_result.get('optimized_subject', campaign_data.get('subject', '')),
                     'content_tone_suggestion': optimization_result.get('content_tone_suggestion', 'professional'),
@@ -759,14 +793,14 @@ class AtomHubSpotIntegrationService:
                     'budget_allocation': {},
                     'predicted_performance': {}
                 }
-            
             # Update performance metrics
             optimization_time = time.time() - start_time
             self.performance_metrics['analytics_generation_time'] = optimization_time
-            
             return ai_suggestions
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error optimizing campaign with AI: {e}")
             return {
                 'optimized_subject': campaign_data.get('subject', ''),
@@ -780,7 +814,6 @@ class AtomHubSpotIntegrationService:
     
     async def _test_hubspot_connection(self):
         """Test HubSpot API connection"""
-        try:
             headers = await self._get_auth_headers()
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -788,14 +821,15 @@ class AtomHubSpotIntegrationService:
                     headers=headers,
                     timeout=10.0
                 )
-                
                 if response.status_code == 200:
                     logger.info("HubSpot API connection test successful")
                     return True
                 else:
                     raise Exception(f"HubSpot API test failed: {response.status_code}")
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"HubSpot connection test failed: {e}")
             raise
     
@@ -816,45 +850,47 @@ class AtomHubSpotIntegrationService:
     
     async def _cache_contact(self, contact: Dict[str, Any]):
         """Cache contact data locally"""
-        try:
             if self.cache:
                 cache_key = f"hubspot_contact:{contact.get('id')}"
                 await self.cache.set(cache_key, contact, ttl=3600)  # 1 hour
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error caching contact: {e}")
     
     async def _cache_campaign(self, campaign: Dict[str, Any]):
         """Cache campaign data locally"""
-        try:
             if self.cache:
                 cache_key = f"hubspot_campaign:{campaign.get('id')}"
                 await self.cache.set(cache_key, campaign, ttl=3600)  # 1 hour
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error caching campaign: {e}")
     
     async def _trigger_automation_workflows(self, contact: Dict[str, Any], trigger_event: str):
         """Trigger marketing automation workflows"""
-        try:
             if not self.hubspot_config['automation_workflows']:
                 return
-            
             # Find matching workflows
             matching_workflows = [
                 workflow for workflow in self.automation_flows.values()
                 if workflow.get('trigger_event') == trigger_event and
                    self._evaluate_workflow_conditions(workflow.get('conditions', {}), contact)
             ]
-            
             # Execute matching workflows
             for workflow in matching_workflows:
                 await self._execute_workflow(workflow, contact)
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error triggering automation workflows: {e}")
     
     async def _trigger_campaign_workflows(self, campaign: Dict[str, Any], trigger_event: str):
         """Trigger campaign-related workflows"""
-        try:
             # Store campaign performance
             campaign_id = campaign.get('id')
             if campaign_id:
@@ -863,37 +899,35 @@ class AtomHubSpotIntegrationService:
                     'status': campaign.get('status'),
                     'metrics': {}
                 }
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error triggering campaign workflows: {e}")
     
     def _evaluate_workflow_conditions(self, conditions: Dict[str, Any], contact: Dict[str, Any]) -> bool:
         """Evaluate workflow conditions"""
-        try:
             # Simple condition evaluation - would be more complex in production
             if conditions.get('lifecycle_stage'):
                 return contact.get('properties', {}).get('lifecyclestage') == conditions['lifecycle_stage']
-            
             if conditions.get('lead_score_min'):
                 lead_score = float(contact.get('properties', {}).get('hs_lead_score', 0))
                 return lead_score >= conditions['lead_score_min']
-            
             return True  # Default to true
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error evaluating workflow conditions: {e}")
             return False
     
     async def _execute_workflow(self, workflow: Dict[str, Any], contact: Dict[str, Any]):
         """Execute marketing automation workflow"""
-        try:
             start_time = time.time()
-            
             # Execute workflow actions based on type
             actions = workflow.get('actions', [])
             for action in actions:
                 action_type = action.get('type')
-                
                 if action_type == 'send_email':
                     await self._send_automated_email(contact, action)
                 elif action_type == 'add_to_list':
@@ -902,53 +936,57 @@ class AtomHubSpotIntegrationService:
                     await self._create_marketing_task(contact, action)
                 elif action_type == 'update_properties':
                     await self._update_contact_properties(contact, action)
-            
             # Update performance metrics
             execution_time = time.time() - start_time
             self.performance_metrics['workflow_execution_time'] = execution_time
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error executing workflow: {e}")
     
     async def _send_automated_email(self, contact: Dict[str, Any], action: Dict[str, Any]):
         """Send automated email"""
-        try:
             # Email sending logic would be implemented here
             logger.info(f"Sending automated email to contact: {contact.get('id')}")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error sending automated email: {e}")
     
     async def _add_contact_to_list(self, contact: Dict[str, Any], action: Dict[str, Any]):
         """Add contact to marketing list"""
-        try:
             # List addition logic would be implemented here
             logger.info(f"Adding contact {contact.get('id')} to list: {action.get('list_id')}")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error adding contact to list: {e}")
     
     async def _create_marketing_task(self, contact: Dict[str, Any], action: Dict[str, Any]):
         """Create marketing task"""
-        try:
             # Task creation logic would be implemented here
             logger.info(f"Creating marketing task for contact: {contact.get('id')}")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error creating marketing task: {e}")
     
     async def _update_contact_properties(self, contact: Dict[str, Any], action: Dict[str, Any]):
         """Update contact properties"""
-        try:
             # Property update logic would be implemented here
             logger.info(f"Updating contact properties for: {contact.get('id')}")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error updating contact properties: {e}")
     
     async def _notify_platform_lead_created(self, contact: Dict[str, Any], platform: str):
         """Notify platform about new lead"""
-        try:
             integration = self.platform_integrations.get(platform)
             if integration:
                 message = f"[ ] New Lead: {contact.get('properties', {}).get('firstname')} {contact.get('properties', {}).get('lastname')} from {contact.get('properties', {}).get('company')}"
@@ -957,13 +995,14 @@ class AtomHubSpotIntegrationService:
                     message=message,
                     metadata={'contact_id': contact.get('id'), 'source': 'hubspot'}
                 )
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error notifying platform about lead: {e}")
     
     async def _notify_platform_campaign_created(self, campaign: Dict[str, Any], platform: str):
         """Notify platform about new campaign"""
-        try:
             integration = self.platform_integrations.get(platform)
             if integration:
                 message = f"📢 New Campaign: {campaign.get('name')} ({campaign.get('type')})"
@@ -972,13 +1011,14 @@ class AtomHubSpotIntegrationService:
                     message=message,
                     metadata={'campaign_id': campaign.get('id'), 'source': 'hubspot'}
                 )
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error notifying platform about campaign: {e}")
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get HubSpot Integration service status"""
-        try:
             return {
                 'service': 'hubspot_integration',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -999,12 +1039,36 @@ class AtomHubSpotIntegrationService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'hubspot_integration'}
     
     async def close(self):
         """Close HubSpot Integration Service"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_hubspot_integration", "get_service_status", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
+                logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_hubspot_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_hubspot_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_hubspot_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             logger.info("HubSpot Integration Service closed")
             
@@ -1034,3 +1098,25 @@ atom_hubspot_integration_service = AtomHubSpotIntegrationService({
     'automation_service': default_workflow_automation,
     'ai_service': default_ai_service
 })
+<<<<<<< HEAD
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_hubspot_integration", "close", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
+                logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_hubspot_integration integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_hubspot_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_hubspot_integration"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

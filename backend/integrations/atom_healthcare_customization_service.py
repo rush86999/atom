@@ -365,27 +365,21 @@ class AtomHealthcareCustomizationService:
     async def create_patient(self, patient_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new patient with HIPAA compliance"""
 
-        try:
             start_time = time.time()
-            
             # Update analytics
             self.analytics_metrics['total_patients'] += 1
             self.analytics_metrics['active_patients'] += 1
-            
             # HIPAA compliance check
             if self.healthcare_config['hipaa_compliance']:
                 compliance_check = await self._perform_hipaa_compliance_check(patient_data)
                 if not compliance_check['passed']:
                     return {'success': False, 'error': compliance_check['reason']}
-            
             # Encrypt sensitive data
             encrypted_data = await self._encrypt_patient_data(patient_data)
-            
             # Medical AI analysis for risk assessment
             if self.healthcare_config['medical_ai_enabled']:
                 ai_analysis = await self._analyze_patient_with_medical_ai(patient_data)
                 encrypted_data.update(ai_analysis)
-            
             # Prepare patient payload
             patient_payload = {
                 'patient_id': encrypted_data['patient_id'],
@@ -410,7 +404,6 @@ class AtomHealthcareCustomizationService:
                     'encryption_enabled': True
                 }
             }
-            
             # Create patient via API
             headers = await self._get_auth_headers()
             async with httpx.AsyncClient() as client:
@@ -420,28 +413,21 @@ class AtomHealthcareCustomizationService:
                     json=patient_payload,
                     timeout=30.0
                 )
-                
                 if response.status_code == 201:
                     patient = response.json()
-                    
                     # Update performance metrics
                     creation_time = time.time() - start_time
                     self.performance_metrics['api_response_time'] = creation_time
-                    
                     # Log audit trail
                     await self._log_audit_event('patient_created', patient_data, encrypted_data)
-                    
                     # Sync with EHR
                     if self.ehr_integration:
                         await self._sync_patient_to_ehr(patient)
-                    
                     # Notify relevant platforms
                     if platform and platform in self.platform_integrations:
                         await self._notify_platform_patient_created(patient, platform)
-                    
                     # Trigger workflows
                     await self._trigger_patient_workflows(patient, 'created')
-                    
                     logger.info(f"Patient created successfully: {patient['patient_id']}")
                     return {
                         'success': True,
@@ -453,14 +439,37 @@ class AtomHealthcareCustomizationService:
                     error_msg = f"Failed to create patient: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating patient: {e}")
             return {'success': False, 'error': str(e)}
     
     async def create_medical_record(self, record_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new medical record with HIPAA compliance"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_healthcare_customization", "create_patient", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
+                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_healthcare_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_healthcare_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -554,10 +563,53 @@ class AtomHealthcareCustomizationService:
             return {'success': False, 'error': str(e)}
     
     async def generate_medical_analytics(self, analytics_type: MedicalAnalyticsType,
+<<<<<<< HEAD
 
                                       time_period: str = '7d', department: str = None) -> Dict[str, Any]:
         """Generate medical analytics with HIPAA compliance"""
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_healthcare_customization", "generate_medical_analytics", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
+                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_healthcare_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_healthcare_customization"
+                )
+                                      time_period: str = '7d', department: str = None) -> Dict[str, Any]:
+        """Generate medical analytics with HIPAA compliance"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_healthcare_customization", "create_medical_record", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
+                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_healthcare_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_healthcare_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -627,9 +679,7 @@ class AtomHealthcareCustomizationService:
     
     async def _analyze_patient_with_medical_ai(self, patient_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze patient data with medical AI"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for medical analysis
             ai_request = AIRequest(
                 request_id=f"patient_analysis_{int(time.time())}",
@@ -651,12 +701,9 @@ class AtomHealthcareCustomizationService:
                 },
                 platform='healthcare'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 analysis_result = ai_response.output_data
-                
                 medical_ai_suggestions = {
                     'cardiovascular_risk_score': analysis_result.get('cardiovascular_risk_score', 0.0),
                     'diabetes_risk_score': analysis_result.get('diabetes_risk_score', 0.0),
@@ -680,19 +727,18 @@ class AtomHealthcareCustomizationService:
                     'monitoring_requirements': [],
                     'follow_up_priority': 'normal'
                 }
-            
             # Update performance metrics
             analysis_time = time.time() - start_time
             self.performance_metrics['medical_ai_processing_time'] = analysis_time
-            
             # Update analytics
             self.analytics_metrics['medical_ai_accuracy'] = (
                 (self.analytics_metrics['medical_ai_accuracy'] * 0.9 + 0.1)  # Simplified accuracy calculation
             )
-            
             return medical_ai_suggestions
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing patient with medical AI: {e}")
             return {
                 'cardiovascular_risk_score': 0.0,
@@ -708,9 +754,7 @@ class AtomHealthcareCustomizationService:
     
     async def _analyze_with_clinical_decision_support(self, record_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze with clinical decision support system"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for CDSS analysis
             ai_request = AIRequest(
                 request_id=f"cdss_analysis_{int(time.time())}",
@@ -733,12 +777,9 @@ class AtomHealthcareCustomizationService:
                 },
                 platform='healthcare'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 cdss_result = ai_response.output_data
-                
                 cdss_suggestions = {
                     'diagnosis_verification_score': cdss_result.get('diagnosis_verification_score', 0.0),
                     'treatment_recommendations': cdss_result.get('treatment_recommendations', []),
@@ -760,14 +801,14 @@ class AtomHealthcareCustomizationService:
                     'clinical_alerts': [],
                     'quality_indicators': []
                 }
-            
             # Update performance metrics
             analysis_time = time.time() - start_time
             self.performance_metrics['api_response_time'] = analysis_time
-            
             return cdss_suggestions
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing with clinical decision support: {e}")
             return {
                 'diagnosis_verification_score': 0.0,
@@ -782,82 +823,73 @@ class AtomHealthcareCustomizationService:
     
     async def _setup_hipaa_compliance(self):
         """Setup HIPAA compliance"""
-        try:
             # Initialize compliance standards
             self.compliance_standards = [
                 HealthcareComplianceStandard.HIPAA,
                 HealthcareComplianceStandard.HITECH,
                 HealthcareComplianceStandard.GDPR
             ]
-            
             # Setup encryption
             self.encryption_keys = {
                 'data_encryption_key': os.getenv('HEALTHCARE_ENCRYPTION_KEY', 'default_key'),
                 'audit_encryption_key': os.getenv('HEALTHCARE_AUDIT_KEY', 'default_audit_key')
             }
-            
             logger.info("HIPAA compliance setup completed")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up HIPAA compliance: {e}")
             raise
     
     async def _encrypt_patient_data(self, patient_data: Dict[str, Any]) -> Dict[str, Any]:
         """Encrypt patient sensitive data"""
-        try:
             start_time = time.time()
-            
             # In production, this would use proper encryption algorithms
             encrypted_data = patient_data.copy()
-            
             # Encrypt sensitive fields
             sensitive_fields = ['first_name', 'last_name', 'date_of_birth', 'medical_history', 'medications']
             for field in sensitive_fields:
                 if field in encrypted_data:
                     # Simple encoding for demonstration - use proper encryption in production
                     encrypted_data[field] = base64.b64encode(str(encrypted_data[field]).encode()).decode()
-            
             # Update performance metrics
             encryption_time = time.time() - start_time
             self.performance_metrics['encryption_processing_time'] = encryption_time
-            
             return encrypted_data
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error encrypting patient data: {e}")
             return patient_data
     
     async def _encrypt_medical_record_data(self, record_data: Dict[str, Any]) -> Dict[str, Any]:
         """Encrypt medical record sensitive data"""
-        try:
             start_time = time.time()
-            
             # In production, this would use proper encryption algorithms
             encrypted_data = record_data.copy()
-            
             # Encrypt sensitive fields
             sensitive_fields = ['description', 'clinical_data', 'diagnosis_codes', 'procedure_codes']
             for field in sensitive_fields:
                 if field in encrypted_data:
                     # Simple encoding for demonstration - use proper encryption in production
                     encrypted_data[field] = base64.b64encode(str(encrypted_data[field]).encode()).decode()
-            
             # Update performance metrics
             encryption_time = time.time() - start_time
             self.performance_metrics['encryption_processing_time'] = encryption_time
-            
             return encrypted_data
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error encrypting medical record data: {e}")
             return record_data
     
     async def _log_audit_event(self, event_type: str, original_data: Dict[str, Any], 
                              processed_data: Dict[str, Any]):
         """Log audit event for HIPAA compliance"""
-        try:
             start_time = time.time()
-            
             audit_event = {
                 'event_id': f"audit_{int(time.time())}",
                 'event_type': event_type,
@@ -871,39 +903,32 @@ class AtomHealthcareCustomizationService:
                 'encryption_used': True,
                 'access_level': 'authorized'
             }
-            
             self.audit_logs.append(audit_event)
-            
             # Update performance metrics
             audit_time = time.time() - start_time
             self.performance_metrics['audit_log_processing_time'] = audit_time
-            
             # Update analytics
             self.analytics_metrics['compliance_score'] = min(
                 (self.analytics_metrics['compliance_score'] * 0.9 + 0.1), 1.0
             )
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error logging audit event: {e}")
     
     async def _perform_hipaa_compliance_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform HIPAA compliance check"""
-        try:
             start_time = time.time()
-            
             # Check for required PHI elements
             phi_elements = ['first_name', 'last_name', 'date_of_birth', 'medical_history']
             phi_present = any(element in data for element in phi_elements)
-            
             # Check for proper encryption requirements
             encryption_required = self.healthcare_config['encryption_in_transit']
-            
             # Check for audit logging requirements
             audit_required = self.healthcare_config['audit_logging']
-            
             # Check for access control requirements
             access_control_required = self.healthcare_config['access_control']
-            
             compliance_result = {
                 'passed': True,
                 'reason': 'Compliant with HIPAA standards',
@@ -912,31 +937,28 @@ class AtomHealthcareCustomizationService:
                 'audit_required': audit_required,
                 'access_control_required': access_control_required
             }
-            
             # Update performance metrics
             compliance_time = time.time() - start_time
             self.performance_metrics['compliance_check_time'] = compliance_time
-            
             return compliance_result
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing HIPAA compliance check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _initialize_ehr_integration(self):
         """Initialize EHR system integration"""
-        try:
             from atom_epic_integration import atom_epic_integration
             self.ehr_integration = atom_epic_integration
             logger.info("EHR integration initialized")
-            
         except ImportError:
             logger.warning("EHR integration not available")
             self.ehr_integration = None
     
     async def _initialize_ehr_connection(self):
         """Initialize EHR connection"""
-        try:
             # Test EHR connection
             if self.ehr_integration:
                 connection_test = await self.ehr_integration.test_connection()
@@ -944,29 +966,33 @@ class AtomHealthcareCustomizationService:
                     logger.info("EHR connection established successfully")
                 else:
                     raise Exception("EHR connection test failed")
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"EHR connection failed: {e}")
             raise
     
     async def _sync_patient_to_ehr(self, patient: Dict[str, Any]):
         """Sync patient to EHR system"""
-        try:
             if self.ehr_integration:
                 await self.ehr_integration.create_patient(patient)
                 logger.info(f"Patient synced to EHR: {patient['patient_id']}")
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error syncing patient to EHR: {e}")
     
     async def _sync_medical_record_to_ehr(self, record: Dict[str, Any]):
         """Sync medical record to EHR system"""
-        try:
             if self.ehr_integration:
                 await self.ehr_integration.create_medical_record(record)
                 logger.info(f"Medical record synced to EHR: {record['record_id']}")
-                
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error syncing medical record to EHR: {e}")
     
     async def _get_auth_headers(self) -> Dict[str, str]:
@@ -980,7 +1006,6 @@ class AtomHealthcareCustomizationService:
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Healthcare Customization service status"""
-        try:
             return {
                 'service': 'healthcare_customization',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -1006,12 +1031,36 @@ class AtomHealthcareCustomizationService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'healthcare_customization'}
     
     async def close(self):
         """Close Healthcare Customization Service"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_healthcare_customization", "get_service_status", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
+                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_healthcare_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_healthcare_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             logger.info("Healthcare Customization Service closed")
             
@@ -1058,3 +1107,25 @@ if _ai_service:
     _healthcare_config['ai_service'] = _ai_service
 
 atom_healthcare_customization_service = AtomHealthcareCustomizationService(_healthcare_config)
+<<<<<<< HEAD
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_healthcare_customization", "close", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_healthcare_customization"):
+                logger.warning(f"Circuit breaker is open for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_healthcare_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_healthcare_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_healthcare_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_healthcare_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

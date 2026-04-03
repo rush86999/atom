@@ -396,29 +396,23 @@ class AtomFinanceCustomizationService:
     async def create_customer(self, customer_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new customer with finance compliance"""
 
-        try:
             start_time = time.time()
-            
             # Update analytics
             self.analytics_metrics['total_customers'] += 1
-            
             # Finance compliance check
             if self.finance_config['sox_compliance']:
                 compliance_check = await self._perform_finance_compliance_check(customer_data)
                 if not compliance_check['passed']:
                     return {'success': False, 'error': compliance_check['reason']}
-            
             # KYC verification
             if self.finance_config['kyc_required']:
                 kyc_verification = await self._perform_kyc_verification(customer_data)
                 if not kyc_verification['passed']:
                     return {'success': False, 'error': kyc_verification['reason']}
-            
             # Credit scoring
             if self.finance_config['credit_scoring']:
                 credit_score = await self._calculate_credit_score(customer_data)
                 customer_data['credit_score'] = credit_score
-                
                 # Determine risk level based on credit score
                 if credit_score >= 750:
                     customer_data['risk_level'] = RiskLevel.LOW
@@ -428,15 +422,12 @@ class AtomFinanceCustomizationService:
                     customer_data['risk_level'] = RiskLevel.HIGH
                 else:
                     customer_data['risk_level'] = RiskLevel.CRITICAL
-            
             # Financial AI analysis
             if self.finance_config['financial_ai_enabled']:
                 ai_analysis = await self._analyze_customer_with_financial_ai(customer_data)
                 customer_data.update(ai_analysis)
-            
             # Encrypt sensitive data
             encrypted_data = await self._encrypt_customer_data(customer_data)
-            
             # Prepare customer payload
             customer_payload = {
                 'customer_id': encrypted_data['customer_id'],
@@ -466,7 +457,6 @@ class AtomFinanceCustomizationService:
                     'encryption_enabled': True
                 }
             }
-            
             # Create customer via API
             headers = await self._get_auth_headers()
             async with httpx.AsyncClient() as client:
@@ -476,28 +466,21 @@ class AtomFinanceCustomizationService:
                     json=customer_payload,
                     timeout=30.0
                 )
-                
                 if response.status_code == 201:
                     customer = response.json()
-                    
                     # Update performance metrics
                     creation_time = time.time() - start_time
                     self.performance_metrics['api_response_time'] = creation_time
-                    
                     # Log audit trail
                     await self._log_audit_event('customer_created', customer_data, encrypted_data)
-                    
                     # Sync with banking core
                     if self.banking_core_integration:
                         await self._sync_customer_to_banking_core(customer)
-                    
                     # Notify relevant platforms
                     if platform and platform in self.platform_integrations:
                         await self._notify_platform_customer_created(customer, platform)
-                    
                     # Trigger workflows
                     await self._trigger_customer_workflows(customer, 'created')
-                    
                     logger.info(f"Customer created successfully: {customer['customer_id']}")
                     return {
                         'success': True,
@@ -511,14 +494,37 @@ class AtomFinanceCustomizationService:
                     error_msg = f"Failed to create customer: {response.status_code} - {response.text}"
                     logger.error(error_msg)
                     return {'success': False, 'error': error_msg}
-                    
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating customer: {e}")
             return {'success': False, 'error': str(e)}
     
     async def process_transaction(self, transaction_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Process transaction with fraud detection"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_finance_customization", "create_customer", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_finance_customization"):
+                logger.warning(f"Circuit breaker is open for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_finance_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_finance_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -638,10 +644,53 @@ class AtomFinanceCustomizationService:
             return {'success': False, 'error': str(e)}
     
     async def generate_financial_analytics(self, analytics_type: FinancialAnalyticsType,
+<<<<<<< HEAD
 
                                         time_period: str = '7d', department: str = None) -> Dict[str, Any]:
         """Generate financial analytics with compliance"""
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_finance_customization", "generate_financial_analytics", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_finance_customization"):
+                logger.warning(f"Circuit breaker is open for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_finance_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_finance_customization"
+                )
+                                        time_period: str = '7d', department: str = None) -> Dict[str, Any]:
+        """Generate financial analytics with compliance"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_finance_customization", "process_transaction", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_finance_customization"):
+                logger.warning(f"Circuit breaker is open for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_finance_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_finance_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -711,9 +760,7 @@ class AtomFinanceCustomizationService:
     
     async def _calculate_credit_score(self, customer_data: Dict[str, Any]) -> float:
         """Calculate credit score using AI models"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for credit scoring
             ai_request = AIRequest(
                 request_id=f"credit_scoring_{int(time.time())}",
@@ -736,9 +783,7 @@ class AtomFinanceCustomizationService:
                 },
                 platform='finance'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 credit_score = ai_response.output_data.get('credit_score', 650)
                 scoring_factors = ai_response.output_data.get('scoring_factors', {})
@@ -746,28 +791,25 @@ class AtomFinanceCustomizationService:
                 # Fallback to rule-based scoring
                 credit_score = await self._rule_based_credit_scoring(customer_data)
                 scoring_factors = {'method': 'rule_based'}
-            
             # Update performance metrics
             scoring_time = time.time() - start_time
             self.performance_metrics['credit_scoring_time'] = scoring_time
-            
             # Update analytics
             self.analytics_metrics['credit_score_average'] = (
                 (self.analytics_metrics['credit_score_average'] * (self.analytics_metrics['total_customers'] - 1) + credit_score) / 
                 self.analytics_metrics['total_customers']
             )
-            
             return min(max(credit_score, 300), 850)  # Ensure score is between 300-850
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error calculating credit score: {e}")
             return 650  # Default score
     
     async def _calculate_fraud_score(self, transaction_data: Dict[str, Any]) -> float:
         """Calculate fraud score using ML models"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for fraud detection
             ai_request = AIRequest(
                 request_id=f"fraud_detection_{int(time.time())}",
@@ -789,9 +831,7 @@ class AtomFinanceCustomizationService:
                 },
                 platform='finance'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 fraud_score = ai_response.output_data.get('fraud_score', 0.1)
                 risk_factors = ai_response.output_data.get('risk_factors', {})
@@ -799,29 +839,26 @@ class AtomFinanceCustomizationService:
                 # Fallback to rule-based fraud detection
                 fraud_score = await self._rule_based_fraud_detection(transaction_data)
                 risk_factors = {'method': 'rule_based'}
-            
             # Update performance metrics
             detection_time = time.time() - start_time
             self.performance_metrics['fraud_detection_time'] = detection_time
-            
             # Update analytics
             if fraud_score > 0.7:
                 self.analytics_metrics['fraud_detection_rate'] = (
                     (self.analytics_metrics['fraud_detection_rate'] * (self.analytics_metrics['total_transactions'] - 1) + 100) / 
                     self.analytics_metrics['total_transactions']
                 )
-            
             return min(max(fraud_score, 0.0), 1.0)  # Ensure score is between 0-1
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error calculating fraud score: {e}")
             return 0.1  # Default score
     
     async def _analyze_customer_with_financial_ai(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze customer with financial AI"""
-        try:
             start_time = time.time()
-            
             # Prepare AI request for customer analysis
             ai_request = AIRequest(
                 request_id=f"customer_analysis_{int(time.time())}",
@@ -843,12 +880,9 @@ class AtomFinanceCustomizationService:
                 },
                 platform='finance'
             )
-            
             ai_response = await self.ai_service.process_ai_request(ai_request)
-            
             if ai_response.ok and ai_response.output_data:
                 analysis_result = ai_response.output_data
-                
                 financial_ai_suggestions = {
                     'profitability_score': analysis_result.get('profitability_score', 0.5),
                     'churn_risk_score': analysis_result.get('churn_risk_score', 0.2),
@@ -870,14 +904,14 @@ class AtomFinanceCustomizationService:
                     'upsell_opportunities': [],
                     'lifetime_value_prediction': 10000.0
                 }
-            
             # Update performance metrics
             analysis_time = time.time() - start_time
             self.performance_metrics['financial_ai_processing_time'] = analysis_time
-            
             return financial_ai_suggestions
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error analyzing customer with financial AI: {e}")
             return {
                 'profitability_score': 0.5,
@@ -892,7 +926,6 @@ class AtomFinanceCustomizationService:
     
     async def _setup_finance_compliance_standards(self):
         """Setup finance compliance standards"""
-        try:
             # Initialize compliance standards
             self.compliance_standards = [
                 FinanceComplianceStandard.SOX,
@@ -903,24 +936,22 @@ class AtomFinanceCustomizationService:
                 FinanceComplianceStandard.KYC,
                 FinanceComplianceStandard.AML
             ]
-            
             # Setup encryption
             self.encryption_keys = {
                 'data_encryption_key': os.getenv('FINANCE_ENCRYPTION_KEY', 'default_key'),
                 'audit_encryption_key': os.getenv('FINANCE_AUDIT_KEY', 'default_audit_key')
             }
-            
             logger.info("Finance compliance standards setup completed")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up finance compliance standards: {e}")
             raise
     
     async def _rule_based_credit_scoring(self, customer_data: Dict[str, Any]) -> float:
         """Fallback rule-based credit scoring"""
-        try:
             score = 850  # Start with perfect score
-            
             # Income factor (max -100 points)
             income = customer_data.get('annual_income', 0)
             if income < 30000:
@@ -931,7 +962,6 @@ class AtomFinanceCustomizationService:
                 score -= 50
             elif income < 100000:
                 score -= 25
-            
             # Employment status (max -50 points)
             employment = customer_data.get('employment_status', '').lower()
             if employment == 'unemployed':
@@ -940,7 +970,6 @@ class AtomFinanceCustomizationService:
                 score -= 30
             elif employment == 'self_employed':
                 score -= 20
-            
             # Age factor (max -30 points)
             if 'date_of_birth' in customer_data:
                 age = (datetime.utcnow() - customer_data['date_of_birth']).days // 365
@@ -950,18 +979,17 @@ class AtomFinanceCustomizationService:
                     score -= 20
                 elif age < 45:
                     score -= 10
-            
             return min(max(score, 300), 850)  # Ensure score is between 300-850
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in rule-based credit scoring: {e}")
             return 650
     
     async def _rule_based_fraud_detection(self, transaction_data: Dict[str, Any]) -> float:
         """Fallback rule-based fraud detection"""
-        try:
             fraud_score = 0.0
-            
             # Amount anomaly (max 0.3 points)
             amount = transaction_data.get('amount', 0)
             if amount > 10000:
@@ -970,76 +998,68 @@ class AtomFinanceCustomizationService:
                 fraud_score += 0.2
             elif amount > 1000:
                 fraud_score += 0.1
-            
             # Time anomaly (max 0.2 points)
             timestamp = transaction_data.get('timestamp', datetime.utcnow())
             if timestamp.hour < 6 or timestamp.hour > 22:
                 fraud_score += 0.2
-            
             # Location anomaly (max 0.2 points)
             location = transaction_data.get('location', {})
             if not location:
                 fraud_score += 0.2
-            
             # Frequency anomaly (max 0.3 points)
             # In production, this would check against recent transactions
             if transaction_data.get('high_frequency', False):
                 fraud_score += 0.3
-            
             return min(max(fraud_score, 0.0), 1.0)  # Ensure score is between 0-1
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in rule-based fraud detection: {e}")
             return 0.1
     
     async def _encrypt_customer_data(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
         """Encrypt customer sensitive data"""
-        try:
             start_time = time.time()
-            
             # In production, this would use proper encryption algorithms
             encrypted_data = customer_data.copy()
-            
             # Encrypt sensitive fields
             sensitive_fields = ['ssn_hash', 'first_name', 'last_name', 'address']
             for field in sensitive_fields:
                 if field in encrypted_data:
                     # Simple encoding for demonstration - use proper encryption in production
                     encrypted_data[field] = base64.b64encode(str(encrypted_data[field]).encode()).decode()
-            
             return encrypted_data
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error encrypting customer data: {e}")
             return customer_data
     
     async def _encrypt_transaction_data(self, transaction_data: Dict[str, Any]) -> Dict[str, Any]:
         """Encrypt transaction sensitive data"""
-        try:
             start_time = time.time()
-            
             # In production, this would use proper encryption algorithms
             encrypted_data = transaction_data.copy()
-            
             # Encrypt sensitive fields
             sensitive_fields = ['card_number_hash', 'ip_address', 'device_fingerprint']
             for field in sensitive_fields:
                 if field in encrypted_data:
                     # Simple encoding for demonstration - use proper encryption in production
                     encrypted_data[field] = base64.b64encode(str(encrypted_data[field]).encode()).decode()
-            
             return encrypted_data
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error encrypting transaction data: {e}")
             return transaction_data
     
     async def _log_audit_event(self, event_type: str, original_data: Dict[str, Any], 
                               processed_data: Dict[str, Any]):
         """Log audit event for finance compliance"""
-        try:
             start_time = time.time()
-            
             audit_event = {
                 'event_id': f"audit_{int(time.time())}",
                 'event_type': event_type,
@@ -1053,30 +1073,25 @@ class AtomFinanceCustomizationService:
                 'encryption_used': True,
                 'access_level': 'authorized'
             }
-            
             self.audit_logs.append(audit_event)
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error logging audit event: {e}")
     
     async def _perform_finance_compliance_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform finance compliance check"""
-        try:
             start_time = time.time()
-            
             # Check for required data elements
             required_elements = ['first_name', 'last_name', 'date_of_birth', 'email']
             data_present = any(element in data for element in required_elements)
-            
             # Check for proper encryption requirements
             encryption_required = self.finance_config['encryption_at_rest']
-            
             # Check for audit logging requirements
             audit_required = self.finance_config['audit_logging']
-            
             # Check for access control requirements
             access_control_required = self.finance_config['access_control']
-            
             compliance_result = {
                 'passed': True,
                 'reason': 'Compliant with finance standards',
@@ -1085,35 +1100,30 @@ class AtomFinanceCustomizationService:
                 'audit_required': audit_required,
                 'access_control_required': access_control_required
             }
-            
             # Update performance metrics
             compliance_time = time.time() - start_time
             self.performance_metrics['compliance_check_time'] = compliance_time
-            
             return compliance_result
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing finance compliance check: {e}")
             return {'passed': False, 'reason': str(e)}
     
     async def _perform_kyc_verification(self, customer_data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform KYC verification"""
-        try:
             start_time = time.time()
-            
             # Simple KYC verification - in production, this would integrate with KYC services
             kyc_documents = customer_data.get('kyc_documents', [])
             kyc_status = 'pending'
-            
             # Check if required documents are present
             required_documents = ['id_proof', 'address_proof', 'income_proof']
             documents_present = any(doc.get('type') in required_documents for doc in kyc_documents)
-            
             if documents_present:
                 kyc_status = 'verified'
             else:
                 kyc_status = 'pending_documents'
-            
             kyc_result = {
                 'passed': kyc_status == 'verified',
                 'reason': f'KYC status: {kyc_status}',
@@ -1121,14 +1131,14 @@ class AtomFinanceCustomizationService:
                 'documents_present': documents_present,
                 'required_documents': required_documents
             }
-            
             # Update performance metrics
             kyc_time = time.time() - start_time
             self.performance_metrics['compliance_check_time'] = kyc_time
-            
             return kyc_result
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error performing KYC verification: {e}")
             return {'passed': False, 'reason': str(e)}
     
@@ -1144,7 +1154,6 @@ class AtomFinanceCustomizationService:
     
     async def get_service_status(self) -> Dict[str, Any]:
         """Get Finance Customization service status"""
-        try:
             return {
                 'service': 'finance_customization',
                 'status': 'active' if self.is_initialized else 'inactive',
@@ -1176,12 +1185,36 @@ class AtomFinanceCustomizationService:
                 'uptime': time.time() - (self._start_time if hasattr(self, '_start_time') else time.time())
             }
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error getting service status: {e}")
             return {'error': str(e), 'service': 'finance_customization'}
 
     def _initialize_banking_core_integration(self):
         """Initialize banking core integration (stub)"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_finance_customization", "get_service_status", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_finance_customization"):
+                logger.warning(f"Circuit breaker is open for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_finance_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_finance_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         logger.info("Banking core integration not implemented")
         return None
 
@@ -1197,10 +1230,11 @@ class AtomFinanceCustomizationService:
 
     async def close(self):
         """Close Finance Customization Service"""
-        try:
             logger.info("Finance Customization Service closed")
-            
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error closing Finance Customization Service: {e}")
 
 # Global Finance Customization service instance
@@ -1243,3 +1277,25 @@ if _ai_service:
     _finance_config['ai_service'] = _ai_service
 
 atom_finance_customization_service = AtomFinanceCustomizationService(_finance_config)
+<<<<<<< HEAD
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_finance_customization", "close", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_finance_customization"):
+                logger.warning(f"Circuit breaker is open for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_finance_customization integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_finance_customization")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_finance_customization")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_finance_customization"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

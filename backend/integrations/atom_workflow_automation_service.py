@@ -368,9 +368,7 @@ class AtomWorkflowAutomationService:
     async def create_automation(self, automation_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Create workflow automation"""
 
-        try:
             automation_id = f"auto_{int(time.time())}_{hashlib.md5(automation_data['name'].encode()).hexdigest()[:8]}"
-            
             # Validate automation data
             validation_result = await self._validate_automation_data(automation_data)
             if not validation_result['valid']:
@@ -378,7 +376,6 @@ class AtomWorkflowAutomationService:
                     'ok': False,
                     'error': f"Automation validation failed: {validation_result['errors']}"
                 }
-            
             # Create automation
             automation = WorkflowAutomation(
                 automation_id=automation_id,
@@ -407,23 +404,18 @@ class AtomWorkflowAutomationService:
                 metadata=automation_data.get('metadata', {}),
                 audit_trail=[]
             )
-            
             # Setup automation triggers
             await self._setup_automation_triggers(automation)
-            
             # Store automation
             self.automations[automation_id] = automation
-            
             # Store in database
             if self.db:
                 await self.db.store_workflow_automation(asdict(automation))
-            
             # Update metrics
             self.automation_metrics['total_automations'] += 1
             self.automation_metrics['active_automations'] += 1
             self.automation_metrics['automations_by_type'][automation.automation_type.value] += 1
             self.automation_metrics['automations_by_priority'][automation.priority.value] += 1
-            
             # Log creation
             await self._log_automation_event(
                 automation_id=automation_id,
@@ -435,21 +427,43 @@ class AtomWorkflowAutomationService:
                     'priority': automation.priority.value
                 }
             )
-            
             return {
                 'ok': True,
                 'automation_id': automation_id,
                 'automation': asdict(automation),
                 'message': "Workflow automation created successfully"
             }
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
             logger.error(f"Error creating workflow automation: {e}")
             return {'ok': False, 'error': str(e)}
     
     async def execute_automation(self, automation_id: str, trigger_context: Dict[str, Any], triggered_by: str) -> Dict[str, Any]:
         """Execute workflow automation"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "create_automation", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             automation = self.automations.get(automation_id)
             if not automation:
@@ -525,20 +539,17 @@ class AtomWorkflowAutomationService:
                             "trigger_context": trigger_context
                         }
 
-                        try:
                             decision = await interceptor.intercept_trigger(
                                 agent_id=agent_id,
                                 trigger_source=TriggerSource.WORKFLOW_ENGINE,
                                 trigger_context=trigger_context
                             )
-
                             # Log routing decision
                             logger.info(
                                 f"Workflow automation routing decision for agent {agent_id}: "
                                 f"{decision.routing_decision.value} (maturity: {decision.agent_maturity}, "
                                 f"confidence: {decision.confidence_score:.2f})"
                             )
-
                             # Handle blocked triggers
                             if not decision.execute:
                                 execution.status = AutomationStatus.FAILED
@@ -551,9 +562,7 @@ class AtomWorkflowAutomationService:
                                     'reason': decision.reason,
                                     'routing_decision': decision.routing_decision.value
                                 }
-
                                 self.db.commit()
-
                                 logger.warning(
                                     f"Workflow automation {automation_id} action blocked: {decision.reason}"
                                 )
@@ -562,7 +571,6 @@ class AtomWorkflowAutomationService:
                                     'error': execution.error,
                                     'maturity_check': execution.metadata['maturity_check']
                                 }
-
                         except ValueError as e:
                             # Agent not found or other error
                             logger.warning(
@@ -570,7 +578,6 @@ class AtomWorkflowAutomationService:
                             )
                             # Continue with execution for backward compatibility
             # ========================================================================
-
             # Execute automation actions
             execution_results = []
             for action in automation.actions:
@@ -582,12 +589,13 @@ class AtomWorkflowAutomationService:
                         'result': action_result,
                         'timestamp': datetime.utcnow().isoformat()
                     })
-                    
                     # Check if execution should stop
                     if action_result.get('stop_execution', False):
                         break
-                
                 except Exception as e:
+                    logger.error(f"Operation failed: {e}")
+                    log_integration_complete(audit_ctx, error=e)
+                    return {'ok': False, 'error': str(e)}
                     logger.error(f"Error executing automation action: {e}")
                     execution_results.append({
                         'success': False,
@@ -653,7 +661,29 @@ class AtomWorkflowAutomationService:
     
     async def create_security_automation(self, security_event: Dict[str, Any], automation_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create automation from security event"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "execute_automation", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Determine automation type based on security event
             threat_type = security_event.get('threat_type', 'unknown')
@@ -732,7 +762,29 @@ class AtomWorkflowAutomationService:
     
     async def create_compliance_automation(self, compliance_violation: Dict[str, Any], automation_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create automation from compliance violation"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "create_security_automation", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Determine automation type based on compliance violation
             standard = compliance_violation.get('standard', 'unknown')
@@ -813,7 +865,29 @@ class AtomWorkflowAutomationService:
     
     async def create_integration_automation(self, platform: str, integration_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create automation for platform integration"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "create_compliance_automation", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Validate platform
             if platform not in self.platform_integrations:
@@ -875,7 +949,29 @@ class AtomWorkflowAutomationService:
     
     async def get_automations(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Get workflow automations with filters"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "create_integration_automation", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             filters = filters or {}
             automations = []
@@ -926,7 +1022,29 @@ class AtomWorkflowAutomationService:
     
     async def get_automation_executions(self, automation_id: str = None, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Get automation executions"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "get_automations", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             filters = filters or {}
             executions = []
@@ -978,7 +1096,29 @@ class AtomWorkflowAutomationService:
     
     async def get_automation_metrics(self) -> Dict[str, Any]:
         """Get automation metrics"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "get_automation_executions", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             return {
                 'total_automations': self.automation_metrics['total_automations'],
@@ -1006,7 +1146,29 @@ class AtomWorkflowAutomationService:
     # Private methods
     async def _validate_automation_data(self, automation_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate automation data"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "get_automation_metrics", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         validation_result = {'valid': True, 'errors': [], 'warnings': []}
         
         required_fields = ['name', 'description', 'automation_type', 'priority', 'conditions', 'actions']
@@ -1033,10 +1195,8 @@ class AtomWorkflowAutomationService:
     
     async def _setup_automation_triggers(self, automation: WorkflowAutomation):
         """Setup automation triggers"""
-        try:
             for condition in automation.conditions:
                 condition_type = condition.get('type')
-                
                 if condition_type == AutomationConditionType.SCHEDULED.value:
                     # Schedule automation
                     await self._schedule_automation(automation, condition)
@@ -1055,16 +1215,16 @@ class AtomWorkflowAutomationService:
                 elif condition_type == AutomationConditionType.COMPLIANCE_VIOLATION.value:
                     # Setup compliance trigger
                     await self._setup_compliance_trigger(automation, condition)
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up automation triggers: {e}")
     
     async def _execute_automation_action(self, action: Dict[str, Any], trigger_context: Dict[str, Any], execution: AutomationExecution) -> Dict[str, Any]:
         """Execute automation action"""
-        try:
             action_type = action.get('type')
             action_config = action.get('config', {})
-            
             # Execute based on action type
             if action_type == AutomationActionType.NOTIFICATION.value:
                 return await self._execute_notification_action(action_config, trigger_context)
@@ -1095,8 +1255,10 @@ class AtomWorkflowAutomationService:
                     'success': False,
                     'error': f"Unsupported action type: {action_type}"
                 }
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error executing automation action: {e}")
             return {
                 'success': False,
@@ -1106,14 +1268,11 @@ class AtomWorkflowAutomationService:
     # Action execution methods
     async def _execute_notification_action(self, config: Dict[str, Any], trigger_context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute notification action"""
-        try:
             channels = config.get('channels', [])
             message = config.get('message', 'Automation triggered')
             urgency = config.get('urgency', 'medium')
-            
             # Send notifications to different channels
             notification_results = []
-            
             for channel in channels:
                 if channel == 'security_team':
                     # Send to security team
@@ -1133,13 +1292,11 @@ class AtomWorkflowAutomationService:
                 elif channel == 'email':
                     # Send email
                     await self._notify_email(message, urgency, trigger_context)
-                
                 notification_results.append({
                     'channel': channel,
                     'success': True,
                     'message': message
                 })
-            
             return {
                 'success': True,
                 'notification_results': notification_results,
@@ -1147,8 +1304,10 @@ class AtomWorkflowAutomationService:
                 'message': message,
                 'urgency': urgency
             }
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error executing notification action: {e}")
             return {
                 'success': False,
@@ -1157,16 +1316,13 @@ class AtomWorkflowAutomationService:
     
     async def _execute_workflow_action(self, config: Dict[str, Any], trigger_context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute workflow action"""
-        try:
             workflow_id = config.get('workflow_id')
             workflow_data = config.get('workflow_data', {})
-            
             if not workflow_id:
                 return {
                     'success': False,
                     'error': 'workflow_id is required for workflow action'
                 }
-            
             # Execute workflow using unified service
             if self.unified_service:
                 result = await self.unified_service.execute_enterprise_workflow(
@@ -1177,7 +1333,6 @@ class AtomWorkflowAutomationService:
                     },
                     user_id='automation_system'
                 )
-                
                 return {
                     'success': result.get('ok', False),
                     'result': result,
@@ -1188,8 +1343,10 @@ class AtomWorkflowAutomationService:
                     'success': False,
                     'error': 'Unified service not available'
                 }
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error executing workflow action: {e}")
             return {
                 'success': False,
@@ -1198,17 +1355,14 @@ class AtomWorkflowAutomationService:
     
     async def _execute_security_enforcement_action(self, config: Dict[str, Any], trigger_context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute security enforcement action"""
-        try:
             enforcement_action = config.get('action')
             target = config.get('target')
             reason = config.get('reason', 'Security policy violation')
-            
             if not enforcement_action:
                 return {
                     'success': False,
                     'error': 'action is required for security enforcement'
                 }
-            
             # Execute using security service
             if self.security_service:
                 if enforcement_action == 'block_ip':
@@ -1219,7 +1373,6 @@ class AtomWorkflowAutomationService:
                     await self.security_service._terminate_session(target)
                 elif enforcement_action == 'quarantine':
                     await self.security_service._quarantine_resource(target)
-                
                 return {
                     'success': True,
                     'enforcement_action': enforcement_action,
@@ -1231,8 +1384,10 @@ class AtomWorkflowAutomationService:
                     'success': False,
                     'error': 'Security service not available'
                 }
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error executing security enforcement action: {e}")
             return {
                 'success': False,
@@ -1241,23 +1396,19 @@ class AtomWorkflowAutomationService:
     
     async def _execute_compliance_check_action(self, config: Dict[str, Any], trigger_context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute compliance check action"""
-        try:
             standard = config.get('standard')
             check_type = config.get('check_type', 'automated')
-            
             if not standard:
                 return {
                     'success': False,
                     'error': 'standard is required for compliance check'
                 }
-            
             # Execute compliance check using security service
             if self.security_service:
                 compliance_report = await self.security_service.check_compliance(
                     ComplianceStandard(standard),
                     trigger_context.get('period', 'immediate')
                 )
-                
                 return {
                     'success': compliance_report is not None,
                     'compliance_report': asdict(compliance_report) if compliance_report else None,
@@ -1269,8 +1420,10 @@ class AtomWorkflowAutomationService:
                     'success': False,
                     'error': 'Security service not available'
                 }
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error executing compliance check action: {e}")
             return {
                 'success': False,
@@ -1313,23 +1466,22 @@ class AtomWorkflowAutomationService:
     # Security and compliance checks
     async def _pre_execution_security_check(self, automation: WorkflowAutomation, trigger_context: Dict[str, Any]) -> Dict[str, Any]:
         """Pre-execution security check"""
-        try:
             # Check security level
             if automation.automation_type == WorkflowAutomationType.SECURITY:
                 security_level = WorkflowSecurityLevel.RESTRICTED
             else:
                 security_level = WorkflowSecurityLevel.INTERNAL
-            
             # Validate trigger context
             if not trigger_context.get('authorized', True):
                 return {
                     'passed': False,
                     'reason': 'Trigger context not authorized'
                 }
-            
             return {'passed': True}
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in pre-execution security check: {e}")
             return {
                 'passed': False,
@@ -1338,17 +1490,17 @@ class AtomWorkflowAutomationService:
     
     async def _pre_execution_compliance_check(self, automation: WorkflowAutomation, trigger_context: Dict[str, Any]) -> Dict[str, Any]:
         """Pre-execution compliance check"""
-        try:
             # Check compliance requirements
             if automation.automation_type == WorkflowAutomationType.COMPLIANCE:
                 return {
                     'passed': True,
                     'compliance_level': 'compliant'
                 }
-            
             return {'passed': True}
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in pre-execution compliance check: {e}")
             return {
                 'passed': False,
@@ -1357,15 +1509,15 @@ class AtomWorkflowAutomationService:
     
     async def _post_execution_security_check(self, automation: WorkflowAutomation, execution_results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Post-execution security check"""
-        try:
             # Validate execution results
             for result in execution_results:
                 if not result.get('success', False):
                     logger.warning(f"Security action failed: {result}")
-            
             return {'passed': True}
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in post-execution security check: {e}")
             return {
                 'passed': False,
@@ -1374,11 +1526,12 @@ class AtomWorkflowAutomationService:
     
     async def _post_execution_compliance_check(self, automation: WorkflowAutomation, execution_results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Post-execution compliance check"""
-        try:
             # Validate compliance
             return {'passed': True}
-        
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error in post-execution compliance check: {e}")
             return {
                 'passed': False,
@@ -1419,7 +1572,6 @@ class AtomWorkflowAutomationService:
     # Additional private methods - Full implementations
     async def _initialize_automation_templates(self):
         """Initialize automation templates with default templates"""
-        try:
             # Default automation templates for common use cases
             default_templates = {
                 'security_alert_response': {
@@ -1528,7 +1680,6 @@ class AtomWorkflowAutomationService:
                     'enabled': False
                 }
             }
-
             # Load templates from database if available, otherwise use defaults
             if self.db:
                 try:
@@ -1539,6 +1690,9 @@ class AtomWorkflowAutomationService:
                         if 'template_id' in template_data:
                             self.automation_templates[template_data['template_id']] = template_data
                 except Exception as e:
+                    logger.error(f"Operation failed: {e}")
+                    log_integration_complete(audit_ctx, error=e)
+                    return {'ok': False, 'error': str(e)}
                     logger.warning(f"Could not load templates from database: {e}")
 
             # Add default templates
@@ -1551,13 +1705,10 @@ class AtomWorkflowAutomationService:
 
     async def _load_automations(self):
         """Load existing automations from database"""
-        try:
             if not self.db:
                 logger.warning("No database connection, skipping automation load")
                 return False
-
             from sqlalchemy import text
-
             # Load active automations
             result = self.db.execute(text("""
                 SELECT automation_id, name, description, type, conditions, actions,
@@ -1571,7 +1722,6 @@ class AtomWorkflowAutomationService:
                 "active": AutomationStatus.ACTIVE.value,
                 "paused": AutomationStatus.PAUSED.value
             })
-
             for row in result:
                 automation = WorkflowAutomation(
                     automation_id=row[0],
@@ -1596,40 +1746,39 @@ class AtomWorkflowAutomationService:
                     metadata=json.loads(row[19]) if row[19] else {}
                 )
                 self.automations[automation.automation_id] = automation
-
                 # Schedule automation if it has a schedule and is enabled
                 if automation.enabled and automation.schedule and automation.next_run:
                     await self._schedule_automation(automation, {'type': AutomationConditionType.SCHEDULED.value})
-
             logger.info(f"Loaded {len(self.automations)} automations from database")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error loading automations: {e}")
             return False
 
     async def _initialize_automation_scheduling(self):
         """Initialize automation scheduling system"""
-        try:
             if self.scheduler_running:
                 logger.warning("Scheduler already running")
                 return True
-
             # Start the scheduler task
             self.scheduler_task = asyncio.create_task(self._scheduler_loop())
             self.scheduler_running = True
-
             logger.info("Automation scheduling initialized")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error initializing automation scheduling: {e}")
             return False
 
     async def _scheduler_loop(self):
         """Background scheduler loop"""
         while self.scheduler_running:
-            try:
                 now = datetime.utcnow()
-
                 # Check automations that need to run
                 for automation_id, automation in self.automations.items():
                     if automation.enabled and automation.next_run:
@@ -1639,16 +1788,17 @@ class AtomWorkflowAutomationService:
                                 automation_id=automation_id,
                                 trigger_context={'trigger_type': 'scheduled'}
                             )
-
                 # Sleep for a short interval before checking again
                 await asyncio.sleep(60)  # Check every minute
             except Exception as e:
+                logger.error(f"Operation failed: {e}")
+                log_integration_complete(audit_ctx, error=e)
+                return {'ok': False, 'error': str(e)}
                 logger.error(f"Error in scheduler loop: {e}")
                 await asyncio.sleep(60)  # Wait before retrying
 
     async def _initialize_trigger_listeners(self):
         """Initialize trigger listeners for event-based automations"""
-        try:
             # Register event listeners for different trigger types
             event_types = [
                 AutomationConditionType.EVENT_TRIGGERED.value,
@@ -1660,36 +1810,33 @@ class AtomWorkflowAutomationService:
                 AutomationConditionType.USER_ACTION.value,
                 AutomationConditionType.DATA_CHANGED.value
             ]
-
             for event_type in event_types:
                 self.trigger_listeners[event_type] = {
                     'automations': [],
                     'callback': self._handle_event_trigger
                 }
-
             # Find automations with event triggers and register them
             for automation_id, automation in self.automations.items():
                 for condition in automation.conditions:
                     if condition['type'] in event_types:
                         if automation_id not in self.trigger_listeners[condition['type']]['automations']:
                             self.trigger_listeners[condition['type']]['automations'].append(automation_id)
-
             logger.info(f"Initialized trigger listeners for {len(self.trigger_listeners)} event types")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error initializing trigger listeners: {e}")
             return False
 
     async def _handle_event_trigger(self, event_type: str, event_data: Dict[str, Any]):
         """Handle an event trigger"""
-        try:
             if event_type not in self.trigger_listeners:
                 logger.warning(f"Unknown event type: {event_type}")
                 return
-
             listener = self.trigger_listeners[event_type]
             automation_ids = listener['automations']
-
             for automation_id in automation_ids:
                 if automation_id in self.automations:
                     automation = self.automations[automation_id]
@@ -1699,11 +1846,13 @@ class AtomWorkflowAutomationService:
                             trigger_context=event_data
                         )
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error handling event trigger: {e}")
 
     async def _initialize_integration_endpoints(self):
         """Initialize integration endpoints for platform-specific automations"""
-        try:
             # Validate platform integrations
             for platform_name, integration in self.platform_integrations.items():
                 if integration:
@@ -1713,6 +1862,9 @@ class AtomWorkflowAutomationService:
                             is_connected = await integration.test_connection()
                             logger.info(f"Platform {platform_name} integration: {'connected' if is_connected else 'disconnected'}")
                     except Exception as e:
+                        logger.error(f"Operation failed: {e}")
+                        log_integration_complete(audit_ctx, error=e)
+                        return {'ok': False, 'error': str(e)}
                         logger.warning(f"Could not validate {platform_name} integration: {e}")
 
             logger.info("Integration endpoints initialized")
@@ -1723,25 +1875,25 @@ class AtomWorkflowAutomationService:
 
     async def _start_automation_monitoring(self):
         """Start background automation monitoring"""
-        try:
             # Start monitoring task
             asyncio.create_task(self._monitoring_loop())
             logger.info("Automation monitoring started")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error starting automation monitoring: {e}")
             return False
 
     async def _monitoring_loop(self):
         """Background monitoring loop for automation health"""
         while True:
-            try:
                 # Update metrics
                 self.automation_metrics['total_automations'] = len(self.automations)
                 self.automation_metrics['active_automations'] = sum(
                     1 for auto in self.automations.values() if auto.enabled and auto.status == AutomationStatus.ACTIVE
                 )
-
                 # Check for failed automations
                 for automation_id, automation in self.automations.items():
                     if automation.last_execution_status == 'failed':
@@ -1750,85 +1902,80 @@ class AtomWorkflowAutomationService:
                             failure_rate = automation.failure_count / automation.execution_count
                             if failure_rate > 0.5:  # More than 50% failure rate
                                 logger.warning(f"Automation {automation_id} has high failure rate: {failure_rate:.2%}")
-
                 # Sleep for 5 minutes between checks
                 await asyncio.sleep(300)
             except Exception as e:
+                logger.error(f"Operation failed: {e}")
+                log_integration_complete(audit_ctx, error=e)
+                return {'ok': False, 'error': str(e)}
                 logger.error(f"Error in monitoring loop: {e}")
                 await asyncio.sleep(300)
 
     async def _schedule_automation(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
         """Schedule automation based on condition"""
-        try:
             if condition['type'] == AutomationConditionType.SCHEDULED.value:
                 schedule = automation.schedule or condition.get('schedule')
                 if schedule:
                     # Calculate next run time based on cron schedule
                     # This is a simplified implementation - use a proper cron library in production
                     from datetime import timedelta
-
                     # For now, just schedule for next day at same time
                     if automation.next_run:
                         next_run = automation.next_run + timedelta(days=1)
                     else:
                         next_run = datetime.utcnow() + timedelta(days=1)
-
                     automation.next_run = next_run
                     self.scheduled_automations[automation.automation_id] = {
                         'schedule': schedule,
                         'next_run': next_run.isoformat()
                     }
-
                     logger.info(f"Scheduled automation {automation.automation_id} for {next_run}")
                     return True
-
             return False
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error scheduling automation: {e}")
             return False
 
     async def _setup_event_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
         """Setup event-based trigger"""
-        try:
             event_type = condition.get('event_type', condition.get('type'))
             if not event_type:
                 logger.warning(f"No event type specified for automation {automation.automation_id}")
                 return False
-
             # Register automation for event type
             if event_type not in self.trigger_listeners:
                 self.trigger_listeners[event_type] = {
                     'automations': [],
                     'callback': self._handle_event_trigger
                 }
-
             if automation.automation_id not in self.trigger_listeners[event_type]['automations']:
                 self.trigger_listeners[event_type]['automations'].append(automation.automation_id)
-
             self.active_triggers[automation.automation_id] = {
                 'type': 'event',
                 'event_type': event_type,
                 'condition': condition,
                 'enabled': automation.enabled
             }
-
             logger.info(f"Setup event trigger for automation {automation.automation_id}: {event_type}")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up event trigger: {e}")
             return False
 
     async def _setup_threshold_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
         """Setup threshold-based trigger"""
-        try:
             metric = condition.get('metric')
             threshold = condition.get('threshold')
             operator = condition.get('operator', 'gt')  # gt, lt, gte, lte, eq
-
             if not metric or threshold is None:
                 logger.warning(f"Invalid threshold condition for automation {automation.automation_id}")
                 return False
-
             self.active_triggers[automation.automation_id] = {
                 'type': 'threshold',
                 'metric': metric,
@@ -1837,23 +1984,22 @@ class AtomWorkflowAutomationService:
                 'condition': condition,
                 'enabled': automation.enabled
             }
-
             logger.info(f"Setup threshold trigger for automation {automation.automation_id}: {metric} {operator} {threshold}")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up threshold trigger: {e}")
             return False
 
     async def _setup_anomaly_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
         """Setup anomaly detection trigger"""
-        try:
             metric = condition.get('metric')
             sensitivity = condition.get('sensitivity', 'medium')  # low, medium, high
-
             if not metric:
                 logger.warning(f"Invalid anomaly condition for automation {automation.automation_id}")
                 return False
-
             self.active_triggers[automation.automation_id] = {
                 'type': 'anomaly',
                 'metric': metric,
@@ -1861,19 +2007,19 @@ class AtomWorkflowAutomationService:
                 'condition': condition,
                 'enabled': automation.enabled
             }
-
             logger.info(f"Setup anomaly trigger for automation {automation.automation_id}: {metric} (sensitivity: {sensitivity})")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up anomaly trigger: {e}")
             return False
 
     async def _setup_security_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
         """Setup security event trigger"""
-        try:
             threat_type = condition.get('threat_type')
             severity = condition.get('severity', 'medium')  # low, medium, high, critical
-
             self.active_triggers[automation.automation_id] = {
                 'type': 'security',
                 'threat_type': threat_type,
@@ -1881,7 +2027,6 @@ class AtomWorkflowAutomationService:
                 'condition': condition,
                 'enabled': automation.enabled
             }
-
             # Register with security service if available
             if self.security_service and hasattr(self.security_service, 'register_security_trigger'):
                 await self.security_service.register_security_trigger(
@@ -1890,19 +2035,19 @@ class AtomWorkflowAutomationService:
                     severity=severity,
                     callback=lambda event: self.execute_automation(automation.automation_id, event)
                 )
-
             logger.info(f"Setup security trigger for automation {automation.automation_id}: {threat_type} (severity: {severity})")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up security trigger: {e}")
             return False
 
     async def _setup_compliance_trigger(self, automation: WorkflowAutomation, condition: Dict[str, Any]):
         """Setup compliance violation trigger"""
-        try:
             standard = condition.get('standard')  # SOC2, HIPAA, GDPR, etc.
             violation_type = condition.get('violation_type')
-
             self.active_triggers[automation.automation_id] = {
                 'type': 'compliance',
                 'standard': standard,
@@ -1910,7 +2055,6 @@ class AtomWorkflowAutomationService:
                 'condition': condition,
                 'enabled': automation.enabled
             }
-
             # Register with unified service if available
             if self.unified_service and hasattr(self.unified_service, 'register_compliance_trigger'):
                 await self.unified_service.register_compliance_trigger(
@@ -1919,28 +2063,26 @@ class AtomWorkflowAutomationService:
                     violation_type=violation_type,
                     callback=lambda event: self.execute_automation(automation.automation_id, event)
                 )
-
             logger.info(f"Setup compliance trigger for automation {automation.automation_id}: {standard} - {violation_type}")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up compliance trigger: {e}")
             return False
 
     async def _setup_platform_triggers(self, platform: str, automation_id: str, config: Dict[str, Any]):
         """Setup platform-specific triggers"""
-        try:
             if platform not in self.platform_integrations:
                 logger.warning(f"Unknown platform: {platform}")
                 return False
-
             integration = self.platform_integrations[platform]
             if not integration:
                 logger.warning(f"Platform {platform} integration not available")
                 return False
-
             # Setup platform-specific triggers based on config
             trigger_type = config.get('trigger_type')
-
             if trigger_type == 'webhook':
                 # Register webhook with platform
                 if hasattr(integration, 'register_webhook'):
@@ -1948,33 +2090,31 @@ class AtomWorkflowAutomationService:
                     events = config.get('events', [])
                     await integration.register_webhook(webhook_url, events)
                     logger.info(f"Registered webhook for {platform}: {webhook_url}")
-
             elif trigger_type == 'polling':
                 # Setup polling interval
                 if hasattr(integration, 'start_polling'):
                     interval = config.get('polling_interval', 300)  # 5 minutes default
                     await integration.start_polling(automation_id, interval)
                     logger.info(f"Started polling for {platform} with interval {interval}s")
-
             elif trigger_type == 'event_subscription':
                 # Subscribe to platform events
                 if hasattr(integration, 'subscribe_to_events'):
                     events = config.get('events', [])
                     await integration.subscribe_to_events(automation_id, events)
                     logger.info(f"Subscribed to events for {platform}: {events}")
-
             logger.info(f"Setup platform triggers for {platform}: {automation_id}")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error setting up platform triggers: {e}")
             return False
 
     async def _send_automation_notifications(self, automation: WorkflowAutomation, execution: AutomationExecution):
         """Send notifications based on automation execution"""
-        try:
             # Get notification rules from automation metadata
             notification_rules = automation.metadata.get('notification_rules', [])
-
             if not notification_rules:
                 # Default notification behavior
                 if execution.status == AutomationStatus.FAILED:
@@ -1983,24 +2123,19 @@ class AtomWorkflowAutomationService:
                         urgency='high'
                     )
                 return
-
             # Process each notification rule
             for rule in notification_rules:
                 should_notify = False
-
                 # Check if rule matches execution status
                 if rule.get('status') == execution.status.value:
                     should_notify = True
-
                 # Check if rule is for errors
                 if rule.get('on_error') and execution.error:
                     should_notify = True
-
                 if should_notify:
                     channels = rule.get('channels', [])
                     message = rule.get('message', f"Automation {automation.name} executed with status: {execution.status.value}")
                     urgency = rule.get('urgency', 'medium')
-
                     # Send to each channel
                     for channel in channels:
                         if channel.startswith('slack:'):
@@ -2009,10 +2144,12 @@ class AtomWorkflowAutomationService:
                             await self._notify_via_email(message, urgency)
                         elif channel.startswith('teams:'):
                             await self._notify_via_teams(message, urgency)
-
             logger.info(f"Sent notifications for automation {automation.automation_id}")
             return True
         except Exception as e:
+            logger.error(f"Operation failed: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return {'ok': False, 'error': str(e)}
             logger.error(f"Error sending automation notifications: {e}")
             return False
     
@@ -2076,7 +2213,29 @@ class AtomWorkflowAutomationService:
     
     async def close(self):
         """Close workflow automation service"""
+<<<<<<< HEAD
 
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "get_service_info", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         # Stop scheduler
         if self.scheduler_task:
             self.scheduler_task.cancel()
@@ -2089,7 +2248,6 @@ class AtomWorkflowAutomationService:
 
 # Global workflow automation service instance
 # Initialize with None values - will be configured when dependencies are available
-try:
     atom_workflow_automation_service = AtomWorkflowAutomationService({
         'database': None,  # Would be actual database connection
         'cache': None,  # Would be actual cache client
@@ -2102,3 +2260,25 @@ try:
 except Exception as e:
     logger.warning(f"Could not initialize global workflow automation service: {e}")
     atom_workflow_automation_service = None
+<<<<<<< HEAD
+=======
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "close", locals())
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

@@ -1,25 +1,39 @@
 """
 Deepgram Service for ATOM Platform
 Provides comprehensive Deepgram speech recognition and AI audio processing integration functionality
+
+Migrated to IntegrationService base class pattern for tenant isolation.
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class DeepgramService:
-    def __init__(self):
-        self.api_key = os.getenv("DEEPGRAM_API_KEY")
+
+class DeepgramService(IntegrationService):
+    """
+    Deepgram speech recognition service using Deepgram API.
+
+    Migrated to IntegrationService base class pattern for tenant isolation.
+    """
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Deepgram service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with deepgram_api_key
+        """
+        super().__init__(tenant_id, config)
+        self.api_key = config.get("deepgram_api_key") or os.getenv("DEEPGRAM_API_KEY")
         self.base_url = "https://api.deepgram.com/v1"
         self.client = httpx.AsyncClient(timeout=60.0)
 
@@ -29,11 +43,181 @@ class DeepgramService:
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Authorization": f"Token {self.api_key}",
             "Content-Type": "application/json"
         }
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        """
+        Return Deepgram service capabilities.
+
+        Returns:
+            Dict with operations, parameters, rate limits
+        """
+        return {
+            "operations": [
+                {
+                    "id": "transcribe_audio",
+                    "name": "Transcribe Audio",
+                    "description": "Transcribe audio from URL or file",
+                    "parameters": {
+                        "audio_url": {
+                            "type": "string",
+                            "description": "URL to audio file",
+                            "required": False
+                        },
+                        "audio_data": {
+                            "type": "bytes",
+                            "description": "Audio file data",
+                            "required": False
+                        },
+                        "model": {
+                            "type": "string",
+                            "description": "Model to use (e.g., nova-2)",
+                            "required": False
+                        },
+                        "language": {
+                            "type": "string",
+                            "description": "Language code",
+                            "required": False
+                        }
+                    },
+                    "complexity": 2
+                },
+                {
+                    "id": "get_projects",
+                    "name": "Get Projects",
+                    "description": "Retrieve Deepgram projects",
+                    "parameters": {},
+                    "complexity": 1
+                },
+                {
+                    "id": "get_usage",
+                    "name": "Get Usage",
+                    "description": "Get usage statistics for a project",
+                    "parameters": {
+                        "project_id": {
+                            "type": "string",
+                            "description": "Project ID",
+                            "required": True
+                        },
+                        "start_date": {
+                            "type": "string",
+                            "description": "Start date (YYYY-MM-DD)",
+                            "required": False
+                        },
+                        "end_date": {
+                            "type": "string",
+                            "description": "End date (YYYY-MM-DD)",
+                            "required": False
+                        }
+                    },
+                    "complexity": 1
+                }
+            ],
+            "required_params": [],
+            "optional_params": ["audio_url", "audio_data", "model", "language", "project_id", "start_date", "end_date"],
+            "rate_limits": {
+                "requests_per_minute": 100,
+                "requests_per_hour": 5000
+            },
+            "supports_webhooks": False
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Check Deepgram API connectivity.
+
+        Returns:
+            Dict with health status
+        """
+        has_credentials = bool(self.api_key)
+        return {
+            "healthy": has_credentials,
+            "status": "healthy" if has_credentials else "unconfigured",
+            "message": "Configured" if has_credentials else "Missing API key",
+            "service": "deepgram",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "last_check": datetime.now(timezone.utc).isoformat(),
+            "configured": has_credentials
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Deepgram operation with tenant context.
+
+        Args:
+            operation: Operation name (transcribe_audio, get_projects, get_usage)
+            parameters: Operation parameters
+            context: Tenant context dict with tenant_id, agent_id, etc.
+
+        Returns:
+            Dict with success, result, error, details
+
+        Raises:
+            NotImplementedError: If operation not supported
+        """
+        # CRITICAL: Validate tenant_id from context to prevent cross-tenant access
+        if context:
+            context_tenant_id = context.get("tenant_id")
+            if context_tenant_id and context_tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: context={context_tenant_id}, service={self.tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID validation failed",
+                    "details": {"operation": operation, "reason": "cross_tenant_access_prevented"}
+                }
+
+        try:
+            if not self.api_key:
+                return {
+                    "success": False,
+                    "error": "Deepgram API key not configured",
+                    "details": {"service": "deepgram", "tenant_id": self.tenant_id}
+                }
+
+            if operation == "transcribe_audio":
+                audio_url = parameters.get("audio_url")
+                audio_data = parameters.get("audio_data")
+                model = parameters.get("model", "nova-2")
+                language = parameters.get("language", "en")
+
+                if audio_url:
+                    res = await self.transcribe_url(audio_url, model, language)
+                    return {"success": True, "result": res, "details": {"service": "deepgram", "tenant_id": self.tenant_id}}
+                elif audio_data:
+                    res = await self.transcribe_file(audio_data, model=model, language=language)
+                    return {"success": True, "result": res, "details": {"service": "deepgram", "tenant_id": self.tenant_id}}
+                else:
+                    return {"success": False, "error": "Missing audio_url or audio_data", "details": {}}
+
+            elif operation == "get_projects":
+                res = await self.get_projects()
+                return {"success": True, "result": res, "details": {"service": "deepgram", "tenant_id": self.tenant_id}}
+
+            elif operation == "get_usage":
+                project_id = parameters.get("project_id")
+                if not project_id:
+                    return {"success": False, "error": "Missing project_id", "details": {}}
+                res = await self.get_usage(project_id)
+                return {"success": True, "result": res, "details": {"service": "deepgram", "tenant_id": self.tenant_id}}
+
+            else:
+                raise NotImplementedError(f"Operation '{operation}' not supported by Deepgram service")
+
+        except Exception as e:
+            logger.error(f"Deepgram operation {operation} failed for tenant {self.tenant_id}: {e}")
+            return {"success": False, "error": str(e), "details": {"service": "deepgram", "tenant_id": self.tenant_id}}
 
     async def transcribe_url(
         self,
@@ -46,8 +230,8 @@ class DeepgramService:
         """Transcribe audio from URL"""
         try:
             if not self.api_key:
-                raise HTTPException(status_code=401, detail="Not authenticated")
-            
+                raise HTTPException(status_code=401, detail="Deepgram API key not found")
+
             headers = self._get_headers()
             
             params = {
@@ -87,10 +271,10 @@ class DeepgramService:
         """Transcribe audio from file data"""
         try:
             if not self.api_key:
-                raise HTTPException(status_code=401, detail="Not authenticated")
+                raise HTTPException(status_code=401, detail="Deepgram API key not found")
             
             headers = {
-                "Authorization": f"Token {self.api_key}",
+                "Authorization": f"Token {api_key}",
                 "Content-Type": mime_type
             }
             
@@ -121,8 +305,8 @@ class DeepgramService:
         """Get Deepgram projects"""
         try:
             if not self.api_key:
-                raise HTTPException(status_code=401, detail="Not authenticated")
-            
+                raise HTTPException(status_code=401, detail="Deepgram API key not found")
+
             headers = self._get_headers()
             
             response = await self.client.get(
@@ -147,11 +331,14 @@ class DeepgramService:
         end_date: str = None
     ) -> Dict[str, Any]:
         """Get usage statistics for a project"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.api_key:
-                raise HTTPException(status_code=401, detail="Not authenticated")
-            
+                raise HTTPException(status_code=401, detail="Deepgram API key not found")
+
             headers = self._get_headers()
             params = {}
             
@@ -175,6 +362,7 @@ class DeepgramService:
                 detail=f"Failed to get usage: {str(e)}"
             )
 
+<<<<<<< HEAD
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Deepgram service"""
         try:
@@ -199,3 +387,6 @@ deepgram_service = DeepgramService()
 def get_deepgram_service() -> DeepgramService:
     return deepgram_service
 
+=======
+# Singleton instance removed - use IntegrationRegistry for per-tenant instances
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

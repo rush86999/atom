@@ -474,3 +474,6 @@ class UniversalCacheService:
 # Legacy alias for backward compatibility
 RedisCacheService = UniversalCacheService
 redis_cache = UniversalCacheService()
+
+# Export cache singleton for system_health_routes.py
+cache = redis_cache  # Alias for backward compatibility

@@ -3,23 +3,21 @@ Airtable Service for ATOM Platform
 Provides comprehensive Airtable database and spreadsheet integration functionality
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
-
 
 logger = logging.getLogger(__name__)
 
-class AirtableService:
-    def __init__(self):
-        self.api_key = os.getenv("AIRTABLE_API_KEY")
+from core.integration_service import IntegrationService
+
+class AirtableService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.api_key = config.get("api_key") or os.getenv("AIRTABLE_API_KEY")
         self.base_url = "https://api.airtable.com/v0"
         self.client = httpx.AsyncClient(timeout=30.0)
 
@@ -27,12 +25,38 @@ class AirtableService:
         """Close the HTTP client connection"""
         await self.client.aclose()
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self, token: Optional[str] = None) -> Dict[str, str]:
         """Get headers for API requests"""
+<<<<<<< HEAD
+=======
+        api_key = token or self.api_key
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
+
+    async def get_bases(self, token: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List all bases accessible to the user"""
+        try:
+            headers = self._get_headers(token)
+            response = await self.client.get(f"{self.base_url}/meta/bases", headers=headers)
+            response.raise_for_status()
+            return response.json().get("bases", [])
+        except Exception as e:
+            logger.error(f"Failed to list Airtable bases: {e}")
+            return []
+
+    async def get_tables(self, base_id: str, token: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List all tables in a base"""
+        try:
+            headers = self._get_headers(token)
+            response = await self.client.get(f"{self.base_url}/meta/bases/{base_id}/tables", headers=headers)
+            response.raise_for_status()
+            return response.json().get("tables", [])
+        except Exception as e:
+            logger.error(f"Failed to list Airtable tables for base {base_id}: {e}")
+            return []
 
     async def list_records(
         self,
@@ -191,7 +215,7 @@ class AirtableService:
                 "ok": True,
                 "status": "healthy",
                 "service": "airtable",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
@@ -200,11 +224,77 @@ class AirtableService:
                 "status": "unhealthy",
                 "service": "airtable",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+<<<<<<< HEAD
 airtable_service = AirtableService()
 
 def get_airtable_service() -> AirtableService:
     return airtable_service
+=======
+    async def sync_to_postgres_cache(self, workspace_id: str, base_id: str = None) -> Dict[str, Any]:
+        """Sync Airtable analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Note: Would need base_id and table name to count records
+            # For now, just track basic connectivity
+            record_count = 0
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("airtable_connected", 1, "boolean"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        tenant_id=workspace_id,
+                        integration_type="airtable",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            tenant_id=workspace_id,
+                            integration_type="airtable",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} Airtable metrics to PostgreSQL cache for workspace {workspace_id}")
+            except Exception as e:
+                logger.error(f"Error saving Airtable metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"Airtable PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, workspace_id: str, base_id: str = None) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for Airtable"""
+        cache_result = await self.sync_to_postgres_cache(workspace_id, base_id)
+        
+        return {
+            "success": True,
+            "workspace_id": workspace_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 

@@ -1,72 +1,332 @@
 """
 Line Service for ATOM Platform
 Handles Line Messaging API interactions
+
+Migrated to IntegrationService base class pattern for tenant isolation.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import os
 from typing import Any, Dict, Optional
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
-from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class LineService:
-    def __init__(self):
-        # Line uses Channel Access Token
-        self.channel_access_token = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+
+class LineService(IntegrationService):
+    """
+    Line messaging service using Line Messaging API.
+
+    Migrated to IntegrationService base class pattern for tenant isolation.
+    """
+
+    def __init__(self, config: Dict[str, Any]):
+        """
+        Initialize Line service for a specific tenant.
+
+        Args:
+            tenant_id: Tenant UUID for multi-tenancy
+            config: Tenant-specific configuration with channel_access_token
+        """
+        super().__init__(tenant_id, config)
+        self.channel_access_token = config.get("channel_access_token") or os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
         self.base_url = "https://api.line.me/v2/bot/message"
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         await self.client.aclose()
 
-    async def send_message(self, to: str, text: str) -> bool:
-        """Send a push message via Line Messaging API"""
-        if not self.channel_access_token:
-            logger.error("LINE_CHANNEL_ACCESS_TOKEN not set")
-            return False
+    def get_capabilities(self) -> Dict[str, Any]:
+        """
+        Return Line service capabilities.
 
-        url = f"{self.base_url}/push"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.channel_access_token}"
-        }
-        
-        data = {
-            "to": to,
-            "messages": [
+        Returns:
+            Dict with operations, parameters, rate limits
+        """
+        return {
+            "operations": [
                 {
-                    "type": "text",
-                    "text": text
+                    "id": "send_message",
+                    "name": "Send Message",
+                    "description": "Send a text message via Line",
+                    "parameters": {
+                        "to": {
+                            "type": "string",
+                            "description": "User ID, group ID, or room ID",
+                            "required": True
+                        },
+                        "text": {
+                            "type": "string",
+                            "description": "Message text (max 2000 chars)",
+                            "required": True
+                        },
+                        "reply_token": {
+                            "type": "string",
+                            "description": "Reply token if replying to message",
+                            "required": False
+                        }
+                    },
+                    "complexity": 3
+                },
+                {
+                    "id": "broadcast",
+                    "name": "Broadcast Message",
+                    "description": "Send messages to multiple users",
+                    "parameters": {
+                        "to": {
+                            "type": "array",
+                            "description": "List of user IDs",
+                            "required": True
+                        },
+                        "messages": {
+                            "type": "array",
+                            "description": "List of message objects",
+                            "required": True
+                        }
+                    },
+                    "complexity": 3
+                },
+                {
+                    "id": "get_profile",
+                    "name": "Get Profile",
+                    "description": "Get Line user profile information",
+                    "parameters": {
+                        "user_id": {
+                            "type": "string",
+                            "description": "Line user ID",
+                            "required": True
+                        }
+                    },
+                    "complexity": 1
                 }
-            ]
+            ],
+            "required_params": ["channel_access_token"],
+            "optional_params": [],
+            "rate_limits": {
+                "requests_per_minute": 1000,
+                "requests_per_hour": 10000
+            },
+            "supports_webhooks": True
         }
-        
+
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Check Line API connectivity.
+
+        Returns:
+            Dict with health status
+        """
+        return {
+            "healthy": bool(self.channel_access_token),
+            "message": "Line service initialized" if self.channel_access_token else "Channel access token not configured",
+            "last_check": datetime.now(timezone.utc).isoformat(),
+            "service": "line",
+            "status": "healthy" if self.channel_access_token else "degraded"
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute a Line operation with tenant context.
+
+        Args:
+            operation: Operation name (send_message, broadcast, get_profile)
+            parameters: Operation parameters
+            context: Tenant context dict with tenant_id, agent_id, etc.
+
+        Returns:
+            Dict with success, result, error, details
+
+        Raises:
+            NotImplementedError: If operation not supported
+        """
+        # CRITICAL: Validate tenant_id from context to prevent cross-tenant access
+        if context:
+            context_tenant_id = context.get("tenant_id")
+            if context_tenant_id and context_tenant_id != self.tenant_id:
+                logger.error(f"Tenant ID mismatch: context={context_tenant_id}, service={self.tenant_id}")
+                return {
+                    "success": False,
+                    "error": "Tenant ID validation failed",
+                    "details": {"operation": operation, "reason": "cross_tenant_access_prevented"}
+                }
+
+        if operation == "send_message":
+            return await self._send_message(parameters)
+        elif operation == "broadcast":
+            return await self._broadcast(parameters)
+        elif operation == "get_profile":
+            return await self._get_profile(parameters)
+        else:
+            raise NotImplementedError(f"Operation '{operation}' not supported by Line service")
+
+    async def _send_message(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Send a message via Line"""
+        to = parameters.get("to")
+        text = parameters.get("text")
+        reply_token = parameters.get("reply_token")
+
+        if not to or not text:
+            return {
+                "success": False,
+                "error": "Missing required parameters: to and text",
+                "details": {"provided_parameters": list(parameters.keys())}
+            }
+
+        if not self.channel_access_token:
+            return {
+                "success": False,
+                "error": "Line channel access token not configured",
+                "details": {"tenant_id": self.tenant_id}
+            }
+
         try:
+            url = f"{self.base_url}/push"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.channel_access_token}"
+            }
+
+            data = {
+                "to": to,
+                "messages": [
+                    {
+                        "type": "text",
+                        "text": text
+                    }
+                ]
+            }
+
+            if reply_token:
+                url = f"{self.base_url}/reply"
+                data["replyToken"] = reply_token
+                del data["to"]
+
             response = await self.client.post(url, headers=headers, json=data)
             response.raise_for_status()
-            logger.info(f"Line message pushed to {to}")
-            return True
+
+            logger.info(f"Line message sent to {to} for tenant {self.tenant_id}")
+
+            return {
+                "success": True,
+                "result": {"message_sent": True, "recipient": to},
+                "details": {"service": "line", "tenant_id": self.tenant_id}
+            }
         except Exception as e:
-            logger.error(f"Failed to push Line message: {e}")
-            return False
+            logger.error(f"Failed to send Line message for tenant {self.tenant_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"service": "line", "tenant_id": self.tenant_id}
+            }
 
+    async def _broadcast(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Broadcast messages to multiple users"""
+        to = parameters.get("to")
+        messages = parameters.get("messages")
+
+        if not to or not messages:
+            return {
+                "success": False,
+                "error": "Missing required parameters: to and messages",
+                "details": {"provided_parameters": list(parameters.keys())}
+            }
+
+        if not self.channel_access_token:
+            return {
+                "success": False,
+                "error": "Line channel access token not configured",
+                "details": {"tenant_id": self.tenant_id}
+            }
+
+<<<<<<< HEAD
     async def health_check(self) -> Dict[str, Any]:
+=======
+        try:
+            url = f"{self.base_url}/multicast"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.channel_access_token}"
+            }
 
-        return {
-            "ok": True,
-            "status": "healthy" if self.channel_access_token else "degraded",
-            "service": "line",
-            "timestamp": datetime.now().isoformat()
-        }
+            data = {
+                "to": to,
+                "messages": messages
+            }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
-# Singleton instance
-line_service = LineService()
+            response = await self.client.post(url, headers=headers, json=data)
+            response.raise_for_status()
 
+            logger.info(f"Line broadcast sent to {len(to)} recipients for tenant {self.tenant_id}")
+
+            return {
+                "success": True,
+                "result": {"message_sent": True, "recipients": len(to)},
+                "details": {"service": "line", "tenant_id": self.tenant_id}
+            }
+        except Exception as e:
+            logger.error(f"Failed to broadcast Line message for tenant {self.tenant_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"service": "line", "tenant_id": self.tenant_id}
+            }
+
+    async def _get_profile(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """Get Line user profile information"""
+        user_id = parameters.get("user_id")
+
+        if not user_id:
+            return {
+                "success": False,
+                "error": "Missing required parameter: user_id",
+                "details": {"provided_parameters": list(parameters.keys())}
+            }
+
+        if not self.channel_access_token:
+            return {
+                "success": False,
+                "error": "Line channel access token not configured",
+                "details": {"tenant_id": self.tenant_id}
+            }
+
+<<<<<<< HEAD
+=======
+        try:
+            url = f"https://api.line.me/v2/bot/profile/{user_id}"
+            headers = {
+                "Authorization": f"Bearer {self.channel_access_token}"
+            }
+
+            response = await self.client.get(url, headers=headers)
+            response.raise_for_status()
+
+            profile = response.json()
+
+            logger.info(f"Line profile retrieved for {user_id} for tenant {self.tenant_id}")
+
+            return {
+                "success": True,
+                "result": profile,
+                "details": {"service": "line", "tenant_id": self.tenant_id}
+            }
+        except Exception as e:
+            logger.error(f"Failed to get Line profile for tenant {self.tenant_id}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "details": {"service": "line", "tenant_id": self.tenant_id}
+            }
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

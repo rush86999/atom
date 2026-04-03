@@ -3,26 +3,24 @@ Twilio Service for ATOM Platform
 Provides comprehensive Twilio SMS and voice communication integration functionality
 """
 
-import base64
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
+import base64
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class TwilioService:
-    def __init__(self):
-        self.account_sid = os.getenv("TWILIO_ACCOUNT_SID")
-        self.auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-        self.phone_number = os.getenv("TWILIO_PHONE_NUMBER")
+class TwilioService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.account_sid = config.get("account_sid") or os.getenv("TWILIO_ACCOUNT_SID")
+        self.auth_token = config.get("auth_token") or os.getenv("TWILIO_AUTH_TOKEN")
+        self.phone_number = config.get("phone_number") or os.getenv("TWILIO_PHONE_NUMBER")
         self.base_url = f"https://api.twilio.com/2010-04-01"
         self.client = httpx.AsyncClient(timeout=30.0)
 
@@ -32,7 +30,10 @@ class TwilioService:
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         credentials = f"{self.account_sid}:{self.auth_token}"
         b64_credentials = base64.b64encode(credentials.encode()).decode()
         
@@ -201,13 +202,16 @@ class TwilioService:
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Twilio service"""
+<<<<<<< HEAD
 
+=======
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             return {
                 "ok": True,
                 "status": "healthy",
                 "service": "twilio",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
@@ -216,13 +220,68 @@ class TwilioService:
                 "status": "unhealthy",
                 "service": "twilio",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
+<<<<<<< HEAD
 # Singleton instance
 twilio_service = TwilioService()
 
 def get_twilio_service() -> TwilioService:
     """Get Twilio service instance"""
+=======
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a Twilio operation with tenant context."""
+        try:
+            if operation == "send_sms":
+                result = await self.send_sms(
+                    to=parameters["to"],
+                    body=parameters["body"],
+                    from_number=parameters.get("from_number")
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_messages":
+                result = await self.get_messages(
+                    to=parameters.get("to"),
+                    from_number=parameters.get("from_number"),
+                    page_size=parameters.get("page_size", 50)
+                )
+                return {"success": True, "result": result}
+            elif operation == "make_call":
+                result = await self.make_call(
+                    to=parameters["to"],
+                    twiml_url=parameters["twiml_url"],
+                    from_number=parameters.get("from_number")
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_calls":
+                result = await self.get_calls(
+                    to=parameters.get("to"),
+                    from_number=parameters.get("from_number"),
+                    page_size=parameters.get("page_size", 50)
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_account_info":
+                result = await self.get_account_info()
+                return {"success": True, "result": result}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}"
+                }
+        except Exception as e:
+            logger.error(f"Error executing Twilio operation {operation}: {e}")
+            return {"success": False, "error": str(e)}
+>>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
-    return twilio_service
+# NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
+# twilio_service = TwilioService("default", {})
+# 
+# def get_twilio_service() -> TwilioService:
+#     """Get Twilio service instance"""
+#     return twilio_service

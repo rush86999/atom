@@ -3,28 +3,26 @@ Zendesk Service for ATOM Platform
 Provides comprehensive Zendesk customer support integration functionality
 """
 
-from datetime import datetime
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import HTTPException
+from datetime import datetime, timezone
 import httpx
-from core.circuit_breaker import circuit_breaker
-from core.rate_limiter import rate_limiter, should_retry, calculate_backoff
-from core.audit_logger import log_integration_call, log_integration_error, log_integration_attempt, log_integration_complete
 from fastapi import HTTPException
 
+from core.integration_service import IntegrationService
 
 logger = logging.getLogger(__name__)
 
-class ZendeskService:
-    def __init__(self):
-        self.client_id = os.getenv("ZENDESK_CLIENT_ID")
-        self.client_secret = os.getenv("ZENDESK_CLIENT_SECRET")
-        self.subdomain = os.getenv("ZENDESK_SUBDOMAIN", "")
+class ZendeskService(IntegrationService):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(tenant_id, config)
+        self.client_id = config.get("client_id") or os.getenv("ZENDESK_CLIENT_ID")
+        self.client_secret = config.get("client_secret") or os.getenv("ZENDESK_CLIENT_SECRET")
+        self.subdomain = config.get("subdomain") or os.getenv("ZENDESK_SUBDOMAIN", "")
         self.base_url = f"https://{self.subdomain}.zendesk.com/api/v2"
         self.oauth_url = f"https://{self.subdomain}.zendesk.com/oauth"
-        self.access_token = os.getenv("ZENDESK_ACCESS_TOKEN")
+        self.access_token = config.get("access_token") or os.getenv("ZENDESK_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
@@ -33,7 +31,6 @@ class ZendeskService:
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-
         return {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
@@ -87,7 +84,6 @@ class ZendeskService:
         sort_order: str = "desc"
     ) -> List[Dict[str, Any]]:
         """Get tickets from Zendesk"""
-
         try:
             token = access_token or self.access_token
             if not token:
@@ -150,7 +146,6 @@ class ZendeskService:
         requester_email: str = None
     ) -> Dict[str, Any]:
         """Create a new ticket"""
-
         try:
             token = access_token or self.access_token
             if not token:
@@ -260,7 +255,7 @@ class ZendeskService:
                 "ok": True,
                 "status": "healthy",
                 "service": "zendesk",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0.0",
             }
         except Exception as e:
@@ -269,13 +264,68 @@ class ZendeskService:
                 "status": "unhealthy",
                 "service": "zendesk",
                 "error": str(e),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-# Singleton instance
-zendesk_service = ZendeskService()
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a Zendesk operation with tenant context."""
+        try:
+            token = parameters.get("access_token") or self.access_token
+            
+            if operation == "get_tickets":
+                result = await self.get_tickets(
+                    access_token=token,
+                    per_page=parameters.get("per_page", 100),
+                    sort_by=parameters.get("sort_by", "created_at"),
+                    sort_order=parameters.get("sort_order", "desc")
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_ticket":
+                result = await self.get_ticket(
+                    ticket_id=parameters["ticket_id"],
+                    access_token=token
+                )
+                return {"success": True, "result": result}
+            elif operation == "create_ticket":
+                result = await self.create_ticket(
+                    subject=parameters["subject"],
+                    comment_body=parameters["comment_body"],
+                    access_token=token,
+                    priority=parameters.get("priority", "normal"),
+                    requester_name=parameters.get("requester_name"),
+                    requester_email=parameters.get("requester_email")
+                )
+                return {"success": True, "result": result}
+            elif operation == "search_tickets":
+                result = await self.search_tickets(
+                    query=parameters["query"],
+                    access_token=token,
+                    per_page=parameters.get("per_page", 100)
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_users":
+                result = await self.get_users(
+                    access_token=token,
+                    per_page=parameters.get("per_page", 100)
+                )
+                return {"success": True, "result": result}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}"
+                }
+        except Exception as e:
+            logger.error(f"Error executing Zendesk operation {operation}: {e}")
+            return {"success": False, "error": str(e)}
 
-def get_zendesk_service() -> ZendeskService:
-    """Get Zendesk service instance"""
-
-    return zendesk_service
+# NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
+# zendesk_service = ZendeskService("default", {})
+# 
+# def get_zendesk_service() -> ZendeskService:
+#     """Get Zendesk service instance"""
+#     return zendesk_service
