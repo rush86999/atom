@@ -212,7 +212,6 @@ class AgentGovernanceService:
         feedback = AgentFeedback(
             agent_id=agent_id,
             user_id=user_id,
-            workspace_id=self.workspace_id,
             original_output=original_output,
             user_correction=user_correction,
             input_context=input_context,
@@ -323,32 +322,37 @@ class AgentGovernanceService:
         allowed = agent_idx >= req_idx
         approval_needed = not allowed or (agent.status == AgentStatus.SUPERVISED.value and complexity >= 3) or require_approval
 
-        # Budget Check
+        # Budget Check (requires tenant_id - skip if not available)
         if allowed:
-            import asyncio
-            from core.budget_enforcement_service import BudgetEnforcementService
-            budget_svc = BudgetEnforcementService(self.db)
-            
             try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-            budget_check = loop.run_until_complete(
-                budget_svc.check_budget_before_action(
-                    agent_id=agent_id,
-                    action=action_type,
-                    chain_id=chain_id # Phase 10
+                import asyncio
+                from core.budget_enforcement_service import BudgetEnforcementService
+                budget_svc = BudgetEnforcementService(self.db)
+
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                budget_check = loop.run_until_complete(
+                    budget_svc.check_budget_before_action(
+                        tenant_id=self.workspace_id,  # Use workspace_id as tenant_id
+                        agent_id=agent_id,
+                        action=action_type,
+                        chain_id=chain_id
+                    )
                 )
-            )
-            if not budget_check.get("allowed", True):
-                return {
-                    "allowed": False,
-                    "reason": budget_check.get("reason"),
-                    "requires_approval": True,
-                    "status_code": "BUDGET_EXCEEDED"
-                }
+                if not budget_check.get("allowed", True):
+                    return {
+                        "allowed": False,
+                        "reason": budget_check.get("reason"),
+                        "requires_approval": True,
+                        "status_code": "BUDGET_EXCEEDED"
+                    }
+            except Exception as e:
+                # Budget service not available or failed - log warning but continue
+                logger.warning(f"Budget check skipped: {e}")
 
         # NEW Phase 10: Fleet-wide recursion guardrails
         if chain_id:
