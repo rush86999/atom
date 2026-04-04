@@ -204,15 +204,16 @@ Seven new models added:
 
 User model updated with:
 - `email_verified` - Email verification status
-- `user_id` - User identification
+- `tenant_id` - Tenant association
 
 #### 3. Frontend API Client
 
 **Location**: `frontend-nextjs/lib/api.ts`
 
-Enhanced with API modules:
+Enhanced with six API modules:
 - `userManagementAPI` - User operations
 - `emailVerificationAPI` - Email verification
+- `tenantAPI` - Tenant operations
 - `adminAPI` - Admin management
 - `meetingAPI` - Meeting attendance
 - `financialAPI` - Financial data

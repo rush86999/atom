@@ -231,7 +231,7 @@ Atom doesn't just learn from single-agent feedback; it uses **Group-Evolving Age
 ```python
 # core/agent_evolution_loop.py
 
-async def run_evolution_cycle(user_id):
+async def run_evolution_cycle(tenant_id):
     # 1. Experience Sharing (Domain-Aware)
     pool = reflection_svc.gather_group_experience_pool(parent_ids)
     

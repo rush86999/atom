@@ -74,6 +74,7 @@ Get detailed information about the currently authenticated user.
   "role": "member",
   "status": "active",
   "email_verified": true,
+  "tenant_id": "tenant-456",
   "created_at": "2026-02-01T00:00:00Z",
   "last_login": "2026-02-02T12:34:56Z"
 }
