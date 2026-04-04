@@ -93,11 +93,11 @@ def validate_email_strict(email: str) -> tuple[bool, Optional[str]]:
         >>> validate_email_strict("invalid")
         (False, "Invalid email format")
     """
-    if not email:
-        return False, "Email is required"
-
     if not isinstance(email, str):
         return False, "Email must be a string"
+
+    if not email:
+        return False, "Email is required"
 
     # Check for @ symbol
     if '@' not in email:
@@ -118,7 +118,7 @@ def validate_email_strict(email: str) -> tuple[bool, Optional[str]]:
 
     # Check for domain extension
     if '.' not in domain:
-        return False, "Email domain must contain extension (e.g., .com)"
+        return False, "Email domain must contain extension"
 
     # Basic regex validation
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -177,8 +177,11 @@ def validate_url(url: str) -> bool:
     if not url or not isinstance(url, str):
         return False
 
-    # Basic URL regex pattern
-    pattern = r'^(https?|ftp)://[^\s/$.?#].[^\s]*$'
+    # Basic URL regex pattern (ASCII domain only, reject unicode domains)
+    # ASCII domain: [a-zA-Z0-9.-]
+    # Optional port: (:[0-9]+)?
+    # Optional path/query/fragment: (/path?query#fragment)
+    pattern = r'^(https?|ftp)://[a-zA-Z0-9.-]+(:[0-9]+)?(/[^\s?#]*)?(\?[^\s#]*)?(#[^\s]*)?$'
     return re.match(pattern, url) is not None
 
 
@@ -198,11 +201,11 @@ def validate_url_with_params(url: str) -> tuple[bool, Optional[str]]:
         >>> validate_url_with_params("example.com")
         (False, "URL must start with http://, https://, or ftp://")
     """
-    if not url:
-        return False, "URL is required"
-
     if not isinstance(url, str):
         return False, "URL must be a string"
+
+    if not url:
+        return False, "URL is required"
 
     # Check for scheme
     if not url.startswith(('http://', 'https://', 'ftp://')):

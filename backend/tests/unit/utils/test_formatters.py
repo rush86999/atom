@@ -266,7 +266,7 @@ class TestStringFormatters:
     @pytest.mark.parametrize("text,max_length,expected", [
         ("This is a very long text", 10, "This is..."),
         ("Short", 10, "Short"),
-        ("Exact len", 8, "Exact len"),
+        ("Exact len", 8, "Exact..."),  # 9 chars truncated to 8 with suffix
         ("", 10, ""),
     ])
     def test_truncate_text(self, text, max_length, expected):

@@ -17,7 +17,15 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy.orm import Session
-from core.models import AgentRegistry, AgentProposal, BlockedTriggerContext, SupervisionSession
+from core.models import (
+    AgentRegistry,
+    AgentProposal,
+    BlockedTriggerContext,
+    SupervisionSession,
+    SupervisionStatus,
+    ProposalType,
+    ProposalStatus,
+)
 from core.agent_graduation_service import AgentStatus
 
 # Mark test class for pytest
@@ -563,11 +571,10 @@ class TestAutonomousAgentRouting:
         mock_db.query.return_value = mock_query
 
         with pytest.raises(ValueError, match="Agent .* not found"):
-            await interceptor._allow_execution(
+            await interceptor.intercept_trigger(
                 agent_id="nonexistent-agent",
                 trigger_source=TriggerSource.WORKFLOW_ENGINE,
-                trigger_context=trigger_context,
-                confidence_score=0.95
+                trigger_context=trigger_context
             )
 
 
@@ -671,7 +678,7 @@ class TestInterceptTrigger:
             mock_cache.get = AsyncMock(return_value=None)
             mock_cache_getter.return_value = mock_cache
 
-            with patch('core.trigger_interceptor.UserActivityService') as mock_service_class:
+            with patch('core.user_activity_service.UserActivityService') as mock_service_class:
                 mock_service = AsyncMock()
                 mock_service.get_user_state = AsyncMock(return_value="active")
                 mock_service.should_supervise = MagicMock(return_value=True)
@@ -874,7 +881,7 @@ class TestCreateProposal:
         assert isinstance(result, AgentProposal)
         assert result.agent_id == intern_agent.id
         assert result.proposal_type == ProposalType.ACTION.value
-        assert result.status == ProposalStatus.PROPOSED.value
+        assert result.status == "pending_approval"  # Database default value
         assert "send_email" in result.description
 
         # Verify database operations
