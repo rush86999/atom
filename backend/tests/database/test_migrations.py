@@ -33,7 +33,7 @@ import json
 backend_dir = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(backend_dir))
 
-from alembic import config as main as alembic_main
+import alembic.config as alembic_config
 from alembic.script import ScriptDirectory
 from alembic.runtime.environment import EnvironmentContext
 from alembic import command

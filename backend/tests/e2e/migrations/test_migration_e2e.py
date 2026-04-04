@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
 from sqlalchemy import text, inspect
-from alembic import config as main as alembic_main
+from alembic.config import Config
 from alembic.script import ScriptDirectory
 from alembic.runtime.environment import EnvironmentContext
 
