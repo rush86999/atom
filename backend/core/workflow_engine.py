@@ -33,6 +33,15 @@ from core.websockets import get_connection_manager
 from core.service_factory import ServiceFactory
 from core.workflow_notifier import notifier
 
+# Stripe integration (SaaS-specific)
+try:
+    from integrations.stripe_service import StripeService
+    HAS_STRIPE = True
+except ImportError:
+    # Stripe is SaaS-specific billing integration
+    StripeService = None
+    HAS_STRIPE = False
+
 logger = logging.getLogger(__name__)
 
 class WorkflowEngine:
@@ -2061,14 +2070,9 @@ Use the available tools as needed to complete the action. Return your response i
 
     async def _execute_stripe_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Stripe service actions"""
+        if not HAS_STRIPE or StripeService is None:
+            raise AtomValidationError("Stripe service not available")
         try:
-            try:
-    from integrations.stripe_service import StripeService
-    HAS_STRIPE = True
-except ImportError:
-    # Stripe is SaaS-specific billing integration
-    StripeService = None
-    HAS_STRIPE = False
             service = StripeService()
             
             token_data = token_storage.get_token(connection_id) if connection_id else None
