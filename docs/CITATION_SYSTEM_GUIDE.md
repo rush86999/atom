@@ -122,7 +122,7 @@ Save a business fact with citations to the World Model.
 fact = BusinessFact(
     id=str(uuid.uuid4()),
     fact="Invoices exceeding $500 require VP approval",
-    citations=["s3://atom-saas/business_facts/default/123/policy.pdf"],
+    citations=["s3://your-bucket/business_facts/default/123/policy.pdf"],
     reason="Compliance requirement for spend management",
     source_agent_id="agent:finance-approval-agent",
     created_at=datetime.now(),
@@ -175,7 +175,7 @@ result = await wm.verify_citation(fact_id="abc-123")
 #     "new_status": "verified",
 #     "citations": [
 #         {
-#             "citation": "s3://atom-saas/business_facts/default/.../policy.pdf",
+#             "citation": "s3://your-bucket/business_facts/default/.../policy.pdf",
 #             "exists": True,
 #             "source": "R2"
 #         }
@@ -438,7 +438,7 @@ class StorageService:
 
 ```bash
 # Environment Variables
-AWS_S3_BUCKET=atom-saas
+AWS_S3_BUCKET=your-bucket-name
 S3_ENDPOINT=https://abc.r2.cloudflarestorage.com
 AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
@@ -448,7 +448,7 @@ AWS_REGION=auto
 **File Organization**:
 
 ```
-s3://atom-saas/
+s3://your-bucket/
 ├── business_facts/
 │   ├── default/
 │   │   ├── {uuid4}/
@@ -510,7 +510,7 @@ wm = WorldModelService(workspace_id="default")
 fact = BusinessFact(
     id=str(uuid.uuid4()),
     fact="Remote work requires manager approval for requests > 3 days",
-    citations=["s3://atom-saas/business_facts/default/abc/handbook.pdf"],
+    citations=["s3://your-bucket/business_facts/default/abc/handbook.pdf"],
     reason="HR policy compliance for remote work requests",
     source_agent_id="agent:hr-automation",
     created_at=datetime.now(),

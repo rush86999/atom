@@ -63,7 +63,7 @@ The JIT (Just-In-Time) Verification Cache & Background Worker system provides pr
 ```python
 # Verify citation with automatic caching
 cache = get_jit_verification_cache()
-result = await cache.verify_citation("s3://atom-saas/policies/approval.pdf")
+result = await cache.verify_citation("s3://your-bucket/policies/approval.pdf")
 
 # Result is cached in L1 (5min) and L2 (1hr)
 # Subsequent calls return from cache (<1ms)
@@ -256,7 +256,7 @@ JIT_CACHE_L2_VERIFICATION_TTL=3600  # 1 hour
 JIT_CACHE_L2_QUERY_TTL=1800  # 30 minutes
 
 # Storage (existing)
-AWS_S3_BUCKET=atom-saas
+AWS_S3_BUCKET=your-bucket-name
 S3_ENDPOINT=https://...
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
@@ -291,7 +291,7 @@ from core.jit_verification_cache import get_jit_verification_cache
 cache = get_jit_verification_cache()
 
 # Verify policy document exists (cached)
-result = await cache.verify_citation("s3://atom-saas/policies/approval.pdf")
+result = await cache.verify_citation("s3://your-bucket/policies/approval.pdf")
 
 if result.exists:
     # Policy is valid, proceed with check
@@ -359,16 +359,16 @@ jit_worker_average_verification_seconds
 
 ```bash
 # Cache hits
-[INFO] JIT cache hit: s3://atom-saas/policies/approval.pdf
+[INFO] JIT cache hit: s3://your-bucket/policies/approval.pdf
 
 # Cache misses
-[INFO] JIT cache miss: s3://atom-saas/policies/approval.pdf, verifying...
+[INFO] JIT cache miss: s3://your-bucket/policies/approval.pdf, verifying...
 
 # Worker activity
 [INFO] Verification cycle completed: 50/50 citations verified in 2.3s
 
 # Stale facts detected
-[WARNING] Citation outdated: s3://atom-saas/policies/old.pdf (marked 5 facts as outdated)
+[WARNING] Citation outdated: s3://your-bucket/policies/old.pdf (marked 5 facts as outdated)
 ```
 
 ## Testing
@@ -448,7 +448,7 @@ Invalidate cache after document updates:
 ```python
 # After uploading new policy
 storage.upload_file(new_policy)
-cache.invalidate_citation("s3://atom-saas/policies/approval.pdf")
+cache.invalidate_citation("s3://your-bucket/policies/approval.pdf")
 ```
 
 ### 3. Monitoring

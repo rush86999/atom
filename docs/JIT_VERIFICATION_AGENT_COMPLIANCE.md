@@ -74,7 +74,7 @@ async def execute(self, task_input: str):
     #     "business_facts": [  # ← KEY: Compliance facts
     #         {
     #             "fact": "Invoices > $500 need VP approval",
-    #             "citations": ["s3://atom-saas/policies/approval.pdf"],
+    #             "citations": ["s3://your-bucket/policies/approval.pdf"],
     #             "verification_status": "verified",
     #             "last_verified": "2026-03-23T10:00:00"
     #         }
@@ -257,14 +257,14 @@ async def _run_verification_cycle(self):
    ```python
    fact = {
        "fact": "Invoices > $500 need VP approval",
-       "citations": ["s3://atom-saas/policies/approval.pdf"],
+       "citations": ["s3://your-bucket/policies/approval.pdf"],
        "verification_status": "verified"
    }
    ```
 
 2. **JIT Cache Verification** (<1ms - cache hit!)
    ```python
-   result = await cache.verify_citation("s3://atom-saas/policies/approval.pdf")
+   result = await cache.verify_citation("s3://your-bucket/policies/approval.pdf")
    # Returns: {exists: True, checked_at: "2026-03-23T10:00:00"}
    ```
 
@@ -281,7 +281,7 @@ async def _run_verification_cycle(self):
        "status": "vp_approval_required",
        "reason": "Invoice exceeds $500 (per approval policy)",
        "policy_verified": True,
-       "citation": "s3://atom-saas/policies/approval.pdf"
+       "citation": "s3://your-bucket/policies/approval.pdf"
    }
    ```
 
@@ -295,14 +295,14 @@ async def _run_verification_cycle(self):
    ```python
    fact = {
        "fact": "Invoices > $500 need VP approval",
-       "citations": ["s3://atom-saas/policies/approval.pdf"],
+       "citations": ["s3://your-bucket/policies/approval.pdf"],
        "verification_status": "verified"  # Might be stale!
    }
    ```
 
 2. **JIT Cache Verification** (<1ms - cache hit, but citation missing!)
    ```python
-   result = await cache.verify_citation("s3://atom-saas/policies/approval.pdf")
+   result = await cache.verify_citation("s3://your-bucket/policies/approval.pdf")
    # Returns: {exists: False, checked_at: "2026-03-23T10:00:00"}
    ```
 
@@ -315,7 +315,7 @@ async def _run_verification_cycle(self):
            "status": "human_review_required",
            "reason": "Policy citation outdated - cannot verify approval rule",
            "fact": "Invoices > $500 need VP approval",
-           "stale_citation": "s3://atom-saas/policies/approval.pdf"
+           "stale_citation": "s3://your-bucket/policies/approval.pdf"
        }
    ```
 
@@ -338,14 +338,14 @@ async def _run_verification_cycle(self):
    ```python
    fact = {
        "fact": "Contracts > $100,000 need legal review",
-       "citations": ["s3://atom-saas/policies/contracts.pdf"],
+       "citations": ["s3://your-bucket/policies/contracts.pdf"],
        "verification_status": "unverified"
    }
    ```
 
 2. **JIT Cache Verification** (cache miss - verify now)
    ```python
-   result = await cache.verify_citation("s3://atom-saas/policies/contracts.pdf")
+   result = await cache.verify_citation("s3://your-bucket/policies/contracts.pdf")
 
    # L1 cache miss - check L2
    # L2 cache miss - verify in R2/S3 (~200ms)

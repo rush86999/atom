@@ -223,7 +223,7 @@ async def recall_experiences(
 │                                                              │
 │  5. Retrieve Conversations                                  │
 │     └─▶ ChatMessage table → latest N messages               │
-│     └─▶ Filter by tenant_id                                 │
+│     └─▶ Filter by user_id                                   │
 │                                                              │
 │  6. Search Business Facts                                   │
 │     └─▶ get_relevant_business_facts() → vector search       │

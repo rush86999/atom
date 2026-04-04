@@ -111,10 +111,10 @@ The system uses LLMService to extract entities and relationships from unstructur
 **Purpose**: CRUD operations for dynamic entity type definitions
 
 **Key Methods**:
-- `create_entity_type(tenant_id, slug, display_name, json_schema, ...)` - Create new type
-- `get_entity_type(tenant_id, entity_type_id, slug)` - Retrieve type definition
+- `create_entity_type(user_id, slug, display_name, json_schema, ...)` - Create new type
+- `get_entity_type(user_id, entity_type_id, slug)` - Retrieve type definition
 - `update_entity_type(entity_type_id, json_schema, ...)` - Update schema
-- `list_entity_types(tenant_id, is_active)` - List all types
+- `list_entity_types(user_id, is_active)` - List all types
 - `delete_entity_type(entity_type_id)` - Soft delete
 
 **Schema Validation**:
@@ -127,8 +127,8 @@ The system uses LLMService to extract entities and relationships from unstructur
 
 **Key Methods**:
 - `create_model(entity_type_def)` - Generate SQLAlchemy model from schema
-- `get_model(tenant_id, slug)` - Retrieve cached model
-- `invalidate_cache(tenant_id, slug)` - Force model reload
+- `get_model(user_id, slug)` - Retrieve cached model
+- `invalidate_cache(user_id, slug)` - Force model reload
 
 **Capabilities**:
 - Runtime model generation from JSON Schema
@@ -222,7 +222,7 @@ CREATE TABLE community_membership (
 ```sql
 CREATE TABLE entity_type_definitions (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    user_id VARCHAR(255),
     slug VARCHAR(100) UNIQUE NOT NULL,
     display_name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -234,7 +234,7 @@ CREATE TABLE entity_type_definitions (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
 
-    INDEX idx_tenant_slug (tenant_id, slug)
+    INDEX idx_user_slug (user_id, slug)
 );
 ```
 
@@ -249,7 +249,7 @@ from core.graphrag_engine import graphrag_engine
 
 # Find entities related to "John Doe" up to 2 hops away
 result = graphrag_engine.local_search(
-    workspace_id="default",
+    user_id="default",
     query="John Doe",
     depth=2
 )
@@ -300,7 +300,7 @@ service = EntityTypeService()
 
 # Define a custom "Invoice" entity type
 invoice_type = service.create_entity_type(
-    tenant_id="acme-corp",
+    user_id="user-123",
     slug="invoice",
     display_name="Invoice",
     description="Customer invoices for billing",
@@ -552,7 +552,7 @@ orchestrator.trigger_event("graph_entity_upsert", {
     "entity_id": "...",
     "name": "John Doe",
     "is_new": True,
-    "tenant_id": "default"
+    "user_id": "default"
 })
 ```
 
