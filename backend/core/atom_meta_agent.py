@@ -14,7 +14,6 @@ from fastapi import HTTPException
 from core.models import (
     AgentRegistry, AgentStatus, User, HITLActionStatus, AgentExecution,
     Workspace, AgentReasoningStep, ExecutionStatus, AgentTriggerMode,
-    MetaAgentDecision  # For routing decision logging
 )
 from core.database import SessionLocal
 import traceback
