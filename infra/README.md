@@ -1,6 +1,6 @@
 # Infrastructure Optimizations
 
-**Purpose:** Database schema optimizations and infrastructure patterns from ATOM SaaS, adapted for single-tenant open-source deployment.
+**Purpose:** Database schema optimizations and infrastructure patterns adapted for single-tenant open-source deployment.
 
 **Scope:** Single-tenant architecture (no tenant isolation, no RLS, no multi-tenancy patterns)
 
@@ -11,7 +11,7 @@
 
 ## Origin
 
-These infrastructure improvements were ported from `rush86999/atom-saas` (multi-tenant SaaS platform) and adapted for single-tenant use in the open-source version.
+Infrastructure improvements adapted for single-tenant open-source deployment.
 
 **Key adaptations:**
 - Removed all `tenant_id` columns
@@ -22,15 +22,13 @@ These infrastructure improvements were ported from `rush86999/atom-saas` (multi-
 
 ## Usage
 
-This directory is for **reference only**. The open-source version of ATOM uses a single-tenant architecture, so multi-tenancy patterns have been removed.
+This directory is for **reference only**. The open-source version of ATOM uses a single-tenant architecture.
 
 Review these files to understand:
-- How SaaS optimizes database queries
+- Database query optimizations
 - Index strategies for agent operations
 - Schema patterns for high-performance AI workloads
 
 ## Security Note
 
-**DO NOT** copy tenant isolation, RLS policies, or multi-tenancy patterns from SaaS to this repository. The open-source version is explicitly single-tenant by design.
-
-For SaaS multi-tenancy patterns, see: `rush86999/atom-saas/backend-saas/database/`
+**DO NOT** copy tenant isolation, RLS policies, or multi-tenancy patterns. The open-source version is explicitly single-tenant by design.
