@@ -94,11 +94,15 @@ class ConstitutionalValidator:
     ) -> Dict[str, Any]:
         """
         Validate a list of actions against constitutional rules.
-        
+
         Args:
             actions: List of action dictionaries {type, content, metadata}
             domain: Optional domain for domain-specific rules
         """
+        # Handle None or empty actions
+        if actions is None:
+            actions = []
+
         violations = []
         total_actions = len(actions)
         
