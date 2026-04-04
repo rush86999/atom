@@ -1234,9 +1234,19 @@ class MCPService(IntegrationService):
 
         logger.info(f"Executing MCP tool {tool_name} on server {server_id} with args: {arguments}")
         context = context or {}
-        
-        if server_id in ["google-search", "local-tools"] or get_tool_registry().tools.get(tool_name):
-            return await get_tool_registry().execute(tool_name, arguments, context)
+
+        # Check if tool exists in registry for google-search and local-tools
+        if server_id in ["google-search", "local-tools"] and get_tool_registry().get(tool_name):
+            # Get the tool function and execute it
+            tool_func = get_tool_registry().get_function(tool_name)
+            if tool_func:
+                # Execute the tool function with arguments
+                if asyncio.iscoroutinefunction(tool_func):
+                    return await tool_func(**arguments, **context)
+                else:
+                    return tool_func(**arguments, **context)
+            else:
+                raise ValueError(f"Tool {tool_name} not found in registry")
             
         # Local Internal Tools
         if server_id == "local-tools":
