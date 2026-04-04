@@ -9,8 +9,9 @@ Atom is designed for **self-hosted, single-tenant deployment**. This document ex
 ### 1. User Management & Isolation
 - **Single Organization**: One deployment serves one organization
 - **User Identification**: `user_id` identifies individual users
-- **No Multi-Tenancy**: No tenant isolation, no organization-level segmentation
-- **Impact**: Simpler database queries and direct table access
+- **Legacy tenant_id**: Database models still have `tenant_id` columns (nullable, defaults to NULL)
+- **No Multi-Tenancy**: No tenant isolation, `tenant_id` columns are legacy and unused
+- **Impact**: Simpler database queries without tenant filtering
 
 ### 2. Resource Management
 - **No Billing System**: No subscription management or payment processing
@@ -68,6 +69,7 @@ Atom is designed for **self-hosted, single-tenant deployment**. This document ex
 | Parameter | Type | Purpose |
 |-----------|------|---------|
 | `user_id: str` | Required | Core identifier for user ownership |
+| `tenant_id` | Optional | Legacy field (nullable in DB, unused in single-tenant) |
 | `budget` | None | No budget enforcement (always `None`) |
 
 ### Database Query Pattern
@@ -104,20 +106,33 @@ recruitment_intelligence = RecruitmentIntelligenceService(
 
 ## Legacy Code & tenant_id
 
-The codebase contains legacy `tenant_id` references from porting features, but **these do not break the app**:
+The codebase contains `tenant_id` as a **legacy field** that doesn't break the app:
 
-- **Database Models**: `tenant_id` columns exist with `nullable=True` or default to `"default"`
-- **Function Signatures**: `tenant_id` parameters default to `None` or `"default"`
-- **Runtime Behavior**: Code gracefully handles missing tenant_id with sensible defaults
+### Database Schema
+- **`tenant_id` columns exist** in many tables (User, Workspace, etc.)
+- **All are `nullable=True`** - can be NULL without breaking constraints
+- **`Tenant` table exists** but is not used for tenant isolation
+- **Foreign keys to `tenants.id`** are nullable and cascade on delete
+
+### Code Behavior
+- **New functions use `user_id`** for user identification
+- **Legacy functions may accept `tenant_id`** parameter but default to `"default"` or `None`
+- **No tenant filtering** in queries (direct table access)
 
 **Example:**
 ```python
-# In atom_meta_agent.py
-def __init__(self, workspace_id: str = "default", tenant_id: Optional[str] = None):
-    self.tenant_id = tenant_id or "default"  # Defaults to "default"
+# Database model (tenant_id is nullable)
+class User(Base):
+    id = Column(String, primary_key=True)
+    tenant_id = Column(String, ForeignKey("tenants.id"), nullable=True)  # Can be NULL
+    email = Column(String, nullable=False)
+
+# Function signature (tenant_id optional)
+def some_function(user_id: str, tenant_id: Optional[str] = None):
+    tenant_id = tenant_id or "default"  # Defaults if not provided
 ```
 
-These legacy references are **harmless** and will be cleaned up incrementally. The app functions correctly without tenant isolation.
+These `tenant_id` references are **harmless legacy** from the SaaS codebase and can be cleaned up incrementally.
 
 ## Conclusion
 
