@@ -16,6 +16,9 @@ Markers:
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
+from sqlalchemy.orm import Session
+from core.models import AgentRegistry
+from core.agent_graduation_service import AgentStatus
 
 # Mark test class for pytest
 pytestmark = [pytest.mark.unit, pytest.mark.P0, pytest.mark.governance]
