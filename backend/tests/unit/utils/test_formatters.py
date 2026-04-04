@@ -234,7 +234,7 @@ class TestStringFormatters:
         ("+11234567890", "+1 (123) 456-7890"),
         ("(123) 456-7890", "(123) 456-7890"),  # Already formatted
     ])
-    def test_format_phone_valid(self, phone):
+    def test_format_phone_valid(self, phone, expected):
         """Test phone number formatting for valid numbers."""
         assert format_phone(phone) == expected
 
