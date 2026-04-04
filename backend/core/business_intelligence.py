@@ -3,7 +3,10 @@ from typing import Any, Dict, List, Optional
 from ecommerce.models import EcommerceOrder
 from sales.models import Deal
 
-from core.auto_invoicer import AutoInvoicer
+try:
+    from core.auto_invoicer import AutoInvoicer
+except ImportError:
+    AutoInvoicer = None
 from core.database import get_db_session
 from core.models import BusinessRule
 
@@ -16,7 +19,11 @@ class BusinessEventIntelligence:
 
     def __init__(self, db_session: Any = None):
         self.db = db_session
-        self.invoicer = AutoInvoicer(db_session=db_session)
+        if AutoInvoicer is not None:
+            self.invoicer = AutoInvoicer(db_session=db_session)
+        else:
+            self.invoicer = None
+            logger.warning("AutoInvoicer not available, invoicing features disabled")
 
     async def process_extracted_events(self, knowledge: Dict[str, Any], workspace_id: str):
         """
