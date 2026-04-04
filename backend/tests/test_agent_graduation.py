@@ -390,7 +390,8 @@ class TestSandboxExecutorCoverage:
         db_session.add(agent)
         db_session.commit()
 
-        from core.agent_graduation_service import SandboxExecutor
+        from core.agent_graduation_service import 
+from core.sandbox_executor import SandboxExecutor
         import asyncio
 
         executor = SandboxExecutor(db_session)
@@ -453,7 +454,8 @@ class TestSandboxExecutorCoverage:
             db_session.add(episode)
         db_session.commit()
 
-        from core.agent_graduation_service import SandboxExecutor
+        from core.agent_graduation_service import 
+from core.sandbox_executor import SandboxExecutor
         import asyncio
 
         executor = SandboxExecutor(db_session)
@@ -513,7 +515,8 @@ class TestSandboxExecutorCoverage:
             db_session.add(episode)
         db_session.commit()
 
-        from core.agent_graduation_service import SandboxExecutor
+        from core.agent_graduation_service import 
+from core.sandbox_executor import SandboxExecutor
         import asyncio
 
         executor = SandboxExecutor(db_session)

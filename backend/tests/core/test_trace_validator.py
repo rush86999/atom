@@ -13,7 +13,7 @@ import pytest
 # Skip tests if aiofiles is not available (optional dependency)
 pytest.importorskip("aiofiles")
 
-from core.trace_validator import TraceValidator, ValidationError, validate_trace_format
+from core.trace_validator import TraceValidator, validate_trace_format
 
 
 class TestTraceValidatorInit:

@@ -17,6 +17,7 @@ The tests are kept for future reference when social features are re-enabled.
 """
 
 import pytest
+from sqlalchemy.orm import Session
 
 # Skip all tests in this module
 pytestmark = pytest.mark.skip(
