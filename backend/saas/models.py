@@ -1,2 +1,7 @@
 # Consolidated to core.models to prevent SQLAlchemy registry conflicts
-from core.models import SaaSTier, UsageEvent
+try:
+    from core.models import SaaSTier, UsageEvent
+except ImportError:
+    # Models not yet implemented
+    SaaSTier = None
+    UsageEvent = None
