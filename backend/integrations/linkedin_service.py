@@ -14,8 +14,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class LinkedInService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = self.config.get("linkedin_client_id") or os.getenv("LINKEDIN_CLIENT_ID")
         self.client_secret = self.config.get("linkedin_client_secret") or os.getenv("LINKEDIN_CLIENT_SECRET")
         self.base_url = "https://api.linkedin.com/v2"
@@ -30,10 +32,6 @@ class LinkedInService(IntegrationService):
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
@@ -88,10 +86,6 @@ class LinkedInService(IntegrationService):
 
     async def get_profile(self, access_token: str = None) -> Dict[str, Any]:
         """Get user profile information"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -115,10 +109,6 @@ class LinkedInService(IntegrationService):
 
     async def get_email(self, access_token: str = None) -> Dict[str, Any]:
         """Get user email address"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -149,10 +139,6 @@ class LinkedInService(IntegrationService):
         visibility: str = "PUBLIC"
     ) -> Dict[str, Any]:
         """Share an update/post on LinkedIn"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -231,10 +217,6 @@ class LinkedInService(IntegrationService):
             "supports_webhooks": False
         }
 
-<<<<<<< HEAD
-def get_linkedin_service() -> LinkedInService:
-    """Get LinkedIn service instance"""
-=======
     async def execute_operation(
         self,
         operation: str,
@@ -265,7 +247,6 @@ def get_linkedin_service() -> LinkedInService:
                 raise NotImplementedError(f"Operation {operation} not supported for LinkedIn")
         except Exception as e:
             return {"success": False, "error": str(e)}
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
         """Sync LinkedIn analytics to PostgreSQL IntegrationMetric table."""

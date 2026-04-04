@@ -34,7 +34,9 @@ class EcommerceOrder:
     created_at: datetime
 
 class EcommerceUnifiedService:
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         self.config = config
         
     async def sync_orders(self, platform: EcommercePlatform) -> List[Dict[str, Any]]:

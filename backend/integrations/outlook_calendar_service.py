@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 class OutlookCalendarService(IntegrationService):
     """Service for real Outlook/Microsoft Graph Calendar API interactions"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Outlook Calendar service for a specific tenant.
 
@@ -35,7 +37,7 @@ class OutlookCalendarService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with credentials
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = config.get("client_id") or os.getenv("OUTLOOK_CLIENT_ID")
         self.tenant_id_config = config.get("tenant_id") or os.getenv("OUTLOOK_TENANT_ID", "common")
         self.access_token = None
@@ -210,10 +212,6 @@ class OutlookCalendarService(IntegrationService):
         Returns:
             Created event in unified format or None
         """
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if not self._ensure_authenticated():
             return None
         
@@ -323,10 +321,6 @@ class OutlookCalendarService(IntegrationService):
         end_time: datetime
     ) -> Dict:
         """
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         Check for scheduling conflicts
         
         Args:

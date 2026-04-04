@@ -18,8 +18,10 @@ class ZohoWorkDriveService(IntegrationService):
     Handles file listing, downloading, and ingestion from Zoho WorkDrive.
     """
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         
         # Use regional overrides if present (from HEAD)
         accounts_base = os.getenv("ZOHO_CRM_ACCOUNTS_URL", "https://accounts.zoho.com").rstrip("/")

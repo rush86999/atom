@@ -253,8 +253,10 @@ class GoogleChatRateLimiter:
 class GoogleChatEnhancedService(IntegrationService):
     """Enhanced Google Chat service with full ecosystem integration"""
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.config = config
         self.client_id = config.get('client_id')
         self.client_secret = config.get('client_secret')
@@ -1106,19 +1108,5 @@ class GoogleChatEnhancedService(IntegrationService):
         
         logger.info("Google Chat Enhanced Service closed")
 
-<<<<<<< HEAD
-# Global service instance
-google_chat_enhanced_service = GoogleChatEnhancedService({
-    'client_id': os.getenv('GOOGLE_CHAT_CLIENT_ID'),
-    'client_secret': os.getenv('GOOGLE_CHAT_CLIENT_SECRET'),
-    'redirect_uri': os.getenv('GOOGLE_CHAT_REDIRECT_URI', 'http://localhost:3000/integrations/google-chat/callback'),
-    'encryption_key': os.getenv('ENCRYPTION_KEY'),
-    'redis': {
-        'enabled': os.getenv('REDIS_ENABLED', 'false').lower() == 'true',
-        'client': None  # Would be actual Redis client
-    }
-})
-=======
 # Singleton export deprecated - use IntegrationRegistry instead
 # google_chat_enhanced_service = GoogleChatEnhancedService(...)
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

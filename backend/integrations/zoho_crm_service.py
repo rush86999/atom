@@ -11,8 +11,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class ZohoCRMService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://www.zohoapis.com/crm/v2"
         self.access_token = config.get("access_token") or os.getenv("ZOHO_CRM_ACCESS_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)

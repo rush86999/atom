@@ -201,7 +201,9 @@ class MarketingAnalytics:
 class AtomHubSpotIntegrationService:
     """Advanced HubSpot Marketing Integration Service"""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         self.config = config
         self.db = config.get('database')
         self.cache = config.get('cache')
@@ -349,6 +351,27 @@ class AtomHubSpotIntegrationService:
     
     async def create_contact(self, contact_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new contact in HubSpot"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_hubspot_integration", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
+                logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_hubspot_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_hubspot_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_hubspot_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_hubspot_integration"
+                )
 
             start_time = time.time()
             # Update analytics
@@ -444,9 +467,6 @@ class AtomHubSpotIntegrationService:
     
     async def create_campaign(self, campaign_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new campaign in HubSpot"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_hubspot_integration", "create_contact", locals())
             # Check circuit breaker
@@ -466,7 +486,6 @@ class AtomHubSpotIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_hubspot_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -553,12 +572,6 @@ class AtomHubSpotIntegrationService:
             return {'success': False, 'error': str(e)}
     
     async def generate_marketing_analytics(self, analytics_type: AnalyticsType, 
-<<<<<<< HEAD
-
-                                         time_period: str = '7d') -> Dict[str, Any]:
-        """Generate marketing analytics"""
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_hubspot_integration", "generate_marketing_analytics", locals())
             # Check circuit breaker
@@ -599,7 +612,6 @@ class AtomHubSpotIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_hubspot_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -1046,9 +1058,6 @@ class AtomHubSpotIntegrationService:
     
     async def close(self):
         """Close HubSpot Integration Service"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_hubspot_integration", "get_service_status", locals())
             # Check circuit breaker
@@ -1068,7 +1077,6 @@ class AtomHubSpotIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_hubspot_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             logger.info("HubSpot Integration Service closed")
             
@@ -1098,8 +1106,6 @@ atom_hubspot_integration_service = AtomHubSpotIntegrationService({
     'automation_service': default_workflow_automation,
     'ai_service': default_ai_service
 })
-<<<<<<< HEAD
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_hubspot_integration", "close", locals())
             # Check circuit breaker
@@ -1119,4 +1125,3 @@ atom_hubspot_integration_service = AtomHubSpotIntegrationService({
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_hubspot_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

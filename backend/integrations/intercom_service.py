@@ -8,16 +8,15 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class IntercomService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://api.intercom.io"
         self.client_id = self.config.get("intercom_client_id") or os.getenv("INTERCOM_CLIENT_ID")
         self.client_secret = self.config.get("intercom_client_secret") or os.getenv("INTERCOM_CLIENT_SECRET")
         self.client = httpx.AsyncClient(timeout=30.0)
 
-<<<<<<< HEAD
-    async def close(self):
-=======
     def get_capabilities(self) -> Dict[str, Any]:
         """
         Return Intercom service capabilities.
@@ -138,7 +137,6 @@ class IntercomService(IntegrationService):
         except Exception as e:
             logger.error(f"Error in Intercom operations: {e}")
             return {"success": False, "error": str(e), "details": {}}
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
     async def close(self):
         await self.client.aclose()
@@ -151,10 +149,6 @@ class IntercomService(IntegrationService):
         }
 
     async def exchange_token(self, code: str) -> Dict[str, Any]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self.base_url}/auth/eagle/token"
         data = {
             "code": code,
@@ -166,10 +160,6 @@ class IntercomService(IntegrationService):
         return response.json()
 
     async def get_admins(self, access_token: str) -> List[Dict[str, Any]]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self.base_url}/admins"
         headers = self._get_headers(access_token)
         response = await self.client.get(url, headers=headers)
@@ -177,10 +167,6 @@ class IntercomService(IntegrationService):
         return response.json().get("admins", [])
 
     async def get_contacts(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self.base_url}/contacts"
         headers = self._get_headers(access_token)
         params = {"per_page": limit}
@@ -189,10 +175,6 @@ class IntercomService(IntegrationService):
         return response.json().get("data", [])
 
     async def get_conversations(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self.base_url}/conversations"
         headers = self._get_headers(access_token)
         params = {"per_page": limit}
@@ -201,10 +183,6 @@ class IntercomService(IntegrationService):
         return response.json().get("conversations", [])
 
     async def search_contacts(self, access_token: str, query: str) -> List[Dict[str, Any]]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self.base_url}/contacts/search"
         headers = self._get_headers(access_token)
         data = {
@@ -235,15 +213,3 @@ class IntercomService(IntegrationService):
             "configured": has_credentials,
             "last_check": datetime.now(timezone.utc).isoformat()
         }
-<<<<<<< HEAD
-
-
-intercom_service = IntercomService()
-
-
-def get_intercom_service() -> IntercomService:
-    return intercom_service
-
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

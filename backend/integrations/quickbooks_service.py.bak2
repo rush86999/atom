@@ -1,0 +1,358 @@
+"""
+QuickBooks Service for ATOM Platform
+Provides comprehensive QuickBooks accounting integration functionality
+"""
+
+import logging
+import os
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+import httpx
+from fastapi import HTTPException
+
+from core.integration_service import IntegrationService
+
+logger = logging.getLogger(__name__)
+
+class QuickBooksService(IntegrationService):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None): Dict[str, Any]):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
+        self.client_id = config.get("client_id") or os.getenv("QUICKBOOKS_CLIENT_ID")
+        self.client_secret = config.get("client_secret") or os.getenv("QUICKBOOKS_CLIENT_SECRET")
+        self.base_url = "https://quickbooks.api.intuit.com/v3"
+        self.sandbox_url = "https://sandbox-quickbooks.api.intuit.com/v3"
+        self.auth_url = "https://appcenter.intuit.com/connect/oauth2"
+        self.token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+        self.access_token = config.get("access_token") or os.getenv("QUICKBOOKS_ACCESS_TOKEN")
+        self.realm_id = config.get("realm_id") or os.getenv("QUICKBOOKS_REALM_ID")
+        self.use_sandbox = str(config.get("use_sandbox", os.getenv("QUICKBOOKS_USE_SANDBOX", "false"))).lower() == "true"
+        self.client = httpx.AsyncClient(timeout=30.0)
+
+    async def close(self):
+        """Close the HTTP client connection"""
+        await self.client.aclose()
+
+    def _get_api_url(self) -> str:
+        """Get the appropriate API URL based on environment"""
+        return self.sandbox_url if self.use_sandbox else self.base_url
+
+    def _get_headers(self, access_token: str) -> Dict[str, str]:
+        """Get headers for API requests"""
+        return {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
+
+    def get_authorization_url(self, redirect_uri: str, state: str = None, scope: str = "com.intuit.quickbooks.accounting") -> str:
+        """Generate OAuth authorization URL"""
+        params = {
+            "client_id": self.client_id,
+            "redirect_uri": redirect_uri,
+            "response_type": "code",
+            "scope": scope
+        }
+        if state:
+            params["state"] = state
+        
+        query_string = "&".join([f"{k}={v}" for k, v in params.items()])
+        return f"{self.auth_url}?{query_string}"
+
+    async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
+        """Exchange authorization code for access token"""
+        try:
+            data = {
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": redirect_uri
+            }
+            
+            auth = (self.client_id, self.client_secret)
+            headers = {"Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded"}
+            
+            response = await self.client.post(
+                self.token_url,
+                data=data,
+                auth=auth,
+                headers=headers
+            )
+            response.raise_for_status()
+            
+            token_data = response.json()
+            self.access_token = token_data.get("access_token")
+            self.realm_id = token_data.get("realmId")
+            
+            return token_data
+        except httpx.HTTPError as e:
+            logger.error(f"QuickBooks token exchange failed: {e}")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Token exchange failed: {str(e)}"
+            )
+
+    async def get_company_info(self, realm_id: str = None, access_token: str = None) -> Dict[str, Any]:
+        """Get company information"""
+        try:
+            token = access_token or self.access_token
+            realm = realm_id or self.realm_id
+            
+            if not token or not realm:
+                raise HTTPException(status_code=401, detail="Not authenticated or missing realm ID")
+            
+            headers = self._get_headers(token)
+            url = f"{self._get_api_url()}/company/{realm}/companyinfo/{realm}"
+            
+            response = await self.client.get(url, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            return data.get("CompanyInfo", {})
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get company info: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to get company info: {str(e)}"
+            )
+
+    async def get_customers(
+        self,
+        realm_id: str = None,
+        access_token: str = None,
+        max_results: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get customers"""
+        try:
+            token = access_token or self.access_token
+            realm = realm_id or self.realm_id
+            
+            if not token or not realm:
+                raise HTTPException(status_code=401, detail="Not authenticated or missing realm ID")
+            
+            headers = self._get_headers(token)
+            query = f"SELECT * FROM Customer MAXRESULTS {max_results}"
+            params = {"query": query}
+            
+            url = f"{self._get_api_url()}/company/{realm}/query"
+            
+            response = await self.client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            return data.get("QueryResponse", {}).get("Customer", [])
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get customers: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to get customers: {str(e)}"
+            )
+
+    async def get_invoices(
+        self,
+        realm_id: str = None,
+        access_token: str = None,
+        max_results: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get invoices"""
+        try:
+            token = access_token or self.access_token
+            realm = realm_id or self.realm_id
+            
+            if not token or not realm:
+                raise HTTPException(status_code=401, detail="Not authenticated or missing realm ID")
+            
+            headers = self._get_headers(token)
+            query = f"SELECT * FROM Invoice MAXRESULTS {max_results}"
+            params = {"query": query}
+            
+            url = f"{self._get_api_url()}/company/{realm}/query"
+            
+            response = await self.client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            return data.get("QueryResponse", {}).get("Invoice", [])
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get invoices: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to get invoices: {str(e)}"
+            )
+
+    async def get_expenses(
+        self,
+        realm_id: str = None,
+        access_token: str = None,
+        max_results: int = 100
+    ) -> List[Dict[str, Any]]:
+        """Get expenses"""
+        try:
+            token = access_token or self.access_token
+            realm = realm_id or self.realm_id
+            
+            if not token or not realm:
+                raise HTTPException(status_code=401, detail="Not authenticated or missing realm ID")
+            
+            headers = self._get_headers(token)
+            query = f"SELECT * FROM Purchase WHERE PaymentType = 'Cash' MAXRESULTS {max_results}"
+            params = {"query": query}
+            
+            url = f"{self._get_api_url()}/company/{realm}/query"
+            
+            response = await self.client.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            return data.get("QueryResponse", {}).get("Purchase", [])
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to get expenses: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to get expenses: {str(e)}"
+            )
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Health check for QuickBooks service"""
+        try:
+            return {
+                "ok": True,
+                "status": "healthy",
+                "service": "quickbooks",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "version": "1.0.0",
+            }
+        except Exception as e:
+            return {
+                "ok": False,
+                "status": "unhealthy",
+                "service": "quickbooks",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Execute a QuickBooks operation with tenant context."""
+        try:
+            realm_id = parameters.get("realm_id") or self.realm_id
+            access_token = parameters.get("access_token") or self.access_token
+
+            if operation == "get_company_info":
+                result = await self.get_company_info(realm_id, access_token)
+                return {"success": True, "result": result}
+            elif operation == "get_customers":
+                result = await self.get_customers(
+                    realm_id, access_token, 
+                    max_results=parameters.get("max_results", 100)
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_invoices":
+                result = await self.get_invoices(
+                    realm_id, access_token, 
+                    max_results=parameters.get("max_results", 100)
+                )
+                return {"success": True, "result": result}
+            elif operation == "get_expenses":
+                result = await self.get_expenses(
+                    realm_id, access_token, 
+                    max_results=parameters.get("max_results", 100)
+                )
+                return {"success": True, "result": result}
+            elif operation == "full_sync":
+                result = await self.full_sync(
+                    user_id=parameters.get("user_id", self.tenant_id),
+                    realm_id=realm_id,
+                    access_token=access_token
+                )
+                return {"success": True, "result": result}
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}"
+                }
+        except Exception as e:
+            logger.error(f"Error executing QuickBooks operation {operation}: {e}")
+            return {"success": False, "error": str(e)}
+    async def sync_to_postgres_cache(self, user_id: str, realm_id: str, access_token: str) -> Dict[str, Any]:
+        """Sync QuickBooks analytics to PostgreSQL IntegrationMetric table."""
+        try:
+            from core.database import SessionLocal
+            from core.models import IntegrationMetric
+            
+            # Fetch invoices to get counts
+            invoices = await self.get_invoices(realm_id, access_token, max_results=100)
+            invoice_count = len(invoices)
+            
+            # Fetch customers to get counts
+            customers = await self.get_customers(realm_id, access_token, max_results=100)
+            customer_count = len(customers)
+            
+            db = SessionLocal()
+            metrics_synced = 0
+            try:
+                metrics_to_save = [
+                    ("quickbooks_invoice_count", invoice_count, "count"),
+                    ("quickbooks_customer_count", customer_count, "count"),
+                ]
+                
+                for key, value, unit in metrics_to_save:
+                    existing = db.query(IntegrationMetric).filter_by(
+                        workspace_id=user_id,
+                        integration_type="quickbooks",
+                        metric_key=key
+                    ).first()
+                    
+                    if existing:
+                        existing.value = float(value)
+                        existing.last_synced_at = datetime.now(timezone.utc)
+                    else:
+                        metric = IntegrationMetric(
+                            workspace_id=user_id,
+                            integration_type="quickbooks",
+                            metric_key=key,
+                            value=float(value),
+                            unit=unit
+                        )
+                        db.add(metric)
+                    metrics_synced += 1
+                
+                db.commit()
+                logger.info(f"Synced {metrics_synced} QuickBooks metrics to PostgreSQL cache for user {user_id}")
+            except Exception as e:
+                logger.error(f"Error saving QuickBooks metrics to Postgres: {e}")
+                db.rollback()
+                return {"success": False, "error": str(e)}
+            finally:
+                db.close()
+                
+            return {"success": True, "metrics_synced": metrics_synced}
+        except Exception as e:
+            logger.error(f"QuickBooks PostgreSQL cache sync failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def full_sync(self, user_id: str, realm_id: str, access_token: str) -> Dict[str, Any]:
+        """Trigger full dual-pipeline sync for QuickBooks"""
+        # Pipeline 1: Atom Memory
+        # Triggered via quickbooks_memory_ingestion or similar
+        
+        # Pipeline 2: Postgres Cache
+        cache_result = await self.sync_to_postgres_cache(user_id, realm_id, access_token)
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "postgres_cache": cache_result,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+# NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
+# quickbooks_service = QuickBooksService("default", {})
+# 
+# def get_quickbooks_service() -> QuickBooksService:
+#     """Get QuickBooks service instance"""
+#     return quickbooks_service

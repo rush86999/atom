@@ -16,8 +16,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class TwilioService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.account_sid = config.get("account_sid") or os.getenv("TWILIO_ACCOUNT_SID")
         self.auth_token = config.get("auth_token") or os.getenv("TWILIO_AUTH_TOKEN")
         self.phone_number = config.get("phone_number") or os.getenv("TWILIO_PHONE_NUMBER")
@@ -30,10 +32,6 @@ class TwilioService(IntegrationService):
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         credentials = f"{self.account_sid}:{self.auth_token}"
         b64_credentials = base64.b64encode(credentials.encode()).decode()
         
@@ -202,10 +200,6 @@ class TwilioService(IntegrationService):
 
     async def health_check(self) -> Dict[str, Any]:
         """Health check for Twilio service"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             return {
                 "ok": True,
@@ -223,13 +217,6 @@ class TwilioService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-<<<<<<< HEAD
-# Singleton instance
-twilio_service = TwilioService()
-
-def get_twilio_service() -> TwilioService:
-    """Get Twilio service instance"""
-=======
     async def execute_operation(
         self,
         operation: str,
@@ -277,7 +264,6 @@ def get_twilio_service() -> TwilioService:
         except Exception as e:
             logger.error(f"Error executing Twilio operation {operation}: {e}")
             return {"success": False, "error": str(e)}
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
 # NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
 # twilio_service = TwilioService("default", {})

@@ -22,8 +22,10 @@ class MarketingPlatform(Enum):
     TIKTOK_ADS = "tiktok_ads"
 
 class MarketingUnifiedService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.config = config
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -93,11 +95,5 @@ class MarketingUnifiedService(IntegrationService):
         )
         return metrics
 
-<<<<<<< HEAD
-# Global singleton
-marketing_service = MarketingUnifiedService({})
-
-=======
 # NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
 # marketing_service = MarketingUnifiedService(tenant_id="default", config={})
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

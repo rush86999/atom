@@ -59,8 +59,10 @@ class OneDriveAuthResponse(BaseModel):
 class OneDriveService(IntegrationService):
     """OneDrive service for handling file operations and authentication."""
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.service_name = "onedrive"
         self.required_scopes = ONEDRIVE_SCOPES
         self.base_url = "https://graph.microsoft.com/v1.0/me/drive"
@@ -176,48 +178,6 @@ class OneDriveService(IntegrationService):
         page_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """List files from OneDrive."""
-<<<<<<< HEAD
-
-        try:
-            if not access_token or access_token == "mock":
-                # Fallback to mock data
-                logger.info("Using mock data - no access token provided")
-                mock_files = [
-                    {
-                        "id": "mock_file1",
-                        "name": "Project Document.docx (MOCK)",
-                        "webUrl": "https://onedrive.live.com/redir?resid=file1",
-                        "createdDateTime": "2024-01-15T10:00:00Z",
-                        "lastModifiedDateTime": "2024-01-20T14:30:00Z",
-                        "size": 1024000,
-                        "file": {"mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-                    }
-                ]
-                return {"status": "success", "data": {"value": mock_files, "nextLink": None}, "mode": "mock"}
-
-            # Real Microsoft Graph API call
-            import httpx
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                
-                if folder_id:
-                    url = f"{self.base_url}/items/{folder_id}/children"
-                else:
-                    url = f"{self.base_url}/root/children"
-                
-                params = {"$top": page_size}
-                if page_token:
-                    params["$skiptoken"] = page_token
-
-                response = await client.get(url, headers=headers, params=params, timeout=30.0)
-                response.raise_for_status()
-                data = response.json()
-                return {
-                    "status": "success",
-                    "data": {"value": data.get("value", []), "nextLink": data.get("@odata.nextLink")},
-                    "mode": "real"
-                }
-=======
         try:
             # Mock implementation - in real scenario, use Microsoft Graph API
             mock_files = [
@@ -255,7 +215,6 @@ class OneDriveService(IntegrationService):
                 "status": "success",
                 "data": {"value": mock_files, "nextLink": None},
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         except Exception as e:
             logger.error(f"OneDrive list files failed: {e}")
             return {"status": "error", "message": f"Failed to list files: {str(e)}"}
@@ -337,17 +296,6 @@ class OneDriveService(IntegrationService):
             logger.error(f"OneDrive download file failed: {e}")
             return {"status": "error", "message": f"Download failed: {str(e)}"}
 
-<<<<<<< HEAD
-
-# Service instance
-onedrive_service = OneDriveService()
-
-
-# API Routes
-@onedrive_router.get("/auth")
-async def onedrive_auth(user_id: str):
-    """Initiate OneDrive OAuth flow."""
-=======
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Sync OneDrive analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -420,7 +368,6 @@ async def onedrive_auth(user_id: str):
             "postgres_cache": cache_result,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
 # Service instance removed - use IntegrationRegistry instead
 # onedrive_service = OneDriveService(tenant_id="system", config={})

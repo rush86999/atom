@@ -1172,6 +1172,7 @@ class BusinessProductService(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
+    tenant = relationship("Tenant")
     workspace = relationship("Workspace", back_populates="products_services")
 
 class BusinessRule(Base):
@@ -1380,6 +1381,11 @@ class AgentRegistry(Base):
     # Abuse Protection & Rate Limiting
     daily_requests_count = Column(Integer, default=0)
     last_request_date = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    tenant = relationship("Tenant")
+    user = relationship("User")
+    workspace = relationship("Workspace")
 
 class BlockedTriggerContext(Base):
     """
@@ -8859,9 +8865,7 @@ class TenantIntegrationConfig(Base):
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
 
-
-# Add back-reference to Tenant
-if hasattr(Tenant, '__mapper__'):
-    Tenant.integration_configs = relationship("TenantIntegrationConfig", back_populates="tenant", cascade="all, delete-orphan")
+    # Relationships
+    tenant = relationship("Tenant")
 
 

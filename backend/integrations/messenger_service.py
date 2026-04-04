@@ -23,7 +23,9 @@ class MessengerService(IntegrationService):
     Migrated to IntegrationService base class pattern for tenant isolation.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Messenger service for a specific tenant.
 
@@ -31,17 +33,13 @@ class MessengerService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with page_access_token, api_version
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.page_access_token = config.get("page_access_token") or os.getenv("MESSENGER_PAGE_ACCESS_TOKEN")
         self.api_version = config.get("api_version") or os.getenv("MESSENGER_API_VERSION", "v19.0")
         self.base_url = f"https://graph.facebook.com/{self.api_version}"
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         await self.client.aclose()
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -215,13 +213,9 @@ class MessengerService(IntegrationService):
                 "details": {"service": "messenger", "tenant_id": self.tenant_id}
             }
 
-<<<<<<< HEAD
-    async def health_check(self) -> Dict[str, Any]:
-=======
     async def _get_webhook(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """Get webhook configuration information"""
         webhook_url = parameters.get("webhook_url")
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
         return {
             "success": True,
@@ -244,8 +238,6 @@ class MessengerService(IntegrationService):
                 "details": {"tenant_id": self.tenant_id}
             }
 
-<<<<<<< HEAD
-=======
         try:
             url = f"{self.base_url}/me/subscribed_apps"
             params = {"access_token": self.page_access_token}
@@ -271,4 +263,3 @@ class MessengerService(IntegrationService):
                 "error": str(e),
                 "details": {"service": "messenger", "tenant_id": self.tenant_id}
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

@@ -22,9 +22,11 @@ logger = logging.getLogger(__name__)
 class BitbucketService(IntegrationService):
     """Bitbucket API service implementation"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """Initialize Bitbucket service"""
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://api.bitbucket.org/2.0"
         self.client_id = self.config.get("bitbucket_client_id") or os.getenv("BITBUCKET_CLIENT_ID")
         self.client_secret = self.config.get("bitbucket_client_secret") or os.getenv("BITBUCKET_CLIENT_SECRET")

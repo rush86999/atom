@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 class TrelloService(IntegrationService):
     """Trello API integration service"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Trello service for a specific tenant.
 
@@ -26,7 +28,7 @@ class TrelloService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with api_key and token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
 
         # For Trello, the API Key is usually global (from .env)
         # but the Token is per-user/tenant.

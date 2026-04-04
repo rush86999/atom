@@ -24,7 +24,9 @@ class DeepgramService(IntegrationService):
     Migrated to IntegrationService base class pattern for tenant isolation.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Deepgram service for a specific tenant.
 
@@ -32,7 +34,7 @@ class DeepgramService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with deepgram_api_key
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.api_key = config.get("deepgram_api_key") or os.getenv("DEEPGRAM_API_KEY")
         self.base_url = "https://api.deepgram.com/v1"
         self.client = httpx.AsyncClient(timeout=60.0)
@@ -43,10 +45,6 @@ class DeepgramService(IntegrationService):
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Authorization": f"Token {self.api_key}",
             "Content-Type": "application/json"
@@ -331,10 +329,6 @@ class DeepgramService(IntegrationService):
         end_date: str = None
     ) -> Dict[str, Any]:
         """Get usage statistics for a project"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.api_key:
                 raise HTTPException(status_code=401, detail="Deepgram API key not found")
@@ -362,31 +356,4 @@ class DeepgramService(IntegrationService):
                 detail=f"Failed to get usage: {str(e)}"
             )
 
-<<<<<<< HEAD
-    async def health_check(self) -> Dict[str, Any]:
-        """Health check for Deepgram service"""
-        try:
-            return {
-                "ok": True,
-                "status": "healthy",
-                "service": "deepgram",
-                "timestamp": datetime.now().isoformat(),
-                "version": "1.0.0",
-            }
-        except Exception as e:
-            return {
-                "ok": False,
-                "status": "unhealthy",
-                "service": "deepgram",
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-            }
-
-deepgram_service = DeepgramService()
-
-def get_deepgram_service() -> DeepgramService:
-    return deepgram_service
-
-=======
 # Singleton instance removed - use IntegrationRegistry for per-tenant instances
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

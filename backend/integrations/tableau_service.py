@@ -14,8 +14,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class TableauService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = self.config.get("tableau_client_id") or os.getenv("TABLEAU_CLIENT_ID")
         self.client_secret = self.config.get("tableau_client_secret") or os.getenv("TABLEAU_CLIENT_SECRET")
         self.server_url = self.config.get("tableau_server_url") or os.getenv("TABLEAU_SERVER_URL", "https://10ax.online.tableau.com")
@@ -68,10 +70,6 @@ class TableauService(IntegrationService):
 
     def _get_headers(self, auth_token: str = None) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         token = auth_token or self.auth_token
         return {
             "X-Tableau-Auth": token,
@@ -112,10 +110,6 @@ class TableauService(IntegrationService):
 
     async def get_workbooks(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get workbooks from Tableau"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = auth_token or self.auth_token
             if not token:
@@ -141,10 +135,6 @@ class TableauService(IntegrationService):
 
     async def get_views(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get views from Tableau"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = auth_token or self.auth_token
             if not token:
@@ -170,10 +160,6 @@ class TableauService(IntegrationService):
 
     async def get_datasources(self, auth_token: str = None) -> List[Dict[str, Any]]:
         """Get data sources from Tableau"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = auth_token or self.auth_token
             if not token:
@@ -197,15 +183,9 @@ class TableauService(IntegrationService):
                 detail=f"Failed to get datasources: {str(e)}"
             )
 
-<<<<<<< HEAD
-    async def health_check(self) -> Dict[str, Any]:
-        """Health check for Tableau service"""
-
-=======
     def health_check(self) -> Dict[str, Any]:
         """Synchronous health check for Tableau service"""
         import requests
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             is_healthy = bool(self.server_url)
             return {
@@ -226,13 +206,5 @@ class TableauService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-<<<<<<< HEAD
-tableau_service = TableauService()
-
-def get_tableau_service() -> TableauService:
-    return tableau_service
-
-=======
 # Singleton instance removed - use IntegrationRegistry instead
 # tableau_service = TableauService(tenant_id="system", config={})
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

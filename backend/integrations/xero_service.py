@@ -13,8 +13,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class XeroService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://api.xero.com/api.xro/2.0"
         self.client_id = config.get("client_id") or os.getenv("XERO_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("XERO_CLIENT_SECRET")
@@ -61,10 +63,6 @@ class XeroService(IntegrationService):
 
     async def get_tenants(self, access_token: str) -> List[Dict[str, Any]]:
         """Get connected tenants (organizations)"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = "https://api.xero.com/connections"
             headers = self._get_headers(access_token)
@@ -79,10 +77,6 @@ class XeroService(IntegrationService):
 
     async def get_invoices(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of invoices"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/Invoices"
             headers = self._get_headers(access_token, tenant_id)
@@ -101,10 +95,6 @@ class XeroService(IntegrationService):
 
     async def get_contacts(self, access_token: str, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of contacts"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/Contacts"
             headers = self._get_headers(access_token, tenant_id)
@@ -119,8 +109,6 @@ class XeroService(IntegrationService):
             logger.error(f"Failed to get contacts: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to fetch contacts: {str(e)}")
 
-<<<<<<< HEAD
-=======
     def health_check(self) -> Dict[str, Any]:
         """Health check for Xero service"""
         return {
@@ -248,4 +236,3 @@ class XeroService(IntegrationService):
 
 # NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
 # xero_service = XeroService("default", {})
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

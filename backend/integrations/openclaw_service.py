@@ -14,8 +14,10 @@ class OpenClawService(IntegrationService):
     Service for interacting with OpenClaw (self-hosted AI automation instances).
     Supports sending messages and triggering workflows via remote webhook.
     """
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.webhook_url = self.config.get("openclaw_webhook_url")
         self.api_key = self.config.get("openclaw_api_key")
         self.client = httpx.AsyncClient(timeout=30.0)
@@ -68,10 +70,6 @@ class OpenClawService(IntegrationService):
 
     async def send_message(self, recipient_id: str, content: str, thread_ts: Optional[str] = None) -> Dict[str, Any]:
         """
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         Send a message to an OpenClaw instance.
         
         Args:
@@ -79,10 +77,6 @@ class OpenClawService(IntegrationService):
             content: The message text
             thread_ts: Optional thread ID to reply to
         """
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if not self.webhook_url:
             logger.warning("OPENCLAW_WEBHOOK_URL not configured. Cannot send message.")
             return {"status": "skipped", "reason": "configuration_missing"}
@@ -145,10 +139,3 @@ class OpenClawService(IntegrationService):
                 "error": str(e),
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
-<<<<<<< HEAD
-
-# Singleton instance
-openclaw_service = OpenClawService()
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

@@ -15,7 +15,9 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class HubSpotService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize HubSpot service for a specific tenant.
 
@@ -23,17 +25,13 @@ class HubSpotService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with access_token, refresh_token, etc.
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://api.hubapi.com"
         self.access_token = config.get("access_token")
         self.refresh_token = config.get("refresh_token")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         await self.client.aclose()
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -217,10 +215,6 @@ class HubSpotService(IntegrationService):
 
     async def get_contacts(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot contacts"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Use provided token or fall back to instance token or env
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -255,10 +249,6 @@ class HubSpotService(IntegrationService):
 
     async def get_companies(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot companies"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
@@ -291,10 +281,6 @@ class HubSpotService(IntegrationService):
 
     async def get_deals(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot deals"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
@@ -325,10 +311,6 @@ class HubSpotService(IntegrationService):
 
     async def get_campaigns(self, limit: int = 100, offset: int = 0, token: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get HubSpot campaigns"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
@@ -358,10 +340,6 @@ class HubSpotService(IntegrationService):
 
     async def search_content(self, query: str, object_type: str = "contact") -> Dict[str, Any]:
         """Search HubSpot content"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.access_token:
                 self.access_token = os.getenv("HUBSPOT_ACCESS_TOKEN")
@@ -390,10 +368,6 @@ class HubSpotService(IntegrationService):
 
     async def create_contact(self, email: str, first_name: Optional[str] = None, last_name: Optional[str] = None, company: Optional[str] = None, phone: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot contact"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
@@ -433,10 +407,6 @@ class HubSpotService(IntegrationService):
 
     async def create_company(self, name: str, domain: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot company"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
@@ -473,10 +443,6 @@ class HubSpotService(IntegrationService):
 
     async def create_deal(self, name: str, amount: float, company_id: Optional[str] = None, token: Optional[str] = None) -> Dict[str, Any]:
         """Create a new HubSpot deal"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             active_token = token or self.access_token or os.getenv("HUBSPOT_ACCESS_TOKEN")
             if not active_token:
@@ -644,10 +610,6 @@ class HubSpotService(IntegrationService):
 
     async def health_check(self) -> dict:
         """Health check for HubSpot service"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Basic health check - verify service can be initialized
             return {
@@ -665,14 +627,6 @@ class HubSpotService(IntegrationService):
                 "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-<<<<<<< HEAD
-
-# Singleton instance for global access
-hubspot_service = HubSpotService()
-
-def get_hubspot_service() -> HubSpotService:
-    """Get HubSpot service instance"""
-=======
     async def sync_to_postgres_cache(self, workspace_id: str, token: Optional[str] = None) -> Dict[str, Any]:
         """Sync HubSpot analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -731,7 +685,6 @@ def get_hubspot_service() -> HubSpotService:
         """Trigger full dual-pipeline sync for HubSpot"""
         # Pipeline 1: Atom Memory
         # Triggered via hubspot_memory_ingestion or similar
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
         # Pipeline 2: Postgres Cache
         cache_result = await self.sync_to_postgres_cache(workspace_id, token)

@@ -277,7 +277,9 @@ class AutomationExecution:
 class AtomWorkflowAutomationService:
     """Enterprise workflow automation service with comprehensive integration"""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         self.config = config
         self.db = config.get('database')
         self.cache = config.get('cache')
@@ -367,6 +369,27 @@ class AtomWorkflowAutomationService:
     
     async def create_automation(self, automation_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """Create workflow automation"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_workflow_automation", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_workflow_automation"):
+                logger.warning(f"Circuit breaker is open for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_workflow_automation integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_workflow_automation")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_workflow_automation")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_workflow_automation"
+                )
 
             automation_id = f"auto_{int(time.time())}_{hashlib.md5(automation_data['name'].encode()).hexdigest()[:8]}"
             # Validate automation data
@@ -441,9 +464,6 @@ class AtomWorkflowAutomationService:
     
     async def execute_automation(self, automation_id: str, trigger_context: Dict[str, Any], triggered_by: str) -> Dict[str, Any]:
         """Execute workflow automation"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "create_automation", locals())
             # Check circuit breaker
@@ -463,7 +483,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             automation = self.automations.get(automation_id)
             if not automation:
@@ -661,9 +680,6 @@ class AtomWorkflowAutomationService:
     
     async def create_security_automation(self, security_event: Dict[str, Any], automation_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create automation from security event"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "execute_automation", locals())
             # Check circuit breaker
@@ -683,7 +699,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Determine automation type based on security event
             threat_type = security_event.get('threat_type', 'unknown')
@@ -762,9 +777,6 @@ class AtomWorkflowAutomationService:
     
     async def create_compliance_automation(self, compliance_violation: Dict[str, Any], automation_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create automation from compliance violation"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "create_security_automation", locals())
             # Check circuit breaker
@@ -784,7 +796,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Determine automation type based on compliance violation
             standard = compliance_violation.get('standard', 'unknown')
@@ -865,9 +876,6 @@ class AtomWorkflowAutomationService:
     
     async def create_integration_automation(self, platform: str, integration_config: Dict[str, Any]) -> Dict[str, Any]:
         """Create automation for platform integration"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "create_compliance_automation", locals())
             # Check circuit breaker
@@ -887,7 +895,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Validate platform
             if platform not in self.platform_integrations:
@@ -949,9 +956,6 @@ class AtomWorkflowAutomationService:
     
     async def get_automations(self, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Get workflow automations with filters"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "create_integration_automation", locals())
             # Check circuit breaker
@@ -971,7 +975,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             filters = filters or {}
             automations = []
@@ -1022,9 +1025,6 @@ class AtomWorkflowAutomationService:
     
     async def get_automation_executions(self, automation_id: str = None, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """Get automation executions"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "get_automations", locals())
             # Check circuit breaker
@@ -1044,7 +1044,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             filters = filters or {}
             executions = []
@@ -1096,9 +1095,6 @@ class AtomWorkflowAutomationService:
     
     async def get_automation_metrics(self) -> Dict[str, Any]:
         """Get automation metrics"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "get_automation_executions", locals())
             # Check circuit breaker
@@ -1118,7 +1114,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             return {
                 'total_automations': self.automation_metrics['total_automations'],
@@ -1146,9 +1141,6 @@ class AtomWorkflowAutomationService:
     # Private methods
     async def _validate_automation_data(self, automation_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate automation data"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "get_automation_metrics", locals())
             # Check circuit breaker
@@ -1168,7 +1160,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         validation_result = {'valid': True, 'errors': [], 'warnings': []}
         
         required_fields = ['name', 'description', 'automation_type', 'priority', 'conditions', 'actions']
@@ -2213,9 +2204,6 @@ class AtomWorkflowAutomationService:
     
     async def close(self):
         """Close workflow automation service"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "get_service_info", locals())
             # Check circuit breaker
@@ -2235,7 +2223,6 @@ class AtomWorkflowAutomationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         # Stop scheduler
         if self.scheduler_task:
             self.scheduler_task.cancel()
@@ -2260,8 +2247,6 @@ class AtomWorkflowAutomationService:
 except Exception as e:
     logger.warning(f"Could not initialize global workflow automation service: {e}")
     atom_workflow_automation_service = None
-<<<<<<< HEAD
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_workflow_automation", "close", locals())
             # Check circuit breaker
@@ -2281,4 +2266,3 @@ except Exception as e:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_workflow_automation"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

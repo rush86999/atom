@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from integrations.microsoft365_service import microsoft365_service
 try:
     from integrations.stripe_service import stripe_service
-HAS_STRIPE = True
+    HAS_STRIPE = True
 except ImportError:
     # Stripe is SaaS-specific billing integration
     stripe_service = None

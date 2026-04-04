@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class GitHubService(IntegrationService):
     """GitHub API integration service"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize GitHub service for a specific tenant.
 
@@ -25,7 +27,7 @@ class GitHubService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with access_token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.access_token = config.get('access_token')
         self.base_url = "https://api.github.com"
         self.session = requests.Session()

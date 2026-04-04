@@ -484,18 +484,16 @@ class DiscordRateLimiter:
     
     def update_global_limit(self, remaining: int, reset_after: int):
         """Update global rate limit from Discord response headers"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         self.global_limit['remaining'] = remaining
         self.global_limit['reset_time'] = time.time() + reset_after
 
 class DiscordEnhancedService(IntegrationService):
     """Enhanced Discord service with full ecosystem integration"""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.api_base_url = "https://discord.com/api/v10"
         self.client_id = config.get('client_id') or os.getenv('DISCORD_CLIENT_ID')
         self.client_secret = config.get('client_secret') or os.getenv('DISCORD_CLIENT_SECRET')
@@ -767,10 +765,6 @@ class DiscordEnhancedService(IntegrationService):
     
     async def test_connection(self, guild_id: str) -> Dict[str, Any]:
         """Test connection to Discord guild"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             self.connection_status[guild_id] = DiscordConnectionStatus.CONNECTING
             
@@ -814,10 +808,6 @@ class DiscordEnhancedService(IntegrationService):
     
     def _get_guild_by_id(self, guild_id: str) -> Optional[DiscordGuild]:
         """Get Discord guild by ID from database"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if self.db:
                 # Get from database
@@ -968,17 +958,9 @@ class DiscordEnhancedService(IntegrationService):
             return []
     
     async def send_message(self, guild_id: str, channel_id: str, content: str,
-<<<<<<< HEAD
-
                          embed: Dict[str, Any] = None, components: List[Dict] = None,
                          tts: bool = False) -> Dict[str, Any]:
         """Send message to Discord channel"""
-
-=======
-                         embed: Dict[str, Any] = None, components: List[Dict] = None,
-                         tts: bool = False) -> Dict[str, Any]:
-        """Send message to Discord channel"""
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit('send_message', channel_id):
@@ -1038,10 +1020,6 @@ class DiscordEnhancedService(IntegrationService):
             }
     
     async def get_channel_messages(self, guild_id: str, channel_id: str, limit: int = 100,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                                 before: str = None, after: str = None, around: str = None) -> List[DiscordMessage]:
         """Get messages from Discord channel"""
         try:
@@ -1151,10 +1129,6 @@ class DiscordEnhancedService(IntegrationService):
             return []
     
     async def search_messages(self, guild_id: str, channel_id: str, query: str,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                            limit: int = 50, before: str = None, after: str = None) -> Dict[str, Any]:
         """Search messages in Discord channel"""
         try:
@@ -1349,10 +1323,6 @@ class DiscordEnhancedService(IntegrationService):
 
     async def close(self):
         """Close all connections and cleanup"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         # Close WebSocket connection
         if self.websocket:
             await self.websocket.close()
@@ -1363,20 +1333,5 @@ class DiscordEnhancedService(IntegrationService):
         
         logger.info("Discord Enhanced Service closed")
 
-<<<<<<< HEAD
-# Global service instance
-discord_enhanced_service = DiscordEnhancedService({
-    'client_id': os.getenv('DISCORD_CLIENT_ID'),
-    'client_secret': os.getenv('DISCORD_CLIENT_SECRET'),
-    'redirect_uri': os.getenv('DISCORD_REDIRECT_URI', 'http://localhost:3000/integrations/discord/callback'),
-    'bot_token': os.getenv('DISCORD_BOT_TOKEN'),
-    'encryption_key': os.getenv('ENCRYPTION_KEY'),
-    'redis': {
-        'enabled': os.getenv('REDIS_ENABLED', 'false').lower() == 'true',
-        'client': None  # Would be actual Redis client
-    }
-})
-=======
 # Service instance removed - use IntegrationRegistry instead
 # discord_enhanced_service = DiscordEnhancedService(tenant_id="system", config={})
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
