@@ -317,7 +317,11 @@ class TestAuditTrailValidator:
     def test_validate_completeness_returns_structure(self):
         """Test validate_completeness returns required fields"""
         db = Mock()
-        db.query.return_value.filter.return_value.all.return_value = []
+        # Mock the query chain properly
+        mock_query = Mock()
+        mock_query.all.return_value = []
+        mock_query.filter.return_value = mock_query  # Handle filter() calls
+        db.query.return_value = mock_query
 
         validator = AuditTrailValidator(db)
         result = validator.validate_completeness()
@@ -388,7 +392,11 @@ class TestAuditTrailValidator:
     def test_get_audit_statistics_structure(self):
         """Test audit statistics returns correct structure"""
         db = Mock()
-        db.query.return_value.filter.return_value.all.return_value = []
+        # Mock the query chain properly
+        mock_query = Mock()
+        mock_query.all.return_value = []
+        mock_query.filter.return_value = mock_query
+        db.query.return_value = mock_query
 
         validator = AuditTrailValidator(db)
         result = validator.get_audit_statistics()
