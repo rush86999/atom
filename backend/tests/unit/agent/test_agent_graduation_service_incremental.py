@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from core.agent_graduation_service import (
     AgentGraduationService,
 )
-from core.sandbox_executor import SandboxExecutor
+from core.sandbox_executor import SandboxExecutor, GraduationExamSandboxExecutor
 from core.models import (
     AgentRegistry,
     AgentStatus,
@@ -37,7 +37,7 @@ class TestSandboxExecutorEdgeCases:
     @pytest.mark.asyncio
     async def test_execute_exam_agent_not_found(self, db_session):
         """Test exam execution when agent doesn't exist - Line 66-73"""
-        executor = SandboxExecutor(db_session)
+        executor = GraduationExamSandboxExecutor(db_session)
 
         result = await executor.execute_exam(
             agent_id="nonexistent-agent",
