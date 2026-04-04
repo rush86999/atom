@@ -12,25 +12,20 @@ This roadmap tracks the development of the Atom AI Workforce Platform (open-sour
 
 **Focus**: Consolidate duplicate systems and implement Meta-Agent routing
 
-#### Phase: Meta-Agent Routing (Ported from atom-saas v13.0)
+#### Phase: Meta-Agent Routing
 
-**Status**: ✅ Ported with SaaS features removed
+**Status**: ✅ Complete
 
-**Features Ported**:
+**Features Implemented**:
 - Intent classification (CHAT/WORKFLOW/TASK)
 - Governance checks (maturity-based permissions)
 - FleetAdmiral (dynamic agent recruitment)
 - QueenAgent integration (WORKFLOW blueprints)
 - Auto-takeover proposal mode
 
-**SaaS Features Removed**:
-- BudgetEnforcementService (no billing in upstream)
-- Multi-tenant isolation (user_id instead of tenant_id)
-- Quota enforcement (unlimited usage)
+**Architecture**: Single-tenant deployment with user_id-based routing (no billing or quotas)
 
-**Single-Tenant Architecture**: See [SINGLE_TENANT.md](SINGLE_TENANT.md)
-
-**Ported**: 2026-04-03 from atom-saas Phase 256
+**Documentation**: See [docs/SINGLE_TENANT.md](docs/SINGLE_TENANT.md) for architecture details
 
 ### Future Versions
 
@@ -100,4 +95,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 ## License
 
-This is the open-source version of Atom. For SaaS features (multi-tenancy, billing, quotas), see [atom-saas](https://github.com/rush86999/atom-saas).
+Atom is open-source software licensed under AGPL v3. See [LICENSE.md](LICENSE.md) for details.

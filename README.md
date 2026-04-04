@@ -20,9 +20,7 @@ Atom is an **open-source, self-hosted AI agent platform** that combines visual w
 
 Just **speak** or **type** your request, and Atom's specialty agents will plan, verify, and execute complex workflows across your entire tech stack.
 
-**Key Difference**: Unlike SaaS alternatives, Atom runs entirely on your infrastructure. Your data never leaves your environment.
-
-> **Note**: This is the open-source version of Atom with single-tenant deployment. For multi-tenant SaaS features (billing, quotas, tenant isolation), see [atom-saas](https://github.com/rush86999/atom-saas). See [SINGLE_TENANT.md](SINGLE_TENANT.md) for architecture details.
+**Key Difference**: Atom runs entirely on your infrastructure. Your data never leaves your environment.
 
 > **Comparing alternatives?** See [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) for a detailed feature comparison.
 
@@ -51,20 +49,20 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 ### Single-Tenant Deployment
 
-Atom is designed for **single-tenant deployment**, unlike multi-tenant SaaS platforms. This means:
+Atom is designed for **self-hosted deployment**:
 
 - **Simpler Setup**: No tenant isolation, no subdomain routing
-- **Better Performance**: Direct database access without RLS policy overhead
+- **Better Performance**: Direct database access without overhead
 - **Self-Hosted**: Your data never leaves your infrastructure
 - **Unlimited Usage**: No subscription fees or quota limits
 
-**Key Differences from SaaS Version:**
-- Uses `user_id` instead of `tenant_id` (no multi-tenancy)
+**Key Features:**
+- Uses `user_id` for user identification
 - No billing system or quota enforcement
 - Fleet recruitment limited by system resources only
 - All governance, routing, and graduation features work identically
 
-[Full Architecture Guide →](SINGLE_TENANT.md)
+[Full Architecture Guide →](docs/SINGLE_TENANT.md)
 
 ### Meta-Agent Routing ✨ NEW
 
@@ -74,8 +72,6 @@ Intelligent request routing with governance checks:
 - **Governance Checks**: Maturity-based permissions for WORKFLOW/TASK routing
 - **Auto-Takeover**: Propose CHAT alternatives when governance denies actions
 - **Dynamic Fleet Recruitment**: TASK routing uses FleetAdmiral for specialist recruitment
-
-**Ported from atom-saas v13.0** with SaaS features removed (billing, quota, multi-tenancy).
 
 ---
 
@@ -150,7 +146,6 @@ That's it! 🚀
 ### 🔌 Deep Integrations
 - **46+ business integrations**: Slack, Gmail, HubSpot, Salesforce, Zendesk
 - **9 messaging platforms**: Real-time communication
-- **Atom SaaS Sync**: Bidirectional sync with Atom marketplace for skills and ratings ✨ NEW
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
 
 ### 🔍 Knowledge Graph & GraphRAG ✨ NEW
