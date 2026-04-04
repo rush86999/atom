@@ -4,7 +4,7 @@ Tests for Personal Budget Service (Single-Tenant Open-Source Version)
 Tests budget tracking, forecasting, and alerts without billing enforcement.
 Verifies that upstream remains single-tenant (no tenant_id, no billing, no blocking).
 
-Ported from: rush86999/atom-saas/backend-saas/tests/unit/test_budget_*.py
+Ported from atom-saas
 Changes: Removed tenant isolation, billing enforcement, hard-stop blocking tests
 """
 

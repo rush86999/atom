@@ -11,7 +11,7 @@ SINGLE-TENANT ARCHITECTURE:
 - Budget checks are optional and gracefully skipped
 - Self-hosted deployment
 
-Ported from: rush86999/atom-saas@6c5f4e3d4
+Ported from atom-saas
 Changes: Removed SaaS-specific features (billing, quota, multi-tenancy)
 """
 
@@ -55,7 +55,7 @@ class RecruitmentIntelligenceService:
     - No quota enforcement
     - Uses user_id instead of tenant_id
 
-    Ported from: rush86999/atom-saas@6c5f4e3d4
+    Ported from atom-saas
     Changes: Made budget optional, removed quota checks, replaced tenant_id with user_id
     """
 
