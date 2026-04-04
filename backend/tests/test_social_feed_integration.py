@@ -22,7 +22,7 @@ from hypothesis import given, strategies as st, settings, HealthCheck
 
 from core.agent_social_layer import AgentSocialLayer, agent_social_layer
 from core.agent_communication import AgentEventBus
-from core.models import AgentPost, Channel
+from core.models import SocialPost
 
 # Import db_session fixture explicitly for Hypothesis compatibility
 # Hypothesis @given decorator runs before pytest fixture resolution,

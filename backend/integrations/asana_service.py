@@ -770,3 +770,8 @@ class AsanaService(IntegrationService):
         if not result.get("ok"):
             raise Exception(result.get("error", "Failed to add comment"))
         return result.get("story")
+
+
+# Global service instance
+asana_service = AsanaService()
+

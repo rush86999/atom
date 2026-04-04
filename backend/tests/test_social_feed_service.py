@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.agent_social_layer import agent_social_layer
 from core.agent_communication import agent_event_bus
-from core.models import AgentPost, AgentRegistry, Channel, User
+from core.models import SocialPost, User
 from core.database import get_db_session
 
 
