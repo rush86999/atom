@@ -514,7 +514,7 @@ curl -X POST \
     {
       "id": "uuid-1",
       "fact": "Invoices exceeding $500 require VP approval",
-      "citations": ["s3://atom-saas/business_facts/default/uuid/policy.pdf"],
+      "citations": ["s3://your-bucket/business_facts/default/uuid/policy.pdf"],
       "reason": "Extracted from approval_policy.pdf",
       "domain": "finance",
       "verification_status": "verified",

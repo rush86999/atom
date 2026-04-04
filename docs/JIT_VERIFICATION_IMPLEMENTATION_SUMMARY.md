@@ -145,7 +145,7 @@ from core.jit_verification_cache import get_jit_verification_cache
 cache = get_jit_verification_cache()
 
 # Verify policy (cached)
-result = await cache.verify_citation("s3://atom-saas/policies/approval.pdf")
+result = await cache.verify_citation("s3://your-bucket/policies/approval.pdf")
 
 if result.exists:
     # Get business facts (cached)

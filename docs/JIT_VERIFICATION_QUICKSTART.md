@@ -32,7 +32,7 @@ REDIS_URL=redis://localhost:6379/0
 JIT_VERIFICATION_INTERVAL_SECONDS=3600  # Verify every hour
 
 # Storage (existing configuration)
-AWS_S3_BUCKET=atom-saas
+AWS_S3_BUCKET=your-bucket-name
 S3_ENDPOINT=https://...
 ```
 
@@ -55,7 +55,7 @@ curl -X POST "http://localhost:8000/api/admin/governance/jit/verify-citations" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
-    "citations": ["s3://atom-saas/policies/approval.pdf"],
+    "citations": ["s3://your-bucket/policies/approval.pdf"],
     "force_refresh": false
   }'
 ```
