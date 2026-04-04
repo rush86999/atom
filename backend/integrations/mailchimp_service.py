@@ -8,7 +8,9 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class MailchimpService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Mailchimp service for a specific tenant.
 
@@ -16,16 +18,12 @@ class MailchimpService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with credentials
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = config.get("client_id")
         self.client_secret = config.get("client_secret")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         await self.client.aclose()
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -120,10 +118,6 @@ class MailchimpService(IntegrationService):
         }
 
     async def exchange_token(self, code: str, redirect_uri: str) -> Dict[str, Any]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = "https://login.mailchimp.com/oauth2/token"
         data = {
             "grant_type": "authorization_code",
@@ -137,10 +131,6 @@ class MailchimpService(IntegrationService):
         return response.json()
 
     async def get_metadata(self, access_token: str) -> Dict[str, Any]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = "https://login.mailchimp.com/oauth2/metadata"
         headers = {"Authorization": f"OAuth {access_token}"}
         response = await self.client.get(url, headers=headers)
@@ -148,10 +138,6 @@ class MailchimpService(IntegrationService):
         return response.json()
 
     async def get_audiences(self, access_token: str, server_prefix: str, limit: int = 20) -> List[Dict[str, Any]]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self._get_base_url(server_prefix)}/lists"
         headers = self._get_headers(access_token)
         params = {"count": limit}
@@ -160,10 +146,6 @@ class MailchimpService(IntegrationService):
         return response.json().get("lists", [])
 
     async def get_campaigns(self, access_token: str, server_prefix: str, limit: int = 20, status: Optional[str] = None) -> List[Dict[str, Any]]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self._get_base_url(server_prefix)}/campaigns"
         headers = self._get_headers(access_token)
         params = {"count": limit}
@@ -174,10 +156,6 @@ class MailchimpService(IntegrationService):
         return response.json().get("campaigns", [])
 
     async def get_account_info(self, access_token: str, server_prefix: str) -> Dict[str, Any]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         url = f"{self._get_base_url(server_prefix)}/"
         headers = self._get_headers(access_token)
         response = await self.client.get(url, headers=headers)

@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 class WebexService(IntegrationService):
     """Cisco Webex API Service"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Webex service for a specific tenant.
 
@@ -19,7 +21,7 @@ class WebexService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with access_token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://webexapis.com/v1"
         self.access_token = config.get("access_token")
         self.client = httpx.AsyncClient(timeout=30.0)
@@ -50,14 +52,8 @@ class WebexService(IntegrationService):
             logger.error(f"Webex list_rooms failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-<<<<<<< HEAD
-    async def check_health(self) -> Dict[str, Any]:
-        """Check Webex connectivity"""
-
-=======
     def get_capabilities(self) -> Dict[str, Any]:
         """Return Webex integration capabilities"""
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "operations": [
                 {
@@ -87,8 +83,6 @@ class WebexService(IntegrationService):
             "last_check": datetime.now(timezone.utc).isoformat()
         }
 
-<<<<<<< HEAD
-=======
     async def execute_operation(
         self,
         operation: str,
@@ -126,4 +120,3 @@ class WebexService(IntegrationService):
                 "error": str(e),
                 "details": {"operation": operation, "tenant_id": self.tenant_id}
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

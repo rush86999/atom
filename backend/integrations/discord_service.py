@@ -15,8 +15,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class DiscordService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = config.get("client_id") or os.getenv("DISCORD_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("DISCORD_CLIENT_SECRET")
         self.bot_token = config.get("bot_token") or os.getenv("DISCORD_BOT_TOKEN")
@@ -96,10 +98,6 @@ class DiscordService(IntegrationService):
 
     async def get_current_user(self, access_token: str = None) -> Dict[str, Any]:
         """Get current user information"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -127,10 +125,6 @@ class DiscordService(IntegrationService):
         limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Get guilds (servers) the user is a member of"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -265,12 +259,6 @@ class DiscordService(IntegrationService):
             "supports_webhooks": True
         }
 
-<<<<<<< HEAD
-def get_discord_service() -> DiscordService:
-    """Get Discord service instance"""
-
-    return discord_service
-=======
     async def execute_operation(self, operation: str, parameters: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         token = parameters.get("access_token") or self.access_token
         
@@ -287,4 +275,3 @@ def get_discord_service() -> DiscordService:
         else:
             raise NotImplementedError(f"Operation {operation} not supported")
 
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

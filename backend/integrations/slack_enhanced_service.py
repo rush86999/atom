@@ -238,12 +238,10 @@ class SlackRateLimiter:
 class SlackEnhancedService(IntegrationService):
     """Enhanced Slack service with full production capabilities"""
     
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.config = config
         self.client_id = config.get('client_id') or os.getenv('SLACK_CLIENT_ID')
         self.client_secret = config.get('client_secret') or os.getenv('SLACK_CLIENT_SECRET')
@@ -530,10 +528,6 @@ class SlackEnhancedService(IntegrationService):
     
     async def test_connection(self, workspace_id: str) -> Dict[str, Any]:
         """Test connection to Slack workspace"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             self.connection_status[workspace_id] = SlackConnectionStatus.CONNECTING
             
@@ -602,10 +596,6 @@ class SlackEnhancedService(IntegrationService):
     
     async def get_workspaces(self, user_id: str = None) -> List[SlackWorkspace]:
         """Get all workspaces or user's workspaces"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if self.db:
                 # Get from database
@@ -636,17 +626,9 @@ class SlackEnhancedService(IntegrationService):
             return []
     
     async def get_channels(self, workspace_id: str, user_id: str = None,
-<<<<<<< HEAD
-
                          include_private: bool = False, include_archived: bool = False,
                          limit: int = 100) -> List[SlackChannel]:
         """Get channels for workspace"""
-
-=======
-                         include_private: bool = False, include_archived: bool = False,
-                         limit: int = 100) -> List[SlackChannel]:
-        """Get channels for workspace"""
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'conversations.list'):
@@ -717,10 +699,6 @@ class SlackEnhancedService(IntegrationService):
             return []
     
     async def send_message(self, workspace_id: str, channel_id: str, 
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                          text: str, thread_ts: str = None,
                          blocks: List[Dict] = None, attachments: List[Dict] = None) -> Dict[str, Any]:
         """Send message to channel"""
@@ -780,10 +758,6 @@ class SlackEnhancedService(IntegrationService):
             }
     
     async def get_channel_history(self, workspace_id: str, channel_id: str,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                                 limit: int = 100, latest: str = None,
                                 oldest: str = None, include_threads: bool = True) -> List[SlackMessage]:
         """Get message history for channel"""
@@ -850,10 +824,6 @@ class SlackEnhancedService(IntegrationService):
             return []
     
     async def upload_file(self, workspace_id: str, channel_id: str, file_path: str,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                         title: str = None, initial_comment: str = None) -> Dict[str, Any]:
         """Upload file to channel"""
         try:
@@ -932,10 +902,6 @@ class SlackEnhancedService(IntegrationService):
             }
     
     async def search_messages(self, workspace_id: str, query: str,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                            channel_id: str = None, user_id: str = None,
                            sort: str = 'timestamp', sort_dir: str = 'desc',
                            count: int = 100) -> Dict[str, Any]:
@@ -1011,278 +977,7 @@ class SlackEnhancedService(IntegrationService):
                 'error': str(e),
                 'messages': []
             }
-<<<<<<< HEAD
-
-    async def add_reaction(self, workspace_id: str, channel_id: str,
-
-                          timestamp: str, reaction: str) -> Dict[str, Any]:
-        """Add reaction to a message"""
-        try:
-            # Check rate limit
-            if not await self.rate_limiter.check_limit(workspace_id, 'reactions.add'):
-                raise SlackApiError("Rate limit exceeded for reactions.add")
-
-            client = self._get_client(workspace_id)
-            if not client:
-                raise SlackApiError("Failed to create Slack client")
-
-            # Remove colons if present (e.g., ":thumbsup:" -> "thumbsup")
-            reaction = reaction.strip(':')
-
-            response = await client.reactions_add(
-                channel=channel_id,
-                timestamp=timestamp,
-                name=reaction
-            )
-
-            if response['ok']:
-                return {
-                    'ok': True,
-                    'message': 'Reaction added successfully',
-                    'reaction': reaction,
-                    'channel': channel_id,
-                    'timestamp': timestamp
-                }
-            else:
-                raise SlackApiError(f"Failed to add reaction: {response.get('error')}")
-
-        except SlackApiError as e:
-            logger.error(f"Error adding reaction: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-        except Exception as e:
-            logger.error(f"Unexpected error adding reaction: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-    async def send_dm(self, workspace_id: str, user_id: str,
-
-                     text: str, blocks: List[Dict] = None,
-                     unfurl_links: bool = True, unfurl_media: bool = True) -> Dict[str, Any]:
-        """Send direct message to user"""
-        try:
-            # Check rate limit
-            if not await self.rate_limiter.check_limit(workspace_id, 'chat.postMessage'):
-                raise SlackApiError("Rate limit exceeded for chat.postMessage")
-
-            client = self._get_client(workspace_id)
-            if not client:
-                raise SlackApiError("Failed to create Slack client")
-
-            # Open DM channel with user
-            im_response = await client.conversations_open(users=[user_id])
-
-            if not im_response['ok']:
-                raise SlackApiError(f"Failed to open DM: {im_response.get('error')}")
-
-            channel_id = im_response['channel']['id']
-
-            # Send message
-            message_params = {
-                'channel': channel_id,
-                'text': text,
-                'unfurl_links': unfurl_links,
-                'unfurl_media': unfurl_media
-            }
-
-            if blocks:
-                message_params['blocks'] = blocks
-
-            response = await client.chat_postMessage(**message_params)
-
-            if response['ok']:
-                return {
-                    'ok': True,
-                    'message': 'DM sent successfully',
-                    'channel': channel_id,
-                    'user_id': user_id,
-                    'timestamp': response['message']['ts'],
-                    'message_id': response['message']['ts']
-                }
-            else:
-                raise SlackApiError(f"Failed to send DM: {response.get('error')}")
-
-        except SlackApiError as e:
-            logger.error(f"Error sending DM: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-        except Exception as e:
-            logger.error(f"Unexpected error sending DM: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-    async def create_channel(self, workspace_id: str, name: str,
-
-                            is_private: bool = False,
-                            description: str = None) -> Dict[str, Any]:
-        """Create a new channel"""
-        try:
-            # Check rate limit
-            if not await self.rate_limiter.check_limit(workspace_id, 'conversations.create'):
-                raise SlackApiError("Rate limit exceeded for conversations.create")
-
-            client = self._get_client(workspace_id)
-            if not client:
-                raise SlackApiError("Failed to create Slack client")
-
-            create_params = {
-                'name': name,
-                'is_private': is_private
-            }
-
-            response = await client.conversations_create(**create_params)
-
-            if response['ok']:
-                channel = response['channel']
-
-                # Set topic/description if provided
-                if description:
-                    await client.conversations_setTopic(
-                        channel=channel['id'],
-                        topic=description
-                    )
-
-                return {
-                    'ok': True,
-                    'message': 'Channel created successfully',
-                    'channel_id': channel['id'],
-                    'channel_name': channel['name'],
-                    'is_private': channel.get('is_private', False),
-                    'created': channel.get('created')
-                }
-            else:
-                raise SlackApiError(f"Failed to create channel: {response.get('error')}")
-
-        except SlackApiError as e:
-            logger.error(f"Error creating channel: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-        except Exception as e:
-            logger.error(f"Unexpected error creating channel: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-    async def invite_to_channel(self, workspace_id: str, channel_id: str,
-
-                                user_ids: List[str]) -> Dict[str, Any]:
-        """Invite users to a channel"""
-        try:
-            client = self._get_client(workspace_id)
-            if not client:
-                raise SlackApiError("Failed to create Slack client")
-
-            invited_users = []
-            failed_users = []
-
-            for user_id in user_ids:
-                try:
-                    # Check rate limit for each invite
-                    if not await self.rate_limiter.check_limit(workspace_id, 'conversations.invite'):
-                        await asyncio.sleep(1)  # Brief pause if rate limited
-
-                    response = await client.conversations_invite(
-                        channel=channel_id,
-                        users=[user_id]
-                    )
-
-                    if response['ok']:
-                        invited_users.append(user_id)
-                    else:
-                        failed_users.append({
-                            'user_id': user_id,
-                            'error': response.get('error')
-                        })
-
-                except SlackApiError as e:
-                    failed_users.append({
-                        'user_id': user_id,
-                        'error': str(e)
-                    })
-
-            return {
-                'ok': len(invited_users) > 0,
-                'message': f'Invited {len(invited_users)} of {len(user_ids)} users',
-                'invited_users': invited_users,
-                'failed_users': failed_users,
-                'channel_id': channel_id
-            }
-
-        except SlackApiError as e:
-            logger.error(f"Error inviting users: {e}")
-            return {
-                'ok': False,
-                'error': str(e),
-                'invited_users': invited_users,
-                'failed_users': failed_users
-            }
-
-        except Exception as e:
-            logger.error(f"Unexpected error inviting users: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-    async def pin_message(self, workspace_id: str, channel_id: str,
-
-                         timestamp: str) -> Dict[str, Any]:
-        """Pin a message to a channel"""
-        try:
-            # Check rate limit
-            if not await self.rate_limiter.check_limit(workspace_id, 'pins.add'):
-                raise SlackApiError("Rate limit exceeded for pins.add")
-
-            client = self._get_client(workspace_id)
-            if not client:
-                raise SlackApiError("Failed to create Slack client")
-
-            response = await client.pins_add(
-                channel=channel_id,
-                timestamp=timestamp
-            )
-
-            if response['ok']:
-                return {
-                    'ok': True,
-                    'message': 'Message pinned successfully',
-                    'channel': channel_id,
-                    'timestamp': timestamp
-                }
-            else:
-                raise SlackApiError(f"Failed to pin message: {response.get('error')}")
-
-        except SlackApiError as e:
-            logger.error(f"Error pinning message: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-        except Exception as e:
-            logger.error(f"Unexpected error pinning message: {e}")
-            return {
-                'ok': False,
-                'error': str(e)
-            }
-
-=======
     
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
     async def verify_webhook_signature(self, body: bytes, timestamp: str, signature: str) -> bool:
         """Verify Slack webhook signature"""
         try:
@@ -1312,10 +1007,6 @@ class SlackEnhancedService(IntegrationService):
     
     async def handle_webhook_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle incoming Slack webhook event"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             event_type = event_data.get('event', {}).get('type')
             workspace_id = event_data.get('team_id')
@@ -1361,10 +1052,6 @@ class SlackEnhancedService(IntegrationService):
     
     def register_event_handler(self, event_type: SlackEventType, handler: Callable):
         """Register event handler"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if handler not in self.event_handlers[event_type]:
             self.event_handlers[event_type].append(handler)
             logger.info(f"Registered handler for {event_type}")
@@ -1710,10 +1397,6 @@ class SlackEnhancedService(IntegrationService):
 
     async def close(self):
         """Close all connections and cleanup"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         for client in self.clients.values():
             await client.close()
 
@@ -1725,22 +1408,6 @@ class SlackEnhancedService(IntegrationService):
 
         logger.info("Slack Enhanced Service closed")
 
-<<<<<<< HEAD
-# Global service instance
-slack_enhanced_service = SlackEnhancedService({
-    'client_id': os.getenv('SLACK_CLIENT_ID'),
-    'client_secret': os.getenv('SLACK_CLIENT_SECRET'),
-    'signing_secret': os.getenv('SLACK_SIGNING_SECRET'),
-    'redirect_uri': os.getenv('SLACK_REDIRECT_URI', 'http://localhost:3000/integrations/slack/callback'),
-    'encryption_key': os.getenv('ENCRYPTION_KEY'),
-    'redis': {
-        'enabled': os.getenv('REDIS_ENABLED', 'false').lower() == 'true',
-        'host': os.getenv('REDIS_HOST', 'localhost'),
-        'port': int(os.getenv('REDIS_PORT', 6379)),
-        'db': int(os.getenv('REDIS_DB', 0))
-    }
-})
-=======
     def get_capabilities(self) -> Dict[str, Any]:
         return {
             "operations": self.get_operations(),
@@ -1753,4 +1420,3 @@ slack_enhanced_service = SlackEnhancedService({
             "message": "Slack Enhanced Service is fully operational",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

@@ -119,7 +119,9 @@ class OutlookAttachment:
 class OutlookService(IntegrationService):
     """Comprehensive Outlook service for Microsoft Graph API integration"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Outlook service for a specific tenant.
 
@@ -127,7 +129,7 @@ class OutlookService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with credentials
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://graph.microsoft.com/v1.0"
         self.client_id = config.get("client_id") or os.getenv("MICROSOFT_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("MICROSOFT_CLIENT_SECRET")
@@ -495,10 +497,6 @@ class OutlookService(IntegrationService):
         token: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get calendar events with time range filtering"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Build query parameters
             params = {"$top": max_results, "$orderby": "start/dateTime"}
@@ -788,10 +786,6 @@ class OutlookService(IntegrationService):
         self, user_id: str, max_results: int = 50, token: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Get unread emails"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             params = {
                 "$top": max_results,

@@ -21,7 +21,9 @@ class SignalService(IntegrationService):
     Migrated to IntegrationService base class pattern for tenant isolation.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Signal service for a specific tenant.
 
@@ -29,16 +31,12 @@ class SignalService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with api_url and sender_number
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = config.get("api_url", os.getenv("SIGNAL_API_URL", "http://localhost:8080"))
         self.sender_number = config.get("sender_number", os.getenv("SIGNAL_SENDER_NUMBER"))
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         await self.client.aclose()
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -197,19 +195,7 @@ class SignalService(IntegrationService):
                 "details": {"service": "signal", "tenant_id": self.tenant_id}
             }
         except Exception as e:
-<<<<<<< HEAD
-            logger.error(f"Failed to send Signal message: {e}")
-            return False
-
-    async def health_check(self) -> Dict[str, Any]:
-
-        try:
-            url = f"{self.base_url}/v1/about"
-            response = await self.client.get(url)
-            ok = response.status_code == 200
-=======
             logger.error(f"Failed to send Signal message for tenant {self.tenant_id}: {e}")
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
             return {
                 "success": False,
                 "error": str(e),
@@ -220,8 +206,6 @@ class SignalService(IntegrationService):
         """Receive messages (webhook-based, returns webhook info)"""
         webhook_url = parameters.get("webhook_url")
 
-<<<<<<< HEAD
-=======
         return {
             "success": True,
             "result": {
@@ -253,4 +237,3 @@ class SignalService(IntegrationService):
             },
             "details": {"service": "signal", "tenant_id": self.tenant_id}
         }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

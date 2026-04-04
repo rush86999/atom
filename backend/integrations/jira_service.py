@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 class JiraService(IntegrationService):
     """Jira API integration service"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Jira service for a specific tenant.
 
@@ -27,7 +29,7 @@ class JiraService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with base_url, username, api_token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
 
         self.access_token = config.get("access_token")
         self.cloud_id = config.get("cloud_id") or config.get("instance_url")

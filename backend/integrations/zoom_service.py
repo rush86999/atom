@@ -14,7 +14,9 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class ZoomService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Zoom service for a specific tenant.
 
@@ -22,7 +24,7 @@ class ZoomService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with client_id, client_secret, account_id, access_token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = config.get("client_id")
         self.client_secret = config.get("client_secret")
         self.account_id = config.get("account_id")

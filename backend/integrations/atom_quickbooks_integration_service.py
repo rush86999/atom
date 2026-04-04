@@ -190,7 +190,9 @@ class FinancialReport:
 class AtomQuickBooksIntegrationService:
     """Advanced QuickBooks Financial Integration Service"""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         self.config = config
         self.db = config.get('database')
         self.cache = config.get('cache')
@@ -343,6 +345,27 @@ class AtomQuickBooksIntegrationService:
     
     async def create_invoice(self, invoice_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new invoice in QuickBooks"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_quickbooks_integration", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_quickbooks_integration"):
+                logger.warning(f"Circuit breaker is open for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_quickbooks_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_quickbooks_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_quickbooks_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_quickbooks_integration"
+                )
 
             start_time = time.time()
             # Update analytics
@@ -423,9 +446,6 @@ class AtomQuickBooksIntegrationService:
     
     async def create_payment(self, payment_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create payment in QuickBooks"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_invoice", locals())
             # Check circuit breaker
@@ -445,7 +465,6 @@ class AtomQuickBooksIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_quickbooks_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -554,9 +573,6 @@ class AtomQuickBooksIntegrationService:
     
     async def create_expense(self, expense_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create expense in QuickBooks"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_payment", locals())
             # Check circuit breaker
@@ -576,7 +592,6 @@ class AtomQuickBooksIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_quickbooks_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -684,9 +699,6 @@ class AtomQuickBooksIntegrationService:
 
     async def create_customer(self, display_name: str, email: str) -> Dict[str, Any]:
         """Create a new customer in QuickBooks"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_quickbooks_integration", "create_expense", locals())
             # Check circuit breaker
@@ -706,7 +718,6 @@ class AtomQuickBooksIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_quickbooks_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             headers = await self._get_auth_headers()
             
@@ -737,12 +748,6 @@ class AtomQuickBooksIntegrationService:
             return {'success': False, 'error': str(e)}
 
     async def generate_financial_report(self, report_type: FinancialReportType, 
-<<<<<<< HEAD
-
-                                     start_date: datetime, end_date: datetime) -> Dict[str, Any]:
-        """Generate financial report"""
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_quickbooks_integration", "generate_financial_report", locals())
             # Check circuit breaker
@@ -783,7 +788,6 @@ class AtomQuickBooksIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_quickbooks_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -1080,9 +1084,6 @@ class AtomQuickBooksIntegrationService:
     
     async def close(self):
         """Close QuickBooks Integration Service"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_quickbooks_integration", "get_service_status", locals())
             # Check circuit breaker
@@ -1102,7 +1103,6 @@ class AtomQuickBooksIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_quickbooks_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             logger.info("QuickBooks Integration Service closed")
             
@@ -1149,8 +1149,6 @@ if _atom_ai:
 
 # Alias for compatibility with test imports
 AtomQuickbooksIntegrationService = AtomQuickBooksIntegrationService
-<<<<<<< HEAD
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_quickbooks_integration", "close", locals())
             # Check circuit breaker
@@ -1170,4 +1168,3 @@ AtomQuickbooksIntegrationService = AtomQuickBooksIntegrationService
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_quickbooks_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

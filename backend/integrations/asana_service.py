@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 class AsanaService(IntegrationService):
     """Complete Asana API integration service"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Asana service for a specific tenant.
 
@@ -29,7 +31,7 @@ class AsanaService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with access_token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.api_base_url = "https://app.asana.com/api/1.0"
         self.timeout = 30
         self.max_retries = 3
@@ -516,10 +518,6 @@ class AsanaService(IntegrationService):
             "supports_webhooks": True,
         }
 
-<<<<<<< HEAD
-# Global instance for easy access
-asana_service = AsanaService()
-=======
     def get_operations(self) -> List[Dict[str, Any]]:
         """
         Return list of available Asana operations for MCP tool registration.
@@ -772,4 +770,3 @@ asana_service = AsanaService()
         if not result.get("ok"):
             raise Exception(result.get("error", "Failed to add comment"))
         return result.get("story")
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

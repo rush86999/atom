@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 from core.integration_service import IntegrationService
 
 class AirtableService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.api_key = config.get("api_key") or os.getenv("AIRTABLE_API_KEY")
         self.base_url = "https://api.airtable.com/v0"
         self.client = httpx.AsyncClient(timeout=30.0)
@@ -27,10 +29,7 @@ class AirtableService(IntegrationService):
 
     def _get_headers(self, token: Optional[str] = None) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-=======
         api_key = token or self.api_key
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
@@ -227,12 +226,6 @@ class AirtableService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-<<<<<<< HEAD
-airtable_service = AirtableService()
-
-def get_airtable_service() -> AirtableService:
-    return airtable_service
-=======
     async def sync_to_postgres_cache(self, workspace_id: str, base_id: str = None) -> Dict[str, Any]:
         """Sync Airtable analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -296,5 +289,4 @@ def get_airtable_service() -> AirtableService:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 

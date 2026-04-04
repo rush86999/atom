@@ -271,13 +271,11 @@ class TeamsRateLimiter:
 
 class TeamsEnhancedService(IntegrationService):
     """Enhanced Teams service with full production capabilities"""
-<<<<<<< HEAD
-    
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.config = config
         self.client_id = config.get('client_id')
         self.client_secret = config.get('client_secret')
@@ -527,10 +525,6 @@ class TeamsEnhancedService(IntegrationService):
     
     async def test_connection(self, workspace_id: str) -> Dict[str, Any]:
         """Test connection to Teams workspace"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             self.connection_status[workspace_id] = TeamsConnectionStatus.CONNECTING
             
@@ -583,10 +577,6 @@ class TeamsEnhancedService(IntegrationService):
     
     async def get_workspaces(self, user_id: str = None) -> List[TeamsWorkspace]:
         """Get all workspaces or user's workspaces"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if self.db:
                 # Get from database
@@ -617,17 +607,9 @@ class TeamsEnhancedService(IntegrationService):
             return []
     
     async def get_channels(self, workspace_id: str, user_id: str = None,
-<<<<<<< HEAD
-
                          include_private: bool = False, include_archived: bool = False,
                          limit: int = 100) -> List[TeamsChannel]:
         """Get channels for workspace"""
-
-=======
-                         include_private: bool = False, include_archived: bool = False,
-                         limit: int = 100) -> List[TeamsChannel]:
-        """Get channels for workspace"""
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Check rate limit
             if not await self.rate_limiter.check_limit(workspace_id, 'channels_list'):
@@ -701,10 +683,6 @@ class TeamsEnhancedService(IntegrationService):
             return []
     
     async def send_message(self, workspace_id: str, channel_id: str, 
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                          text: str, thread_id: str = None,
                          importance: str = 'normal',
                          subject: str = None, attachments: List[Dict] = None) -> Dict[str, Any]:
@@ -769,10 +747,6 @@ class TeamsEnhancedService(IntegrationService):
             }
     
     async def get_channel_messages(self, workspace_id: str, channel_id: str,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                                 limit: int = 100, latest: str = None,
                                 oldest: str = None) -> List[TeamsMessage]:
         """Get messages from channel"""
@@ -854,10 +828,6 @@ class TeamsEnhancedService(IntegrationService):
             return []
     
     async def search_messages(self, workspace_id: str, query: str,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                            channel_id: str = None, user_id: str = None,
                            limit: int = 100) -> Dict[str, Any]:
         """Search messages in workspace"""
@@ -955,10 +925,6 @@ class TeamsEnhancedService(IntegrationService):
             }
     
     async def upload_file(self, workspace_id: str, channel_id: str, file_path: str,
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                         title: str = None, description: str = None) -> Dict[str, Any]:
         """Upload file to Teams channel"""
         try:
@@ -1323,10 +1289,6 @@ class TeamsEnhancedService(IntegrationService):
 
     async def close(self):
         """Close all connections and cleanup"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         # Clear clients
         self.graph_clients.clear()
         self.teams_clients.clear()
@@ -1337,20 +1299,5 @@ class TeamsEnhancedService(IntegrationService):
         
         logger.info("Teams Enhanced Service closed")
 
-<<<<<<< HEAD
-# Global service instance
-teams_enhanced_service = TeamsEnhancedService({
-    'client_id': os.getenv('TEAMS_CLIENT_ID'),
-    'client_secret': os.getenv('TEAMS_CLIENT_SECRET'),
-    'tenant_id': os.getenv('TEAMS_TENANT_ID'),
-    'redirect_uri': os.getenv('TEAMS_REDIRECT_URI', 'http://localhost:3000/integrations/teams/callback'),
-    'encryption_key': os.getenv('ENCRYPTION_KEY'),
-    'redis': {
-        'enabled': os.getenv('REDIS_ENABLED', 'false').lower() == 'true',
-        'client': None  # Would be actual Redis client
-    }
-})
-=======
 # Service instance removed - use IntegrationRegistry instead
 # teams_enhanced_service = TeamsEnhancedService(tenant_id="system", config={})
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

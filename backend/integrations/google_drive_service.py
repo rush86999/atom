@@ -62,8 +62,10 @@ from core.integration_service import IntegrationService
 class GoogleDriveService(IntegrationService):
     """Google Drive service for handling file operations and authentication."""
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.service_name = "google_drive"
         self.required_scopes = GOOGLE_DRIVE_SCOPES
         self.access_token = config.get("access_token")
@@ -158,56 +160,6 @@ class GoogleDriveService(IntegrationService):
         page_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """List files from Google Drive."""
-<<<<<<< HEAD
-
-        try:
-            # Validate access token
-            if not access_token or access_token == "mock" or access_token == "fake_token":
-                logger.error("Invalid or mock access token provided")
-                return {
-                    "status": "error",
-                    "code": 401,
-                    "message": "Invalid Google OAuth token. Please authenticate with Google Drive."
-                }
-
-            # Real Google Drive API call
-            import httpx
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                params = {
-                    "pageSize": page_size,
-                    "fields": "nextPageToken,files(id,name,mimeType,webViewLink,createdTime,modifiedTime,size)"
-                }
-                if folder_id:
-                    params["q"] = f"'{folder_id}' in parents"
-                if page_token:
-                    params["pageToken"] = page_token
-
-                response = await client.get(
-                    "https://www.googleapis.com/drive/v3/files",
-                    headers=headers,
-                    params=params,
-                    timeout=30.0
-                )
-
-                if response.status_code == 401:
-                    logger.error("Google Drive authentication failed (401)")
-                    return {
-                        "status": "error",
-                        "code": 401,
-                        "message": "Authentication failed. Please re-authenticate with Google Drive."
-                    }
-
-                response.raise_for_status()
-                data = response.json()
-                return {
-                    "status": "success",
-                    "data": {"files": data.get("files", []), "nextPageToken": data.get("nextPageToken")}
-                }
-
-        except httpx.HTTPStatusError as e:
-            logger.error(f"Google Drive API error: {e.response.status_code} - {e.response.text}")
-=======
         try:
             # Mock implementation - in real scenario, use Google Drive API
             mock_files = [
@@ -231,7 +183,6 @@ class GoogleDriveService(IntegrationService):
                 },
             ]
 
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
             return {
                 "status": "success",
                 "data": {"files": mock_files, "nextPageToken": None},

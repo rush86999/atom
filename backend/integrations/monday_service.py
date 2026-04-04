@@ -14,8 +14,10 @@ logger = logging.getLogger(__name__)
 class MondayService(IntegrationService):
     """Monday.com integration service for ATOM platform"""
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://api.monday.com/v2"
         self.client_id = config.get("client_id") or os.getenv("MONDAY_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("MONDAY_CLIENT_SECRET")

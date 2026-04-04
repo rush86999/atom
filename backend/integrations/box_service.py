@@ -70,8 +70,10 @@ class BoxAuthResponse(BaseModel):
 class BoxService(IntegrationService):
     """Box service for handling file operations and authentication."""
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.service_name = "box"
         self.required_scopes = BOX_SCOPES
         self.base_url = "https://api.box.com/2.0"
@@ -193,42 +195,6 @@ class BoxService(IntegrationService):
         offset: int = 0,
     ) -> Dict[str, Any]:
         """List files from Box."""
-<<<<<<< HEAD
-
-        try:
-            if not access_token or access_token == "mock":
-                logger.info("Using mock data - no access token provided")
-                mock_files = [
-                    {
-                        "id": "mock_file_123",
-                        "name": "Project Proposal.docx (MOCK)",
-                        "type": "file",
-                        "size": 1024000,
-                        "created_at": "2024-01-15T10:00:00Z",
-                        "modified_at": "2024-01-20T14:30:00Z",
-                    }
-                ]
-                return {"status": "success", "data": {"entries": mock_files, "total_count": 1, "offset": offset, "limit": limit, "next_marker": None}, "mode": "mock"}
-
-            # Real Box API call
-            import httpx
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                url = f"{self.base_url}/folders/{folder_id}/items"
-                params = {"limit": limit, "offset": offset, "fields": "id,name,type,size,created_at,modified_at,shared_link,path_collection"}
-
-                response = await client.get(url, headers=headers, params=params, timeout=30.0)
-                response.raise_for_status()
-                data = response.json()
-                return {
-                    "status": "success",
-                    "data": {
-                        "entries": data.get("entries", []),
-                        "total_count": data.get("total_count", 0),
-                        "offset": data.get("offset", 0),
-                        "limit": data.get("limit", limit),
-                        "next_marker": data.get("next_marker")
-=======
         try:
             # Mock implementation - in real scenario, use Box API
             mock_files = [
@@ -242,7 +208,6 @@ class BoxService(IntegrationService):
                     "shared_link": {
                         "url": "https://app.box.com/s/file_123456789",
                         "download_url": "https://app.box.com/shared/static/file_123456789.docx",
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                     },
                     "path_collection": {
                         "total_count": 2,
@@ -395,10 +360,6 @@ class BoxService(IntegrationService):
         self, access_token: str, parent_folder_id: str, folder_name: str
     ) -> Dict[str, Any]:
         """Create a new folder in Box."""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             # Mock implementation
             new_folder = {

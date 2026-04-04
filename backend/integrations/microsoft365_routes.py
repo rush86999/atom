@@ -34,7 +34,7 @@ class Microsoft365ActionRequest(BaseModel):
 microsoft365_router = APIRouter(tags=["Microsoft 365"])
 
 # Service instance
-microsoft365_service = Microsoft365Service()
+microsoft365_service = Microsoft365Service(config={})
 
 # Mock service for health check detection
 class Microsoft365ServiceMock:

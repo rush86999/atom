@@ -23,7 +23,9 @@ class LineService(IntegrationService):
     Migrated to IntegrationService base class pattern for tenant isolation.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Line service for a specific tenant.
 
@@ -31,16 +33,12 @@ class LineService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with channel_access_token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.channel_access_token = config.get("channel_access_token") or os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
         self.base_url = "https://api.line.me/v2/bot/message"
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         await self.client.aclose()
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -250,9 +248,6 @@ class LineService(IntegrationService):
                 "details": {"tenant_id": self.tenant_id}
             }
 
-<<<<<<< HEAD
-    async def health_check(self) -> Dict[str, Any]:
-=======
         try:
             url = f"{self.base_url}/multicast"
             headers = {
@@ -264,7 +259,6 @@ class LineService(IntegrationService):
                 "to": to,
                 "messages": messages
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
             response = await self.client.post(url, headers=headers, json=data)
             response.raise_for_status()
@@ -302,8 +296,6 @@ class LineService(IntegrationService):
                 "details": {"tenant_id": self.tenant_id}
             }
 
-<<<<<<< HEAD
-=======
         try:
             url = f"https://api.line.me/v2/bot/profile/{user_id}"
             headers = {
@@ -329,4 +321,3 @@ class LineService(IntegrationService):
                 "error": str(e),
                 "details": {"service": "line", "tenant_id": self.tenant_id}
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

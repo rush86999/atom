@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 from core.integration_service import IntegrationService
 
 class LinearService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = config.get("client_id") or os.getenv("LINEAR_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("LINEAR_CLIENT_SECRET")
         self.base_url = "https://api.linear.app"
@@ -32,10 +34,6 @@ class LinearService(IntegrationService):
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Authorization": access_token,
             "Content-Type": "application/json"
@@ -82,10 +80,6 @@ class LinearService(IntegrationService):
 
     async def _graphql_query(self, query: str, variables: Dict = None, access_token: str = None) -> Dict[str, Any]:
         """Execute a GraphQL query"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -114,10 +108,6 @@ class LinearService(IntegrationService):
     async def get_viewer(self, access_token: str = None) -> Dict[str, Any]:
         """Get current user information"""
         query = """
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
             query {
                 viewer {
                     id
@@ -172,10 +162,6 @@ class LinearService(IntegrationService):
     async def get_teams(self, access_token: str = None, first: int = 50) -> List[Dict[str, Any]]:
         """Get teams"""
         query = f"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
             query {{
                 teams(first: {first}) {{
                     nodes {{
@@ -194,10 +180,6 @@ class LinearService(IntegrationService):
     async def get_projects(self, access_token: str = None, first: int = 50) -> List[Dict[str, Any]]:
         """Get projects"""
         query = f"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
             query {{
                 projects(first: {first}) {{
                     nodes {{
@@ -329,13 +311,6 @@ class LinearService(IntegrationService):
                 "last_check": datetime.now(timezone.utc).isoformat(),
             }
 
-<<<<<<< HEAD
-# Singleton instance
-linear_service = LinearService()
-
-def get_linear_service() -> LinearService:
-    """Get Linear service instance"""
-=======
     async def execute_operation(
         self,
         operation: str,
@@ -459,5 +434,4 @@ def get_linear_service() -> LinearService:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 

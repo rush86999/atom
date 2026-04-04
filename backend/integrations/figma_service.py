@@ -16,8 +16,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class FigmaService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = self.config.get("figma_client_id") or os.getenv("FIGMA_CLIENT_ID")
         self.client_secret = self.config.get("figma_client_secret") or os.getenv("FIGMA_CLIENT_SECRET")
         self.redirect_uri = self.config.get("figma_redirect_uri") or os.getenv("FIGMA_REDIRECT_URI", "http://localhost:3000/api/auth/callback/figma")
@@ -39,10 +41,6 @@ class FigmaService(IntegrationService):
 
     def _get_headers(self, access_token: str = None) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         token = access_token or self.access_token
         return {
             "Authorization": f"Bearer {token}",
@@ -89,10 +87,6 @@ class FigmaService(IntegrationService):
 
     async def refresh_access_token(self) -> Dict[str, Any]:
         """Refresh access token"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if not self.refresh_token:
             raise HTTPException(status_code=400, detail="No refresh token available")
 
@@ -122,10 +116,6 @@ class FigmaService(IntegrationService):
 
     async def get_user_info(self) -> Dict[str, Any]:
         """Get current user info"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.access_token:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -142,10 +132,6 @@ class FigmaService(IntegrationService):
 
     def is_token_valid(self) -> bool:
         """Check if token is valid"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         if not self.access_token:
             return False
         if self.token_expires_at and datetime.now(timezone.utc) > self.token_expires_at - timedelta(minutes=5):
@@ -164,10 +150,6 @@ class FigmaService(IntegrationService):
 
     def get_connection_status(self) -> Dict[str, Any]:
         """Get current connection status"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "connected": self.is_token_valid(),
             "has_access_token": bool(self.access_token),
@@ -194,10 +176,6 @@ class FigmaService(IntegrationService):
 
     async def get_file_nodes(self, file_key: str, node_ids: List[str], access_token: str = None) -> Dict[str, Any]:
         """Get specific nodes from a file"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -217,10 +195,6 @@ class FigmaService(IntegrationService):
 
     async def get_team_projects(self, team_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get projects from a team"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -236,10 +210,6 @@ class FigmaService(IntegrationService):
 
     async def get_project_files(self, project_id: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get files from a project"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -255,10 +225,6 @@ class FigmaService(IntegrationService):
 
     async def get_comments(self, file_key: str, access_token: str = None) -> List[Dict[str, Any]]:
         """Get comments from a file"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or await self.ensure_valid_token()
             headers = self._get_headers(token)
@@ -272,50 +238,9 @@ class FigmaService(IntegrationService):
             logger.error(f"Failed to get comments: {e}")
             raise HTTPException(status_code=400, detail=f"Failed to get comments: {str(e)}")
 
-<<<<<<< HEAD
-    async def search_files(self, query: str, team_id: Optional[str] = None, access_token: str = None) -> List[Dict[str, Any]]:
-        """
-
-        Search for Figma files based on a query string.
-        Since Figma doesn't provide a direct global search API, 
-        we list projects and files to find matches.
-        """
-
-        try:
-            results = []
-            token = access_token or await self.ensure_valid_token()
-            
-            # If no team_id, we can't easily search across everything without a known starting point
-            if not team_id:
-                logger.warning("Figma search called without team_id; returning empty results")
-                return []
-
-            projects = await self.get_team_projects(team_id, token)
-            for project in projects:
-                files = await self.get_project_files(project['id'], token)
-                for f in files:
-                    if query.lower() in f.get('name', '').lower():
-                        results.append({
-                            "id": f.get('key'),
-                            "title": f.get('name'),
-                            "type": "file",
-                            "url": f"https://www.figma.com/file/{f.get('key')}/",
-                            "last_edited": f.get('last_modified'),
-                            "snippet": f"File in project: {project.get('name')}",
-                        })
-            
-            return results
-        except Exception as e:
-            logger.error(f"Figma search_files failed: {e}")
-            return []
-
-    async def health_check(self) -> Dict[str, Any]:
-        """Health check for Figma service"""
-=======
     def health_check(self) -> Dict[str, Any]:
         """Synchronous health check for Figma service"""
         import requests
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.access_token:
                 return {
@@ -359,11 +284,6 @@ class FigmaService(IntegrationService):
             "supports_webhooks": False
         }
 
-<<<<<<< HEAD
-def get_figma_service() -> FigmaService:
-    return figma_service
-
-=======
     async def execute_operation(
         self,
         operation: str,
@@ -449,4 +369,3 @@ def get_figma_service() -> FigmaService:
 
 # Singleton instance removed - use IntegrationRegistry instead
 # figma_service = FigmaService(tenant_id="system", config={})
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

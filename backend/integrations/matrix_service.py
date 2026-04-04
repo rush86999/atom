@@ -23,7 +23,9 @@ class MatrixService(IntegrationService):
     Migrated to IntegrationService base class pattern for tenant isolation.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Matrix service for a specific tenant.
 
@@ -31,17 +33,13 @@ class MatrixService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with homeserver, access_token, user_id
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.homeserver = config.get("homeserver") or os.getenv("MATRIX_HOMESERVER", "https://matrix.org")
         self.access_token = config.get("access_token") or os.getenv("MATRIX_ACCESS_TOKEN")
         self.user_id = config.get("user_id") or os.getenv("MATRIX_USER_ID")
         self.client = httpx.AsyncClient(timeout=30.0)
 
     async def close(self):
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         await self.client.aclose()
 
     def get_capabilities(self) -> Dict[str, Any]:
@@ -235,9 +233,6 @@ class MatrixService(IntegrationService):
                 "details": {"tenant_id": self.tenant_id}
             }
 
-<<<<<<< HEAD
-    async def health_check(self) -> Dict[str, Any]:
-=======
         try:
             url = f"{self.homeserver}/_matrix/client/r0/createRoom"
 
@@ -245,7 +240,6 @@ class MatrixService(IntegrationService):
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json"
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
             data = {}
             if name:
@@ -292,8 +286,6 @@ class MatrixService(IntegrationService):
                 "details": {"tenant_id": self.tenant_id}
             }
 
-<<<<<<< HEAD
-=======
         try:
             url = f"{self.homeserver}/_matrix/client/r0/rooms/{room_id}/invite"
 
@@ -323,4 +315,3 @@ class MatrixService(IntegrationService):
                 "error": str(e),
                 "details": {"service": "matrix", "tenant_id": self.tenant_id}
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

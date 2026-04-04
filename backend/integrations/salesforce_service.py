@@ -333,61 +333,20 @@ class SalesforceService(IntegrationService):
     Wraps standalone functions for object-oriented access and health check compliance.
     """
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.access_token = config.get("access_token")
         self.instance_url = config.get("instance_url")
 
     async def get_client(self, user_id: str, db_conn_pool) -> Optional[Salesforce]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return await get_salesforce_client(user_id, db_conn_pool)
         
     def create_client(self, access_token: str, instance_url: str) -> Optional[Salesforce]:
         return create_client_with_token(access_token, instance_url)
 
     async def list_contacts(self, sf: Salesforce) -> List[Dict[str, Any]]:
-<<<<<<< HEAD
-
-        return await list_contacts(sf)
-
-    async def list_accounts(self, sf: Salesforce) -> List[Dict[str, Any]]:
-
-        return await list_accounts(sf)
-
-    async def list_opportunities(self, sf: Salesforce) -> List[Dict[str, Any]]:
-
-        return await list_opportunities(sf)
-
-    async def list_leads(self, sf: Salesforce) -> List[Dict[str, Any]]:
-
-        return await list_leads(sf)
-
-    async def create_contact(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-
-        return await create_contact(sf, **kwargs)
-
-    async def create_account(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-
-        return await create_account(sf, **kwargs)
-
-    async def create_opportunity(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-
-        return await create_opportunity(sf, **kwargs)
-
-    async def create_lead(self, sf: Salesforce, **kwargs) -> Dict[str, Any]:
-
-        return await create_lead(sf, **kwargs)
-
-    async def get_opportunity(self, sf: Salesforce, opportunity_id: str) -> Dict[str, Any]:
-
-        return await get_opportunity(sf, opportunity_id)
-
-    async def update_opportunity(self, sf: Salesforce, opportunity_id: str, fields: Dict[str, Any]) -> Dict[str, Any]:
-
-=======
         return await list_contacts(sf)
 
     async def list_accounts(self, sf: Salesforce) -> List[Dict[str, Any]]:
@@ -415,7 +374,6 @@ class SalesforceService(IntegrationService):
         return await get_opportunity(sf, opportunity_id)
 
     async def update_opportunity(self, sf: Salesforce, opportunity_id: str, fields: Dict[str, Any]) -> Dict[str, Any]:
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return await update_opportunity(sf, opportunity_id, fields)
 
     async def update_contact(self, sf: Salesforce, contact_id: str, fields: Dict[str, Any]) -> Dict[str, Any]:
@@ -428,10 +386,6 @@ class SalesforceService(IntegrationService):
         return await update_account(sf, account_id, fields)
     
     async def execute_query(self, sf: Salesforce, query: str) -> Dict[str, Any]:
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return await execute_soql_query(sf, query)
 
     async def list_sobjects(self, sf: Salesforce) -> List[Dict[str, Any]]:

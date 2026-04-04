@@ -22,7 +22,9 @@ class ObsidianService(IntegrationService):
     All operations are tenant-isolated through tenant_id context.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Obsidian service for a specific tenant.
 
@@ -32,7 +34,7 @@ class ObsidianService(IntegrationService):
                 - api_token: Obsidian API token (optional)
                 - plugin_url: Obsidian plugin URL (default: http://localhost:27123)
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
 
         self.api_token = config.get("api_token")
         self.plugin_url = config.get("plugin_url", "http://localhost:27123").rstrip('/')

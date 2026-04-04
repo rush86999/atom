@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 class NotionService(IntegrationService):
     """Notion API integration service"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Notion service for a specific tenant.
 
@@ -26,7 +28,7 @@ class NotionService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with access_token
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.access_token = config.get("access_token")
         self.base_url = "https://api.notion.com/v1"
         self.api_version = "2022-06-28"

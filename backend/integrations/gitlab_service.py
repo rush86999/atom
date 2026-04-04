@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 class GitLabService(IntegrationService):
     """GitLab API Service Implementation"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize GitLab service for a specific tenant.
 
@@ -21,7 +23,7 @@ class GitLabService(IntegrationService):
             tenant_id: Tenant UUID for multi-tenancy
             config: Tenant-specific configuration with client_id, client_secret
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://gitlab.com/api/v4"
         self.client_id = config.get('client_id') or os.getenv("GITLAB_CLIENT_ID")
         self.client_secret = config.get('client_secret') or os.getenv("GITLAB_CLIENT_SECRET")
@@ -153,10 +155,6 @@ class GitLabService(IntegrationService):
 
     async def get_user(self, access_token: str) -> Dict[str, Any]:
         """Get authenticated user info"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/user"
             headers = self._get_headers(access_token)
@@ -171,10 +169,6 @@ class GitLabService(IntegrationService):
 
     async def get_projects(self, access_token: str, limit: int = 20, membership: bool = True) -> List[Dict[str, Any]]:
         """Get list of projects"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/projects"
             headers = self._get_headers(access_token)
@@ -194,10 +188,6 @@ class GitLabService(IntegrationService):
 
     async def get_issues(self, access_token: str, project_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
         """Get list of issues (globally or for a project)"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if project_id:
                 url = f"{self.base_url}/projects/{project_id}/issues"
@@ -217,10 +207,6 @@ class GitLabService(IntegrationService):
 
     async def search_projects(self, access_token: str, query: str) -> List[Dict[str, Any]]:
         """Search for projects"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/projects"
             headers = self._get_headers(access_token)
@@ -234,8 +220,6 @@ class GitLabService(IntegrationService):
             logger.error(f"Search failed: {e}")
             raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
-<<<<<<< HEAD
-=======
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Sync GitLab analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -300,4 +284,3 @@ class GitLabService(IntegrationService):
             "postgres_cache": cache_result,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

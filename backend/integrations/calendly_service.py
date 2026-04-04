@@ -15,8 +15,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class CalendlyService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://api.calendly.com"
         self.auth_url = "https://auth.calendly.com/oauth/authorize"
         self.token_url = "https://auth.calendly.com/oauth/token"
@@ -31,10 +33,6 @@ class CalendlyService(IntegrationService):
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json"
@@ -80,10 +78,6 @@ class CalendlyService(IntegrationService):
 
     async def get_current_user(self, access_token: str = None) -> Dict[str, Any]:
         """Get current user information"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -108,10 +102,6 @@ class CalendlyService(IntegrationService):
         count: int = 20
     ) -> List[Dict[str, Any]]:
         """Get event types for a user"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             if not token:
@@ -190,13 +180,6 @@ class CalendlyService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-<<<<<<< HEAD
-# Singleton instance
-calendly_service = CalendlyService()
-
-def get_calendly_service() -> CalendlyService:
-    """Get Calendly service instance"""
-=======
     async def execute_operation(
         self,
         operation: str,
@@ -239,7 +222,6 @@ def get_calendly_service() -> CalendlyService:
         except Exception as e:
             logger.error(f"Error executing Calendly operation {operation}: {e}")
             return {"success": False, "error": str(e)}
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str = None) -> Dict[str, Any]:
         """Sync Calendly analytics to PostgreSQL IntegrationMetric table."""

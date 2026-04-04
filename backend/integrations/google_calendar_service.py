@@ -36,11 +36,13 @@ from core.integration_service import IntegrationService
 class GoogleCalendarService(IntegrationService):
     """Service for real Google Calendar API interactions"""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         """
         Initialize Google Calendar service
         """
-        super().__init__(tenant_id, config)
+        super().__init__(tenant_id=tenant_id, config=config)
         self.credentials_json = config.get("credentials_json") or os.getenv("GOOGLE_CALENDAR_CREDENTIALS")
         self.token_file = config.get("token_file", "token.json")
         self.service = None
@@ -230,18 +232,9 @@ class GoogleCalendarService(IntegrationService):
     async def create_event(self, event_data: Dict, token: Optional[str] = None) -> Optional[Dict]:
         """
         Create an event in Google Calendar
-
+        
         Args:
             event_data: Event data in unified format
-<<<<<<< HEAD
-
-        Returns:
-            Created event in unified format or None
-        """
-        if not self.service:
-            if not self.authenticate():
-                return None
-=======
             token: Optional OAuth token
             
         Returns:
@@ -250,7 +243,6 @@ class GoogleCalendarService(IntegrationService):
         service = self._get_service_with_token(token)
         if not service:
             return None
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         
         try:
             # Convert unified format to Google format

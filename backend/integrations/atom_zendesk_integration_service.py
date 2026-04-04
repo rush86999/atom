@@ -164,7 +164,9 @@ class SupportAnalytics:
 class AtomZendeskIntegrationService:
     """Advanced Zendesk Support Integration Service"""
     
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
         self.config = config
         self.db = config.get('database')
         self.cache = config.get('cache')
@@ -332,6 +334,27 @@ class AtomZendeskIntegrationService:
     
     async def create_ticket(self, ticket_data: Dict[str, Any], platform: str = None) -> Dict[str, Any]:
         """Create new ticket in Zendesk"""
+        # Start audit logging
+        audit_ctx = log_integration_attempt("atom_zendesk_integration", "initialize", locals())
+        try:
+            # Check circuit breaker
+            if not await circuit_breaker.is_enabled("atom_zendesk_integration"):
+                logger.warning(f"Circuit breaker is open for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"Atom_zendesk_integration integration temporarily disabled"
+                )
+
+            # Check rate limiter
+            is_limited, remaining = await rate_limiter.is_rate_limited("atom_zendesk_integration")
+            if is_limited:
+                logger.warning(f"Rate limit exceeded for atom_zendesk_integration")
+                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
+                raise HTTPException(
+                    status_code=429,
+                    detail=f"Rate limit exceeded for atom_zendesk_integration"
+                )
 
             start_time = time.time()
             # Update analytics
@@ -413,12 +436,6 @@ class AtomZendeskIntegrationService:
             return {'success': False, 'error': str(e)}
     
     async def update_ticket(self, ticket_id: str, update_data: Dict[str, Any], 
-<<<<<<< HEAD
-
-                         platform: str = None, comment: str = None) -> Dict[str, Any]:
-        """Update existing ticket in Zendesk"""
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_zendesk_integration", "update_ticket", locals())
             # Check circuit breaker
@@ -459,7 +476,6 @@ class AtomZendeskIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_zendesk_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -595,9 +611,6 @@ class AtomZendeskIntegrationService:
 
     async def get_ticket_info(self, ticket_id: str) -> Optional[Dict[str, Any]]:
         """Public method to fetch ticket details"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_tickets", locals())
             # Check circuit breaker
@@ -617,14 +630,10 @@ class AtomZendeskIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_zendesk_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return await self._get_ticket(ticket_id)
 
     async def create_ticket_comment(self, ticket_id: str, comment_body: str, public: bool = True) -> Dict[str, Any]:
         """Add a comment to an existing ticket"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_ticket_info", locals())
             # Check circuit breaker
@@ -644,7 +653,6 @@ class AtomZendeskIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_zendesk_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             headers = self._get_auth_headers()
             payload = {
@@ -671,12 +679,6 @@ class AtomZendeskIntegrationService:
             return {"success": False, "error": str(e)}
 
     async def generate_support_analytics(self, analytics_type: SupportAnalyticsType, 
-<<<<<<< HEAD
-
-                                     time_period: str = '7d') -> Dict[str, Any]:
-        """Generate support analytics"""
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_zendesk_integration", "generate_support_analytics", locals())
             # Check circuit breaker
@@ -717,7 +719,6 @@ class AtomZendeskIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_zendesk_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             start_time = time.time()
             
@@ -1022,9 +1023,6 @@ class AtomZendeskIntegrationService:
     
     async def close(self):
         """Close Zendesk Integration Service"""
-<<<<<<< HEAD
-
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_zendesk_integration", "get_service_status", locals())
             # Check circuit breaker
@@ -1044,7 +1042,6 @@ class AtomZendeskIntegrationService:
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_zendesk_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             logger.info("Zendesk Integration Service closed")
             
@@ -1088,8 +1085,6 @@ if _ai_service:
     _zendesk_config['ai_service'] = _ai_service
 
 atom_zendesk_integration_service = AtomZendeskIntegrationService(_zendesk_config)
-<<<<<<< HEAD
-=======
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_zendesk_integration", "close", locals())
             # Check circuit breaker
@@ -1109,4 +1104,3 @@ atom_zendesk_integration_service = AtomZendeskIntegrationService(_zendesk_config
                     status_code=429,
                     detail=f"Rate limit exceeded for atom_zendesk_integration"
                 )
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

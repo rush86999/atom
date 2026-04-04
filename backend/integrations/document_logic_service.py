@@ -25,8 +25,10 @@ class DocumentType(Enum):
     CSV = "csv"
 
 class DocumentLogicService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         logger.info(f"DocumentLogicService initialized for tenant {self.tenant_id}")
 
     async def ingest_document(self, file_path: str, doc_type: DocumentType, workspace_id: str):

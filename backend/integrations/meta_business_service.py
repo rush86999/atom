@@ -36,8 +36,10 @@ class MetaMessage:
     metadata: Dict[str, Any]
 
 class MetaBusinessService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.access_token = config.get("meta_access_token")
         self.app_id = config.get("meta_app_id")
 
@@ -112,10 +114,6 @@ class MetaBusinessService(IntegrationService):
 
     async def get_ad_insights(self, account_id: str, date_range: str = "last_30d") -> Dict[str, Any]:
         """Fetches performance metrics for Meta Ads."""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         logger.info(f"Fetching Meta Ad insights for {account_id}")
         return {
             "spend": 1250.0,
@@ -127,10 +125,6 @@ class MetaBusinessService(IntegrationService):
 
     async def ingest_communications(self, page_id: str):
         """Polls for new messages/comments and ingests to memory."""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         # Simulated ingestion
         mock_msg = {
             "id": f"meta_msg_{datetime.now(timezone.utc).timestamp()}",
@@ -146,11 +140,6 @@ class MetaBusinessService(IntegrationService):
         )
         logger.info("Meta communication ingested to memory")
 
-<<<<<<< HEAD
-# Global singleton
-meta_business_service = MetaBusinessService({})
-
-=======
     async def sync_to_postgres_cache(self, workspace_id: str) -> Dict[str, Any]:
         """Sync Meta Business analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -219,4 +208,3 @@ meta_business_service = MetaBusinessService({})
 
 # NOTE: Legacy singleton instance removed - use IntegrationRegistry instead
 # meta_business_service = MetaBusinessService(tenant_id="default", config={})
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

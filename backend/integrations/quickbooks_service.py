@@ -15,8 +15,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class QuickBooksService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = config.get("client_id") or os.getenv("QUICKBOOKS_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("QUICKBOOKS_CLIENT_SECRET")
         self.base_url = "https://quickbooks.api.intuit.com/v3"
@@ -34,10 +36,6 @@ class QuickBooksService(IntegrationService):
 
     def _get_api_url(self) -> str:
         """Get the appropriate API URL based on environment"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return self.sandbox_url if self.use_sandbox else self.base_url
 
     def _get_headers(self, access_token: str) -> Dict[str, str]:
@@ -96,10 +94,6 @@ class QuickBooksService(IntegrationService):
 
     async def get_company_info(self, realm_id: str = None, access_token: str = None) -> Dict[str, Any]:
         """Get company information"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             realm = realm_id or self.realm_id
@@ -129,10 +123,6 @@ class QuickBooksService(IntegrationService):
         max_results: int = 100
     ) -> List[Dict[str, Any]]:
         """Get customers"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             token = access_token or self.access_token
             realm = realm_id or self.realm_id
@@ -241,13 +231,6 @@ class QuickBooksService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-<<<<<<< HEAD
-# Singleton instance
-quickbooks_service = QuickBooksService()
-
-def get_quickbooks_service() -> QuickBooksService:
-    """Get QuickBooks service instance"""
-=======
     async def execute_operation(
         self,
         operation: str,
@@ -351,7 +334,6 @@ def get_quickbooks_service() -> QuickBooksService:
         except Exception as e:
             logger.error(f"QuickBooks PostgreSQL cache sync failed: {e}")
             return {"success": False, "error": str(e)}
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
 
     async def full_sync(self, user_id: str, realm_id: str, access_token: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for QuickBooks"""

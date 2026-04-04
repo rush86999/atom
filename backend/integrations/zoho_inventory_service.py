@@ -10,8 +10,10 @@ logger = logging.getLogger(__name__)
 from core.integration_service import IntegrationService
 
 class ZohoInventoryService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = "https://inventory.zoho.com/api/v1"
         self.client_id = config.get("client_id") or os.getenv("ZOHO_INVENTORY_CLIENT_ID") or os.getenv("ZOHO_CLIENT_ID")
         self.client_secret = config.get("client_secret") or os.getenv("ZOHO_INVENTORY_CLIENT_SECRET") or os.getenv("ZOHO_CLIENT_SECRET")

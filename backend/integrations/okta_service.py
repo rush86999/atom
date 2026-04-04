@@ -11,8 +11,10 @@ logger = logging.getLogger(__name__)
 class OktaService(IntegrationService):
     """Okta Identity API Service"""
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.org_url = self.config.get("okta_org_url") or os.getenv("OKTA_ORG_URL")
         self.api_token = self.config.get("okta_api_token") or os.getenv("OKTA_API_TOKEN")
         self.client = httpx.AsyncClient(timeout=30.0)
@@ -46,10 +48,6 @@ class OktaService(IntegrationService):
 
     async def check_health(self) -> Dict[str, Any]:
         """Check Okta connectivity"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "status": "active" if self.api_token else "partially_configured",
             "service": "okta",
@@ -73,8 +71,6 @@ class OktaService(IntegrationService):
             "supports_webhooks": True
         }
 
-<<<<<<< HEAD
-=======
     def health_check(self) -> Dict[str, Any]:
         """Synchronous health check for Okta service"""
         try:
@@ -130,4 +126,3 @@ class OktaService(IntegrationService):
 
 # Global instance removed - use IntegrationRegistry instead
 # okta_service = OktaService()
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

@@ -14,8 +14,10 @@ from core.integration_service import IntegrationService
 logger = logging.getLogger(__name__)
 
 class PlaidService(IntegrationService):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.client_id = self.config.get("plaid_client_id") or os.getenv("PLAID_CLIENT_ID")
         self.secret = self.config.get("plaid_secret") or os.getenv("PLAID_SECRET")
         self.environment = self.config.get("plaid_environment") or os.getenv("PLAID_ENVIRONMENT", "sandbox")
@@ -174,10 +176,6 @@ class PlaidService(IntegrationService):
 
     def _get_headers(self) -> Dict[str, str]:
         """Get headers for API requests"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "Content-Type": "application/json"
         }
@@ -257,10 +255,6 @@ class PlaidService(IntegrationService):
 
     async def get_accounts(self, access_token: str) -> List[Dict[str, Any]]:
         """Get accounts for an item"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -289,10 +283,6 @@ class PlaidService(IntegrationService):
 
     async def get_balance(self, access_token: str) -> Dict[str, Any]:
         """Get real-time balance for accounts"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -327,10 +317,6 @@ class PlaidService(IntegrationService):
         offset: int = 0
     ) -> Dict[str, Any]:
         """Get transactions for an item"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -391,10 +377,6 @@ class PlaidService(IntegrationService):
 
     async def remove_item(self, access_token: str) -> Dict[str, Any]:
         """Remove an item (disconnect bank connection)"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.client_id or not self.secret:
                 raise HTTPException(status_code=401, detail="Not authenticated")
@@ -420,15 +402,9 @@ class PlaidService(IntegrationService):
                 detail=f"Failed to remove item: {str(e)}"
             )
 
-<<<<<<< HEAD
-    async def health_check(self) -> Dict[str, Any]:
-        """Health check for Plaid service"""
-
-=======
     def health_check(self) -> Dict[str, Any]:
         """Synchronous health check for Plaid service"""
         import requests
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             if not self.client_id or not self.secret:
                 return {
@@ -464,13 +440,6 @@ class PlaidService(IntegrationService):
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-<<<<<<< HEAD
-plaid_service = PlaidService()
-
-def get_plaid_service() -> PlaidService:
-    return plaid_service
-
-=======
     async def sync_to_postgres_cache(self, workspace_id: str, access_token: str) -> Dict[str, Any]:
         """Sync Plaid analytics to PostgreSQL IntegrationMetric table."""
         try:
@@ -541,4 +510,3 @@ def get_plaid_service() -> PlaidService:
         }
 
 # Singleton instance removed - use IntegrationRegistry for per-tenant instances
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

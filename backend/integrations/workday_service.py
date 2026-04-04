@@ -11,8 +11,10 @@ logger = logging.getLogger(__name__)
 class WorkdayService(IntegrationService):
     """Workday API Service (REST/RaaS focus)"""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.base_url = self.config.get("workday_base_url", "https://wd3-impl-services1.workday.com/ccx/service/v1")
         self.workday_tenant = self.config.get("workday_tenant")
         self.username = self.config.get("workday_username")
@@ -77,11 +79,7 @@ class WorkdayService(IntegrationService):
 
     def health_check(self) -> Dict[str, Any]:
         """Check Workday connectivity"""
-<<<<<<< HEAD
-
-=======
         has_creds = bool(self.username and self.password)
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         return {
             "healthy": has_creds,
             "status": "active" if has_creds else "partially_configured",
@@ -90,10 +88,3 @@ class WorkdayService(IntegrationService):
             "message": "Configured" if has_creds else "Missing credentials",
             "last_check": datetime.now(timezone.utc).isoformat()
         }
-<<<<<<< HEAD
-
-# Global instance
-workday_service = WorkdayService()
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31

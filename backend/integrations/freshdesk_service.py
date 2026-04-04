@@ -31,8 +31,10 @@ class FreshdeskConfig:
 class FreshdeskService(IntegrationService):
     """Complete Freshdesk API service implementation"""
     
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(tenant_id, config)
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        if config is None:
+            config = {}
+        super().__init__(tenant_id=tenant_id, config=config)
         self.api_key = self.config.get("freshdesk_api_key") or os.getenv("FRESHDESK_API_KEY")
         self.domain = self.config.get("freshdesk_domain") or os.getenv("FRESHDESK_DOMAIN")
         self.api_version = self.config.get("freshdesk_api_version", "v2")
@@ -192,20 +194,12 @@ class FreshdeskService(IntegrationService):
             raise
     
     async def get_tickets(self, 
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                         page: int = 1,
                         per_page: int = 30,
                         status: Optional[str] = None,
                         priority: Optional[str] = None,
                         created_since: Optional[str] = None) -> Dict[str, Any]:
         """Retrieve tickets with optional filtering"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/tickets"
             params = {
@@ -244,10 +238,6 @@ class FreshdeskService(IntegrationService):
     
     async def update_ticket(self, ticket_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update existing ticket"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/tickets/{ticket_id}"
             response = await self._handle_request(
@@ -263,10 +253,6 @@ class FreshdeskService(IntegrationService):
     
     async def delete_ticket(self, ticket_id: int) -> bool:
         """Delete a ticket"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/tickets/{ticket_id}"
             await self._handle_request(self.client.delete, url)
@@ -278,10 +264,6 @@ class FreshdeskService(IntegrationService):
     
     async def add_ticket_note(self, ticket_id: int, note_data: Dict[str, Any]) -> Dict[str, Any]:
         """Add note or comment to ticket"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/tickets/{ticket_id}/notes"
             response = await self._handle_request(
@@ -297,10 +279,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_ticket_conversations(self, ticket_id: int) -> List[Dict[str, Any]]:
         """Get all conversations for a ticket"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/tickets/{ticket_id}/conversations"
             response = await self._handle_request(self.client.get, url)
@@ -314,10 +292,6 @@ class FreshdeskService(IntegrationService):
     
     async def create_contact(self, contact_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new contact"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/contacts"
             response = await self._handle_request(
@@ -333,10 +307,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_contacts(self, page: int = 1, per_page: int = 30) -> Dict[str, Any]:
         """Retrieve contacts"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/contacts"
             params = {
@@ -356,10 +326,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_contact(self, contact_id: int) -> Dict[str, Any]:
         """Get specific contact by ID"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/contacts/{contact_id}"
             response = await self._handle_request(self.client.get, url)
@@ -371,10 +337,6 @@ class FreshdeskService(IntegrationService):
     
     async def update_contact(self, contact_id: int, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update existing contact"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/contacts/{contact_id}"
             response = await self._handle_request(
@@ -392,10 +354,6 @@ class FreshdeskService(IntegrationService):
     
     async def create_company(self, company_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new company"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/companies"
             response = await self._handle_request(
@@ -411,10 +369,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_companies(self, page: int = 1, per_page: int = 30) -> Dict[str, Any]:
         """Retrieve companies"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/companies"
             params = {
@@ -434,10 +388,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_company(self, company_id: int) -> Dict[str, Any]:
         """Get specific company by ID"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/companies/{company_id}"
             response = await self._handle_request(self.client.get, url)
@@ -451,10 +401,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_agents(self) -> List[Dict[str, Any]]:
         """Retrieve all agents"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/agents"
             response = await self._handle_request(self.client.get, url)
@@ -466,10 +412,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_agent(self, agent_id: int) -> Dict[str, Any]:
         """Get specific agent by ID"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/agents/{agent_id}"
             response = await self._handle_request(self.client.get, url)
@@ -483,10 +425,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_groups(self) -> List[Dict[str, Any]]:
         """Retrieve all groups"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/groups"
             response = await self._handle_request(self.client.get, url)
@@ -498,10 +436,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_group(self, group_id: int) -> Dict[str, Any]:
         """Get specific group by ID"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/groups/{group_id}"
             response = await self._handle_request(self.client.get, url)
@@ -514,17 +448,9 @@ class FreshdeskService(IntegrationService):
     # Analytics and Reporting Methods
     
     async def get_tickets_metrics(self, 
-<<<<<<< HEAD
-
                              date_range: Optional[str] = None,
                              group_by: Optional[str] = None) -> Dict[str, Any]:
         """Get ticket metrics and analytics"""
-
-=======
-                             date_range: Optional[str] = None,
-                             group_by: Optional[str] = None) -> Dict[str, Any]:
-        """Get ticket metrics and analytics"""
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/reports/tickets"
             params = {}
@@ -546,10 +472,6 @@ class FreshdeskService(IntegrationService):
             raise
     
     async def get_satisfaction_ratings(self, 
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
                                    ticket_id: Optional[int] = None,
                                    date_range: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get customer satisfaction ratings"""
@@ -597,10 +519,6 @@ class FreshdeskService(IntegrationService):
     
     async def search_contacts(self, query: str) -> List[Dict[str, Any]]:
         """Search contacts"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/search/contacts"
             params = {"query": query}
@@ -618,11 +536,6 @@ class FreshdeskService(IntegrationService):
     
     # Health and Status Methods
     
-<<<<<<< HEAD
-    async def health_check(self) -> Dict[str, Any]:
-        """Check Freshdesk API health status"""
-
-=======
     def health_check(self) -> Dict[str, Any]:
         """Check Freshdesk API health status synchronously"""
         import requests
@@ -632,7 +545,6 @@ class FreshdeskService(IntegrationService):
                 "message": "Missing credentials",
                 "last_check": datetime.now(timezone.utc).isoformat()
             }
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/health"
             response = requests.get(url, headers=self.headers, timeout=self.timeout)
@@ -657,10 +569,6 @@ class FreshdeskService(IntegrationService):
     
     async def get_account_info(self) -> Dict[str, Any]:
         """Get account information"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/account"
             response = await self._handle_request(self.client.get, url)
@@ -674,10 +582,6 @@ class FreshdeskService(IntegrationService):
     
     async def upload_attachment(self, file_data: bytes, filename: str) -> Dict[str, Any]:
         """Upload file attachment"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         try:
             url = f"{self.base_url}/attachments"
             files = {"file": (filename, file_data)}
@@ -703,10 +607,6 @@ class FreshdeskService(IntegrationService):
     
     def get_status_name(self, status_code: int) -> str:
         """Get human-readable status name"""
-<<<<<<< HEAD
-
-=======
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         status_map = {
             2: "Open",
             3: "Pending", 
@@ -807,16 +707,9 @@ class FreshdeskService(IntegrationService):
 # Factory function for creating Freshdesk service
 def create_freshdesk_service(api_key: str, domain: str, **kwargs) -> FreshdeskService:
     """Create Freshdesk service instance"""
-<<<<<<< HEAD
-
-    config = FreshdeskConfig(
-        api_key=api_key,
-        domain=domain,
-=======
     config = {
         "freshdesk_api_key": api_key,
         "freshdesk_domain": domain,
->>>>>>> 03749d7d07192ccb2b61838cf322e7a67aecae31
         **kwargs
     }
     return FreshdeskService(tenant_id="system", config=config)
