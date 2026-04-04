@@ -102,6 +102,23 @@ recruitment_intelligence = RecruitmentIntelligenceService(
 2. **Resource Monitoring**: Admin must monitor hardware resources
 3. **User Management**: Built-in user authentication and permissions
 
+## Legacy Code & tenant_id
+
+The codebase contains legacy `tenant_id` references from porting features, but **these do not break the app**:
+
+- **Database Models**: `tenant_id` columns exist with `nullable=True` or default to `"default"`
+- **Function Signatures**: `tenant_id` parameters default to `None` or `"default"`
+- **Runtime Behavior**: Code gracefully handles missing tenant_id with sensible defaults
+
+**Example:**
+```python
+# In atom_meta_agent.py
+def __init__(self, workspace_id: str = "default", tenant_id: Optional[str] = None):
+    self.tenant_id = tenant_id or "default"  # Defaults to "default"
+```
+
+These legacy references are **harmless** and will be cleaned up incrementally. The app functions correctly without tenant isolation.
+
 ## Conclusion
 
 Atom provides comprehensive AI agent capabilities optimized for self-hosted, single-tenant environments. All core features (governance, graduation, routing, fleet recruitment) work without complexity of multi-tenancy or billing systems.

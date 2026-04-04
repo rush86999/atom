@@ -15,7 +15,7 @@ Examples:
 - Uses workspace_id instead of tenant_id
 - No multi-tenant isolation
 
-Ported from: rush86999/atom-saas@6c5f4e3d4
+Ported from atom-saas
 Changes: Replaced tenant_id with workspace_id, removed multi-tenancy
 """
 

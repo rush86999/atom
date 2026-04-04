@@ -4,7 +4,7 @@ Personal Budget Service for ATOM (Single-Tenant Open-Source Version)
 This service provides simplified budget management for personal use without
 billing enforcement, payment processing, or multi-tenancy patterns.
 
-Ported from: rush86999/atom-saas/backend-saas/core/budget_service.py
+Ported from atom-saas
 Changes: Removed Stripe, billing enforcement, tenant isolation, hard-stop blocking
 """
 
