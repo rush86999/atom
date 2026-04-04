@@ -18,7 +18,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 
-from core.agent_graduation_service import AgentGraduationService, , AgentStatus
+from core.agent_graduation_service import AgentGraduationService, AgentStatus
 from core.sandbox_executor import SandboxExecutor
 from core.models import SupervisionSession
 
