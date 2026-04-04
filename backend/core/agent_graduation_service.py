@@ -802,7 +802,7 @@ class AgentGraduationService:
                 "constitutional_violations": List[str]
             }
         """
-        executor = SandboxExecutor(self.db)
+        executor = get_graduation_exam_executor(self.db)
     
         # Run exam
         result = await executor.execute_exam(

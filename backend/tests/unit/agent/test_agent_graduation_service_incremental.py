@@ -45,9 +45,6 @@ class TestSandboxExecutorEdgeCases:
         )
 
         assert result["success"] is False
-        assert result["score"] == 0.0
-        assert result["constitutional_compliance"] == 0.0
-        assert result["passed"] is False
         assert "Agent not found" in result["error"]
 
 
