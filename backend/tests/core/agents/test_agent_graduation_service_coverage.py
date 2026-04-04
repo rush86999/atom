@@ -19,10 +19,8 @@ from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from core.agent_graduation_service import (
-    AgentGraduationService,
-    SandboxExecutor
-)
+from core.agent_graduation_service import AgentGraduationService
+from core.sandbox_executor import SandboxExecutor
 from core.models import (
     AgentRegistry,
     AgentStatus,

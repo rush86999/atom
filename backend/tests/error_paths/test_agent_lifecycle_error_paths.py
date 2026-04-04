@@ -14,7 +14,8 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from sqlalchemy.orm import Session
 
-from core.agent_graduation_service import AgentGraduationService, SandboxExecutor
+from core.agent_graduation_service import AgentGraduationService, 
+from core.sandbox_executor import SandboxExecutor
 from core.agent_promotion_service import AgentPromotionService
 from core.agent_evolution_loop import AgentEvolutionLoop
 from core.models import AgentRegistry, AgentStatus, Episode, EpisodeSegment
