@@ -8869,3 +8869,84 @@ class TenantIntegrationConfig(Base):
     tenant = relationship("Tenant")
 
 
+
+
+# =============================================================================
+# Workflow Analytics Models
+# =============================================================================
+
+class Dashboard(Base):
+    """
+    Analytics Dashboard for workflow monitoring and visualization.
+    
+    Stores user-created dashboards with widgets for monitoring
+    workflow executions, agent performance, and system health.
+    """
+    __tablename__ = "dashboards"
+    
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    owner_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Configuration
+    configuration = Column(JSONColumn, default={}, nullable=False)
+    is_public = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    owner = relationship("User", backref="dashboards")
+    widgets = relationship("DashboardWidget", back_populates="dashboard", cascade="all, delete-orphan")
+
+
+class DashboardWidget(Base):
+    """
+    Individual widget within a dashboard.
+    
+    Represents a single chart, metric display, or visualization
+    within a dashboard.
+    """
+    __tablename__ = "dashboard_widgets"
+    
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    dashboard_id = Column(String(255), ForeignKey("dashboards.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Widget configuration
+    widget_type = Column(String(100), nullable=False)  # metric_chart, workflow_stats, error_timeline, etc.
+    title = Column(String(255), nullable=False)
+    config = Column(JSONColumn, default={}, nullable=False)
+    position = Column(JSONColumn, default={}, nullable=False)  # x, y, width, height
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    
+    # Relationships
+    dashboard = relationship("Dashboard", back_populates="widgets")
+
+
+class IntegrationHealthMetrics(Base):
+    """
+    Health and performance metrics for external integrations.
+    
+    Tracks latency, success rates, error counts, and overall
+    health trends for connected third-party services.
+    """
+    __tablename__ = "integration_health_metrics"
+    
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    integration_id = Column(String(255), nullable=False, index=True)
+    
+    # Performance metrics
+    latency_ms = Column(Float, nullable=True)
+    success_rate = Column(Float, nullable=True)
+    error_count = Column(Integer, default=0, nullable=False)
+    request_count = Column(Integer, default=0, nullable=False)
+    health_trend = Column(String(50), nullable=True)  # improving, stable, degrading
+    
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)

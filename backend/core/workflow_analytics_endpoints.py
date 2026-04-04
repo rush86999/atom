@@ -48,18 +48,18 @@ class AlertRequest(BaseModel):
     step_id: Optional[str] = None
     notification_channels: List[str] = []
 
-class DashboardWidget(BaseModel):
+class DashboardWidgetCreate(BaseModel):
     widget_id: str
     widget_type: str  # "metric_chart", "workflow_stats", "error_timeline", etc.
     title: str
     config: Dict[str, Any]
     position: Dict[str, int]  # x, y, width, height
 
-class Dashboard(BaseModel):
+class DashboardCreate(BaseModel):
     dashboard_id: str
     name: str
     description: str
-    widgets: List[DashboardWidget]
+    widgets: List[DashboardWidgetCreate]
     layout: Dict[str, Any]
     is_public: bool = False
     created_at: datetime
