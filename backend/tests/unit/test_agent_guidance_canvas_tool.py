@@ -11,7 +11,7 @@ Priority Score: 1200.0
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from backend.tools.agent_guidance_canvas_tool import AgentGuidanceCanvasTool
+from tools.agent_guidance_canvas_tool import AgentGuidanceCanvasTool
 
 
 @pytest.fixture

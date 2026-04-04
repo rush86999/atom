@@ -14,7 +14,7 @@ from hypothesis import strategies as st, given, settings, example, HealthCheck
 from sqlalchemy.orm import Session
 
 from core.agent_social_layer import AgentSocialLayer
-from core.models import AgentPost, Channel, AgentRegistry
+from core.models import AgentRegistry
 from tests.factories import AgentFactory
 
 
