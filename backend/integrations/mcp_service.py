@@ -6,8 +6,7 @@ from datetime import datetime, timezone
 import os
 import httpx
 from .mcp_converter import MCPToolConverter
-from .tool_registry import tool_registry
-from . import internal_tools # Trigger registration
+from tools.registry import get_tool_registry
 
 from core.database import SessionLocal
 from core.byok_endpoints import get_byok_manager
@@ -33,7 +32,7 @@ class MCPService(IntegrationService):
             cls._instance = super(MCPService, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self = "default", config: Dict[str, Any] = None):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
         # Singleton initialization - only run once
         if not hasattr(self, 'initialized'):
             self.tenant_id = tenant_id
@@ -835,7 +834,7 @@ class MCPService(IntegrationService):
         """Returns a unified list of all tools from all available servers."""
         all_tools = []
         # Use dynamic Tool Registry for core tools
-        all_tools.extend(tool_registry.get_simplified_tools())
+        all_tools.extend(get_tool_registry().get_simplified_tools())
         
         # Add dynamic tools from action_registry (Ontology Actions)
         from core.action_registry import action_registry
@@ -1042,7 +1041,7 @@ class MCPService(IntegrationService):
 
             # Delegate to EntitySkillExecutor for governance enforcement
             result = await executor.execute_integration_skill(
-                ,
+                tenant_id=tenant_id,
                 agent_id=agent_id,
                 connector_id=connector_id,
                 operation_name=operation_name,
@@ -1236,8 +1235,8 @@ class MCPService(IntegrationService):
         logger.info(f"Executing MCP tool {tool_name} on server {server_id} with args: {arguments}")
         context = context or {}
         
-        if server_id in ["google-search", "local-tools"] or tool_registry.tools.get(tool_name):
-            return await tool_registry.execute(tool_name, arguments, context)
+        if server_id in ["google-search", "local-tools"] or get_tool_registry().tools.get(tool_name):
+            return await get_tool_registry().execute(tool_name, arguments, context)
             
         # Local Internal Tools
         if server_id == "local-tools":
