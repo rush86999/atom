@@ -11,7 +11,7 @@ Priority Score: 1370.0
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from backend.core.local_llm_secrets_detector import LocalLlmSecretsDetector
+from core.local_llm_secrets_detector import LocalLLMSecretsDetector
 
 
 @pytest.fixture
