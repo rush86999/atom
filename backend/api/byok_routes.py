@@ -824,10 +824,14 @@ async def get_ai_providers(
 
 @router.get("/api/ai/providers/{provider_id}")
 async def get_ai_provider(
-    provider_id: str, byok_manager: BYOKManager = Depends(get_byok_manager)
+    provider_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    byok_manager: BYOKManager = Depends(get_byok_manager),
+    db: Session = Depends(get_db)
 ):
     """Get specific AI provider details"""
     try:
+        status = byok_manager.get_tenant_provider_status(tenant.id, provider_id, db=db)
         return ApiResponse(success=True, data=status)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
