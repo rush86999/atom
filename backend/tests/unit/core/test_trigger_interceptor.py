@@ -17,7 +17,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, AsyncMock, patch
 from sqlalchemy.orm import Session
-from core.models import AgentRegistry
+from core.models import AgentRegistry, AgentProposal, BlockedTriggerContext, SupervisionSession
 from core.agent_graduation_service import AgentStatus
 
 # Mark test class for pytest
@@ -26,6 +26,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.P0, pytest.mark.governance]
 from core.trigger_interceptor import (
     TriggerInterceptor,
     TriggerDecision,
+    TriggerSource,
     MaturityLevel,
     RoutingDecision,
 )
@@ -448,7 +449,7 @@ class TestSupervisedAgentRouting:
         mock_db.query.return_value = mock_query
 
         # Mock user activity service
-        with patch('core.trigger_interceptor.UserActivityService') as mock_service_class:
+        with patch('core.user_activity_service.UserActivityService') as mock_service_class:
             mock_service = AsyncMock()
             mock_service.get_user_state = AsyncMock(return_value="active")
             mock_service.should_supervise = MagicMock(return_value=True)
@@ -476,14 +477,14 @@ class TestSupervisedAgentRouting:
         mock_db.query.return_value = mock_query
 
         # Mock user activity service
-        with patch('core.trigger_interceptor.UserActivityService') as mock_service_class:
+        with patch('core.user_activity_service.UserActivityService') as mock_service_class:
             mock_service = AsyncMock()
             mock_service.get_user_state = AsyncMock(return_value="away")
             mock_service.should_supervise = MagicMock(return_value=False)
             mock_service_class.return_value = mock_service
 
             # Mock queue service
-            with patch('core.trigger_interceptor.SupervisedQueueService') as mock_queue_class:
+            with patch('core.supervised_queue_service.SupervisedQueueService') as mock_queue_class:
                 mock_queue = AsyncMock()
                 mock_queue.enqueue_execution = AsyncMock()
                 mock_queue_class.return_value = mock_queue
