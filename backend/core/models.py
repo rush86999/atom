@@ -8397,6 +8397,9 @@ class FinancialAudit(Base):
     # Primary key
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
 
+    # Sequence number for monotonic ordering within an account
+    sequence_number = Column(Integer, nullable=False, index=True)
+
     # Account reference
     account_id = Column(String(255), ForeignKey("financial_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
 

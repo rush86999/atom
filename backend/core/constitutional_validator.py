@@ -222,6 +222,37 @@ class ConstitutionalValidator:
 
         return score
 
+    def calculate_score(self, violations: List[Dict[str, Any]]) -> float:
+        """
+        Calculate compliance score from violations (public method).
+
+        Args:
+            violations: List of violation dictionaries
+
+        Returns:
+            Compliance score between 0.0 and 1.0
+        """
+        return self._calculate_compliance_score(violations, len(violations))
+
+    def check_compliance(
+        self,
+        domain: str,
+        actions: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Check compliance for a specific domain.
+
+        Args:
+            domain: Domain to check
+            actions: List of actions to validate
+
+        Returns:
+            Compliance result dict
+        """
+        result = self.validate_actions(actions, domain=domain)
+        result["domain"] = domain
+        return result
+
 
 def get_constitutional_validator(db: Session) -> ConstitutionalValidator:
     """Get ConstitutionalValidator instance."""
