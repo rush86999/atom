@@ -12,17 +12,47 @@ from integrations.atom_discord_integration import atom_discord_integration
 from integrations.atom_ingestion_pipeline import RecordType, atom_ingestion_pipeline
 from integrations.atom_telegram_integration import atom_telegram_integration
 from integrations.atom_whatsapp_integration import atom_whatsapp_integration
-from integrations.document_logic_service import document_logic_service
+try:
+    from integrations.document_logic_service import document_logic_service
+except ImportError:
+    logging.getLogger(__name__).warning("Enterprise document_logic_service not available, using stub")
+    document_logic_service = None
 from integrations.ecommerce_unified_service import EcommercePlatform, ecommerce_service
-from integrations.google_chat_enhanced_service import google_chat_enhanced_service
-from integrations.marketing_unified_service import MarketingPlatform, marketing_service
+try:
+    from integrations.google_chat_enhanced_service import google_chat_enhanced_service
+except ImportError:
+    logging.getLogger(__name__).warning("Google Chat Enhanced service not available")
+    google_chat_enhanced_service = None
+from integrations.marketing_unified_service import MarketingPlatform
+try:
+    from integrations.marketing_unified_service import marketing_service
+except ImportError:
+    logging.getLogger(__name__).warning("Marketing service not available")
+    marketing_service = None
 
 # Import specialized services
-from integrations.meta_business_service import MetaPlatform, meta_business_service
-from integrations.openclaw_service import openclaw_service
+from integrations.meta_business_service import MetaPlatform
+try:
+    from integrations.meta_business_service import meta_business_service
+except ImportError:
+    logging.getLogger(__name__).warning("Meta Business service not available")
+    meta_business_service = None
+try:
+    from integrations.openclaw_service import openclaw_service
+except ImportError:
+    logging.getLogger(__name__).warning("OpenClaw service not available")
+    openclaw_service = None
 from integrations.shopify_service import ShopifyService
-from integrations.slack_enhanced_service import slack_enhanced_service
-from integrations.teams_enhanced_service import teams_enhanced_service
+try:
+    from integrations.slack_enhanced_service import slack_enhanced_service
+except ImportError:
+    logging.getLogger(__name__).warning("Slack Enhanced service not available")
+    slack_enhanced_service = None
+try:
+    from integrations.teams_enhanced_service import teams_enhanced_service
+except ImportError:
+    logging.getLogger(__name__).warning("Teams Enhanced service not available")
+    teams_enhanced_service = None
 
 logger = logging.getLogger(__name__)
 
@@ -50,20 +80,27 @@ class AgentIntegrationGateway:
     
     def __init__(self):
         self.services = {
-            "meta": meta_business_service,
             "ecommerce": ecommerce_service,
-            "marketing": marketing_service,
             "whatsapp": atom_whatsapp_integration,
-            "docs": document_logic_service,
             "shopify": ShopifyService(),
             "discord": atom_discord_integration,
-            "teams": teams_enhanced_service,
-            "telegram": atom_telegram_integration,
-            "google_chat": google_chat_enhanced_service,
-            "google_chat": google_chat_enhanced_service,
-            "slack": slack_enhanced_service,
-            "openclaw": openclaw_service
+            "telegram": atom_telegram_integration
         }
+        # Conditionally add enterprise services
+        if document_logic_service is not None:
+            self.services["docs"] = document_logic_service
+        if google_chat_enhanced_service is not None:
+            self.services["google_chat"] = google_chat_enhanced_service
+        if marketing_service is not None:
+            self.services["marketing"] = marketing_service
+        if meta_business_service is not None:
+            self.services["meta"] = meta_business_service
+        if teams_enhanced_service is not None:
+            self.services["teams"] = teams_enhanced_service
+        if slack_enhanced_service is not None:
+            self.services["slack"] = slack_enhanced_service
+        if openclaw_service is not None:
+            self.services["openclaw"] = openclaw_service
 
     async def execute_action(self, action_type: ActionType, platform: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
