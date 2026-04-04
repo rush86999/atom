@@ -1,6 +1,6 @@
 # Atom SaaS Sync Troubleshooting Guide
 
-**Purpose**: Comprehensive guide for diagnosing and resolving Atom SaaS sync issues
+**Purpose**: Comprehensive guide for diagnosing and resolving Skill Marketplace Sync issues
 
 **Last Updated**: 2026-02-19
 
@@ -25,9 +25,9 @@
 
 ### What is Atom SaaS Sync?
 
-Atom SaaS sync is a background service that keeps your local Atom marketplace synchronized with the Atom SaaS platform. It syncs:
+Skill Marketplace Sync is a background service that keeps your local Atom marketplace synchronized with the Atom SaaS platform. It syncs:
 
-- **Skills**: Community skills from Atom SaaS marketplace
+- **Skills**: Community skills from Skill Marketplace
 - **Categories**: Skill categories and taxonomy
 - **Ratings**: User ratings and reviews (bidirectional)
 - **Updates**: Real-time updates via WebSocket

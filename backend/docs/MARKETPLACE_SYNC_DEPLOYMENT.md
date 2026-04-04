@@ -1,12 +1,12 @@
-# Atom SaaS Sync Deployment Guide
+# Skill Marketplace Sync Deployment Guide
 
-**Phase:** 61-atom-saas-marketplace-sync
+**Phase:** 61-marketplace-sync
 **Last Updated:** 2026-02-19
-**Purpose:** Production deployment guide for Atom SaaS marketplace synchronization
+**Purpose:** Production deployment guide for Skill Marketplace synchronization
 
 ## Overview
 
-Atom SaaS sync provides bidirectional synchronization between your Atom instance and the Atom SaaS marketplace, enabling agents to access 5,000+ community skills with real-time updates.
+Skill Marketplace Sync provides bidirectional synchronization between your Atom instance and the Skill Marketplace, enabling agents to access 5,000+ community skills with real-time updates.
 
 ### Architecture
 
@@ -151,7 +151,7 @@ ENABLE_SCHEDULER=true
 
 ### Required Migrations
 
-The Atom SaaS sync system requires the following database models:
+The Skill Marketplace Sync system requires the following database models:
 
 1. **SyncState** - Track sync status and metrics
 2. **WebSocketState** - Track WebSocket connection status

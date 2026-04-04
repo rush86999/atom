@@ -70,7 +70,7 @@ Token source: Environment variable `ATOM_SAAS_API_TOKEN`
 
 **Endpoint:** `GET /api/v1/skills`
 
-**Description:** Fetch paginated list of skills from Atom SaaS marketplace
+**Description:** Fetch paginated list of skills from Skill Marketplace
 
 **Query Parameters:**
 
@@ -273,7 +273,7 @@ Token source: Environment variable `ATOM_SAAS_API_TOKEN`
 
 **Endpoint:** `POST /api/v1/skills/{skill_id}/install`
 
-**Description:** Install skill from Atom SaaS marketplace
+**Description:** Install skill from Skill Marketplace
 
 **Request Body:**
 
@@ -726,7 +726,7 @@ atom_saas_sync_errors_total{instance_id="local-atom-1",error_type="timeout"} 5
   expr: time() - atom_saas_sync_last_success_timestamp_seconds > 1800
   for: 10m
   annotations:
-    summary: "Atom SaaS sync stale for > 30 minutes"
+    summary: "Skill Marketplace Sync stale for > 30 minutes"
 ```
 
 **Warning Alerts:**
@@ -828,9 +828,9 @@ ATOM_SAAS_API_TIMEOUT_SECONDS=30
 ### Local Marketplace Mode (No Sync)
 
 ```bash
-# Disable Atom SaaS sync entirely
+# Disable Skill Marketplace Sync entirely
 ATOM_SAAS_ENABLED=false
-  Description: Disable Atom SaaS sync, use local marketplace only
+  Description: Disable Skill Marketplace Sync, use local marketplace only
   Required: No
   Default: true
   Options: true, false
@@ -1464,7 +1464,7 @@ export ATOM_SAAS_SYNC_INTERVAL_MINUTES=30
 # Atom SaaS Configuration
 # =============================================================================
 
-# Enable/disable Atom SaaS sync
+# Enable/disable Skill Marketplace Sync
 # When false: Local marketplace only, no API calls, no WebSocket
 ATOM_SAAS_ENABLED=true
 
@@ -1532,7 +1532,7 @@ ATOM_SAAS_API_TIMEOUT_SECONDS=30
 # -----------------------------------------------------------------------------
 # Local Marketplace Only Mode (fallback)
 # -----------------------------------------------------------------------------
-# To disable Atom SaaS sync and use local marketplace only:
+# To disable Skill Marketplace Sync and use local marketplace only:
 # 1. Set ATOM_SAAS_ENABLED=false
 # 2. All other ATOM_SAAS_* variables are ignored
 # 3. Only skills in CommunitySkill table are available
