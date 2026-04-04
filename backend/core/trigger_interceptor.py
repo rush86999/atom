@@ -192,6 +192,12 @@ class TriggerInterceptor:
         if not agent:
             raise ValueError(f"Agent {intern_agent_id} not found")
 
+        # Build proposal_data with action and reasoning
+        proposal_data = {
+            **proposed_action,
+            'reasoning': reasoning
+        }
+
         proposal = AgentProposal(
             agent_id=agent.id,
             agent_name=agent.name,
@@ -206,10 +212,10 @@ Agent is proposing an action for your review.
 
 Please review and approve or reject this proposal.
             """.strip(),
-            proposed_action=proposed_action,
-            reasoning=reasoning,
-            status=ProposalStatus.PROPOSED.value,
-            proposed_by=agent.id
+            proposal_data=proposal_data,
+            status="pending_approval",  # Explicitly set initial status
+            tenant_id=self.workspace_id,  # Use workspace_id as tenant_id for single-tenant
+            user_id=getattr(agent, 'user_id', 'system')  # Use agent's user_id or default to system
         )
 
         self.db.add(proposal)

@@ -200,7 +200,7 @@ def format_date_iso(date_string: str) -> str:
     try:
         date_obj = datetime.fromisoformat(date_string)
         return date_obj.strftime("%B %d, %Y").replace(" 0", " ")
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, TypeError):
         return date_string
 
 
@@ -240,7 +240,7 @@ def format_timestamp(timestamp: float) -> str:
         'March 8, 2026'
     """
     try:
-        date_obj = datetime.fromtimestamp(timestamp)
+        date_obj = datetime.utcfromtimestamp(timestamp)
         return date_obj.strftime("%B %d, %Y").replace(" 0", " ")
     except (ValueError, TypeError, OSError):
         return str(timestamp)
@@ -305,6 +305,8 @@ def format_currency_usd(amount: float) -> str:
         '$1,000.00'
     """
     try:
+        if amount < 0:
+            return f"-${abs(amount):,.2f}"
         return f"${amount:,.2f}"
     except (ValueError, TypeError):
         return "$0.00"
@@ -468,6 +470,10 @@ def truncate_text(text: str, max_length: int = 100, suffix: str = "...") -> str:
 
     if len(text) <= max_length:
         return text
+
+    # Handle edge case where max_length is less than suffix length
+    if max_length <= len(suffix):
+        return suffix[:max_length]
 
     # Truncate and add suffix
     return text[:max_length - len(suffix)] + suffix
