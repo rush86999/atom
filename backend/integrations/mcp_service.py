@@ -1484,7 +1484,26 @@ class MCPService(IntegrationService):
             # --- Specialty Agent & Workflow Tools ---
             elif tool_name == "list_agents":
                 from core.atom_meta_agent import SpecialtyAgentTemplate
-                return SpecialtyAgentTemplate.TEMPLATES
+                from core.database import SessionLocal
+                from core.models import AgentRegistry
+
+                # Get registered agents from database
+                with SessionLocal() as db:
+                    registered_agents = db.query(AgentRegistry).all()
+                    registered_list = [
+                        {
+                            "id": agent.id,
+                            "name": agent.name,
+                            "description": agent.description,
+                            "category": agent.category
+                        }
+                        for agent in registered_agents
+                    ]
+
+                return {
+                    "templates": SpecialtyAgentTemplate.TEMPLATES,
+                    "registered": registered_list
+                }
 
             elif tool_name == "spawn_agent":
                 from core.atom_meta_agent import get_atom_agent
@@ -1518,7 +1537,32 @@ class MCPService(IntegrationService):
                 except Exception as e:
                     logger.error(f"Failed to fetch workflows: {e}", exc_info=True)
                     return []
-                    
+
+            elif tool_name == "bridge_agent_delegate":
+                from integrations.universal_webhook_bridge import universal_webhook_bridge
+
+                target_agent = arguments.get("target_agent")
+                message = arguments.get("message")
+
+                if not target_agent or not message:
+                    return {
+                        "status": "error",
+                        "error": "Both target_agent and message are required"
+                    }
+
+                # Prepare the payload for the bridge
+                payload = {
+                    "target_id": target_agent,
+                    "agent_id": context.get("agent_id", "unknown"),
+                    "message": message,
+                    "source_platform": "agent"
+                }
+
+                # Call the bridge with platform="agent"
+                result = await universal_webhook_bridge.process_incoming_message("agent", payload)
+
+                return result
+
             # --- Computer Use Execution (Dual Mode: Desktop Bridge vs Cloud Headless) ---
             elif tool_name == "browser_navigate":
                 mode = context.get("computer_use_mode", "desktop")
