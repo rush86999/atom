@@ -49,12 +49,16 @@ class AIProviderConfig:
     model: Optional[str] = None
     cost_per_token: float = 0.0
     supported_tasks: List[str] = None
+    supports_vision: bool = False
+    supports_tools: bool = False
+    supports_cache: bool = False
+    supports_structured_output: bool = False
+    reasoning_level: int = 1  # 1=Low, 2=Medium, 3=High, 4=Very High
+    quality_score: float = 0.0
     max_requests_per_minute: int = 60
     rate_limit_window: int = 60
     is_active: bool = True
     requires_encryption: bool = True
-    reasoning_level: int = 1  # 1=Low, 2=Medium, 3=High, 4=Very High
-    supports_structured_output: bool = False
 
     def __post_init__(self):
         if self.supported_tasks is None:
