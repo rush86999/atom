@@ -460,6 +460,57 @@ next_suggestion = error_engine.get_suggested_resolution("auth_expired")
 
 ## 7. Maturity Progression & Graduation
 
+## ⚡ Capability Graduation Logic {#capability-graduation-logic}
+
+Individual capabilities progress independently of overall agent maturity. This allows agents to be trusted with specific actions while still learning others.
+
+### Graduation Thresholds
+
+| Capability Level | Successful Uses Required | Confidence Threshold | Permissions Gained |
+|-----------------|-------------------------|---------------------|-------------------|
+| **STUDENT → INTERN** | 5 successful operations | >70% confidence | Canvas presentation, basic tools |
+| **INTERN → SUPERVISED** | 20 successful operations | >80% confidence | Advanced integrations, error recovery |
+| **SUPERVISED → AUTONOMOUS** | 50 successful operations | >90% confidence | Shell access, self-writing skills |
+
+### Implementation
+
+```python
+# Track capability usage
+graduation_service.record_usage(
+    agent_id="agent_123",
+    capability_name="browser_automation",
+    success=True
+)
+
+# Automatic progression
+# 5 successes → STUDENT → INTERN
+# 20 successes → INTERN → SUPERVISED
+# 50 successes → SUPERVISED → AUTONOMOUS
+```
+
+### Storage
+
+- **capability_stats**: Stores success/total counts per capability
+- **capability_maturities**: Current maturity level per capability
+- Stored in `AgentRegistry.properties` JSON field
+
+### Reset
+
+```python
+# Reset capability to STUDENT if issues occur
+graduation_service.reset_maturity(
+    agent_id="agent_123",
+    capability_name="browser_automation",
+    reason="Critical error detected"
+)
+```
+
+---
+
+## 7.1. Agent Graduation Path
+
+Atom agents follow a strict graduation path based on performance, confidence, and user feedback.
+
 Atom agents follow a strict graduation path based on performance, confidence, and user feedback.
 
 ### The Graduation Path
