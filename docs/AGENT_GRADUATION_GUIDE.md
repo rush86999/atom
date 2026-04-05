@@ -150,42 +150,78 @@ Promotion to `AUTONOMOUS` state is governed by the **Dynamic Streak Rule**:
 
 ## Readiness Score Calculation
 
-### Formula
+### ⚡ UPDATED FORMULA (Current Implementation)
+
+The readiness score now uses a **6-component weighted formula** that provides more comprehensive assessment:
 
 ```
-Readiness Score = (Episode Score × 40%) + (Intervention Score × 30%) + (Constitutional Score × 30%)
-
-Where:
-Episode Score = min(episode_count / min_episodes, 1.0) × 40
-Intervention Score = (1 - intervention_rate / max_intervention_rate) × 30
-Constitutional Score = (avg_constitutional_score / min_constitutional_score) × 30
+Readiness Score =
+    (Zero Intervention Ratio × 30%) +
+    (Average Constitutional Score × 25%) +
+    (Average Confidence Score × 15%) +
+    (Success Rate × 10%) +
+    (Supervision Success Rate × 10%) +
+    (Skill Diversity Score × 10%)
 ```
 
-**Skill Diversity Bonus** (Phase 14):
-- Agents using diverse community skills receive up to +5% readiness boost
-- Encourages varied skill adoption for comprehensive learning
-- Calculated as: `min(unique_skills_used / 20, 1.0) × 5`
-- Promotes skill exploration beyond core functionality
+**Component Breakdown**:
 
-### Example Calculation
+| Component | Weight | Description | Calculation |
+|-----------|--------|-------------|-------------|
+| **Zero Intervention Ratio** | 30% | Episodes with zero human interventions | `zero_interventions / total_episodes` |
+| **Average Constitutional Score** | 25% | Compliance with domain rules | `avg(constitutional_scores)` |
+| **Average Confidence Score** | 15% | Agent's self-assessed confidence | `agent.confidence_score` |
+| **Success Rate** | 10% | Overall task success rate | `successful_tasks / total_tasks` |
+| **Supervision Success Rate** | 10% | Performance during supervision | `supervision_tasks_with_4_5_star / total_supervision` |
+| **Skill Diversity Score** | 10% | Variety of skills used | Encourages broader capability |
+
+**Example Calculation**:
 
 **Scenario**: Agent seeking promotion to INTERN
 
 **Metrics**:
-- Episode count: 12 (min required: 10)
-- Interventions: 4 out of 12 episodes = 33% (max allowed: 50%)
-- Avg constitutional score: 0.78 (min required: 0.70)
+- Episodes: 12 (min required: 10)
+- Zero intervention episodes: 10/12 = 83%
+- Avg constitutional score: 0.78
+- Avg confidence score: 0.72
+- Success rate: 0.85
+- Supervision success rate: 0.80
+- Skill diversity score: 0.60 (used 6 different skills)
 
 **Score**:
 ```
-Episode Score = (12 / 10) × 40 = 40 (capped at 40)
-Intervention Score = (1 - 0.33 / 0.50) × 30 = (1 - 0.66) × 30 = 10.2
-Constitutional Score = (0.78 / 0.70) × 30 = 33.4
-
-Total = 40 + 10.2 + 33.4 = 83.6/100
+Zero Intervention: 0.83 × 30 = 24.9
+Constitutional: 0.78 × 25 = 19.5
+Confidence: 0.72 × 15 = 10.8
+Success Rate: 0.85 × 10 = 8.5
+Supervision: 0.80 × 10 = 8.0
+Skill Diversity: 0.60 × 10 = 6.0
+---
+Total = 77.7/100 (Ready for promotion!)
 ```
 
-**Result**: Ready for promotion (score > 70, all criteria met)
+### Key Changes from Previous Formula
+
+| Old Formula | New Formula | Change |
+|-------------|-------------|--------|
+| 3 components | 6 components | +3 new metrics |
+| Episode/Intervention/Constitutional only | Adds confidence, success, supervision, skills | More comprehensive |
+| Episode Score (40%) | Split into multiple metrics | Better granularity |
+| No skill tracking | Skill diversity bonus | Encourages broader learning |
+
+### Skill Diversity Bonus
+
+Agents are rewarded for using a diverse set of skills:
+
+```python
+skill_diversity_score = min(unique_skills_used / 20, 1.0)
+```
+
+- **0 skills**: 0% score
+- **10 skills**: 50% score
+- **20+ skills**: 100% score (max bonus)
+
+This encourages agents to develop broader capabilities rather than specializing in a narrow domain.
 
 ---
 
@@ -648,19 +684,29 @@ def weekly_readiness_check():
 
 **Possible Causes**:
 1. Low constitutional score dragging down average
-2. Interventions concentrated in recent episodes
-3. Episodes not all at current maturity level
+2. Low confidence score from recent self-assessments
+3. Poor success rate despite low interventions
+4. Low supervision success rate
+5. Limited skill diversity (not using varied capabilities)
 
 **Solution**:
 ```python
 # Check each component separately
-episode_score = min(episodes / min_episodes, 1.0) * 40
-intervention_score = (1 - intervention_rate / max_intervention) * 30
-constitutional_score = (avg_constitutional / min_constitutional) * 30
+zero_intervention = zero_interventions / total_episodes
+constitutional = avg_constitutional_score
+confidence = agent.confidence_score
+success = successful_tasks / total_tasks
+supervision = supervision_4_5_star / total_supervision
+skill_diversity = min(unique_skills / 20, 1.0)
 
-print(f"Episode Score: {episode_score}/40")
-print(f"Intervention Score: {intervention_score}/30")
-print(f"Constitutional Score: {constitutional_score}/30")
+print(f"Zero Intervention (30%): {zero_intervention:.2f} → {zero_intervention * 30:.1f}/30")
+print(f"Constitutional (25%): {constitutional:.2f} → {constitutional * 25:.1f}/25")
+print(f"Confidence (15%): {confidence:.2f} → {confidence * 15:.1f}/15")
+print(f"Success Rate (10%): {success:.2f} → {success * 10:.1f}/10")
+print(f"Supervision (10%): {supervision:.2f} → {supervision * 10:.1f}/10")
+print(f"Skill Diversity (10%): {skill_diversity:.2f} → {skill_diversity * 10:.1f}/10")
+
+print(f"\nTotal: {(zero_intervention * 30 + constitutional * 25 + confidence * 15 + success * 10 + supervision * 10 + skill_diversity * 10):.1f}/100")
 
 # Address the weakest component
 ```

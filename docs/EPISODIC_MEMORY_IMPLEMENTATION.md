@@ -627,6 +627,8 @@ GET /api/episodes/graduation/audit/{agent_id}
 
 ## Graduation Framework
 
+> **⚡ Two Types of Graduation**: Atom has both **Agent Graduation** (overall maturity level) and **Capability Graduation** (individual skill maturity). This section covers Agent Graduation. For Capability Graduation (5/20/50 rule), see [Agent Governance Learning Integration](../AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic).
+
 ### Graduation Criteria
 
 | Target Level | Min Episodes | Max Intervention Rate | Min Constitutional Score |
@@ -637,6 +639,8 @@ GET /api/episodes/graduation/audit/{agent_id}
 
 ### Readiness Score Calculation
 
+> **Note**: This is the current implementation formula. For the latest 6-component formula with additional metrics (confidence, success rate, supervision, skill diversity), see [Agent Graduation Guide](../AGENT_GRADUATION_GUIDE.md#readiness-score-calculation).
+
 ```
 Score = (Episode Score × 40%) + (Intervention Score × 30%) + (Constitutional Score × 30%)
 
@@ -645,6 +649,22 @@ Where:
 - Intervention Score = (1 - intervention_rate / max_intervention) × 30
 - Constitutional Score = (constitutional_score / min_constitutional) × 30
 ```
+
+**⚡ Enhanced Formula (Recommended)**:
+
+The latest implementation uses a **6-component weighted formula** for more comprehensive assessment:
+
+```
+Readiness Score =
+    (Zero Intervention Ratio × 30%) +
+    (Average Constitutional Score × 25%) +
+    (Average Confidence Score × 15%) +
+    (Success Rate × 10%) +
+    (Supervision Success Rate × 10%) +
+    (Skill Diversity Score × 10%)
+```
+
+See [Agent Graduation Guide](../AGENT_GRADUATION_GUIDE.md#readiness-score-calculation) for details on the enhanced formula.
 
 ### Use Cases
 
