@@ -7,6 +7,7 @@ The Agent Graduation Framework provides a rigorous, data-driven approach to prom
 ## Table of Contents
 
 - [Why Graduation Matters](#why-graduation-matters)
+- [Two Types of Graduation](#two-types-of-graduation) ⚡ **IMPORTANT**
 - [Graduation Criteria](#graduation-criteria)
 - [How Graduation is Triggered](#how-graduation-is-triggered)
 - [Readiness Score Calculation](#readiness-score-calculation)
@@ -15,6 +16,31 @@ The Agent Graduation Framework provides a rigorous, data-driven approach to prom
 - [Graduation Workflow](#graduation-workflow)
 - [Edge Case Testing](#edge-case-testing)
 - [Audit Trail Generation](#audit-trail-generation)
+
+---
+
+## Two Types of Graduation ⚡ IMPORTANT
+
+Atom has **two distinct graduation systems** that work together:
+
+### 1. Agent Graduation (This Guide)
+**What**: Overall agent maturity level
+**Progression**: STUDENT → INTERN → SUPERVISED → AUTONOMOUS
+**Based on**: Episodes, intervention rates, constitutional compliance
+**Scope**: Agent-wide (affects all capabilities)
+
+### 2. Capability Graduation ⚡
+**What**: Individual skill/capability maturity
+**Progression**: 5 → 20 → 50 successful uses
+**Based on**: Usage count per capability
+**Scope**: Per-capability (skills graduate independently)
+
+**Example**:
+- An agent can be **INTERN** overall (agent graduation)
+- But have **AUTONOMOUS** level for "data_query" capability (capability graduation)
+- While still being **STUDENT** for "shell_access" capability
+
+**See**: [Capability Graduation Logic](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic) for the 5/20/50 rule.
 
 ---
 
@@ -105,6 +131,8 @@ The `BackgroundAgentRunner` performs system-wide audits independently of user in
 ---
 
 ## Skill Promotion Logic
+
+**Note**: This section describes skill promotion within the agent graduation framework. For per-capability graduation based on usage count (5/20/50 rule), see [Capability Graduation Logic](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic).
 
 Promotion to `AUTONOMOUS` state is governed by the **Dynamic Streak Rule**:
 
