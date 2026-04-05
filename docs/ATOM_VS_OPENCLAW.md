@@ -1,6 +1,6 @@
 # Atom vs OpenClaw: A Feature Comparison
 
-> **Last Updated**: March 28, 2026
+> **Last Updated**: April 5, 2026
 
 ---
 
@@ -56,8 +56,11 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Agent learning** | ✅ **Graduated Evolution**: Feedback loops + directives + dynamic scripts | ✅ Self-writes new scripts |
 | **Self-Writing Skills** | ✅ GEA Directives (Instructional) + `SkillBuilderService` (Functional) | ✅ Writes raw JavaScript/TypeScript |
 | **Intervention Tracking** | ✅ Logged, scored, affects promotions & graduation | ❌ Not tracked |
+| **Graduation Framework** | ✅ **Two-tier system**: Agent Graduation (6-component formula) + Capability Graduation (5/20/50 rule) | ❌ No formal graduation system |
+| **Readiness Score** | ✅ **6-component formula**: Zero Intervention (30%) + Constitutional (25%) + Confidence (15%) + Success Rate (10%) + Supervision (10%) + Skill Diversity (10%) | ❌ No readiness assessment |
+| **Capability Graduation** | ✅ **5/20/50 rule**: Individual skills graduate based on successful uses (5→INTERN, 20→SUPERVISED, 50→AUTONOMOUS) | ❌ No capability-level graduation |
 
-**Key Difference**: Atom's episodic memory is structured for business workflows with governance, while OpenClaw uses simple Markdown files for personal context.
+**Key Difference**: Atom's episodic memory is structured for business workflows with governance and a comprehensive two-tier graduation system. OpenClaw uses simple Markdown files for personal context without formal graduation mechanisms.
 
 ---
 
@@ -73,8 +76,11 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Real-Time Supervision** | ✅ Monitor SUPERVISED agents with intervention | ❌ No live supervision |
 | **Constitutional Compliance** | ✅ Validates against Knowledge Graph rules | ❌ N/A |
 | **Performance** | <1ms cached governance checks | N/A |
+| **Graduation Criteria** | ✅ **Agent-level**: Episodes (10-50), Intervention Rate (0-50%), Constitutional Score (0.70-0.95) | ❌ N/A |
+| **Capability Promotion** | ✅ **Per-capability**: 5 uses (INTERN), 20 uses (SUPERVISED), 50 uses (AUTONOMOUS) | ❌ N/A |
+| **Readiness Assessment** | ✅ **6-component weighted formula** with confidence, success rate, supervision, skill diversity | ❌ N/A |
 
-**Key Difference**: Atom is built for enterprise governance with graded autonomy. OpenClaw assumes trusted user and provides raw access.
+**Key Difference**: Atom is built for enterprise governance with graded autonomy and a comprehensive two-tier graduation system (Agent + Capability). OpenClaw assumes trusted user and provides raw access.
 
 ---
 
@@ -325,6 +331,8 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 - You need **comprehensive testing infrastructure** (495+ tests, E2E, fuzzing, stress testing) ✨ NEW
 - You require **AI-enhanced bug discovery** with automated fuzzing and chaos engineering ✨ NEW
 - You need **production-grade monitoring** with load testing and performance regression detection ✨ NEW
+- You want **two-tier graduation system** (Agent-level maturity + Capability-level 5/20/50 rule) ✨ NEW
+- You need **6-component readiness assessment** (Intervention, Constitutional, Confidence, Success, Supervision, Skill Diversity) ✨ NEW
 
 ### Choose OpenClaw If:
 
@@ -361,6 +369,8 @@ Both are excellent choices depending on your use case. For business workflows re
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Developer setup and deployment guide
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
 - [SECURITY/AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - Authentication and security
+- [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
+- [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md) - **Capability graduation logic (5/20/50 rule)** ✨ NEW
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
 - [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning framework
 - [MESSAGING_PLATFORMS.md](MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
