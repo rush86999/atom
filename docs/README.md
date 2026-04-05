@@ -2,6 +2,8 @@
 
 Welcome to the Atom documentation hub. This guide helps you find relevant information quickly.
 
+**📑 [View Complete Documentation Index](INDEX.md)** - Comprehensive alphabetical index of all documentation
+
 ---
 
 ## 📚 **Category Index**
