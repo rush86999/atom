@@ -360,7 +360,7 @@ Both are excellent choices depending on your use case. For business workflows re
 - [Documentation Index](INDEX.md) - Comprehensive documentation overview
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Developer setup and deployment guide
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
-- [SECURITY/AUTHENTICATION.md](SECURITY/AUTHENTICATION.md) - Authentication and security
+- [SECURITY/AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - Authentication and security
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
 - [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning framework
 - [MESSAGING_PLATFORMS.md](MESSAGING_PLATFORMS.md) - 9 messaging platforms guide

@@ -898,7 +898,7 @@ EMERGENCY_GOVERNANCE_BYPASS=false
 ## Related Documentation
 
 - [Browser Automation](BROWSER_AUTOMATION.md)
-- [Governance Integration](GOVERNANCE_INTEGRATION_COMPLETE.md)
+- [Governance Integration][<!-- GOVERNANCE_INTEGRATION_COMPLETE.md -->]
 - [Agent Governance](GOVERNANCE_QUICK_REFERENCE.md)
 - [CLAUDE.md](../CLAUDE.md)
 

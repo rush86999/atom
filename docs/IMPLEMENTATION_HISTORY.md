@@ -227,8 +227,8 @@ Chronological summary of major implementation milestones and fixes.
 
 ### Quick Reference
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Developer setup guide
-- [backend/docs/INCOMPLETE_IMPLEMENTATIONS.md](../backend/docs/INCOMPLETE_IMPLEMENTATIONS.md) - Recent fixes status
-- [backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md](../backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md) - Deployment checklist
+- [backend/docs/INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../backend/docs/INCOMPLETE_IMPLEMENTATIONS.md -->] - Recent fixes status
+- [backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md][<!-- ../backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md -->] - Deployment checklist
 
 ### Feature Documentation
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
@@ -237,8 +237,8 @@ Chronological summary of major implementation milestones and fixes.
 - [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas integration
 
 ### Security Documentation
-- [SECURITY/AUTHENTICATION.md](SECURITY/AUTHENTICATION.md) - Authentication system
-- [SECURITY/DATA_PROTECTION.md](SECURITY/DATA_PROTECTION.md) - Encryption and secrets
+- [SECURITY/AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - Authentication system
+- [SECURITY/DATA_PROTECTION.md][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets
 - [SECURITY/COMPLIANCE.md](SECURITY/COMPLIANCE.md) - Compliance requirements
 
 ---

@@ -636,7 +636,7 @@ The test suite includes:
 
 - [Playwright Documentation](https://playwright.dev/python/)
 - [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/)
-- [Atom Governance System](./GOVERNANCE_INTEGRATION_COMPLETE.md)
+- [Atom Governance System][<!-- ./GOVERNANCE_INTEGRATION_COMPLETE.md -->]
 - [Agent Maturity Levels](./CLAUDE.md)
 
 ## Summary

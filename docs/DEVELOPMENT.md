@@ -434,8 +434,8 @@ systemctl start atom-backend atom-workers
 - [Architecture Specification](ATOM_ARCHITECTURE_SPEC.md) - High-level system design
 
 ### Security
-- [Authentication Guide](SECURITY/AUTHENTICATION.md) - OAuth 2.0 and session management
-- [Data Protection](SECURITY/DATA_PROTECTION.md) - Encryption and secrets management
+- [Authentication Guide][<!-- SECURITY/AUTHENTICATION.md -->] - OAuth 2.0 and session management
+- [Data Protection][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets management
 - [Compliance](SECURITY/COMPLIANCE.md) - GDPR, SOC2, HIPAA considerations
 
 ### Deployment

@@ -950,13 +950,13 @@ afterEach(() => {
 
 ### Platform-Specific Guides
 
-- [Backend Coverage Guide](../backend/tests/docs/COVERAGE_GUIDE.md) - Python/pytest testing patterns
+- [Backend Coverage Guide](TESTING_INDEX.md) - Python/pytest testing patterns
 - [Mobile Testing Guide](MOBILE_TESTING_GUIDE.md) - React Native testing patterns (to be created in Phase 152-03)
 - [Desktop Testing Guide](DESKTOP_TESTING_GUIDE.md) - Rust/Tauri testing patterns (to be created in Phase 152-04)
 
 ### Quality Standards
 
-- [Test Quality Standards](../backend/docs/TEST_QUALITY_STANDARDS.md) - Backend test independence, pass rates, performance standards
+- [Test Quality Standards](CODE_QUALITY_GUIDE.md) - Backend test independence, pass rates, performance standards
 
 ---
 

@@ -709,9 +709,9 @@ No breaking changes to existing functionality - this is additive only.
 
 ## Documentation
 
-- [Agent Guidance System Guide](./AGENT_GUIDANCE_USER_GUIDE.md) - User documentation
-- [View Orchestration Guide](./VIEW_ORCHESTRATION_GUIDE.md) - Developer guide
-- [Error Resolution Reference](./ERROR_RESOLUTION_REFERENCE.md) - Error types and resolutions
+- [Agent Guidance System Guide][<!-- ./AGENT_GUIDANCE_USER_GUIDE.md -->] - User documentation
+- [View Orchestration Guide][<!-- ./VIEW_ORCHESTRATION_GUIDE.md -->] - Developer guide
+- [Error Resolution Reference][<!-- ./ERROR_RESOLUTION_REFERENCE.md -->] - Error types and resolutions
 
 ---
 

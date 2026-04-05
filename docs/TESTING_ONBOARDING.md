@@ -279,7 +279,7 @@ You've successfully run your first test and written your own test. Continue your
 
 ### Platform-Specific Guides
 
-- **Backend Testing Guide** → [backend/tests/docs/COVERAGE_GUIDE.md](../backend/tests/docs/COVERAGE_GUIDE.md)
+- **Backend Testing Guide** → [backend/tests/docs/COVERAGE_GUIDE.md](TESTING_INDEX.md)
   - pytest patterns, fixtures, coverage measurement
   - Target: 70%+ coverage
 
@@ -314,16 +314,16 @@ You've successfully run your first test and written your own test. Continue your
 
 ### Testing Quality & Reliability
 
-- **Flaky Test Detection** → [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](../backend/tests/docs/FLAKY_TEST_QUARANTINE.md)
+- **Flaky Test Detection** → [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](TESTING_INDEX.md)
   - Multi-run flaky detection (10 runs, 30% threshold)
   - SQLite quarantine tracking
   - Auto-removal policies
 
-- **Parallel Execution** → [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](../backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md)
+- **Parallel Execution** → [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](E2E_TESTING_GUIDE.md)
   - Matrix strategy (4 platforms in parallel)
   - Target: <15 min total execution time
 
-- **Test Isolation** → [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](../backend/tests/docs/TEST_ISOLATION_PATTERNS.md)
+- **Test Isolation** → [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](TESTING_INDEX.md)
   - Independent tests (no shared state)
   - Fixture patterns
   - Resource conflict prevention

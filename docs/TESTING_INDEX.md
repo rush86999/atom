@@ -86,7 +86,7 @@ Choose your platform to find platform-specific testing guides, frameworks, and p
 
 ### Backend (Python/FastAPI)
 
-→ [backend/tests/docs/COVERAGE_GUIDE.md](../backend/tests/docs/COVERAGE_GUIDE.md)
+→ [backend/tests/docs/COVERAGE_GUIDE.md](TESTING_INDEX.md)
 
 **Frameworks:** pytest, Hypothesis, Schemathesis
 **Target Coverage:** 70%+ across all modules
@@ -181,7 +181,7 @@ Troubleshooting guides for common testing problems.
 
 ### Flaky Tests
 
-→ [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](../backend/tests/docs/FLAKY_TEST_QUARANTINE.md)
+→ [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](TESTING_INDEX.md)
 
 **Problem:** Tests pass sometimes, fail other times
 
@@ -202,7 +202,7 @@ Troubleshooting guides for common testing problems.
 
 ### Slow Test Execution
 
-→ [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](../backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md)
+→ [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](E2E_TESTING_GUIDE.md)
 
 **Problem:** Tests take too long to run
 
@@ -223,7 +223,7 @@ Troubleshooting guides for common testing problems.
 
 ### Coverage Regression
 
-→ [backend/tests/docs/COVERAGE_TRENDING_GUIDE.md](../backend/tests/docs/COVERAGE_TRENDING_GUIDE.md)
+→ [backend/tests/docs/COVERAGE_TRENDING_GUIDE.md](TESTING_INDEX.md)
 
 **Problem:** Coverage decreased from last build
 
@@ -244,7 +244,7 @@ Troubleshooting guides for common testing problems.
 
 ### Test Isolation Issues
 
-→ [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](../backend/tests/docs/TEST_ISOLATION_PATTERNS.md)
+→ [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](TESTING_INDEX.md)
 
 **Problem:** Tests fail when run together but pass individually
 
@@ -271,7 +271,7 @@ Quality standards and reference materials for all platforms.
 
 ### Quality Standards
 
-→ [backend/docs/TEST_QUALITY_STANDARDS.md](../backend/docs/TEST_QUALITY_STANDARDS.md)
+→ [backend/docs/TEST_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md)
 
 **Standards:**
 - TQ-01: Test Independence
@@ -316,32 +316,32 @@ Deep dives into each platform's testing infrastructure.
 
 **Location:** `backend/tests/docs/`
 
-1. **[COVERAGE_GUIDE.md](../backend/tests/docs/COVERAGE_GUIDE.md)** (727 lines)
+1. **[COVERAGE_GUIDE.md](TESTING_INDEX.md)** (727 lines)
    - Coverage measurement
    - Gap analysis
    - Priority tiers
 
-2. **[COVERAGE_TRENDING_GUIDE.md](../backend/tests/docs/COVERAGE_TRENDING_GUIDE.md)** (759 lines)
+2. **[COVERAGE_TRENDING_GUIDE.md](TESTING_INDEX.md)** (759 lines)
    - 30-day trending
    - Regression detection
    - Dashboards
 
-3. **[FLAKY_TEST_GUIDE.md](../backend/tests/docs/FLAKY_TEST_GUIDE.md)** (922 lines)
+3. **[FLAKY_TEST_GUIDE.md](TESTING_INDEX.md)** (922 lines)
    - Detection strategies
    - Quarantine workflows
    - Fixing strategies
 
-4. **[FLAKY_TEST_QUARANTINE.md](../backend/tests/docs/FLAKY_TEST_QUARANTINE.md)** (590 lines)
+4. **[FLAKY_TEST_QUARANTINE.md](TESTING_INDEX.md)** (590 lines)
    - Multi-run detection
    - SQLite tracking
    - Auto-removal policies
 
-5. **[PARALLEL_EXECUTION_GUIDE.md](../backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md)** (1,519 lines)
+5. **[PARALLEL_EXECUTION_GUIDE.md](E2E_TESTING_GUIDE.md)** (1,519 lines)
    - Matrix execution
    - <15 min feedback
    - Retry workflows
 
-6. **[TEST_ISOLATION_PATTERNS.md](../backend/tests/docs/TEST_ISOLATION_PATTERNS.md)** (961 lines)
+6. **[TEST_ISOLATION_PATTERNS.md](TESTING_INDEX.md)** (961 lines)
    - Independent tests
    - Fixture patterns
    - Resource conflicts

@@ -492,7 +492,7 @@ curl http://localhost:8000/health/live
 ### Documentation
 - [Full Installation Guide](./MAC_MINI_INSTALL.md)
 - [Personal Edition Guide](./PERSONAL_EDITION.md)
-- [API Documentation](./API_DOCUMENTATION.md)
+- [API Documentation](API_DOCUMENTATION_INDEX.md)
 
 ### Community
 - **GitHub Issues:** https://github.com/rush86999/atom/issues

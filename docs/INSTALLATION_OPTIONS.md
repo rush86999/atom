@@ -301,7 +301,7 @@ curl http://localhost:8000/health/live
 - [Personal Edition Guide](PERSONAL_EDITION.md)
 - [Native Setup Guide](NATIVE_SETUP.md)
 - [Full Documentation](../README.md)
-- [API Documentation](API_DOCUMENTATION.md)
+- [API Documentation](API_DOCUMENTATION_INDEX.md)
 
 ---
 

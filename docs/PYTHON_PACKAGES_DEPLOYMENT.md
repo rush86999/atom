@@ -788,7 +788,7 @@ watch -n 60 'curl -s http://localhost:8000/health/metrics'
 - **[Package Governance](PACKAGE_GOVERNANCE.md)** - Approval workflow and access control
 - **[Package Security](PACKAGE_SECURITY.md)** - Threat model and defenses
 - **[API Documentation](../backend/docs/API_DOCUMENTATION.md#python-package-management)** - Complete API reference
-- **[Deployment Runbook](../backend/docs/DEPLOYMENT_RUNBOOK.md)** - General deployment procedures
+- **[Deployment Runbook](DEPLOYMENT_GUIDE.md)** - General deployment procedures
 
 ---
 
