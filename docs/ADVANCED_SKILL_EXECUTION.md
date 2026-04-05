@@ -688,10 +688,10 @@ GET /auto-install/status/{skill_id}
 - [Skill Marketplace Guide](./SKILL_MARKETPLACE_GUIDE.md) - Detailed marketplace usage
 - [Skill Composition Patterns](./SKILL_COMPOSITION_PATTERNS.md) - Workflow design patterns
 - [Performance Tuning](./PERFORMANCE_TUNING.md) - Optimization and monitoring guide
-- [Supply Chain Security](./SUPPLY_CHAIN_SECURITY.md) - E2E security testing (Plan 60-06)
+- [Supply Chain Security][<!-- ./SUPPLY_CHAIN_SECURITY.md -->] - E2E security testing (Plan 60-06)
 
 ### API Documentation
-- [API Reference](../backend/docs/API_DOCUMENTATION.md) - Complete REST API documentation
+- [API Reference](API.md) - Complete REST API documentation
 - [Marketplace API](../backend/docs/API_DOCUMENTATION.md#marketplace) - Marketplace endpoints
 - [Composition API](../backend/docs/API_DOCUMENTATION.md#composition) - Workflow endpoints
 - [Auto-Install API](../backend/docs/API_DOCUMENTATION.md#auto-install) - Package installation endpoints

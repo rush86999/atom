@@ -233,6 +233,6 @@ const unsubscribe = window.atom.canvas.subscribeAll((event) => {
 
 ## See Also
 
-- [Canvas Component Documentation](/docs/canvas/README.md)
+- [Canvas Component Documentation](CANVAS_QUICK_REFERENCE.md)
 - [Agent Guidance System](/docs/AGENT_GUIDANCE_IMPLEMENTATION.md)
 - [Episodic Memory Integration](/docs/EPISODIC_MEMORY_IMPLEMENTATION.md)

@@ -1600,7 +1600,7 @@ fn test_file_operations_with_real_files() {
 
 - **[Frontend Testing Guide](FRONTEND_TESTING_GUIDE.md)** - Jest, React Testing Library, MSW, jest-axe
 - **[Mobile Testing Guide](MOBILE_TESTING_GUIDE.md)** - jest-expo, React Native Testing Library
-- **Backend:** [Backend Coverage Guide](../backend/tests/docs/COVERAGE_GUIDE.md) - pytest, Hypothesis, Schemathesis
+- **Backend:** [Backend Coverage Guide](TESTING_INDEX.md) - pytest, Hypothesis, Schemathesis
 
 ### Cross-Platform Testing
 

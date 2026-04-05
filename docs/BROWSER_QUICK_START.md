@@ -329,7 +329,7 @@ pytest tests/test_browser_automation.py --cov=tools.browser_tool --cov-report=ht
 ## Next Steps
 
 - Read [BROWSER_AUTOMATION.md](./BROWSER_AUTOMATION.md) for full documentation
-- Review [GOVERNANCE_INTEGRATION_COMPLETE.md](./GOVERNANCE_INTEGRATION_COMPLETE.md) for governance details
+- Review [GOVERNANCE_INTEGRATION_COMPLETE.md][<!-- ./GOVERNANCE_INTEGRATION_COMPLETE.md -->] for governance details
 - Check test files for more usage examples
 
 ## Summary

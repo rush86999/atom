@@ -55,8 +55,8 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [AUTHENTICATION.md](SECURITY/AUTHENTICATION.md) | **OAuth 2.0, session management, request validation** | Feb 6, 2026 |
-| [DATA_PROTECTION.md](SECURITY/DATA_PROTECTION.md) | **Fernet encryption, secrets management, migration** | Feb 6, 2026 |
+| [AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] | **OAuth 2.0, session management, request validation** | Feb 6, 2026 |
+| [DATA_PROTECTION.md][<!-- SECURITY/DATA_PROTECTION.md -->] | **Fernet encryption, secrets management, migration** | Feb 6, 2026 |
 | [WEBHOOK_VERIFICATION.md](SECURITY/WEBHOOK_VERIFICATION.md) | **Slack, Teams, Gmail webhook signature verification** | Feb 6, 2026 |
 | [COMPLIANCE.md](SECURITY/COMPLIANCE.md) | GDPR, SOC2, HIPAA considerations | - |
 | [SECURITY_OVERVIEW.md](SECURITY/SECURITY_OVERVIEW.md) | Security architecture overview | - |
@@ -87,9 +87,9 @@
 ### Core Canvas
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [CANVAS_IMPLEMENTATION_COMPLETE.md](CANVAS_IMPLEMENTATION_COMPLETE.md) | **Canvas presentation system** | Feb 1, 2026 |
+| [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) | **Canvas presentation system** | Feb 1, 2026 |
 | [CANVAS_QUICK_REFERENCE.md](CANVAS_QUICK_REFERENCE.md) | Canvas types and usage | Feb 1, 2026 |
-| [SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md](SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md) | Specialized canvas types | Feb 2, 2026 |
+| [SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md](archive/SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md) | Specialized canvas types | Feb 2, 2026 |
 
 ### Canvas AI & State
 | Document | Description | Last Updated |
@@ -113,8 +113,8 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [API_INTEGRATION.md](GUIDES/DEVELOPERS/API_INTEGRATION.md) | **Build custom integrations** | - |
-| [CONTRIBUTING_INTEGRATIONS.md](../backend/docs/CONTRIBUTING_INTEGRATIONS.md) | Integration contribution guide | - |
-| [BYOK_LLM_INTEGRATION_COMPLETE.md](../backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md) | **Multi-provider LLM setup** | Feb 5, 2026 |
+| [CONTRIBUTING_INTEGRATIONS.md][<!-- ../backend/docs/CONTRIBUTING_INTEGRATIONS.md -->] | Integration contribution guide | - |
+| [BYOK_LLM_INTEGRATION_COMPLETE.md][<!-- ../backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md -->] | **Multi-provider LLM setup** | Feb 5, 2026 |
 
 ### Workflow Automation
 | Document | Description | Last Updated |
@@ -170,7 +170,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [PRODUCTION_DEPLOYMENT_SUMMARY.md](../backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md) | **Production deployment checklist** | Feb 5, 2026 |
+| [PRODUCTION_DEPLOYMENT_SUMMARY.md][<!-- ../backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md -->] | **Production deployment checklist** | Feb 5, 2026 |
 | [CLOUD_DEPLOYMENT.md](DEPLOYMENT/CLOUD_DEPLOYMENT.md) | AWS, GCP, Azure deployment | - |
 | [DOCKER_DEPLOYMENT.md](DEPLOYMENT/DOCKER_DEPLOYMENT.md) | Docker deployment guide | - |
 
@@ -180,18 +180,18 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [API_DOCUMENTATION.md](../backend/docs/API_DOCUMENTATION.md) | **Comprehensive API documentation (26,299 lines)** | Feb 16, 2026 |
-| [DEPLOYMENT_RUNBOOK.md](../backend/docs/DEPLOYMENT_RUNBOOK.md) | **Deployment procedures with rollback** | Feb 16, 2026 |
-| [OPERATIONS_GUIDE.md](../backend/docs/OPERATIONS_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
-| [TROUBLESHOOTING.md](../backend/docs/TROUBLESHOOTING.md) | **Production troubleshooting guide** | Feb 16, 2026 |
+| [API_DOCUMENTATION.md](API.md) | **Comprehensive API documentation (26,299 lines)** | Feb 16, 2026 |
+| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment procedures with rollback** | Feb 16, 2026 |
+| [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
+| [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Production troubleshooting guide** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](../backend/docs/CODE_QUALITY_STANDARDS.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
 
 ### Monitoring & Observability
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [MONITORING_SETUP.md](../backend/docs/MONITORING_SETUP.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
+| [MONITORING_SETUP.md](MONITORING_GUIDE.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
 | [HEALTH_MONITORING_SYSTEM.md](HEALTH_MONITORING_SYSTEM.md) | Health monitoring system | Feb 2, 2026 |
 | [MONITORING_GUIDE.md](MONITORING_GUIDE.md) | Monitoring guide | Feb 2, 2026 |
 
@@ -212,7 +212,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [backend/tests/e2e_ui/README.md](../backend/tests/e2e_ui/README.md) | **E2E testing guide (91+ comprehensive tests)** | Mar 28, 2026 |
+| [backend/tests/e2e_ui/README.md](E2E_TESTING_GUIDE.md) | **E2E testing guide (91+ comprehensive tests)** | Mar 28, 2026 |
 | [Phase 234: Authentication & Agent E2E](../.planning/phases/234-authentication-and-agent-e2e/) | **E2E test infrastructure (AUTH-01 to AUTH-07, AGNT-01 to AGNT-08)** | Mar 24, 2026 |
 
 **E2E Test Infrastructure (Phase 234)**:
@@ -227,8 +227,8 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md](../backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md) | **AI-enhanced bug discovery infrastructure** | Mar 28, 2026 |
-| [backend/docs/BUG_DISCOVERY.md](../backend/docs/BUG_DISCOVERY.md) | **Bug discovery guide** | Mar 28, 2026 |
+| [backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md][<!-- ../backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md -->] | **AI-enhanced bug discovery infrastructure** | Mar 28, 2026 |
+| [backend/docs/BUG_DISCOVERY.md][<!-- ../backend/docs/BUG_DISCOVERY.md -->] | **Bug discovery guide** | Mar 28, 2026 |
 | [Phase 237: Bug Discovery Infrastructure](../.planning/phases/237-bug-discovery-infrastructure-foundation/) | **Bug discovery foundation (fuzzing, property-based testing, chaos)** | Mar 24, 2026 |
 
 **Bug Discovery Features (Phase 237)**:
@@ -259,7 +259,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [backend/docs/TEST_QUALITY_STANDARDS.md](../backend/docs/TEST_QUALITY_STANDARDS.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
+| [backend/docs/TEST_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
 | [CI_FIXES.md](CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
 | [TEST_RESULTS_FEB2026.md](TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
@@ -356,8 +356,8 @@
 ### By Topic
 
 **Security**:
-- [AUTHENTICATION.md](SECURITY/AUTHENTICATION.md) - OAuth and session management
-- [DATA_PROTECTION.md](SECURITY/DATA_PROTECTION.md) - Encryption and secrets
+- [AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - OAuth and session management
+- [DATA_PROTECTION.md][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets
 - [WEBHOOK_VERIFICATION.md](SECURITY/WEBHOOK_VERIFICATION.md) - Webhook security
 
 **Agent Systems**:
@@ -366,11 +366,11 @@
 - [AGENT_GUIDANCE_IMPLEMENTATION.md](AGENT_GUIDANCE_IMPLEMENTATION.md) - Real-time guidance
 
 **Canvas**:
-- [CANVAS_IMPLEMENTATION_COMPLETE.md](CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system
+- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system
 - [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas in episodes
 
 **Integrations**:
-- [BYOK_LLM_INTEGRATION_COMPLETE.md](../backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md) - LLM providers
+- [BYOK_LLM_INTEGRATION_COMPLETE.md][<!-- ../backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md -->] - LLM providers
 - [ENHANCED_WORKFLOW_GUIDE.md](WORKFLOW_AUTOMATION/ENHANCED_WORKFLOW_GUIDE.md) - Workflows
 
 **Background Jobs**:
@@ -382,12 +382,12 @@
 - [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) - **Community Skills Integration guide** (Feb 16)
 - [PERSONAL_EDITION.md](PERSONAL_EDITION.md) - **Personal Edition guide** (Feb 16)
 - [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
-- [API_DOCUMENTATION.md](../backend/docs/API_DOCUMENTATION.md) - **Comprehensive API docs** (Feb 16)
-- [DEPLOYMENT_RUNBOOK.md](../backend/docs/DEPLOYMENT_RUNBOOK.md) - **Deployment runbook** (Feb 16)
-- [OPERATIONS_GUIDE.md](../backend/docs/OPERATIONS_GUIDE.md) - **Operations guide** (Feb 16)
-- [TROUBLESHOOTING.md](../backend/docs/TROUBLESHOOTING.md) - **Troubleshooting** (Feb 16)
-- [MONITORING_SETUP.md](../backend/docs/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
-- [CODE_QUALITY_STANDARDS.md](../backend/docs/CODE_QUALITY_STANDARDS.md) - **Code quality** (Feb 16)
+- [API_DOCUMENTATION.md](API.md) - **Comprehensive API docs** (Feb 16)
+- [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) - **Deployment runbook** (Feb 16)
+- [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) - **Operations guide** (Feb 16)
+- [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) - **Troubleshooting** (Feb 16)
+- [MONITORING_SETUP.md](MONITORING_GUIDE.md) - **Monitoring setup** (Feb 16)
+- [CODE_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md) - **Code quality** (Feb 16)
 - [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 
 ### Canvas & AI Features (Phase 20-23)
@@ -400,8 +400,8 @@
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
 - [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - Background task queue (Feb 6)
 - [WEBHOOK_VERIFICATION.md](SECURITY/WEBHOOK_VERIFICATION.md) - Webhook security (Feb 6)
-- [AUTHENTICATION.md](SECURITY/AUTHENTICATION.md) - Updated with validation (Feb 6)
-- [DATA_PROTECTION.md](SECURITY/DATA_PROTECTION.md) - Updated with encryption (Feb 6)
+- [AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - Updated with validation (Feb 6)
+- [DATA_PROTECTION.md][<!-- SECURITY/DATA_PROTECTION.md -->] - Updated with encryption (Feb 6)
 - [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas integration (Feb 4)
 - [DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md) - Migration guide (Feb 4)
 - [EPISODIC_MEMORY_QUICK_START.md](EPISODIC_MEMORY_QUICK_START.md) - Quick start (Feb 4)
@@ -411,7 +411,7 @@
 **January 2026**:
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system (Feb 2)
 - [AGENT_GUIDANCE_IMPLEMENTATION.md](AGENT_GUIDANCE_IMPLEMENTATION.md) - Agent guidance (Feb 2)
-- [CANVAS_IMPLEMENTATION_COMPLETE.md](CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
+- [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
 - [DEEPLINK_IMPLEMENTATION.md](DEEPLINK_IMPLEMENTATION.md) - Deep linking (Feb 1)
 - [BROWSER_AUTOMATION.md](BROWSER_AUTOMATION.md) - Browser automation (Jan 31)
 
@@ -421,17 +421,17 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [INCOMPLETE_IMPLEMENTATIONS.md](../backend/docs/INCOMPLETE_IMPLEMENTATIONS.md) | **Recent fixes status (Feb 5, 2026)** | Feb 5, 2026 |
-| [PRODUCTION_DEPLOYMENT_SUMMARY.md](../backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md) | Production deployment | Feb 5, 2026 |
+| [INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../backend/docs/INCOMPLETE_IMPLEMENTATIONS.md -->] | **Recent fixes status (Feb 5, 2026)** | Feb 5, 2026 |
+| [PRODUCTION_DEPLOYMENT_SUMMARY.md][<!-- ../backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md -->] | Production deployment | Feb 5, 2026 |
 | [API_STANDARDS.md](../backend/docs/API_STANDARDS.md) | API standards | Feb 4, 2026 |
-| [BYOK_LLM_INTEGRATION_COMPLETE.md](../backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md) | LLM integration | Feb 5, 2026 |
-| [FINAL_IMPLEMENTATION_SUMMARY.md](../backend/docs/FINAL_IMPLEMENTATION_SUMMARY.md) | Final implementation summary | Feb 5, 2026 |
-| [API_DOCUMENTATION.md](../backend/docs/API_DOCUMENTATION.md) | **Comprehensive API docs** | Feb 16, 2026 |
-| [DEPLOYMENT_RUNBOOK.md](../backend/docs/DEPLOYMENT_RUNBOOK.md) | **Deployment runbook** | Feb 16, 2026 |
-| [OPERATIONS_GUIDE.md](../backend/docs/OPERATIONS_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
-| [TROUBLESHOOTING.md](../backend/docs/TROUBLESHOOTING.md) | **Troubleshooting guide** | Feb 16, 2026 |
-| [MONITORING_SETUP.md](../backend/docs/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](../backend/docs/CODE_QUALITY_STANDARDS.md) | **Code quality standards** | Feb 16, 2026 |
+| [BYOK_LLM_INTEGRATION_COMPLETE.md][<!-- ../backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md -->] | LLM integration | Feb 5, 2026 |
+| [FINAL_IMPLEMENTATION_SUMMARY.md][<!-- ../backend/docs/FINAL_IMPLEMENTATION_SUMMARY.md -->] | Final implementation summary | Feb 5, 2026 |
+| [API_DOCUMENTATION.md](API.md) | **Comprehensive API docs** | Feb 16, 2026 |
+| [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment runbook** | Feb 16, 2026 |
+| [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
+| [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Troubleshooting guide** | Feb 16, 2026 |
+| [MONITORING_SETUP.md](MONITORING_GUIDE.md) | **Monitoring setup** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md) | **Code quality standards** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
 
 ---
@@ -449,7 +449,7 @@
 
 **Need Help?**
 - Check [DEVELOPMENT.md](DEVELOPMENT.md) for setup instructions
-- Review [SECURITY/AUTHENTICATION.md](SECURITY/AUTHENTICATION.md) for authentication issues
+- Review [SECURITY/AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] for authentication issues
 - See [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) for recent changes
 
 **Found an Issue?**

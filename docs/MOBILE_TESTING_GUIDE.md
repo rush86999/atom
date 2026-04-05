@@ -1001,7 +1001,7 @@ test('Android test', () => {
 
 - **Frontend Testing:** [FRONTEND_TESTING_GUIDE.md](FRONTEND_TESTING_GUIDE.md) - Shared React patterns (Jest, RTL)
 - **Desktop Testing:** [DESKTOP_TESTING_GUIDE.md](DESKTOP_TESTING_GUIDE.md) - Tauri/Rust patterns
-- **Backend Testing:** [backend/tests/docs/COVERAGE_GUIDE.md](../backend/tests/docs/COVERAGE_GUIDE.md) - pytest patterns
+- **Backend Testing:** [backend/tests/docs/COVERAGE_GUIDE.md](TESTING_INDEX.md) - pytest patterns
 
 ### Cross-Platform Patterns
 
@@ -1026,8 +1026,8 @@ test('Android test', () => {
 ### Internal Documentation
 
 - **Testing Onboarding:** [TESTING_ONBOARDING.md](TESTING_ONBOARDING.md) - 15-min quick start for all platforms
-- **Flaky Test Quarantine:** [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](../backend/tests/docs/FLAKY_TEST_QUARANTINE.md) - Multi-run flaky detection
-- **Test Isolation:** [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](../backend/tests/docs/TEST_ISOLATION_PATTERNS.md) - Independent test patterns
+- **Flaky Test Quarantine:** [backend/tests/docs/FLAKY_TEST_QUARANTINE.md](TESTING_INDEX.md) - Multi-run flaky detection
+- **Test Isolation:** [backend/tests/docs/TEST_ISOLATION_PATTERNS.md](TESTING_INDEX.md) - Independent test patterns
 
 ### External Resources
 

@@ -29,6 +29,9 @@
 - `student_training_service.py` - Training proposals and sessions
 - `supervision_service.py` - Real-time supervision monitoring
 - `governance_cache.py` - High-performance caching (<1ms lookups)
+- `intent_classifier.py` - Intent classification (CHAT/WORKFLOW/TASK routing)
+- `fleet_admiral.py` - Dynamic agent recruitment for unstructured complex tasks
+- `atom_meta_agent.py` - Central orchestrator with domain creation and fleet recruitment
 - `health_routes.py` - Health check endpoints
 - `monitoring.py` - Prometheus metrics and structured logging
 - `cli/daemon.py` - Daemon mode for background agent execution
@@ -107,7 +110,18 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Summary cache by canvas state hash
 - **Benefits**: Better episode retrieval, agent learning, semantic search
 
-### 8. BYOK Cognitive Tier System ✨ (Phase 68)
+### 8. Unstructured Complex Tasks & Domain Creation ✨ (Phase 256-07)
+**Files**: `core/atom_meta_agent.py`, `core/intent_classifier.py`, `core/fleet_admiral.py`, `core/business_agents.py`
+- **Intent Classification**: CHAT (simple queries) → LLMService, WORKFLOW (structured tasks) → QueenAgent, TASK (unstructured complex) → FleetAdmiral
+- **FleetAdmiral**: Dynamic agent recruitment for long-horizon unstructured tasks requiring multiple specialist agents
+- **Domain Creation**: SpecialtyAgentTemplate system with 8+ domain templates (finance_analyst, sales_assistant, ops_coordinator, hr_assistant, procurement_specialist, knowledge_analyst, marketing_analyst, king_agent)
+- **Agent Spawning**: `spawn_agent()` method for creating custom specialty agents with capability graduation tracking
+- **Multi-Agent Fleet**: Blackboard-based coordination via AgentFleetService with recruitment intelligence and optimization
+- **Governance-Gated Routing**: CHAT bypasses governance, WORKFLOW/TASK require maturity checks
+- **Performance**: <100ms intent classification, <500ms fleet recruitment
+- **Docs**: `docs/UNSTRUCTURED_COMPLEX_TASKS.md`, `docs/FLEET_ADMIRAL.md`
+
+### 9. BYOK Cognitive Tier System ✨ (Phase 68)
 **Files**: `core/llm/cognitive_tier_system.py`, `core/llm/cache_aware_router.py`, `core/llm/escalation_manager.py`
 - 5-tier intelligent LLM routing (Micro, Standard, Versatile, Heavy, Complex)
 - Multi-factor classification: token count + semantic complexity + task type
@@ -713,6 +727,11 @@ python -c "from core.graphrag_engine import graphrag_engine; print(graphrag_engi
 curl -X POST "/api/v1/graph/search/local" -d '{"query": "Project Alpha", "depth": 2}'
 curl -X POST "/api/v1/entity-types" -d '{"slug": "invoice", "display_name": "Invoice", "json_schema": {...}}'
 curl -X GET "/api/v1/entity-types?is_active=true"
+
+# Intent Classification & Fleet Admiral
+python -c "from core.intent_classifier import IntentClassifier; print(IntentClassifier().classify_intent('Research competitors and build Slack integration'))"
+python -c "from core.atom_meta_agent import AtomMetaAgent; print(AtomMetaAgent().spawn_agent('finance_analyst'))"
+curl -X POST "/api/v1/agent/route" -d '{"request": "Analyze sales data and create marketing strategy"}'
 
 # Playwright
 playwright install chromium

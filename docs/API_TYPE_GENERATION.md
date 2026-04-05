@@ -253,6 +253,6 @@ cat backend/openapi.json | jq '.paths | keys'
 
 ## Related Documentation
 
-- [API Contract Testing](./API_CONTRACT_TESTING.md) - Phase 128
+- [API Contract Testing][<!-- ./API_CONTRACT_TESTING.md -->] - Phase 128
 - [OpenAPI Spec Generation](../backend/tests/scripts/generate_openapi_spec.py)
 - [openapi-typescript Docs](https://www.npmjs.com/package/openapi-typescript)
