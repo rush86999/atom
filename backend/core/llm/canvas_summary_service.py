@@ -17,12 +17,13 @@ import asyncio
 import hashlib
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
-# Import at runtime to avoid circular dependencies
-LLMService = None
+# Type hint for LLMService (imported only for type checking to avoid circular imports)
+if TYPE_CHECKING:
+    from core.llm_service import LLMService
 
 
 class CanvasSummaryService:
@@ -70,7 +71,7 @@ class CanvasSummaryService:
         ),
     }
 
-    def __init__(self, llm_service: Any):
+    def __init__(self, llm_service: "LLMService"):
         """
         Initialize canvas summary service.
 

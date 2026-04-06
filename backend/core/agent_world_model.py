@@ -1879,3 +1879,328 @@ class WorldModelService:
         except Exception as e:
             logger.error(f"Failed to get successful skills for agent: {e}")
             return set()
+
+    # ========================================================================
+    # Canvas-Aware Experience Retrieval
+    # ========================================================================
+
+    async def recall_experiences_with_canvas(
+        self,
+        agent_id: str,
+        task: str,
+        preferred_canvas_type: Optional[str] = None,
+        limit: int = 10
+    ) -> List[AgentExperience]:
+        """
+        Recall experiences filtered by successful canvas presentations.
+
+        Enables agents to learn which canvas types work best for specific tasks.
+        For example: "User engages longer with line charts than spreadsheets for trends"
+
+        Args:
+            agent_id: ID of the agent
+            task: Task description for semantic matching
+            preferred_canvas_type: Optional canvas type filter (generic, docs, email, sheets, etc.)
+            limit: Maximum number of experiences to return
+
+        Returns:
+            List of AgentExperience objects with canvas context
+        """
+        try:
+            # Search with task description
+            results = self.db.search(
+                table_name=self.table_name,
+                query=task,
+                limit=limit * 2  # Fetch extra for filtering
+            )
+
+            experiences = []
+            for res in results:
+                meta = res.get("metadata", {})
+
+                # Filter by agent_id
+                if meta.get("agent_id") != agent_id:
+                    continue
+
+                # Filter by preferred canvas type if specified
+                if preferred_canvas_type:
+                    canvas_types_used = meta.get("canvas_types", [])
+                    if preferred_canvas_type not in canvas_types_used:
+                        continue
+
+                # Only include successful outcomes
+                if meta.get("outcome", "").lower() != "success":
+                    continue
+
+                experiences.append(AgentExperience(
+                    id=res.get("id", ""),
+                    agent_id=meta.get("agent_id", ""),
+                    task_type=meta.get("task_type", ""),
+                    input_summary=meta.get("input_summary", ""),
+                    outcome=meta.get("outcome", ""),
+                    learnings=meta.get("learnings", ""),
+                    confidence_score=meta.get("confidence_score", 0.5),
+                    feedback_score=meta.get("feedback_score"),
+                    artifacts=meta.get("artifacts", []),
+                    step_efficiency=meta.get("step_efficiency", 1.0),
+                    metadata_trace=meta.get("trace", {}),
+                    agent_role=meta.get("agent_role", ""),
+                    specialty=meta.get("specialty"),
+                    timestamp=datetime.fromisoformat(meta.get("timestamp", datetime.now(timezone.utc).isoformat()))
+                ))
+
+                if len(experiences) >= limit:
+                    break
+
+            logger.info(
+                f"Recalled {len(experiences)} canvas-aware experiences for agent {agent_id} "
+                f"(preferred: {preferred_canvas_type or 'any'})"
+            )
+            return experiences
+
+        except Exception as e:
+            logger.error(f"Failed to recall canvas-aware experiences: {e}")
+            return []
+
+    async def get_canvas_type_preferences(
+        self,
+        agent_id: str,
+        task_type: Optional[str] = None
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Analyze agent's canvas type preferences based on past experiences.
+
+        Returns statistics on which canvas types have been most successful
+        for specific task types.
+
+        Args:
+            agent_id: ID of the agent
+            task_type: Optional task type filter
+
+        Returns:
+            Dictionary mapping canvas_type to preference stats:
+            {
+                "sheets": {
+                    "count": 10,
+                    "success_rate": 0.8,
+                    "avg_engagement": 45.0,
+                    "avg_feedback_score": 0.6
+                },
+                ...
+            }
+        """
+        try:
+            # Search for all agent experiences
+            query = f"agent_{agent_id}"
+            if task_type:
+                query += f" {task_type}"
+
+            results = self.db.search(
+                table_name=self.table_name,
+                query=query,
+                limit=500
+            )
+
+            # Group by canvas type
+            canvas_stats: Dict[str, Dict[str, Any]] = {}
+
+            for res in results:
+                meta = res.get("metadata", {})
+
+                # Skip if not this agent
+                if meta.get("agent_id") != agent_id:
+                    continue
+
+                # Extract canvas types from experience
+                canvas_types = meta.get("canvas_types", [])
+                outcome = meta.get("outcome", "").lower()
+                feedback_score = meta.get("feedback_score", 0.0)
+                engagement_time = meta.get("engagement_time_seconds", 0.0)
+
+                for canvas_type in canvas_types:
+                    if canvas_type not in canvas_stats:
+                        canvas_stats[canvas_type] = {
+                            "count": 0,
+                            "successes": 0,
+                            "total_engagement": 0.0,
+                            "total_feedback": 0.0
+                        }
+
+                    stats = canvas_stats[canvas_type]
+                    stats["count"] += 1
+
+                    if outcome == "success":
+                        stats["successes"] += 1
+
+                    stats["total_engagement"] += engagement_time
+                    stats["total_feedback"] += feedback_score
+
+            # Calculate averages and success rates
+            preferences = {}
+            for canvas_type, stats in canvas_stats.items():
+                preferences[canvas_type] = {
+                    "count": stats["count"],
+                    "success_rate": stats["successes"] / stats["count"] if stats["count"] > 0 else 0.0,
+                    "avg_engagement": stats["total_engagement"] / stats["count"] if stats["count"] > 0 else 0.0,
+                    "avg_feedback_score": stats["total_feedback"] / stats["count"] if stats["count"] > 0 else 0.0
+                }
+
+            logger.info(f"Canvas preferences for agent {agent_id}: {list(preferences.keys())}")
+            return preferences
+
+        except Exception as e:
+            logger.error(f"Failed to get canvas preferences: {e}")
+            return {}
+
+    async def recommend_canvas_type(
+        self,
+        agent_id: str,
+        task_type: str,
+        task_description: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Recommend the best canvas type for a given task based on agent's past experiences.
+
+        Analyzes success rates, user engagement, and feedback to recommend
+        the most effective canvas type.
+
+        Args:
+            agent_id: ID of the agent
+            task_type: Type of task (e.g., "data_analysis", "reporting")
+            task_description: Optional detailed task description
+
+        Returns:
+            Recommended canvas type with confidence score:
+            {
+                "canvas_type": "sheets",
+                "confidence": 0.85,
+                "reason": "High success rate (80%) and positive feedback for this task type",
+                "alternatives": ["charts", "markdown"]
+            }
+        """
+        try:
+            # Get canvas preferences for this task type
+            preferences = await self.get_canvas_type_preferences(agent_id, task_type)
+
+            if not preferences:
+                # No preferences found, return generic recommendation
+                return {
+                    "canvas_type": "generic",
+                    "confidence": 0.5,
+                    "reason": "No prior experience with this task type",
+                    "alternatives": ["sheets", "charts"]
+                }
+
+            # Score each canvas type (success rate weighted 60%, feedback 40%)
+            scored_canvases = []
+            for canvas_type, stats in preferences.items():
+                # Require minimum sample size
+                if stats["count"] < 3:
+                    continue
+
+                score = (
+                    stats["success_rate"] * 0.6 +
+                    (stats["avg_feedback_score"] + 1.0) / 2.0 * 0.4  # Normalize -1..1 to 0..1
+                )
+
+                scored_canvases.append({
+                    "canvas_type": canvas_type,
+                    "score": score,
+                    "stats": stats
+                })
+
+            # Sort by score
+            scored_canvases.sort(key=lambda x: x["score"], reverse=True)
+
+            if not scored_canvases:
+                return {
+                    "canvas_type": "generic",
+                    "confidence": 0.5,
+                    "reason": "Insufficient data for recommendation",
+                    "alternatives": list(preferences.keys())[:3]
+                }
+
+            # Get top recommendation
+            top = scored_canvases[0]
+            top_stats = top["stats"]
+
+            reason_parts = []
+            if top_stats["success_rate"] > 0.7:
+                reason_parts.append(f"High success rate ({top_stats['success_rate']:.0%})")
+            if top_stats["avg_feedback_score"] > 0.3:
+                reason_parts.append(f"Positive user feedback")
+            if top_stats["avg_engagement"] > 30:
+                reason_parts.append(f"Strong user engagement ({top_stats['avg_engagement']:.0f}s avg)")
+
+            alternatives = [c["canvas_type"] for c in scored_canvases[1:4]]
+
+            return {
+                "canvas_type": top["canvas_type"],
+                "confidence": min(0.95, top["score"] + 0.1),  # Boost confidence slightly
+                "reason": ", ".join(reason_parts) if reason_parts else "Past performance",
+                "alternatives": alternatives
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to recommend canvas type: {e}")
+            return None
+
+    async def record_canvas_outcome(
+        self,
+        experience: AgentExperience,
+        canvas_types_used: List[str],
+        engagement_time_seconds: float = 0.0,
+        user_feedback: Optional[float] = None
+    ) -> bool:
+        """
+        Record an experience with canvas context for learning.
+
+        Enhances experience recording with canvas type information
+        for better future recommendations.
+
+        Args:
+            experience: The AgentExperience to record
+            canvas_types_used: List of canvas types presented (e.g., ["sheets", "charts"])
+            engagement_time_seconds: How long user engaged with the canvas
+            user_feedback: Optional user feedback score (-1.0 to 1.0)
+
+        Returns:
+            True if recorded successfully
+        """
+        try:
+            # Enhance metadata with canvas context
+            enhanced_metadata = experience.metadata or {}
+            enhanced_metadata.update({
+                "canvas_types": canvas_types_used,
+                "engagement_time_seconds": engagement_time_seconds,
+                "canvas_count": len(canvas_types_used)
+            })
+
+            # If user feedback provided, update feedback_score
+            if user_feedback is not None:
+                enhanced_metadata["user_feedback"] = user_feedback
+
+            # Create enhanced experience
+            enhanced_experience = AgentExperience(
+                id=experience.id,
+                agent_id=experience.agent_id,
+                task_type=experience.task_type,
+                input_summary=experience.input_summary,
+                outcome=experience.outcome,
+                learnings=experience.learnings,
+                confidence_score=experience.confidence_score,
+                feedback_score=user_feedback if user_feedback is not None else experience.feedback_score,
+                artifacts=experience.artifacts,
+                step_efficiency=experience.step_efficiency,
+                metadata_trace=enhanced_metadata,
+                agent_role=experience.agent_role,
+                specialty=experience.specialty,
+                timestamp=experience.timestamp
+            )
+
+            # Record using existing method
+            return await self.record_experience(enhanced_experience)
+
+        except Exception as e:
+            logger.error(f"Failed to record canvas outcome: {e}")
+            return False
