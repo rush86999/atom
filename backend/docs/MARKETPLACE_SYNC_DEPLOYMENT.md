@@ -48,10 +48,9 @@ The sync system uses a hybrid approach for maximum reliability:
 # ==============================================================================
 
 # Atom SaaS API Base URL
-# Default: https://api.atomsaas.com
-# Production: https://api.atomsaas.com
-# Staging: https://staging-api.atomsaas.com
-ATOM_SAAS_API_URL=https://api.atomsaas.com
+# Default: https://atomagentos.com
+# Production: https://atomagentos.com
+ATOM_SAAS_API_URL=https://atomagentos.com
 
 # Atom SaaS API Token
 # Get from: https://atomsaas.com/dashboard/settings/api-tokens
@@ -93,10 +92,9 @@ ATOM_SAAS_CONFLICT_STRATEGY=remote_wins
 # ==============================================================================
 
 # WebSocket URL for real-time updates
-# Default: wss://api.atomsaas.com/ws
-# Production: wss://api.atomsaas.com/ws
-# Staging: wss://staging-api.atomsaas.com/ws
-ATOM_SAAS_WS_URL=wss://api.atomsaas.com/ws
+# Default: wss://atomagentos.com/ws
+# Production: wss://atomagentos.com/ws
+ATOM_SAAS_WS_URL=wss://atomagentos.com/ws
 
 # WebSocket reconnection attempts
 # Default: 10
@@ -125,24 +123,13 @@ ENABLE_SCHEDULER=true
 
 ```bash
 # Production Example
-ATOM_SAAS_API_URL=https://api.atomsaas.com
+ATOM_SAAS_API_URL=https://atomagentos.com
 ATOM_SAAS_API_TOKEN=at_saas_prod_xxxxx1234567890
 ATOM_SAAS_SYNC_INTERVAL_MINUTES=15
 ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=30
 ATOM_SAAS_CONFLICT_STRATEGY=remote_wins
-ATOM_SAAS_WS_URL=wss://api.atomsaas.com/ws
+ATOM_SAAS_WS_URL=wss://atomagentos.com/ws
 ATOM_SAAS_WS_RECONNECT_ATTEMPTS=10
-ATOM_SAAS_WS_HEARTBEAT_INTERVAL=30
-ENABLE_SCHEDULER=true
-
-# Staging Example
-ATOM_SAAS_API_URL=https://staging-api.atomsaas.com
-ATOM_SAAS_API_TOKEN=at_saas_stg_xxxxx1234567890
-ATOM_SAAS_SYNC_INTERVAL_MINUTES=10
-ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=20
-ATOM_SAAS_CONFLICT_STRATEGY=remote_wins
-ATOM_SAAS_WS_URL=wss://staging-api.atomsaas.com/ws
-ATOM_SAAS_WS_RECONNECT_ATTEMPTS=5
 ATOM_SAAS_WS_HEARTBEAT_INTERVAL=30
 ENABLE_SCHEDULER=true
 ```
@@ -230,7 +217,7 @@ echo $ATOM_SAAS_API_TOKEN
 env | grep ATOM_SAAS
 
 # Expected output:
-# ATOM_SAAS_API_URL=https://api.atomsaas.com
+# ATOM_SAAS_API_URL=https://atomagentos.com
 # ATOM_SAAS_API_TOKEN=at_saas_xxxxx
 # ATOM_SAAS_SYNC_INTERVAL_MINUTES=15
 # ATOM_SAAS_RATING_SYNC_INTERVAL_MINUTES=30
@@ -961,10 +948,9 @@ curl -X DELETE http://localhost:8000/api/admin/sync/jobs
 
 ### Support Contacts
 
-- **Atom SaaS Support**: support@atomsaas.com
-- **Technical Issues**: tech-support@atomsaas.com
-- **API Status**: https://status.atomsaas.com
-- **Documentation**: https://docs.atomsaas.com
+- **Atom SaaS**: https://atomagentos.com
+- **GitHub Issues**: https://github.com/rush86999/atom/issues
+- **Documentation**: https://docs.atomagentos.com
 
 ### Community Resources
 

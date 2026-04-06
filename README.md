@@ -88,6 +88,9 @@ atom init
 # OPENAI_API_KEY=sk-...
 # MINIMAX_API_KEY=...  (optional, for MiniMax M2.7 support)
 
+# (Optional) Connect to marketplace for 5,000+ community skills
+# MARKETPLACE_API_TOKEN=at_saas_xxxxx  # Get from https://atom-saas.fly.dev
+
 # Start Atom
 atom start
 
@@ -96,6 +99,8 @@ open http://localhost:8000
 ```
 
 That's it! 🚀
+
+**[Optional: Connect to Marketplace →](#marketplace-connection)**
 
 **Choose your edition:**
 - **Personal Edition** - Free, single-user, SQLite (default)
@@ -146,6 +151,7 @@ That's it! 🚀
 ### 🔌 Deep Integrations
 - **46+ business integrations**: Slack, Gmail, HubSpot, Salesforce, Zendesk
 - **9 messaging platforms**: Real-time communication
+- **Marketplace Connection**: Access 5,000+ community skills and agent templates ✨ NEW
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
 
 ### 🔍 Knowledge Graph & GraphRAG ✨ NEW
@@ -203,6 +209,52 @@ cp .env.personal .env
 # Start backend: cd backend && python -m uvicorn main_api_app:app --reload
 # Start frontend: cd frontend-nextjs && npm run dev
 ```
+
+---
+
+## Marketplace Connection ✨ NEW
+
+Connect your Atom instance to the public marketplace to access thousands of community-published agents and skills.
+
+### Get Started
+
+1. **Get Your API Token**
+   ```bash
+   # Visit https://atomagentos.com
+   # Navigate to Settings → API Tokens
+   # Generate and copy your token
+   ```
+
+2. **Configure Environment**
+   ```bash
+   # Add to .env
+   MARKETPLACE_API_URL=https://atom-saas.fly.dev
+   MARKETPLACE_API_TOKEN=at_saas_your_token_here
+   MARKETPLACE_SYNC_ENABLED=true
+   ```
+
+3. **Restart Atom**
+   ```bash
+   atom restart
+   ```
+
+4. **Verify Connection**
+   ```bash
+   curl http://localhost:8000/api/admin/sync/status
+   ```
+
+### Features
+
+- **5,000+ Skills**: Pre-built automation components
+- **Agent Templates**: Complete agents with pre-learned capabilities
+- **Real-Time Sync**: Automatic updates from the marketplace
+- **Bidirectional Ratings**: Share your feedback with the community
+
+### Documentation
+
+- **[Marketplace Connection Guide](docs/MARKETPLACE_CONNECTION_GUIDE.md)** - Complete setup and troubleshooting
+- **[Agent Marketplace Guide](docs/AGENT_MARKETPLACE.md)** - Publishing and sharing agents
+- **[Sync Deployment Guide](backend/docs/ATOM_SAAS_SYNC_DEPLOYMENT.md)** - Production deployment
 
 ---
 
