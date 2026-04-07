@@ -364,8 +364,8 @@ class WhatsAppServiceManager:
                     "/api/whatsapp/analytics",
                 ],
                 "configuration": {
-                    "requires_oauth": False,
-                    "requires_api_key": True,
+                    "requires_oauth": True,
+                    "requires_api_key": False,
                     "webhook_support": True,
                 },
                 "timestamp": datetime.now().isoformat(),

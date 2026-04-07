@@ -171,6 +171,11 @@ const WhatsAppBusinessIntegration: React.FC = () => {
     }
   };
 
+  const handleConnect = () => {
+    // Standard platform OAuth initiation endpoint
+    window.location.href = '/api/v1/auth/oauth/whatsapp/initiate';
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
 
@@ -234,6 +239,12 @@ const WhatsAppBusinessIntegration: React.FC = () => {
           >
             {isConnected ? 'Connected' : 'Disconnected'}
           </Badge>
+          {!isConnected && (
+            <Button onClick={handleConnect} className="bg-[#25D366] hover:bg-[#128C7E] text-white">
+              <MessageCircle className="mr-2 h-4 w-4" />
+              Connect with Meta
+            </Button>
+          )}
           <Button variant="outline" size="sm">
             <Settings className="mr-2 h-4 w-4" />
             Configure

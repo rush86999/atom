@@ -110,7 +110,7 @@ export const COMMUNICATION_PIECES: Integration[] = [
     { id: 'sendgrid', name: 'SendGrid', description: 'Email delivery', category: 'communication', color: '#1A82E2', authType: 'api_key', triggers: ['email_opened', 'email_clicked'], actions: ['send_email', 'add_contact'] },
     { id: 'mailgun', name: 'Mailgun', description: 'Email API', category: 'communication', color: '#F06B66', authType: 'api_key', triggers: ['email_delivered'], actions: ['send_email'] },
     { id: 'telegram', name: 'Telegram Bot', description: 'Telegram messaging', category: 'communication', color: '#0088CC', authType: 'api_key', triggers: ['message', 'command'], actions: ['send_message', 'send_photo'] },
-    { id: 'whatsapp', name: 'WhatsApp Business', description: 'WhatsApp messaging', category: 'communication', color: '#25D366', authType: 'api_key', triggers: ['message_received'], actions: ['send_message', 'send_template'] },
+    { id: 'whatsapp', name: 'WhatsApp Business', description: 'WhatsApp messaging', category: 'communication', color: '#25D366', authType: 'oauth2', triggers: ['message_received'], actions: ['send_message', 'send_template'] },
     { id: 'intercom', name: 'Intercom', description: 'Customer messaging', category: 'communication', color: '#1F8DED', authType: 'oauth2', triggers: ['new_conversation', 'user_created'], actions: ['send_message', 'create_user', 'add_tag'] },
     { id: 'crisp', name: 'Crisp', description: 'Live chat', category: 'communication', color: '#4285F4', authType: 'api_key', triggers: ['message_received'], actions: ['send_message'] },
     { id: 'tawk', name: 'Tawk.to', description: 'Free live chat', category: 'communication', color: '#03C04A', authType: 'api_key', triggers: ['chat_started'], actions: ['send_message'] },

@@ -24,6 +24,8 @@ from flask import Blueprint, current_app, jsonify, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
+from core.integration_service import IntegrationService, AuthenticationError, ValidationError
+from core.connection_service import connection_service
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -32,14 +34,15 @@ logger = logging.getLogger(__name__)
 whatsapp_bp = Blueprint("whatsapp", __name__, url_prefix="/api/whatsapp")
 
 
-class WhatsAppBusinessIntegration:
+class WhatsAppBusinessIntegration(IntegrationService):
     """WhatsApp Business API integration class"""
 
-    def __init__(self):
+    def __init__(self, tenant_id: str = "default", config: Dict[str, Any] = None):
+        super().__init__(tenant_id=tenant_id, config=config or {})
         self.base_url = "https://graph.facebook.com/v18.0"
-        self.access_token = None
-        self.phone_number_id = None
-        self.webhook_verify_token = None
+        self.access_token = self.config.get("access_token")
+        self.phone_number_id = self.config.get("phone_number_id")
+        self.webhook_verify_token = self.config.get("webhook_verify_token")
         self.db_connection = None
 
     def initialize(self, config: Dict[str, Any]):
@@ -90,6 +93,46 @@ class WhatsAppBusinessIntegration:
         except Exception as e:
             logger.error(f"Failed to initialize WhatsApp integration: {str(e)}")
             return False
+
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {
+            "operations": [
+                {"id": "send_message", "name": "Send Message", "complexity": 3},
+                {"id": "get_conversations", "name": "List Conversations", "complexity": 1},
+                {"id": "get_messages", "name": "Get Messages", "complexity": 1},
+                {"id": "create_template", "name": "Create Template", "complexity": 3},
+                {"id": "get_analytics", "name": "Get Analytics", "complexity": 2},
+            ],
+            "required_params": [],
+            "optional_params": ["user_id"],
+            "rate_limits": {"requests_per_minute": 600},
+            "supports_webhooks": True,
+        }
+
+    def health_check(self) -> Dict[str, Any]:
+        return {
+            "healthy": self.access_token is not None or self.phone_number_id is not None,
+            "message": "WhatsApp service ready" if self.access_token else "WhatsApp service not fully configured",
+            "last_check": datetime.now().isoformat()
+        }
+
+    async def execute_operation(
+        self,
+        operation: str,
+        parameters: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        user_id = context.get("user_id") if context else parameters.get("user_id")
+        
+        if operation == "send_message":
+            return await self.send_message(
+                to=parameters.get("to"),
+                message_type=parameters.get("type"),
+                content=parameters.get("content"),
+                user_id=user_id
+            )
+        # Add other operations as needed...
+        raise NotImplementedError(f"Operation {operation} not supported by WhatsApp integration")
 
     def _create_tables(self):
         """Create database tables for WhatsApp integration"""
@@ -166,8 +209,33 @@ class WhatsAppBusinessIntegration:
             self.db_connection.rollback()
             raise
 
-    def send_message(
-        self, to: str, message_type: str, content: Dict[str, Any]
+    async def _get_credentials(self, user_id: Optional[str] = None) -> Dict[str, Any]:
+        """Fetch credentials from ConnectionService if they aren't provided in config"""
+        if self.access_token and self.phone_number_id:
+            return {
+                "access_token": self.access_token,
+                "phone_number_id": self.phone_number_id
+            }
+            
+        if not user_id:
+            raise AuthenticationError("No user_id provided to fetch WhatsApp credentials")
+            
+        # Try to find a connection for this user
+        connections = connection_service.get_connections(user_id, "whatsapp")
+        if not connections:
+            raise AuthenticationError(f"No WhatsApp connection found for user {user_id}")
+            
+        # Get the first active connection
+        connection_id = connections[0]["id"]
+        creds = await connection_service.get_connection_credentials(connection_id, user_id)
+        
+        if not creds or "access_token" not in creds:
+             raise AuthenticationError(f"Failed to retrieve access token for WhatsApp connection {connection_id}")
+             
+        return creds
+
+    async def send_message(
+        self, to: str, message_type: str, content: Dict[str, Any], user_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Send a WhatsApp message
@@ -176,15 +244,25 @@ class WhatsAppBusinessIntegration:
             to: Recipient phone number (with country code)
             message_type: Type of message ('text', 'template', 'media', 'interactive')
             content: Message content based on type
+            user_id: Optional user_id to fetch credentials dynamically
 
         Returns:
             API response with message details
         """
         try:
-            url = f"{self.base_url}/{self.phone_number_id}/messages"
+            creds = await self._get_credentials(user_id)
+            access_token = creds.get("access_token")
+            # WhatsApp OAuth tokens from Embedded Signup usually include the phone_number_id in the credential JSON
+            # or we might have stored it during the callback.
+            phone_number_id = creds.get("phone_number_id") or self.phone_number_id
+            
+            if not phone_number_id:
+                raise ValidationError("WhatsApp Phone Number ID is missing")
+
+            url = f"{self.base_url}/{phone_number_id}/messages"
 
             headers = {
-                "Authorization": f"Bearer {self.access_token}",
+                "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json",
             }
 
@@ -519,10 +597,11 @@ def health_check():
 
 
 @whatsapp_bp.route("/send", methods=["POST"])
-def send_message():
+async def send_message_route():
     """Send a WhatsApp message"""
     try:
         data = request.get_json()
+        user_id = request.headers.get("X-User-ID") or data.get("user_id")
 
         # Validate required fields
         if not all(k in data for k in ["to", "type", "content"]):
@@ -533,8 +612,11 @@ def send_message():
                 }
             ), 400
 
-        result = whatsapp_integration.send_message(
-            to=data["to"], message_type=data["type"], content=data["content"]
+        result = await whatsapp_integration.send_message(
+            to=data["to"], 
+            message_type=data["type"], 
+            content=data["content"],
+            user_id=user_id
         )
 
         return jsonify(result)

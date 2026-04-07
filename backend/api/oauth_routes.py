@@ -30,6 +30,7 @@ from core.oauth_handler import (
     SALESFORCE_OAUTH_CONFIG,
     SLACK_OAUTH_CONFIG,
     TRELLO_OAUTH_CONFIG,
+    WHATSAPP_OAUTH_CONFIG,
     OAuthHandler,
 )
 
@@ -128,6 +129,7 @@ async def oauth_initiate(provider: str):
         "notion": NOTION_OAUTH_CONFIG,
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
+        "whatsapp": WHATSAPP_OAUTH_CONFIG,
     }
     
     if provider not in configs:
@@ -157,6 +159,7 @@ async def oauth_callback(
         "notion": NOTION_OAUTH_CONFIG,
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
+        "whatsapp": WHATSAPP_OAUTH_CONFIG,
     }
     
     if provider not in configs:
@@ -231,6 +234,7 @@ async def oauth_config_status():
         "notion": NOTION_OAUTH_CONFIG,
         "trello": TRELLO_OAUTH_CONFIG,
         "dropbox": DROPBOX_OAUTH_CONFIG,
+        "whatsapp": WHATSAPP_OAUTH_CONFIG,
     }
     
     return {

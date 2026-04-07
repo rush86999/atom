@@ -38,6 +38,7 @@ class OAuthService(str, Enum):
     OUTLOOK = "outlook"
     TEAMS = "teams"
     GITHUB = "github"
+    WHATSAPP = "whatsapp"
 
 
 @dataclass
@@ -147,6 +148,15 @@ class OAuthConfig:
             scopes=["repo", "user", "read:org"],
             configured=bool(os.getenv("GITHUB_CLIENT_ID") and os.getenv("GITHUB_CLIENT_SECRET"))
         )
+        
+        # WhatsApp Business
+        self._credentials_cache[OAuthService.WHATSAPP] = OAuthCredentials(
+            client_id=os.getenv("WHATSAPP_CLIENT_ID", ""),
+            client_secret=os.getenv("WHATSAPP_CLIENT_SECRET", ""),
+            redirect_uri=f"{base_protocol}://{self.production_domain}/api/auth/whatsapp/oauth2callback",
+            scopes=["whatsapp_business_messaging", "whatsapp_business_management"],
+            configured=bool(os.getenv("WHATSAPP_CLIENT_ID") and os.getenv("WHATSAPP_CLIENT_SECRET"))
+        )
 
     def get_credentials(self, service: OAuthService) -> OAuthCredentials:
         """Get OAuth credentials for a specific service"""
@@ -163,6 +173,10 @@ class OAuthConfig:
     def get_github_config(self) -> OAuthCredentials:
         """Get GitHub OAuth credentials"""
         return self.get_credentials(OAuthService.GITHUB)
+
+    def get_whatsapp_config(self) -> OAuthCredentials:
+        """Get WhatsApp OAuth credentials"""
+        return self.get_credentials(OAuthService.WHATSAPP)
 
     def validate_all(self) -> Dict[str, Any]:
         """
@@ -215,7 +229,8 @@ class OAuthConfig:
             OAuthService.DROPBOX: ["DROPBOX_CLIENT_ID", "DROPBOX_CLIENT_SECRET"],
             OAuthService.OUTLOOK: ["OUTLOOK_CLIENT_ID", "OUTLOOK_CLIENT_SECRET"],
             OAuthService.TEAMS: ["TEAMS_CLIENT_ID", "TEAMS_CLIENT_SECRET"],
-            OAuthService.GITHUB: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"]
+            OAuthService.GITHUB: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
+            OAuthService.WHATSAPP: ["WHATSAPP_CLIENT_ID", "WHATSAPP_CLIENT_SECRET"]
         }
 
         for service, vars_list in env_var_map.items():
