@@ -21,8 +21,12 @@ from typing import List, Optional
 
 from core.database import get_db
 from core.skill_marketplace_service import SkillMarketplaceService
+from core.domain_marketplace_service import DomainMarketplaceService
+from core.canvas_marketplace_service import CanvasMarketplaceService
+from core.agent_marketplace_service import AgentMarketplaceService
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
+
 
 
 class SkillSearchResponse(BaseModel):
@@ -193,4 +197,113 @@ def uninstall_marketplace_skill(
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["error"])
 
+    return result
+# ============================================================================
+# Domain Marketplace Routes (Commercial Proxy)
+# ============================================================================
+
+
+@router.get("/domains")
+def browse_marketplace_domains(
+    query: str = Query("", description="Search query"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Browse domains on atomagentos.com"""
+    service = DomainMarketplaceService(db)
+    return service.browse_domains(query=query, category=category, page=page, page_size=page_size)
+
+
+@router.post("/domains/install")
+def install_marketplace_domain(
+    template_domain_id: str = Query(...),
+    tenant_id: str = Query(...),
+    custom_name: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Install a domain from atomagentos.com"""
+    service = DomainMarketplaceService(db)
+    result = service.install_domain(
+        template_domain_id=template_domain_id,
+        tenant_id=tenant_id,
+        custom_name=custom_name
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+# ============================================================================
+# Canvas Marketplace Routes (Commercial Proxy)
+# ============================================================================
+
+
+@router.get("/components")
+def browse_marketplace_components(
+    query: str = Query(""),
+    category: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Browse components on atomagentos.com"""
+    service = CanvasMarketplaceService(db)
+    return service.browse_components(query=query, category=category, page=page, page_size=page_size)
+
+
+@router.post("/components/install")
+def install_marketplace_component(
+    component_id: str = Query(...),
+    canvas_id: str = Query(...),
+    tenant_id: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Install a component from atomagentos.com"""
+    service = CanvasMarketplaceService(db)
+    result = service.install_component(
+        component_id=component_id,
+        canvas_id=canvas_id,
+        tenant_id=tenant_id
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+# ============================================================================
+# Agent Marketplace Routes (Commercial Proxy)
+# ============================================================================
+
+
+@router.get("/agents")
+def browse_marketplace_agents(
+    query: str = Query(""),
+    category: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Browse agents on atomagentos.com"""
+    service = AgentMarketplaceService(db)
+    return service.browse_agents(query=query, category=category, page=page, page_size=page_size)
+
+
+@router.post("/agents/install")
+def install_marketplace_agent(
+    template_id: str = Query(...),
+    tenant_id: str = Query(...),
+    user_id: str = Query(...),
+    db: Session = Depends(get_db)
+):
+    """Install an agent template from atomagentos.com"""
+    service = AgentMarketplaceService(db)
+    result = service.install_agent(
+        template_id=template_id,
+        tenant_id=tenant_id,
+        user_id=user_id
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
     return result

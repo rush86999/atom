@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, and_
 
-from core.atom_agent_os_client import AtomAgentOSMarketplaceClient
+from core.atom_saas_client import AtomAgentOSMarketplaceClient
 from core.models import SkillCache, SkillExecution, SkillRating, MarketplaceInstance
 from core.skill_registry_service import SkillRegistryService
 

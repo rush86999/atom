@@ -10,7 +10,7 @@ Provides centralized interface for:
 
 Environment Variables:
 - ATOM_SAAS_URL: WebSocket URL (default: wss://atomagentos.com/api/ws/satellite/connect)
-- ATOM_SAAS_API_URL: HTTP API URL (default: https://atomagentos.com/api)
+- ATOM_SAAS_API_URL: HTTP API URL (default: https://atomagentos.com/api/v1/marketplace)
 - ATOM_SAAS_API_TOKEN: Authentication token (required)
 
 Reference: scripts/satellite/atom_satellite.py for WebSocket pattern
@@ -58,7 +58,7 @@ class AtomAgentOSMarketplaceClient:
         )
         api_url = os.getenv(
             "ATOM_SAAS_API_URL",
-            "https://atomagentos.com/api"
+            "https://atomagentos.com/api/v1/marketplace"
         )
         api_token = os.getenv("ATOM_SAAS_API_TOKEN", "")
 
@@ -112,7 +112,7 @@ class AtomAgentOSMarketplaceClient:
             params["skill_type"] = skill_type
 
         try:
-            response = await client.get("/marketplace/skills", params=params)
+            response = await client.get("/skills/marketplace/skills", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -124,7 +124,7 @@ class AtomAgentOSMarketplaceClient:
         client = await self._get_http_client()
 
         try:
-            response = await client.get(f"/marketplace/skills/{skill_id}")
+            response = await client.get(f"/skills/marketplace/skills/{skill_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -136,7 +136,7 @@ class AtomAgentOSMarketplaceClient:
         client = await self._get_http_client()
 
         try:
-            response = await client.get("/marketplace/categories")
+            response = await client.get("/skills/marketplace/categories")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -171,7 +171,7 @@ class AtomAgentOSMarketplaceClient:
         }
 
         try:
-            response = await client.post(f"/marketplace/skills/{skill_id}/rate", json=payload)
+            response = await client.post(f"/skills/marketplace/skills/{skill_id}/rate", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -197,7 +197,7 @@ class AtomAgentOSMarketplaceClient:
         }
 
         try:
-            response = await client.post(f"/marketplace/skills/{skill_id}/install", json=payload)
+            response = await client.post(f"/skills/marketplace/skills/{skill_id}/install", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -221,7 +221,7 @@ class AtomAgentOSMarketplaceClient:
         }
 
         try:
-            response = await client.delete(f"/marketplace/skills/{skill_id}/uninstall", params=params)
+            response = await client.delete(f"/skills/marketplace/skills/{skill_id}/uninstall", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -248,7 +248,7 @@ class AtomAgentOSMarketplaceClient:
             params["category"] = category
 
         try:
-            response = await client.get("/marketplace/agents", params=params)
+            response = await client.get("/agents/api/agent-marketplace/browse", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -260,7 +260,7 @@ class AtomAgentOSMarketplaceClient:
         client = await self._get_http_client()
 
         try:
-            response = await client.get(f"/marketplace/agents/{template_id}")
+            response = await client.get(f"/agents/api/agent-marketplace/details/{template_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -276,7 +276,7 @@ class AtomAgentOSMarketplaceClient:
         }
 
         try:
-            response = await client.post(f"/marketplace/agents/{template_id}/install", json=payload)
+            response = await client.post(f"/agents/api/agent-marketplace/install/{template_id}", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -303,7 +303,7 @@ class AtomAgentOSMarketplaceClient:
             params["category"] = category
 
         try:
-            response = await client.get("/marketplace/workflows", params=params)
+            response = await client.get("/workflows/marketplace/workflows", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -315,7 +315,7 @@ class AtomAgentOSMarketplaceClient:
         client = await self._get_http_client()
 
         try:
-            response = await client.get(f"/marketplace/workflows/{template_id}")
+            response = await client.get("/workflows/marketplace/workflows/{template_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -342,7 +342,7 @@ class AtomAgentOSMarketplaceClient:
             params["category"] = category
 
         try:
-            response = await client.get("/marketplace/domains", params=params)
+            response = await client.get("/domains/api/v1/domains/marketplace/browse", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -354,7 +354,7 @@ class AtomAgentOSMarketplaceClient:
         client = await self._get_http_client()
 
         try:
-            response = await client.get(f"/marketplace/domains/{domain_id}")
+            response = await client.get(f"/domains/api/v1/domains/marketplace/details/{domain_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -370,7 +370,7 @@ class AtomAgentOSMarketplaceClient:
         }
 
         try:
-            response = await client.post(f"/marketplace/domains/{domain_id}/install", json=payload)
+            response = await client.post(f"/domains/api/v1/domains/marketplace/install", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPError as e:
@@ -463,6 +463,63 @@ class AtomAgentOSMarketplaceClient:
             logger.error(f"Failed to push marketplace analytics: {e}")
             return {"success": False, "error": str(e)}
 
+    async def fetch_components(
+        self,
+        query: str = "",
+        category: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Dict[str, Any]:
+        """Fetch canvas components from Atom SaaS marketplace."""
+        client = await self._get_http_client()
+
+        params = {
+            "query": query,
+            "page": page,
+            "limit": page_size,
+            "offset": (page - 1) * page_size
+        }
+
+        if category:
+            params["category"] = category
+
+        try:
+            response = await client.get("/components/components", params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch components: {e}")
+            return {"components": [], "total": 0, "page": page, "page_size": page_size}
+
+    async def get_component_details(self, component_id: str) -> Optional[Dict[str, Any]]:
+        """Get canvas component details from Atom SaaS."""
+        client = await self._get_http_client()
+
+        try:
+            response = await client.get(f"/components/components/{component_id}")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch component {component_id}: {e}")
+            return None
+
+    async def install_component(self, component_id: str, canvas_id: Optional[str] = None) -> Dict[str, Any]:
+        """Record component installation with Atom SaaS."""
+        client = await self._get_http_client()
+
+        payload = {
+            "component_id": component_id,
+            "canvas_id": canvas_id
+        }
+
+        try:
+            response = await client.post(f"/components/components/{component_id}/install", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to install component {component_id}: {e}")
+            return {"success": False, "error": str(e)}
+
     async def close(self):
         """Close all connections."""
         await self.disconnect_websocket()
@@ -531,6 +588,18 @@ class AtomAgentOSMarketplaceClient:
         """Synchronous wrapper for install_domain."""
         return asyncio.run(self.install_domain(*args, **kwargs))
 
+    def fetch_components_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for fetch_components."""
+        return asyncio.run(self.fetch_components(*args, **kwargs))
+
+    def get_component_details_sync(self, component_id: str) -> Optional[Dict[str, Any]]:
+        """Synchronous wrapper for get_component_details."""
+        return asyncio.run(self.get_component_details(component_id))
+
+    def install_component_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for install_component."""
+        return asyncio.run(self.install_component(*args, **kwargs))
+
     def register_instance_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for register_instance."""
         return asyncio.run(self.register_instance(*args, **kwargs))
@@ -538,3 +607,4 @@ class AtomAgentOSMarketplaceClient:
     def push_analytics_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for push_analytics."""
         return asyncio.run(self.push_analytics(*args, **kwargs))
+

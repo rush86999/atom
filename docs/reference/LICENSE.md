@@ -1,8 +1,7 @@
-
                      GNU AFFERO GENERAL PUBLIC LICENSE
                         Version 3, 19 November 2007
  
-  Copyright (C) 2007 Free Software Foundation, Inc. <http://fsf.org/>
+   Copyright (C) 2026 atomagentos.com - https://atomagentos.com
   Everyone is permitted to copy and distribute verbatim copies
   of this license document, but changing it is not allowed.
  
@@ -619,46 +618,21 @@
  
                       END OF TERMS AND CONDITIONS
  
-             How to Apply These Terms to Your New Programs
+             
+---------------------------------------------------------------------------
+MARKETPLACE COMMERCIAL APPENDIX
  
-   If you develop a new program, and you want it to be of the greatest
- possible use to the public, the best way to achieve this is to make it
- free software which everyone can redistribute and change under these terms.
+1. COMMERCIAL SERVICE
+The Software Marketplace functionality provided within this Software is a commercial service operated by or on behalf of atomagentos.com ("Service Provider"). Access to and use of the Marketplace requires a valid subscription or API token provided by the Service Provider.
  
-   To do so, attach the following notices to the program.  It is safest
- to attach them to the start of each source file to most effectively
- state the exclusion of warranty; and each file should have at least
- the "copyright" line and a pointer to where the full notice is found.
+2. PROPRIETARY CONTENT
+All items downloaded via the Marketplace (including but not limited to Agents, Specialist Domains, Canvas Components, and Skills) are proprietary property of the Service Provider or its licensors. 
  
-     The AI calendar assistant that simplifies meeting scheduling and task management
+3. USAGE RESTRICTIONS
+Licensees of this Software are granted a personal, non-transferable right to use Marketplace content within their instance of the Software. Redistribution, modification for the purpose of redistribution, or standalone extraction of Marketplace content is strictly prohibited.
  
-     Copyright (C) 2023  Atomic Life Inc. - https://www.atomiclife.app
+4. DATA PRIVACY
+Usage of the Marketplace involves communication with the Service Provider's servers. Telemetry and installation data are collected to ensure service quality and compliance with commercial terms.
  
-     This program is free software: you can redistribute it and/or modify
-     it under the terms of the GNU Affero General Public License as published by
-     the Free Software Foundation, either version 3 of the License, or
-     (at your option) any later version.
- 
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-     GNU Affero General Public License for more details.
- 
-     You should have received a copy of the GNU Affero General Public License
-     along with this program.  If not, see <http://www.gnu.org/licenses/>.
- 
- Also add information on how to contact you by electronic and paper mail.
- 
-   If your software can interact with users remotely through a computer
- network, you should also make sure that it provides a way for users to
- get its source.  For example, if your program is a web application, its
- interface could display a "Source" link that leads users to an archive
- of the code.  There are many ways you could offer source, and different
- solutions will be better for different programs; see section 13 for the
- specific requirements.
- 
-   You should also get your employer (if you work as a programmer) or school,
- if any, to sign a "copyright disclaimer" for the program, if necessary.
- For more information on this, and how to apply and follow the GNU AGPL, see
- <http://www.gnu.org/licenses/>.
-
+5. TERMINATION
+Access to the Marketplace may be terminated or suspended by the Service Provider if commercial terms are violated or if the associated subscription expires.

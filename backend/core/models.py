@@ -3805,17 +3805,52 @@ class SpecialistDomain(Base):
     """
     __tablename__ = "specialist_domains"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(String(50), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(
-        String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True
+        String(50), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True
     )
+
+    # Domain identification
     domain_name = Column(String(100), nullable=False, index=True)
     domain_slug = Column(String(100), nullable=False, unique=True, index=True)
-    description = Column(Text, nullable=True)
-    is_public = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Domain inheritance
+    parent_domain_id = Column(
+        String(50), ForeignKey("specialist_domains.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # Domain metadata
+    description = Column(Text, nullable=True)
+    risk_factor = Column(Float, default=1.0)
+
+    # Graduation thresholds
+    student_threshold = Column(Float, nullable=True)
+    intern_threshold = Column(Float, nullable=True)
+    supervised_threshold = Column(Float, nullable=True)
+
+    # Status flags
+    is_system_domain = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Marketplace fields
+    is_public = Column(Boolean, default=False, nullable=False, index=True)
+    is_approved = Column(Boolean, default=False, nullable=False)
+    price_usd = Column(Float, default=0.0, nullable=True)
+    license_type = Column(String(50), default="MIT", nullable=True)
+    tags = Column(JSONColumn, default=list, nullable=True)
+    install_count = Column(Integer, default=0, nullable=False)
+    rating_average = Column(Float, default=0.0, nullable=True)
+    rating_count = Column(Integer, default=0, nullable=True)
+    category = Column(String(50), nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
     tenant = relationship("Tenant", backref="specialist_domains")
+    parent_domain = relationship("SpecialistDomain", remote_side=[id], backref="child_domains")
+
 
 
 class MarketplaceInstance(Base):

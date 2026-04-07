@@ -88,8 +88,9 @@ atom init
 # OPENAI_API_KEY=sk-...
 # MINIMAX_API_KEY=...  (optional, for MiniMax M2.7 support)
 
-# (Optional) Connect to marketplace for 5,000+ community skills
-# MARKETPLACE_API_TOKEN=at_saas_xxxxx  # Get from https://atomagentos.com
+# (Optional) Connect to marketplace for commercial specialty skills
+# MARKETPLACE_API_TOKEN=at_saas_your_token  # Get from https://atomagentos.com
+
 
 # Start Atom
 atom start
@@ -212,25 +213,24 @@ cp .env.personal .env
 
 ---
 
-## Marketplace Connection ✨ NEW
+## Marketplace Connection (Commercial) ✨
 
-Connect your Atom instance to the public marketplace to access thousands of community-published agents and skills.
+Connect your Atom instance to the official **atomagentos.com** marketplace to access thousands of premium agents, skills, and canvas components.
 
 ### Get Started
 
-1. **Get Your API Token**
-   ```bash
-   # Visit https://atomagentos.com
-   # Navigate to Settings → API Tokens
-   # Generate and copy your token
-   ```
+1. **Get Your Commercial API Token**
+   - Visit [atomagentos.com](https://atomagentos.com)
+   - Sign up/Login and navigate to **Settings → API Tokens**
+   - Generate and copy your commercial token
 
 2. **Configure Environment**
    ```bash
    # Add to .env
-   MARKETPLACE_API_URL=https://atomagentos.com
-   MARKETPLACE_API_TOKEN=at_saas_your_token_here
+   MARKETPLACE_API_URL=https://api.atomagentos.com
+   MARKETPLACE_API_TOKEN=at_saas_your_commercial_token
    MARKETPLACE_SYNC_ENABLED=true
+
    ```
 
 3. **Restart Atom**
@@ -238,23 +238,23 @@ Connect your Atom instance to the public marketplace to access thousands of comm
    atom restart
    ```
 
-4. **Verify Connection**
-   ```bash
-   curl http://localhost:8000/api/admin/sync/status
-   ```
+### Proprietary Marketplace Features
 
-### Features
+- **Premium Skills**: Business-grade automation components (Proprietary)
+- **Agent Templates**: Complete agents with pre-trained heuristics (Proprietary)
+- **Specialist Domains**: Fine-grained governance templates for enterprise security
+- **Canvas Components**: Rich UI widgets for interactive agent presentations
+- **Commercial Updates**: Continuous security patches and performance optimizations
 
-- **5,000+ Skills**: Pre-built automation components
-- **Agent Templates**: Complete agents with pre-learned capabilities
-- **Real-Time Sync**: Automatic updates from the marketplace
-- **Bidirectional Ratings**: Share your feedback with the community
+### Documentation & Terms
 
-### Documentation
+- **[Marketplace Commercial Appendix](LICENSE.md#marketplace-commercial-appendix)** - Legal terms for marketplace usage
+- **[Marketplace Connection Guide](docs/MARKETPLACE_CONNECTION_GUIDE.md)** - Detailed setup instructions
 
 - **[Marketplace Connection Guide](docs/marketplace/connection.md)** - Complete setup and troubleshooting
 - **[Agent Marketplace Guide](docs/agents/marketplace.md)** - Publishing and sharing agents
 - **[Marketplace Analytics](docs/marketplace/analytics.md)** - Analytics and synchronization
+
 
 ---
 
