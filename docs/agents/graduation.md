@@ -740,6 +740,6 @@ if human_correction_made:
 5. **Generate audit trails**: Export reports for governance compliance
 
 For more information:
-- [Episodic Memory Implementation](EPISODIC_MEMORY_IMPLEMENTATION.md)
+- [Episodic Memory Implementation](../intelligence/episodic-memory.md)
 - [Quick Start Guide](EPISODIC_MEMORY_QUICK_START.md)
 - [API Documentation](../api/episode_routes.py)

@@ -24,10 +24,9 @@ AI capabilities, knowledge management, and cognitive systems.
 ## Memory & Learning
 
 ### Episodic Memory
-- **[Episodic Memory Implementation](EPISODIC_MEMORY_IMPLEMENTATION.md)** - Memory system overview
-- **[Episodic Memory Quick Start](EPISODIC_MEMORY_QUICK_START.md)** - Getting started
-- **[Memory Integration Guide](MEMORY_INTEGRATION_GUIDE.md)** - Integration patterns
-- **[Canvas & Feedback Episodic Memory](CANVAS_FEEDBACK_EPISODIC_MEMORY.md)** - Canvas-linked memory
+- **[Episodic Memory Implementation](episodic-memory.md)** - Memory system overview
+- **[Episodic Memory Quick Start](episodic-quickstart.md)** - Getting started
+- **[Canvas & Feedback Episodic Memory](../canvas/feedback-memory.md)** - Canvas-linked memory
 
 ### Agent Learning
 - **[Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md)** - Agent promotion system

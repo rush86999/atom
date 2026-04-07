@@ -12,7 +12,7 @@ Core agent capabilities including governance, graduation, and orchestration.
 - **[Supervision & Learning](SUPERVISION_LEARNING_INTEGRATION_COMPLETE.md)** - Real-time supervision system
 
 ### Guidance & Orchestration
-- **[Agent Guidance Implementation](AGENT_GUIDANCE_IMPLEMENTATION.md)** - Real-time agent operation tracking
+- **[Agent Guidance Implementation](guidance-system.md)** - Real-time agent operation tracking
 - **[Governance Learning Integration](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md)** - Learning from governance events
 
 ### Multi-Agent Coordination ✨ NEW

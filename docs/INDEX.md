@@ -74,12 +74,12 @@
 | [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md) | Agent governance and learning integration | Feb 2, 2026 |
 | [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) | **Agent promotion criteria and validation** | Feb 3, 2026 |
 | [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
-| [AGENT_GUIDANCE_IMPLEMENTATION.md](AGENT_GUIDANCE_IMPLEMENTATION.md) | **Real-time agent operation tracking** | Feb 2, 2026 |
+| [agents/guidance-system.md](agents/guidance-system.md) | **Real-time agent operation tracking** | Feb 2, 2026 |
 
 ### Episodic Memory
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) | **Agent learning framework** | Feb 3, 2026 |
+| [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Agent learning framework** | Feb 3, 2026 |
 | [EPISODIC_MEMORY_QUICK_START.md](EPISODIC_MEMORY_QUICK_START.md) | Episodic memory quick start guide | Feb 4, 2026 |
 | [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) | **Canvas presentations in episodes** | Feb 4, 2026 |
 
@@ -365,8 +365,8 @@
 
 **Agent Systems**:
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity
-- [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning
-- [AGENT_GUIDANCE_IMPLEMENTATION.md](AGENT_GUIDANCE_IMPLEMENTATION.md) - Real-time guidance
+- [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Agent learning
+- [agents/guidance-system.md](agents/guidance-system.md) - Real-time guidance
 
 **Canvas**:
 - [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system
@@ -409,11 +409,11 @@
 - [DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md) - Migration guide (Feb 4)
 - [EPISODIC_MEMORY_QUICK_START.md](EPISODIC_MEMORY_QUICK_START.md) - Quick start (Feb 4)
 - [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) - Graduation criteria (Feb 3)
-- [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) - Memory framework (Feb 3)
+- [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Memory framework (Feb 3)
 
 **January 2026**:
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system (Feb 2)
-- [AGENT_GUIDANCE_IMPLEMENTATION.md](AGENT_GUIDANCE_IMPLEMENTATION.md) - Agent guidance (Feb 2)
+- [agents/guidance-system.md](agents/guidance-system.md) - Agent guidance (Feb 2)
 - [CANVAS_IMPLEMENTATION_COMPLETE.md](archive/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas system (Feb 1)
 - [DEEPLINK_IMPLEMENTATION.md](DEEPLINK_IMPLEMENTATION.md) - Deep linking (Feb 1)
 - [BROWSER_AUTOMATION.md](BROWSER_AUTOMATION.md) - Browser automation (Jan 31)
