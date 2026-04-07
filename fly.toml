@@ -1,0 +1,58 @@
+# fly.toml app configuration file for atom-saas
+# Unified Dual-App Configuration (Next.js + FastAPI)
+
+app = 'atom-saas'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  # Domain Config
+  APP_DOMAIN = 'atomagentos.com'
+  API_BASE_URL = 'https://atomagentos.com'
+  
+  # Frontend Config
+  PORT = '3000'
+  NODE_ENV = 'production'
+  NEXTAUTH_URL = 'https://atomagentos.com'
+  NEXT_PUBLIC_APP_URL = 'https://atomagentos.com'
+  
+  # Backend Config (Internal Proxy)
+  PYTHON_BACKEND_URL = 'http://localhost:8000'
+  ENVIRONMENT = 'production'
+  ENABLE_SCHEDULER = 'true'
+  
+  # Misc
+  AWS_SQS_DISABLE_JSON_PROTOCOL = 'true'
+
+[processes]
+  app = '/app/start-dual-app.sh'
+
+[[services]]
+  protocol = 'tcp'
+  internal_port = 3000
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [[services.ports]]
+    port = 80
+    handlers = ['http']
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ['tls', 'http']
+
+  [services.concurrency]
+    type = 'requests'
+    hard_limit = 200
+    soft_limit = 160
+
+[[vm]]
+  memory = '2gb'
+  cpus = 1
+  memory_mb = 2048
+  processes = ['app']
