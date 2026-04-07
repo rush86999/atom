@@ -3730,6 +3730,138 @@ class ComponentInstallation(Base):
     component = relationship("CanvasComponent", back_populates="installations")
 
 
+class AgentTemplate(Base):
+    """
+    Publishable unit of an Agent for the Marketplace, capturing its capabilities, 
+    Canvas UI dependencies, and anonymized experience memory.
+    """
+    __tablename__ = "agent_templates"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True
+    )  # NULL for public
+    author_id = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    # Core details
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String, nullable=True)
+    version = Column(String, default="1.0.0")
+    price = Column(Float, default=0.0)
+
+    # The actual contents
+    configuration = Column(JSONColumn, default={})  # system prompts, constraints
+    capabilities = Column(JSONColumn, default=list)  # list of skill IDs
+    canvas_ui_schemas = Column(JSONColumn, default=list)  # UI schemas
+    anonymized_memory_bundle = Column(JSONColumn, default={})  # scrubbed heuristics & operation graphs
+
+    # Marketplace metadata
+    is_public = Column(Boolean, default=False)
+    is_approved = Column(Boolean, default=False)
+    rating = Column(Float, default=0.0)
+    rating_count = Column(Integer, default=0)
+    installs = Column(Integer, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="agent_templates", foreign_keys=[tenant_id])
+    author = relationship("User", foreign_keys=[author_id])
+
+
+class AgentInstallation(Base):
+    """Tracks installation of an AgentTemplate into a new tenant"""
+
+    __tablename__ = "agent_installations"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    template_id = Column(
+        String, ForeignKey("agent_templates.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    instantiated_agent_id = Column(
+        String, ForeignKey("agent_registry.id", ondelete="SET NULL"), nullable=True
+    )
+
+    installed_version = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+
+    installed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    tenant = relationship("Tenant", backref="agent_installations")
+    template = relationship("AgentTemplate", backref="installations")
+
+
+class SpecialistDomain(Base):
+    """
+    Capability domains for fine-grained governance.
+    """
+    __tablename__ = "specialist_domains"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(
+        String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    domain_name = Column(String(100), nullable=False, index=True)
+    domain_slug = Column(String(100), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    is_public = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    tenant = relationship("Tenant", backref="specialist_domains")
+
+
+class MarketplaceInstance(Base):
+    """
+    Self-hosted instance registration with Atom SaaS.
+    Stores the unique instance ID and status for analytics reporting.
+    """
+    __tablename__ = "marketplace_instance"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    saas_instance_id = Column(String, unique=True, nullable=False)
+    registration_token = Column(String, nullable=True)
+    status = Column(String, default="active")
+    last_sync_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class MarketplaceUsage(Base):
+    """
+    Local usage tracking for marketplace items.
+
+    Used to aggregate usage (executions, success/failure) locally before
+    periodically pushing to the SaaS analytics ingestion layer.
+    """
+    __tablename__ = "marketplace_usage_local"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Target item
+    item_type = Column(String(50), nullable=False, index=True)  # skill, agent, canvas, domain
+    item_id = Column(String, nullable=False, index=True)
+
+    # Usage metrics
+    execution_count = Column(Integer, default=0)
+    success_count = Column(Integer, default=0)
+    total_duration_ms = Column(Float, default=0.0)
+
+    # Period tracking
+    last_reported_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("item_type", "item_id", name="uq_local_usage_item"),
+    )
+
+
 class MarketplaceRating(Base):
     """
     User ratings and reviews for marketplace components.

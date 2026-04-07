@@ -43,15 +43,41 @@ class SkillExecutorService:
             
             # Map status "success" -> "completed" for compatibility with Composition service
             status = "completed" if result.get("status") == "success" else "failed"
+            duration_ms = int(result.get("execution_seconds", 0) * 1000)
+            
+            # Track marketplace usage
+            try:
+                from core.marketplace_usage_tracker import MarketplaceUsageTracker
+                MarketplaceUsageTracker.track_usage(
+                    item_type="skill",
+                    item_id=skill.id,
+                    success=(status == "completed"),
+                    duration_ms=duration_ms
+                )
+            except Exception as track_err:
+                logger.warning(f"Failed to track marketplace usage: {track_err}")
             
             return {
                 "status": status,
                 "result": result.get("output"),
-                "durationMs": int(result.get("execution_seconds", 0) * 1000),
+                "durationMs": duration_ms,
                 "formatted_output": result.get("formatted_output")
             }
         except Exception as e:
             logger.error(f"Skill execution failed in bridge: {e}")
+            
+            # Track marketplace failure
+            try:
+                from core.marketplace_usage_tracker import MarketplaceUsageTracker
+                MarketplaceUsageTracker.track_usage(
+                    item_type="skill",
+                    item_id=skill.id,
+                    success=False,
+                    duration_ms=0
+                )
+            except Exception:
+                pass
+                
             return {
                 "status": "failed",
                 "result": {"error": str(e)},

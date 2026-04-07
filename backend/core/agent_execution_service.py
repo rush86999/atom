@@ -25,7 +25,8 @@ from core.database import get_db_session, SessionLocal
 from core.episode_integration import trigger_episode_creation
 from core.lancedb_handler import get_chat_history_manager
 from core.llm_service import LLMService
-from core.models import AgentExecution
+from core.models import AgentExecution, AgentInstallation
+from core.marketplace_usage_tracker import MarketplaceUsageTracker
 from core.personal_budget_service import personal_budget_service
 from core.websockets import manager as ws_manager
 
@@ -336,6 +337,22 @@ Provide helpful, concise responses. Be direct and practical."""
                 if db_session:
                     db_session.commit()
 
+                # Marketplace Tracking
+                if agent and agent.type == "marketplace":
+                    try:
+                        installation = db_session.query(AgentInstallation).filter(
+                            AgentInstallation.instantiated_agent_id == agent.id
+                        ).first()
+                        if installation:
+                            MarketplaceUsageTracker.track_usage(
+                                item_type="agent",
+                                item_id=installation.template_id,
+                                success=True,
+                                duration_ms=duration_ms
+                            )
+                    except Exception as mt_error:
+                        logger.error(f"Marketplace tracking failed: {mt_error}")
+
             except Exception as update_error:
                 logger.error(f"Failed to update AgentExecution record: {update_error}")
 
@@ -386,6 +403,24 @@ Provide helpful, concise responses. Be direct and practical."""
                 agent_execution.error_message = str(e)
                 agent_execution.end_time = datetime.now()
                 db_session.commit()
+
+                # Marketplace Tracking (Failure)
+                if agent and agent.type == "marketplace":
+                    try:
+                        installation = db_session.query(AgentInstallation).filter(
+                            AgentInstallation.instantiated_agent_id == agent.id
+                        ).first()
+                        if installation:
+                            duration_ms = (datetime.now() - start_time).total_seconds() * 1000
+                            MarketplaceUsageTracker.track_usage(
+                                item_type="agent",
+                                item_id=installation.template_id,
+                                success=False,
+                                duration_ms=duration_ms
+                            )
+                    except Exception as mt_error:
+                        logger.error(f"Marketplace failure tracking failed: {mt_error}")
+
             except Exception as update_error:
                 logger.error(f"Failed to update failed execution record: {update_error}")
 

@@ -18,6 +18,8 @@ from .advanced_workflow_system import (
     WorkflowStep,
 )
 from .industry_workflow_templates import Industry, IndustryWorkflowTemplate
+from .atom_saas_client import AtomAgentOSMarketplaceClient
+from .marketplace_usage_tracker import MarketplaceUsageTracker
 
 
 class TemplateType(str, Enum):
@@ -80,7 +82,9 @@ class AdvancedWorkflowTemplate(BaseModel):
     benefits: List[str] = []
 
 class MarketplaceEngine:
-    def __init__(self):
+    def __init__(self, saas_client: Optional[AtomAgentOSMarketplaceClient] = None):
+        self.saas_client = saas_client or AtomAgentOSMarketplaceClient()
+        self.templates_dir = os.path.join(os.path.dirname(__file__), "..", "marketplace_templates")
         self.templates_dir = os.path.join(os.path.dirname(__file__), "..", "marketplace_templates")
         os.makedirs(self.templates_dir, exist_ok=True)
         self.advanced_templates_dir = os.path.join(self.templates_dir, "advanced")
@@ -525,10 +529,20 @@ class MarketplaceEngine:
         """List available workflow templates with enhanced filtering"""
         templates = []
 
-        # Load all template types
+        # Load all local template types
         templates.extend(self._load_legacy_templates(category))
         templates.extend(self._load_advanced_templates(category))
         templates.extend(self._load_industry_templates(category, industry))
+
+        # Load from SaaS marketplace
+        try:
+            saas_result = self.saas_client.fetch_workflows_sync(category=category)
+            for t_data in saas_result.get("workflows", []):
+                # Ensure we don't duplicate if already present locally
+                if not any(t.id == t_data["id"] for t in templates):
+                    templates.append(WorkflowTemplate(**t_data))
+        except Exception as e:
+            logger.error(f"Error fetching templates from SaaS: {e}")
 
         # Apply filters
         if template_type:
@@ -692,6 +706,20 @@ class MarketplaceEngine:
                     json.dump(data, fw, indent=2)
                 data["template_type"] = TemplateType.INDUSTRY
                 return WorkflowTemplate(**data)
+
+        # Try SaaS marketplace
+        try:
+            saas_template = self.saas_client.get_workflow_template_sync(template_id)
+            if saas_template:
+                # Track usage (installation/import attempt)
+                MarketplaceUsageTracker.track_usage(
+                    item_type="workflow",
+                    item_id=template_id,
+                    success=True
+                )
+                return WorkflowTemplate(**saas_template)
+        except Exception as e:
+            logger.error(f"Error fetching template {template_id} from SaaS: {e}")
 
         return None
 

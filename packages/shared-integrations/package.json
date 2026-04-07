@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@shared-utils/logger": "^1.0.0",
-    "axios": "^1.6.0"
+    "axios": "1.14.0"
   },
   "devDependencies": {
     "typescript": "^5.9.2",

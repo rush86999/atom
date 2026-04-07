@@ -228,6 +228,155 @@ class AtomAgentOSMarketplaceClient:
             logger.error(f"Failed to uninstall skill {skill_id}: {e}")
             return {"success": False, "error": str(e)}
 
+    async def fetch_agents(
+        self,
+        query: str = "",
+        category: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Dict[str, Any]:
+        """Fetch agents from Atom SaaS marketplace."""
+        client = await self._get_http_client()
+
+        params = {
+            "query": query,
+            "page": page,
+            "page_size": page_size
+        }
+
+        if category:
+            params["category"] = category
+
+        try:
+            response = await client.get("/marketplace/agents", params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch agents: {e}")
+            return {"agents": [], "total": 0, "page": page, "page_size": page_size}
+
+    async def get_agent_template(self, template_id: str) -> Optional[Dict[str, Any]]:
+        """Get agent template details from Atom SaaS."""
+        client = await self._get_http_client()
+
+        try:
+            response = await client.get(f"/marketplace/agents/{template_id}")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch agent template {template_id}: {e}")
+            return None
+
+    async def install_agent(self, template_id: str, tenant_id: str) -> Dict[str, Any]:
+        """Record agent installation with Atom SaaS."""
+        client = await self._get_http_client()
+
+        payload = {
+            "tenant_id": tenant_id
+        }
+
+        try:
+            response = await client.post(f"/marketplace/agents/{template_id}/install", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to install agent {template_id}: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def fetch_workflows(
+        self,
+        query: str = "",
+        category: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Dict[str, Any]:
+        """Fetch workflows from Atom SaaS marketplace."""
+        client = await self._get_http_client()
+
+        params = {
+            "query": query,
+            "page": page,
+            "page_size": page_size
+        }
+
+        if category:
+            params["category"] = category
+
+        try:
+            response = await client.get("/marketplace/workflows", params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch workflows: {e}")
+            return {"workflows": [], "total": 0, "page": page, "page_size": page_size}
+
+    async def get_workflow_template(self, template_id: str) -> Optional[Dict[str, Any]]:
+        """Get workflow template details from Atom SaaS."""
+        client = await self._get_http_client()
+
+        try:
+            response = await client.get(f"/marketplace/workflows/{template_id}")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch workflow template {template_id}: {e}")
+            return None
+
+    async def fetch_domains(
+        self,
+        query: str = "",
+        category: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Dict[str, Any]:
+        """Fetch specialist domains from Atom SaaS marketplace."""
+        client = await self._get_http_client()
+
+        params = {
+            "query": query,
+            "page": page,
+            "page_size": page_size
+        }
+
+        if category:
+            params["category"] = category
+
+        try:
+            response = await client.get("/marketplace/domains", params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch domains: {e}")
+            return {"domains": [], "total": 0, "page": page, "page_size": page_size}
+
+    async def get_domain_template(self, domain_id: str) -> Optional[Dict[str, Any]]:
+        """Get domain template details from Atom SaaS."""
+        client = await self._get_http_client()
+
+        try:
+            response = await client.get(f"/marketplace/domains/{domain_id}")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to fetch domain template {domain_id}: {e}")
+            return None
+
+    async def install_domain(self, domain_id: str, tenant_id: str) -> Dict[str, Any]:
+        """Record domain installation with Atom SaaS."""
+        client = await self._get_http_client()
+
+        payload = {
+            "tenant_id": tenant_id
+        }
+
+        try:
+            response = await client.post(f"/marketplace/domains/{domain_id}/install", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to install domain {domain_id}: {e}")
+            return {"success": False, "error": str(e)}
+
     async def search_skills(
         self,
         query: str,
@@ -265,6 +414,55 @@ class AtomAgentOSMarketplaceClient:
         self._connected = False
         logger.info("Disconnected from Atom SaaS WebSocket")
 
+    async def register_instance(
+        self,
+        instance_name: Optional[str] = None,
+        version: str = "1.0.0",
+        platform: str = "docker"
+    ) -> Dict[str, Any]:
+        """
+        Register this self-hosted instance with the SaaS marketplace.
+        Returns instance_id and analytics configuration.
+        """
+        client = await self._get_http_client()
+
+        payload = {
+            "instance_name": instance_name or os.getenv("INSTANCE_NAME", "unnamed-instance"),
+            "version": version,
+            "platform": platform
+        }
+
+        try:
+            # Endpoint matches the SaaS implementation
+            response = await client.post("/public/v1/marketplace/analytics/register", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to register marketplace instance: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def push_analytics(self, instance_id: str, reports: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Push aggregated usage reports to the SaaS analytics service.
+        """
+        if not reports:
+            return {"success": True, "count": 0}
+
+        client = await self._get_http_client()
+
+        payload = {
+            "instance_id": instance_id,
+            "reports": reports
+        }
+
+        try:
+            response = await client.post("/public/v1/marketplace/analytics/usage", json=payload)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to push marketplace analytics: {e}")
+            return {"success": False, "error": str(e)}
+
     async def close(self):
         """Close all connections."""
         await self.disconnect_websocket()
@@ -300,3 +498,43 @@ class AtomAgentOSMarketplaceClient:
     def search_skills_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for search_skills."""
         return asyncio.run(self.search_skills(*args, **kwargs))
+
+    def fetch_agents_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for fetch_agents."""
+        return asyncio.run(self.fetch_agents(*args, **kwargs))
+
+    def get_agent_template_sync(self, template_id: str) -> Optional[Dict[str, Any]]:
+        """Synchronous wrapper for get_agent_template."""
+        return asyncio.run(self.get_agent_template(template_id))
+
+    def install_agent_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for install_agent."""
+        return asyncio.run(self.install_agent(*args, **kwargs))
+
+    def fetch_workflows_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for fetch_workflows."""
+        return asyncio.run(self.fetch_workflows(*args, **kwargs))
+
+    def get_workflow_template_sync(self, template_id: str) -> Optional[Dict[str, Any]]:
+        """Synchronous wrapper for get_workflow_template."""
+        return asyncio.run(self.get_workflow_template(template_id))
+
+    def fetch_domains_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for fetch_domains."""
+        return asyncio.run(self.fetch_domains(*args, **kwargs))
+
+    def get_domain_template_sync(self, domain_id: str) -> Optional[Dict[str, Any]]:
+        """Synchronous wrapper for get_domain_template."""
+        return asyncio.run(self.get_domain_template(domain_id))
+
+    def install_domain_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for install_domain."""
+        return asyncio.run(self.install_domain(*args, **kwargs))
+
+    def register_instance_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for register_instance."""
+        return asyncio.run(self.register_instance(*args, **kwargs))
+
+    def push_analytics_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for push_analytics."""
+        return asyncio.run(self.push_analytics(*args, **kwargs))

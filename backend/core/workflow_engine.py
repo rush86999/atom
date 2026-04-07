@@ -32,6 +32,7 @@ from core.token_storage import token_storage
 from core.websockets import get_connection_manager
 from core.service_factory import ServiceFactory
 from core.workflow_notifier import notifier
+from core.marketplace_usage_tracker import MarketplaceUsageTracker
 
 # Stripe integration (SaaS-specific)
 try:
@@ -722,6 +723,16 @@ class WorkflowEngine:
                         time_saved_seconds=0, # Could calculate based on step metadata
                         business_value=0
                     )
+
+                    # Marketplace Tracking
+                    template_id = workflow.get("created_from_template")
+                    if template_id:
+                        MarketplaceUsageTracker.track_usage(
+                            item_type="workflow",
+                            item_id=template_id,
+                            success=False,
+                            duration_ms=int(duration * 1000)
+                        )
                     return
 
             await self.state_manager.update_execution_status(execution_id, "COMPLETED")
@@ -744,6 +755,16 @@ class WorkflowEngine:
                 time_saved_seconds=workflow.get("estimated_time_saved", 60), # Default 1 min saved
                 business_value=workflow.get("business_value", 10) # Default $10 value
             )
+
+            # Marketplace Tracking
+            template_id = workflow.get("created_from_template")
+            if template_id:
+                MarketplaceUsageTracker.track_usage(
+                    item_type="workflow",
+                    item_id=template_id,
+                    success=True,
+                    duration_ms=int(duration * 1000)
+                )
             
         except Exception as e:
             logger.error(f"Execution {execution_id} failed: {e}")

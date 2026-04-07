@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, and_
 
 from core.atom_agent_os_client import AtomAgentOSMarketplaceClient
-from core.models import SkillCache, SkillExecution, SkillRating
+from core.models import SkillCache, SkillExecution, SkillRating, MarketplaceInstance
 from core.skill_registry_service import SkillRegistryService
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,16 @@ class SkillMarketplaceService:
         self.db = db
         self.saas_client = saas_client or AtomAgentOSMarketplaceClient()
         self.skill_registry = SkillRegistryService(db)
+        
+        # Automated registration on first marketplace access
+        if os.getenv("ANALYTICS_ENABLED", "false").lower() == "true":
+            try:
+                if not self.db.query(MarketplaceInstance).first():
+                    from core.marketplace_sync_worker import AnalyticsSyncWorker
+                    worker = AnalyticsSyncWorker(self.db)
+                    worker._ensure_instance_registered()
+            except Exception as reg_err:
+                logger.error(f"Marketplace auto-registration failed: {reg_err}")
 
     def search_skills(
         self,
