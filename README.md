@@ -3,7 +3,7 @@
 # ATOM Platform
 ### Open-Source AI Agent Platform for Self-Hosted Automation
 
-> **Developer Note**: For technical setup and architecture, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+> **Developer Note**: For technical setup and architecture, see [docs/development/overview.md](docs/development/overview.md).
 
 ![Atom Platform](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
 
@@ -106,7 +106,7 @@ That's it! 🚀
 - **Personal Edition** - Free, single-user, SQLite (default)
 - **Enterprise Edition** - Multi-user, PostgreSQL, monitoring → `pip install atom-os[enterprise]`
 
-[Full Installation Guide →](docs/INSTALLATION.md)
+[Full Installation Guide →](docs/getting-started/installation.md)
 
 ---
 
@@ -288,16 +288,17 @@ Connect your Atom instance to the public marketplace to access thousands of comm
 
 ### User Guides ⭐
 - **[User Guide Index](docs/USER_GUIDE_INDEX.md)** - Complete user documentation (START HERE)
-- [Quick Start Guide](docs/guides/QUICKSTART.md) - Get started in 15 minutes
+- [Quick Start Guide](docs/getting-started/quick-start.md) - Get started in 15 minutes
 - [User Guide](docs/guides/USER_GUIDE.md) - Core features and daily workflows
 
-### Core
-- [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - 5,000+ skills with Python & npm packages
-- [Python Package Support](docs/PYTHON_PACKAGES.md) - NumPy, Pandas, 350K+ packages
-- [npm Package Support](docs/NPM_PACKAGE_SUPPORT.md) - Lodash, Express, 2M+ packages ✨ NEW
-- [Episodic Memory](docs/EPISODIC_MEMORY_IMPLEMENTATION.md) - Learning system
-- [Agent Graduation](docs/AGENT_GRADUATION_GUIDE.md) - Promotion framework
-- [Student Training](docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Maturity routing
+### Core Features
+- [Agent System](docs/agents/overview.md) - Multi-agent governance and orchestration
+- [Community Skills Guide](docs/integrations/community-skills.md) - 5,000+ skills with Python & npm packages
+- [Python Package Support](docs/security/python-packages.md) - NumPy, Pandas, 350K+ packages
+- [npm Package Support](docs/security/npm-packages.md) - Lodash, Express, 2M+ packages
+- [Episodic Memory](docs/intelligence/episodic-memory.md) - Agent learning system
+- [Agent Graduation](docs/agents/graduation.md) - Promotion framework
+- [Student Training](docs/agents/training.md) - Maturity routing
 
 ### Testing & Quality ✨ NEW
 - [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 91+ comprehensive end-to-end tests
@@ -306,17 +307,17 @@ Connect your Atom instance to the public marketplace to access thousands of comm
 - [Cross-Platform Testing](.planning/phases/236-cross-platform-and-stress-testing/236-VERIFICATION.md) - Mobile/desktop testing
 
 ### Platform
-- [Development Guide](docs/DEVELOPMENT.md) - Technical setup
-- [Installation Guide](docs/INSTALLATION.md) - Complete instructions
-- [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) - Feature comparison
+- [Development Guide](docs/development/overview.md) - Technical setup
+- [Installation Guide](docs/getting-started/installation.md) - Complete instructions
+- [Atom vs OpenClaw](docs/features/atom-vs-openclaw.md) - Feature comparison
 
 ### Advanced
-- [Canvas Implementation](docs/CANVAS_IMPLEMENTATION_COMPLETE.md) - Canvas details
-- [Agent Governance](docs/AGENT_GOVERNANCE.md) - Maturity levels
-- [Personal Edition](docs/PERSONAL_EDITION.md) - Local deployment
-- [IM Adapter Setup](backend/docs/IM_ADAPTER_SETUP.md) - Messaging integration
+- [Canvas Reference](docs/canvas/reference.md) - Canvas operations
+- [Agent Governance](docs/agents/governance.md) - Maturity levels and permissions
+- [Meta-Agent Routing](docs/agents/meta-agent.md) - Intent classification and fleet recruitment
+- [Personal Edition](docs/operations/personal-edition.md) - Local deployment
 
-**[Complete Documentation Index →](docs/INDEX.md)**
+**[Complete Documentation Index →](docs/INDEX.md)** | **[Reorganization Plan →](docs/DOCUMENTATION_REORGANIZATION_PLAN.md)**
 
 ---
 
@@ -329,8 +330,8 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## Support
 
 - **Documentation**: [docs/INDEX.md](docs/INDEX.md) - Complete index
-- **Developer Guide**: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Setup
-- **Implementation History**: [docs/IMPLEMENTATION_HISTORY.md](docs/IMPLEMENTATION_HISTORY.md) - Recent changes
+- **Developer Guide**: [docs/development/overview.md](docs/development/overview.md) - Setup
+- **User Guide Index**: [docs/USER_GUIDE_INDEX.md](docs/USER_GUIDE_INDEX.md) - User documentation
 - **Blog**: [Substack](https://substack.com/@rish2atom/posts) - Latest updates & insights
 - **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
 - **License**: AGPL v3 - [LICENSE.md](LICENSE.md)
