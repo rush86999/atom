@@ -742,6 +742,6 @@ const unsubscribe = window.atom.canvas.subscribeAll((event) => {
 
 ## See Also
 
-- [Canvas Component Documentation](CANVAS_QUICK_REFERENCE.md)
-- [Agent Guidance System](/docs/AGENT_GUIDANCE_IMPLEMENTATION.md)
-- [Episodic Memory Integration](/docs/EPISODIC_MEMORY_IMPLEMENTATION.md)
+- [Agent Guidance System](../agents/guidance-system.md) - Real-time agent monitoring
+- [Episodic Memory Integration](../intelligence/episodic-memory.md) - Agent learning system
+- [Canvas AI Accessibility](../canvas/ai-accessibility.md) - AI-readable canvas state
