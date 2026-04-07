@@ -80,7 +80,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Browse and install 5,000+ skills
   - Troubleshooting and support
 
-- **[Agent Marketplace Guide](AGENT_MARKETPLACE.md)** - Publish and share agents
+- **[Agent Marketplace Guide](agents/marketplace.md)** - Publish and share agents
   - Agent publishing workflow
   - Template creation
   - Federation setup

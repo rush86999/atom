@@ -358,9 +358,8 @@ DELETE /api/admin/sync/cache
 
 ### Documentation
 
-- **Marketplace Architecture**: [MARKETPLACE_ARCHITECTURE.md](../MARKETPLACE_ARCHITECTURE.md)
-- **Federation Protocol**: [FEDERATION_PROTOCOL.md](../FEDERATION_PROTOCOL.md)
-- **Sync Deployment**: [ATOM_SAAS_SYNC_DEPLOYMENT.md](ATOM_SAAS_SYNC_DEPLOYMENT.md)
+- **Marketplace Architecture**: See [SKILL_MARKETPLACE_GUIDE](skills.md)
+- **Deployment Guide**: See [operations/deployment.md](../operations/deployment.md)
 
 ### Community
 

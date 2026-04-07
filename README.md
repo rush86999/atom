@@ -253,7 +253,7 @@ Connect your Atom instance to the public marketplace to access thousands of comm
 ### Documentation
 
 - **[Marketplace Connection Guide](docs/MARKETPLACE_CONNECTION_GUIDE.md)** - Complete setup and troubleshooting
-- **[Agent Marketplace Guide](docs/AGENT_MARKETPLACE.md)** - Publishing and sharing agents
+- **[Agent Marketplace Guide](docs/agents/marketplace.md)** - Publishing and sharing agents
 - **[Sync Deployment Guide](backend/docs/ATOM_SAAS_SYNC_DEPLOYMENT.md)** - Production deployment
 
 ---
