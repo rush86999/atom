@@ -168,3 +168,29 @@ def install_marketplace_skill(
         raise HTTPException(status_code=400, detail=result["error"])
 
     return result
+
+
+@router.delete("/skills/{skill_id}/uninstall")
+def uninstall_marketplace_skill(
+    skill_id: str,
+    agent_id: str = Query(..., description="Agent ID to uninstall skill from"),
+    db: Session = Depends(get_db)
+):
+    """
+    Uninstall a skill from an agent.
+
+    - **skill_id**: Unique skill identifier
+    - **agent_id**: Agent ID to uninstall skill from
+
+    Returns uninstall status.
+    """
+    service = SkillMarketplaceService(db)
+    result = service.uninstall_skill(
+        skill_id=skill_id,
+        agent_id=agent_id
+    )
+
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return result

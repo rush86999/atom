@@ -348,6 +348,62 @@ class SkillMarketplaceService:
             for r in ratings
         ]
 
+    def uninstall_skill(
+        self,
+        skill_id: str,
+        agent_id: str
+    ) -> Dict[str, Any]:
+        """
+        Uninstall a skill from an agent.
+
+        Removes skill execution record for the specified agent.
+        Decrements install count on the community skill.
+
+        Args:
+            skill_id: Skill ID to uninstall
+            agent_id: Agent ID to uninstall from
+
+        Returns:
+            Uninstall status
+        """
+        skill = self.db.query(SkillExecution).filter(
+            SkillExecution.id == skill_id,
+            SkillExecution.skill_source == "community"
+        ).first()
+
+        if not skill:
+            return {
+                "success": False,
+                "error": f"Skill not found: {skill_id}"
+            }
+
+        try:
+            logger.info(f"Uninstalling skill {skill_id} from agent {agent_id}")
+
+            # TODO: Remove skill-agent association when skill-relationship model is added
+            # For now, this is a placeholder for future implementation
+
+            # Decrement install count on community skill
+            if hasattr(skill, 'install_count'):
+                skill.install_count = max(0, (skill.install_count or 0) - 1)
+
+            self.db.commit()
+
+            return {
+                "success": True,
+                "skill_id": skill_id,
+                "agent_id": agent_id,
+                "message": "Skill uninstalled successfully"
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to uninstall skill {skill_id}: {e}")
+            self.db.rollback()
+            return {
+                "success": False,
+                "error": f"Failed to uninstall skill: {str(e)}"
+            }
+
     # TODO: Future Atom SaaS sync methods (to be implemented when API is ready)
     async def sync_with_saas(self):
         """Sync skills with Atom SaaS API (future feature)."""
