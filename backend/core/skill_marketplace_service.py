@@ -1,20 +1,19 @@
 """
-Skill Marketplace Service - Local PostgreSQL marketplace with Atom SaaS sync architecture.
+Skill Marketplace Service - Atom Agent OS Marketplace Integration.
 
-Provides centralized hub for community skills with:
-- Local PostgreSQL marketplace (full-text search, categories, ratings)
-- Atom SaaS API integration architecture (for future sync)
-- Local cache with TTL for performance
-- Category-based navigation
-- User ratings and reviews (local storage)
-- Installation tracking
-- Integration with SkillRegistryService for execution
+Provides integration with the Atom Agent OS marketplace (atomagentos.com):
+- Browse marketplace skills from Atom Agent OS
+- Install skills from Atom Agent OS marketplace
+- Rate and review skills
+- Uninstall installed skills
+- Local cache for performance
 
-Architecture: Hybrid approach
-- Primary: Local PostgreSQL-based marketplace (immediate functionality)
-- Future: Atom SaaS API sync layer (to be added when API is ready)
+Architecture: Marketplace-First
+- Primary: Atom Agent OS marketplace API (atomagentos.com) for all marketplace operations
+- Local: PostgreSQL cache for performance
+- Fallback: Local community skills when marketplace is unavailable
 
-Reference: Phase 60 Plan 01 - Local Marketplace with Atom SaaS Integration
+Reference: Phase 60 Plan 01 - Local Marketplace with Atom Agent OS Integration
 """
 
 import asyncio
@@ -24,7 +23,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, and_
 
-from core.atom_saas_client import AtomSaaSClient
+from core.atom_agent_os_client import AtomAgentOSMarketplaceClient
 from core.models import SkillCache, SkillExecution, SkillRating
 from core.skill_registry_service import SkillRegistryService
 
@@ -33,20 +32,21 @@ logger = logging.getLogger(__name__)
 
 class SkillMarketplaceService:
     """
-    Marketplace service with local PostgreSQL and Atom SaaS sync architecture.
+    Marketplace service with Atom Agent OS marketplace integration.
 
-    Primary storage: Local PostgreSQL (immediate functionality)
-    Future sync: Atom SaaS API (when available)
+    Primary source: Atom Agent OS marketplace (atomagentos.com)
+    Local cache: PostgreSQL for performance
+    Fallback: Local community skills when marketplace is unavailable
 
-    Search uses PostgreSQL full-text search on local Community Skills.
-    Ratings are stored locally in SkillRating model.
+    Search uses marketplace API with local cache fallback.
+    Ratings are submitted to marketplace and stored locally.
     """
 
     CACHE_TTL_SECONDS = 300  # 5 minutes
 
-    def __init__(self, db: Session, saas_client: Optional[AtomSaaSClient] = None):
+    def __init__(self, db: Session, saas_client: Optional[AtomAgentOSMarketplaceClient] = None):
         self.db = db
-        self.saas_client = saas_client or AtomSaaSClient()
+        self.saas_client = saas_client or AtomAgentOSMarketplaceClient()
         self.skill_registry = SkillRegistryService(db)
 
     def search_skills(
@@ -59,12 +59,53 @@ class SkillMarketplaceService:
         page_size: int = 20
     ) -> Dict[str, Any]:
         """
-        Search local community skills with PostgreSQL full-text search.
+        Search marketplace skills with Atom Agent OS-first approach.
 
-        Primary implementation: Local PostgreSQL query
-        Future: Atom SaaS API sync (when available)
+        Primary: Atom Agent OS marketplace API (atomagentos.com)
+        Fallback: Local PostgreSQL community skills
 
         Returns paginated results with metadata.
+        """
+        # Try Atom Agent OS marketplace first
+        try:
+            logger.info(f"Searching Atom Agent OS marketplace: query={query}, category={category}")
+            result = self.saas_client.fetch_skills_sync(
+                query=query,
+                category=category,
+                skill_type=skill_type,
+                page=page,
+                page_size=page_size
+            )
+
+            # Add source indicator
+            result["source"] = "atom_agent_os"
+            return result
+
+        except Exception as e:
+            logger.warning(f"Failed to fetch from Atom Agent OS, falling back to local: {e}")
+            # Fallback to local community skills
+            return self._search_local_skills(
+                query=query,
+                category=category,
+                skill_type=skill_type,
+                sort_by=sort_by,
+                page=page,
+                page_size=page_size
+            )
+
+    def _search_local_skills(
+        self,
+        query: str = "",
+        category: Optional[str] = None,
+        skill_type: Optional[str] = None,
+        sort_by: str = "relevance",
+        page: int = 1,
+        page_size: int = 20
+    ) -> Dict[str, Any]:
+        """
+        Search local community skills with PostgreSQL full-text search.
+
+        Fallback implementation when Atom Agent OS is unavailable.
         """
         # Build query for local community skills
         q = self.db.query(SkillExecution).filter(
@@ -128,11 +169,21 @@ class SkillMarketplaceService:
 
     def get_skill_by_id(self, skill_id: str) -> Optional[Dict[str, Any]]:
         """
-        Get skill details from local database.
+        Get skill details from Atom Agent OS marketplace with local fallback.
 
-        Primary implementation: Local PostgreSQL
-        Future: Atom SaaS API sync (when available)
+        Primary: Atom Agent OS marketplace API
+        Fallback: Local PostgreSQL community skills
         """
+        # Try Atom Agent OS first
+        try:
+            skill = self.saas_client.get_skill_by_id_sync(skill_id)
+            if skill:
+                skill["source"] = "atom_agent_os"
+                return skill
+        except Exception as e:
+            logger.warning(f"Failed to fetch skill {skill_id} from marketplace: {e}")
+
+        # Fallback to local
         skill = self.db.query(SkillExecution).filter(
             SkillExecution.id == skill_id,
             SkillExecution.skill_source == "community"
@@ -142,6 +193,7 @@ class SkillMarketplaceService:
             return None
 
         skill_dict = self._skill_to_dict(skill)
+        skill_dict["source"] = "local"
 
         # Add ratings
         avg_rating = self._get_average_rating(skill.id)
@@ -155,12 +207,20 @@ class SkillMarketplaceService:
 
     def get_categories(self) -> List[Dict[str, Any]]:
         """
-        Get all skill categories from local database.
+        Get all skill categories from Atom Agent OS marketplace with local fallback.
 
-        Primary implementation: Local aggregation
-        Future: Atom SaaS API sync (when available)
+        Primary: Atom Agent OS marketplace API
+        Fallback: Local aggregation
         """
-        # Aggregate categories from community skills
+        # Try Atom Agent OS first
+        try:
+            categories = self.saas_client.get_categories_sync()
+            if categories:
+                return categories
+        except Exception as e:
+            logger.warning(f"Failed to fetch categories from marketplace: {e}")
+
+        # Fallback to local
         categories = self.db.query(
             SkillExecution.input_params["skill_metadata"]["category"].as_string().label("category"),
             func.count(SkillExecution.id).label("count")
@@ -187,10 +247,10 @@ class SkillMarketplaceService:
         comment: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Submit skill rating to local database.
+        Submit skill rating to Atom Agent OS marketplace and local database.
 
-        Primary implementation: Local SkillRating model
-        Future: Atom SaaS API sync (when available)
+        Primary: Atom Agent OS marketplace API
+        Local: Also stores in SkillRating for local reference
         """
         # Validate rating
         if not 1 <= rating <= 5:
@@ -199,19 +259,20 @@ class SkillMarketplaceService:
                 "error": "Rating must be between 1 and 5"
             }
 
-        # Check if skill exists
-        skill = self.db.query(SkillExecution).filter(
-            SkillExecution.id == skill_id,
-            SkillExecution.skill_source == "community"
-        ).first()
+        # Submit to Atom Agent OS marketplace
+        marketplace_result = None
+        try:
+            marketplace_result = self.saas_client.rate_skill_sync(
+                skill_id=skill_id,
+                user_id=user_id,
+                rating=rating,
+                comment=comment
+            )
+            logger.info(f"Rating submitted to Atom Agent OS marketplace: {marketplace_result}")
+        except Exception as e:
+            logger.warning(f"Failed to submit rating to marketplace: {e}")
 
-        if not skill:
-            return {
-                "success": False,
-                "error": "Skill not found"
-            }
-
-        # Check if user already rated this skill
+        # Also store locally
         existing_rating = self.db.query(SkillRating).filter(
             SkillRating.skill_id == skill_id,
             SkillRating.user_id == user_id
@@ -237,14 +298,18 @@ class SkillMarketplaceService:
 
         self.db.commit()
 
-        # Calculate new average
-        avg_rating = self._get_average_rating(skill_id)
+        # Return marketplace result if available, otherwise local
+        if marketplace_result and marketplace_result.get("success"):
+            return marketplace_result
 
+        # Calculate local average
+        avg_rating = self._get_average_rating(skill_id)
         return {
             "success": True,
             "action": action,
             "average_rating": avg_rating["average"],
-            "rating_count": avg_rating["count"]
+            "rating_count": avg_rating["count"],
+            "source": "local"
         }
 
     def install_skill(
@@ -254,12 +319,29 @@ class SkillMarketplaceService:
         auto_install_deps: bool = True
     ) -> Dict[str, Any]:
         """
-        Install skill from local marketplace.
+        Install skill from Atom Agent OS marketplace.
 
         Creates skill execution record via SkillRegistryService.
-
-        Future: Atom SaaS API sync (when available)
+        Records installation with Atom Agent OS marketplace.
         """
+        # Install via Atom Agent OS marketplace
+        try:
+            logger.info(f"Installing skill {skill_id} from Atom Agent OS marketplace for agent {agent_id}")
+            marketplace_result = self.saas_client.install_skill_sync(
+                skill_id=skill_id,
+                agent_id=agent_id,
+                auto_install_deps=auto_install_deps
+            )
+
+            if not marketplace_result.get("success"):
+                logger.warning(f"Marketplace installation failed: {marketplace_result.get('error')}")
+                # Fall through to local installation
+
+        except Exception as e:
+            logger.warning(f"Failed to install via marketplace, trying local: {e}")
+            marketplace_result = None
+
+        # Local installation
         skill = self.db.query(SkillExecution).filter(
             SkillExecution.id == skill_id
         ).first()
@@ -275,15 +357,12 @@ class SkillMarketplaceService:
             # This will trigger package installation if needed
             logger.info(f"Installing skill {skill_id} for agent {agent_id}")
 
-            # TODO: Atom SaaS sync - record installation in SaaS when API is available
-            # if self.saas_client:
-            #     await self.saas_client.install_skill_sync(skill_id, agent_id, auto_install_deps)
-
             return {
                 "success": True,
                 "skill_id": skill_id,
                 "agent_id": agent_id,
-                "message": "Skill installed successfully"
+                "message": "Skill installed successfully",
+                "source": "local"
             }
 
         except Exception as e:
@@ -354,10 +433,10 @@ class SkillMarketplaceService:
         agent_id: str
     ) -> Dict[str, Any]:
         """
-        Uninstall a skill from an agent.
+        Uninstall a skill from an agent via Atom Agent OS Marketplace.
 
         Removes skill execution record for the specified agent.
-        Decrements install count on the community skill.
+        Records uninstallation with Atom Agent OS marketplace.
 
         Args:
             skill_id: Skill ID to uninstall
@@ -366,6 +445,23 @@ class SkillMarketplaceService:
         Returns:
             Uninstall status
         """
+        # Uninstall via Atom Agent OS marketplace
+        try:
+            logger.info(f"Uninstalling skill {skill_id} from Atom Agent OS marketplace for agent {agent_id}")
+            marketplace_result = self.saas_client.uninstall_skill_sync(
+                skill_id=skill_id,
+                agent_id=agent_id
+            )
+
+            if not marketplace_result.get("success"):
+                logger.warning(f"Marketplace uninstall failed: {marketplace_result.get('error')}")
+                # Fall through to local uninstall
+
+        except Exception as e:
+            logger.warning(f"Failed to uninstall via marketplace, trying local: {e}")
+            marketplace_result = None
+
+        # Local uninstall
         skill = self.db.query(SkillExecution).filter(
             SkillExecution.id == skill_id,
             SkillExecution.skill_source == "community"
@@ -393,7 +489,8 @@ class SkillMarketplaceService:
                 "success": True,
                 "skill_id": skill_id,
                 "agent_id": agent_id,
-                "message": "Skill uninstalled successfully"
+                "message": "Skill uninstalled successfully",
+                "source": "local"
             }
 
         except Exception as e:
@@ -404,22 +501,22 @@ class SkillMarketplaceService:
                 "error": f"Failed to uninstall skill: {str(e)}"
             }
 
-    # TODO: Future Atom SaaS sync methods (to be implemented when API is ready)
-    async def sync_with_saas(self):
-        """Sync skills with Atom SaaS API (future feature)."""
-        logger.info("Atom SaaS sync not yet implemented - using local database only")
-        # When Atom SaaS API is available:
-        # 1. Fetch skills from SaaS
+    # TODO: Future Atom Agent OS marketplace sync methods (to be implemented when API is ready)
+    async def sync_with_marketplace(self):
+        """Sync skills with Atom Agent OS marketplace (future feature)."""
+        logger.info("Marketplace sync not yet implemented - using local database only")
+        # When Atom Agent OS marketplace API is available:
+        # 1. Fetch skills from marketplace
         # 2. Update local SkillCache
         # 3. Merge with local community skills
         pass
 
     async def _cache_skills(self, skills: List[Dict[str, Any]]):
-        """Cache skills from Atom SaaS (future feature)."""
-        # TODO: Implement when Atom SaaS API is ready
+        """Cache skills from Atom Agent OS marketplace (future feature)."""
+        # TODO: Implement when marketplace API is ready
         pass
 
     async def _cache_categories(self, categories: List[Dict[str, Any]]):
-        """Cache categories from Atom SaaS (future feature)."""
-        # TODO: Implement when Atom SaaS API is ready
+        """Cache categories from Atom Agent OS marketplace (future feature)."""
+        # TODO: Implement when marketplace API is ready
         pass

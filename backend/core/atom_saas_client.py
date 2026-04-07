@@ -1,16 +1,16 @@
 """
-Atom SaaS API Client - WebSocket + HTTP communication with Atom SaaS platform.
+Atom Agent OS Marketplace API Client - HTTP communication with Atom Agent OS platform.
 
 Provides centralized interface for:
-- Fetching skills from Atom SaaS marketplace
+- Fetching skills from Atom Agent OS marketplace
 - Submitting skill ratings
 - Installing skills with dependency resolution
-- Real-time skill updates via WebSocket
+- Uninstalling skills
 - Authentication via API tokens
 
 Environment Variables:
-- ATOM_SAAS_URL: WebSocket URL (default: ws://localhost:5058/api/ws/satellite/connect)
-- ATOM_SAAS_API_URL: HTTP API URL (default: http://localhost:5058/api)
+- ATOM_SAAS_URL: WebSocket URL (default: wss://atomagentos.com/api/ws/satellite/connect)
+- ATOM_SAAS_API_URL: HTTP API URL (default: https://atomagentos.com/api)
 - ATOM_SAAS_API_TOKEN: Authentication token (required)
 
 Reference: scripts/satellite/atom_satellite.py for WebSocket pattern
@@ -39,8 +39,8 @@ class AtomSaaSConfig:
     cache_ttl_seconds: int = 300  # 5 minutes
 
 
-class AtomSaaSClient:
-    """Client for Atom SaaS API communication."""
+class AtomAgentOSMarketplaceClient:
+    """Client for Atom Agent OS Marketplace API communication."""
 
     def __init__(self, config: Optional[AtomSaaSConfig] = None):
         self.config = config or self._load_config()
@@ -51,12 +51,19 @@ class AtomSaaSClient:
     @staticmethod
     def _load_config() -> AtomSaaSConfig:
         """Load configuration from environment variables."""
-        ws_url = os.getenv("ATOM_SAAS_URL", "ws://localhost:5058/api/ws/satellite/connect")
-        api_url = os.getenv("ATOM_SAAS_API_URL", "http://localhost:5058/api")
+        # Default to Atom SaaS mothership (atomagentos.com)
+        ws_url = os.getenv(
+            "ATOM_SAAS_URL",
+            "wss://atomagentos.com/api/ws/satellite/connect"
+        )
+        api_url = os.getenv(
+            "ATOM_SAAS_API_URL",
+            "https://atomagentos.com/api"
+        )
         api_token = os.getenv("ATOM_SAAS_API_TOKEN", "")
 
         if not api_token:
-            logger.warning("ATOM_SAAS_API_TOKEN not set - API calls may fail")
+            logger.warning("ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail")
 
         return AtomSaaSConfig(
             ws_url=ws_url,
@@ -197,6 +204,30 @@ class AtomSaaSClient:
             logger.error(f"Failed to install skill {skill_id}: {e}")
             return {"success": False, "error": str(e)}
 
+    async def uninstall_skill(
+        self,
+        skill_id: str,
+        agent_id: str
+    ) -> Dict[str, Any]:
+        """
+        Uninstall a skill from Atom SaaS marketplace.
+
+        Removes skill execution record for the specified agent.
+        """
+        client = await self._get_http_client()
+
+        params = {
+            "agent_id": agent_id
+        }
+
+        try:
+            response = await client.delete(f"/marketplace/skills/{skill_id}/uninstall", params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Failed to uninstall skill {skill_id}: {e}")
+            return {"success": False, "error": str(e)}
+
     async def search_skills(
         self,
         query: str,
@@ -261,6 +292,10 @@ class AtomSaaSClient:
     def install_skill_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for install_skill."""
         return asyncio.run(self.install_skill(*args, **kwargs))
+
+    def uninstall_skill_sync(self, *args, **kwargs) -> Dict[str, Any]:
+        """Synchronous wrapper for uninstall_skill."""
+        return asyncio.run(self.uninstall_skill(*args, **kwargs))
 
     def search_skills_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for search_skills."""
