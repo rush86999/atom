@@ -6,182 +6,215 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 
 ---
 
-## 📚 **Category Index**
-
-Browse documentation by category:
-
-- **[🤖 Agent System](AGENTS.md)** - Governance, graduation, and orchestration
-- **[🧠 Intelligence & Memory](INTELLIGENCE.md)** - AI capabilities, knowledge management
-- **[🔌 Integration & Automation](INTEGRATION.md)** - Platform integrations and automation
-- **[🚀 Platform & Deployment](PLATFORM.md)** - Deployment, monitoring, operations
-
----
-
-## 🚀 Quick Start
+## 📚 **Quick Navigation**
 
 **New to Atom?** Start here:
 - **[📖 User Guide Index](USER_GUIDE_INDEX.md)** ⭐ **START HERE** - Complete user documentation
-- [Installation Guide](INSTALLATION.md) - Get Atom running in 5 minutes
-- [Quick Start Guide](guides/QUICKSTART.md) - Your first workflow
-- [User Guide](guides/USER_GUIDE.md) - Core concepts and features
+- [Getting Started](getting-started/quick-start.md) - Get Atom running in 15 minutes
+- [Installation Guide](getting-started/installation.md) - Complete setup instructions
+
+**Documentation by Category:**
+- **[🤖 Agent System](agents/)** - Governance, graduation, and orchestration
+- **[🧠 Intelligence & Memory](intelligence/)** - AI capabilities, knowledge management
+- **[🎨 Canvas & Presentations](canvas/)** - Visual presentations and AI accessibility
+- **[🔌 Integrations](integrations/)** - Platform integrations and automation
+- **[🏪 Marketplace](marketplace/)** - Community skills marketplace
+- **[🧪 Testing](testing/)** - Testing guides and quality assurance
+- **[🚀 Operations](operations/)** - Deployment, monitoring, and performance
+- **[💻 Platform](platform/)** - Architecture and technical overview
+- **[🔌 API](api/)** - REST API reference
+- **[🛠️ Development](development/)** - Setup and coding standards
+- **[🔒 Security](security/)** - Package security and best practices
+- **[✨ Features](features/)** - Feature comparisons and use cases
 
 ---
 
-## 📖 Core Documentation
-
-### Platform Architecture
-- [Architecture Overview](ARCHITECTURE.md) - System design and components
-- [Technical Overview](TECHNICAL_OVERVIEW.md) - Deep technical dive
-- [Database Architecture](DATABASE_ARCHITECTURE.md) - Data models and schema
-- [API Documentation](API.md) - REST API reference
+## 📖 **Core Documentation**
 
 ### Agent System 🤖
-- **[Agent System Index](AGENTS.md)** - Complete agent documentation
-- [Agent Governance](AGENT_GOVERNANCE.md) - Maturity levels and permissions
-- [Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md) - Learning and promotion
-- [Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training workflow
-
-### ✨ **NEW** Unstructured Complex Tasks
-- [Unstructured Complex Tasks](UNSTRUCTURED_COMPLEX_TASKS.md) - Intent classification & routing
-- [Fleet Admiral](FLEET_ADMIRAL.md) - Multi-agent orchestration
-- [Domain Creation](UNSTRUCTURED_COMPLEX_TASKS.md#domain-creation-system) - Specialist templates
+- **[Agent Overview](agents/overview.md)** - Complete agent documentation
+- [Agent Governance](agents/governance.md) - Maturity levels and permissions
+- [Agent Graduation](agents/graduation.md) - Learning and promotion framework
+- [Student Training](agents/training.md) - Training workflow for student agents
+- [Meta-Agent Routing](agents/meta-agent.md) - Intent classification and orchestration
+- [Fleet Admiral](agents/fleet-admiral.md) - Multi-agent orchestration
+- [Unstructured Tasks](agents/unstructured-tasks.md) - Complex task routing
 
 ### Intelligence & Memory 🧠
-- **[Intelligence Index](INTELLIGENCE.md)** - Complete intelligence documentation
-- [Episodic Memory](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning system
-- [World Model & Business Facts](ai-world-model.md) - Knowledge management
-- [GraphRAG & Entity Types](GRAPHRAG_AND_ENTITY_TYPES.md) - Graph-based intelligence
+- **[Intelligence Overview](intelligence/overview.md)** - Complete intelligence documentation
+- [Episodic Memory](intelligence/episodic-memory.md) - Agent learning system
+- [GraphRAG & Entity Types](intelligence/graphrag.md) - Graph-based intelligence
+- [World Model & JIT Facts](intelligence/world-model-guide.md) - Knowledge management
+- [Vector Embeddings](intelligence/vector-embeddings.md) - Vector database and search
 
-### Canvas & Presentations
-- [Canvas AI Accessibility](CANVAS_AI_ACCESSIBILITY.md) - AI-readable canvas state
-- [LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md) - Enhanced memory integration
-- [Canvas Quick Reference](CANVAS_QUICK_REFERENCE.md) - Quick reference guide
-- [Canvas State API](CANVAS_STATE_API.md) - State API documentation
+### Canvas & Presentations 🎨
+- [Canvas AI Accessibility](canvas/ai-accessibility.md) - AI-readable canvas state
+- [LLM Canvas Summaries](canvas/llm-summaries.md) - Enhanced memory integration
+- [Canvas Reference](canvas/reference.md) - Complete canvas reference guide
+- [Agent Learning Integration](canvas/agent-learning.md) - Canvas-based learning
+- [Feedback & Memory](canvas/feedback-memory.md) - Feedback integration
 
-### Integration & Automation 🔌
-- **[Integration Index](INTEGRATION.md)** - Complete integration documentation
-- [Integrations](INTEGRATIONS.md) - 46+ platform integrations
-- [Advanced Skill Execution](ADVANCED_SKILL_EXECUTION.md) - Community skills
-- [Browser Automation](BROWSER_AUTOMATION.md) - Web scraping and automation
+### Integrations & Automation 🔌
+- **[Integrations Overview](integrations/overview.md)** - Complete integration documentation
+- [Browser Automation](integrations/browser-automation.md) - Web scraping and automation
+- [Community Skills](integrations/community-skills.md) - 5,000+ community skills
+- [Advanced Skill Execution](integrations/advanced-skills.md) - Skill composition engine
+- [CLI Skills Guide](integrations/cli-skills.md) - Atom CLI skills
+- [Device Capabilities](archive/DEVICE_CAPABILITIES.md) - Device access controls
 
-### Platform & Deployment 🚀
-- **[Platform Index](PLATFORM.md)** - Complete platform documentation
-- [Production Readiness](PRODUCTION_READINESS.md) - Deployment checklist
-- [Monitoring Guide](MONITORING_GUIDE.md) - Health checks and metrics
-- [Performance Tuning](PERFORMANCE_TUNING.md) - Optimization strategies
+### Marketplace 🏪
+- [Marketplace Connection](marketplace/connection.md) - Connect to public marketplace
+- [Skill Marketplace](marketplace/skills.md) - Browse and install skills
+- [Marketplace Analytics](marketplace/analytics.md) - Analytics and synchronization
+- [Update Summary](marketplace/update-summary.md) - Recent marketplace updates
 
 ---
 
-## 🏗️ Development Guides
+## 🏗️ **Development Guides**
 
 ### Getting Started
-- [Development Setup](DEVELOPMENT_SETUP.md) - Local development environment
-- [Development Guide](DEVELOPMENT.md) - Coding standards and workflows
-- [Code Quality Guide](CODE_QUALITY_GUIDE.md) - Testing and style guidelines
+- [Quick Start](getting-started/quick-start.md) - 15-minute quick start
+- [Installation Guide](getting-started/installation.md) - Complete installation
+- [Installation Options](getting-started/installation-options.md) - Installation variants
+- [Mac Mini Install](getting-started/mac-mini-install.md) - Mac mini setup
+- [Install Script Guide](getting-started/install-script.md) - Automated installation
 
-### Testing
-- [Testing Index](TESTING_INDEX.md) - Test organization
-- [E2E Testing Guide](E2E_TESTING_GUIDE.md) - End-to-end tests
-- [Property Testing Patterns](PROPERTY_TESTING_PATTERNS.md) - Property-based testing
-- [Test Results Report](TEST_RESULTS_REPORT.md) - Coverage and metrics
+### Development
+- **[Development Overview](development/overview.md)** - Complete development documentation
+- [Development Setup](development/setup.md) - Local development environment
+- [Code Quality Guide](development/code-quality.md) - Testing and style guidelines
+- [Build Guide](development/build.md) - Build and compilation
+
+### Testing 🧪
+- **[Testing Index](testing/index.md)** - Complete testing documentation
+- [Testing Onboarding](testing/onboarding.md) - 15-minute testing quick start
+- [E2E Testing](testing/e2e.md) - End-to-end testing guide
+- [Mobile Testing](testing/mobile-archive.md) - Mobile-specific testing
+- [Desktop Testing](testing/desktop.md) - Desktop application testing
+- [Cross-Platform Testing](testing/cross-platform.md) - Cross-platform coverage
+- [Property Testing](testing/property-testing.md) - Property-based testing
+
+---
+
+## 🚀 **Operations & Deployment**
 
 ### Deployment
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Production deployment
-- [Personal Edition](PERSONAL_EDITION.md) - Local Docker setup
-- [Rollback Procedure](ROLLBACK_PROCEDURE.md) - Emergency rollback
+- [Deployment Guide](operations/deployment.md) - Production deployment
+- [Personal Edition](operations/personal-edition.md) - Local Docker setup
+- [Production Readiness](operations/production-readiness.md) - Deployment checklist
+- [Rollback Procedure](operations/rollback.md) - Emergency rollback
+
+### Monitoring & Performance
+- [Monitoring Guide](operations/monitoring.md) - Health checks and metrics
+- [Performance Tuning](operations/performance.md) - Optimization strategies
+- [Performance Monitoring](operations/perf-monitoring.md) - Performance monitoring setup
+- [Health Monitoring](operations/health-monitoring.md) - Health check system
+- [Task Queue Guide](operations/task-queue.md) - Async task management
+
+### Production Operations
+- [Error Handling](operations/error-handling.md) - Error handling guidelines
+- [Integration Health](operations/integration-health.md) - Integration monitoring
+- [PostgreSQL Production](operations/postgresql-production.md) - Database setup
 
 ---
 
-## 📱 Platform-Specific
+## 📱 **Platform-Specific**
 
 ### Desktop
-- [MenuBar App Guide](MENUBAR_GUIDE.md) - macOS menu bar application
-- [Native Setup](NATIVE_SETUP.md) - Native desktop builds
+- [MenuBar Guide](archive/menubar/MENUBAR_GUIDE.md) - macOS menu bar app
+- [MenuBar Deployment](archive/menubar/MENUBAR_DEPLOYMENT.md) - Menubar deployment
+- [MenuBar Complete](archive/menubar/MENUBAR_COMPLETE_FINAL.md) - Menubar implementation
 
 ### Mobile
-- [Mobile Quick Start](MOBILE_QUICK_START.md) - React Native app
-- [Mobile Testing Guide](MOBILE_TESTING_GUIDE.md) - Mobile-specific testing
+- [Mobile Quick Start](archive/mobile/MOBILE_QUICK_START.md) - React Native setup
+- [Mobile Deployment](archive/mobile/MOBILE_DEPLOYMENT.md) - Mobile deployment
+- [Mobile User Guide](archive/mobile/MOBILE_USER_GUIDE.md) - Mobile features
+- [React Native Architecture](archive/mobile/REACT_NATIVE_ARCHITECTURE.md) - Mobile architecture
 
 ---
 
-## 📖 Additional Resources
+## 🔧 **Reference**
 
-### Reference Materials
-- [Feature Matrix](FEATURE_MATRIX.md) - Capability comparison
-- [Features List](ATOM_OPENCLAW_FEATURES.md) - Complete feature list
-- [Use Cases](USE_CASES.md) - Real-world examples
-- [User Personas](USER_PERSONAS_AND_JOURNEYS.md) - Target users
+### API Reference
+- **[API Overview](api/overview.md)** - REST API reference
+- [API Index](api/index.md) - Complete API documentation
+- [Type Generation](api/type-generation.md) - API type generation
+- [Frontend to Backend API](api/frontend-backend.md) - Frontend-backend API
 
-### Implementation History
-- [Implementation History](IMPLEMENTATION_HISTORY.md) - Phase-by-phase history
-- [All Phases Complete](archive/ALL_PHASES_COMPLETE.md) - Completion summary (archived)
+### Security
+- **[Security Overview](security/packages.md)** - Package security
+- [Python Packages](security/python-packages.md) - Python package support
+- [npm Packages](security/npm-packages.md) - npm package support
+- [Package Governance](security/package-governance.md) - Package governance system
 
-### Troubleshooting
-- [Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md) - Common errors and solutions
+### Features
+- [Atom vs OpenClaw](features/atom-vs-openclaw.md) - Feature comparison
+- [Use Cases](features/use-cases.md) - Real-world examples
+- [Feature Matrix](features/matrix.md) - Capability comparison
 
 ---
 
-## 🗄️ Archived Documentation
+## 🗄️ **Archived Documentation**
 
-Legacy documentation has been moved to [`docs/archive/`](archive/). These files are kept for historical reference but may contain outdated information.
+Legacy documentation has been moved to [`archive/`](archive/). These files are kept for historical reference but may contain outdated information.
 
-**Archived Topics**:
+**Archived Topics:**
 - Phase-specific completion reports
-- Temporary implementation notes
+- Implementation notes
 - Deprecated features
 - Historical bug reports
+- Legacy platform-specific docs (menubar, mobile, oauth)
 
 ---
 
-## 🔍 Finding Information
+## 🔍 **Finding Information**
 
 ### By Role
 
 **Developers**:
-- [Development Guide](DEVELOPMENT.md)
-- [API Documentation](API.md)
-- [Testing Index](TESTING_INDEX.md)
+- [Development Overview](development/overview.md)
+- [API Documentation](api/overview.md)
+- [Testing Index](testing/index.md)
 
 **System Administrators**:
-- [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- [Monitoring Guide](MONITORING_GUIDE.md)
-- [Performance Tuning](PERFORMANCE_TUNING.md)
+- [Deployment Guide](operations/deployment.md)
+- [Monitoring Guide](operations/monitoring.md)
+- [Performance Tuning](operations/performance.md)
 
 **Product Managers**:
-- [Feature Matrix](FEATURE_MATRIX.md)
-- [Use Cases](USE_CASES.md)
-- [User Personas](USER_PERSONAS_AND_JOURNEYS.md)
+- [Feature Matrix](features/matrix.md)
+- [Use Cases](features/use-cases.md)
 
 **End Users**:
-- **[User Guide Index](USER_GUIDE_INDEX.md)** ⭐ Complete user documentation
-- [Quick Start](guides/QUICKSTART.md)
-- [User Guide](guides/USER_GUIDE.md)
+- [User Guide Index](USER_GUIDE_INDEX.md)
+- [Quick Start](getting-started/quick-start.md)
 
 ### By Task
 
 **Setting up Atom**:
-1. [Installation](INSTALLATION.md)
-2. [Development Setup](DEVELOPMENT_SETUP.md)
-3. [Personal Edition](PERSONAL_EDITION.md)
+1. [Quick Start](getting-started/quick-start.md)
+2. [Installation Guide](getting-started/installation.md)
+3. [Development Setup](development/setup.md)
 
 **Building Agents**:
-1. [Agent Governance](AGENT_GOVERNANCE.md)
-2. [Agent Graduation](AGENT_GRADUATION_GUIDE.md)
-3. [Unstructured Complex Tasks](UNSTRUCTURED_COMPLEX_TASKS.md)
+1. [Agent Overview](agents/overview.md)
+2. [Agent Governance](agents/governance.md)
+3. [Agent Graduation](agents/graduation.md)
+4. [Meta-Agent Routing](agents/meta-agent.md)
 
 **Integrating Systems**:
-1. [Integrations](INTEGRATIONS.md)
-2. [API Documentation](API.md)
-3. [OAuth Setup](OAUTH_SETUP_GUIDE.md)
+1. [Integrations Overview](integrations/overview.md)
+2. [Browser Automation](integrations/browser-automation.md)
+3. [Marketplace Connection](marketplace/connection.md)
 
 **Deploying to Production**:
-1. [Production Readiness](PRODUCTION_READINESS.md)
-2. [Deployment Guide](DEPLOYMENT_GUIDE.md)
-3. [Monitoring Guide](MONITORING_GUIDE.md)
+1. [Production Readiness](operations/production-readiness.md)
+2. [Deployment Guide](operations/deployment.md)
+3. [Monitoring Guide](operations/monitoring.md)
 
 ---
 
-## 📝 Documentation Standards
+## 📝 **Documentation Standards**
 
 ### Writing Style
 - **Concise**: Get to the point quickly
@@ -189,33 +222,20 @@ Legacy documentation has been moved to [`docs/archive/`](archive/). These files 
 - **Structured**: Use consistent formatting and headings
 - **Up-to-date**: Update docs when code changes
 
-### Template
-```markdown
-# Title
+### Recent Updates
 
-> **Last Updated**: YYYY-MM-DD
-> **Status**: ✅ Production Ready | 🚧 In Progress | ⚠️ Deprecated
+**April 2026** - Major Documentation Reorganization:
+- Reorganized 141+ root files into 28 topical directories
+- Consolidated redundant documentation (22 → 16 files)
+- Archived legacy implementation docs
+- Added Meta-Agent routing documentation
+- Updated all cross-references
 
-## Overview
-Brief description of what this document covers.
-
-## Key Concepts
-- Concept 1
-- Concept 2
-
-## Usage
-\`\`\`python
-# Code examples
-\`\`\`
-
-## See Also
-- [Related Doc 1](path/to/doc1.md)
-- [Related Doc 2](path/to/doc2.md)
-```
+**See**: [DOCUMENTATION_REORGANIZATION_PLAN.md](DOCUMENTATION_REORGANIZATION_PLAN.md)
 
 ---
 
-## 🤝 Contributing
+## 🤝 **Contributing**
 
 When adding new features:
 1. Update relevant documentation
@@ -223,25 +243,21 @@ When adding new features:
 3. Update [CLAUDE.md](../CLAUDE.md) with key changes
 4. Archive outdated docs
 
-When fixing bugs:
-1. Document the fix in [BUGS_FIXED_SUMMARY.md](archive/BUGS_FIXED_SUMMARY.md)
-2. Update relevant troubleshooting sections
-
 ---
 
-## 🔗 Quick Links
+## 🔗 **Quick Links**
 
-- **Main Project**: [GitHub Repository](https://github.com/rush869ark99/atom)
-- **Issues**: [GitHub Issues](https://github.com/rush869ark99/atom/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/rush869ark99/atom/discussions)
+- **Main Project**: [GitHub Repository](https://github.com/rush86999/atom)
+- **Issues**: [GitHub Issues](https://github.com/rush86999/atom/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/rush86999/atom/discussions)
 
 ---
 
 **Need Help?**
-- Check the [Troubleshooting](ERROR_HANDLING_GUIDELINES.md) guide
-- Review [FAQ](QUICKSTART.md#faq)
-- Search [GitHub Issues](https://github.com/rush869ark99/atom/issues)
+- Check the [Troubleshooting](../README.md#troubleshooting) guide
+- Review [FAQ](getting-started/quick-start.md#faq)
+- Search [GitHub Issues](https://github.com/rush86999/atom/issues)
 
 ---
 
-*Last Updated: April 5, 2026*
+*Last Updated: April 7, 2026*
