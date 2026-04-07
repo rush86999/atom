@@ -10,13 +10,13 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### New to Atom? Start Here
 
-1. **[Quick Start Guide](GUIDES/QUICKSTART.md)** - Get Atom running in 15 minutes
+1. **[Quick Start Guide](guides/QUICKSTART.md)** - Get Atom running in 15 minutes
    - One-time setup
    - Database configuration
    - Environment setup
    - First user creation
 
-2. **[User Guide](GUIDES/USER_GUIDE.md)** - Complete feature overview
+2. **[User Guide](guides/USER_GUIDE.md)** - Complete feature overview
    - Core features explanation
    - Daily workflow guidance
    - Tips and best practices
@@ -32,31 +32,31 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Calendar & Task Management
 
-- **[Calendar Management](GUIDES/USER_GUIDE.md#-calendar-management)**
+- **[Calendar Management](guides/USER_GUIDE.md#-calendar-management)**
   - Smart scheduling
   - Event templates
   - Multi-calendar support
 
-- **[Task Management](GUIDES/USER_GUIDE.md#-task-management)**
+- **[Task Management](guides/USER_GUIDE.md#-task-management)**
   - Task creation and organization
   - Project management
   - Smart prioritization
 
 ### AI Agents & Automation
 
-- **[Multi-Agent System](GUIDES/USER_GUIDE.md#-multi-agent-system)**
+- **[Multi-Agent System](guides/USER_GUIDE.md#-multi-agent-system)**
   - Agent management
   - Role configuration
   - Agent coordination
 
-- **[Automation Workflows](GUIDES/USER_GUIDE.md#-automation-workflows)**
+- **[Automation Workflows](guides/USER_GUIDE.md#-automation-workflows)**
   - Visual workflow editor
   - Trigger configuration
   - Workflow monitoring
 
 ### Voice & AI Features
 
-- **[Voice Commands](GUIDES/USER_GUIDE.md#-voice--ai-features)**
+- **[Voice Commands](guides/USER_GUIDE.md#-voice--ai-features)**
   - Natural language control
   - Wake word detection
   - AI chat interface
@@ -67,7 +67,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Service Integrations
 
-- **[Integration Setup](GUIDES/USER_GUIDE.md#integration-setup)**
+- **[Integration Setup](guides/USER_GUIDE.md#integration-setup)**
   - 46+ platform integrations
   - OAuth configuration
   - Sync preferences
@@ -96,16 +96,16 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### End Users
 
-- **[Quick Start](GUIDES/QUICKSTART.md)** - Get started fast
-- **[User Guide](GUIDES/USER_GUIDE.md)** - Complete feature guide
-- **[End User Workflow](GUIDES/END_USER_WORKFLOW.md)** - Daily workflows
-- **[User Training Guide](GUIDES/USER_TRAINING_GUIDE.md)** - Learn Atom features
-- **[User Personas](GUIDES/USER_PERSONAS_AND_JOURNEYS.md)** - Role-based guidance
+- **[Quick Start](guides/QUICKSTART.md)** - Get started fast
+- **[User Guide](guides/USER_GUIDE.md)** - Complete feature guide
+- **[End User Workflow](guides/END_USER_WORKFLOW.md)** - Daily workflows
+- **[User Training Guide](guides/USER_TRAINING_GUIDE.md)** - Learn Atom features
+- **[User Personas](guides/USER_PERSONAS_AND_JOURNEYS.md)** - Role-based guidance
 
 **End User Topics:**
-- [Best Practices](GUIDES/END_USERS/BEST_PRACTICES.md)
-- [Integration Setup](GUIDES/END_USERS/INTEGRATION_SETUP.md)
-- [Workflow Creation](GUIDES/END_USERS/WORKFLOW_CREATION.md)
+- [Best Practices](guides/END_USERS/BEST_PRACTICES.md)
+- [Integration Setup](guides/END_USERS/INTEGRATION_SETUP.md)
+- [Workflow Creation](guides/END_USERS/WORKFLOW_CREATION.md)
 
 ### Developers
 
@@ -115,10 +115,10 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - **[Code Quality Guide](CODE_QUALITY_GUIDE.md)** - Testing and style guidelines
 
 **Developer Topics:**
-- [API Integration](GUIDES/DEVELOPERS/API_INTEGRATION.md)
-- [Custom Workflows](GUIDES/DEVELOPERS/CUSTOM_WORKFLOWS.md)
-- [Extending Atom](GUIDES/DEVELOPERS/EXTENDING_ATOM.md)
-- [Plugin Development](GUIDES/DEVELOPERS/PLUGIN_DEVELOPMENT.md)
+- [API Integration](guides/DEVELOPERS/API_INTEGRATION.md)
+- [Custom Workflows](guides/DEVELOPERS/CUSTOM_WORKFLOWS.md)
+- [Extending Atom](guides/DEVELOPERS/EXTENDING_ATOM.md)
+- [Plugin Development](guides/DEVELOPERS/PLUGIN_DEVELOPMENT.md)
 
 ### Administrators
 
@@ -128,16 +128,16 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - **[Production Readiness](PRODUCTION_READINESS.md)** - Deployment checklist
 
 **Administrator Topics:**
-- [Monitoring](GUIDES/ADMINISTRATORS/MONITORING.md)
-- [Security Configuration](GUIDES/ADMINISTRATORS/SECURITY_CONFIG.md)
-- [System Setup](GUIDES/ADMINISTRATORS/SYSTEM_SETUP.md)
-- [User Management](GUIDES/ADMINISTRATORS/USER_MANAGEMENT.md)
+- [Monitoring](guides/ADMINISTRATORS/MONITORING.md)
+- [Security Configuration](guides/ADMINISTRATORS/SECURITY_CONFIG.md)
+- [System Setup](guides/ADMINISTRATORS/SYSTEM_SETUP.md)
+- [User Management](guides/ADMINISTRATORS/USER_MANAGEMENT.md)
 
 ### Enterprise
 
-- **[Enterprise Features](GUIDES/ENTERPRISE/)** - Enterprise-specific capabilities
+- **[Enterprise Features](guides/ENTERPRISE/)** - Enterprise-specific capabilities
 - **[Security & Compliance](ENTERPRISE/)** - Security guidelines
-- **[Team Management](GUIDES/ENTERPRISE/)** - Team workflows
+- **[Team Management](guides/ENTERPRISE/)** - Team workflows
 
 ---
 
@@ -184,7 +184,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Common Issues
 
 - **[Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)** - Common errors and solutions
-- **[Troubleshooting Section](GUIDES/USER_GUIDE.md#troubleshooting)** - User-level troubleshooting
+- **[Troubleshooting Section](guides/USER_GUIDE.md#troubleshooting)** - User-level troubleshooting
 - **[FAQ](QUICKSTART.md#faq)** - Frequently asked questions
 
 ### Getting Help
@@ -203,7 +203,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - **[Features List](ATOM_OPENCLAW_FEATURES.md)** - Complete feature list
 - **[Feature Matrix](FEATURE_MATRIX.md)** - Capability comparison
 - **[Use Cases](USE_CASES.md)** - Real-world examples
-- **[User Personas](GUIDES/USER_PERSONAS_AND_JOURNEYS.md)** - Target users
+- **[User Personas](guides/USER_PERSONAS_AND_JOURNEYS.md)** - Target users
 
 ### Platform Documentation
 
@@ -218,15 +218,15 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### For New Users
 
-1. Read [Quick Start Guide](GUIDES/QUICKSTART.md)
-2. Complete [User Training Guide](GUIDES/USER_TRAINING_GUIDE.md)
+1. Read [Quick Start Guide](guides/QUICKSTART.md)
+2. Complete [User Training Guide](guides/USER_TRAINING_GUIDE.md)
 3. Explore [Use Cases](USE_CASES.md)
-4. Set up [Integrations](GUIDES/USER_GUIDE.md#integration-setup)
+4. Set up [Integrations](guides/USER_GUIDE.md#integration-setup)
 
 ### For Workflow Creators
 
-1. Learn [Workflow Creation](GUIDES/END_USERS/WORKFLOW_CREATION.md)
-2. Study [Best Practices](GUIDES/END_USERS/BEST_PRACTICES.md)
+1. Learn [Workflow Creation](guides/END_USERS/WORKFLOW_CREATION.md)
+2. Study [Best Practices](guides/END_USERS/BEST_PRACTICES.md)
 3. Explore [Use Cases](USE_CASES.md)
 4. Build custom automations
 
@@ -239,9 +239,9 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### For Administrators
 
-1. Review [System Setup](GUIDES/ADMINISTRATORS/SYSTEM_SETUP.md)
-2. Configure [Security](GUIDES/ADMINISTRATORS/SECURITY_CONFIG.md)
-3. Set up [Monitoring](GUIDES/ADMINISTRATORS/MONITORING.md)
+1. Review [System Setup](guides/ADMINISTRATORS/SYSTEM_SETUP.md)
+2. Configure [Security](guides/ADMINISTRATORS/SECURITY_CONFIG.md)
+3. Set up [Monitoring](guides/ADMINISTRATORS/MONITORING.md)
 4. Deploy to [Production](DEPLOYMENT_GUIDE.md)
 
 ---
