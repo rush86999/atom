@@ -288,8 +288,8 @@ Connect your Atom instance to the public marketplace to access thousands of comm
 
 ### User Guides ⭐
 - **[User Guide Index](docs/USER_GUIDE_INDEX.md)** - Complete user documentation (START HERE)
-- [Quick Start Guide](docs/GUIDES/QUICKSTART.md) - Get started in 15 minutes
-- [User Guide](docs/GUIDES/USER_GUIDE.md) - Core features and daily workflows
+- [Quick Start Guide](docs/guides/QUICKSTART.md) - Get started in 15 minutes
+- [User Guide](docs/guides/USER_GUIDE.md) - Core features and daily workflows
 
 ### Core
 - [Community Skills Guide](docs/COMMUNITY_SKILLS.md) - 5,000+ skills with Python & npm packages

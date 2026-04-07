@@ -94,9 +94,9 @@ create_doc_structure() {
     guide_categories=("END_USERS" "ADMINISTRATORS" "ENTERPRISE" "DEVELOPERS")
 
     for subcat in "${guide_categories[@]}"; do
-        if [ ! -d "docs/GUIDES/$subcat" ]; then
-            mkdir -p "docs/GUIDES/$subcat"
-            log_info "Created docs/GUIDES/$subcat"
+        if [ ! -d "docs/guides/$subcat" ]; then
+            mkdir -p "docs/guides/$subcat"
+            log_info "Created docs/guides/$subcat"
         fi
     done
 
@@ -114,7 +114,7 @@ move_core_docs() {
         "DEPLOYMENT_GUIDE.md:docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT.md"
         "ENHANCED_WORKFLOW_AUTOMATION_GUIDE.md:docs/WORKFLOW_AUTOMATION/ENHANCED_WORKFLOW_GUIDE.md"
         "SETUP_GUIDE.md:docs/GETTING_STARTED/INSTALLATION.md"
-        "USER_GUIDE.md:docs/GUIDES/END_USERS/GETTING_STARTED.md"
+        "USER_GUIDE.md:docs/guides/END_USERS/GETTING_STARTED.md"
         "CONTRIBUTING.md:docs/DEVELOPMENT/CONTRIBUTING.md"
         "SECURITY_AUDIT_FINAL.md:docs/SECURITY/SECURITY_OVERVIEW.md"
         "API_KEY_INTEGRATION_GUIDE.md:docs/API/AUTHENTICATION.md"
@@ -275,21 +275,21 @@ create_missing_templates() {
         "docs/API/SDK/PYTHON_SDK.md"
         "docs/API/SDK/JAVASCRIPT_SDK.md"
         "docs/API/SDK/REST_CLIENTS.md"
-        "docs/GUIDES/END_USERS/WORKFLOW_CREATION.md"
-        "docs/GUIDES/END_USERS/INTEGRATION_SETUP.md"
-        "docs/GUIDES/END_USERS/BEST_PRACTICES.md"
-        "docs/GUIDES/ADMINISTRATORS/SYSTEM_SETUP.md"
-        "docs/GUIDES/ADMINISTRATORS/USER_MANAGEMENT.md"
-        "docs/GUIDES/ADMINISTRATORS/SECURITY_CONFIG.md"
-        "docs/GUIDES/ADMINISTRATORS/MONITORING.md"
-        "docs/GUIDES/ENTERPRISE/ENTERPRISE_SETUP.md"
-        "docs/GUIDES/ENTERPRISE/SCALABILITY.md"
-        "docs/GUIDES/ENTERPRISE/COMPLIANCE.md"
-        "docs/GUIDES/ENTERPRISE/CUSTOM_INTEGRATIONS.md"
-        "docs/GUIDES/DEVELOPERS/EXTENDING_ATOM.md"
-        "docs/GUIDES/DEVELOPERS/CUSTOM_WORKFLOWS.md"
-        "docs/GUIDES/DEVELOPERS/API_INTEGRATION.md"
-        "docs/GUIDES/DEVELOPERS/PLUGIN_DEVELOPMENT.md"
+        "docs/guides/END_USERS/WORKFLOW_CREATION.md"
+        "docs/guides/END_USERS/INTEGRATION_SETUP.md"
+        "docs/guides/END_USERS/BEST_PRACTICES.md"
+        "docs/guides/ADMINISTRATORS/SYSTEM_SETUP.md"
+        "docs/guides/ADMINISTRATORS/USER_MANAGEMENT.md"
+        "docs/guides/ADMINISTRATORS/SECURITY_CONFIG.md"
+        "docs/guides/ADMINISTRATORS/MONITORING.md"
+        "docs/guides/ENTERPRISE/ENTERPRISE_SETUP.md"
+        "docs/guides/ENTERPRISE/SCALABILITY.md"
+        "docs/guides/ENTERPRISE/COMPLIANCE.md"
+        "docs/guides/ENTERPRISE/CUSTOM_INTEGRATIONS.md"
+        "docs/guides/DEVELOPERS/EXTENDING_ATOM.md"
+        "docs/guides/DEVELOPERS/CUSTOM_WORKFLOWS.md"
+        "docs/guides/DEVELOPERS/API_INTEGRATION.md"
+        "docs/guides/DEVELOPERS/PLUGIN_DEVELOPMENT.md"
     )
 
     created_count=0
