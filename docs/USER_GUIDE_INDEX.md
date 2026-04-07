@@ -1,0 +1,279 @@
+# Atom User Guide Index
+
+**Last Updated:** April 7, 2026
+
+Welcome to the Atom User Guide! This comprehensive guide helps you get started with Atom and master its features.
+
+---
+
+## 🚀 Getting Started
+
+### New to Atom? Start Here
+
+1. **[Quick Start Guide](GUIDES/QUICKSTART.md)** - Get Atom running in 15 minutes
+   - One-time setup
+   - Database configuration
+   - Environment setup
+   - First user creation
+
+2. **[User Guide](GUIDES/USER_GUIDE.md)** - Complete feature overview
+   - Core features explanation
+   - Daily workflow guidance
+   - Tips and best practices
+
+3. **[Installation Guide](INSTALLATION.md)** - Detailed installation instructions
+   - Docker setup
+   - Native installation
+   - Platform-specific requirements
+
+---
+
+## 📚 Core Features
+
+### Calendar & Task Management
+
+- **[Calendar Management](GUIDES/USER_GUIDE.md#-calendar-management)**
+  - Smart scheduling
+  - Event templates
+  - Multi-calendar support
+
+- **[Task Management](GUIDES/USER_GUIDE.md#-task-management)**
+  - Task creation and organization
+  - Project management
+  - Smart prioritization
+
+### AI Agents & Automation
+
+- **[Multi-Agent System](GUIDES/USER_GUIDE.md#-multi-agent-system)**
+  - Agent management
+  - Role configuration
+  - Agent coordination
+
+- **[Automation Workflows](GUIDES/USER_GUIDE.md#-automation-workflows)**
+  - Visual workflow editor
+  - Trigger configuration
+  - Workflow monitoring
+
+### Voice & AI Features
+
+- **[Voice Commands](GUIDES/USER_GUIDE.md#-voice--ai-features)**
+  - Natural language control
+  - Wake word detection
+  - AI chat interface
+
+---
+
+## 🔌 Integrations & Marketplace
+
+### Service Integrations
+
+- **[Integration Setup](GUIDES/USER_GUIDE.md#integration-setup)**
+  - 46+ platform integrations
+  - OAuth configuration
+  - Sync preferences
+
+### Marketplace Connection ✨
+
+- **[Marketplace Connection Guide](MARKETPLACE_CONNECTION_GUIDE.md)** - Connect to public marketplace
+  - Get API token from https://atomagentos.com
+  - Configure sync settings
+  - Browse and install 5,000+ skills
+  - Troubleshooting and support
+
+- **[Agent Marketplace Guide](AGENT_MARKETPLACE.md)** - Publish and share agents
+  - Agent publishing workflow
+  - Template creation
+  - Federation setup
+
+- **[Skill Marketplace Guide](SKILL_MARKETPLACE_GUIDE.md)** - Community skills ecosystem
+  - Skill discovery
+  - Installation and management
+  - Rating and reviews
+
+---
+
+## 📖 Role-Specific Guides
+
+### End Users
+
+- **[Quick Start](GUIDES/QUICKSTART.md)** - Get started fast
+- **[User Guide](GUIDES/USER_GUIDE.md)** - Complete feature guide
+- **[End User Workflow](GUIDES/END_USER_WORKFLOW.md)** - Daily workflows
+- **[User Training Guide](GUIDES/USER_TRAINING_GUIDE.md)** - Learn Atom features
+- **[User Personas](GUIDES/USER_PERSONAS_AND_JOURNEYS.md)** - Role-based guidance
+
+**End User Topics:**
+- [Best Practices](GUIDES/END_USERS/BEST_PRACTICES.md)
+- [Integration Setup](GUIDES/END_USERS/INTEGRATION_SETUP.md)
+- [Workflow Creation](GUIDES/END_USERS/WORKFLOW_CREATION.md)
+
+### Developers
+
+- **[Development Setup](DEVELOPMENT_SETUP.md)** - Local development environment
+- **[Development Guide](DEVELOPMENT.md)** - Coding standards and workflows
+- **[API Documentation](API.md)** - REST API reference
+- **[Code Quality Guide](CODE_QUALITY_GUIDE.md)** - Testing and style guidelines
+
+**Developer Topics:**
+- [API Integration](GUIDES/DEVELOPERS/API_INTEGRATION.md)
+- [Custom Workflows](GUIDES/DEVELOPERS/CUSTOM_WORKFLOWS.md)
+- [Extending Atom](GUIDES/DEVELOPERS/EXTENDING_ATOM.md)
+- [Plugin Development](GUIDES/DEVELOPERS/PLUGIN_DEVELOPMENT.md)
+
+### Administrators
+
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment
+- **[Monitoring Guide](MONITORING_GUIDE.md)** - Health checks and metrics
+- **[Performance Tuning](PERFORMANCE_TUNING.md)** - Optimization strategies
+- **[Production Readiness](PRODUCTION_READINESS.md)** - Deployment checklist
+
+**Administrator Topics:**
+- [Monitoring](GUIDES/ADMINISTRATORS/MONITORING.md)
+- [Security Configuration](GUIDES/ADMINISTRATORS/SECURITY_CONFIG.md)
+- [System Setup](GUIDES/ADMINISTRATORS/SYSTEM_SETUP.md)
+- [User Management](GUIDES/ADMINISTRATORS/USER_MANAGEMENT.md)
+
+### Enterprise
+
+- **[Enterprise Features](GUIDES/ENTERPRISE/)** - Enterprise-specific capabilities
+- **[Security & Compliance](ENTERPRISE/)** - Security guidelines
+- **[Team Management](GUIDES/ENTERPRISE/)** - Team workflows
+
+---
+
+## 🎓 Advanced Topics
+
+### Agent System
+
+- **[Agent Governance](AGENT_GOVERNANCE.md)** - Maturity levels and permissions
+- **[Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md)** - Learning and promotion
+- **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
+- **[Unstructured Complex Tasks](UNSTRUCTURED_COMPLEX_TASKS.md)** - Multi-agent orchestration
+
+### Intelligence & Memory
+
+- **[Episodic Memory](EPISODIC_MEMORY_IMPLEMENTATION.md)** - Agent learning system
+- **[World Model & Business Facts](ai-world-model.md)** - Knowledge management
+- **[GraphRAG & Entity Types](GRAPHRAG_AND_ENTITY_TYPES.md)** - Graph-based intelligence
+
+### Canvas & Presentations
+
+- **[Canvas AI Accessibility](CANVAS_AI_ACCESSIBILITY.md)** - AI-readable canvas state
+- **[LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md)** - Enhanced memory integration
+- **[Canvas Quick Reference](CANVAS_QUICK_REFERENCE.md)** - Quick reference guide
+
+---
+
+## 📱 Platform-Specific Guides
+
+### Desktop
+
+- **[MenuBar App Guide](MENUBAR_GUIDE.md)** - macOS menu bar application
+- **[Native Setup](NATIVE_SETUP.md)** - Native desktop builds
+
+### Mobile
+
+- **[Mobile Quick Start](MOBILE_QUICK_START.md)** - React Native app setup
+- **[Mobile User Guide](MOBILE_USER_GUIDE.md)** - Mobile-specific features
+- **[Mobile Testing Guide](MOBILE_TESTING_GUIDE.md)** - Mobile testing
+
+---
+
+## 🛠️ Troubleshooting & Support
+
+### Common Issues
+
+- **[Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)** - Common errors and solutions
+- **[Troubleshooting Section](GUIDES/USER_GUIDE.md#troubleshooting)** - User-level troubleshooting
+- **[FAQ](QUICKSTART.md#faq)** - Frequently asked questions
+
+### Getting Help
+
+1. **Check Documentation** - Search relevant guides above
+2. **Search Issues** - [GitHub Issues](https://github.com/rush86999/atom/issues)
+3. **Community Forums** - [GitHub Discussions](https://github.com/rush86999/atom/discussions)
+4. **Marketplace Support** - [https://atomagentos.com](https://atomagentos.com)
+
+---
+
+## 📚 Reference Materials
+
+### Feature Documentation
+
+- **[Features List](ATOM_OPENCLAW_FEATURES.md)** - Complete feature list
+- **[Feature Matrix](FEATURE_MATRIX.md)** - Capability comparison
+- **[Use Cases](USE_CASES.md)** - Real-world examples
+- **[User Personas](GUIDES/USER_PERSONAS_AND_JOURNEYS.md)** - Target users
+
+### Platform Documentation
+
+- **[Architecture Overview](ARCHITECTURE.md)** - System design and components
+- **[Technical Overview](TECHNICAL_OVERVIEW.md)** - Deep technical dive
+- **[Database Architecture](DATABASE_ARCHITECTURE.md)** - Data models and schema
+- **[Platform Guide](PLATFORM.md)** - Platform capabilities
+
+---
+
+## 🎯 Learning Paths
+
+### For New Users
+
+1. Read [Quick Start Guide](GUIDES/QUICKSTART.md)
+2. Complete [User Training Guide](GUIDES/USER_TRAINING_GUIDE.md)
+3. Explore [Use Cases](USE_CASES.md)
+4. Set up [Integrations](GUIDES/USER_GUIDE.md#integration-setup)
+
+### For Workflow Creators
+
+1. Learn [Workflow Creation](GUIDES/END_USERS/WORKFLOW_CREATION.md)
+2. Study [Best Practices](GUIDES/END_USERS/BEST_PRACTICES.md)
+3. Explore [Use Cases](USE_CASES.md)
+4. Build custom automations
+
+### For Developers
+
+1. Set up [Development Environment](DEVELOPMENT_SETUP.md)
+2. Read [Development Guide](DEVELOPMENT.md)
+3. Study [API Documentation](API.md)
+4. Review [Code Quality Standards](CODE_QUALITY_GUIDE.md)
+
+### For Administrators
+
+1. Review [System Setup](GUIDES/ADMINISTRATORS/SYSTEM_SETUP.md)
+2. Configure [Security](GUIDES/ADMINISTRATORS/SECURITY_CONFIG.md)
+3. Set up [Monitoring](GUIDES/ADMINISTRATORS/MONITORING.md)
+4. Deploy to [Production](DEPLOYMENT_GUIDE.md)
+
+---
+
+## 🔗 Quick Links
+
+### Core Documentation
+
+- **[Main README](../README.md)** - Project overview
+- **[Documentation Index](README.md)** - Complete docs index
+- **[Development Guide](DEVELOPMENT.md)** - For contributors
+- **[API Documentation](API.md)** - REST API reference
+
+### Community & Support
+
+- **GitHub Repository** - [https://github.com/rush86999/atom](https://github.com/rush86999/atom)
+- **GitHub Issues** - [https://github.com/rush86999/atom/issues](https://github.com/rush86999/atom/issues)
+- **Marketplace** - [https://atomagentos.com](https://atomagentos.com)
+- **Documentation** - [https://docs.atomagentos.com](https://docs.atomagentos.com)
+
+---
+
+## 📝 Documentation Updates
+
+This index is maintained and updated regularly. If you find outdated information or missing topics, please:
+
+1. Open an issue on [GitHub](https://github.com/rush86999/atom/issues)
+2. Submit a pull request with improvements
+3. Contact the documentation team
+
+---
+
+**Last Updated:** April 7, 2026
+**Version:** 1.0
+**Platform:** Atom Open Source

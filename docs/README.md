@@ -20,9 +20,10 @@ Browse documentation by category:
 ## 🚀 Quick Start
 
 **New to Atom?** Start here:
+- **[📖 User Guide Index](USER_GUIDE_INDEX.md)** ⭐ **START HERE** - Complete user documentation
 - [Installation Guide](INSTALLATION.md) - Get Atom running in 5 minutes
-- [Quick Start Guide](QUICK_START.md) - Your first workflow
-- [User Guide](USER_GUIDE.md) - Core concepts and features
+- [Quick Start Guide](GUIDES/QUICKSTART.md) - Your first workflow
+- [User Guide](GUIDES/USER_GUIDE.md) - Core concepts and features
 
 ---
 
@@ -152,8 +153,9 @@ Legacy documentation has been moved to [`docs/archive/`](archive/). These files 
 - [User Personas](USER_PERSONAS_AND_JOURNEYS.md)
 
 **End Users**:
-- [Quick Start](QUICK_START.md)
-- [User Guide](USER_GUIDE.md)
+- **[User Guide Index](USER_GUIDE_INDEX.md)** ⭐ Complete user documentation
+- [Quick Start](GUIDES/QUICKSTART.md)
+- [User Guide](GUIDES/USER_GUIDE.md)
 
 ### By Task
 
