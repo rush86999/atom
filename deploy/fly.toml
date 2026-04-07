@@ -10,11 +10,11 @@ primary_region = 'iad'
   dockerfile = 'frontend-nextjs/Dockerfile'
 
   [build.args]
-    NEXT_PUBLIC_API_URL = 'https://atom-saas-api.fly.dev'
+    NEXT_PUBLIC_API_URL = 'https://atomagentos.com'
     release_command = './backend-saas/scripts/run_migrations.sh'
 
 [env]
-  API_BASE_URL = 'https://atom-saas-api.fly.dev'
+  API_BASE_URL = 'https://atomagentos.com'
   AWS_SQS_DISABLE_JSON_PROTOCOL = 'true'
   ENVIRONMENT = 'production'
   NEXTAUTH_URL = 'https://atom-saas.fly.dev'
