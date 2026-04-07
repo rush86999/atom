@@ -89,7 +89,7 @@ atom init
 # MINIMAX_API_KEY=...  (optional, for MiniMax M2.7 support)
 
 # (Optional) Connect to marketplace for 5,000+ community skills
-# MARKETPLACE_API_TOKEN=at_saas_xxxxx  # Get from https://atom-saas.fly.dev
+# MARKETPLACE_API_TOKEN=at_saas_xxxxx  # Get from https://atomagentos.com
 
 # Start Atom
 atom start
@@ -228,7 +228,7 @@ Connect your Atom instance to the public marketplace to access thousands of comm
 2. **Configure Environment**
    ```bash
    # Add to .env
-   MARKETPLACE_API_URL=https://atom-saas.fly.dev
+   MARKETPLACE_API_URL=https://atomagentos.com
    MARKETPLACE_API_TOKEN=at_saas_your_token_here
    MARKETPLACE_SYNC_ENABLED=true
    ```

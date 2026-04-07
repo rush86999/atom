@@ -118,7 +118,7 @@ env | grep MARKETPLACE
 curl http://localhost:8000/api/admin/sync/status
 
 # 3. Test marketplace API
-curl -I https://atom-saas.fly.dev/health
+curl -I https://atomagentos.com/health
 
 # 4. List available skills
 curl http://localhost:8000/api/marketplace/skills?limit=20
