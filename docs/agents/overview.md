@@ -49,8 +49,12 @@ Individual capabilities (skills, tools, actions) graduate independently based on
 
 ### Intent Classification
 - **CHAT** - Simple queries → LLMService
-- **WORKFLOW** - Structured tasks → QueenAgent
-- **TASK** - Unstructured complex tasks → FleetAdmiral
+- **WORKFLOW** - Structured tasks → **Queen Agent** (Queen Hive) → **Workflow Automation**
+- **TASK** - Unstructured complex long-horizon tasks → **Fleet Admiral** → **Dynamic Fleet Coordination**
+
+**Key Distinction**:
+- **Queen Agent** handles **structured complex tasks** with predefined steps (repeatable business processes)
+- **Fleet Admiral** handles **unstructured complex long-horizon tasks** requiring adaptive planning and dynamic agent recruitment
 
 ## Quick Links
 

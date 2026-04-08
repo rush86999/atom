@@ -11,8 +11,12 @@
 Atom's **Unstructured Complex Tasks** system enables intelligent routing and execution of user requests through three distinct paths:
 
 1. **CHAT** - Simple conversational queries (no execution needed)
-2. **WORKFLOW** - Structured, repeatable business processes (blueprint-based)
-3. **TASK** - Long-horizon unstructured tasks requiring dynamic agent recruitment
+2. **WORKFLOW** - Structured, repeatable business processes → **Queen Agent** (Queen Hive) → **Workflow Automation**
+3. **TASK** - Long-horizon unstructured tasks requiring dynamic agent recruitment → **Fleet Admiral** → **Dynamic Fleet Coordination**
+
+**Key Distinction**:
+- **Queen Agent** (aka **Queen Hive**) handles **structured complex tasks** with predefined steps - ideal for repeatable business processes and workflow automation
+- **Fleet Admiral** handles **unstructured complex long-horizon tasks** requiring adaptive planning and dynamic agent recruitment - ideal for novel, multi-phase challenges
 
 This system is powered by:
 - **IntentClassifier** - LLM-powered request classification

@@ -6,7 +6,13 @@
 
 ## Overview
 
-Fleet Admiral is a dynamic agent recruitment and coordination system for handling unstructured, complex tasks that require multiple specialist agents working together. Unlike structured workflows, unstructured tasks cannot be easily broken down into predefined steps and require adaptive agent selection and coordination.
+Fleet Admiral is a dynamic agent recruitment and coordination system for handling **unstructured, complex long-horizon tasks** that require multiple specialist agents working together.
+
+**Key Distinction**:
+- **Queen Agent** (aka **Queen Hive**) → Handles **structured complex tasks** with predefined steps → **Workflow Automation**
+- **Fleet Admiral** → Handles **unstructured complex long-horizon tasks** requiring adaptive planning → **Dynamic Fleet Coordination**
+
+Unlike structured workflows (handled by Queen Agent), unstructured tasks cannot be easily broken down into predefined steps and require adaptive agent selection and coordination.
 
 ## Architecture
 

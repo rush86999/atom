@@ -8,17 +8,23 @@
 
 The Unstructured Complex Tasks system handles tasks that cannot be easily broken down into predefined workflows. Unlike structured tasks with clear steps, unstructured tasks require adaptive planning, dynamic agent recruitment, and flexible coordination.
 
+**Key Distinction**:
+- **Structured Complex Tasks** → Handled by **Queen Agent** (aka **Queen Hive**) → **Workflow Automation**
+- **Unstructured Complex Long-Horizon Tasks** → Handled by **Fleet Admiral** → Dynamic multi-agent coordination
+
 ## What are Unstructured Tasks?
 
 ### Structured vs Unstructured
 
-| Aspect | Structured Tasks | Unstructured Tasks |
-|--------|-----------------|-------------------|
+| Aspect | Structured Tasks (Queen Agent) | Unstructured Tasks (Fleet Admiral) |
+|--------|------------------------------|----------------------------------|
+| **AKA** | Queen Hive, Workflow Automation | Fleet Coordination |
 | **Steps** | Predefined, linear | Dynamic, adaptive |
 | **Planning** | Known upfront | Discovered during execution |
 | **Agents** | Single agent or fixed team | Dynamically recruited |
 | **Coordination** | Workflow engine | Fleet Admiral |
 | **Examples** | Data entry, report generation | Research, strategy, creative work |
+| **Use Case** | Repeatable business processes | Novel, complex challenges |
 
 ### Examples of Unstructured Tasks
 
