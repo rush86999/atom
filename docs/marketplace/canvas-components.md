@@ -603,9 +603,25 @@ curl -X POST http://localhost:8000/api/v1/marketplace/components/comp_form_surve
 
 ### Documentation
 
-- **Canvas Overview**: [canvas/overview.md](../canvas/overview.md)
-- **Component Development**: [canvas/development.md](../canvas/development.md)
-- **Connection Guide**: [marketplace/connection.md](connection.md)
+**Marketplace Documentation:**
+- **Connection Guide**: [connection.md](connection.md) - Marketplace setup and configuration
+- **Domain Marketplace**: [domains.md](domains.md) - Domain marketplace guide
+- **Skills Marketplace**: [skills.md](skills.md) - Skills marketplace guide
+
+**Platform Documentation:**
+- **Canvas System**: [canvas/recording.md](../canvas/recording.md) - Canvas system overview
+- **Canvas Reference**: [canvas/reference.md](../canvas/reference.md) - Canvas API reference
+- **Canvas AI**: [canvas/ai-accessibility.md](../canvas/ai-accessibility.md) - AI accessibility
+- **Agent Learning**: [canvas/agent-learning.md](../canvas/agent-learning.md) - Agent learning from canvas
+
+**Documentation Guides:**
+- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs navigation guide
+- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
+
+**Commercial Documentation:**
+- **Component API**: https://docs.atomagentos.com/api/components - Component API reference
+- **Account Management**: https://docs.atomagentos.com/account - API tokens, billing
+- **Support Portal**: https://docs.atomagentos.com/support - Help center
 
 ### Community
 

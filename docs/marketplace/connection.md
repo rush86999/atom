@@ -490,10 +490,32 @@ GET /api/v1/marketplace/health
 
 ### Documentation
 
-- **Agent Marketplace**: [agents/marketplace.md](../agents/marketplace.md)
-- **Domain Guide**: [agents/domains.md](../agents/domains.md)
-- **Canvas Components**: [canvas/components.md](../canvas/components.md)
-- **Skills Guide**: [marketplace/skills.md](skills.md)
+**Marketplace Documentation:**
+- **Canvas Components**: [canvas-components.md](canvas-components.md) - Canvas component guide
+- **Domains**: [domains.md](domains.md) - Domain marketplace guide
+- **Analytics**: [analytics.md](analytics.md) - Marketplace analytics
+
+**Platform Documentation:**
+- **Agent Marketplace**: [agents/marketplace.md](../agents/marketplace.md) - Agent marketplace overview
+- **Agent System**: [agents/overview.md](../agents/overview.md) - Agent system documentation
+- **Agent Governance**: [agents/governance.md](../agents/governance.md) - Governance and permissions
+- **Canvas System**: [canvas/reference.md](../canvas/reference.md) - Canvas reference documentation
+- **Canvas AI**: [canvas/ai-accessibility.md](../canvas/ai-accessibility.md) - AI accessibility
+
+**Documentation Guides:**
+- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs guide
+- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
+
+**Commercial Documentation:**
+- **Marketplace API**: https://docs.atomagentos.com/api - Complete API reference
+- **Account Management**: https://docs.atomagentos.com/account - API tokens, billing
+- **Support Portal**: https://docs.atomagentos.com/support - Help center
+
+### Marketplace Documentation
+
+- **Canvas Components**: [canvas-components.md](canvas-components.md) - Canvas component guide
+- **Domains**: [domains.md](domains.md) - Domain marketplace guide
+- **Analytics**: [analytics.md](analytics.md) - Marketplace analytics
 
 ### Community
 

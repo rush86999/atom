@@ -24,6 +24,15 @@
 
 ---
 
+## 📖 Documentation Guides
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [DOCUMENTATION_STRUCTURE_GUIDE.md](DOCUMENTATION_STRUCTURE_GUIDE.md) | **✨ NEW: Complete docs structure guide** - Navigation, organization, maintenance | Apr 7, 2026 |
+| [DOCS_ATOMAGENTOS_GUIDE.md](DOCS_ATOMAGENTOS_GUIDE.md) | **✨ NEW: docs.atomagentos.com guide** - Commercial platform documentation | Apr 7, 2026 |
+
+---
+
 ## 🚀 Getting Started
 
 | Document | Description | Last Updated |

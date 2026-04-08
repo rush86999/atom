@@ -687,9 +687,25 @@ curl -X POST http://localhost:8000/api/agents \
 
 ### Documentation
 
-- **Domain Architecture**: [agents/domains.md](../agents/domains.md)
-- **Agent Governance**: [agents/governance.md](../agents/governance.md)
-- **Connection Guide**: [marketplace/connection.md](connection.md)
+**Marketplace Documentation:**
+- **Connection Guide**: [connection.md](connection.md) - Marketplace setup and configuration
+- **Canvas Components**: [canvas-components.md](canvas-components.md) - Canvas component guide
+- **Skills Marketplace**: [skills.md](skills.md) - Skills marketplace guide
+
+**Platform Documentation:**
+- **Agent System**: [agents/overview.md](../agents/overview.md) - Agent system documentation
+- **Agent Governance**: [agents/governance.md](../agents/governance.md) - Governance and permissions
+- **Agent Training**: [agents/training.md](../agents/training.md) - Agent training system
+- **Meta-Agent Routing**: [agents/meta-agent.md](../agents/meta-agent.md) - Intent classification and routing
+
+**Documentation Guides:**
+- **Documentation Structure**: [DOCUMENTATION_STRUCTURE_GUIDE.md](../DOCUMENTATION_STRUCTURE_GUIDE.md) - Complete docs navigation guide
+- **docs.atomagentos.com**: [DOCS_ATOMAGENTOS_GUIDE.md](../DOCS_ATOMAGENTOS_GUIDE.md) - Commercial platform docs
+
+**Commercial Documentation:**
+- **Domain API**: https://docs.atomagentos.com/api/domains - Domain API reference
+- **Account Management**: https://docs.atomagentos.com/account - API tokens, billing
+- **Support Portal**: https://docs.atomagentos.com/support - Help center
 
 ### Community
 
