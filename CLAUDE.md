@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: March 24, 2026
+**Last Updated**: April 7, 2026
 
 ---
 
@@ -84,7 +84,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Multi-view orchestration (browser/terminal/canvas)
 - Smart error resolution with 7 error categories
 - Interactive permission/decision requests
-- **Docs**: `docs/CANVAS_IMPLEMENTATION_COMPLETE.md`, `docs/AGENT_GUIDANCE_IMPLEMENTATION.md`
+- **Docs**: `docs/archive/CANVAS_IMPLEMENTATION_COMPLETE.md`
 
 ### 5. Python Package Support ✨ (Phase 35)
 **Files**: `core/package_governance_service.py`, `core/package_dependency_scanner.py`, `core/package_installer.py`
@@ -94,32 +94,31 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Container security (network disabled, read-only filesystem, resource limits)
 - **Performance**: <5min image build, <1ms permission checks
 - **Tests**: 117 tests across 7 test files
-- **Docs**: `docs/PYTHON_PACKAGES.md`, `docs/PACKAGE_SECURITY.md`
+- **Docs**: See `.planning/phases/35-python-package-support/`
 
 ### 6. Canvas AI Accessibility System ✨
-**Files**: `frontend-nextjs/hooks/useCanvasState.ts`, `docs/CANVAS_AI_ACCESSIBILITY.md`
+**Files**: `frontend-nextjs/hooks/useCanvasState.ts`
 - Hidden accessibility trees exposing canvas state as JSON
 - Canvas State API: `window.atom.canvas.getState()`, `getAllStates()`, `subscribe()`
 - TypeScript type definitions for all 7 canvas types
 - **Performance**: <10ms serialization overhead per render
 
 ### 7. LLM Canvas Summaries ✨
-**Files**: `core/llm/canvas_summary_service.py`, `docs/LLM_CANVAS_SUMMARIES.md`
+**Files**: `core/llm/canvas_summary_service.py`
 - LLM-generated summaries (50-100 words) for enhanced episodic memory
 - Support for all 7 canvas types with specialized prompts
 - Summary cache by canvas state hash
 - **Benefits**: Better episode retrieval, agent learning, semantic search
 
-### 8. Unstructured Complex Tasks & Domain Creation ✨ (Phase 256-07)
-**Files**: `core/atom_meta_agent.py`, `core/intent_classifier.py`, `core/fleet_admiral.py`, `core/business_agents.py`
+### 8. Unstructured Complex Tasks & Domain Creation ✨
+**Files**: `core/atom_meta_agent.py`, `core/intent_classifier.py`, `core/fleet_admiral.py`
 - **Intent Classification**: CHAT (simple queries) → LLMService, WORKFLOW (structured tasks) → QueenAgent, TASK (unstructured complex) → FleetAdmiral
 - **FleetAdmiral**: Dynamic agent recruitment for long-horizon unstructured tasks requiring multiple specialist agents
-- **Domain Creation**: SpecialtyAgentTemplate system with 8+ domain templates (finance_analyst, sales_assistant, ops_coordinator, hr_assistant, procurement_specialist, knowledge_analyst, marketing_analyst, king_agent)
+- **Domain Creation**: SpecialtyAgentTemplate system with 8+ domain templates
 - **Agent Spawning**: `spawn_agent()` method for creating custom specialty agents with capability graduation tracking
-- **Multi-Agent Fleet**: Blackboard-based coordination via AgentFleetService with recruitment intelligence and optimization
+- **Multi-Agent Fleet**: Blackboard-based coordination with recruitment intelligence
 - **Governance-Gated Routing**: CHAT bypasses governance, WORKFLOW/TASK require maturity checks
 - **Performance**: <100ms intent classification, <500ms fleet recruitment
-- **Docs**: `docs/UNSTRUCTURED_COMPLEX_TASKS.md`, `docs/FLEET_ADMIRAL.md`
 
 ### 9. BYOK Cognitive Tier System ✨ (Phase 68)
 **Files**: `core/llm/cognitive_tier_system.py`, `core/llm/cache_aware_router.py`, `core/llm/escalation_manager.py`
@@ -136,7 +135,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 **Files**: `tools/browser_tool.py`, `api/browser_routes.py`
 - Web scraping, form filling, screenshots via Playwright CDP
 - **Governance**: INTERN+ required
-- **Docs**: `docs/BROWSER_AUTOMATION.md`, `docs/BROWSER_QUICK_START.md`
+- **Docs**: `docs/archive/2025-12/BROWSER_IMPLEMENTATION_SUMMARY.md`
 
 ### 10. Device Capabilities System
 **Files**: `tools/device_tool.py`, `api/device_capabilities.py`
@@ -161,7 +160,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Batch operations, promotion suggestions, A/B testing
 
 ### 14. Student Agent Training System ✨
-**Files**: `core/trigger_interceptor.py`, `core/student_training_service.py`, `core/meta_agent_training_orchestrator.py`
+**Files**: `core/trigger_interceptor.py`, `core/student_training_service.py`
 - Four-tier maturity routing: STUDENT → INTERN → SUPERVISED → AUTONOMOUS
 - AI-based training duration estimation with historical data analysis
 - Real-time supervision for SUPERVISED agents with intervention support
@@ -170,7 +169,6 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Database**: 4 new models (BlockedTriggerContext, AgentProposal, SupervisionSession, TrainingSession)
 - **API**: 20+ REST endpoints covering training, proposals, and supervision
 - **Tests**: `tests/test_trigger_interceptor.py` (11 tests)
-- **Docs**: `docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md`
 
 ### 15. Database Models
 **File**: `core/models.py`
@@ -240,19 +238,19 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Host Shell Access: Optional filesystem mount with AUTONOMOUS gate, command whitelist
 - Vector Embeddings: FastEmbed (local) with 384-dim vectors, 10-20ms generation time
 - **Performance**: <10ms liveness probe, <100ms readiness probe (includes DB check)
-- **Docs**: `docs/PERSONAL_EDITION.md`, `docs/VECTOR_EMBEDDINGS.md`
+- **Docs**: `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`
 
 ### 21. Code Quality & Type Hints ✨
 **Files**: `backend/docs/CODE_QUALITY_STANDARDS.md`, `mypy.ini`, `.github/workflows/ci.yml`
 - MyPy configuration for static type checking
 - Type hints on critical service functions (agent governance, LLM, episodic memory)
-- CODE_QUALITY_STANDARDS.md (9,412 lines) covering Python standards, error handling, testing patterns
+- CODE_QUALITY_STANDARDS.md (809 lines) covering Python standards, error handling, testing patterns
 - API response standards, database session patterns, import ordering
 - CI Integration: Type checking runs on every push via GitHub Actions
 
 ### 22. E2E Testing Infrastructure ✨ (Phase 234)
 **Files**: `backend/tests/e2e_ui/conftest.py`, `backend/tests/e2e_ui/fixtures/`, `backend/tests/e2e_ui/pages/`
-- **91 E2E tests** across authentication and agent critical paths
+- **486 E2E test functions** across authentication and agent critical paths
 - API-first authentication: 10-100x faster than UI login (JWT tokens in localStorage)
 - Worker-based database isolation for parallel test execution
 - Page Object Model for maintainable UI abstractions
@@ -290,7 +288,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ## Recent Major Changes
 
 ### Phase 234: Authentication & Agent E2E Tests (March 24, 2026) ✨
-- 91 comprehensive E2E tests across 6 plans covering authentication and agent critical paths
+- 486 comprehensive E2E test functions across 6 plans covering authentication and agent critical paths
 - Authentication flows: Login/logout, JWT validation, session persistence, token refresh, mobile auth, API-first auth (10-100x faster)
 - Agent workflows: Creation, registry, streaming, WebSocket reconnection, concurrent execution, governance enforcement, lifecycle, cross-platform consistency
 - **Test Infrastructure**: Playwright Python 1.58.0, API-first auth fixtures, worker-based DB isolation, Page Object Model
@@ -331,14 +329,12 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - LLM-generated summaries (50-100 words) for enhanced episodic memory
 - Support for all 7 canvas types with specialized prompts
 - Quality metrics: >80% semantic richness, 0% hallucination target
-- **Docs**: `docs/LLM_CANVAS_SUMMARIES.md`
 
 ### Phase 20: Canvas AI Context (Feb 18, 2026) ✨
 - Hidden accessibility trees with role='log', aria-live exposing JSON state
 - Global API: `window.atom.canvas.getState()`, `getAllStates()`, `subscribe()`
 - TypeScript definitions for all 7 canvas types
 - **Performance**: <10ms serialization overhead per render
-- **Docs**: `docs/CANVAS_AI_ACCESSIBILITY.md`, `docs/CANVAS_STATE_API.md`
 
 ### Phase 15: Codebase Completion & Quality Assurance (Feb 16, 2026) ✨
 - Production-ready codebase with comprehensive documentation
@@ -353,7 +349,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - CLI Commands: `atom-os daemon`, `atom-os status`, `atom-os stop`, `atom-os execute <command>`
 - Agent Control REST API: Endpoints for triggering agents, stopping execution, monitoring status
 - Host Shell Access: Optional filesystem mount with AUTONOMOUS maturity gate, command whitelist
-- **Docs**: `docs/PERSONAL_EDITION.md`, `docs/VECTOR_EMBEDDINGS.md`
+- **Docs**: `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`
 
 ### Phase 14: Community Skills Integration (Feb 16, 2026) ✨
 - Enable Atom agents to use 5,000+ OpenClaw/ClawHub community skills
@@ -389,7 +385,6 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Real-time supervision for SUPERVISED agents with pause/correct/terminate controls
 - Action proposal workflow for INTERN agents requires human approval before execution
 - Centralized TriggerInterceptor with <5ms routing decisions
-- **See**: `docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md`
 
 ### Real-Time Agent Guidance System (Feb 2, 2026) ✨
 - Complete agent operation visibility with live progress tracking
@@ -397,7 +392,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Smart error resolution with 7 error categories and learning feedback
 - Interactive permission/decision requests with full audit trail
 - Integration guidance for OAuth flows
-- **See**: `docs/CANVAS_IMPLEMENTATION_COMPLETE.md`
+- **See**: `docs/archive/CANVAS_IMPLEMENTATION_COMPLETE.md`
 
 ---
 
@@ -551,7 +546,7 @@ pytest backend/tests/e2e_ui/ -v --alluredir=allure-results
 allure serve allure-results
 ```
 
-**E2E Test Coverage** (91 tests across 6 plans):
+**E2E Test Coverage** (486 test functions across 68 test files):
 - **Authentication** (AUTH-01 to AUTH-07): Login/logout, JWT validation, session persistence, token refresh, mobile auth, API-first auth
 - **Agent Workflows** (AGNT-01 to AGNT-08): Creation, registry, streaming, WebSocket reconnection, concurrent execution, governance enforcement, lifecycle, cross-platform
 
@@ -690,7 +685,7 @@ alembic history                        # View history
 4. **Graceful Degradation** - Log errors but allow requests if governance fails
 5. **Performance Matters** - Cache provides sub-millisecond performance
 6. **Observability** - Health checks, metrics, and structured logs for production monitoring
-7. **E2E Testing Excellence** - 91 comprehensive tests with API-first auth (10-100x faster), worker isolation, and parallel execution
+7. **E2E Testing Excellence** - 486 E2E test functions with API-first auth (10-100x faster), worker isolation, and parallel execution
 8. **Personal Edition** - Local deployment option with simplified setup (Docker Compose + SQLite)
 9. **Type Safety** - MyPy type checking enforced in CI for code quality
 
@@ -770,9 +765,9 @@ docker-compose -f docker-compose-personal.yml down
 
 Atom is an AI-powered automation platform with multi-agent governance, episodic memory, real-time guidance, and production-ready monitoring. **Key**: Always think about **agent attribution** and **governance** when working with any AI feature.
 
-**Production-ready**: CI/CD pipeline, health checks, Prometheus metrics, comprehensive documentation, type safety enforcement, and 91 E2E tests covering authentication and agent critical paths.
+**Production-ready**: CI/CD pipeline, health checks, Prometheus metrics, comprehensive documentation, type safety enforcement, and 486 E2E test functions covering authentication and agent critical paths.
 
-**Personal Edition Available**: Run Atom locally with Docker Compose for personal automation and development (see `docs/PERSONAL_EDITION.md`).
+**Personal Edition Available**: Run Atom locally with Docker Compose for personal automation and development (see `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`).
 
 ---
 
