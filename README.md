@@ -101,7 +101,7 @@ open http://localhost:8000
 
 That's it! 🚀
 
-**[Optional: Connect to Marketplace →](#marketplace-connection)**
+**[Optional: Connect to Marketplace →](#marketplace-connection-new)**
 
 **Choose your edition:**
 - **Personal Edition** - Free, single-user, SQLite (default)
@@ -259,6 +259,12 @@ The Marketplace requires an active connection to **atomagentos.com** and a valid
 
 For full legal terms, see [LICENSE.md - Marketplace Commercial Appendix](LICENSE.md#marketplace-commercial-appendix).
 
+### Documentation
+
+- **[Marketplace Documentation](docs/marketplace/)** - **Complete marketplace guide (START HERE)**
+- **[Marketplace Connection Guide](docs/marketplace/connection.md)** - Complete setup and troubleshooting
+- **[Agent Marketplace Guide](docs/agents/marketplace.md)** - Publishing and sharing agents
+- **[Marketplace Analytics](docs/marketplace/analytics.md)** - Analytics and synchronization
 
 ---
 

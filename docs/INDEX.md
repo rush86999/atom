@@ -64,6 +64,8 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
+| [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
+| [MARKETPLACE_CONNECTION_GUIDE.md](MARKETPLACE_CONNECTION_GUIDE.md) | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
 | [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
 | [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Feb 19, 2026 |
 | [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |

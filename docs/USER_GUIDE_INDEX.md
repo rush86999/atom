@@ -74,11 +74,16 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Marketplace Connection ✨
 
+- **[Marketplace Documentation](marketplace/)** - **Complete marketplace guide (START HERE)**
+  - Connection setup and configuration
+  - Skill browsing and installation
+  - Analytics and synchronization
+  - Troubleshooting and support
+
 - **[Marketplace Connection Guide](MARKETPLACE_CONNECTION_GUIDE.md)** - Connect to public marketplace
   - Get API token from https://atomagentos.com
   - Configure sync settings
   - Browse and install 5,000+ skills
-  - Troubleshooting and support
 
 - **[Agent Marketplace Guide](agents/marketplace.md)** - Publish and share agents
   - Agent publishing workflow
