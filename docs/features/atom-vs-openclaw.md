@@ -372,7 +372,7 @@ Both are excellent choices depending on your use case. For business workflows re
 - [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination system ✨ NEW
 - [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) - Canvas AI accessibility and state API ✨ NEW
 - [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) - LLM-generated canvas summaries ✨ NEW
-- [UNSTRUCTURED_COMPLEX_TASKS.md](UNSTRUCTURED_COMPLEX_TASKS.md) - Intent classification and fleet recruitment ✨ NEW
+- [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment ✨ NEW
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system ✨ NEW
 - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills documentation ✨ NEW
 - [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW

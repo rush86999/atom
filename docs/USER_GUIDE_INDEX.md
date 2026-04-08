@@ -153,7 +153,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - **[Agent Governance](AGENT_GOVERNANCE.md)** - Maturity levels and permissions
 - **[Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md)** - Learning and promotion
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
-- **[Unstructured Complex Tasks](UNSTRUCTURED_COMPLEX_TASKS.md)** - Multi-agent orchestration
+- **[Unstructured Complex Tasks](agents/unstructured-tasks.md)** - Multi-agent orchestration
 
 ### Intelligence & Memory
 

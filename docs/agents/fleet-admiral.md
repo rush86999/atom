@@ -491,7 +491,7 @@ sub_tasks = [
 
 ## See Also
 
-- **Unstructured Complex Tasks**: `docs/UNSTRUCTURED_COMPLEX_TASKS.md`
+- **Unstructured Complex Tasks**: `../UNSTRUCTURED_COMPLEX_TASKS.md` (note: see agents/unstructured-tasks.md for detailed guide)
 - **Intent Classification**: `core/intent_classifier.py`
 - **Meta Agent**: `core/atom_meta_agent.py`
 - **Business Agents**: `core/business_agents.py`

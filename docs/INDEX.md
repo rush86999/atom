@@ -14,7 +14,7 @@
   - [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination
   - [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) - Canvas AI accessibility and state API
   - [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) - LLM-generated canvas summaries
-  - [UNSTRUCTURED_COMPLEX_TASKS.md](UNSTRUCTURED_COMPLEX_TASKS.md) - Intent classification and fleet recruitment
+  - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
   - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
   - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
 - **Commercial Marketplace**: ✨ NEW - Mothership architecture with agentagentos.com - Proprietary marketplace for agents, domains, components, skills

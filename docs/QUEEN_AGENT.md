@@ -355,7 +355,7 @@ pytest backend/tests/test_workflow_automation.py -v
 ## See Also
 
 - **Fleet Admiral**: `docs/FLEET_ADMIRAL.md` - Unstructured task coordination
-- **Intent Classification**: `docs/UNSTRUCTURED_COMPLEX_TASKS.md` - CHAT/WORKFLOW/TASK routing
+- **Intent Classification**: `agents/unstructured-tasks.md` - CHAT/WORKFLOW/TASK routing
 - **Meta Agent**: `docs/agents/meta-agent.md` - Central orchestrator
 - **Agent Governance**: `docs/AGENT_GOVERNANCE_LEARNING_INTEGRATION.md` - Maturity and permissions
 - **Implementation**: `backend/core/agents/queen_agent.py`

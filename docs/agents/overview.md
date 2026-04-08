@@ -16,7 +16,7 @@ Core agent capabilities including governance, graduation, and orchestration.
 - **[Governance Learning Integration](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md)** - Learning from governance events
 
 ### Multi-Agent Coordination ✨ NEW
-- **[Unstructured Complex Tasks](UNSTRUCTURED_COMPLEX_TASKS.md)** - Intent classification and dynamic routing
+- **[Unstructured Complex Tasks](unstructured-tasks.md)** - Intent classification and dynamic routing
 - **[Fleet Admiral](FLEET_ADMIRAL.md)** - Multi-agent orchestration for complex tasks
 
 ## Key Concepts

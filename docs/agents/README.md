@@ -11,7 +11,7 @@ Atom's agent system is built around **multi-agent coordination** with graduated 
 ### Core Orchestration Systems
 - **[Queen Agent (Queen Hive)](../QUEEN_AGENT.md)** - Structured workflow automation (predefined blueprints)
 - **[Fleet Admiral](../FLEET_ADMIRAL.md)** - Unstructured complex tasks (dynamic fleet coordination)
-- **[Unstructured Complex Tasks](../UNSTRUCTURED_COMPLEX_TASKS.md)** - Intent classification and routing
+- **[Unstructured Complex Tasks](unstructured-tasks.md)** - Intent classification and routing
 
 ### Key Concept: Queen Agent vs Fleet Admiral
 
