@@ -1,6 +1,6 @@
 # Atom Documentation Index
 
-> **Last Updated**: April 5, 2026
+> **Last Updated**: April 7, 2026
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 **📚 [Back to Documentation Hub](README.md)** - Browse by category (Agents, Intelligence, Integration, Platform)
@@ -9,8 +9,16 @@
 
 ## 🚀 Recent Updates (April 2026)
 
+- **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
+  - [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) - Python Package Support system (350K+ PyPI packages)
+  - [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination
+  - [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) - Canvas AI accessibility and state API
+  - [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) - LLM-generated canvas summaries
+  - [UNSTRUCTURED_COMPLEX_TASKS.md](UNSTRUCTURED_COMPLEX_TASKS.md) - Intent classification and fleet recruitment
+  - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
+  - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
 - **Commercial Marketplace**: ✨ NEW - Mothership architecture with agentagentos.com - Proprietary marketplace for agents, domains, components, skills
-- **Phase 234**: E2E Testing Infrastructure - 91+ comprehensive E2E tests with API-first authentication
+- **Phase 234**: E2E Testing Infrastructure - 486 E2E test functions with API-first authentication
 - **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos)
 - **Phase 236**: Cross-Platform & Stress Testing - Load testing with k6, network simulation, failure injection
 - **Phase 64**: E2E Test Suite - 217+ E2E tests with real services (PostgreSQL, Redis, Docker)
@@ -19,8 +27,6 @@
 - **Phase 60**: Advanced Skill Execution - Marketplace, composition, dynamic loading
 - **Phase 36**: npm Package Support - 2M+ packages with governance
 - **Phase 35**: Python Package Support - 350K+ packages with vulnerability scanning
-- [Canvas AI Accessibility Guide](CANVAS_AI_ACCESSIBILITY.md) - Phase 20: Dual representation for AI agents
-- [LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md) - Phase 21: Semantic summaries for episodic memory
 
 ---
 
@@ -67,7 +73,7 @@
 | [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
 | [MARKETPLACE_CONNECTION_GUIDE.md](MARKETPLACE_CONNECTION_GUIDE.md) | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
 | [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
-| [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Feb 19, 2026 |
+| [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
 | [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |
 | [PACKAGE_SECURITY.md](PACKAGE_SECURITY.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
 | [PYTHON_PACKAGES_DEPLOYMENT.md](PYTHON_PACKAGES_DEPLOYMENT.md) | Production deployment and monitoring | Feb 19, 2026 |
@@ -76,6 +82,7 @@
 | [SKILL_MARKETPLACE_GUIDE.md](SKILL_MARKETPLACE_GUIDE.md) | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
 | [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |
 | [PERFORMANCE_TUNING.md](PERFORMANCE_TUNING.md) | Performance optimization and benchmarks | Feb 19, 2026 |
+| [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) | **Built-in CLI skills (daemon, status, start, stop, execute, config)** | Apr 7, 2026 |
 
 ---
 
@@ -100,6 +107,14 @@
 | [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) | **Agent promotion criteria and validation** | Feb 3, 2026 |
 | [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
 | [agents/guidance-system.md](agents/guidance-system.md) | **Real-time agent operation tracking** | Feb 2, 2026 |
+
+### Multi-Agent Coordination
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [UNSTRUCTURED_COMPLEX_TASKS.md](UNSTRUCTURED_COMPLEX_TASKS.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
+| [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
+| [agents/overview.md](agents/overview.md) | Agent system overview and intent classification | Apr 7, 2026 |
+| [agents/unstructured-tasks.md](agents/unstructured-tasks.md) | Unstructured tasks and domain creation | Apr 7, 2026 |
 
 ### Episodic Memory
 | Document | Description | Last Updated |
