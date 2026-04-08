@@ -59,7 +59,7 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 - [Browser Automation](integrations/browser-automation.md) - Web scraping and automation
 - [Community Skills](integrations/community-skills.md) - 5,000+ community skills
 - [Advanced Skill Execution](integrations/advanced-skills.md) - Skill composition engine
-- [CLI Skills Guide](integrations/cli-skills.md) - Atom CLI skills
+- [CLI Skills Guide](ATOM_CLI_SKILLS_GUIDE.md) - Atom CLI skills (daemon, status, start, stop, execute, config)
 - [Device Capabilities](archive/DEVICE_CAPABILITIES.md) - Device access controls
 
 ### Marketplace 🏪
