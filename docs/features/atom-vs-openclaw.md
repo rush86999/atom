@@ -1,6 +1,6 @@
 # Atom vs OpenClaw: A Feature Comparison
 
-> **Last Updated**: April 5, 2026
+> **Last Updated**: April 7, 2026
 
 ---
 
@@ -179,7 +179,7 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **OAuth Validation** | ✅ User ID/email format validation, injection prevention | ⚠️ Standard OAuth |
 | **Background Jobs** | ✅ RQ (Redis Queue) with monitoring | ❌ No built-in task queue |
 | **AI-Enhanced Bug Discovery** | ✅ Automated fuzzing, property-based testing, chaos engineering | ❌ Manual testing |
-| **E2E Testing Infrastructure** | ✅ 91+ comprehensive E2E tests with API-first auth | ⚠️ Manual testing |
+| **E2E Testing Infrastructure** | ✅ 486 E2E test functions with API-first auth | ⚠️ Manual testing |
 | **Stress Testing** | ✅ k6 load testing (10/50/100 concurrent users), network simulation | ⚠️ Manual load testing |
 
 **Key Difference**: Atom's security model is enterprise-grade with graduated permissions (including tiered shell access), webhook signature verification, and comprehensive audit trails. OpenClaw trusts the user and provides raw capabilities.
@@ -214,7 +214,7 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Test Suite** | ✅ 495+ tests (unit, integration, E2E, bug discovery) | ⚠️ Community tests |
 | **Pass Rate** | ✅ 99%+ (TQ-02 standard) | N/A |
 | **Test Coverage** | ✅ 17-27% overall (expanding to 80%), 60-70% for MCP service | N/A |
-| **E2E Testing** | ✅ 91+ comprehensive E2E tests with API-first auth (10-100x faster) | ⚠️ Manual testing |
+| **E2E Testing** | ✅ 486 E2E test functions with API-first auth (10-100x faster) | ⚠️ Manual testing |
 | **Property-Based Testing** | ✅ Hypothesis framework for invariants (66+ invariants) | ❌ No property tests |
 | **Fuzzing & Chaos** | ✅ AI-enhanced bug discovery (atheris, mutmut, locust) | ❌ No automated fuzzing |
 | **Stress Testing** | ✅ k6 load testing (10/50/100 concurrent users), network simulation | ⚠️ Manual load testing |
@@ -251,7 +251,7 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | Feature | Atom | OpenClaw |
 |---------|------|----------|
 | **E2E Test Framework** | ✅ Playwright Python 1.58.0 with pytest-playwright | ❌ No E2E framework |
-| **Test Coverage** | ✅ 91+ comprehensive E2E tests (AUTH-01 to AUTH-07, AGNT-01 to AGNT-08) | ⚠️ Manual testing |
+| **Test Coverage** | ✅ 486 E2E test functions (AUTH-01 to AUTH-07, AGNT-01 to AGNT-08) | ⚠️ Manual testing |
 | **Authentication Speed** | ✅ API-first auth (JWT tokens in localStorage, 10-100x faster than UI login) | ⚠️ UI-based login |
 | **Database Isolation** | ✅ Worker-based isolation for parallel test execution | ❌ No isolation |
 | **Test Fixtures** | ✅ Comprehensive fixture suite (auth, database, API, factory) | ⚠️ Basic fixtures |
@@ -368,13 +368,18 @@ Both are excellent choices depending on your use case. For business workflows re
 - [Documentation Index](INDEX.md) - Comprehensive documentation overview
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Developer setup and deployment guide
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
-- [SECURITY/AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - Authentication and security
+- [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) - Python Package Support system (350K+ PyPI packages) ✨ NEW
+- [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination system ✨ NEW
+- [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) - Canvas AI accessibility and state API ✨ NEW
+- [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) - LLM-generated canvas summaries ✨ NEW
+- [UNSTRUCTURED_COMPLEX_TASKS.md](UNSTRUCTURED_COMPLEX_TASKS.md) - Intent classification and fleet recruitment ✨ NEW
+- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system ✨ NEW
+- [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills documentation ✨ NEW
 - [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
 - [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md) - **Capability graduation logic (5/20/50 rule)** ✨ NEW
-- [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
 - [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning framework
 - [MESSAGING_PLATFORMS.md](MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
-- [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 91+ comprehensive end-to-end tests ✨ NEW
+- [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 486 comprehensive E2E test functions ✨ NEW
 - [Bug Discovery Infrastructure](backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery ✨ NEW
 - [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices ✨ NEW
 - [Cross-Platform & Stress Testing](.planning/phases/236-cross-platform-and-stress-testing/236-VERIFICATION.md) - Load testing, network simulation ✨ NEW
