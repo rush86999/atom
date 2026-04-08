@@ -662,3 +662,28 @@
  For more information on this, and how to apply and follow the GNU AGPL, see
  <http://www.gnu.org/licenses/>.
 
+
+---
+
+## Marketplace Commercial Appendix
+
+### Marketplace Service
+
+The Atom Agent OS Software includes a Marketplace feature that connects to the commercial service operated by atomagentos.com (the "Marketplace Service").
+
+### Commercial Terms
+
+1. **Service Dependency**: The Marketplace feature requires an active connection to atomagentos.com
+2. **Proprietary Content**: All marketplace items (skills, agents, domains, components) are proprietary content licensed under the atomagentos.com Terms of Service
+3. **Redistribution Prohibited**: Marketplace items may not be redistributed, resold, or shared outside the platform
+4. **API Token Required**: Access to the Marketplace Service requires a valid API token from atomagentos.com
+5. **Service Availability**: The Marketplace Service is provided "as is" and availability is not guaranteed
+
+### License Distinction
+
+- **Core Platform**: AGPL v3 (open source) - Agent runtime, cognitive architecture, governance
+- **Marketplace Service**: Commercial/Proprietary - Requires atomagentos.com connection and API token
+
+### Copyright
+
+Copyright (C) 2026 atomagentos.com

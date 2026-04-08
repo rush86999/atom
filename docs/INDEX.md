@@ -7,11 +7,12 @@
 
 ---
 
-## 🚀 Recent Updates (March 2026)
+## 🚀 Recent Updates (April 2026)
 
-- **Phase 234**: E2E Testing Infrastructure - 91+ comprehensive E2E tests with API-first authentication ✨ NEW
-- **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos) ✨ NEW
-- **Phase 236**: Cross-Platform & Stress Testing - Load testing with k6, network simulation, failure injection ✨ NEW
+- **Commercial Marketplace**: ✨ NEW - Mothership architecture with agentagentos.com - Proprietary marketplace for agents, domains, components, skills
+- **Phase 234**: E2E Testing Infrastructure - 91+ comprehensive E2E tests with API-first authentication
+- **Phase 237**: Bug Discovery Infrastructure - AI-enhanced bug discovery (fuzzing, property-based testing, chaos)
+- **Phase 236**: Cross-Platform & Stress Testing - Load testing with k6, network simulation, failure injection
 - **Phase 64**: E2E Test Suite - 217+ E2E tests with real services (PostgreSQL, Redis, Docker)
 - **Phase 63**: Documentation Audit - 98/100 health score, all features documented
 - **Phase 61**: Skill Marketplace Sync - Bidirectional marketplace sync for skills and ratings
@@ -36,11 +37,24 @@
 
 ---
 
+## 🛒 Commercial Marketplace (atomagentos.com)
+
+⚠️ **Commercial Service:** The marketplace is a proprietary service requiring connection to atomagentos.com. See [LICENSE.md](../LICENSE.md#marketplace-commercial-appendix) for details.
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [marketplace/connection.md](marketplace/connection.md) | **✨ NEW: Marketplace connection guide** - Setup, configuration, troubleshooting | Apr 7, 2026 |
+| [marketplace/canvas-components.md](marketplace/canvas-components.md) | **✨ NEW: Canvas component marketplace** - Browse, install, use components | Apr 7, 2026 |
+| [marketplace/domains.md](marketplace/domains.md) | **✨ NEW: Domain marketplace** - Specialist knowledge domains | Apr 7, 2026 |
+| [marketplace/skills.md](marketplace/skills.md) | **Skills marketplace** - Agent capabilities and integrations | Apr 6, 2026 |
+| [marketplace/analytics.md](marketplace/analytics.md) | Marketplace analytics and usage tracking | Apr 6, 2026 |
+
+---
+
 ## 🌐 Community Skills & Package Support
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [MARKETPLACE_CONNECTION_GUIDE.md](MARKETPLACE_CONNECTION_GUIDE.md) | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
 | [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
 | [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Feb 19, 2026 |
 | [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |

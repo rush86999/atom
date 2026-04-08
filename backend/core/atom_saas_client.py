@@ -75,7 +75,7 @@ class AtomAgentOSMarketplaceClient:
         """Get or create HTTP client with authentication headers."""
         if not self._http_client:
             headers = {
-                "Authorization": f"Bearer {self.config.api_token}",
+                "X-API-Token": self.config.api_token,
                 "Content-Type": "application/json"
             }
             self._http_client = httpx.AsyncClient(
@@ -520,6 +520,18 @@ class AtomAgentOSMarketplaceClient:
             logger.error(f"Failed to install component {component_id}: {e}")
             return {"success": False, "error": str(e)}
 
+    async def health_check(self) -> bool:
+        """Verify connection to mothership."""
+        client = await self._get_http_client()
+
+        try:
+            response = await client.get("/health")
+            response.raise_for_status()
+            return True
+        except httpx.HTTPError as e:
+            logger.error(f"Health check failed: {e}")
+            return False
+
     async def close(self):
         """Close all connections."""
         await self.disconnect_websocket()
@@ -607,4 +619,8 @@ class AtomAgentOSMarketplaceClient:
     def push_analytics_sync(self, *args, **kwargs) -> Dict[str, Any]:
         """Synchronous wrapper for push_analytics."""
         return asyncio.run(self.push_analytics(*args, **kwargs))
+
+    def health_check_sync(self) -> bool:
+        """Synchronous wrapper for health_check."""
+        return asyncio.run(self.health_check())
 

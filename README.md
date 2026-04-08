@@ -213,24 +213,29 @@ cp .env.personal .env
 
 ---
 
-## Marketplace Connection (Commercial) ✨
+## Marketplace (Commercial Service)
 
-Connect your Atom instance to the official **atomagentos.com** marketplace to access thousands of premium agents, skills, and canvas components.
+The Atom Agent OS includes a **commercial marketplace** for discovering and installing:
+- **Agents** - Pre-configured AI agents for specific tasks
+- **Domains** - Specialist knowledge domains (Sales, Engineering, Support)
+- **Components** - Reusable canvas workflow components
+- **Skills** - Agent capabilities and integrations
 
-### Get Started
+### Connection to atomagentos.com
 
-1. **Get Your Commercial API Token**
+The Marketplace requires an active connection to **atomagentos.com** and a valid API token. To enable marketplace features:
+
+1. **Get Your API Token**
    - Visit [atomagentos.com](https://atomagentos.com)
-   - Sign up/Login and navigate to **Settings → API Tokens**
-   - Generate and copy your commercial token
+   - Sign up and navigate to **Settings → API Tokens**
+   - Generate and copy your API token
 
 2. **Configure Environment**
    ```bash
    # Add to .env
-   MARKETPLACE_API_URL=https://api.atomagentos.com
-   MARKETPLACE_API_TOKEN=at_saas_your_commercial_token
-   MARKETPLACE_SYNC_ENABLED=true
-
+   ATOM_SAAS_API_URL=https://atomagentos.com/api/v1
+   ATOM_SAAS_API_TOKEN=your_api_token_here
+   MARKETPLACE_ENABLED=true
    ```
 
 3. **Restart Atom**
@@ -238,22 +243,21 @@ Connect your Atom instance to the official **atomagentos.com** marketplace to ac
    atom restart
    ```
 
-### Proprietary Marketplace Features
+### Commercial Terms
 
-- **Premium Skills**: Business-grade automation components (Proprietary)
-- **Agent Templates**: Complete agents with pre-trained heuristics (Proprietary)
-- **Specialist Domains**: Fine-grained governance templates for enterprise security
-- **Canvas Components**: Rich UI widgets for interactive agent presentations
-- **Commercial Updates**: Continuous security patches and performance optimizations
+**Important**: Marketplace items are proprietary content licensed under the atomagentos.com Terms of Service.
 
-### Documentation & Terms
+- **Service Dependency**: The Marketplace feature requires an active connection to atomagentos.com
+- **Proprietary Content**: All marketplace items (skills, agents, domains, components) are proprietary
+- **Redistribution Prohibited**: Marketplace items may not be redistributed, resold, or shared outside the platform
+- **API Token Required**: Access to the Marketplace Service requires a valid API token from atomagentos.com
+- **Service Availability**: The Marketplace Service is provided "as is" and availability is not guaranteed
 
-- **[Marketplace Commercial Appendix](LICENSE.md#marketplace-commercial-appendix)** - Legal terms for marketplace usage
-- **[Marketplace Connection Guide](docs/MARKETPLACE_CONNECTION_GUIDE.md)** - Detailed setup instructions
+**License Distinction**:
+- **Core Platform**: AGPL v3 (open source) - Agent runtime, cognitive architecture, governance
+- **Marketplace Service**: Commercial/Proprietary - Requires atomagentos.com connection and API token
 
-- **[Marketplace Connection Guide](docs/marketplace/connection.md)** - Complete setup and troubleshooting
-- **[Agent Marketplace Guide](docs/agents/marketplace.md)** - Publishing and sharing agents
-- **[Marketplace Analytics](docs/marketplace/analytics.md)** - Analytics and synchronization
+For full legal terms, see [LICENSE.md - Marketplace Commercial Appendix](LICENSE.md#marketplace-commercial-appendix).
 
 
 ---

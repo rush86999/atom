@@ -478,5 +478,66 @@ def setup_logging(config: LoggingConfig = None) -> None:
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
+@dataclass
+class MarketplaceConfig:
+    """
+    Marketplace configuration for commercial mothership connection.
+
+    Manages connection to atomagentos.com marketplace service.
+    """
+    enabled: bool = True
+    api_url: str = "https://atomagentos.com/api/v1/marketplace"
+    api_token: Optional[str] = None
+    timeout: int = 30
+    cache_ttl_seconds: int = 300  # 5 minutes
+
+    def __post_init__(self):
+        """Load marketplace configuration from environment variables."""
+        # Check if marketplace is enabled
+        enabled_env = os.getenv('MARKETPLACE_ENABLED', 'true').lower()
+        self.enabled = enabled_env in ('true', '1', 'yes', 'on')
+
+        # Load API URL
+        self.api_url = os.getenv(
+            'ATOM_SAAS_API_URL',
+            'https://atomagentos.com/api/v1/marketplace'
+        )
+
+        # Load API token
+        self.api_token = os.getenv('ATOM_SAAS_API_TOKEN')
+
+        # Load timeout
+        if os.getenv('ATOM_SAAS_TIMEOUT'):
+            self.timeout = int(os.getenv('ATOM_SAAS_TIMEOUT'))
+
+        # Load cache TTL
+        if os.getenv('ATOM_SAAS_CACHE_TTL'):
+            self.cache_ttl_seconds = int(os.getenv('ATOM_SAAS_CACHE_TTL'))
+
+    def validate(self) -> tuple[bool, Optional[str]]:
+        """
+        Validate marketplace configuration.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        # If marketplace is disabled, that's valid
+        if not self.enabled:
+            return True, None
+
+        # If enabled but no token, warn but don't fail
+        if not self.api_token:
+            return True, "Marketplace enabled but ATOM_SAAS_API_TOKEN not set - marketplace features will be unavailable"
+
+        # Token should be at least 20 characters
+        if self.api_token and len(self.api_token) < 20:
+            return False, "ATOM_SAAS_API_TOKEN appears invalid (too short)"
+
+        return True, None
+
+    def is_configured(self) -> bool:
+        """Check if marketplace is properly configured with API token."""
+        return self.enabled and bool(self.api_token)
+
 # Initialize configuration when module is imported
 load_config()
