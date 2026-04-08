@@ -112,10 +112,9 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [QUEEN_AGENT.md](QUEEN_AGENT.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
-| [UNSTRUCTURED_COMPLEX_TASKS.md](UNSTRUCTURED_COMPLEX_TASKS.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
-| [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
+| [agents/unstructured-tasks.md](agents/unstructured-tasks.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
+| [agents/fleet-admiral.md](agents/fleet-admiral.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
 | [agents/overview.md](agents/overview.md) | Agent system overview and intent classification | Apr 7, 2026 |
-| [agents/unstructured-tasks.md](agents/unstructured-tasks.md) | Unstructured tasks and domain creation | Apr 7, 2026 |
 
 ### Episodic Memory
 | Document | Description | Last Updated |
@@ -138,9 +137,9 @@
 ### Canvas AI & State
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) | **AI agent accessibility with dual representation** | Feb 2026 |
+| [canvas/ai-accessibility.md](canvas/ai-accessibility.md) | **AI agent accessibility with dual representation** | Apr 2026 |
 | [CANVAS_STATE_API.md](CANVAS_STATE_API.md) | **JavaScript API for real-time canvas state** | Feb 2026 |
-| [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) | **LLM-powered semantic summaries** | Feb 2026 |
+| [canvas/llm-summaries.md](canvas/llm-summaries.md) | **LLM-powered semantic summaries** | Apr 2026 |
 
 ### Canvas Collaboration
 | Document | Description | Last Updated |
