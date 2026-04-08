@@ -111,6 +111,7 @@
 ### Multi-Agent Coordination
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
+| [QUEEN_AGENT.md](QUEEN_AGENT.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
 | [UNSTRUCTURED_COMPLEX_TASKS.md](UNSTRUCTURED_COMPLEX_TASKS.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
 | [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
 | [agents/overview.md](agents/overview.md) | Agent system overview and intent classification | Apr 7, 2026 |
