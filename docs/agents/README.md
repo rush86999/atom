@@ -104,7 +104,7 @@ See: [Fleet Admiral Documentation](../FLEET_ADMIRAL.md)
 ### Root Documentation
 - [QUEEN_AGENT.md](../QUEEN_AGENT.md) - Queen Agent complete guide
 - [FLEET_ADMIRAL.md](../FLEET_ADMIRAL.md) - Fleet Admiral complete guide
-- [UNSTRUCTURED_COMPLEX_TASKS.md](../UNSTRUCTURED_COMPLEX_TASKS.md) - Intent classification system
+- [Unstructured Tasks](unstructured-tasks.md) - Intent classification system
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](../STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system
 - [ATOM_CLI_SKILLS_GUIDE.md](../ATOM_CLI_SKILLS_GUIDE.md) - CLI skills
 
