@@ -22,7 +22,7 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 
 **Key Difference**: Atom runs entirely on your infrastructure. Your data never leaves your environment.
 
-> **Comparing alternatives?** See [Atom vs OpenClaw](docs/ATOM_VS_OPENCLAW.md) for a detailed feature comparison.
+> **Comparing alternatives?** See [Atom vs OpenClaw](docs/features/atom-vs-openclaw.md) for a detailed feature comparison.
 
 ---
 
@@ -38,7 +38,7 @@ Just **speak** or **type** your request, and Atom's specialty agents will plan, 
 | **Architecture** | Python + FastAPI + PostgreSQL/SQLite | Node.js + local filesystem |
 | **Setup** | Docker Compose (~15-30 min) | Single script (~10-30 min) |
 
-[Full Comparison →](docs/ATOM_VS_OPENCLAW.md)
+[Full Comparison →](docs/features/atom-vs-openclaw.md)
 
 ---
 
