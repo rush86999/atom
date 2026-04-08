@@ -37,8 +37,9 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 - [Agent Graduation](agents/graduation.md) - Learning and promotion framework
 - [Student Training](agents/training.md) - Training workflow for student agents
 - [Meta-Agent Routing](agents/meta-agent.md) - Intent classification and orchestration
-- [Fleet Admiral](agents/fleet-admiral.md) - Multi-agent orchestration
-- [Unstructured Tasks](agents/unstructured-tasks.md) - Complex task routing
+- [Queen Agent (Queen Hive)](QUEEN_AGENT.md) - **Structured workflow automation** ✨ NEW
+- [Fleet Admiral](FLEET_ADMIRAL.md) - Multi-agent orchestration for unstructured tasks ✨ NEW
+- [Unstructured Tasks](UNSTRUCTURED_COMPLEX_TASKS.md) - Intent classification and fleet coordination ✨ NEW
 
 ### Intelligence & Memory 🧠
 - **[Intelligence Overview](intelligence/overview.md)** - Complete intelligence documentation
