@@ -1,7 +1,7 @@
 # Atom Marketplace Documentation
 
 > **Last Updated:** April 7, 2026
-> **Purpose:** Complete guide to the Atom Marketplace for community skills, agents, and integrations
+> **Purpose:** Complete guide to the Atom Marketplace for agents, skills, canvas components, and domains
 
 **[← Back to Documentation Index](../INDEX.md)**
 
@@ -13,10 +13,20 @@ The Atom Marketplace is a centralized hub for discovering, evaluating, and insta
 
 ### What You Can Find in the Marketplace
 
-- **5,000+ Community Skills**: Pre-built automation components for common tasks
-- **Agent Templates**: Complete, autonomous agents with pre-learned capabilities
-- **Integration Templates**: Ready-to-use integrations with popular services
-- **Specialist Domains**: Pre-configured agent domains for specific business functions
+The marketplace offers four types of resources:
+
+- **🤖 Agents** - Complete, autonomous agents with pre-learned capabilities and experience memory
+- **🛠️ Skills** - 5,000+ pre-built automation components for common tasks
+- **🎨 Canvas Components** - Reusable UI elements for rich, interactive presentations
+- **📚 Domains** - Specialist knowledge packages for specific business functions
+
+### Key Features
+
+- **Privacy-First**: Opt-in analytics with aggregated, anonymized data only
+- **Bidirectional Sync**: Share your ratings and feedback with the community
+- **Real-Time Updates**: Automatic synchronization with the marketplace
+- **Governance-Gated**: Maturity-based access control for security
+- **Federated Architecture**: Self-hosted instances maintain control while accessing community resources
 
 ### Key Features
 
@@ -37,11 +47,19 @@ The Atom Marketplace is a centralized hub for discovering, evaluating, and insta
 | [**Connection Guide**](connection.md) | **START HERE:** Complete guide for connecting your Atom instance to the marketplace |
 | [**Quick Start**](#quick-start) | 5-minute setup guide |
 
-### Core Features
+### Marketplace Resources
 
 | Document | Description |
 |----------|-------------|
-| [**Skill Marketplace**](skills.md) | Browse, install, and publish community skills |
+| [**🤖 Agent Marketplace**](../agents/marketplace.md) | Complete autonomous agents with pre-learned capabilities |
+| [**🛠️ Skill Marketplace**](skills.md) | 5,000+ pre-built automation components |
+| [**🎨 Canvas Components**](canvas-components.md) | Reusable UI elements for interactive presentations |
+| [**📚 Domains**](domains.md) | Specialist knowledge packages for business functions |
+
+### System Features
+
+| Document | Description |
+|----------|-------------|
 | [**Analytics & Sync**](analytics.md) | Privacy-first analytics and bidirectional synchronization |
 
 ### Reference
@@ -102,7 +120,19 @@ Expected response:
 
 ## Marketplace Features
 
-### 🛒 Skill Marketplace
+### 🤖 Agent Marketplace
+
+Browse and install complete autonomous agents:
+
+- **Agent Templates**: Fully configured agents with pre-learned capabilities
+- **Experience Memory**: Anonymized heuristics for accelerated maturity
+- **Canvas UIs**: Custom UI layouts and components
+- **Federation**: Share agents across self-hosted instances
+- **Accelerated Learning**: Start at INTERN maturity with proven capabilities
+
+**[→ Agent Marketplace Guide](../agents/marketplace.md)**
+
+### 🛠️ Skill Marketplace
 
 Browse and install thousands of community-built skills:
 
@@ -113,6 +143,34 @@ Browse and install thousands of community-built skills:
 - **Governance**: Maturity-based access control (STUDENT blocked, INTERN requires approval)
 
 **[→ Skill Marketplace Guide](skills.md)**
+
+### 🎨 Canvas Components
+
+Discover and use reusable UI components:
+
+- **Charts**: Data visualization (Line, Bar, Pie, Area, Scatter)
+- **Forms**: Interactive forms, surveys, configurations
+- **Tables**: Data grids, pivot tables, sortable lists
+- **Media**: Images, videos, audio players
+- **Interactive**: Custom widgets, calculators, sliders
+- **Layouts**: Grid systems, containers, spacers
+
+**[→ Canvas Components Guide](canvas-components.md)**
+
+### 📚 Domains
+
+Install specialist knowledge packages:
+
+- **Finance**: Financial analysis, reporting, compliance, budgeting
+- **Sales**: Sales processes, CRM workflows, lead management
+- **Engineering**: Development workflows, CI/CD, incident response
+- **Support**: Customer service, ticket management, escalation
+- **HR**: Recruiting, onboarding, employee management
+- **Marketing**: Campaigns, analytics, social media
+- **Operations**: Logistics, supply chain, inventory
+- **Legal**: Contracts, compliance, document review
+
+**[→ Domain Marketplace Guide](domains.md)**
 
 ### 📊 Analytics & Synchronization
 
@@ -248,6 +306,12 @@ GET /api/marketplace/skills
 
 ## Related Documentation
 
+### Marketplace Resources
+- [Agent Marketplace Guide](../agents/marketplace.md) - Complete autonomous agents and federation
+- [Canvas Components Guide](canvas-components.md) - Reusable UI components
+- [Domain Marketplace Guide](domains.md) - Specialist knowledge packages
+
+### Integration & Packages
 - [Community Skills Integration](../COMMUNITY_SKILLS.md) - 5,000+ OpenClaw/ClawHub skills
 - [Python Package Support](../PYTHON_PACKAGES.md) - NumPy, Pandas, 350K+ packages
 - [npm Package Support](../NPM_PACKAGE_SUPPORT.md) - Lodash, Express, 2M+ packages
@@ -257,7 +321,12 @@ GET /api/marketplace/skills
 
 ## Changelog
 
-### April 2026
+### April 7, 2026
+- **Updated marketplace hub** to include all four resource types (agents, skills, canvas, domains)
+- **Reorganized documentation** with dedicated sections for each marketplace type
+- **Added comprehensive links** to agent, canvas component, and domain guides
+
+### April 6, 2026
 - Added marketplace connection guide
 - Updated API URLs to `https://atomagentos.com`
 - Added analytics and synchronization documentation
