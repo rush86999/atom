@@ -16,6 +16,8 @@
 - Enhanced feedback system with A/B testing
 - Mobile support architecture (React Native)
 - **✨ Episodic Memory & Graduation Framework** - Agent learning from past experiences
+- **✨ Auto-Dev Module** - Self-evolving agents that learn from failures and optimize skills
+- **✨ Federation & Instance Identity** - Multi-instance communication and resource sharing
 - **✨ Personal Edition** - Run Atom locally with Docker
 - **✨ Production-Ready** - CI/CD pipeline, monitoring, health checks
 
@@ -33,6 +35,8 @@
 - `queen_agent.py` - Structured workflow automation (Queen Hive)
 - `fleet_admiral.py` - Dynamic agent recruitment for unstructured complex tasks
 - `atom_meta_agent.py` - Central orchestrator with domain creation and fleet recruitment
+- `auto_dev/` - Auto-Dev module (Memento-Skills, AlphaEvolver, EventBus, Sandbox)
+- `atom_saas_client.py` - Marketplace client with federation headers
 - `health_routes.py` - Health check endpoints
 - `monitoring.py` - Prometheus metrics and structured logging
 - `cli/daemon.py` - Daemon mode for background agent execution
@@ -297,6 +301,20 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ---
 
 ## Recent Major Changes
+
+### Auto-Dev Module & Federation (April 10, 2026) ✨
+- **Auto-Dev Module**: Self-evolving agent capabilities with Memento-Skills and AlphaEvolver
+  - Memento-Skills: Generate new skills from failed episodes (INTERN+ maturity)
+  - AlphaEvolver: Optimize existing skills via mutation and sandbox testing (SUPERVISED+ maturity)
+  - EventBus: Pub-sub event system for agent lifecycle tracking
+  - ContainerSandbox: Docker-based isolated code execution
+  - FitnessService: Multi-stage variant evaluation
+  - **Docs**: `docs/guides/AUTO_DEV_USER_GUIDE.md`, `backend/core/auto_dev/`
+- **Federation & Instance Identity**: Multi-instance communication and resource sharing
+  - Instance ID: Unique identifier for each Atom installation
+  - Federation Headers: X-Federation-Key, X-Instance-ID for authenticated communication
+  - Cross-Instance Sharing: Agent and skill federation across trusted instances
+  - **Docs**: `docs/guides/FEDERATION_INSTANCE_IDENTITY.md`
 
 ### Queen Agent & Marketplace (April 10, 2026) ✨
 - **Queen Agent (Queen Hive)**: Structured workflow automation system for predefined, repeatable business processes
