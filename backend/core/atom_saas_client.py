@@ -35,6 +35,7 @@ class AtomSaaSConfig:
     ws_url: str
     api_url: str
     api_token: str
+    instance_id: Optional[str] = None
     timeout: int = 30
     cache_ttl_seconds: int = 300  # 5 minutes
 
@@ -61,6 +62,12 @@ class AtomAgentOSMarketplaceClient:
             "https://atomagentos.com/api/v1/marketplace"
         )
         api_token = os.getenv("ATOM_SAAS_API_TOKEN", "")
+        instance_id = os.getenv("ATOM_INSTANCE_ID")
+
+        if not instance_id and api_token:
+            # Generate a stable instance ID from the token if not provided
+            import hashlib
+            instance_id = hashlib.sha256(api_token.encode()).hexdigest()[:32]
 
         if not api_token:
             logger.warning("ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail")
@@ -68,7 +75,8 @@ class AtomAgentOSMarketplaceClient:
         return AtomSaaSConfig(
             ws_url=ws_url,
             api_url=api_url,
-            api_token=api_token
+            api_token=api_token,
+            instance_id=instance_id
         )
 
     async def _get_http_client(self) -> httpx.AsyncClient:
@@ -76,6 +84,8 @@ class AtomAgentOSMarketplaceClient:
         if not self._http_client:
             headers = {
                 "X-API-Token": self.config.api_token,
+                "X-Federation-Key": self.config.api_token, # Reuse token as federation key context
+                "X-Instance-ID": self.config.instance_id or "",
                 "Content-Type": "application/json"
             }
             self._http_client = httpx.AsyncClient(
