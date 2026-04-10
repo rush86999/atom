@@ -1,6 +1,6 @@
 # Atom Documentation Index
 
-> **Last Updated**: April 7, 2026
+> **Last Updated**: April 10, 2026
 > **Purpose**: Comprehensive index of all Atom documentation with quick links and descriptions
 
 **📚 [Back to Documentation Hub](README.md)** - Browse by category (Agents, Intelligence, Integration, Platform)
@@ -59,6 +59,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [marketplace/connection.md](marketplace/connection.md) | **✨ NEW: Marketplace connection guide** - Setup, configuration, troubleshooting | Apr 7, 2026 |
+| [GUIDES/MARKETPLACE_QUICKSTART.md](GUIDES/MARKETPLACE_QUICKSTART.md) | **✨ NEW: Marketplace quick start - 5-minute setup** | Apr 10, 2026 |
 | [marketplace/canvas-components.md](marketplace/canvas-components.md) | **✨ NEW: Canvas component marketplace** - Browse, install, use components | Apr 7, 2026 |
 | [marketplace/domains.md](marketplace/domains.md) | **✨ NEW: Domain marketplace** - Specialist knowledge domains | Apr 7, 2026 |
 | [marketplace/skills.md](marketplace/skills.md) | **Skills marketplace** - Agent capabilities and integrations | Apr 6, 2026 |
@@ -83,6 +84,12 @@
 | [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |
 | [PERFORMANCE_TUNING.md](PERFORMANCE_TUNING.md) | Performance optimization and benchmarks | Feb 19, 2026 |
 | [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) | **Built-in CLI skills (daemon, status, start, stop, execute, config)** | Apr 7, 2026 |
+
+## 🌐 Federation & Multi-Instance
+
+| Document | Description | Last Updated |
+|----------|-------------|--------------|
+| [GUIDES/FEDERATION_INSTANCE_IDENTITY.md](GUIDES/FEDERATION_INSTANCE_IDENTITY.md) | **✨ NEW: Federation & Instance Identity - Multi-instance communication** | Apr 10, 2026 |
 
 ---
 
@@ -112,9 +119,12 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [QUEEN_AGENT.md](QUEEN_AGENT.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
+| [GUIDES/QUEEN_AGENT_USER_GUIDE.md](GUIDES/QUEEN_AGENT_USER_GUIDE.md) | **✨ NEW: Queen Agent user guide - Blueprints, scheduling, monitoring** | Apr 10, 2026 |
 | [agents/unstructured-tasks.md](agents/unstructured-tasks.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
 | [agents/fleet-admiral.md](agents/fleet-admiral.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
 | [agents/overview.md](agents/overview.md) | Agent system overview and intent classification | Apr 7, 2026 |
+| [GUIDES/QUEEN_VS_FLEET_ADMIRAL.md](GUIDES/QUEEN_VS_FLEET_ADMIRAL.md) | **✨ NEW: Queen Agent vs Fleet Admiral - Which orchestrator to use?** | Apr 10, 2026 |
+| [GUIDES/AUTO_DEV_USER_GUIDE.md](GUIDES/AUTO_DEV_USER_GUIDE.md) | **✨ NEW: Auto-Dev Module - Self-evolving agent capabilities** | Apr 10, 2026 |
 
 ### Episodic Memory
 | Document | Description | Last Updated |

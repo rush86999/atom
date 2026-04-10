@@ -80,10 +80,15 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Analytics and synchronization
   - Troubleshooting and support
 
-- **[Marketplace Connection Guide](MARKETPLACE_CONNECTION_GUIDE.md)** - Connect to public marketplace
+- **[Marketplace Quick Start Guide](GUIDES/MARKETPLACE_QUICKSTART.md)** - **5-minute marketplace setup** ✨ NEW
   - Get API token from https://atomagentos.com
   - Configure sync settings
   - Browse and install 5,000+ skills
+  - Privacy-first analytics
+
+- **[Marketplace Connection Guide](MARKETPLACE_CONNECTION_GUIDE.md)** - Connect to public marketplace
+  - Detailed connection configuration
+  - Troubleshooting and support
 
 - **[Agent Marketplace Guide](agents/marketplace.md)** - Publish and share agents
   - Agent publishing workflow
@@ -94,6 +99,14 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Skill discovery
   - Installation and management
   - Rating and reviews
+
+### Federation & Multi-Instance ✨
+
+- **[Federation & Instance Identity Guide](GUIDES/FEDERATION_INSTANCE_IDENTITY.md)** - **Multi-instance communication** ✨ NEW
+  - Instance identity and configuration
+  - Federation headers and security
+  - Cross-instance resource sharing
+  - Multi-instance deployments
 
 ---
 
@@ -153,7 +166,10 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - **[Agent Governance](AGENT_GOVERNANCE.md)** - Maturity levels and permissions
 - **[Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md)** - Learning and promotion
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
+- **[Queen Agent User Guide](GUIDES/QUEEN_AGENT_USER_GUIDE.md)** - **Structured workflow automation** ✨ NEW
+- **[Queen vs Fleet Admiral Comparison](GUIDES/QUEEN_VS_FLEET_ADMIRAL.md)** - **Which orchestrator to use?** ✨ NEW
 - **[Unstructured Complex Tasks](agents/unstructured-tasks.md)** - Multi-agent orchestration
+- **[Auto-Dev Module](GUIDES/AUTO_DEV_USER_GUIDE.md)** - **Self-evolving agent capabilities** ✨ NEW
 
 ### Intelligence & Memory
 
@@ -205,7 +221,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Feature Documentation
 
-- **[Features List](ATOM_OPENCLAW_FEATURES.md)** - Complete feature list
+- **[Features List](features/atom-vs-openclaw.md)** - Complete feature list
 - **[Feature Matrix](FEATURE_MATRIX.md)** - Capability comparison
 - **[Use Cases](USE_CASES.md)** - Real-world examples
 - **[User Personas](guides/USER_PERSONAS_AND_JOURNEYS.md)** - Target users
