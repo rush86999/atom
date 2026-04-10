@@ -593,8 +593,8 @@ GET /api/v1/auto-dev/evolutions/{evolution_id}
 - **[Sandbox Security](../security/sandbox.md)** - Deep dive on sandbox architecture
 
 ### Explore
-- **[Auto-Dev Examples](../examples/auto-dev/)** - Real-world Auto-Dev scenarios
-- **[Evolution Strategies](../advanced/evolution.md)** - Advanced evolution techniques
+- **[Auto-Dev Examples](../examples/auto-dev/)** - Real-world Auto-Dev scenarios *(coming soon)*
+- **[Evolution Strategies](#best-practices)** - Advanced evolution techniques (see Best Practices above)
 - **[Performance Tuning](../operations/performance.md)** - Optimization best practices
 
 ### Get Help
