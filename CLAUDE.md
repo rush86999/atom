@@ -2,7 +2,7 @@
 
 > **Project Context**: Atom is an intelligent business automation and integration platform that uses AI agents to help users automate workflows, integrate services, and manage business operations.
 
-**Last Updated**: April 7, 2026
+**Last Updated**: April 10, 2026
 
 ---
 
@@ -30,6 +30,7 @@
 - `supervision_service.py` - Real-time supervision monitoring
 - `governance_cache.py` - High-performance caching (<1ms lookups)
 - `intent_classifier.py` - Intent classification (CHAT/WORKFLOW/TASK routing)
+- `queen_agent.py` - Structured workflow automation (Queen Hive)
 - `fleet_admiral.py` - Dynamic agent recruitment for unstructured complex tasks
 - `atom_meta_agent.py` - Central orchestrator with domain creation and fleet recruitment
 - `health_routes.py` - Health check endpoints
@@ -110,7 +111,17 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Summary cache by canvas state hash
 - **Benefits**: Better episode retrieval, agent learning, semantic search
 
-### 8. Unstructured Complex Tasks & Domain Creation ✨
+### 8. Queen Agent - Structured Workflow Automation ✨ (April 2026)
+**Files**: `backend/core/agents/queen_agent.py`, `core/intent_classifier.py`
+- **Queen Agent (Queen Hive)**: Orchestrator for structured, repeatable business processes with predefined blueprints
+- **Workflow Automation**: Executes known business processes with reliable, repeatable steps (daily reports, data pipelines, CRM workflows)
+- **Blueprint System**: Predefined workflow templates with parameterizable steps, validation, and error handling
+- **Intent Routing**: WORKFLOW intents (structured tasks) → Queen Agent, TASK intents (unstructured) → Fleet Admiral
+- **Governance Integration**: STUDENT blocked, INTERN requires approval, SUPERVISED/AUTONOMOUS full access
+- **Performance**: <35ms blueprint loading, ~80ms error recovery, 1-5 minute typical execution
+- **Docs**: `docs/QUEEN_AGENT.md`, `docs/guides/QUEEN_AGENT_USER_GUIDE.md`
+
+### 9. Unstructured Complex Tasks & Domain Creation ✨
 **Files**: `core/atom_meta_agent.py`, `core/intent_classifier.py`, `core/fleet_admiral.py`
 - **Intent Classification**: CHAT (simple queries) → LLMService, WORKFLOW (structured tasks) → QueenAgent, TASK (unstructured complex) → FleetAdmiral
 - **FleetAdmiral**: Dynamic agent recruitment for long-horizon unstructured tasks requiring multiple specialist agents
@@ -120,7 +131,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Governance-Gated Routing**: CHAT bypasses governance, WORKFLOW/TASK require maturity checks
 - **Performance**: <100ms intent classification, <500ms fleet recruitment
 
-### 9. BYOK Cognitive Tier System ✨ (Phase 68)
+### 10. BYOK Cognitive Tier System ✨ (Phase 68)
 **Files**: `core/llm/cognitive_tier_system.py`, `core/llm/cache_aware_router.py`, `core/llm/escalation_manager.py`
 - 5-tier intelligent LLM routing (Micro, Standard, Versatile, Heavy, Complex)
 - Multi-factor classification: token count + semantic complexity + task type
@@ -131,35 +142,35 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Tests**: 100+ tests across 8 test files
 - **Docs**: `docs/COGNITIVE_TIER_SYSTEM.md`
 
-### 9. Browser Automation System
+### 11. Browser Automation System
 **Files**: `tools/browser_tool.py`, `api/browser_routes.py`
 - Web scraping, form filling, screenshots via Playwright CDP
 - **Governance**: INTERN+ required
 - **Docs**: `docs/archive/2025-12/BROWSER_IMPLEMENTATION_SUMMARY.md`
 
-### 10. Device Capabilities System
+### 12. Device Capabilities System
 **Files**: `tools/device_tool.py`, `api/device_capabilities.py`
 - Camera (INTERN+), Screen Recording (SUPERVISED+), Location (INTERN+), Notifications (INTERN+), Command Execution (AUTONOMOUS only)
 - **Docs**: `docs/DEVICE_CAPABILITIES.md`
 
-### 11. Atom CLI Skills System ✨
+### 13. Atom CLI Skills System ✨
 **Files**: `backend/tools/atom_cli_skill_wrapper.py`, `backend/skills/atom-cli/` (6 SKILL.md files)
 - 6 built-in skills: atom-daemon, atom-status, atom-start, atom-stop, atom-execute, atom-config
 - AUTONOMOUS maturity for daemon control, STUDENT for read-only operations
 - Subprocess wrapper with 30s timeout, structured output, error handling
 - **Docs**: `docs/ATOM_CLI_SKILLS_GUIDE.md`
 
-### 12. Deep Linking System
+### 14. Deep Linking System
 **Files**: `core/deeplinks.py`, `api/deeplinks.py`
 - `atom://agent/{id}`, `atom://workflow/{id}`, `atom://canvas/{id}`, `atom://tool/{name}`
 - **Docs**: `docs/DEEPLINK_IMPLEMENTATION.md`
 
-### 13. Enhanced Feedback System
+### 15. Enhanced Feedback System
 **Files**: `api/feedback_enhanced.py`, `api/feedback_analytics.py`
 - Thumbs up/down, star ratings, corrections, analytics dashboard
 - Batch operations, promotion suggestions, A/B testing
 
-### 14. Student Agent Training System ✨
+### 16. Student Agent Training System ✨
 **Files**: `core/trigger_interceptor.py`, `core/student_training_service.py`
 - Four-tier maturity routing: STUDENT → INTERN → SUPERVISED → AUTONOMOUS
 - AI-based training duration estimation with historical data analysis
@@ -170,7 +181,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **API**: 20+ REST endpoints covering training, proposals, and supervision
 - **Tests**: `tests/test_trigger_interceptor.py` (11 tests)
 
-### 15. Database Models
+### 17. Database Models
 **File**: `core/models.py`
 - Key models: AgentRegistry, AgentExecution, AgentFeedback, CanvasAudit, BrowserSession, DeviceSession, DeepLinkAudit, ChatSession
 - **NEW**: AgentOperationTracker, AgentRequestLog, ViewOrchestrationState, OperationErrorResolution
@@ -178,7 +189,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **NEW**: Episode, EpisodeSegment, EpisodeAccessLog (Episodic Memory with graduation tracking)
 - **NEW**: CommunitySkill, SkillSecurityScan, SkillExecution (Community Skills with security validation)
 
-### 16. Episodic Memory & Graduation Framework ✨
+### 18. Episodic Memory & Graduation Framework ✨
 **Files**: `episode_segmentation_service.py`, `episode_retrieval_service.py`, `episode_lifecycle_service.py`, `agent_graduation_service.py`
 - Automatic episode segmentation (time gaps, topic changes, task completion)
 - Four retrieval modes: Temporal, Semantic, Sequential, Contextual
@@ -194,7 +205,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **API**: 25+ REST endpoints for episodes, graduation, and canvas/feedback integration
 - **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/AGENT_GRADUATION_GUIDE.md`, `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
 
-### 17. World Model & Business Facts ✨
+### 19. World Model & Business Facts ✨
 **Files**: `core/agent_world_model.py`, `api/admin/business_facts_routes.py`, `core/policy_fact_extractor.py`
 - Business Facts: Verified knowledge with citations (e.g., "Invoices > $500 need VP approval" with policy.pdf:p4)
 - JIT Verification: Real-time citation validation via R2/S3 storage checks
@@ -206,7 +217,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Performance**: <100ms fact retrieval, <500ms citation verification, <50ms vector search
 - **Docs**: `docs/JIT_FACT_PROVISION_SYSTEM.md`, `docs/CITATION_SYSTEM_GUIDE.md`
 
-### 18. Production Monitoring & Observability ✨
+### 20. Production Monitoring & Observability ✨
 **Files**: `api/health_routes.py`, `core/monitoring.py`, `tests/test_health_routes.py`
 - Health check endpoints: `/health/live` (liveness), `/health/ready` (readiness with DB/disk checks)
 - Prometheus metrics: HTTP requests, agent executions, skill executions, DB queries
@@ -217,7 +228,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Tests**: 13 tests covering liveness, readiness, metrics, and performance
 - **Docs**: `backend/docs/MONITORING_SETUP.md`
 
-### 19. CI/CD Pipeline & Deployment ✨
+### 21. CI/CD Pipeline & Deployment ✨
 **File**: `.github/workflows/deploy.yml`
 - Automated testing, Docker builds, staging/production deployments
 - Jobs: test → build → deploy-staging (auto) → deploy-production (manual approval) → verify
@@ -228,7 +239,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Slack notifications for deployment status
 - **Docs**: `backend/docs/DEPLOYMENT_RUNBOOK.md`, `backend/docs/OPERATIONS_GUIDE.md`, `backend/docs/TROUBLESHOOTING.md`
 
-### 20. Personal Edition & Daemon Mode ✨
+### 22. Personal Edition & Daemon Mode ✨
 **Files**: `cli/daemon.py`, `cli/main.py`, `.env.personal`, `docker-compose-personal.yml`
 - Personal Edition: Docker Compose setup with SQLite, simplified configuration
 - Daemon Mode: Background service with PID tracking, graceful shutdown, status monitoring
@@ -240,7 +251,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Performance**: <10ms liveness probe, <100ms readiness probe (includes DB check)
 - **Docs**: `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`
 
-### 21. Code Quality & Type Hints ✨
+### 23. Code Quality & Type Hints ✨
 **Files**: `backend/docs/CODE_QUALITY_STANDARDS.md`, `mypy.ini`, `.github/workflows/ci.yml`
 - MyPy configuration for static type checking
 - Type hints on critical service functions (agent governance, LLM, episodic memory)
@@ -248,7 +259,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - API response standards, database session patterns, import ordering
 - CI Integration: Type checking runs on every push via GitHub Actions
 
-### 22. E2E Testing Infrastructure ✨ (Phase 234)
+### 24. E2E Testing Infrastructure ✨ (Phase 234)
 **Files**: `backend/tests/e2e_ui/conftest.py`, `backend/tests/e2e_ui/fixtures/`, `backend/tests/e2e_ui/pages/`
 - **486 E2E test functions** across authentication and agent critical paths
 - API-first authentication: 10-100x faster than UI login (JWT tokens in localStorage)
@@ -259,7 +270,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Coverage**: AUTH-01 through AUTH-07, AGNT-01 through AGNT-08
 - **Docs**: `backend/tests/e2e_ui/README.md`
 
-### 23. Advanced Skill Execution & Composition ✨
+### 25. Advanced Skill Execution & Composition ✨
 **Phase**: 60-advanced-skill-execution (February 19, 2026)
 - Skill Marketplace: PostgreSQL-based with search, ratings, categories
 - Dynamic Skill Loading: importlib-based hot-reload with watchdog file monitoring
@@ -270,7 +281,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - **Tests**: 82+ tests across 6 test files
 - **Docs**: `docs/ADVANCED_SKILL_EXECUTION.md`, `docs/SKILL_MARKETPLACE_GUIDE.md`, `docs/SKILL_COMPOSITION_PATTERNS.md`
 
-### 24. GraphRAG & Entity Types System ✨
+### 26. GraphRAG & Entity Types System ✨
 **Files**: `backend/core/graphrag_engine.py`, `backend/core/entity_type_service.py`, `backend/core/model_factory.py`
 - **PostgreSQL-backed GraphRAG V2**: Stateless recursive CTEs for high-performance traversal (<100ms)
 - **6 Canonical Entity Types**: user, workspace, team, task, ticket, formula with bidirectional sync
@@ -286,6 +297,14 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ---
 
 ## Recent Major Changes
+
+### Queen Agent & Marketplace (April 10, 2026) ✨
+- **Queen Agent (Queen Hive)**: Structured workflow automation system for predefined, repeatable business processes
+- **Marketplace Commercialization**: Mothership architecture with atomagentos.com for agents, skills, canvas components, and domains
+- **Agent System Documentation**: Comprehensive guides for Queen Agent vs Fleet Admiral orchestration
+- **Marketplace Connection**: Quick start guide for connecting self-hosted instances to the commercial marketplace
+- **User Guides**: End-user documentation for Queen Agent workflows and marketplace browsing/installation
+- **Docs**: `docs/QUEEN_AGENT.md`, `docs/guides/QUEEN_AGENT_USER_GUIDE.md`, `docs/guides/MARKETPLACE_QUICKSTART.md`, `docs/marketplace/`
 
 ### Phase 234: Authentication & Agent E2E Tests (March 24, 2026) ✨
 - 486 comprehensive E2E test functions across 6 plans covering authentication and agent critical paths
