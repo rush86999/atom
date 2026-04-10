@@ -6,7 +6,7 @@ Core agent capabilities including governance, graduation, and orchestration.
 
 ### Governance & Maturity
 - **[Agent Governance](AGENT_GOVERNANCE.md)** - Maturity levels, permissions, and lifecycle management
-- **[Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md)** - How agents learn and get promoted
+- **[Agent Graduation Guide](graduation.md)** - How agents learn and get promoted
 - **[Capability Graduation](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic)** ⚡ **Individual capability progression (5/20/50 rule)**
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow for student agents
 - **[Supervision & Learning](SUPERVISION_LEARNING_INTEGRATION_COMPLETE.md)** - Real-time supervision system

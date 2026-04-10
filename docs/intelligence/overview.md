@@ -29,7 +29,7 @@ AI capabilities, knowledge management, and cognitive systems.
 - **[Canvas & Feedback Episodic Memory](../canvas/feedback-memory.md)** - Canvas-linked memory
 
 ### Agent Learning
-- **[Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md)** - Agent promotion system
+- **[Agent Graduation Guide](../agents/graduation.md)** - Agent promotion system
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
 
 ## Canvas Intelligence

@@ -421,7 +421,7 @@ print([a.id for a in agents])
 - **Fleet Service**: `core/agent_fleet_service.py`
 - **Recruitment Intelligence**: `core/recruitment_intelligence_service.py`
 - **Governance**: `docs/AGENT_GOVERNANCE.md`
-- **Capability Graduation**: `docs/AGENT_GRADUATION_GUIDE.md`
+- **Capability Graduation**: `../graduation.md`
 
 ---
 

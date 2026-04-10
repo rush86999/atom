@@ -111,7 +111,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md) | Agent governance and learning integration | Feb 2, 2026 |
-| [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) | **Agent promotion criteria and validation** | Feb 3, 2026 |
+| [AGENT_GRADUATION_GUIDE.md](../agents/graduation.md) | **Agent promotion criteria and validation** | Feb 3, 2026 |
 | [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
 | [agents/guidance-system.md](agents/guidance-system.md) | **Real-time agent operation tracking** | Feb 2, 2026 |
 
@@ -458,7 +458,7 @@
 - [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas integration (Feb 4)
 - [DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md) - Migration guide (Feb 4)
 - [EPISODIC_MEMORY_QUICK_START.md](EPISODIC_MEMORY_QUICK_START.md) - Quick start (Feb 4)
-- [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) - Graduation criteria (Feb 3)
+- [AGENT_GRADUATION_GUIDE.md](../agents/graduation.md) - Graduation criteria (Feb 3)
 - [intelligence/episodic-memory.md](intelligence/episodic-memory.md) - Memory framework (Feb 3)
 
 **January 2026**:

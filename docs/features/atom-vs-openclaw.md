@@ -375,7 +375,7 @@ Both are excellent choices depending on your use case. For business workflows re
 - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment ✨ NEW
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system ✨ NEW
 - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills documentation ✨ NEW
-- [AGENT_GRADUATION_GUIDE.md](AGENT_GRADUATION_GUIDE.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
+- [agents/graduation.md](../agents/graduation.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
 - [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md) - **Capability graduation logic (5/20/50 rule)** ✨ NEW
 - [EPISODIC_MEMORY_IMPLEMENTATION.md](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning framework
 - [MESSAGING_PLATFORMS.md](MESSAGING_PLATFORMS.md) - 9 messaging platforms guide

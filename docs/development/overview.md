@@ -452,7 +452,7 @@ systemctl start atom-backend atom-workers
 ### New Features (February 2026)
 - [Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
 - [Episodic Memory](EPISODIC_MEMORY_IMPLEMENTATION.md) - Agent learning framework
-- [Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md) - Agent promotion criteria
+- [Agent Graduation Guide](../agents/graduation.md) - Agent promotion criteria
 - [Real-Time Agent Guidance](AGENT_GUIDANCE_IMPLEMENTATION.md) - Live operation tracking
 - [Canvas & Feedback Integration](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas presentations in episodes
 - [Canvas AI Accessibility](CANVAS_AI_ACCESSIBILITY.md) - Dual representation for AI agents

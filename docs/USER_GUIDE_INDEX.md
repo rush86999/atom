@@ -164,7 +164,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Agent System
 
 - **[Agent Governance](AGENT_GOVERNANCE.md)** - Maturity levels and permissions
-- **[Agent Graduation Guide](AGENT_GRADUATION_GUIDE.md)** - Learning and promotion
+- **[Agent Graduation Guide](../agents/graduation.md)** - Learning and promotion
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
 - **[Queen Agent User Guide](GUIDES/QUEEN_AGENT_USER_GUIDE.md)** - **Structured workflow automation** ✨ NEW
 - **[Queen vs Fleet Admiral Comparison](GUIDES/QUEEN_VS_FLEET_ADMIRAL.md)** - **Which orchestrator to use?** ✨ NEW
