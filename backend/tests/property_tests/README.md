@@ -24,6 +24,15 @@ property_tests/
 ├── conftest.py                          # Shared fixtures for all property tests
 ├── README.md                            # This file
 │
+├── auto_dev/                            # Auto-Dev component tests (Phase 291)
+│   ├── conftest.py                      # Auto-Dev specific fixtures and strategies
+│   ├── test_event_bus_properties.py     # EventBus invariants (7 tests, 350 examples)
+│   ├── test_fitness_service_properties.py # FitnessService invariants (7 tests, 700 examples)
+│   ├── test_capability_gate_properties.py # CapabilityGate invariants (11 tests, 1100 examples)
+│   ├── test_container_sandbox_properties.py # ContainerSandbox invariants (10 tests, 500 examples)
+│   ├── test_memento_engine_properties.py # MementoEngine invariants (8 tests, 700 examples)
+│   └── test_database_properties.py      # Database model invariants (10 tests, 950 examples)
+│
 ├── invariants/                          # Core invariant tests
 │   ├── test_governance_invariants.py    # Governance decisions always valid
 │   ├── test_cache_invariants.py         # Cache consistency
@@ -48,6 +57,9 @@ property_tests/
 ```bash
 # Run all property-based tests
 pytest tests/property_tests/ -v
+
+# Run only Auto-Dev property tests
+pytest tests/property_tests/auto_dev/ -v
 
 # Run only invariant tests
 pytest tests/property_tests/invariants/ -v
@@ -216,11 +228,128 @@ Each test creates a fresh in-memory database. If you see errors:
 - Ensure `db_session` fixture is used (not creating sessions manually)
 - Check for concurrent access in tests
 
+## Auto-Dev Property Tests (Phase 291)
+
+### Overview
+
+Auto-Dev property tests verify invariants across 6 core components using Hypothesis to generate 4,300+ test examples automatically.
+
+### Components Tested
+
+#### 1. EventBus (`test_event_bus_properties.py`)
+**7 property tests, 350 examples**
+
+Tests the in-memory event bus for Auto-Dev lifecycle events:
+- Subscriber Delivery Invariant - All subscribers receive events
+- Exception Isolation Invariant - Subscriber exceptions don't affect others
+- No Duplicate Delivery Invariant - Each event delivered once per subscriber
+- Handler Count Invariant - Handler count matches registrations
+- Clear Removes All Handlers - Clear() removes all registered handlers
+- TaskEvent/SkillExecutionEvent Structure Invariants - Events maintain correct structure
+
+#### 2. FitnessService (`test_fitness_service_properties.py`)
+**7 property tests, 700 examples**
+
+Tests fitness evaluation for workflow variants:
+- Proxy Signal Bounds Invariant - Scores always in [0.0, 1.0]
+- External Signal Adjustment Invariant - External signals keep scores in [0.0, 1.0]
+- Top Variants Ordering Invariant - Top variants sorted by descending fitness
+- Syntax Error Penalty Invariant - Syntax errors result in lower scores
+- Positive/Negative Signal Invariants - Signals adjust scores correctly
+- Fitness Signals Preservation Invariant - Signals stored correctly in database
+
+#### 3. CapabilityGate (`test_capability_gate_properties.py`)
+**11 property tests, 1100 examples**
+
+Tests maturity-based feature gating:
+- is_at_least Reflexivity/Transitivity Invariants - Maturity comparison properties
+- Gate Consistency Invariant - Same capability request returns same result
+- Unknown Capability Defaults to Student - Unknown capabilities default to STUDENT
+- Workspace Toggle Invariant - Workspace settings override maturity requirements
+- Capability Gates Defined Invariant - All capabilities map to valid maturity levels
+- Maturity Hierarchy Ordering Invariant - Maturity hierarchy correctly ordered
+- Daily Limits Configuration Invariant - Daily limits configurable via workspace settings
+
+#### 4. ContainerSandbox (`test_container_sandbox_properties.py`)
+**10 property tests, 500 examples**
+
+Tests Docker-based sandbox for code execution:
+- Execution Result Structure Invariant - All executions return valid structure
+- Timeout Enforcement Invariant - Executions respect timeout limits
+- Error Containment Invariant - Container crashes don't affect host system
+- Output Type Invariant - All outputs are strings
+- Execution Time Measurement Invariant - Execution times are non-negative floats
+- Syntax Error Handling Invariant - Syntax errors caught and reported properly
+- Input Parameter Injection Invariant - Input parameters injected as _INPUT_PARAMS
+- Memory/Network Configuration Invariants - Limits configurable via constructor
+- Docker Availability Detection Invariant - Docker detection is consistent
+
+**Note:** All ContainerSandbox tests require Docker (`@pytest.mark.docker_required`).
+
+#### 5. MementoEngine (`test_memento_engine_properties.py`)
+**8 property tests, 700 examples**
+
+Tests skill generation from failed episodes:
+- Skill Candidate Structure Invariant - Generated candidates have valid structure
+- Skill Name Generation Invariant - Skill names are valid Python identifiers
+- Validation Result Structure Invariant - Validation returns valid structure
+- SkillCandidate Model Structure Invariant - Model accepts valid parameters
+- Validation Status Transition Invariant - Status transitions are valid
+- Fitness Score Bounds Invariant - Fitness scores in [0.0, 1.0]
+- Candidate Uniqueness Invariant - Different candidates can have same name
+- Failure Pattern Storage Invariant - Failure pattern metadata stored correctly
+
+#### 6. Database Models (`test_database_properties.py`)
+**10 property tests, 950 examples**
+
+Tests SQLAlchemy model integrity:
+- ToolMutation/WorkflowVariant/SkillCandidate Model Integrity Invariants
+- Fitness Score Bounds Invariant - Scores clamped to [0.0, 1.0]
+- Timestamp Monotonicity Invariant - Updated timestamp >= created timestamp
+- JSON Field Schema Invariants - JSON fields accept valid data
+- Uniqueness Invariants - Different records have unique IDs
+
+### Running Auto-Dev Property Tests
+
+```bash
+# Run all Auto-Dev property tests
+pytest tests/property_tests/auto_dev/ -v
+
+# Run specific component
+pytest tests/property_tests/auto_dev/test_event_bus_properties.py -v
+
+# Skip Docker-dependent tests
+pytest tests/property_tests/auto_dev/ -v -m "not docker_required"
+
+# Run with Hypothesis settings
+pytest tests/property_tests/auto_dev/ -v --hypothesis-seed=42
+```
+
+### Hypothesis Strategies for Auto-Dev
+
+Custom strategies defined in `auto_dev/conftest.py`:
+
+- `fitness_scores` - Lists of floats in [0.0, 1.0]
+- `maturity_levels` - One of ['student', 'intern', 'supervised', 'autonomous']
+- `event_data` - Dictionaries with random keys/values
+- `capabilities` - Valid capability names
+- `proxy_signals` - Execution success, syntax error, latency, approval
+- `external_signals` - Webhook signals (invoice_created, crm_conversion, etc.)
+- `workspace_settings` - Nested dictionaries for workspace configuration
+
+### Performance
+
+- **Per test:** 50-100 examples (configurable via `@settings(max_examples=...)`)
+- **Total examples:** 4,300+ examples across 53 tests
+- **Typical runtime:** 2-3 minutes on modern hardware
+
 ## References
 
 - [Hypothesis Documentation](https://hypothesis.readthedocs.io/)
 - [Property-Based Testing](https://hypothesis.works/articles/what-is-property-based-testing/)
 - Atom Platform CLAUDE.md for architecture details
+- [Auto-Dev Architecture](../../../docs/AUTO_DEV_ARCHITECTURE.md)
+- [Phase 291 Plan](../../../.planning/phases/291-property-based-testing/)
 
 ## Support
 
