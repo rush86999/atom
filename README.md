@@ -123,7 +123,7 @@ That's it! 🚀
 [Special Agents Guide →](docs/agents/special-agents.md) | [Queen Agent →](docs/QUEEN_AGENT.md) | [Auto-Dev →](docs/guides/AUTO_DEV_USER_GUIDE.md)
 
 ### 🎨 Canvas Presentations & Real-Time Guidance ✨
-Rich interactive presentations (charts, forms, markdown) with live operation visibility, multi-view orchestration, and smart error resolution
+Rich interactive presentations (charts, forms, markdown) with live operation visibility, multi-view orchestration, smart error resolution, and AI accessibility (canvas state exposed to agents)
 
 [Canvas Guide →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
 
