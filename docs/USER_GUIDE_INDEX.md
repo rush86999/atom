@@ -222,8 +222,8 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Feature Documentation
 
 - **[Features List](features/atom-vs-openclaw.md)** - Complete feature list
-- **[Feature Matrix](FEATURE_MATRIX.md)** - Capability comparison
-- **[Use Cases](USE_CASES.md)** - Real-world examples
+- **[Feature Matrix](reference/FEATURE_MATRIX.md)** - Capability comparison
+- **[Use Cases](GUIDES/USE_CASES.md)** - Real-world examples
 - **[User Personas](guides/USER_PERSONAS_AND_JOURNEYS.md)** - Target users
 
 ### Platform Documentation
@@ -241,14 +241,14 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 1. Read [Quick Start Guide](guides/QUICKSTART.md)
 2. Complete [User Training Guide](guides/USER_TRAINING_GUIDE.md)
-3. Explore [Use Cases](USE_CASES.md)
+3. Explore [Use Cases](GUIDES/USE_CASES.md)
 4. Set up [Integrations](guides/USER_GUIDE.md#integration-setup)
 
 ### For Workflow Creators
 
 1. Learn [Workflow Creation](guides/END_USERS/WORKFLOW_CREATION.md)
 2. Study [Best Practices](guides/END_USERS/BEST_PRACTICES.md)
-3. Explore [Use Cases](USE_CASES.md)
+3. Explore [Use Cases](GUIDES/USE_CASES.md)
 4. Build custom automations
 
 ### For Developers

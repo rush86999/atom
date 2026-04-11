@@ -5,7 +5,7 @@ Platform integrations, automation capabilities, and third-party connections.
 ## Core Integration
 
 ### Platform Integration
-- **[Integrations](INTEGRATIONS.md)** - Overview of 46+ platform integrations
+- **[Integrations](INTEGRATIONS/OVERVIEW.md)** - Overview of 46+ platform integrations
 - **[Integration Health Monitoring](INTEGRATION_HEALTH_MONITORING.md)** - Monitoring integration status
 - **[Multi-Integration Workflow Engine](MULTI_INTEGRATION_WORKFLOW_ENGINE.md)** - Cross-platform workflows
 

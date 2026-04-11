@@ -172,8 +172,8 @@
 ### Workflow Automation
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [INTEGRATIONS.md](INTEGRATIONS.md) | **Complete workflow guide** | - |
-| [INTEGRATIONS.md](INTEGRATIONS.md) | AI-powered workflow optimization | - |
+| [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) | **Complete workflow guide** | - |
+| [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) | AI-powered workflow optimization | - |
 | [MONITORING_GUIDE.md](MONITORING_GUIDE.md) | Track workflow performance | - |
 | [MULTI_INTEGRATION_WORKFLOW_ENGINE.md](MULTI_INTEGRATION_WORKFLOW_ENGINE.md) | Multi-integration workflows | - |
 
@@ -424,7 +424,7 @@
 
 **Integrations**:
 - [BYOK_LLM_INTEGRATION_COMPLETE.md]# - LLM providers
-- [INTEGRATIONS.md](INTEGRATIONS.md) - Workflows
+- [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) - Workflows
 
 **Background Jobs**:
 - [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - RQ and Redis setup

@@ -639,7 +639,7 @@ dropuser atom
 
 ## Next Steps
 
-- [Feature Matrix](FEATURE_MATRIX.md) - Compare editions
+- [Feature Matrix](reference/FEATURE_MATRIX.md) - Compare editions
 - [Personal Edition Guide](PERSONAL_EDITION.md) - Personal setup details
 - [API Documentation](backend/docs/API_DOCUMENTATION.md) - REST API reference
 - [Development Guide](CONTRIBUTING.md) - Contributing guide
