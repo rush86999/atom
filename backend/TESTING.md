@@ -256,35 +256,63 @@ INTERNALERROR> ImportError while importing test module
 
 ---
 
-## Coverage Reports
+## Coverage Measurement (Phase 251)
 
-### Generate Coverage Report
+### Run Coverage Measurement
 
 ```bash
-# Run tests with coverage
-pytest --cov=core --cov-report=html -v
+# Navigate to backend directory
+cd /Users/rushiparikh/projects/atom/backend
 
-# Open coverage report
-open htmlcov/index.html
+# Run coverage measurement with pytest-cov
+python3 -m pytest \
+  --cov=backend \
+  --cov-branch \
+  --cov-report=json:tests/coverage_reports/metrics/coverage_latest.json \
+  --cov-report=term-missing \
+  --cov-report=html:tests/coverage_reports/html \
+  --ignore=tests/e2e_ui \
+  -o "addopts="
+
+# Generate baseline report (if needed)
+python3 tests/scripts/generate_baseline_coverage_report.py
 ```
 
-### Coverage Metrics
+### Current Baseline
 
-**Current Baseline:** 74.6% coverage
+- **Phase:** 251
+- **Line Coverage:** 5.50% (4,734 / 68,341 lines)
+- **Branch Coverage:** 0.25% (47 / 18,576 branches)
+- **Files Measured:** 494
+- **Target:** 70%
+- **Gap:** 64.50 percentage points to 70% target
+- **Methodology:** Actual line execution (coverage.py) - not service-level estimates
 
-**Target Goals:**
-- Phase 251: 70% coverage
-- Phase 252: 75% coverage
-- Phase 253: 80% coverage
+### Coverage Reports
+
+- **JSON:** tests/coverage_reports/metrics/coverage_251.json
+- **HTML:** tests/coverage_reports/html/index.html
+- **Baseline:** tests/coverage_reports/backend_251_baseline.md
+
+### Interpreting Coverage Reports
+
+1. **Line Coverage:** Percentage of executable lines executed during tests
+2. **Branch Coverage:** Percentage of if/else branches taken (requires --cov-branch)
+3. **Missing Lines:** Line numbers not executed (shown in term-missing report)
+
+**Critical:** Always use actual line execution data from coverage.py, not service-level estimates. Phase 161 showed 8.50% actual coverage vs 74.6% service-level estimates. Phase 251 baseline is 5.50% actual coverage across 494 files.
 
 ### Coverage by Module
 
 ```bash
 # Generate terminal coverage report
-pytest --cov=core --cov-report=term-missing -v
+pytest --cov=backend --cov-report=term-missing -v
 
 # Generate XML report (for CI)
-pytest --cov=core --cov-report=xml -v
+pytest --cov=backend --cov-report=xml -v
+
+# View HTML coverage report
+open tests/coverage_reports/html/index.html
 ```
 
 ---

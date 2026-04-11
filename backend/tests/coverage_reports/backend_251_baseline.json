@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-04-11T14:40:31+00:00Z",
+  "phase": "251",
+  "baseline_version": "v251.0",
+  "line_coverage": {
+    "covered": 4734,
+    "total": 68341,
+    "percent": 5.5
+  },
+  "branch_coverage": {
+    "covered": 47,
+    "total": 18576,
+    "percent": 0.25
+  },
+  "file_count": 494,
+  "methodology": "actual_line_execution",
+  "data_source": "Phase 250 comprehensive coverage measurement"
+}
