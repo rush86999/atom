@@ -19,7 +19,7 @@
 | 253a - Property Tests Data Integrity | 1/1 | Complete   | 2026-04-11 |
 | 253b - Coverage Expansion Wave 1 | 0/1 | Not started | - |
 | 253 - Backend 80% & Property Tests | 0/3 | Not started | - |
-| 254 - Frontend Coverage Baseline | 0/3 | Not started | - |
+| 254 - Frontend Coverage Baseline | 2/3 | In Progress|  |
 | 255 - Frontend Coverage Push | 0/2 | Not started | - |
 | 256 - Frontend 80% | 0/2 | Not started | - |
 | 257 - TDD & Property Test Documentation | 0/2 | Not started | - |
@@ -188,8 +188,8 @@
   4. Coverage report generated with gap analysis
   5. Component-level coverage breakdown available
 **Plans**: 3 plans
-- [ ] 254-01-PLAN.md — Measure frontend coverage baseline with Jest/React Testing Library
-- [ ] 254-02-PLAN.md — Create agent component tests (AgentCard, AgentManager, AgentStudio, AgentTerminal)
+- [x] 254-01-PLAN.md — Measure frontend coverage baseline with Jest/React Testing Library
+- [x] 254-02-PLAN.md — Create agent component tests (AgentCard, AgentManager, AgentStudio, AgentTerminal)
 - [ ] 254-03-PLAN.md — Create workflow, canvas, and hook tests to reach 70% target
 
 ### Phase 255: Frontend Coverage Push

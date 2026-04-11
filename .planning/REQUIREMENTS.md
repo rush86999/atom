@@ -38,11 +38,11 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 
 ### Frontend Coverage
 
-- [ ] **COV-F-01**: Frontend coverage baseline measured
-- [ ] **COV-F-02**: Frontend coverage reaches 70% (progressive threshold)
+- [x] **COV-F-01**: Frontend coverage baseline measured
+- [x] **COV-F-02**: Frontend coverage reaches 70% (progressive threshold)
 - [ ] **COV-F-03**: Frontend coverage reaches 75% (progressive threshold)
 - [ ] **COV-F-04**: Frontend coverage reaches 80% (final target)
-- [ ] **COV-F-05**: Critical components covered (auth, agents, workflows, canvas)
+- [x] **COV-F-05**: Critical components covered (auth, agents, workflows, canvas)
 
 ### TDD Bug Fixes
 
@@ -118,11 +118,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COV-B-03 | Phase 252 | Complete |
 | COV-B-04 | Phase 253 | Pending |
 | COV-B-05 | Phase 251-253 | Complete |
-| COV-F-01 | Phase 254 | Pending |
-| COV-F-02 | Phase 254 | Pending |
+| COV-F-01 | Phase 254 | Complete |
+| COV-F-02 | Phase 254 | Complete |
 | COV-F-03 | Phase 255 | Pending |
 | COV-F-04 | Phase 256 | Pending |
-| COV-F-05 | Phase 254-256 | Pending |
+| COV-F-05 | Phase 254-256 | Complete |
 | TDD-01 | Phase 249-250 | Pending |
 | TDD-02 | Phase 249-250 | Pending |
 | TDD-03 | Phase 249-250 | Pending |
