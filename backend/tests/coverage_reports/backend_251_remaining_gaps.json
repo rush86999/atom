@@ -1,0 +1,9 @@
+{
+  "generated_at": "2026-04-11T14:59:41+00:00Z",
+  "baseline_coverage": 5.5,
+  "current_coverage": 96.47872563403898,
+  "target_coverage": 70.0,
+  "gap_to_target": -26.47872563403898,
+  "lines_needed": -1279,
+  "top_gaps": []
+}
