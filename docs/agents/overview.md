@@ -5,7 +5,7 @@ Core agent capabilities including governance, graduation, and orchestration.
 ## Core Components
 
 ### Governance & Maturity
-- **[Agent Governance](AGENT_GOVERNANCE.md)** - Maturity levels, permissions, and lifecycle management
+- **[Agent Governance](agents/governance.md)** - Maturity levels, permissions, and lifecycle management
 - **[Agent Graduation Guide](graduation.md)** - How agents learn and get promoted
 - **[Capability Graduation](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md#capability-graduation-logic)** ⚡ **Individual capability progression (5/20/50 rule)**
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow for student agents
@@ -17,7 +17,7 @@ Core agent capabilities including governance, graduation, and orchestration.
 
 ### Multi-Agent Coordination ✨ NEW
 - **[Unstructured Complex Tasks](unstructured-tasks.md)** - Intent classification and dynamic routing
-- **[Fleet Admiral](FLEET_ADMIRAL.md)** - Multi-agent orchestration for complex tasks
+- **[Fleet Admiral](agents/fleet-admiral.md)** - Multi-agent orchestration for complex tasks
 
 ## Key Concepts
 

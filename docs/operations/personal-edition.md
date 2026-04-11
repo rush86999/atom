@@ -349,7 +349,7 @@ curl -X POST http://localhost:8000/api/skills/execute \
   }'
 ```
 
-[Full Documentation →](COMMUNITY_SKILLS.md)
+[Full Documentation →](INTEGRATIONS/community-skills.md)
 
 ---
 

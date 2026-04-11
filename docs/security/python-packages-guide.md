@@ -298,7 +298,7 @@ Before execution, skill code is scanned for 21+ malicious patterns:
 - Network access (`requests`, `urllib`)
 - Unsafe deserialization (`pickle`)
 
-**See:** [Community Skills Guide](COMMUNITY_SKILLS.md) for full security documentation.
+**See:** [Community Skills Guide](INTEGRATIONS/community-skills.md) for full security documentation.
 
 ---
 
@@ -865,7 +865,7 @@ def resize_image(image_data, width, height):
 
 ## See Also
 
-- **[Community Skills Guide](COMMUNITY_SKILLS.md)** - Complete skill import and security documentation
+- **[Community Skills Guide](INTEGRATIONS/community-skills.md)** - Complete skill import and security documentation
 - **[Package Governance](PACKAGE_GOVERNANCE.md)** - Approval workflow and maturity rules
 - **[Package Security](SECURITY/packages.md)** - Threat model and security best practices
 - **[API Documentation](../backend/docs/API_DOCUMENTATION.md#python-package-management)** - Complete API reference

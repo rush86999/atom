@@ -369,7 +369,7 @@ Both are excellent choices depending on your use case. For business workflows re
 - [DEVELOPMENT.md](DEVELOPMENT/overview.md) - Developer setup and deployment guide
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
 - [PYTHON_PACKAGES.md](SECURITY/python-packages.md) - Python Package Support system (350K+ PyPI packages) ✨ NEW
-- [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination system ✨ NEW
+- [FLEET_ADMIRAL.md](agents/fleet-admiral.md) - Multi-agent fleet coordination system ✨ NEW
 - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API ✨ NEW
 - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries ✨ NEW
 - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment ✨ NEW

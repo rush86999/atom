@@ -867,12 +867,12 @@ curl http://localhost:8000/api/skills/email-sorter/executions | jq '.executions[
 ## Related Documentation
 
 - [Phase 14 Verification →](../.planning/phases/14-community-skills-integration/14-VERIFICATION.md) - Complete with 13/13 success criteria verified ✅
-- [Agent Governance →](AGENT_GOVERNANCE.md)
+- [Agent Governance →](agents/governance.md)
 - [Episodic Memory →](intelligence/episodic-memory.md) - Skill executions create EpisodeSegments for learning
 - [Agent Graduation →](../agents/graduation.md) - Community skills count toward graduation readiness
 - [API Documentation →](API/OVERVIEW.md)
 - **✨ Phase 60: Advanced Skill Execution**
-  - [Advanced Skill Execution →](ADVANCED_SKILL_EXECUTION.md) - Marketplace, composition, auto-installation overview
+  - [Advanced Skill Execution →](INTEGRATIONS/advanced-skills.md) - Marketplace, composition, auto-installation overview
   - [Skill Marketplace Guide →](SKILL_MARKETPLACE_GUIDE.md) - Discovery, search, ratings, installation
   - [Skill Composition Patterns →](SKILL_COMPOSITION_PATTERNS.md) - Workflow design with DAG patterns
   - [Performance Tuning →](operations/performance.md) - Optimization and monitoring guide

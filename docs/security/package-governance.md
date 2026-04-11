@@ -647,7 +647,7 @@ curl http://localhost:8000/api/packages/audit?format=json > packages_audit.json
 - **[Python Packages Guide](SECURITY/python-packages.md)** - User guide for package installation
 - **[Package Security](SECURITY/packages.md)** - Threat model and defenses
 - **[API Documentation](../backend/docs/API_DOCUMENTATION.md#python-package-management)** - Complete API reference
-- **[Agent Governance](AGENT_GOVERNANCE.md)** - Overall agent maturity system
+- **[Agent Governance](agents/governance.md)** - Overall agent maturity system
 
 ---
 

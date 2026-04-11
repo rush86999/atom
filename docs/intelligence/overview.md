@@ -41,9 +41,9 @@ AI capabilities, knowledge management, and cognitive systems.
 - **[Canvas AI Accessibility](../canvas/ai-accessibility.md)** - AI-readable canvas state
 - **[Canvas State API](CANVAS_STATE_API.md)** - State API
 - **[Canvas Quick Reference](CANVAS_QUICK_REFERENCE.md)** - Quick reference
-- **[Canvas Recording Implementation](CANVAS_RECORDING_IMPLEMENTATION.md)** - Recording system
+- **[Canvas Recording Implementation](canvas/recording.md)** - Recording system
 - **[Specialized Canvas Types](SPECIALIZED_CANVAS_TYPES_IMPLEMENTATION_COMPLETE.md)** - Custom components (archived)
-- **[Recording Review Integration](RECORDING_REVIEW_INTEGRATION.md)** - Review workflow
+- **[Recording Review Integration](canvas/recording.md)** - Review workflow
 
 ## Error Handling & Debugging
 

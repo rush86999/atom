@@ -10,10 +10,10 @@ Platform integrations, automation capabilities, and third-party connections.
 - **[Multi-Integration Workflow Engine](MULTI_INTEGRATION_WORKFLOW_ENGINE.md)** - Cross-platform workflows
 
 ### Skills & Automation
-- **[Advanced Skill Execution](ADVANCED_SKILL_EXECUTION.md)** - Community skills framework
+- **[Advanced Skill Execution](INTEGRATIONS/advanced-skills.md)** - Community skills framework
 - **[Skill Marketplace Guide](SKILL_MARKETPLACE_GUIDE.md)** - Skill discovery and usage
 - **[Skill Composition Patterns](SKILL_COMPOSITION_PATTERNS.md)** - Composing multiple skills
-- **[Community Skills](COMMUNITY_SKILLS.md)** - OpenClaw/ClawHub integration
+- **[Community Skills](INTEGRATIONS/community-skills.md)** - OpenClaw/ClawHub integration
 
 ### Automation Capabilities
 - **[Browser Automation](BROWSER_AUTOMATION.md)** - Web scraping and automation
@@ -61,7 +61,7 @@ Platform integrations, automation capabilities, and third-party connections.
 
 ### Integration Setup
 1. **OAuth Integration**: See [OAuth Setup Guide](OAUTH_SETUP_GUIDE.md)
-2. **Custom Skills**: See [Advanced Skill Execution](ADVANCED_SKILL_EXECUTION.md)
+2. **Custom Skills**: See [Advanced Skill Execution](INTEGRATIONS/advanced-skills.md)
 3. **Browser Automation**: See [Browser Quick Start](BROWSER_QUICK_START.md)
 4. **CLI Automation**: See [Atom CLI Skills](ATOM_CLI_SKILLS_GUIDE.md)
 

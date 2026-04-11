@@ -11,7 +11,7 @@
 
 - **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
   - [PYTHON_PACKAGES.md](SECURITY/python-packages.md) - Python Package Support system (350K+ PyPI packages)
-  - [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination
+  - [FLEET_ADMIRAL.md](agents/fleet-admiral.md) - Multi-agent fleet coordination
   - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API
   - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries
   - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
@@ -45,7 +45,7 @@
 |----------|-------------|--------------|
 | [README.md](../README.md) | Project overview and quick start | - |
 | [PERSONAL_EDITION.md](operations/personal-edition.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
-| [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
+| [COMMUNITY_SKILLS.md](INTEGRATIONS/community-skills.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
 | [DEVELOPMENT.md](DEVELOPMENT/overview.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
 | [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
 | [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
@@ -73,13 +73,13 @@
 |----------|-------------|--------------|
 | [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
 | [MARKETPLACE_CONNECTION_GUIDE.md](MARKETPLACE_CONNECTION_GUIDE.md) | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
-| [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
+| [COMMUNITY_SKILLS.md](INTEGRATIONS/community-skills.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
 | [PYTHON_PACKAGES.md](SECURITY/python-packages.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
 | [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |
 | [PACKAGE_SECURITY.md](SECURITY/packages.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
 | [PYTHON_PACKAGES_DEPLOYMENT.md](PYTHON_PACKAGES_DEPLOYMENT.md) | Production deployment and monitoring | Feb 19, 2026 |
 | [NPM_PACKAGE_SUPPORT.md](SECURITY/npm-packages.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
-| [ADVANCED_SKILL_EXECUTION.md](ADVANCED_SKILL_EXECUTION.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
+| [ADVANCED_SKILL_EXECUTION.md](INTEGRATIONS/advanced-skills.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
 | [SKILL_MARKETPLACE_GUIDE.md](SKILL_MARKETPLACE_GUIDE.md) | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
 | [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |
 | [PERFORMANCE_TUNING.md](operations/performance.md) | Performance optimization and benchmarks | Feb 19, 2026 |
@@ -118,7 +118,7 @@
 ### Multi-Agent Coordination
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [QUEEN_AGENT.md](QUEEN_AGENT.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
+| [QUEEN_AGENT.md](GUIDES/QUEEN_AGENT_USER_GUIDE.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
 | [GUIDES/QUEEN_AGENT_USER_GUIDE.md](GUIDES/QUEEN_AGENT_USER_GUIDE.md) | **✨ NEW: Queen Agent user guide - Blueprints, scheduling, monitoring** | Apr 10, 2026 |
 | [agents/unstructured-tasks.md](agents/unstructured-tasks.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
 | [agents/fleet-admiral.md](agents/fleet-admiral.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
@@ -155,7 +155,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [archive/COLLABORATION_PHASE_4_COMPLETE.md](archive/COLLABORATION_PHASE_4_COMPLETE.md) | Multi-agent canvas coordination | Feb 1, 2026 |
-| [CANVAS_RECORDING_IMPLEMENTATION.md](CANVAS_RECORDING_IMPLEMENTATION.md) | Canvas recording and replay | Feb 2, 2026 |
+| [CANVAS_RECORDING_IMPLEMENTATION.md](canvas/recording.md) | Canvas recording and replay | Feb 2, 2026 |
 | [CANVAS_AGENT_LEARNING_INTEGRATION.md](CANVAS_AGENT_LEARNING_INTEGRATION.md) | Canvas and agent learning | Feb 2, 2026 |
 
 ---
@@ -432,7 +432,7 @@
 ### By Date (Most Recent)
 
 **February 2026**:
-- [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) - **Community Skills Integration guide** (Feb 16)
+- [COMMUNITY_SKILLS.md](INTEGRATIONS/community-skills.md) - **Community Skills Integration guide** (Feb 16)
 - [PERSONAL_EDITION.md](operations/personal-edition.md) - **Personal Edition guide** (Feb 16)
 - [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
 - [API_DOCUMENTATION.md](API/OVERVIEW.md) - **Comprehensive API docs** (Feb 16)
