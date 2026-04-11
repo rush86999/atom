@@ -364,7 +364,7 @@ PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/test_agent_guid
    - Personalization engine
    - Adaptive explanations
 
-4. **[CANVAS_AI_ACCESSIBILITY.md](./CANVAS_AI_ACCESSIBILITY.md)** (Phase 20)
+4. **[CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md)** (Phase 20)
    - AI agent accessibility features
    - Hidden accessibility trees implementation
    - Canvas State API reference (window.atom.canvas)
@@ -372,7 +372,7 @@ PYTHONPATH=/Users/rushiparikh/projects/atom/backend pytest tests/test_agent_guid
    - Progressive detail levels
    - Episode retrieval integration
 
-5. **[LLM_CANVAS_SUMMARIES.md](./LLM_CANVAS_SUMMARIES.md)** (Phase 21)
+5. **[LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md)** (Phase 21)
    - LLM-generated canvas presentation summaries
    - Semantic richness vs metadata extraction
    - Episode retrieval enhancement

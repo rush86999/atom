@@ -12,8 +12,8 @@
 - **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
   - [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) - Python Package Support system (350K+ PyPI packages)
   - [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination
-  - [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) - Canvas AI accessibility and state API
-  - [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) - LLM-generated canvas summaries
+  - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API
+  - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries
   - [agents/unstructured-tasks.md](agents/unstructured-tasks.md) - Intent classification and fleet recruitment
   - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
   - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills
@@ -444,9 +444,9 @@
 - [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 
 ### Canvas & AI Features (Phase 20-23)
-- [CANVAS_AI_ACCESSIBILITY.md](CANVAS_AI_ACCESSIBILITY.md) - **AI agent accessibility with dual representation** (Feb 2026)
+- [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - **AI agent accessibility with dual representation** (Feb 2026)
 - [CANVAS_STATE_API.md](CANVAS_STATE_API.md) - **JavaScript API for real-time canvas state** (Feb 2026)
-- [LLM_CANVAS_SUMMARIES.md](LLM_CANVAS_SUMMARIES.md) - **LLM-powered semantic summaries** (Feb 2026)
+- [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - **LLM-powered semantic summaries** (Feb 2026)
 
 ### Core Development (Feb 6)
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Updated with security, testing, task queue (Feb 6)

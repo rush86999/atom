@@ -179,8 +179,8 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Canvas & Presentations
 
-- **[Canvas AI Accessibility](CANVAS_AI_ACCESSIBILITY.md)** - AI-readable canvas state
-- **[LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md)** - Enhanced memory integration
+- **[Canvas AI Accessibility](../canvas/ai-accessibility.md)** - AI-readable canvas state
+- **[LLM Canvas Summaries](../canvas/llm-summaries.md)** - Enhanced memory integration
 - **[Canvas Quick Reference](CANVAS_QUICK_REFERENCE.md)** - Quick reference guide
 
 ---

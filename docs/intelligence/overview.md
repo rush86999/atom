@@ -35,11 +35,11 @@ AI capabilities, knowledge management, and cognitive systems.
 ## Canvas Intelligence
 
 ### Canvas Summaries
-- **[LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md)** - AI-generated summaries
+- **[LLM Canvas Summaries](../canvas/llm-summaries.md)** - AI-generated summaries
 - **[Canvas Agent Learning Integration](CANVAS_AGENT_LEARNING_INTEGRATION.md)** - Learning from canvas
 
 ### Canvas State
-- **[Canvas AI Accessibility](CANVAS_AI_ACCESSIBILITY.md)** - AI-readable canvas state
+- **[Canvas AI Accessibility](../canvas/ai-accessibility.md)** - AI-readable canvas state
 - **[Canvas State API](CANVAS_STATE_API.md)** - State API
 - **[Canvas Quick Reference](CANVAS_QUICK_REFERENCE.md)** - Quick reference
 - **[Canvas Recording Implementation](CANVAS_RECORDING_IMPLEMENTATION.md)** - Recording system
@@ -92,7 +92,7 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 ### By Use Case
 - **Learning from Interactions**: [Memory Integration Guide](MEMORY_INTEGRATION_GUIDE.md)
 - **Storing Business Knowledge**: [Citation System Guide](CITATION_SYSTEM_GUIDE.md)
-- **AI Summaries**: [LLM Canvas Summaries](LLM_CANVAS_SUMMARIES.md)
+- **AI Summaries**: [LLM Canvas Summaries](../canvas/llm-summaries.md)
 - **Error Recovery**: [Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)
 
 ## Performance

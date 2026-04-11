@@ -275,8 +275,8 @@ EpisodeSegment {
 - **Information recall**: >90% (key facts present in summary)
 
 **See Also**:
-- [LLM_CANVAS_SUMMARIES.md](./LLM_CANVAS_SUMMARIES.md) - Complete guide to LLM canvas summary generation
-- [CANVAS_AI_ACCESSIBILITY.md](./CANVAS_AI_ACCESSIBILITY.md) - Canvas state capture (Phase 20)
+- [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - Complete guide to LLM canvas summary generation
+- [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas state capture (Phase 20)
 
 ---
 
