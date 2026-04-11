@@ -46,7 +46,7 @@
 | [README.md](../README.md) | Project overview and quick start | - |
 | [PERSONAL_EDITION.md](PERSONAL_EDITION.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
 | [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
+| [DEVELOPMENT.md](DEVELOPMENT/overview.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
 | [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
 | [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
 
@@ -449,7 +449,7 @@
 - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - **LLM-powered semantic summaries** (Feb 2026)
 
 ### Core Development (Feb 6)
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Updated with security, testing, task queue (Feb 6)
+- [DEVELOPMENT.md](DEVELOPMENT/overview.md) - Updated with security, testing, task queue (Feb 6)
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
 - [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - Background task queue (Feb 6)
 - [WEBHOOK_VERIFICATION.md](SECURITY/WEBHOOK_VERIFICATION.md) - Webhook security (Feb 6)
@@ -501,7 +501,7 @@
 ---
 
 **Need Help?**
-- Check [DEVELOPMENT.md](DEVELOPMENT.md) for setup instructions
+- Check [DEVELOPMENT.md](DEVELOPMENT/overview.md) for setup instructions
 - Review [SECURITY/AUTHENTICATION.md]# for authentication issues
 - See [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) for recent changes
 

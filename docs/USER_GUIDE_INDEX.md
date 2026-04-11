@@ -128,7 +128,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Developers
 
 - **[Development Setup](DEVELOPMENT_SETUP.md)** - Local development environment
-- **[Development Guide](DEVELOPMENT.md)** - Coding standards and workflows
+- **[Development Guide](DEVELOPMENT/overview.md)** - Coding standards and workflows
 - **[API Documentation](API.md)** - REST API reference
 - **[Code Quality Guide](CODE_QUALITY_GUIDE.md)** - Testing and style guidelines
 
@@ -254,7 +254,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### For Developers
 
 1. Set up [Development Environment](DEVELOPMENT_SETUP.md)
-2. Read [Development Guide](DEVELOPMENT.md)
+2. Read [Development Guide](DEVELOPMENT/overview.md)
 3. Study [API Documentation](API.md)
 4. Review [Code Quality Standards](CODE_QUALITY_GUIDE.md)
 
@@ -273,7 +273,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 - **[Main README](../README.md)** - Project overview
 - **[Documentation Index](README.md)** - Complete docs index
-- **[Development Guide](DEVELOPMENT.md)** - For contributors
+- **[Development Guide](DEVELOPMENT/overview.md)** - For contributors
 - **[API Documentation](API.md)** - REST API reference
 
 ### Community & Support

@@ -587,7 +587,7 @@ WantedBy=multi-user.target
 - [Redis Documentation](https://redis.io/documentation)
 
 ### Atom Documentation
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Background Task Queue section
+- [DEVELOPMENT.md](DEVELOPMENT/overview.md) - Background Task Queue section
 - [backend/docs/INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../backend/docs/INCOMPLETE_IMPLEMENTATIONS.md -->] - Task queue implementation
 - [backend/core/task_queue.py](../backend/core/task_queue.py) - Core implementation
 

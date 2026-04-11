@@ -366,7 +366,7 @@ Both are excellent choices depending on your use case. For business workflows re
 
 ### Atom
 - [Documentation Index](INDEX.md) - Comprehensive documentation overview
-- [DEVELOPMENT.md](DEVELOPMENT.md) - Developer setup and deployment guide
+- [DEVELOPMENT.md](DEVELOPMENT/overview.md) - Developer setup and deployment guide
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
 - [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) - Python Package Support system (350K+ PyPI packages) ✨ NEW
 - [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination system ✨ NEW

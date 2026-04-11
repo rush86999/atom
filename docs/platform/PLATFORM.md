@@ -7,7 +7,7 @@ Production deployment, monitoring, and platform-specific guides.
 ### Production Deployment
 - **[Production Readiness](PRODUCTION_READINESS.md)** - Deployment checklist
 - **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Readiness assessment
-- **[Deployment](DEPLOYMENT.md)** - Deployment overview
+- **[Deployment](DEPLOYMENT/PRODUCTION_DEPLOYMENT.md)** - Deployment overview
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment
 - **[Rollback Procedure](ROLLBACK_PROCEDURE.md)** - Emergency rollback
 
@@ -97,7 +97,7 @@ curl http://localhost:8000/health/metrics # Prometheus metrics
 
 ## See Also
 
-- **[Development Guide](DEVELOPMENT.md)** - Local development
+- **[Development Guide](DEVELOPMENT/overview.md)** - Local development
 - **[API Documentation](API.md)** - API endpoints
 - **[Integration Guide](INTEGRATION.md)** - Third-party integrations
 
