@@ -13,7 +13,7 @@ Properties tested:
 """
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, HealthCheck
 from datetime import datetime, timezone
 import uuid
 
@@ -75,7 +75,7 @@ skill_names = st.text(min_size=1, max_size=100).filter(
     agent_id=agent_ids,
     episode_id=episode_ids
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_skill_candidate_structure_invariant(
     memento_engine,
     db_session,
@@ -149,7 +149,7 @@ async def test_skill_candidate_structure_invariant(
     task_description=task_descriptions,
     error_trace=error_traces
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_skill_name_generation_invariant(task_description, error_trace):
     """
     Property: Generated skill names are valid Python identifiers.
@@ -179,7 +179,7 @@ def test_skill_name_generation_invariant(task_description, error_trace):
     code=generated_code,
     test_inputs_list=test_inputs
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_validation_result_structure_invariant(
     memento_engine,
     code,
@@ -235,7 +235,7 @@ async def test_validation_result_structure_invariant(
     description=task_descriptions,
     code=generated_code
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_skill_candidate_model_structure_invariant(
     db_session,
     skill_name,
@@ -286,7 +286,7 @@ def test_skill_candidate_model_structure_invariant(
     initial_status=st.sampled_from(['pending', 'validated', 'failed', 'promoted']),
     passed=st.booleans()
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_validation_status_transition_invariant(
     memento_engine,
     db_session,
@@ -354,7 +354,7 @@ def test_validation_status_transition_invariant(
 @given(
     fitness_score=st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_fitness_score_bounds_invariant(
     db_session,
     fitness_score
@@ -394,7 +394,7 @@ def test_fitness_score_bounds_invariant(
     description1=task_descriptions,
     description2=task_descriptions
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_candidate_uniqueness_invariant(
     db_session,
     skill_name1,
@@ -460,7 +460,7 @@ def test_candidate_uniqueness_invariant(
         max_size=20
     )
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_failure_pattern_storage_invariant(
     db_session,
     metadata

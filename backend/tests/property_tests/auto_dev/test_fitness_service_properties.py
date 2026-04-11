@@ -13,7 +13,7 @@ Properties tested:
 """
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, HealthCheck
 from datetime import datetime, timezone
 
 from core.auto_dev.fitness_service import FitnessService
@@ -50,7 +50,7 @@ normalized_scores = st.lists(
     execution_latency_ms=st.floats(min_value=0.0, max_value=10000.0),
     user_approved=st.one_of(st.booleans(), st.none())
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_proxy_signal_bounds_invariant(
     fitness_service,
     db_session,
@@ -114,7 +114,7 @@ def test_proxy_signal_bounds_invariant(
     error_signal=st.booleans(),
     conversion_value=st.floats(min_value=0.0, max_value=5000.0)
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_external_signal_adjustment_invariant(
     fitness_service,
     db_session,
@@ -177,7 +177,7 @@ def test_external_signal_adjustment_invariant(
     variants_count=st.integers(min_value=0, max_value=20),
     base_score=st.floats(min_value=0.0, max_value=1.0)
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_top_variants_ordering_invariant(
     fitness_service,
     db_session,
@@ -238,7 +238,7 @@ def test_top_variants_ordering_invariant(
     execution_success=st.booleans(),
     user_approved=st.booleans()
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_syntax_error_penalty_invariant(
     fitness_service,
     db_session,
@@ -325,7 +325,7 @@ def test_syntax_error_penalty_invariant(
     base_score=st.floats(min_value=0.0, max_value=0.5),
     positive_signals_count=st.integers(min_value=1, max_value=3)
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_positive_signals_increase_score_invariant(
     fitness_service,
     db_session,
@@ -389,7 +389,7 @@ def test_positive_signals_increase_score_invariant(
         unique=True
     )
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_negative_signals_decrease_score_invariant(
     fitness_service,
     db_session,
@@ -446,7 +446,7 @@ def test_negative_signals_decrease_score_invariant(
         max_size=3
     )
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_fitness_signals_preservation_invariant(
     fitness_service,
     db_session,

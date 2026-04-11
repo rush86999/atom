@@ -14,7 +14,7 @@ Properties tested:
 """
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, HealthCheck
 from datetime import datetime, timezone
 import uuid
 
@@ -121,7 +121,7 @@ validation_results = st.dictionaries(
     mutated_code=code_snippets,
     sandbox_status=sandbox_statuses
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_tool_mutation_model_integrity_invariant(
     db_session,
     tenant_id,
@@ -178,7 +178,7 @@ def test_tool_mutation_model_integrity_invariant(
     fitness_signals=st.one_of(fitness_signals, st.none()),
     evaluation_status=evaluation_statuses
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_workflow_variant_model_integrity_invariant(
     db_session,
     tenant_id,
@@ -248,7 +248,7 @@ def test_workflow_variant_model_integrity_invariant(
     fitness_score=st.one_of(fitness_scores, st.none()),
     validation_result=st.one_of(validation_results, st.none())
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_skill_candidate_model_integrity_invariant(
     db_session,
     tenant_id,
@@ -321,7 +321,7 @@ def test_skill_candidate_model_integrity_invariant(
     initial_score=fitness_scores,
     adjustment=st.floats(min_value=-0.5, max_value=0.5, allow_nan=False, allow_infinity=False)
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_fitness_score_bounds_invariant(
     db_session,
     initial_score,
@@ -359,7 +359,7 @@ def test_fitness_score_bounds_invariant(
 @given(
     delay_seconds=st.integers(min_value=0, max_value=2)
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_timestamp_monotonicity_invariant(
     db_session,
     delay_seconds
@@ -406,7 +406,7 @@ def test_timestamp_monotonicity_invariant(
 @given(
     fitness_signals_data=fitness_signals
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_json_field_schema_invariant(
     db_session,
     fitness_signals_data
@@ -444,7 +444,7 @@ def test_json_field_schema_invariant(
 @given(
     failure_pattern_data=failure_patterns
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_skill_candidate_json_fields_invariant(
     db_session,
     failure_pattern_data
@@ -481,7 +481,7 @@ def test_skill_candidate_json_fields_invariant(
 @given(
     validation_result_data=validation_results
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_validation_result_json_field_invariant(
     db_session,
     validation_result_data
@@ -521,7 +521,7 @@ def test_validation_result_json_field_invariant(
     code1=code_snippets,
     code2=code_snippets
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_workflow_variant_uniqueness_invariant(
     db_session,
     code1,
@@ -568,7 +568,7 @@ def test_workflow_variant_uniqueness_invariant(
     status1=validation_statuses,
     status2=validation_statuses
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_skill_candidate_status_transitions_invariant(
     db_session,
     status1,

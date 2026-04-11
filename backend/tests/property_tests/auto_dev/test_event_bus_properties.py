@@ -14,7 +14,7 @@ Properties tested:
 
 import pytest
 import asyncio
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, HealthCheck
 from typing import Any
 
 from core.auto_dev.event_hooks import EventBus, TaskEvent, SkillExecutionEvent
@@ -43,7 +43,7 @@ priorities = st.integers(min_value=0, max_value=100)
     event_type=event_types,
     subscribers=st.lists(subscriber_names, min_size=1, max_size=10, unique=True)
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_subscriber_delivery_invariant(event_bus, event_type, subscribers):
     """
     Property: All registered subscribers receive events they're subscribed to.
@@ -103,7 +103,7 @@ def test_subscriber_delivery_invariant(event_bus, event_type, subscribers):
 @given(
     subscribers=st.lists(subscriber_names, min_size=5, max_size=10, unique=True)
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_exception_isolation_invariant(event_bus, subscribers):
     """
     Property: Subscriber exceptions don't prevent other subscribers from receiving events.
@@ -155,7 +155,7 @@ def test_exception_isolation_invariant(event_bus, subscribers):
     dispatch_count=st.integers(min_value=1, max_value=5),
     subscribers=st.lists(subscriber_names, min_size=1, max_size=5, unique=True)
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_no_duplicate_delivery_invariant(event_bus, dispatch_count, subscribers):
     """
     Property: Subscribers never receive the same event twice per dispatch.
@@ -201,7 +201,7 @@ def test_no_duplicate_delivery_invariant(event_bus, dispatch_count, subscribers)
 @given(
     subscribers=st.lists(subscriber_names, min_size=1, max_size=10, unique=True)
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_handler_count_invariant(event_bus, subscribers):
     """
     Property: Handler count matches the number of registered subscribers.
@@ -234,7 +234,7 @@ def test_handler_count_invariant(event_bus, subscribers):
     event_type=event_types,
     subscribers=st.lists(subscriber_names, min_size=3, max_size=10, unique=True)
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_clear_removes_all_handlers(event_bus, event_type, subscribers):
     """
     Property: Clearing the event bus removes all registered handlers.
@@ -281,7 +281,7 @@ def test_clear_removes_all_handlers(event_bus, event_type, subscribers):
     tenant_id=st.text(min_size=1, max_size=50),
     outcome=st.sampled_from(['success', 'failure', 'partial'])
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_task_event_structure_invariant(event_bus, episode_id, agent_id, tenant_id, outcome):
     """
     Property: TaskEvent objects maintain correct structure and data integrity.
@@ -322,7 +322,7 @@ def test_task_event_structure_invariant(event_bus, episode_id, agent_id, tenant_
     skill_id=st.text(min_size=1, max_size=50),
     success=st.booleans()
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_skill_execution_event_structure_invariant(
     event_bus, execution_id, agent_id, tenant_id, skill_id, success
 ):

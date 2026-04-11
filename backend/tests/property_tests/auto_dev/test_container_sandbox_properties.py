@@ -14,7 +14,7 @@ Properties tested:
 
 import pytest
 import asyncio
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, HealthCheck
 from typing import Any
 
 from core.auto_dev.container_sandbox import ContainerSandbox
@@ -73,7 +73,7 @@ memory_limits = st.integers(min_value=50, max_value=500).map(lambda x: f"{x}m")
     code=simple_code,
     params=input_params
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_execution_result_structure_invariant(
     container_sandbox,
     code,
@@ -121,7 +121,7 @@ async def test_execution_result_structure_invariant(
 @given(
     timeout=timeouts
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_timeout_enforcement_invariant(container_sandbox, timeout):
     """
     Property: Executions respect timeout limits.
@@ -162,7 +162,7 @@ while True:
 @given(
     crash_code=exit_codes
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_error_containment_invariant(container_sandbox, crash_code):
     """
     Property: Container crashes don't affect host system.
@@ -203,7 +203,7 @@ async def test_error_containment_invariant(container_sandbox, crash_code):
 @given(
     code=simple_code
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_output_type_invariant(container_sandbox, code):
     """
     Property: All outputs are strings.
@@ -229,7 +229,7 @@ async def test_output_type_invariant(container_sandbox, code):
 @given(
     code=simple_code
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_execution_time_measurement_invariant(container_sandbox, code):
     """
     Property: Execution times are non-negative floats.
@@ -258,7 +258,7 @@ async def test_execution_time_measurement_invariant(container_sandbox, code):
 @given(
     code=syntax_errors
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_syntax_error_handling_invariant(container_sandbox, code):
     """
     Property: Syntax errors are caught and reported properly.
@@ -293,7 +293,7 @@ async def test_syntax_error_handling_invariant(container_sandbox, code):
 @given(
     params=input_params
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_input_parameter_injection_invariant(container_sandbox, params):
     """
     Property: Input parameters are injected correctly into execution context.
@@ -334,7 +334,7 @@ print(json.dumps(_INPUT_PARAMS))
 @given(
     memory_limit=memory_limits
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_memory_limit_configuration_invariant(container_sandbox, memory_limit):
     """
     Property: Memory limits can be configured via constructor.
@@ -368,7 +368,7 @@ async def test_memory_limit_configuration_invariant(container_sandbox, memory_li
     code=simple_code,
     enable_network=st.booleans()
 )
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_network_configuration_invariant(container_sandbox, code, enable_network):
     """
     Property: Network configuration can be set via constructor.
@@ -399,7 +399,7 @@ async def test_network_configuration_invariant(container_sandbox, code, enable_n
 @pytest.mark.property
 @pytest.mark.docker_required
 @given()
-@settings(max_examples=50)
+@settings(max_examples=50, suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_docker_availability_detection_invariant(container_sandbox):
     """
     Property: Docker availability detection is consistent.

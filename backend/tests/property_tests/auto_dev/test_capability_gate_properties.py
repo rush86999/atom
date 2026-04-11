@@ -13,7 +13,7 @@ Properties tested:
 """
 
 import pytest
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, HealthCheck
 
 from core.auto_dev.capability_gate import (
     AutoDevCapabilityService,
@@ -44,7 +44,7 @@ from conftest import maturity_levels, auto_dev_capabilities, unknown_capabilitie
     current=st.sampled_from([STUDENT, INTERN, SUPERVISED, AUTONOMOUS]),
     required=st.sampled_from([STUDENT, INTERN, SUPERVISED, AUTONOMOUS])
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_is_at_least_reflexivity_invariant(current, required):
     """
     Property: is_at_least is reflexive (current maturity >= itself).
@@ -61,7 +61,7 @@ def test_is_at_least_reflexivity_invariant(current, required):
     level2=st.sampled_from([STUDENT, INTERN, SUPERVISED, AUTONOMOUS]),
     level3=st.sampled_from([STUDENT, INTERN, SUPERVISED, AUTONOMOUS])
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_is_at_least_transitivity_invariant(level1, level2, level3):
     """
     Property: is_at_least is transitive.
@@ -79,7 +79,7 @@ def test_is_at_least_transitivity_invariant(level1, level2, level3):
     capability=auto_dev_capabilities,
     repeats=st.integers(min_value=2, max_value=10)
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_gate_consistency_invariant(
     sample_agent,
     capability_gate,
@@ -110,7 +110,7 @@ def test_gate_consistency_invariant(
 @given(
     unknown_capability=unknown_capabilities
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_unknown_capability_defaults_to_student_invariant(
     capability_gate,
     unknown_capability
@@ -134,7 +134,7 @@ def test_unknown_capability_defaults_to_student_invariant(
     alpha_evolver_enabled=st.booleans(),
     background_evolution_enabled=st.booleans()
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_workspace_toggle_invariant(
     sample_agent,
     capability_gate,
@@ -181,7 +181,7 @@ def test_workspace_toggle_invariant(
 @given(
     capability=auto_dev_capabilities
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_capability_gates_defined_invariant(capability_gate, capability):
     """
     Property: All Auto-Dev capabilities map to valid maturity levels.
@@ -200,7 +200,7 @@ def test_capability_gates_defined_invariant(capability_gate, capability):
 
 @pytest.mark.property
 @given()
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_maturity_hierarchy_ordering_invariant():
     """
     Property: Maturity hierarchy is correctly ordered.
@@ -229,7 +229,7 @@ def test_maturity_hierarchy_ordering_invariant():
     maturity1=maturity_levels,
     maturity2=maturity_levels
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_maturity_comparison_consistency_invariant(maturity1, maturity2):
     """
     Property: Maturity comparison is consistent with hierarchy order.
@@ -256,7 +256,7 @@ def test_maturity_comparison_consistency_invariant(maturity1, maturity2):
     alpha_evolver_enabled=st.booleans(),
     background_evolution_enabled=st.booleans()
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_capability_specific_toggles_invariant(
     sample_agent,
     capability_gate,
@@ -315,7 +315,7 @@ def test_capability_specific_toggles_invariant(
     max_mutations=st.integers(min_value=1, max_value=100),
     max_skill_candidates=st.integers(min_value=1, max_value=100)
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_daily_limits_configuration_invariant(
     sample_agent,
     capability_gate,
@@ -362,7 +362,7 @@ def test_daily_limits_configuration_invariant(
 @given(
     capability=auto_dev_capabilities
 )
-@settings(max_examples=100)
+@settings(max_examples=100, suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_capability_unlocked_notification_structure_invariant(
     capability_gate,
     capability
