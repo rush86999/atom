@@ -15,7 +15,7 @@
 | 249 - Critical Test Fixes | 3/3 | ✅ COMPLETE | 2026-04-03 |
 | 250 - All Test Fixes | 2/2 | ✅ COMPLETE | 2026-04-11 |
 | 251 - Backend Coverage Baseline | 3/3 | Complete   | 2026-04-11 |
-| 252 - Backend Coverage Push | 0/3 | Not started | - |
+| 252 - Backend Coverage Push | 1/3 | In Progress|  |
 | 253 - Backend 80% & Property Tests | 0/2 | Not started | - |
 | 254 - Frontend Coverage Baseline | 0/3 | Not started | - |
 | 255 - Frontend Coverage Push | 0/2 | Not started | - |

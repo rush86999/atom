@@ -32,7 +32,7 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 
 - [x] **COV-B-01**: Backend coverage baseline measured (actual line coverage)
 - [ ] **COV-B-02**: Backend coverage reaches 70% (progressive threshold)
-- [ ] **COV-B-03**: Backend coverage reaches 75% (progressive threshold)
+- [x] **COV-B-03**: Backend coverage reaches 75% (progressive threshold)
 - [ ] **COV-B-04**: Backend coverage reaches 80% (final target)
 - [x] **COV-B-05**: High-impact files covered (>200 lines, targeted first)
 
@@ -53,8 +53,8 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 
 ### Property-Based Testing
 
-- [ ] **PROP-01**: Property-based tests for critical invariants (governance, LLM, episodes)
-- [ ] **PROP-02**: Property-based tests for business logic (workflows, skills, canvas)
+- [x] **PROP-01**: Property-based tests for critical invariants (governance, LLM, episodes)
+- [x] **PROP-02**: Property-based tests for business logic (workflows, skills, canvas)
 - [ ] **PROP-03**: Property-based tests for data integrity (database, transactions)
 - [ ] **PROP-04**: Property-based test documentation (invariants catalog)
 
@@ -115,7 +115,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-04 | Phase 250 | Complete |
 | COV-B-01 | Phase 251 | Pending |
 | COV-B-02 | Phase 251 | Pending |
-| COV-B-03 | Phase 252 | Pending |
+| COV-B-03 | Phase 252 | Complete |
 | COV-B-04 | Phase 253 | Pending |
 | COV-B-05 | Phase 251-253 | Complete |
 | COV-F-01 | Phase 254 | Pending |
@@ -127,8 +127,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TDD-02 | Phase 249-250 | Pending |
 | TDD-03 | Phase 249-250 | Pending |
 | TDD-04 | Phase 257 | Pending |
-| PROP-01 | Phase 252 | Pending |
-| PROP-02 | Phase 252 | Pending |
+| PROP-01 | Phase 252 | Complete |
+| PROP-02 | Phase 252 | Complete |
 | PROP-03 | Phase 253 | Pending |
 | PROP-04 | Phase 257 | Pending |
 | QUAL-01 | Phase 258 | Pending |
