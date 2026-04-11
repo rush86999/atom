@@ -9,10 +9,10 @@ Production deployment, monitoring, and platform-specific guides.
 - **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Readiness assessment
 - **[Deployment](DEPLOYMENT/PRODUCTION_DEPLOYMENT.md)** - Deployment overview
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment
-- **[Rollback Procedure](ROLLBACK_PROCEDURE.md)** - Emergency rollback
+- **[Rollback Procedure](operations/rollback.md)** - Emergency rollback
 
 ### Personal Edition
-- **[Personal Edition](PERSONAL_EDITION.md)** - Local Docker setup
+- **[Personal Edition](operations/personal-edition.md)** - Local Docker setup
 - **[Personal Edition Guide](PERSONAL_EDITION_GUIDE.md)** - Complete guide
 
 ### Installation
@@ -68,7 +68,7 @@ Production deployment, monitoring, and platform-specific guides.
 
 ## Architecture
 
-- **[Single Tenant](SINGLE_TENANT.md)** - Single-tenant architecture
+- **[Single Tenant](platform/single-tenant-legacy.md)** - Single-tenant architecture
 - **[Vector Embeddings](VECTOR_EMBEDDINGS.md)** - Embedding system
 
 ## Quick Reference
@@ -78,7 +78,7 @@ Production deployment, monitoring, and platform-specific guides.
 - [ ] Follow [Deployment Guide](DEPLOYMENT_GUIDE.md)
 - [ ] Configure [Monitoring](DEPLOYMENT/MONITORING_SETUP.md)
 - [ ] Set up [Health Checks](HEALTH_MONITORING_SYSTEM.md)
-- [ ] Prepare [Rollback Procedure](ROLLBACK_PROCEDURE.md)
+- [ ] Prepare [Rollback Procedure](operations/rollback.md)
 
 ### Health Endpoints
 ```bash
@@ -93,7 +93,7 @@ curl http://localhost:8000/health/metrics # Prometheus metrics
 | Web | ✅ Full Support | [Deployment Guide](DEPLOYMENT_GUIDE.md) |
 | Desktop (MenuBar) | ✅ Full Support | [MenuBar Guide](MENUBAR_GUIDE.md) |
 | Mobile (iOS/Android) | ✅ Full Support | [Mobile Quick Start](MOBILE_QUICK_START.md) |
-| Personal Edition | ✅ Full Support | [Personal Edition](PERSONAL_EDITION.md) |
+| Personal Edition | ✅ Full Support | [Personal Edition](operations/personal-edition.md) |
 
 ## See Also
 

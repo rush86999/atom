@@ -41,7 +41,7 @@ docker-compose -f docker-compose-personal.yml up -d
 - Backend: http://localhost:8000
 
 ### Documentation
-[Full Docker Guide →](PERSONAL_EDITION.md)
+[Full Docker Guide →](operations/personal-edition.md)
 
 ---
 
@@ -298,7 +298,7 @@ curl http://localhost:8000/health/live
 4. **Read documentation** - Learn about governance, graduation, canvas
 
 **Documentation:**
-- [Personal Edition Guide](PERSONAL_EDITION.md)
+- [Personal Edition Guide](operations/personal-edition.md)
 - [Native Setup Guide](NATIVE_SETUP.md)
 - [Full Documentation](../README.md)
 - [API Documentation](API_DOCUMENTATION_INDEX.md)

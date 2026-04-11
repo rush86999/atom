@@ -44,7 +44,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [README.md](../README.md) | Project overview and quick start | - |
-| [PERSONAL_EDITION.md](PERSONAL_EDITION.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
+| [PERSONAL_EDITION.md](operations/personal-edition.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
 | [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
 | [DEVELOPMENT.md](DEVELOPMENT/overview.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
 | [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
@@ -225,7 +225,7 @@
 |----------|-------------|--------------|
 | [PRODUCTION_DEPLOYMENT_SUMMARY.md]PRODUCTION_READINESS.md | **Production deployment checklist** | Feb 5, 2026 |
 | [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | AWS, GCP, Azure deployment | - |
-| [PERSONAL_EDITION.md](PERSONAL_EDITION.md) | Docker deployment guide | - |
+| [PERSONAL_EDITION.md](operations/personal-edition.md) | Docker deployment guide | - |
 
 ---
 
@@ -433,7 +433,7 @@
 
 **February 2026**:
 - [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) - **Community Skills Integration guide** (Feb 16)
-- [PERSONAL_EDITION.md](PERSONAL_EDITION.md) - **Personal Edition guide** (Feb 16)
+- [PERSONAL_EDITION.md](operations/personal-edition.md) - **Personal Edition guide** (Feb 16)
 - [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
 - [API_DOCUMENTATION.md](API/OVERVIEW.md) - **Comprehensive API docs** (Feb 16)
 - [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) - **Deployment runbook** (Feb 16)

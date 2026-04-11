@@ -226,7 +226,7 @@ sudo systemctl start atom-daemon
 sudo systemctl status atom-daemon
 ```
 
-See [PERSONAL_EDITION.md](PERSONAL_EDITION.md) for complete Personal Edition setup guide.
+See [PERSONAL_EDITION.md](operations/personal-edition.md) for complete Personal Edition setup guide.
 
 ### Upgrade to Enterprise
 
@@ -640,7 +640,7 @@ dropuser atom
 ## Next Steps
 
 - [Feature Matrix](reference/FEATURE_MATRIX.md) - Compare editions
-- [Personal Edition Guide](PERSONAL_EDITION.md) - Personal setup details
+- [Personal Edition Guide](operations/personal-edition.md) - Personal setup details
 - [API Documentation](backend/docs/API_DOCUMENTATION.md) - REST API reference
 - [Development Guide](CONTRIBUTING.md) - Contributing guide
 
