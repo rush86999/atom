@@ -15,17 +15,18 @@
 | 249 - Critical Test Fixes | 3/3 | ✅ COMPLETE | 2026-04-03 |
 | 250 - All Test Fixes | 2/2 | ✅ COMPLETE | 2026-04-11 |
 | 251 - Backend Coverage Baseline | 3/3 | Complete   | 2026-04-11 |
-| 252 - Backend Coverage Push | 1/3 | In Progress|  |
-| 253 - Backend 80% & Property Tests | 0/2 | Not started | - |
+| 252 - Backend Coverage Push | 3/3 | ✅ COMPLETE | 2026-04-11 |
+| 253a - Property Tests Data Integrity | 1/1 | Complete   | 2026-04-11 |
+| 253 - Backend 80% & Property Tests | 0/3 | Not started | - |
 | 254 - Frontend Coverage Baseline | 0/3 | Not started | - |
 | 255 - Frontend Coverage Push | 0/2 | Not started | - |
 | 256 - Frontend 80% | 0/2 | Not started | - |
 | 257 - TDD & Property Test Documentation | 0/2 | Not started | - |
 | 258 - Quality Gates & Final Documentation | 0/3 | Not started | - |
 
-**Overall:** 11/38 plans complete (29%)
+**Overall:** 14/42 plans complete (33%)
 
-**Total:** 38 plans across 12 phases
+**Total:** 42 plans across 13 phases
 
 ## Phases
 
@@ -34,7 +35,8 @@
 - [x] **Phase 249: Critical Test Fixes** - Fix critical/high-priority test failures using TDD
 - [x] **Phase 250: All Test Fixes** - Fix remaining test failures and achieve 100% pass rate
 - [x] **Phase 251: Backend Coverage Baseline** - Measure baseline and reach 70% backend coverage (completed 2026-04-11)
-- [ ] **Phase 252: Backend Coverage Push** - Reach 75% backend coverage with property tests
+- [x] **Phase 252: Backend Coverage Push** - Reach 75% backend coverage with property tests (completed 2026-04-11)
+- [x] **Phase 253a: Property Tests Data Integrity** - Create property tests for episode and skill execution data integrity (PROP-03) (completed 2026-04-11)
 - [ ] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests
 - [ ] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage
 - [ ] **Phase 255: Frontend Coverage Push** - Reach 75% frontend coverage
@@ -127,7 +129,23 @@
   3. Property-based tests for business logic (workflows, skills, canvas)
   4. Property tests use Hypothesis with appropriate max_examples
   5. Property tests document invariants being tested
-**Plans**: TBD
+**Plans**: 3 plans
+- [x] 252-01-PLAN.md — Fix core coverage expansion tests and add governance property tests
+- [x] 252-02-PLAN.md — Add LLM and workflow property tests with coverage measurement
+- [x] 252-03-PLAN.md — Generate final coverage report and property test documentation
+
+### Phase 253a: Property Tests Data Integrity
+**Goal**: Create property tests for episode and skill execution data integrity invariants
+**Depends on**: Phase 252 (property test patterns established)
+**Requirements**: PROP-03
+**Success Criteria** (what must be TRUE):
+  1. Episode data integrity property tests created (20 tests)
+  2. Skill execution data integrity property tests created (19 tests)
+  3. Tests validate: score bounds, timestamps, ordering, referential integrity, status transitions, billing idempotence, cascade deletes
+  4. All tests use Hypothesis with appropriate max_examples
+  5. Tests documented with PROPERTY/STRATEGY/INVARIANT docstrings
+**Plans**: 1 plan
+- [x] 253a-01-PLAN.md — Create property tests for episode and skill execution data integrity
 
 ### Phase 253: Backend 80% & Property Tests
 **Goal**: Backend coverage reaches 80% with data integrity property tests
@@ -139,7 +157,10 @@
   3. All high-impact files covered (>200 lines)
   4. Coverage gaps identified and documented
   5. Property tests catch edge cases unit tests miss
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 253-01-PLAN.md — Add property tests for episode and skill execution data integrity
+- [ ] 253-02-PLAN.md — Measure coverage and generate gap analysis for 80% target
+- [ ] 253-03-PLAN.md — Generate final Phase 253 coverage report and summary
 
 ### Phase 254: Frontend Coverage Baseline
 **Goal**: Frontend coverage baseline measured and 70% coverage achieved
@@ -208,44 +229,44 @@ All 36 v10.0 requirements mapped to phases:
 
 | Requirement | Phase | Description |
 |-------------|-------|-------------|
-| BUILD-01 | 247 | Frontend builds successfully |
-| BUILD-02 | 247 | Backend builds successfully |
-| BUILD-03 | 247 | Syntax errors resolved |
-| BUILD-04 | 247 | Build process documented |
-| TEST-01 | 248 | Test suite runs successfully |
-| TEST-02 | 248 | Test failures documented |
-| TEST-03 | 248 | Failures categorized by severity |
-| TEST-04 | 248 | Test failure report generated |
-| FIX-01 | 249 | Critical test failures fixed |
-| FIX-02 | 249 | High-priority test failures fixed |
-| FIX-03 | 250 | Medium/low priority failures fixed |
-| FIX-04 | 250 | 100% test pass rate achieved |
-| COV-B-01 | 251 | Backend coverage baseline measured |
-| COV-B-02 | 251 | Backend coverage reaches 70% |
-| COV-B-03 | 252 | Backend coverage reaches 75% |
-| COV-B-04 | 253 | Backend coverage reaches 80% |
-| COV-B-05 | 251-253 | High-impact files covered |
-| COV-F-01 | 254 | Frontend coverage baseline measured |
-| COV-F-02 | 254 | Frontend coverage reaches 70% |
-| COV-F-03 | 255 | Frontend coverage reaches 75% |
-| COV-F-04 | 256 | Frontend coverage reaches 80% |
-| COV-F-05 | 254-256 | Critical components covered |
-| TDD-01 | 249-250 | Bug fixes follow test-first approach |
-| TDD-02 | 249-250 | Failing tests written before fixes |
-| TDD-03 | 249-250 | All bug fixes have tests |
-| TDD-04 | 257 | TDD workflow documented |
-| PROP-01 | 252 | Property tests for critical invariants |
-| PROP-02 | 252 | Property tests for business logic |
-| PROP-03 | 253 | Property tests for data integrity |
-| PROP-04 | 257 | Property test documentation |
-| QUAL-01 | 258 | Coverage thresholds enforced |
-| QUAL-02 | 258 | 100% pass rate enforced |
-| QUAL-03 | 258 | Build gates prevent merge failures |
-| QUAL-04 | 258 | Quality metrics dashboard |
-| DOC-01 | 247 | Build process documented |
-| DOC-02 | 248 | Test execution documented |
-| DOC-03 | 257 | Bug fix process documented |
-| DOC-04 | 258 | Coverage report documentation |
+| BUILD-01 | Phase 247 | Frontend builds successfully |
+| BUILD-02 | Phase 247 | Backend builds successfully |
+| BUILD-03 | Phase 247 | Syntax errors resolved |
+| BUILD-04 | Phase 247 | Build process documented |
+| TEST-01 | Phase 248 | Test suite runs successfully |
+| TEST-02 | Phase 248 | Test failures documented |
+| TEST-03 | Phase 248 | Failures categorized by severity |
+| TEST-04 | Phase 248 | Test failure report generated |
+| FIX-01 | Phase 249 | Critical test failures fixed |
+| FIX-02 | Phase 249 | High-priority test failures fixed |
+| FIX-03 | Phase 250 | Medium/low priority failures fixed |
+| FIX-04 | Phase 250 | 100% test pass rate achieved |
+| COV-B-01 | Phase 251 | Backend coverage baseline measured |
+| COV-B-02 | Phase 251 | Backend coverage reaches 70% |
+| COV-B-03 | Phase 252 | Backend coverage reaches 75% |
+| COV-B-04 | Phase 253 | Backend coverage reaches 80% |
+| COV-B-05 | Phase 251-253 | High-impact files covered |
+| COV-F-01 | Phase 254 | Frontend coverage baseline measured |
+| COV-F-02 | Phase 254 | Frontend coverage reaches 70% |
+| COV-F-03 | Phase 255 | Frontend coverage reaches 75% |
+| COV-F-04 | Phase 256 | Frontend coverage reaches 80% |
+| COV-F-05 | Phase 254-256 | Critical components covered |
+| TDD-01 | Phase 249-250 | Bug fixes follow test-first approach |
+| TDD-02 | Phase 249-250 | Failing tests written before fixes |
+| TDD-03 | Phase 249-250 | All bug fixes have tests |
+| TDD-04 | Phase 257 | TDD workflow documented |
+| PROP-01 | Phase 252 | Property tests for critical invariants |
+| PROP-02 | Phase 252 | Property tests for business logic |
+| PROP-03 | Phase 253a | Property tests for data integrity |
+| PROP-04 | Phase 257 | Property test documentation |
+| QUAL-01 | Phase 258 | Coverage thresholds enforced |
+| QUAL-02 | Phase 258 | 100% pass rate enforced |
+| QUAL-03 | Phase 258 | Build gates prevent merge failures |
+| QUAL-04 | Phase 258 | Quality metrics dashboard |
+| DOC-01 | Phase 247 | Build process documented |
+| DOC-02 | Phase 248 | Test execution documented |
+| DOC-03 | Phase 257 | Bug fix process documented |
+| DOC-04 | Phase 258 | Coverage report documentation |
 
 **Coverage: 36/36 requirements mapped (100%) ✓**
 
@@ -264,6 +285,8 @@ Phase 251 (Backend 70%)    │
     ↓                      │
 Phase 252 (Backend 75%)    │
     ↓                      │
+Phase 253a (Data Integrity)│
+    ↓                      │
 Phase 253 (Backend 80%)    │
     ↓                      ├────────────────────┐
 Phase 257 (TDD Docs)       │                    │
@@ -279,9 +302,9 @@ Phase 258 (Quality Gates)  │                    │
 
 ## Known Blockers
 
-1. **Frontend SWC Build Error**: Next.js build failing with SWC compilation error
-2. **Backend Syntax Error**: `asana_service.py:148` has syntax error blocking test collection
-3. **Test Suite Blocked**: 472 tests collected but cannot run due to syntax error
+1. **Frontend SWC Build Error**: Next.js build failing with SWC compilation error ✅ RESOLVED
+2. **Backend Syntax Error**: `asana_service.py:148` has syntax error blocking test collection ✅ RESOLVED
+3. **Test Suite Blocked**: 472 tests collected but cannot run due to syntax error ✅ RESOLVED
 
 ## Success Criteria
 
@@ -297,9 +320,9 @@ Milestone is complete when:
 ## Timeline
 
 **Target:** 1 week (aggressive execution)
-**Phases:** 12 phases
-**Estimated Plans:** 38 plans
-**Parallelization:** Enabled (backend/frontend coverage can run in parallel)
+**Phases:** 13 phases (added Phase 253a for focused data integrity property tests)
+**Estimated Plans:** 42 plans
+**Parallelization:** Enabled (backend/frontend coverage can run in parallel after Phase 250)
 
 ## Anti-Patterns
 
@@ -316,7 +339,10 @@ Milestone is complete when:
 - **TDD enforced**: All bug fixes must have tests written first
 - **Progressive thresholds**: 70% → 75% → 80% coverage with enforcement at each stage
 - **Quality gates**: CI/CD prevents merging if builds fail, tests fail, or coverage drops
+- **Property tests**: Added in Phase 252 (governance, LLM, workflows) and Phase 253a (episodes, skills, data integrity)
+- **Phase 253a**: Focused phase for data integrity property tests (PROP-03), split from Phase 253 to isolate property test work from coverage measurement
 
 ---
+
 *Roadmap created: 2026-04-02*
 *Last updated: 2026-04-11*

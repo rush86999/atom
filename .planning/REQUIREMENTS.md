@@ -55,7 +55,7 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 
 - [x] **PROP-01**: Property-based tests for critical invariants (governance, LLM, episodes)
 - [x] **PROP-02**: Property-based tests for business logic (workflows, skills, canvas)
-- [ ] **PROP-03**: Property-based tests for data integrity (database, transactions)
+- [x] **PROP-03**: Property-based tests for data integrity (database, transactions)
 - [ ] **PROP-04**: Property-based test documentation (invariants catalog)
 
 ### Quality Gates
@@ -129,7 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TDD-04 | Phase 257 | Pending |
 | PROP-01 | Phase 252 | Complete |
 | PROP-02 | Phase 252 | Complete |
-| PROP-03 | Phase 253 | Pending |
+| PROP-03 | Phase 253 | Complete |
 | PROP-04 | Phase 257 | Pending |
 | QUAL-01 | Phase 258 | Pending |
 | QUAL-02 | Phase 258 | Pending |
