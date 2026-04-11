@@ -10,7 +10,7 @@ Welcome to the central hub for all testing documentation at Atom. This index hel
 ## I'm New Here (Start Here)
 
 ### Testing Onboarding Guide (15 min)
-→ [TESTING_ONBOARDING.md](TESTING_ONBOARDING.md)
+→ [TESTING_ONBOARDING.md](testing/onboarding.md)
 
 **What you'll learn:**
 - How to verify your test setup works
@@ -453,4 +453,4 @@ When updating testing documentation:
 **Total documentation pages:** 15+ guides across 4 platforms
 **Total lines of documentation:** 8,000+ lines
 
-**See also:** [TESTING_ONBOARDING.md](TESTING_ONBOARDING.md) for the 15-minute quick start guide.
+**See also:** [TESTING_ONBOARDING.md](testing/onboarding.md) for the 15-minute quick start guide.

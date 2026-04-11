@@ -1139,7 +1139,7 @@ This provides context for future reviewers.
 ## See Also
 
 - [Testing Documentation Index](TESTING_INDEX.md) - Central hub for all testing documentation
-- [Testing Onboarding Guide](TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
+- [Testing Onboarding Guide](testing/onboarding.md) - 15-minute quick start for all platforms
 - [Property Testing Patterns](testing/property-testing.md) - Shared property test infrastructure
 - [E2E Testing Guide](testing/e2e-guide.md) - Cross-platform E2E orchestration
 # Cross-Platform Property Testing Guide
