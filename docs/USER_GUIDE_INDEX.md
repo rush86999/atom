@@ -174,8 +174,8 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Intelligence & Memory
 
 - **[Episodic Memory](intelligence/episodic-memory.md)** - Agent learning system
-- **[World Model & Business Facts](ai-world-model.md)** - Knowledge management
-- **[GraphRAG & Entity Types](GRAPHRAG_AND_ENTITY_TYPES.md)** - Graph-based intelligence
+- **[World Model & Business Facts](intelligence/world-model-guide.md)** - Knowledge management
+- **[GraphRAG & Entity Types](intelligence/graphrag.md)** - Graph-based intelligence
 
 ### Canvas & Presentations
 

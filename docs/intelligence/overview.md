@@ -9,8 +9,8 @@ AI capabilities, knowledge management, and cognitive systems.
 - **[Cognitive Tier System](COGNITIVE_TIER_SYSTEM.md)** - 5-tier intelligent LLM routing (if exists in root, otherwise reference)
 
 ### World Model & Knowledge
-- **[AI World Model](ai-world-model.md)** - Knowledge representation
-- **[GraphRAG and Entity Types](GRAPHRAG_AND_ENTITY_TYPES.md)** - Graph-based intelligence
+- **[AI World Model](intelligence/world-model-guide.md)** - Knowledge representation
+- **[GraphRAG and Entity Types](intelligence/graphrag.md)** - Graph-based intelligence
 - **[GraphRAG Ported](GRAPHRAG_PORTED.md)** - GraphRAG implementation
 - **[Document Processing Pipeline](DOCUMENT_PROCESSING_PIPELINE.md)** - Document ingestion
 
@@ -85,8 +85,8 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 
 ### By Feature
 - **Memory**: [Episodic Memory](intelligence/episodic-memory.md)
-- **Knowledge**: [World Model](ai-world-model.md)
-- **Graph**: [GraphRAG](GRAPHRAG_AND_ENTITY_TYPES.md)
+- **Knowledge**: [World Model](intelligence/world-model-guide.md)
+- **Graph**: [GraphRAG](intelligence/graphrag.md)
 - **Facts**: [JIT Fact Provision](JIT_FACT_PROVISION_SYSTEM.md)
 
 ### By Use Case
