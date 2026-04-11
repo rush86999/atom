@@ -5,7 +5,7 @@ Production deployment, monitoring, and platform-specific guides.
 ## Deployment
 
 ### Production Deployment
-- **[Production Readiness](PRODUCTION_READINESS.md)** - Deployment checklist
+- **[Production Readiness](operations/production-readiness.md)** - Deployment checklist
 - **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Readiness assessment
 - **[Deployment](DEPLOYMENT/PRODUCTION_DEPLOYMENT.md)** - Deployment overview
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment
@@ -26,9 +26,9 @@ Production deployment, monitoring, and platform-specific guides.
 
 ### Health & Monitoring
 - **[Health Monitoring System](HEALTH_MONITORING_SYSTEM.md)** - Health check endpoints
-- **[Monitoring Guide](MONITORING_GUIDE.md)** - Monitoring setup
+- **[Monitoring Guide](DEPLOYMENT/MONITORING_SETUP.md)** - Monitoring setup
 - **[Performance Monitoring Setup](PERFORMANCE_MONITORING_SETUP.md)** - Metrics and alerts
-- **[Performance Tuning](PERFORMANCE_TUNING.md)** - Optimization strategies
+- **[Performance Tuning](operations/performance.md)** - Optimization strategies
 
 ### Build & CI/CD
 - **[Build](DEVELOPMENT/build.md)** - Build process
@@ -74,9 +74,9 @@ Production deployment, monitoring, and platform-specific guides.
 ## Quick Reference
 
 ### Deployment Checklist
-- [ ] Review [Production Readiness](PRODUCTION_READINESS.md)
+- [ ] Review [Production Readiness](operations/production-readiness.md)
 - [ ] Follow [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- [ ] Configure [Monitoring](MONITORING_GUIDE.md)
+- [ ] Configure [Monitoring](DEPLOYMENT/MONITORING_SETUP.md)
 - [ ] Set up [Health Checks](HEALTH_MONITORING_SYSTEM.md)
 - [ ] Prepare [Rollback Procedure](ROLLBACK_PROCEDURE.md)
 

@@ -82,7 +82,7 @@
 | [ADVANCED_SKILL_EXECUTION.md](ADVANCED_SKILL_EXECUTION.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
 | [SKILL_MARKETPLACE_GUIDE.md](SKILL_MARKETPLACE_GUIDE.md) | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
 | [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |
-| [PERFORMANCE_TUNING.md](PERFORMANCE_TUNING.md) | Performance optimization and benchmarks | Feb 19, 2026 |
+| [PERFORMANCE_TUNING.md](operations/performance.md) | Performance optimization and benchmarks | Feb 19, 2026 |
 | [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) | **Built-in CLI skills (daemon, status, start, stop, execute, config)** | Apr 7, 2026 |
 
 ## 🌐 Federation & Multi-Instance
@@ -174,7 +174,7 @@
 |----------|-------------|--------------|
 | [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) | **Complete workflow guide** | - |
 | [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) | AI-powered workflow optimization | - |
-| [MONITORING_GUIDE.md](MONITORING_GUIDE.md) | Track workflow performance | - |
+| [MONITORING_GUIDE.md](DEPLOYMENT/MONITORING_SETUP.md) | Track workflow performance | - |
 | [MULTI_INTEGRATION_WORKFLOW_ENGINE.md](MULTI_INTEGRATION_WORKFLOW_ENGINE.md) | Multi-integration workflows | - |
 
 ---
@@ -244,9 +244,9 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [MONITORING_SETUP.md](MONITORING_GUIDE.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
+| [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
 | [HEALTH_MONITORING_SYSTEM.md](HEALTH_MONITORING_SYSTEM.md) | Health monitoring system | Feb 2, 2026 |
-| [MONITORING_GUIDE.md](MONITORING_GUIDE.md) | Monitoring guide | Feb 2, 2026 |
+| [MONITORING_GUIDE.md](DEPLOYMENT/MONITORING_SETUP.md) | Monitoring guide | Feb 2, 2026 |
 
 ### CI/CD Pipeline
 
@@ -439,7 +439,7 @@
 - [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) - **Deployment runbook** (Feb 16)
 - [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) - **Operations guide** (Feb 16)
 - [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) - **Troubleshooting** (Feb 16)
-- [MONITORING_SETUP.md](MONITORING_GUIDE.md) - **Monitoring setup** (Feb 16)
+- [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
 - [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) - **Code quality** (Feb 16)
 - [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 
@@ -483,7 +483,7 @@
 | [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment runbook** | Feb 16, 2026 |
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Troubleshooting guide** | Feb 16, 2026 |
-| [MONITORING_SETUP.md](MONITORING_GUIDE.md) | **Monitoring setup** | Feb 16, 2026 |
+| [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
 | [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) | **Code quality standards** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
 

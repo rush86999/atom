@@ -141,9 +141,9 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Administrators
 
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment
-- **[Monitoring Guide](MONITORING_GUIDE.md)** - Health checks and metrics
-- **[Performance Tuning](PERFORMANCE_TUNING.md)** - Optimization strategies
-- **[Production Readiness](PRODUCTION_READINESS.md)** - Deployment checklist
+- **[Monitoring Guide](DEPLOYMENT/MONITORING_SETUP.md)** - Health checks and metrics
+- **[Performance Tuning](operations/performance.md)** - Optimization strategies
+- **[Production Readiness](operations/production-readiness.md)** - Deployment checklist
 
 **Administrator Topics:**
 - [Monitoring](guides/ADMINISTRATORS/MONITORING.md)
