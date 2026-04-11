@@ -25,29 +25,14 @@ from core.auto_dev.capability_gate import (
     AUTONOMOUS
 )
 
+# Import strategies from conftest
+from conftest import maturity_levels, auto_dev_capabilities, unknown_capabilities
+
 
 # =============================================================================
 # Strategy Definitions
 # =============================================================================
-
-# Auto-Dev capability strategy
-auto_dev_capabilities = st.sampled_from([
-    'auto_dev.memento_skills',
-    'auto_dev.alpha_evolver',
-    'auto_dev.background_evolution'
-])
-
-# Unknown capability strategy (for testing default disabled)
-unknown_capabilities = st.text(min_size=1, max_size=50).filter(
-    lambda x: x not in [
-        'auto_dev.memento_skills',
-        'auto_dev.alpha_evolver',
-        'auto_dev.background_evolution',
-        'memento_skills',
-        'alpha_evolver',
-        'background_evolution'
-    ]
-)
+# Note: maturity_levels, auto_dev_capabilities, unknown_capabilities imported from conftest.py
 
 
 # =============================================================================
