@@ -451,6 +451,6 @@ pytest backend/tests/test_supervision_service.py -v
 
 - **Trigger Interceptor**: `backend/core/trigger_interceptor.py`
 - **Training Service**: `backend/core/student_training_service.py`
-- **Agent Graduation**: `docs/AGENT_GRADUATION_GUIDE.md`
+- **Agent Graduation**: `agents/graduation.md`
 - **Episodic Memory**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`
 - **Governance**: `backend/core/agent_governance_service.py`

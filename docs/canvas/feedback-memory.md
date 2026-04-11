@@ -623,6 +623,6 @@ print("Episode indexes:", indexes)
 ## See Also
 
 - [Episodic Memory Implementation](./EPISODIC_MEMORY_IMPLEMENTATION.md)
-- [Agent Graduation Guide](./AGENT_GRADUATION_GUIDE.md)
+- [Agent Graduation Guide](../agents/graduation.md)
 - [Canvas Implementation Guide](archive/CANVAS_IMPLEMENTATION_COMPLETE.md)
 - [Episode Quick Start](./EPISODIC_MEMORY_QUICK_START.md)

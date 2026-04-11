@@ -639,7 +639,7 @@ GET /api/episodes/graduation/audit/{agent_id}
 
 ### Readiness Score Calculation
 
-> **Note**: This is the current implementation formula. For the latest 6-component formula with additional metrics (confidence, success rate, supervision, skill diversity), see [Agent Graduation Guide](../AGENT_GRADUATION_GUIDE.md#readiness-score-calculation).
+> **Note**: This is the current implementation formula. For the latest 6-component formula with additional metrics (confidence, success rate, supervision, skill diversity), see [Agent Graduation Guide](../agents/graduation.md#readiness-score-calculation).
 
 ```
 Score = (Episode Score × 40%) + (Intervention Score × 30%) + (Constitutional Score × 30%)
@@ -664,7 +664,7 @@ Readiness Score =
     (Skill Diversity Score × 10%)
 ```
 
-See [Agent Graduation Guide](../AGENT_GRADUATION_GUIDE.md#readiness-score-calculation) for details on the enhanced formula.
+See [Agent Graduation Guide](../agents/graduation.md#readiness-score-calculation) for details on the enhanced formula.
 
 ### Use Cases
 
