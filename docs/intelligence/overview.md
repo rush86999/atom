@@ -12,11 +12,10 @@ AI capabilities, knowledge management, and cognitive systems.
 - **[AI World Model](intelligence/world-model-guide.md)** - Knowledge representation
 - **[GraphRAG and Entity Types](intelligence/graphrag.md)** - Graph-based intelligence
 - **[GraphRAG Ported](GRAPHRAG_PORTED.md)** - GraphRAG implementation
-- **[Document Processing Pipeline](DOCUMENT_PROCESSING_PIPELINE.md)** - Document ingestion
 
 ### Business Facts & Citations
-- **[JIT Fact Provision System](JIT_FACT_PROVISION_SYSTEM.md)** - Just-in-time fact retrieval
-- **[Citation System Guide](CITATION_SYSTEM_GUIDE.md)** - Citation management
+- **[JIT Fact Provision System](intelligence/jit-facts.md)** - Just-in-time fact retrieval
+- **[Citation System Guide](intelligence/jit-facts.md)** - Citation management
 - **[JIT Verification Quickstart](JIT_VERIFICATION_QUICKSTART.md)** - Quick setup
 - **[JIT Verification Agent Compliance](JIT_VERIFICATION_AGENT_COMPLIANCE.md)** - Compliance checks
 - **[JIT Verification Cache](JIT_VERIFICATION_CACHE.md)** - Caching layer
@@ -87,11 +86,11 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 - **Memory**: [Episodic Memory](intelligence/episodic-memory.md)
 - **Knowledge**: [World Model](intelligence/world-model-guide.md)
 - **Graph**: [GraphRAG](intelligence/graphrag.md)
-- **Facts**: [JIT Fact Provision](JIT_FACT_PROVISION_SYSTEM.md)
+- **Facts**: [JIT Fact Provision](intelligence/jit-facts.md)
 
 ### By Use Case
 - **Learning from Interactions**: [Memory Integration Guide](MEMORY_INTEGRATION_GUIDE.md)
-- **Storing Business Knowledge**: [Citation System Guide](CITATION_SYSTEM_GUIDE.md)
+- **Storing Business Knowledge**: [Citation System Guide](intelligence/jit-facts.md)
 - **AI Summaries**: [LLM Canvas Summaries](../canvas/llm-summaries.md)
 - **Error Recovery**: [Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)
 
