@@ -40,18 +40,12 @@ class AgentFactory(BaseFactory):
 class StudentAgentFactory(AgentFactory):
     """Factory for STUDENT maturity agents."""
 
-    class Meta:
-        model = AgentRegistry
-
     status = AgentStatus.STUDENT.value
     confidence_score = fuzzy.FuzzyFloat(0.0, 0.5)
 
 
 class InternAgentFactory(AgentFactory):
     """Factory for INTERN maturity agents."""
-
-    class Meta:
-        model = AgentRegistry
 
     status = AgentStatus.INTERN.value
     confidence_score = fuzzy.FuzzyFloat(0.5, 0.7)
@@ -60,18 +54,12 @@ class InternAgentFactory(AgentFactory):
 class SupervisedAgentFactory(AgentFactory):
     """Factory for SUPERVISED maturity agents."""
 
-    class Meta:
-        model = AgentRegistry
-
     status = AgentStatus.SUPERVISED.value
     confidence_score = fuzzy.FuzzyFloat(0.7, 0.9)
 
 
 class AutonomousAgentFactory(AgentFactory):
     """Factory for AUTONOMOUS maturity agents."""
-
-    class Meta:
-        model = AgentRegistry
 
     status = AgentStatus.AUTONOMOUS.value
     confidence_score = fuzzy.FuzzyFloat(0.9, 1.0)

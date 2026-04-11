@@ -634,3 +634,8 @@ class AtomAgentOSMarketplaceClient:
         """Synchronous wrapper for health_check."""
         return asyncio.run(self.health_check())
 
+
+# Alias for backward compatibility
+# Multiple files import AtomSaaSClient but class is named AtomAgentOSMarketplaceClient
+AtomSaaSClient = AtomAgentOSMarketplaceClient
+
