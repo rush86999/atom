@@ -867,7 +867,7 @@ def resize_image(image_data, width, height):
 
 - **[Community Skills Guide](COMMUNITY_SKILLS.md)** - Complete skill import and security documentation
 - **[Package Governance](PACKAGE_GOVERNANCE.md)** - Approval workflow and maturity rules
-- **[Package Security](PACKAGE_SECURITY.md)** - Threat model and security best practices
+- **[Package Security](SECURITY/packages.md)** - Threat model and security best practices
 - **[API Documentation](../backend/docs/API_DOCUMENTATION.md#python-package-management)** - Complete API reference
 - **[Deployment Checklist](PYTHON_PACKAGES_DEPLOYMENT.md)** - Production deployment guide
 

@@ -33,7 +33,7 @@ Platform integrations, automation capabilities, and third-party connections.
 - **[OAuth Token Encryption Migration](OAUTH_TOKEN_ENCRYPTION_MIGRATION.md)** - Security upgrade
 
 ### Security
-- **[Package Security](PACKAGE_SECURITY.md)** - Package vulnerability scanning
+- **[Package Security](SECURITY/packages.md)** - Package vulnerability scanning
 - **[Package Governance](PACKAGE_GOVERNANCE.md)** - Package access control
 - **[Security Advisory 2025-03-23](SECURITY_ADVISORY_2025-03-23.md)** - Security notices
 - **[Security Audit Final](SECURITY_AUDIT_FINAL.md)** - Audit results
@@ -44,9 +44,9 @@ Platform integrations, automation capabilities, and third-party connections.
 - **[MCP Setup](MCP_SETUP.md)** - MCP server configuration
 
 ### Package Support
-- **[Python Packages](PYTHON_PACKAGES.md)** - Python package governance
+- **[Python Packages](SECURITY/python-packages.md)** - Python package governance
 - **[Python Packages Deployment](PYTHON_PACKAGES_DEPLOYMENT.md)** - Deployment guide
-- **[NPM Package Support](NPM_PACKAGE_SUPPORT.md)** - Node.js package support
+- **[NPM Package Support](SECURITY/npm-packages.md)** - Node.js package support
 
 ## Quick Reference
 

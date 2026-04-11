@@ -10,7 +10,7 @@
 ## 🚀 Recent Updates (April 2026)
 
 - **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
-  - [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) - Python Package Support system (350K+ PyPI packages)
+  - [PYTHON_PACKAGES.md](SECURITY/python-packages.md) - Python Package Support system (350K+ PyPI packages)
   - [FLEET_ADMIRAL.md](FLEET_ADMIRAL.md) - Multi-agent fleet coordination
   - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API
   - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries
@@ -74,11 +74,11 @@
 | [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
 | [MARKETPLACE_CONNECTION_GUIDE.md](MARKETPLACE_CONNECTION_GUIDE.md) | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
 | [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
-| [PYTHON_PACKAGES.md](PYTHON_PACKAGES.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
+| [PYTHON_PACKAGES.md](SECURITY/python-packages.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
 | [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |
-| [PACKAGE_SECURITY.md](PACKAGE_SECURITY.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
+| [PACKAGE_SECURITY.md](SECURITY/packages.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
 | [PYTHON_PACKAGES_DEPLOYMENT.md](PYTHON_PACKAGES_DEPLOYMENT.md) | Production deployment and monitoring | Feb 19, 2026 |
-| [NPM_PACKAGE_SUPPORT.md](NPM_PACKAGE_SUPPORT.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
+| [NPM_PACKAGE_SUPPORT.md](SECURITY/npm-packages.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
 | [ADVANCED_SKILL_EXECUTION.md](ADVANCED_SKILL_EXECUTION.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
 | [SKILL_MARKETPLACE_GUIDE.md](SKILL_MARKETPLACE_GUIDE.md) | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
 | [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |

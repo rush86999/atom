@@ -600,7 +600,7 @@ Remove skill image when no longer needed:
 curl -X DELETE http://localhost:8000/api/packages/npm/data-analysis-skill
 ```
 
-**See:** [npm Package Support](NPM_PACKAGE_SUPPORT.md) for comprehensive user guide.
+**See:** [npm Package Support](SECURITY/npm-packages.md) for comprehensive user guide.
 
 ---
 
