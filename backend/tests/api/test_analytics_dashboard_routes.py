@@ -513,7 +513,7 @@ class TestPredictResponseTime:
             "platform": "slack",
             "urgency": "invalid"
         })
-        assert response.status_code == 400  # Validation error - API returns 400 for invalid urgency
+        assert response.status_code == 422  # Validation error - API returns 422 for invalid urgency
 
     def test_predict_response_time_confidence_levels(self, analytics_routes_client):
         """Test response time prediction returns confidence levels"""
@@ -593,7 +593,7 @@ class TestRecommendChannel:
             "message_type": "general",
             "urgency": "invalid"
         })
-        assert response.status_code == 400  # Validation error - API returns 400 for invalid urgency
+        assert response.status_code == 422  # Validation error - API returns 422 for invalid urgency
 
     def test_recommend_channel_error_handling(self, analytics_routes_client):
         """Test channel recommendation handles service errors"""
