@@ -13,7 +13,7 @@
 | 247 - Build Fixes & Documentation | 3/3 | ✅ COMPLETE | 2026-04-02 |
 | 248 - Test Discovery & Documentation | 2/2 | ✅ COMPLETE | 2026-04-03 |
 | 249 - Critical Test Fixes | 3/3 | ✅ COMPLETE | 2026-04-03 |
-| 250 - All Test Fixes | 0/2 | Not started | - |
+| 250 - All Test Fixes | 1/2 | In progress | 2026-04-11 |
 | 251 - Backend Coverage Baseline | 0/3 | Not started | - |
 | 252 - Backend Coverage Push | 0/3 | Not started | - |
 | 253 - Backend 80% & Property Tests | 0/2 | Not started | - |
@@ -23,9 +23,9 @@
 | 257 - TDD & Property Test Documentation | 0/2 | Not started | - |
 | 258 - Quality Gates & Final Documentation | 0/3 | Not started | - |
 
-**Overall:** 8/33 plans complete (24%)
+**Overall:** 9/35 plans complete (26%)
 
-**Total:** 33 plans across 12 phases
+**Total:** 35 plans across 12 phases
 
 ## Phases
 
@@ -55,9 +55,9 @@
   4. Build process documented in BUILD.md with step-by-step instructions
   5. Builds are reproducible across different environments
 **Plans**: 3 plans
-- [ ] 247-01-PLAN.md — Fix backend syntax errors in asana_service.py
-- [ ] 247-02-PLAN.md — Fix frontend SWC build error
-- [ ] 247-03-PLAN.md — Document build process in BUILD.md
+- [x] 247-01-PLAN.md — Fix backend syntax errors in asana_service.py
+- [x] 247-02-PLAN.md — Fix frontend SWC build error
+- [x] 247-03-PLAN.md — Document build process in BUILD.md
 
 ### Phase 248: Test Discovery & Documentation
 **Goal**: Full test suite runs and all failures are documented with evidence
@@ -70,8 +70,8 @@
   4. Test failure report generated with prioritization (what to fix first)
   5. Test execution documented in TESTING.md (how to run, interpret results)
 **Plans**: 2 plans
-- [ ] 248-01-PLAN.md — Fix remaining syntax errors in integration services
-- [ ] 248-02-PLAN.md — Run test suite and document failures
+- [x] 248-01-PLAN.md — Fix remaining syntax errors in integration services
+- [x] 248-02-PLAN.md — Run test suite and document failures
 
 ### Phase 249: Critical Test Fixes
 **Goal**: All critical and high-priority test failures fixed using TDD approach
@@ -84,9 +84,9 @@
   4. All bug fixes have corresponding tests (100% coverage of fixes)
   5. Test suite passes with zero critical/high failures
 **Plans**: 3 plans
-- [ ] 249-01-PLAN.md — Fix Pydantic v2 DTO validation issues (DTO-001, DTO-002, DTO-003)
-- [ ] 249-02-PLAN.md — Fix OpenAPI schema alignment tests (DTO-004)
-- [ ] 249-03-PLAN.md — Fix Canvas submission error handling (CANVAS-001, CANVAS-002, CANVAS-003)
+- [x] 249-01-PLAN.md — Fix Pydantic v2 DTO validation issues (DTO-001, DTO-002, DTO-003)
+- [x] 249-02-PLAN.md — Fix OpenAPI schema alignment tests (DTO-004)
+- [x] 249-03-PLAN.md — Fix Canvas submission error handling (CANVAS-001, CANVAS-002, CANVAS-003)
 
 ### Phase 250: All Test Fixes
 **Goal**: All test failures fixed, 100% pass rate achieved
@@ -98,7 +98,9 @@
   3. 100% test pass rate achieved (zero failures or errors)
   4. Test suite runs end-to-end without manual intervention
   5. Test results are reproducible across multiple runs
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 250-01-PLAN.md — Fix test infrastructure (pytest_plugins ImportError)
+- [ ] 250-02-PLAN.md — Fix remaining test failures and achieve 100% pass rate
 
 ### Phase 251: Backend Coverage Baseline
 **Goal**: Backend coverage baseline measured and 70% coverage achieved
@@ -293,7 +295,7 @@ Milestone is complete when:
 
 **Target:** 1 week (aggressive execution)
 **Phases:** 12 phases
-**Estimated Plans:** ~30-35 plans
+**Estimated Plans:** 35 plans
 **Parallelization:** Enabled (backend/frontend coverage can run in parallel)
 
 ## Anti-Patterns
@@ -314,4 +316,4 @@ Milestone is complete when:
 
 ---
 *Roadmap created: 2026-04-02*
-*Last updated: 2026-04-02*
+*Last updated: 2026-04-11*

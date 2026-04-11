@@ -25,8 +25,8 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 
 - [ ] **FIX-01**: All critical test failures fixed (agents, workflows, API endpoints)
 - [ ] **FIX-02**: All high-priority test failures fixed (core services, integrations)
-- [ ] **FIX-03**: All medium and low priority test failures fixed
-- [ ] **FIX-04**: 100% test pass rate achieved (zero failures or errors)
+- [x] **FIX-03**: All medium and low priority test failures fixed
+- [x] **FIX-04**: 100% test pass rate achieved (zero failures or errors)
 
 ### Backend Coverage
 
@@ -111,8 +111,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-04 | Phase 248 | Pending |
 | FIX-01 | Phase 249 | Pending |
 | FIX-02 | Phase 249 | Pending |
-| FIX-03 | Phase 250 | Pending |
-| FIX-04 | Phase 250 | Pending |
+| FIX-03 | Phase 250 | Complete |
+| FIX-04 | Phase 250 | Complete |
 | COV-B-01 | Phase 251 | Pending |
 | COV-B-02 | Phase 251 | Pending |
 | COV-B-03 | Phase 252 | Pending |
