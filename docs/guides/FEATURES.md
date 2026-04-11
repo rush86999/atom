@@ -129,4 +129,4 @@ Atom's multi-agent system is equipped with 30+ specialized skills across 12+ int
 
 ---
 
-**Complete autonomous system reference**: See [AUTONOMOUS_ATOM_AGENT.md](./AUTONOMOUS_ATOM_AGENT.md) for detailed technical configuration and deployment options.
+**Complete autonomous system reference**: See [Agent Governance](../agents/governance.md) for detailed technical configuration and deployment options.

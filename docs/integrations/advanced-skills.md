@@ -678,8 +678,8 @@ GET /auto-install/status/{skill_id}
 ## Related Documentation
 
 ### Core Documentation
-- [Community Skills](./COMMUNITY_SKILLS.md) - Phase 14 foundation for skill infrastructure
-- [Python Packages](./PYTHON_PACKAGES.md) - Python package support with dependency isolation
+- [Community Skills](../INTEGRATIONS/community-skills.md) - Phase 14 foundation for skill infrastructure
+- [Python Packages](../SECURITY/python-packages.md) - Python package support with dependency isolation
 - [npm Packages](./NPM_PACKAGE_SUPPORT.md) - npm package support with postinstall protection
 - [Package Governance](./PACKAGE_GOVERNANCE.md) - Maturity-based package access control
 - [Package Security](./PACKAGE_SECURITY.md) - Comprehensive security testing documentation

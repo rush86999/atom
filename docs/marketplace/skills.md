@@ -900,8 +900,8 @@ The Atom Skill Marketplace provides a centralized, secure platform for discoveri
 ---
 
 **See Also**:
-- [Advanced Skill Execution](./ADVANCED_SKILL_EXECUTION.md) - Overview of Phase 60 features
+- [Advanced Skill Execution](../INTEGRATIONS/advanced-skills.md) - Overview of Phase 60 features
 - [Skill Composition Patterns](./SKILL_COMPOSITION_PATTERNS.md) - Workflow design patterns
-- [Community Skills](./COMMUNITY_SKILLS.md) - Phase 14 foundation
+- [Community Skills](../INTEGRATIONS/community-skills.md) - Phase 14 foundation
 
 **Last Updated**: February 19, 2026

@@ -480,4 +480,4 @@ AWS_REGION=us-east-1
 3. **Check episodic memory** - agents remember past interactions
 4. **Adjust model** if needed (switch to bge-base for better quality)
 
-[Documentation Index](./README.md) | [Personal Edition Guide](./PERSONAL_EDITION.md)
+[Documentation Index](./README.md) | [Personal Edition Guide](../operations/personal-edition.md)

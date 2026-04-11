@@ -1338,7 +1338,7 @@ Skill composition enables complex workflows with:
 ---
 
 **See Also**:
-- [Advanced Skill Execution](./ADVANCED_SKILL_EXECUTION.md) - Phase 60 overview
+- [Advanced Skill Execution](../INTEGRATIONS/advanced-skills.md) - Phase 60 overview
 - [Skill Marketplace Guide](./SKILL_MARKETPLACE_GUIDE.md) - Finding skills to compose
 - [Performance Tuning](./PERFORMANCE_TUNING.md) - Optimization guide
 
