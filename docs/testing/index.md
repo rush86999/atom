@@ -48,7 +48,7 @@ Choose your platform to find platform-specific testing guides, frameworks, and p
 
 ### Mobile (React Native)
 
-→ [MOBILE_TESTING_GUIDE.md](MOBILE_TESTING_GUIDE.md) *(coming soon in Phase 152)*
+→ [MOBILE_TESTING_GUIDE.md](testing/mobile-archive.md) *(coming soon in Phase 152)*
 
 **Frameworks:** jest-expo, React Native Testing Library
 **Target Coverage:** 50%+ across all modules
@@ -112,7 +112,7 @@ Cross-platform testing techniques that apply to multiple platforms.
 
 ### Property Testing
 
-→ [PROPERTY_TESTING_PATTERNS.md](PROPERTY_TESTING_PATTERNS.md)
+→ [PROPERTY_TESTING_PATTERNS.md](testing/property-testing.md)
 
 **What you'll learn:**
 - FastCheck (frontend/mobile/desktop) - 32 properties
@@ -131,7 +131,7 @@ Cross-platform testing techniques that apply to multiple platforms.
 
 ### E2E Testing
 
-→ [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md)
+→ [E2E_TESTING_GUIDE.md](testing/e2e-guide.md)
 
 **What you'll learn:**
 - Playwright (web) - Browser automation
@@ -202,7 +202,7 @@ Troubleshooting guides for common testing problems.
 
 ### Slow Test Execution
 
-→ [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](E2E_TESTING_GUIDE.md)
+→ [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](testing/e2e-guide.md)
 
 **Problem:** Tests take too long to run
 
@@ -336,7 +336,7 @@ Deep dives into each platform's testing infrastructure.
    - SQLite tracking
    - Auto-removal policies
 
-5. **[PARALLEL_EXECUTION_GUIDE.md](E2E_TESTING_GUIDE.md)** (1,519 lines)
+5. **[PARALLEL_EXECUTION_GUIDE.md](testing/e2e-guide.md)** (1,519 lines)
    - Matrix execution
    - <15 min feedback
    - Retry workflows

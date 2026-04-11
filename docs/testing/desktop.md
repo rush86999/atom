@@ -2365,13 +2365,13 @@ fn test_file_operations_with_real_files() {
 ### Platform Guides
 
 - **[Frontend Testing Guide](FRONTEND_TESTING_GUIDE.md)** - Jest, React Testing Library, MSW, jest-axe
-- **[Mobile Testing Guide](MOBILE_TESTING_GUIDE.md)** - jest-expo, React Native Testing Library
+- **[Mobile Testing Guide](testing/mobile-archive.md)** - jest-expo, React Native Testing Library
 - **Backend:** [Backend Coverage Guide](testing/index.md) - pytest, Hypothesis, Schemathesis
 
 ### Cross-Platform Testing
 
-- **[Property Testing Patterns](PROPERTY_TESTING_PATTERNS.md)** - FastCheck, Hypothesis, proptest
-- **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - Playwright, API-level tests, Tauri integration
+- **[Property Testing Patterns](testing/property-testing.md)** - FastCheck, Hypothesis, proptest
+- **[E2E Testing Guide](testing/e2e-guide.md)** - Playwright, API-level tests, Tauri integration
 - **[Cross-Platform Coverage](CROSS_PLATFORM_COVERAGE.md)** - Weighted coverage, platform minimums
 
 ---

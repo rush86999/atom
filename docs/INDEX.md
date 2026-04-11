@@ -265,7 +265,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | **E2E testing guide (91+ comprehensive tests)** | Mar 28, 2026 |
+| [E2E_TESTING_GUIDE.md](testing/e2e-guide.md) | **E2E testing guide (91+ comprehensive tests)** | Mar 28, 2026 |
 | [Phase 234: Authentication & Agent E2E](../.planning/phases/234-authentication-and-agent-e2e/) | **E2E test infrastructure (AUTH-01 to AUTH-07, AGNT-01 to AGNT-08)** | Mar 24, 2026 |
 
 **E2E Test Infrastructure (Phase 234)**:

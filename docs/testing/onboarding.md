@@ -287,7 +287,7 @@ You've successfully run your first test and written your own test. Continue your
   - Jest, React Testing Library, MSW, jest-axe
   - Target: 80%+ coverage
 
-- **Mobile Testing Guide** → [MOBILE_TESTING_GUIDE.md](MOBILE_TESTING_GUIDE.md) *(coming soon in Phase 152)*
+- **Mobile Testing Guide** → [MOBILE_TESTING_GUIDE.md](testing/mobile-archive.md) *(coming soon in Phase 152)*
   - jest-expo, React Native Testing Library
   - Target: 50%+ coverage
 
@@ -297,12 +297,12 @@ You've successfully run your first test and written your own test. Continue your
 
 ### Advanced Testing Techniques
 
-- **Property Testing** → [PROPERTY_TESTING_PATTERNS.md](PROPERTY_TESTING_PATTERNS.md)
+- **Property Testing** → [PROPERTY_TESTING_PATTERNS.md](testing/property-testing.md)
   - FastCheck (frontend/mobile/desktop)
   - Hypothesis (backend)
   - Test invariants instead of specific examples
 
-- **E2E Testing** → [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md)
+- **E2E Testing** → [E2E_TESTING_GUIDE.md](testing/e2e-guide.md)
   - Playwright (web)
   - API-level tests (mobile)
   - Tauri integration (desktop)
@@ -319,7 +319,7 @@ You've successfully run your first test and written your own test. Continue your
   - SQLite quarantine tracking
   - Auto-removal policies
 
-- **Parallel Execution** → [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](E2E_TESTING_GUIDE.md)
+- **Parallel Execution** → [backend/tests/docs/PARALLEL_EXECUTION_GUIDE.md](testing/e2e-guide.md)
   - Matrix strategy (4 platforms in parallel)
   - Target: <15 min total execution time
 

@@ -196,7 +196,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 - **[Mobile Quick Start](MOBILE_QUICK_START.md)** - React Native app setup
 - **[Mobile User Guide](MOBILE_USER_GUIDE.md)** - Mobile-specific features
-- **[Mobile Testing Guide](MOBILE_TESTING_GUIDE.md)** - Mobile testing
+- **[Mobile Testing Guide](testing/mobile-archive.md)** - Mobile testing
 
 ---
 

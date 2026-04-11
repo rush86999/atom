@@ -951,7 +951,7 @@ afterEach(() => {
 ### Platform-Specific Guides
 
 - [Backend Coverage Guide](testing/index.md) - Python/pytest testing patterns
-- [Mobile Testing Guide](MOBILE_TESTING_GUIDE.md) - React Native testing patterns (to be created in Phase 152-03)
+- [Mobile Testing Guide](testing/mobile-archive.md) - React Native testing patterns (to be created in Phase 152-03)
 - [Desktop Testing Guide](DESKTOP_TESTING_GUIDE.md) - Rust/Tauri testing patterns (to be created in Phase 152-04)
 
 ### Quality Standards

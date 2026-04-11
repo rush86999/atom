@@ -48,7 +48,7 @@ Production deployment, monitoring, and platform-specific guides.
 ### Mobile (React Native)
 - **[Mobile Deployment](MOBILE_DEPLOYMENT.md)** - Mobile deployment
 - **[Mobile Quick Start](MOBILE_QUICK_START.md)** - Getting started
-- **[Mobile Testing Guide](MOBILE_TESTING_GUIDE.md)** - Mobile testing
+- **[Mobile Testing Guide](testing/mobile-archive.md)** - Mobile testing
 - **[Mobile User Guide](MOBILE_USER_GUIDE.md)** - End-user guide
 - **[React Native Architecture](REACT_NATIVE_ARCHITECTURE.md)** - Architecture overview
 
