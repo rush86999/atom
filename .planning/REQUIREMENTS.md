@@ -30,7 +30,7 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 
 ### Backend Coverage
 
-- [ ] **COV-B-01**: Backend coverage baseline measured (actual line coverage)
+- [x] **COV-B-01**: Backend coverage baseline measured (actual line coverage)
 - [ ] **COV-B-02**: Backend coverage reaches 70% (progressive threshold)
 - [ ] **COV-B-03**: Backend coverage reaches 75% (progressive threshold)
 - [ ] **COV-B-04**: Backend coverage reaches 80% (final target)
