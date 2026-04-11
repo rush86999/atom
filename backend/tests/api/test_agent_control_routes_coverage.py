@@ -33,6 +33,8 @@ from api.agent_control_routes import (
     ExecuteCommandRequest,
     ExecuteCommandResponse
 )
+from core.admin_endpoints import get_super_admin
+from core.models import User
 
 
 # ============================================================================
@@ -49,8 +51,28 @@ def test_app():
 
 @pytest.fixture(scope="function")
 def client(test_app: FastAPI):
-    """Create TestClient for testing."""
-    return TestClient(test_app)
+    """
+    Create TestClient for testing with super admin authentication.
+
+    Overrides the get_super_admin dependency to return our test super admin user.
+    """
+    # Create test super admin user
+    super_admin_user = User(
+        id="test-super-admin-coverage",
+        email="superadmin-coverage@test.com",
+        role="super_admin"
+    )
+
+    def override_get_super_admin():
+        return super_admin_user
+
+    test_app.dependency_overrides[get_super_admin] = override_get_super_admin
+
+    test_client = TestClient(test_app)
+    try:
+        yield test_client
+    finally:
+        test_app.dependency_overrides.clear()
 
 
 # ============================================================================

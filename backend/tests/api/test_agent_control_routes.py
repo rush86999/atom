@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from api.agent_control_routes import router
+from core.admin_endpoints import get_super_admin
+from core.models import User
 
 
 # ============================================================================
@@ -30,11 +32,28 @@ def agent_control_client() -> TestClient:
     """
     Create TestClient with agent_control_routes router.
 
+    Overrides the get_super_admin dependency to return our test super admin user.
     Isolated app instance avoids SQLAlchemy metadata conflicts.
     """
+    # Create test super admin user
+    super_admin_user = User(
+        id="test-super-admin",
+        email="superadmin@test.com",
+        role="super_admin"
+    )
+
+    def override_get_super_admin():
+        return super_admin_user
+
     app = FastAPI()
     app.include_router(router)
-    return TestClient(app)
+    app.dependency_overrides[get_super_admin] = override_get_super_admin
+
+    client = TestClient(app)
+    try:
+        yield client
+    finally:
+        app.dependency_overrides.clear()
 
 
 # ============================================================================

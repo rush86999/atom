@@ -884,7 +884,7 @@ class TestBusinessFactsUpload:
                 files={"file": (filename, io.BytesIO(content), "application/x-msdownload")}
             )
 
-            assert response.status_code == status.HTTP_400_BAD_REQUEST
+            assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
             detail = response.json()["detail"]
             assert "Unsupported file type" in detail["error"]["message"]
 
