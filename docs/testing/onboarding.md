@@ -291,7 +291,7 @@ You've successfully run your first test and written your own test. Continue your
   - jest-expo, React Native Testing Library
   - Target: 50%+ coverage
 
-- **Desktop Testing Guide** → [DESKTOP_TESTING_GUIDE.md](DESKTOP_TESTING_GUIDE.md) *(coming soon in Phase 152)*
+- **Desktop Testing Guide** → [DESKTOP_TESTING_GUIDE.md](testing/desktop.md) *(coming soon in Phase 152)*
   - cargo test, proptest, tarpaulin
   - Target: 40%+ coverage
 
@@ -307,7 +307,7 @@ You've successfully run your first test and written your own test. Continue your
   - API-level tests (mobile)
   - Tauri integration (desktop)
 
-- **Cross-Platform Coverage** → [CROSS_PLATFORM_COVERAGE.md](CROSS_PLATFORM_COVERAGE.md)
+- **Cross-Platform Coverage** → [CROSS_PLATFORM_COVERAGE.md](testing/cross-platform.md)
   - Weighted coverage calculation
   - Platform-specific thresholds
   - Quality gates

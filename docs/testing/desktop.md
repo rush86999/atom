@@ -2360,7 +2360,7 @@ fn test_file_operations_with_real_files() {
 ### Testing Documentation
 
 - **[Testing Documentation Index](testing/index.md)** - Central hub for all testing documentation
-- **[Desktop Coverage](DESKTOP_COVERAGE.md)** - Detailed coverage analysis and gap tracking
+- **[Desktop Coverage](testing/desktop.md)** - Detailed coverage analysis and gap tracking
 
 ### Platform Guides
 
@@ -2372,7 +2372,7 @@ fn test_file_operations_with_real_files() {
 
 - **[Property Testing Patterns](testing/property-testing.md)** - FastCheck, Hypothesis, proptest
 - **[E2E Testing Guide](testing/e2e-guide.md)** - Playwright, API-level tests, Tauri integration
-- **[Cross-Platform Coverage](CROSS_PLATFORM_COVERAGE.md)** - Weighted coverage, platform minimums
+- **[Cross-Platform Coverage](testing/cross-platform.md)** - Weighted coverage, platform minimums
 
 ---
 

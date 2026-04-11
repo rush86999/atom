@@ -1168,5 +1168,5 @@ proptest! {
 
 - [Testing Documentation Index](testing/index.md) - Central hub for all testing documentation
 - [Testing Onboarding Guide](TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
-- [Cross-Platform Coverage](CROSS_PLATFORM_COVERAGE.md) - Weighted coverage calculation
+- [Cross-Platform Coverage](testing/cross-platform.md) - Weighted coverage calculation
 - [E2E Testing Guide](testing/e2e-guide.md) - End-to-end testing patterns

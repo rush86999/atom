@@ -41,9 +41,9 @@ Production deployment, monitoring, and platform-specific guides.
 - **[MenuBar Complete Final](MENUBAR_COMPLETE_FINAL.md)** - Completion status
 - **[MenuBar Deployment](MENUBAR_DEPLOYMENT.md)** - Deployment guide
 - **[MenuBar Test Status](MENUBAR_TEST_STATUS_FEB_5.md)** - Test results
-- **[Desktop Coverage](DESKTOP_COVERAGE.md)** - Feature coverage
+- **[Desktop Coverage](testing/desktop.md)** - Feature coverage
 - **[Desktop and Browser Feature Proposal](DESKTOP_AND_BROWSER_FEATURE_PROPOSAL.md)** - Feature planning
-- **[Desktop Testing Guide](DESKTOP_TESTING_GUIDE.md)** - Testing documentation
+- **[Desktop Testing Guide](testing/desktop.md)** - Testing documentation
 
 ### Mobile (React Native)
 - **[Mobile Deployment](MOBILE_DEPLOYMENT.md)** - Mobile deployment

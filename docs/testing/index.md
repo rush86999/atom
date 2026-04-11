@@ -67,7 +67,7 @@ Choose your platform to find platform-specific testing guides, frameworks, and p
 
 ### Desktop (Tauri/Rust)
 
-→ [DESKTOP_TESTING_GUIDE.md](DESKTOP_TESTING_GUIDE.md) *(coming soon in Phase 152)*
+→ [DESKTOP_TESTING_GUIDE.md](testing/desktop.md) *(coming soon in Phase 152)*
 
 **Frameworks:** cargo test, proptest, tarpaulin, #[tauri::test]
 **Target Coverage:** 40%+ across all modules
@@ -145,7 +145,7 @@ Cross-platform testing techniques that apply to multiple platforms.
 
 ### Cross-Platform Coverage
 
-→ [CROSS_PLATFORM_COVERAGE.md](CROSS_PLATFORM_COVERAGE.md)
+→ [CROSS_PLATFORM_COVERAGE.md](testing/cross-platform.md)
 
 **What you'll learn:**
 - Weighted coverage calculation (40/30/20/10%)
