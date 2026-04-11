@@ -14,7 +14,7 @@
 | 248 - Test Discovery & Documentation | 2/2 | ✅ COMPLETE | 2026-04-03 |
 | 249 - Critical Test Fixes | 3/3 | ✅ COMPLETE | 2026-04-03 |
 | 250 - All Test Fixes | 2/2 | ✅ COMPLETE | 2026-04-11 |
-| 251 - Backend Coverage Baseline | 2/3 | In Progress|  |
+| 251 - Backend Coverage Baseline | 3/3 | Complete   | 2026-04-11 |
 | 252 - Backend Coverage Push | 0/3 | Not started | - |
 | 253 - Backend 80% & Property Tests | 0/2 | Not started | - |
 | 254 - Frontend Coverage Baseline | 0/3 | Not started | - |
@@ -33,7 +33,7 @@
 - [x] **Phase 248: Test Discovery & Documentation** - Run full test suite and document all failures
 - [x] **Phase 249: Critical Test Fixes** - Fix critical/high-priority test failures using TDD
 - [x] **Phase 250: All Test Fixes** - Fix remaining test failures and achieve 100% pass rate
-- [ ] **Phase 251: Backend Coverage Baseline** - Measure baseline and reach 70% backend coverage
+- [x] **Phase 251: Backend Coverage Baseline** - Measure baseline and reach 70% backend coverage (completed 2026-04-11)
 - [ ] **Phase 252: Backend Coverage Push** - Reach 75% backend coverage with property tests
 - [ ] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests
 - [ ] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage
@@ -115,7 +115,7 @@
 **Plans**: 3 plans
 - [x] 251-01-PLAN.md — Measure backend coverage baseline with pytest-cov
 - [x] 251-02-PLAN.md — Generate gap analysis and cover high-impact files
-- [ ] 251-03-PLAN.md — Reach 70% coverage target with medium-impact file tests
+- [x] 251-03-PLAN.md — Reach 70% coverage target with medium-impact file tests
 
 ### Phase 252: Backend Coverage Push
 **Goal**: Backend coverage reaches 75% with property-based tests
