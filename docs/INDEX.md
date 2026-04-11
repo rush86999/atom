@@ -332,7 +332,7 @@
 ### Architecture
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture overview | Feb 1, 2026 |
+| [ARCHITECTURE.md](ARCHITECTURE/SYSTEM_OVERVIEW.md) | System architecture overview | Feb 1, 2026 |
 | [CODE_STRUCTURE_OVERVIEW.md](CODE_STRUCTURE_OVERVIEW.md) | Code structure overview | - |
 | [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md) | Database architecture | - |
 

@@ -228,10 +228,10 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Platform Documentation
 
-- **[Architecture Overview](ARCHITECTURE.md)** - System design and components
+- **[Architecture Overview](ARCHITECTURE/SYSTEM_OVERVIEW.md)** - System design and components
 - **[Technical Overview](TECHNICAL_OVERVIEW.md)** - Deep technical dive
 - **[Database Architecture](DATABASE_ARCHITECTURE.md)** - Data models and schema
-- **[Platform Guide](PLATFORM.md)** - Platform capabilities
+- **[Platform Guide](platform/PLATFORM.md)** - Platform capabilities
 
 ---
 
