@@ -34,7 +34,7 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 - [ ] **COV-B-02**: Backend coverage reaches 70% (progressive threshold)
 - [ ] **COV-B-03**: Backend coverage reaches 75% (progressive threshold)
 - [ ] **COV-B-04**: Backend coverage reaches 80% (final target)
-- [ ] **COV-B-05**: High-impact files covered (>200 lines, targeted first)
+- [x] **COV-B-05**: High-impact files covered (>200 lines, targeted first)
 
 ### Frontend Coverage
 
@@ -117,7 +117,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COV-B-02 | Phase 251 | Pending |
 | COV-B-03 | Phase 252 | Pending |
 | COV-B-04 | Phase 253 | Pending |
-| COV-B-05 | Phase 251-253 | Pending |
+| COV-B-05 | Phase 251-253 | Complete |
 | COV-F-01 | Phase 254 | Pending |
 | COV-F-02 | Phase 254 | Pending |
 | COV-F-03 | Phase 255 | Pending |
