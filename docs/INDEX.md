@@ -223,7 +223,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [PRODUCTION_DEPLOYMENT_SUMMARY.md]PRODUCTION_READINESS.md | **Production deployment checklist** | Feb 5, 2026 |
+| [Production Readiness](operations/production-readiness.md) | **Production deployment checklist** | Feb 5, 2026 |
 | [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | AWS, GCP, Azure deployment | - |
 | [PERSONAL_EDITION.md](operations/personal-edition.md) | Docker deployment guide | - |
 
@@ -475,7 +475,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [INCOMPLETE_IMPLEMENTATIONS.md]# | **Recent fixes status (Feb 5, 2026)** | Feb 5, 2026 |
-| [PRODUCTION_DEPLOYMENT_SUMMARY.md]PRODUCTION_READINESS.md | Production deployment | Feb 5, 2026 |
+| [Production Readiness](operations/production-readiness.md) | Production deployment | Feb 5, 2026 |
 | [API_STANDARDS.md](../backend/docs/API_STANDARDS.md) | API standards | Feb 4, 2026 |
 | [BYOK_LLM_INTEGRATION_COMPLETE.md]# | LLM integration | Feb 5, 2026 |
 | [FINAL_IMPLEMENTATION_SUMMARY.md]# | Final implementation summary | Feb 5, 2026 |
