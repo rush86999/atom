@@ -13,7 +13,7 @@ Core agent capabilities including governance, graduation, and orchestration.
 
 ### Guidance & Orchestration
 - **[Agent Guidance Implementation](guidance-system.md)** - Real-time agent operation tracking
-- **[Governance Learning Integration](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md)** - Learning from governance events
+- **[Governance Learning Integration](agents/governance.md)** - Learning from governance events
 
 ### Multi-Agent Coordination ✨ NEW
 - **[Unstructured Complex Tasks](unstructured-tasks.md)** - Intent classification and dynamic routing

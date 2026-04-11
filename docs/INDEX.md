@@ -110,7 +110,7 @@
 ### Core Agent Features
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md) | Agent governance and learning integration | Feb 2, 2026 |
+| [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](agents/governance.md) | Agent governance and learning integration | Feb 2, 2026 |
 | [AGENT_GRADUATION_GUIDE.md](../agents/graduation.md) | **Agent promotion criteria and validation** | Feb 3, 2026 |
 | [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) | **Agent maturity system (STUDENT → AUTONOMOUS)** | Feb 2, 2026 |
 | [agents/guidance-system.md](agents/guidance-system.md) | **Real-time agent operation tracking** | Feb 2, 2026 |

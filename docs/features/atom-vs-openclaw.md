@@ -376,9 +376,9 @@ Both are excellent choices depending on your use case. For business workflows re
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system ✨ NEW
 - [ATOM_CLI_SKILLS_GUIDE.md](ATOM_CLI_SKILLS_GUIDE.md) - Built-in CLI skills documentation ✨ NEW
 - [agents/graduation.md](../agents/graduation.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
-- [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](AGENT_GOVERNANCE_LEARNING_INTEGRATION.md) - **Capability graduation logic (5/20/50 rule)** ✨ NEW
+- [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](agents/governance.md) - **Capability graduation logic (5/20/50 rule)** ✨ NEW
 - [Episodic Memory](intelligence/episodic-memory.md) - Agent learning framework
-- [MESSAGING_PLATFORMS.md](MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
+- [MESSAGING_PLATFORMS.md](GUIDES/MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
 - [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 486 comprehensive E2E test functions ✨ NEW
 - [Bug Discovery Infrastructure](backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery ✨ NEW
 - [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices ✨ NEW
