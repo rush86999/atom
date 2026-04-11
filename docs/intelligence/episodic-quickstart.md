@@ -410,7 +410,7 @@ print(report)
 
 ## Next Steps
 
-- Read [Full Implementation Guide](EPISODIC_MEMORY_IMPLEMENTATION.md)
+- Read [Full Implementation Guide](intelligence/episodic-memory.md)
 - Review [Agent Graduation Guide](../agents/graduation.md)
 - Check [API Documentation](../api/episode_routes.py)
 - Run tests: `pytest tests/test_episode_*.py -v`

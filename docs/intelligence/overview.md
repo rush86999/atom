@@ -84,7 +84,7 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 ## Quick Links
 
 ### By Feature
-- **Memory**: [Episodic Memory](EPISODIC_MEMORY_IMPLEMENTATION.md)
+- **Memory**: [Episodic Memory](intelligence/episodic-memory.md)
 - **Knowledge**: [World Model](ai-world-model.md)
 - **Graph**: [GraphRAG](GRAPHRAG_AND_ENTITY_TYPES.md)
 - **Facts**: [JIT Fact Provision](JIT_FACT_PROVISION_SYSTEM.md)
