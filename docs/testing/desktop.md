@@ -2359,14 +2359,14 @@ fn test_file_operations_with_real_files() {
 
 ### Testing Documentation
 
-- **[Testing Documentation Index](TESTING_INDEX.md)** - Central hub for all testing documentation
+- **[Testing Documentation Index](testing/index.md)** - Central hub for all testing documentation
 - **[Desktop Coverage](DESKTOP_COVERAGE.md)** - Detailed coverage analysis and gap tracking
 
 ### Platform Guides
 
 - **[Frontend Testing Guide](FRONTEND_TESTING_GUIDE.md)** - Jest, React Testing Library, MSW, jest-axe
 - **[Mobile Testing Guide](MOBILE_TESTING_GUIDE.md)** - jest-expo, React Native Testing Library
-- **Backend:** [Backend Coverage Guide](TESTING_INDEX.md) - pytest, Hypothesis, Schemathesis
+- **Backend:** [Backend Coverage Guide](testing/index.md) - pytest, Hypothesis, Schemathesis
 
 ### Cross-Platform Testing
 

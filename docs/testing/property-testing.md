@@ -1166,7 +1166,7 @@ proptest! {
 
 ## See Also
 
-- [Testing Documentation Index](TESTING_INDEX.md) - Central hub for all testing documentation
+- [Testing Documentation Index](testing/index.md) - Central hub for all testing documentation
 - [Testing Onboarding Guide](TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
 - [Cross-Platform Coverage](CROSS_PLATFORM_COVERAGE.md) - Weighted coverage calculation
 - [E2E Testing Guide](E2E_TESTING_GUIDE.md) - End-to-end testing patterns

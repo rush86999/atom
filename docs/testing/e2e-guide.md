@@ -1534,7 +1534,7 @@ backend/tests/e2e_ui/
 
 ## See Also
 
-- [Testing Documentation Index](TESTING_INDEX.md) - Central hub for all testing documentation
+- [Testing Documentation Index](testing/index.md) - Central hub for all testing documentation
 - [Testing Onboarding Guide](TESTING_ONBOARDING.md) - 15-minute quick start for all platforms
 - [Property Testing Patterns](PROPERTY_TESTING_PATTERNS.md) - Cross-platform property tests
 - [Cross-Platform Coverage](CROSS_PLATFORM_COVERAGE.md) - Coverage across all platforms

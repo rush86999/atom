@@ -214,7 +214,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [PERFORMANCE_MONITORING_SETUP.md](PERFORMANCE_MONITORING_SETUP.md) | Performance monitoring setup | - |
-| [CODE_QUALITY_GUIDE.md](CODE_QUALITY_GUIDE.md) | Code quality guidelines | Feb 4, 2026 |
+| [CODE_QUALITY_GUIDE.md](DEVELOPMENT/code-quality.md) | Code quality guidelines | Feb 4, 2026 |
 | [CODEBASE_HEALTH_CHECK.md](CODEBASE_HEALTH_CHECK.md) | Codebase health check | Feb 3, 2026 |
 
 ---
@@ -238,7 +238,7 @@
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Production troubleshooting guide** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
 
 ### Monitoring & Observability
 
@@ -312,7 +312,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [CODE_QUALITY_GUIDE.md](CODE_QUALITY_GUIDE.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
+| [CODE_QUALITY_GUIDE.md](DEVELOPMENT/code-quality.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
 | [CI_FIXES.md](CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
 | [TEST_RESULTS_FEB2026.md](TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
@@ -440,7 +440,7 @@
 - [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) - **Operations guide** (Feb 16)
 - [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) - **Troubleshooting** (Feb 16)
 - [MONITORING_SETUP.md](MONITORING_GUIDE.md) - **Monitoring setup** (Feb 16)
-- [CODE_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md) - **Code quality** (Feb 16)
+- [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) - **Code quality** (Feb 16)
 - [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 
 ### Canvas & AI Features (Phase 20-23)
@@ -484,7 +484,7 @@
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Troubleshooting guide** | Feb 16, 2026 |
 | [MONITORING_SETUP.md](MONITORING_GUIDE.md) | **Monitoring setup** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](CODE_QUALITY_GUIDE.md) | **Code quality standards** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) | **Code quality standards** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
 
 ---

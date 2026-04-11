@@ -31,7 +31,7 @@ Production deployment, monitoring, and platform-specific guides.
 - **[Performance Tuning](PERFORMANCE_TUNING.md)** - Optimization strategies
 
 ### Build & CI/CD
-- **[Build](BUILD.md)** - Build process
+- **[Build](DEVELOPMENT/build.md)** - Build process
 - **[CI Fixes](CI_FIXES.md)** - CI/CD troubleshooting
 
 ## Platform-Specific
