@@ -196,6 +196,7 @@ def generate_gap_report(
     coverage_data: Dict[str, Any],
     output_path: Path,
     report_path: Optional[Path] = None,
+    target_threshold: float = 80.0,
 ) -> None:
     """Generate gap analysis report (JSON + optional Markdown)."""
     # Calculate overall metrics
@@ -214,8 +215,8 @@ def generate_gap_report(
     report = {
         "generated_at": timestamp,
         "baseline_coverage": round(overall_coverage, 2),
-        "target_coverage": 80.0,
-        "gap_to_target": round(80.0 - overall_coverage, 2),
+        "target_coverage": target_threshold,
+        "gap_to_target": round(target_threshold - overall_coverage, 2),
         "total_files_analyzed": len(gaps),
         "total_missing_lines": sum(g["uncovered_lines"] for g in gaps),
         "tier_breakdown": {
@@ -261,7 +262,7 @@ def generate_gap_report(
 def generate_markdown_report(report: Dict[str, Any], report_path: Path) -> None:
     """Generate human-readable Markdown report."""
     lines = [
-        "# Coverage Gap Analysis - Phase 164\n",
+        "# Coverage Gap Analysis - Phase 251\n",
         f"**Generated**: {report['generated_at']}",
         f"**Baseline Coverage**: {report['baseline_coverage']}%",
         f"**Target Coverage**: {report['target_coverage']}%",
@@ -362,7 +363,7 @@ def main():
     gaps = analyze_gaps(coverage_data, impact_lookup, args.threshold)
 
     # Generate report
-    generate_gap_report(gaps, coverage_data, args.output, args.report)
+    generate_gap_report(gaps, coverage_data, args.output, args.report, args.threshold)
 
 
 if __name__ == "__main__":
