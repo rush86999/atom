@@ -1,0 +1,655 @@
+{
+  "baseline": {
+    "timestamp": "2026-04-11T23:19:58.679Z",
+    "total_lines_pct": 12.94,
+    "total_statements_pct": 13.31,
+    "total_functions_pct": 8.97,
+    "total_branches_pct": 7.76,
+    "lines_covered": 3400,
+    "lines_total": 26273
+  },
+  "components": {
+    "agents": {
+      "files": [
+        {
+          "path": "components/Agents/AgentCard.tsx",
+          "coverage": 0,
+          "lines_total": 19,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Agents/AgentHistoryTable.tsx",
+          "coverage": 0,
+          "lines_total": 18,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Agents/AgentManager.tsx",
+          "coverage": 62.06,
+          "lines_total": 87,
+          "lines_covered": 54
+        },
+        {
+          "path": "components/Agents/AgentStudio.tsx",
+          "coverage": 0,
+          "lines_total": 144,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Agents/AgentTerminal.tsx",
+          "coverage": 0,
+          "lines_total": 26,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Agents/MaturityProgression.tsx",
+          "coverage": 0,
+          "lines_total": 14,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Agents/MemoryRecallFeed.tsx",
+          "coverage": 0,
+          "lines_total": 30,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Agents/ReasoningChain.tsx",
+          "coverage": 65.21,
+          "lines_total": 46,
+          "lines_covered": 30
+        },
+        {
+          "path": "components/Agents/RoleSettings.tsx",
+          "coverage": 18.08,
+          "lines_total": 94,
+          "lines_covered": 17
+        }
+      ],
+      "lines_pct": "21.13",
+      "lines_covered": 101,
+      "lines_total": 478
+    },
+    "automations": {
+      "files": [
+        {
+          "path": "components/Automations/AddStepEdge.tsx",
+          "coverage": 0,
+          "lines_total": 21,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/AgentWorkflowGenerator.tsx",
+          "coverage": 0,
+          "lines_total": 137,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/CustomNodes.tsx",
+          "coverage": 0,
+          "lines_total": 79,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/ExecutionDetailView.tsx",
+          "coverage": 0,
+          "lines_total": 37,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/ExecutionHistoryList.tsx",
+          "coverage": 0,
+          "lines_total": 55,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/FlowVersioning.tsx",
+          "coverage": 0,
+          "lines_total": 48,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/IntegrationSelector.tsx",
+          "coverage": 0,
+          "lines_total": 30,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/LogsSidebar.tsx",
+          "coverage": 0,
+          "lines_total": 25,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/ManageConnectionsModal.tsx",
+          "coverage": 0,
+          "lines_total": 64,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/NodeConfigSidebar.tsx",
+          "coverage": 0,
+          "lines_total": 168,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/OptimizationPanel.tsx",
+          "coverage": 0,
+          "lines_total": 15,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/PiecesSidebar.tsx",
+          "coverage": 0,
+          "lines_total": 82,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/SmartSuggestions.tsx",
+          "coverage": 0,
+          "lines_total": 38,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/TemplateGallery.tsx",
+          "coverage": 0,
+          "lines_total": 47,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/TriggerSettings.tsx",
+          "coverage": 0,
+          "lines_total": 2,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/VariablePicker.tsx",
+          "coverage": 0,
+          "lines_total": 19,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/WorkflowBuilder.tsx",
+          "coverage": 0,
+          "lines_total": 337,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/WorkflowEditor.tsx",
+          "coverage": 0,
+          "lines_total": 9,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/WorkflowMonitor.tsx",
+          "coverage": 0,
+          "lines_total": 94,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/WorkflowScheduler.tsx",
+          "coverage": 0,
+          "lines_total": 102,
+          "lines_covered": 0
+        },
+        {
+          "path": "components/Automations/WorkflowTables.tsx",
+          "coverage": 0,
+          "lines_total": 89,
+          "lines_covered": 0
+        }
+      ],
+      "lines_pct": "0.00",
+      "lines_covered": 0,
+      "lines_total": 1498
+    },
+    "canvas": {
+      "files": [
+        {
+          "path": "components/canvas/AgentOperationTracker.tsx",
+          "coverage": 26.92,
+          "lines_total": 52,
+          "lines_covered": 14
+        },
+        {
+          "path": "components/canvas/AgentRequestPrompt.tsx",
+          "coverage": 79.48,
+          "lines_total": 78,
+          "lines_covered": 62
+        },
+        {
+          "path": "components/canvas/BarChart.tsx",
+          "coverage": 70,
+          "lines_total": 30,
+          "lines_covered": 21
+        },
+        {
+          "path": "components/canvas/IntegrationConnectionGuide.tsx",
+          "coverage": 72.05,
+          "lines_total": 68,
+          "lines_covered": 49
+        },
+        {
+          "path": "components/canvas/InteractiveForm.tsx",
+          "coverage": 90.36,
+          "lines_total": 83,
+          "lines_covered": 75
+        },
+        {
+          "path": "components/canvas/LineChart.tsx",
+          "coverage": 70,
+          "lines_total": 30,
+          "lines_covered": 21
+        },
+        {
+          "path": "components/canvas/OperationErrorGuide.tsx",
+          "coverage": 98.03,
+          "lines_total": 51,
+          "lines_covered": 50
+        },
+        {
+          "path": "components/canvas/PieChart.tsx",
+          "coverage": 69.69,
+          "lines_total": 33,
+          "lines_covered": 23
+        },
+        {
+          "path": "components/canvas/ViewOrchestrator.tsx",
+          "coverage": 88.63,
+          "lines_total": 88,
+          "lines_covered": 78
+        }
+      ],
+      "lines_pct": "76.61",
+      "lines_covered": 393,
+      "lines_total": 513
+    },
+    "auth": {
+      "files": [
+        {
+          "path": "pages/auth/error.tsx",
+          "coverage": 0,
+          "lines_total": 18,
+          "lines_covered": 0
+        },
+        {
+          "path": "pages/auth/forgot-password.tsx",
+          "coverage": 0,
+          "lines_total": 24,
+          "lines_covered": 0
+        },
+        {
+          "path": "pages/auth/reset-password.tsx",
+          "coverage": 0,
+          "lines_total": 50,
+          "lines_covered": 0
+        },
+        {
+          "path": "pages/auth/signin.tsx",
+          "coverage": 0,
+          "lines_total": 46,
+          "lines_covered": 0
+        },
+        {
+          "path": "pages/auth/signup.tsx",
+          "coverage": 0,
+          "lines_total": 50,
+          "lines_covered": 0
+        },
+        {
+          "path": "pages/auth/verification-sent.tsx",
+          "coverage": 0,
+          "lines_total": 11,
+          "lines_covered": 0
+        },
+        {
+          "path": "pages/auth/verify-email.tsx",
+          "coverage": 0,
+          "lines_total": 48,
+          "lines_covered": 0
+        }
+      ],
+      "lines_pct": "0.00",
+      "lines_covered": 0,
+      "lines_total": 247
+    },
+    "hooks": {
+      "files": [
+        {
+          "path": "hooks/test-helpers.ts",
+          "coverage": 36.61,
+          "lines_total": 71,
+          "lines_covered": 26
+        },
+        {
+          "path": "hooks/use-toast.ts",
+          "coverage": 100,
+          "lines_total": 13,
+          "lines_covered": 13
+        },
+        {
+          "path": "hooks/useCanvasState.ts",
+          "coverage": 87.2,
+          "lines_total": 86,
+          "lines_covered": 75
+        },
+        {
+          "path": "hooks/useChatMemory.ts",
+          "coverage": 41.37,
+          "lines_total": 87,
+          "lines_covered": 36
+        },
+        {
+          "path": "hooks/useCliHandler.ts",
+          "coverage": 92.59,
+          "lines_total": 27,
+          "lines_covered": 25
+        },
+        {
+          "path": "hooks/useCognitiveTier.ts",
+          "coverage": 100,
+          "lines_total": 41,
+          "lines_covered": 41
+        },
+        {
+          "path": "hooks/useCommunicationSearch.ts",
+          "coverage": 68.18,
+          "lines_total": 22,
+          "lines_covered": 15
+        },
+        {
+          "path": "hooks/useFileUpload.ts",
+          "coverage": 0,
+          "lines_total": 19,
+          "lines_covered": 0
+        },
+        {
+          "path": "hooks/useLiveCommunication.ts",
+          "coverage": 100,
+          "lines_total": 19,
+          "lines_covered": 19
+        },
+        {
+          "path": "hooks/useLiveContacts.ts",
+          "coverage": 100,
+          "lines_total": 17,
+          "lines_covered": 17
+        },
+        {
+          "path": "hooks/useLiveFinance.ts",
+          "coverage": 75,
+          "lines_total": 20,
+          "lines_covered": 15
+        },
+        {
+          "path": "hooks/useLiveKnowledge.ts",
+          "coverage": 100,
+          "lines_total": 29,
+          "lines_covered": 29
+        },
+        {
+          "path": "hooks/useLiveProjects.ts",
+          "coverage": 100,
+          "lines_total": 20,
+          "lines_covered": 20
+        },
+        {
+          "path": "hooks/useLiveSales.ts",
+          "coverage": 100,
+          "lines_total": 20,
+          "lines_covered": 20
+        },
+        {
+          "path": "hooks/useLiveSupport.ts",
+          "coverage": 92.85,
+          "lines_total": 14,
+          "lines_covered": 13
+        },
+        {
+          "path": "hooks/useMemorySearch.ts",
+          "coverage": 75,
+          "lines_total": 28,
+          "lines_covered": 21
+        },
+        {
+          "path": "hooks/useSecurityScanner.ts",
+          "coverage": 84.21,
+          "lines_total": 38,
+          "lines_covered": 32
+        },
+        {
+          "path": "hooks/useSpeechRecognition.ts",
+          "coverage": 89.83,
+          "lines_total": 59,
+          "lines_covered": 53
+        },
+        {
+          "path": "hooks/useTextToSpeech.ts",
+          "coverage": 100,
+          "lines_total": 53,
+          "lines_covered": 53
+        },
+        {
+          "path": "hooks/useUndoRedo.ts",
+          "coverage": 94.73,
+          "lines_total": 38,
+          "lines_covered": 36
+        },
+        {
+          "path": "hooks/useUserActivity.ts",
+          "coverage": 73.13,
+          "lines_total": 67,
+          "lines_covered": 49
+        },
+        {
+          "path": "hooks/useVoiceAgent.ts",
+          "coverage": 84.48,
+          "lines_total": 58,
+          "lines_covered": 49
+        },
+        {
+          "path": "hooks/useVoiceIO.ts",
+          "coverage": 100,
+          "lines_total": 5,
+          "lines_covered": 5
+        },
+        {
+          "path": "hooks/useWebSocket.ts",
+          "coverage": 100,
+          "lines_total": 58,
+          "lines_covered": 58
+        },
+        {
+          "path": "hooks/useWhatsAppWebSocket.ts",
+          "coverage": 90.59,
+          "lines_total": 117,
+          "lines_covered": 106
+        },
+        {
+          "path": "hooks/useWhatsAppWebSocketEnhanced.ts",
+          "coverage": 74.46,
+          "lines_total": 141,
+          "lines_covered": 105
+        },
+        {
+          "path": "hooks/chat/useChatInterface.ts",
+          "coverage": 0,
+          "lines_total": 133,
+          "lines_covered": 0
+        }
+      ],
+      "lines_pct": "71.62",
+      "lines_covered": 931,
+      "lines_total": 1300
+    }
+  },
+  "critical_files": [
+    {
+      "path": "hooks/useChatMemory.ts",
+      "coverage": 41.37,
+      "lines_total": 87
+    },
+    {
+      "path": "hooks/useCanvasState.ts",
+      "coverage": 87.2,
+      "lines_total": 86
+    },
+    {
+      "path": "hooks/useWebSocket.ts",
+      "coverage": 100,
+      "lines_total": 58
+    }
+  ],
+  "zero_coverage_files": [
+    {
+      "path": "components/Automations/WorkflowBuilder.tsx",
+      "lines_total": 337
+    },
+    {
+      "path": "components/Automations/NodeConfigSidebar.tsx",
+      "lines_total": 168
+    },
+    {
+      "path": "components/Agents/AgentStudio.tsx",
+      "lines_total": 144
+    },
+    {
+      "path": "components/Automations/AgentWorkflowGenerator.tsx",
+      "lines_total": 137
+    },
+    {
+      "path": "hooks/chat/useChatInterface.ts",
+      "lines_total": 133
+    },
+    {
+      "path": "components/Automations/WorkflowScheduler.tsx",
+      "lines_total": 102
+    },
+    {
+      "path": "components/Automations/WorkflowMonitor.tsx",
+      "lines_total": 94
+    },
+    {
+      "path": "components/Automations/WorkflowTables.tsx",
+      "lines_total": 89
+    },
+    {
+      "path": "components/Automations/PiecesSidebar.tsx",
+      "lines_total": 82
+    },
+    {
+      "path": "components/Automations/CustomNodes.tsx",
+      "lines_total": 79
+    },
+    {
+      "path": "components/Automations/ManageConnectionsModal.tsx",
+      "lines_total": 64
+    },
+    {
+      "path": "components/Automations/ExecutionHistoryList.tsx",
+      "lines_total": 55
+    },
+    {
+      "path": "pages/auth/reset-password.tsx",
+      "lines_total": 50
+    },
+    {
+      "path": "pages/auth/signup.tsx",
+      "lines_total": 50
+    },
+    {
+      "path": "components/Automations/FlowVersioning.tsx",
+      "lines_total": 48
+    },
+    {
+      "path": "pages/auth/verify-email.tsx",
+      "lines_total": 48
+    },
+    {
+      "path": "components/Automations/TemplateGallery.tsx",
+      "lines_total": 47
+    },
+    {
+      "path": "pages/auth/signin.tsx",
+      "lines_total": 46
+    },
+    {
+      "path": "components/Automations/SmartSuggestions.tsx",
+      "lines_total": 38
+    },
+    {
+      "path": "components/Automations/ExecutionDetailView.tsx",
+      "lines_total": 37
+    },
+    {
+      "path": "components/Agents/MemoryRecallFeed.tsx",
+      "lines_total": 30
+    },
+    {
+      "path": "components/Automations/IntegrationSelector.tsx",
+      "lines_total": 30
+    },
+    {
+      "path": "components/Agents/AgentTerminal.tsx",
+      "lines_total": 26
+    },
+    {
+      "path": "components/Automations/LogsSidebar.tsx",
+      "lines_total": 25
+    },
+    {
+      "path": "pages/auth/forgot-password.tsx",
+      "lines_total": 24
+    },
+    {
+      "path": "components/Automations/AddStepEdge.tsx",
+      "lines_total": 21
+    },
+    {
+      "path": "components/Agents/AgentCard.tsx",
+      "lines_total": 19
+    },
+    {
+      "path": "components/Automations/VariablePicker.tsx",
+      "lines_total": 19
+    },
+    {
+      "path": "hooks/useFileUpload.ts",
+      "lines_total": 19
+    },
+    {
+      "path": "components/Agents/AgentHistoryTable.tsx",
+      "lines_total": 18
+    },
+    {
+      "path": "pages/auth/error.tsx",
+      "lines_total": 18
+    },
+    {
+      "path": "components/Automations/OptimizationPanel.tsx",
+      "lines_total": 15
+    },
+    {
+      "path": "components/Agents/MaturityProgression.tsx",
+      "lines_total": 14
+    },
+    {
+      "path": "pages/auth/verification-sent.tsx",
+      "lines_total": 11
+    },
+    {
+      "path": "components/Automations/WorkflowEditor.tsx",
+      "lines_total": 9
+    },
+    {
+      "path": "components/Automations/TriggerSettings.tsx",
+      "lines_total": 2
+    }
+  ],
+  "gap_to_70_percent": {
+    "lines_needed": 14991,
+    "current_lines": 3400,
+    "target_lines": 18391,
+    "percentage_points_needed": "57.06"
+  }
+}
