@@ -17,6 +17,7 @@
 | 251 - Backend Coverage Baseline | 3/3 | Complete   | 2026-04-11 |
 | 252 - Backend Coverage Push | 3/3 | ✅ COMPLETE | 2026-04-11 |
 | 253a - Property Tests Data Integrity | 1/1 | Complete   | 2026-04-11 |
+| 253b - Coverage Expansion Wave 1 | 0/1 | Not started | - |
 | 253 - Backend 80% & Property Tests | 0/3 | Not started | - |
 | 254 - Frontend Coverage Baseline | 0/3 | Not started | - |
 | 255 - Frontend Coverage Push | 0/2 | Not started | - |
@@ -24,9 +25,9 @@
 | 257 - TDD & Property Test Documentation | 0/2 | Not started | - |
 | 258 - Quality Gates & Final Documentation | 0/3 | Not started | - |
 
-**Overall:** 14/42 plans complete (33%)
+**Overall:** 14/46 plans complete (30%)
 
-**Total:** 42 plans across 13 phases
+**Total:** 46 plans across 14 phases
 
 ## Phases
 
@@ -37,6 +38,7 @@
 - [x] **Phase 251: Backend Coverage Baseline** - Measure baseline and reach 70% backend coverage (completed 2026-04-11)
 - [x] **Phase 252: Backend Coverage Push** - Reach 75% backend coverage with property tests (completed 2026-04-11)
 - [x] **Phase 253a: Property Tests Data Integrity** - Create property tests for episode and skill execution data integrity (PROP-03) (completed 2026-04-11)
+- [ ] **Phase 253b: Coverage Expansion Wave 1** - Add traditional unit/integration tests for high-impact core services (governance, LLM, episodes) to measurably increase coverage from 4.60% baseline
 - [ ] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests
 - [ ] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage
 - [ ] **Phase 255: Frontend Coverage Push** - Reach 75% frontend coverage
@@ -147,6 +149,19 @@
 **Plans**: 1 plan
 - [x] 253a-01-PLAN.md — Create property tests for episode and skill execution data integrity
 
+### Phase 253b: Coverage Expansion Wave 1
+**Goal**: Add traditional unit/integration tests for high-impact core services to measurably increase coverage from 4.60% baseline
+**Depends on**: Phase 253a (property test patterns established)
+**Requirements**: COV-B-04
+**Success Criteria** (what must be TRUE):
+  1. Core governance services have test coverage (agent_governance_service, agent_context_resolver, governance_cache)
+  2. LLM services have test coverage (byok_handler, cognitive_tier_system, cache_aware_router)
+  3. Episode services have test coverage (segmentation, lifecycle, graduation)
+  4. Coverage increases measurably from 4.60% baseline (+1-3 percentage points)
+  5. Wave 1 coverage report generated with baseline comparison
+**Plans**: 1 plan
+- [ ] 253b-01-PLAN.md — Create coverage expansion tests for high-impact core services (governance, LLM, episodes) and generate Wave 1 report
+
 ### Phase 253: Backend 80% & Property Tests
 **Goal**: Backend coverage reaches 80% with data integrity property tests
 **Depends on**: Phase 252 (75% coverage)
@@ -172,7 +187,10 @@
   3. Critical components covered (auth, agents, workflows, canvas)
   4. Coverage report generated with gap analysis
   5. Component-level coverage breakdown available
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 254-01-PLAN.md — Measure frontend coverage baseline with Jest/React Testing Library
+- [ ] 254-02-PLAN.md — Create agent component tests (AgentCard, AgentManager, AgentStudio, AgentTerminal)
+- [ ] 254-03-PLAN.md — Create workflow, canvas, and hook tests to reach 70% target
 
 ### Phase 255: Frontend Coverage Push
 **Goal**: Frontend coverage reaches 75%
@@ -244,7 +262,7 @@ All 36 v10.0 requirements mapped to phases:
 | COV-B-01 | Phase 251 | Backend coverage baseline measured |
 | COV-B-02 | Phase 251 | Backend coverage reaches 70% |
 | COV-B-03 | Phase 252 | Backend coverage reaches 75% |
-| COV-B-04 | Phase 253 | Backend coverage reaches 80% |
+| COV-B-04 | Phase 253b/253 | Backend coverage reaches 80% (progressive waves) |
 | COV-B-05 | Phase 251-253 | High-impact files covered |
 | COV-F-01 | Phase 254 | Frontend coverage baseline measured |
 | COV-F-02 | Phase 254 | Frontend coverage reaches 70% |
@@ -287,6 +305,8 @@ Phase 252 (Backend 75%)    │
     ↓                      │
 Phase 253a (Data Integrity)│
     ↓                      │
+Phase 253b (Coverage Wave 1)│
+    ↓                      │
 Phase 253 (Backend 80%)    │
     ↓                      ├────────────────────┐
 Phase 257 (TDD Docs)       │                    │
@@ -320,8 +340,8 @@ Milestone is complete when:
 ## Timeline
 
 **Target:** 1 week (aggressive execution)
-**Phases:** 13 phases (added Phase 253a for focused data integrity property tests)
-**Estimated Plans:** 42 plans
+**Phases:** 14 phases (added Phase 253a for data integrity property tests, 253b for coverage expansion wave 1)
+**Estimated Plans:** 46 plans
 **Parallelization:** Enabled (backend/frontend coverage can run in parallel after Phase 250)
 
 ## Anti-Patterns
@@ -341,6 +361,7 @@ Milestone is complete when:
 - **Quality gates**: CI/CD prevents merging if builds fail, tests fail, or coverage drops
 - **Property tests**: Added in Phase 252 (governance, LLM, workflows) and Phase 253a (episodes, skills, data integrity)
 - **Phase 253a**: Focused phase for data integrity property tests (PROP-03), split from Phase 253 to isolate property test work from coverage measurement
+- **Phase 253b**: Wave 1 coverage expansion using traditional unit/integration tests for high-impact core services. Progressive wave approach to reach 80% target incrementally (Wave 1: +1-3%, Wave 2: +3-5%, etc.)
 
 ---
 
