@@ -590,12 +590,12 @@ GET /api/v1/auto-dev/evolutions/{evolution_id}
 ### Learn More
 - **[Agent Graduation Guide](../agents/graduation.md)** - Promote agents to unlock Auto-Dev
 - **[Episodic Memory](../intelligence/episodic-memory.md)** - Understanding episodes and learning
-- **[Sandbox Security](../security/sandbox.md)** - Deep dive on sandbox architecture
+- **[Python Packages Security](../security/python-packages.md)** - Container security and sandbox architecture
 
 ### Explore
-- **[Auto-Dev Examples](../examples/auto-dev/)** - Real-world Auto-Dev scenarios *(coming soon)*
 - **[Evolution Strategies](#best-practices)** - Advanced evolution techniques (see Best Practices above)
 - **[Performance Tuning](../operations/performance.md)** - Optimization best practices
+- **[Package Governance](../security/package-governance.md)** - Security constraints and sandbox configuration
 
 ### Get Help
 - **Documentation:** [docs.atomagentos.com](https://docs.atomagentos.com)
