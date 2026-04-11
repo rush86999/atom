@@ -64,14 +64,10 @@ Atom is designed for **self-hosted deployment**:
 
 [Full Architecture Guide →](docs/SINGLE_TENANT.md)
 
-### Meta-Agent Routing ✨ NEW
+### Meta-Agent Routing ✨
+Intelligent CHAT/WORKFLOW/TASK routing with governance checks and dynamic fleet recruitment
 
-Intelligent request routing with governance checks:
-
-- **Intent Classification**: Automatically categorize requests as CHAT/WORKFLOW/TASK
-- **Governance Checks**: Maturity-based permissions for WORKFLOW/TASK routing
-- **Auto-Takeover**: Propose CHAT alternatives when governance denies actions
-- **Dynamic Fleet Recruitment**: TASK routing uses FleetAdmiral for specialist recruitment
+[Meta-Agent Guide →](docs/agents/meta-agent.md)
 
 ---
 
@@ -119,30 +115,22 @@ That's it! 🚀
 - Real-time feedback as Atom visualizes its reasoning
 
 ### 🤖 Specialty Agents
-- **Sales Agent**: CRM pipelines, lead scoring, outreach
-- **Marketing Agent**: Campaigns, social posting, analytics
-- **Engineering Agent**: PR notifications, deployments, incidents
-- **Hive Orchestration**: Autonomous multi-agent coordination with **Queen** (Architectural Design) and **King** (Execution Orchestration). ✨ NEW
-- **Intelligent request routing**: Automatic intent classification to route requests to the most capable specialty agent. ✨ NEW
-- **Autonomous Workflow Realization**: Convert natural language requests into persistent, executable blueprints via the Queen Agent. ✨ NEW
-- **Meta-Agent Routing**: Governance-gated routing with CHAT/WORKFLOW/TASK intent classification and auto-takeover proposal mode. ✨ NEW (v13.0)
-- **Dynamic Fleet Recruitment**: FleetAdmiral automatically recruits specialist agents based on task requirements. ✨ NEW (v13.0)
+- **Sales, Marketing, Engineering**: CRM pipelines, campaigns, deployments, incidents
+- **Hive Orchestration**: Queen Agent (architectural design) and FleetAdmiral (dynamic specialist recruitment)
+- **Self-Evolving Capabilities**: Memento Skills learns from failures, AlphaEvolver optimizes via mutation ✨ NEW
 - **Governance**: Progress from "Student" to "Autonomous" as they gain trust
 
-### 🎨 Canvas Presentations & Real-Time Guidance ✨
-- Rich interactive presentations (charts, forms, markdown)
-- **Live operation visibility**: See exactly what agents are doing
-- Multi-view orchestration (browser, terminal, canvas)
-- Smart error resolution with actionable suggestions
-- [Full Details →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
+[Special Agents Guide →](docs/agents/special-agents.md) | [Queen Agent →](docs/QUEEN_AGENT.md) | [Auto-Dev →](docs/guides/AUTO_DEV_USER_GUIDE.md)
 
-### 🧠 Autonomous Self-Evolution & Graduation ✨ NEW
-- **Experience-based learning**: Agents store and retrieve past experiences using the Reflection Pool.
-- **Recursive Self-Evolution**: Autonomous critique-based optimization loop (optimized for MiniMax M2.7).
-- **Dual-Trigger Graduation**: Skills progress from `SUPERVISED` to `AUTONOMOUS` via post-task event hooks and background audits.
-- **Dynamic Streak Rule**: Promotion based on "Clean Run" streaks (Success + No Intervention + High Compliance).
-- **Hybrid storage**: PostgreSQL for state + LanceDB for mistake memory.
-- [Agent Graduation Guide →](docs/AGENT_GRADUATION_GUIDE.md)
+### 🎨 Canvas Presentations & Real-Time Guidance ✨
+Rich interactive presentations (charts, forms, markdown) with live operation visibility, multi-view orchestration, and smart error resolution
+
+[Canvas Guide →](docs/CANVAS_IMPLEMENTATION_COMPLETE.md)
+
+### 🧠 Autonomous Self-Evolution & Graduation ✨
+Experience-based learning with recursive self-evolution, dual-trigger graduation (SUPERVISED → AUTONOMOUS), and hybrid PostgreSQL + LanceDB storage
+
+[Agent Graduation Guide →](docs/AGENT_GRADUATION_GUIDE.md)
 
 ### 🛡️ Agent Governance System
 - 4-tier maturity-based routing and approval system
@@ -155,25 +143,15 @@ That's it! 🚀
 - **Marketplace Connection**: Access 5,000+ community skills and agent templates ✨ NEW
 - Use `/run`, `/workflow`, `/agents` from your favorite chat app
 
-### 🔍 Knowledge Graph & GraphRAG ✨ NEW
-- **Recursive Knowledge Retrieval**: Higher-order reasoning via BFS graph traversal.
-- **Canonical Anchoring**: Link graph nodes to concrete database records (Users, Tickets, Formulas).
-- **Bidirectional Sync**: Update entity metadata directly from the Graph UI.
-- **Visual Explorer**: Interactive D3-powered graph visualization at `/graph`.
-- [GraphRAG Documentation →](docs/GRAPHRAG_PORTED.md)
+### 🔍 Knowledge Graph & GraphRAG ✨
+Recursive knowledge retrieval via BFS traversal, canonical anchoring to database records, bidirectional sync, and D3-powered visual explorer
+
+[GraphRAG Documentation →](docs/GRAPHRAG_PORTED.md)
 
 ### 🌐 Community Skills & Package Marketplace ✨
-- **5,000+ OpenClaw/ClawHub skills**: Import community-built tools
-- **Skill Marketplace**: PostgreSQL-based with search, ratings, categories
-- **Enterprise security**: LLM-powered scanning (21+ malicious patterns) with hazard sandbox
-- **Skills Registry**: Import with status tracking (Untrusted → Active → Banned)
-- **Dynamic Skill Loading**: importlib-based hot-reload with watchdog monitoring
-- **Skill Composition**: DAG workflows with parallel execution and rollback
-- **Auto-Installation**: Python + npm with conflict detection and automatic rollback
-- **Python Package Support**: NumPy, Pandas, 350K+ PyPI packages with vulnerability scanning
-- **npm Package Support**: Lodash, Express, 2M+ npm packages with governance
-- **Supply Chain Security**: Typosquatting detection, dependency confusion prevention, postinstall malware blocking
-- [Community Skills Guide →](docs/COMMUNITY_SKILLS.md)
+5,000+ OpenClaw/ClawHub skills with PostgreSQL marketplace, LLM-powered security scanning (21+ malicious patterns), DAG skill composition, Python + npm auto-installation with vulnerability scanning, and supply chain protection
+
+[Community Skills Guide →](docs/COMMUNITY_SKILLS.md) | [Python Packages →](docs/security/python-packages.md) | [npm Packages →](docs/security/npm-packages.md)
 
 ### 🔍 Browser & Device Automation
 - Browser automation via CDP (scraping, form filling)
@@ -215,56 +193,9 @@ cp .env.personal .env
 
 ## Marketplace (Commercial Service)
 
-The Atom Agent OS includes a **commercial marketplace** for discovering and installing:
-- **Agents** - Pre-configured AI agents for specific tasks
-- **Domains** - Specialist knowledge domains (Sales, Engineering, Support)
-- **Components** - Reusable canvas workflow components
-- **Skills** - Agent capabilities and integrations
+Commercial marketplace for agents, domains, components, and skills at [atomagentos.com](https://atomagentos.com). Requires API token connection. Core platform is AGPL v3 (open source), marketplace items are proprietary. See [LICENSE.md](LICENSE.md#marketplace-commercial-appendix) for terms.
 
-### Connection to atomagentos.com
-
-The Marketplace requires an active connection to **atomagentos.com** and a valid API token. To enable marketplace features:
-
-1. **Get Your API Token**
-   - Visit [atomagentos.com](https://atomagentos.com)
-   - Sign up and navigate to **Settings → API Tokens**
-   - Generate and copy your API token
-
-2. **Configure Environment**
-   ```bash
-   # Add to .env
-   ATOM_SAAS_API_URL=https://atomagentos.com/api/v1
-   ATOM_SAAS_API_TOKEN=your_api_token_here
-   MARKETPLACE_ENABLED=true
-   ```
-
-3. **Restart Atom**
-   ```bash
-   atom restart
-   ```
-
-### Commercial Terms
-
-**Important**: Marketplace items are proprietary content licensed under the atomagentos.com Terms of Service.
-
-- **Service Dependency**: The Marketplace feature requires an active connection to atomagentos.com
-- **Proprietary Content**: All marketplace items (skills, agents, domains, components) are proprietary
-- **Redistribution Prohibited**: Marketplace items may not be redistributed, resold, or shared outside the platform
-- **API Token Required**: Access to the Marketplace Service requires a valid API token from atomagentos.com
-- **Service Availability**: The Marketplace Service is provided "as is" and availability is not guaranteed
-
-**License Distinction**:
-- **Core Platform**: AGPL v3 (open source) - Agent runtime, cognitive architecture, governance
-- **Marketplace Service**: Commercial/Proprietary - Requires atomagentos.com connection and API token
-
-For full legal terms, see [LICENSE.md - Marketplace Commercial Appendix](LICENSE.md#marketplace-commercial-appendix).
-
-### Documentation
-
-- **[Marketplace Documentation](docs/marketplace/)** - **Complete marketplace guide (START HERE)**
-- **[Marketplace Connection Guide](docs/marketplace/connection.md)** - Complete setup and troubleshooting
-- **[Agent Marketplace Guide](docs/agents/marketplace.md)** - Publishing and sharing agents
-- **[Marketplace Analytics](docs/marketplace/analytics.md)** - Analytics and synchronization
+**Setup**: Add `ATOM_SAAS_API_TOKEN` to `.env` and restart. [Marketplace Documentation →](docs/marketplace/)
 
 ---
 
@@ -281,16 +212,9 @@ For full legal terms, see [LICENSE.md - Marketplace Commercial Appendix](LICENSE
 
 ## Security & Privacy
 
-- **Self-Hosted Only**: Your data never leaves your environment
-- **BYOK**: Bring your own OpenAI, Anthropic, Gemini, DeepSeek, or MiniMax keys
-- **Encrypted Storage**: Sensitive data encrypted at-rest (Fernet)
-- **Audit Logs**: Every agent action logged and traceable
-- **Human-in-the-Loop**: Configurable approval policies
-- **Package Security**: Vulnerability scanning (pip-audit, Safety), postinstall script blocking, container isolation
-- **Supply Chain Protection**: Typosquatting detection, dependency confusion prevention, malicious pattern detection
-- **Comprehensive Testing**: 495+ tests with 99%+ pass rate, E2E validation with real services ✨
-- **AI-Enhanced Bug Discovery**: Automated fuzzing, property-based testing, chaos engineering ✨ NEW
-- **Stress Testing**: Load testing with k6 (10/50/100 concurrent users), network simulation, failure injection ✨ NEW
+Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypted storage (Fernet), audit logs, human-in-the-loop approvals, package security scanning, supply chain protection, comprehensive testing (495+ tests), AI-enhanced bug discovery, and stress testing
+
+[Security Documentation →](docs/security/) | [Testing Guide →](backend/tests/e2e_ui/README.md)
 
 ---
 

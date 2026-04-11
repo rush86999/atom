@@ -303,133 +303,38 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 ## Recent Major Changes
 
 ### Auto-Dev Module & Federation (April 10, 2026) ✨
-- **Auto-Dev Module**: Self-evolving agent capabilities with Memento-Skills and AlphaEvolver
-  - Memento-Skills: Generate new skills from failed episodes (INTERN+ maturity)
-  - AlphaEvolver: Optimize existing skills via mutation and sandbox testing (SUPERVISED+ maturity)
-  - EventBus: Pub-sub event system for agent lifecycle tracking
-  - ContainerSandbox: Docker-based isolated code execution
-  - FitnessService: Multi-stage variant evaluation
-  - **Docs**: `docs/guides/AUTO_DEV_USER_GUIDE.md`, `backend/core/auto_dev/`
-- **Federation & Instance Identity**: Multi-instance communication and resource sharing
-  - Instance ID: Unique identifier for each Atom installation
-  - Federation Headers: X-Federation-Key, X-Instance-ID for authenticated communication
-  - Cross-Instance Sharing: Agent and skill federation across trusted instances
-  - **Docs**: `docs/guides/FEDERATION_INSTANCE_IDENTITY.md`
+Self-evolving agents with Memento-Skills (learn from failures) and AlphaEvolver (optimize via mutation). Federation enables multi-instance communication with X-Federation-Key headers.
+
+[Auto-Dev Guide →](docs/guides/AUTO_DEV_USER_GUIDE.md) | [Federation Guide →](docs/guides/FEDERATION_INSTANCE_IDENTITY.md)
 
 ### Queen Agent & Marketplace (April 10, 2026) ✨
-- **Queen Agent (Queen Hive)**: Structured workflow automation system for predefined, repeatable business processes
-- **Marketplace Commercialization**: Mothership architecture with atomagentos.com for agents, skills, canvas components, and domains
-- **Agent System Documentation**: Comprehensive guides for Queen Agent vs Fleet Admiral orchestration
-- **Marketplace Connection**: Quick start guide for connecting self-hosted instances to the commercial marketplace
-- **User Guides**: End-user documentation for Queen Agent workflows and marketplace browsing/installation
-- **Docs**: `docs/QUEEN_AGENT.md`, `docs/guides/QUEEN_AGENT_USER_GUIDE.md`, `docs/guides/MARKETPLACE_QUICKSTART.md`, `docs/marketplace/`
+Structured workflow automation for repeatable business processes. Commercial marketplace at atomagentos.com for agents, skills, components, and domains.
 
-### Phase 234: Authentication & Agent E2E Tests (March 24, 2026) ✨
-- 486 comprehensive E2E test functions across 6 plans covering authentication and agent critical paths
-- Authentication flows: Login/logout, JWT validation, session persistence, token refresh, mobile auth, API-first auth (10-100x faster)
-- Agent workflows: Creation, registry, streaming, WebSocket reconnection, concurrent execution, governance enforcement, lifecycle, cross-platform consistency
-- **Test Infrastructure**: Playwright Python 1.58.0, API-first auth fixtures, worker-based DB isolation, Page Object Model
-- **Coverage**: AUTH-01 through AUTH-07, AGNT-01 through AGNT-08 requirements
-- **Docs**: `.planning/phases/234-authentication-and-agent-e2e/`, `backend/tests/e2e_ui/README.md`
+[Queen Agent →](docs/QUEEN_AGENT.md) | [Marketplace →](docs/marketplace/)
 
-### v6.0 BYOK Migration Requirements (March 22, 2026) ✨
-- Unified LLMService API consolidation for all LLM interactions
-- 31 requirements across LLM service enhancements, critical API migrations, BYOK standardization, observability, and testing
-- Migration scope: 59 files importing BYOKHandler, 9 critical API call migrations
-- **Goal**: Single unified interface for consistency, observability, and maintainability
-- **Phases**: 222-232 covering LLMService, migrations, standardization, observability, and testing
-- **Docs**: `.planning/REQUIREMENTS-v6.0-BYOK.md`
+### Phase 234: E2E Tests (March 24, 2026) ✨
+486 E2E test functions across authentication and agent workflows. API-first auth (10-100x faster), worker-based DB isolation, Page Object Model.
 
-### Phase 68: BYOK Cognitive Tier System (Feb 20, 2026) ✨
-- 5-tier cognitive classification (token count + semantic complexity + task type)
-- Cache-aware routing with 90% cost reduction
-- Automatic escalation on quality threshold breaches
-- MiniMax M2.5 integration in Standard tier (~$1/M tokens)
-- **Status**: ✅ COMPLETE - All 8 plans executed, 100+ tests, production-ready
-- **See**: `docs/COGNITIVE_TIER_SYSTEM.md`
+[E2E Tests →](backend/tests/e2e_ui/README.md)
 
-### Phase 35: Python Package Support (Feb 19, 2026) ✨
-- Per-skill Docker images with dedicated packages (no dependency conflicts)
-- Vulnerability scanning using pip-audit + Safety
-- STUDENT blocked, INTERN requires approval, SUPERVISED/AUTONOMOUS need approved packages
-- CVE vulnerability detection with pip-audit and Safety before installation
-- **Status**: ✅ COMPLETE - All 7 plans executed, 117 tests, production-ready
-- **See**: `docs/PYTHON_PACKAGES.md`, `docs/PACKAGE_SECURITY.md`
+### Phase 68: Cognitive Tier System (Feb 20, 2026) ✨
+5-tier LLM routing with cache-aware optimization (90% cost reduction), auto-escalation, MiniMax M2.5 support (~$1/M tokens). 100+ tests, production-ready.
 
-### Phase 25: Atom CLI as OpenClaw Skills (Feb 18, 2026) ✨
-- 6 built-in skills with AUTONOMOUS maturity for daemon control
-- Subprocess wrapper with 30s timeout, structured output, error handling
-- Integration with Community Skills framework (import, security scan, governance)
-- **Docs**: `docs/ATOM_CLI_SKILLS_GUIDE.md`
+[Cognitive Tiers →](docs/COGNITIVE_TIER_SYSTEM.md)
 
-### Phase 21: LLM Canvas Summaries (Feb 18, 2026) ✨
-- LLM-generated summaries (50-100 words) for enhanced episodic memory
-- Support for all 7 canvas types with specialized prompts
-- Quality metrics: >80% semantic richness, 0% hallucination target
+### Phase 35: Python Packages (Feb 19, 2026) ✨
+Per-skill Docker images, vulnerability scanning (pip-audit + Safety), maturity-based access control. 117 tests, production-ready.
 
-### Phase 20: Canvas AI Context (Feb 18, 2026) ✨
-- Hidden accessibility trees with role='log', aria-live exposing JSON state
-- Global API: `window.atom.canvas.getState()`, `getAllStates()`, `subscribe()`
-- TypeScript definitions for all 7 canvas types
-- **Performance**: <10ms serialization overhead per render
+[Python Packages →](docs/PYTHON_PACKAGES.md)
 
-### Phase 15: Codebase Completion & Quality Assurance (Feb 16, 2026) ✨
-- Production-ready codebase with comprehensive documentation
-- Health check endpoints, Prometheus metrics, structured logging
-- CI/CD pipeline with GitHub Actions, deployment runbooks
-- MyPy configuration, type hints on critical service functions
-- **Docs**: `backend/docs/API_DOCUMENTATION.md`, `backend/docs/DEPLOYMENT_RUNBOOK.md`, `backend/docs/CODE_QUALITY_STANDARDS.md`
-
-### Personal Edition & Universal Agent Execution (Feb 16, 2026) ✨
-- Docker Compose setup with SQLite database, simplified `.env.personal` configuration
-- Daemon Mode: Background service with PID tracking, graceful shutdown, status monitoring
-- CLI Commands: `atom-os daemon`, `atom-os status`, `atom-os stop`, `atom-os execute <command>`
-- Agent Control REST API: Endpoints for triggering agents, stopping execution, monitoring status
-- Host Shell Access: Optional filesystem mount with AUTONOMOUS maturity gate, command whitelist
-- **Docs**: `docs/archive/legacy/PERSONAL_EDITION_GUIDE.md`
-
-### Phase 14: Community Skills Integration (Feb 16, 2026) ✨
-- Enable Atom agents to use 5,000+ OpenClaw/ClawHub community skills
-- Three Major Components: Skill Adapter, Hazard Sandbox, Skills Registry
-- Lenient parsing with auto-fix for malformed SKILL.md files
-- 21+ malicious pattern detection + GPT-4 semantic analysis
-- Governance integration: STUDENT blocked from Python skills, INTERN+ require approval
-- Episodic memory integration: All skill executions create EpisodeSegments
-- **Status**: ✅ COMPLETE - All 3 plans executed, verification passed (13/13 criteria)
-- **See**: `.planning/phases/14-community-skills-integration/`
-
-### Canvas & Feedback Integration with Episodic Memory (Feb 4, 2026) ✨
-- Metadata-only linkage: Episodes store lightweight references to CanvasAudit and AgentFeedback records
-- Canvas-aware episodes: Track all canvas interactions (present, submit, close, update, execute)
-- Feedback-linked episodes: Aggregate user feedback scores (-1.0 to 1.0) for retrieval weighting
-- Enriched sequential retrieval: Episodes include canvas_context and feedback_context by default
-- Feedback-weighted retrieval: Positive feedback gets +0.2 boost, negative gets -0.3 penalty
-- **Performance**: <100ms retrieval overhead, ~100 bytes storage per episode
-- **See**: `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
-
-### Episodic Memory & Graduation Framework (Feb 3, 2026) ✨
-- Comprehensive episodic memory system with hybrid PostgreSQL + LanceDB storage
-- Automatic episode segmentation using time gaps, topic changes, and task completion detection
-- Four retrieval modes: Temporal (time-based), Semantic (vector search), Sequential (full episode), Contextual (hybrid)
-- Episode lifecycle management: decay, consolidation, and archival to cold storage
-- Graduation Exam Framework: Validate agent promotion readiness with 100% Constitutional Compliance
-- Readiness Score calculation: 40% episode count, 30% intervention rate, 30% constitutional compliance
-- **See**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/AGENT_GRADUATION_GUIDE.md`
-
-### Student Agent Training System (Feb 2, 2026) ✨
-- Four-tier maturity-based routing prevents STUDENT agents from automated triggers
-- AI-powered training duration estimation with user override capability
-- Real-time supervision for SUPERVISED agents with pause/correct/terminate controls
-- Action proposal workflow for INTERN agents requires human approval before execution
-- Centralized TriggerInterceptor with <5ms routing decisions
-
-### Real-Time Agent Guidance System (Feb 2, 2026) ✨
-- Complete agent operation visibility with live progress tracking
-- Multi-view orchestration (browser/terminal/canvas) with layout management
-- Smart error resolution with 7 error categories and learning feedback
-- Interactive permission/decision requests with full audit trail
-- Integration guidance for OAuth flows
-- **See**: `docs/archive/CANVAS_IMPLEMENTATION_COMPLETE.md`
+### Earlier Phases ✨
+- **Phase 25**: CLI Skills (6 built-in skills with AUTONOMOUS maturity)
+- **Phase 21**: LLM Canvas Summaries (50-100 words for episodic memory)
+- **Phase 20**: Canvas AI Context (hidden accessibility trees, TypeScript definitions)
+- **Phase 15**: Codebase Completion (CI/CD, health checks, monitoring)
+- **Phase 14**: Community Skills (5,000+ OpenClaw/ClawHub integration)
+- **Episodic Memory**: Hybrid PostgreSQL + LanceDB, 4 retrieval modes, graduation framework
+- **Student Training**: 4-tier maturity routing, AI-powered training estimation
 
 ---
 
