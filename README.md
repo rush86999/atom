@@ -120,7 +120,7 @@ That's it! 🚀
 - **Self-Evolving Capabilities**: Memento Skills learns from failures, AlphaEvolver optimizes via mutation ✨ NEW
 - **Governance**: Progress from "Student" to "Autonomous" as they gain trust
 
-[Special Agents Guide →](docs/agents/special-agents.md) | [Queen Agent →](docs/QUEEN_AGENT.md) | [Auto-Dev →](docs/guides/AUTO_DEV_USER_GUIDE.md)
+[Special Agents Guide →](docs/agents/special-agents.md) | [Queen Agent →](docs/QUEEN_AGENT.md) | [Auto-Dev →](docs/GUIDES/AUTO_DEV_USER_GUIDE.md)
 
 ### 🎨 Canvas Presentations & Real-Time Guidance ✨
 Rich interactive presentations (charts, forms, markdown) with live operation visibility, multi-view orchestration, smart error resolution, and AI accessibility (canvas state exposed to agents)
