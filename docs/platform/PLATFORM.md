@@ -16,7 +16,7 @@ Production deployment, monitoring, and platform-specific guides.
 - **[Personal Edition Guide](PERSONAL_EDITION_GUIDE.md)** - Complete guide
 
 ### Installation
-- **[Installation](INSTALLATION.md)** - Installation overview
+- **[Installation](GETTING_STARTED/INSTALLATION.md)** - Installation overview
 - **[Installation Options](INSTALLATION_OPTIONS.md)** - Deployment options
 - **[Install Script Guide](INSTALL_SCRIPT_GUIDE.md)** - Automated installation
 - **[Mac Mini Install](MAC_MINI_INSTALL.md)** - Mac-specific setup

@@ -21,7 +21,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
    - Daily workflow guidance
    - Tips and best practices
 
-3. **[Installation Guide](INSTALLATION.md)** - Detailed installation instructions
+3. **[Installation Guide](GETTING_STARTED/INSTALLATION.md)** - Detailed installation instructions
    - Docker setup
    - Native installation
    - Platform-specific requirements
