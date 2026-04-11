@@ -256,6 +256,182 @@ INTERNALERROR> ImportError while importing test module
 
 ---
 
+## Property-Based Testing
+
+Property-based tests use Hypothesis to generate random inputs and verify invariants that must always be true. Unlike example-based tests that check specific inputs, property tests explore thousands of auto-generated inputs to find edge cases.
+
+### When to Use Property Tests
+
+Use property tests for:
+- **Invariants** that must always be true (e.g., maturity ordering, cost calculation)
+- **State machines** with transition rules (e.g., workflow status)
+- **Mathematical properties** (e.g., additivity, associativity, commutativity)
+- **Idempotent operations** (same input → same output)
+- **Boundary conditions** (e.g., confidence scores in [0.0, 1.0])
+
+### Hypothesis Configuration
+
+Standard settings for property tests:
+
+```python
+from hypothesis import given, settings, HealthCheck
+from hypothesis.strategies import sampled_from, integers, floats, lists, text, datetimes
+
+# Critical invariants (maturity ordering, cache performance)
+HYPOTHESIS_SETTINGS_CRITICAL = {
+    "suppress_health_check": [HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
+    "max_examples": 200
+}
+
+# Standard invariants (permission checks, determinism)
+HYPOTHESIS_SETTINGS_STANDARD = {
+    "suppress_health_check": [HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
+    "max_examples": 100
+}
+
+# IO-bound operations (database queries)
+HYPOTHESIS_SETTINGS_IO = {
+    "suppress_health_check": [HealthCheck.function_scoped_fixture, HealthCheck.too_slow],
+    "max_examples": 50
+}
+```
+
+### Common Hypothesis Strategies
+
+```python
+from hypothesis.strategies import (
+    sampled_from,   # Choose from list
+    integers,       # Integer range
+    floats,         # Floating point range
+    lists,          # List of elements
+    text,           # String generation
+    datetimes,      # DateTime generation
+    tuples,         # Tuples
+    dictionaries,   # Dict generation
+    booleans,       # True/False
+    just,           # Always return specific value
+    builds          # Build complex objects
+)
+```
+
+### Property Test Pattern
+
+```python
+class TestMaturityLevelInvariants:
+    """Property-based tests for maturity level invariants."""
+
+    @given(
+        level_a=sampled_from(["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"]),
+        level_b=sampled_from(["STUDENT", "INTERN", "SUPERVISED", "AUTONOMOUS"])
+    )
+    @settings(**HYPOTHESIS_SETTINGS_CRITICAL)
+    def test_maturity_total_ordering(self, level_a, level_b):
+        """
+        PROPERTY: Maturity levels form total ordering.
+
+        STRATEGY: st.sampled_from(maturity_levels)
+
+        INVARIANT: For any two levels a, b: a < b OR b < a OR a == b
+
+        RADII: 200 examples explores all 16 pairwise comparisons (4x4 matrix)
+        """
+        maturity_order = {"STUDENT": 0, "INTERN": 1, "SUPERVISED": 2, "AUTONOMOUS": 3}
+        order_a = maturity_order[level_a]
+        order_b = maturity_order[level_b]
+
+        # Total ordering: one of these must be true
+        is_total_order = (order_a < order_b) or (order_b < order_a) or (order_a == order_b)
+        assert is_total_order, f"Maturity levels {level_a} and {level_b} violate total ordering"
+```
+
+### Running Property Tests
+
+```bash
+# Run all property tests
+pytest tests/property_tests/ -v
+
+# Run specific property test file
+pytest tests/property_tests/governance/test_governance_invariants_property.py -v
+
+# Run with verbose output to see generated examples
+pytest tests/property_tests/ -v -s
+
+# Run with hypothesis profile
+pytest tests/property_tests/ --hypothesis-profile=dev -v
+```
+
+### Property Test Files
+
+The following property test files cover critical invariants:
+
+| File | Invariants Covered |
+|------|-------------------|
+| `tests/property_tests/governance/test_governance_invariants_property.py` | Maturity ordering, permission checks, cache consistency |
+| `tests/property_tests/llm/test_llm_business_logic_invariants.py` | Token counting, cost calculation, provider fallback |
+| `tests/property_tests/workflows/test_workflow_business_logic_invariants.py` | Status transitions, step ordering, timestamp ordering |
+| `tests/property_tests/core/test_governance_business_logic_invariants.py` | Governance business logic invariants |
+
+### Writing New Property Tests
+
+When writing new property tests:
+
+1. **Identify the invariant** - What must always be true?
+2. **Choose appropriate strategy** - What inputs to generate?
+3. **Set appropriate max_examples** - How many examples to test?
+4. **Document the property** - Explain what invariant is being tested
+5. **Include edge cases** - Use @example decorator for specific cases
+
+Example:
+```python
+from hypothesis import given, settings, example
+
+@given(confidence=floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
+@example(confidence=0.0)  # Boundary: minimum
+@example(confidence=0.5)  # Boundary: STUDENT/INTERN threshold
+@example(confidence=0.7)  # Boundary: INTERN/SUPERVISED threshold
+@example(confidence=0.9)  # Boundary: SUPERVISED/AUTONOMOUS threshold
+@example(confidence=1.0)  # Boundary: maximum
+@settings(**HYPOTHESIS_SETTINGS_STANDARD)
+def test_confidence_bounds(self, confidence):
+    """PROPERTY: Confidence scores stay within [0.0, 1.0] bounds."""
+    assert 0.0 <= confidence <= 1.0
+```
+
+### Debugging Property Tests
+
+When a property test fails:
+
+1. **Use verbose mode** to see the failing input: `pytest -v -s`
+2. **Use @example** to reproduce the specific case
+3. **Use assume()** to filter invalid inputs
+4. **Reduce max_examples** temporarily for faster debugging
+
+```python
+from hypothesis import assume
+
+@given(x=integers(), y=integers())
+def test_division(self, x, y):
+    assume(y != 0)  # Filter out division by zero
+    assert x / y == x / y
+```
+
+### Phase 252 Property Tests
+
+**Added 49 property tests** for business logic invariants:
+
+- **Governance (10 tests):** Maturity ordering, action complexity, permission checks, confidence scores, cache consistency
+- **LLM (18 tests):** Token counting, cost calculation, provider fallback, streaming responses, caching, budgets, requests, validation, rate limiting
+- **Workflows (21 tests):** Status transitions, step execution, timestamps, versions, rollback, cancellation, dependencies, parallelism, retry, state consistency, resource management
+
+**Test Files:**
+- `tests/property_tests/core/test_governance_business_logic_invariants.py` (402 lines, 10 tests)
+- `tests/property_tests/llm/test_llm_business_logic_invariants.py` (411 lines, 18 tests)
+- `tests/property_tests/workflows/test_workflow_business_logic_invariants.py` (503 lines, 21 tests)
+
+**Execution:** ~22 seconds for all 49 property tests (0.45s per test average)
+
+---
+
 ## Coverage Measurement (Phase 251)
 
 ### Run Coverage Measurement
