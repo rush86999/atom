@@ -60,3 +60,6 @@ const localStorageMock = {
   clear: jest.fn(),
 };
 global.localStorage = localStorageMock;
+
+// Mock reactflow CSS import
+jest.mock('reactflow/dist/style.css', () => ({}), { virtual: true });
