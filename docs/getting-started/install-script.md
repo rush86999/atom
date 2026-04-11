@@ -490,7 +490,7 @@ curl http://localhost:8000/health/live
 ## Getting Help
 
 ### Documentation
-- [Full Installation Guide](./MAC_MINI_INSTALL.md)
+- [Full Installation Guide](../getting-started/mac-mini-install.md)
 - [Personal Edition Guide](../operations/personal-edition.md)
 - [API Documentation](API_DOCUMENTATION_INDEX.md)
 

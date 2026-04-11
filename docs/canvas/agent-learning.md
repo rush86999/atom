@@ -775,6 +775,6 @@ This creates a **virtuous cycle**:
 ---
 
 **Related Documentation**:
-- [Agent Guidance Implementation](./AGENT_GUIDANCE_IMPLEMENTATION.md)
-- [Agent Governance & Learning Integration](./AGENT_GOVERNANCE_LEARNING_INTEGRATION.md)
+- [Agent Guidance Implementation](../agents/guidance-system.md)
+- [Agent Governance & Learning Integration](../agents/governance.md)
 - [Confidence Scoring System](../backend/core/confidence_scorer.py)

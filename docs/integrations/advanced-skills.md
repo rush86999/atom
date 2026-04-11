@@ -680,14 +680,14 @@ GET /auto-install/status/{skill_id}
 ### Core Documentation
 - [Community Skills](../INTEGRATIONS/community-skills.md) - Phase 14 foundation for skill infrastructure
 - [Python Packages](../SECURITY/python-packages.md) - Python package support with dependency isolation
-- [npm Packages](./NPM_PACKAGE_SUPPORT.md) - npm package support with postinstall protection
-- [Package Governance](./PACKAGE_GOVERNANCE.md) - Maturity-based package access control
-- [Package Security](./PACKAGE_SECURITY.md) - Comprehensive security testing documentation
+- [npm Packages](../SECURITY/npm-packages.md) - npm package support with postinstall protection
+- [Package Governance](../SECURITY/package-governance.md) - Maturity-based package access control
+- [Package Security](../SECURITY/packages.md) - Comprehensive security testing documentation
 
 ### Advanced Guides
-- [Skill Marketplace Guide](./SKILL_MARKETPLACE_GUIDE.md) - Detailed marketplace usage
-- [Skill Composition Patterns](./SKILL_COMPOSITION_PATTERNS.md) - Workflow design patterns
-- [Performance Tuning](./PERFORMANCE_TUNING.md) - Optimization and monitoring guide
+- [Skill Marketplace Guide](../marketplace/skills.md) - Detailed marketplace usage
+- [Skill Composition Patterns](../INTEGRATIONS/skill-composition.md) - Workflow design patterns
+- [Performance Tuning](../operations/performance.md) - Optimization and monitoring guide
 - [Supply Chain Security][<!-- ./SUPPLY_CHAIN_SECURITY.md -->] - E2E security testing (Plan 60-06)
 
 ### API Documentation

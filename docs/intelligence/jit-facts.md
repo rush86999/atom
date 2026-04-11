@@ -960,9 +960,8 @@ print(f"GraphRAG available: {ingestor.graphrag is not None}")
 
 ## Related Documentation
 
-- [Citation System Guide](./CITATION_SYSTEM_GUIDE.md) - Business fact management
-- [Document Processing Pipeline](./DOCUMENT_PROCESSING_PIPELINE.md) - Multi-format parsing
-- [Architecture Diagrams](./ARCHITECTURE_DIAGRAMS.md) - Visual system overview
+- [Citation System Guide](../intelligence/jit-facts.md) - Business fact management
+- [Architecture Diagrams](../reference/ARCHITECTURE_DIAGRAMS.md) - Visual system overview
 - [Agent World Model](../backend/core/agent_world_model.py) - Core implementation
 
 ---

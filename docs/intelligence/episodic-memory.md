@@ -215,7 +215,7 @@ episode = {
 
 **Agent Decision-Making**: Agents **ALWAYS** fetch canvas/feedback context during episode recall, not just for canvas-specific tasks.
 
-**See Also**: [`CANVAS_FEEDBACK_EPISODIC_MEMORY.md`](./CANVAS_FEEDBACK_EPISODIC_MEMORY.md) for complete documentation.
+**See Also**: [`CANVAS_FEEDBACK_EPISODIC_MEMORY.md`](../canvas/feedback-memory.md) for complete documentation.
 
 ### LLM-Generated Canvas Summaries ✨ NEW (Phase 21)
 

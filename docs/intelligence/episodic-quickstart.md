@@ -197,7 +197,7 @@ for episode in result["episodes"]:
             print(f"User didn't like {canvas['canvas_type']}")
 ```
 
-**Complete Documentation**: See [`CANVAS_FEEDBACK_EPISODIC_MEMORY.md`](./CANVAS_FEEDBACK_EPISODIC_MEMORY.md) for full details.
+**Complete Documentation**: See [`CANVAS_FEEDBACK_EPISODIC_MEMORY.md`](../canvas/feedback-memory.md) for full details.
 
 ## Agent Graduation
 

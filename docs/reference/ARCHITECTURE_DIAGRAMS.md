@@ -852,9 +852,8 @@ graph TB
 
 ## Related Documentation
 
-- [Citation System Guide](./CITATION_SYSTEM_GUIDE.md) - Business fact management
-- [JIT Fact Provision System](./JIT_FACT_PROVISION_SYSTEM.md) - Real-time retrieval
-- [Document Processing Pipeline](./DOCUMENT_PROCESSING_PIPELINE.md) - Multi-format parsing
+- [Citation System Guide](../intelligence/jit-facts.md) - Business fact management
+- [JIT Fact Provision System](../intelligence/jit-facts.md) - Real-time retrieval
 - [Agent World Model](../backend/core/agent_world_model.py) - Core implementation
 - [LanceDB Handler](../backend/core/lancedb_handler.py) - Vector database
 - [Docling Processor](../backend/core/docling_processor.py) - Document parsing
