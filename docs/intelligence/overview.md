@@ -107,7 +107,7 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 
 - **[Agent System](AGENTS.md)** - Agent governance and learning
 - **[Canvas Documentation](CANVAS.md)** - Canvas presentations (if exists)
-- **[API Documentation](API.md)** - Intelligence API endpoints
+- **[API Documentation](API/OVERVIEW.md)** - Intelligence API endpoints
 
 ---
 

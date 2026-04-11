@@ -691,7 +691,7 @@ GET /auto-install/status/{skill_id}
 - [Supply Chain Security][<!-- ./SUPPLY_CHAIN_SECURITY.md -->] - E2E security testing (Plan 60-06)
 
 ### API Documentation
-- [API Reference](API.md) - Complete REST API documentation
+- [API Reference](API/OVERVIEW.md) - Complete REST API documentation
 - [Marketplace API](../backend/docs/API_DOCUMENTATION.md#marketplace) - Marketplace endpoints
 - [Composition API](../backend/docs/API_DOCUMENTATION.md#composition) - Workflow endpoints
 - [Auto-Install API](../backend/docs/API_DOCUMENTATION.md#auto-install) - Package installation endpoints

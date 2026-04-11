@@ -165,7 +165,7 @@
 ### Integration Guides
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [API.md](API.md) | **Build custom integrations** | - |
+| [API.md](API/OVERVIEW.md) | **Build custom integrations** | - |
 | [CONTRIBUTING_INTEGRATIONS.md]# | Integration contribution guide | - |
 | [BYOK_LLM_INTEGRATION_COMPLETE.md]# | **Multi-provider LLM setup** | Feb 5, 2026 |
 
@@ -233,7 +233,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [API_DOCUMENTATION.md](API.md) | **Comprehensive API documentation (26,299 lines)** | Feb 16, 2026 |
+| [API_DOCUMENTATION.md](API/OVERVIEW.md) | **Comprehensive API documentation (26,299 lines)** | Feb 16, 2026 |
 | [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment procedures with rollback** | Feb 16, 2026 |
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Production troubleshooting guide** | Feb 16, 2026 |
@@ -334,14 +334,14 @@
 |----------|-------------|--------------|
 | [ARCHITECTURE.md](ARCHITECTURE/SYSTEM_OVERVIEW.md) | System architecture overview | Feb 1, 2026 |
 | [CODE_STRUCTURE_OVERVIEW.md](CODE_STRUCTURE_OVERVIEW.md) | Code structure overview | - |
-| [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md) | Database architecture | - |
+| [DATABASE_ARCHITECTURE.md](reference/DATABASE_ARCHITECTURE.md) | Database architecture | - |
 
 ### API Documentation
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [API_DOCUMENTATION_INDEX.md](API_DOCUMENTATION_INDEX.md) | **API documentation index** | Feb 4, 2026 |
 | [API_STANDARDS.md](../backend/docs/API_STANDARDS.md) | **API standards and conventions** | Feb 4, 2026 |
-| [API.md](API.md) | API reference | - |
+| [API.md](API/OVERVIEW.md) | API reference | - |
 
 ### Guides
 | Document | Description | Last Updated |
@@ -435,7 +435,7 @@
 - [COMMUNITY_SKILLS.md](COMMUNITY_SKILLS.md) - **Community Skills Integration guide** (Feb 16)
 - [PERSONAL_EDITION.md](PERSONAL_EDITION.md) - **Personal Edition guide** (Feb 16)
 - [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
-- [API_DOCUMENTATION.md](API.md) - **Comprehensive API docs** (Feb 16)
+- [API_DOCUMENTATION.md](API/OVERVIEW.md) - **Comprehensive API docs** (Feb 16)
 - [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) - **Deployment runbook** (Feb 16)
 - [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) - **Operations guide** (Feb 16)
 - [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) - **Troubleshooting** (Feb 16)
@@ -479,7 +479,7 @@
 | [API_STANDARDS.md](../backend/docs/API_STANDARDS.md) | API standards | Feb 4, 2026 |
 | [BYOK_LLM_INTEGRATION_COMPLETE.md]# | LLM integration | Feb 5, 2026 |
 | [FINAL_IMPLEMENTATION_SUMMARY.md]# | Final implementation summary | Feb 5, 2026 |
-| [API_DOCUMENTATION.md](API.md) | **Comprehensive API docs** | Feb 16, 2026 |
+| [API_DOCUMENTATION.md](API/OVERVIEW.md) | **Comprehensive API docs** | Feb 16, 2026 |
 | [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment runbook** | Feb 16, 2026 |
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Troubleshooting guide** | Feb 16, 2026 |

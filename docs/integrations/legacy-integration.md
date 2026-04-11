@@ -67,7 +67,7 @@ Platform integrations, automation capabilities, and third-party connections.
 
 ## See Also
 
-- **[API Documentation](API.md)** - REST API for integrations
+- **[API Documentation](API/OVERVIEW.md)** - REST API for integrations
 - **[Agent System](AGENTS.md)** - Agent capabilities
 - **[Development Guide](DEVELOPMENT/overview.md)** - Building custom integrations
 
