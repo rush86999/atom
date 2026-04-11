@@ -464,7 +464,7 @@ curl -X DELETE http://localhost:8000/api/v1/queen/schedules/{schedule_id}
 
 ### Learn More
 - **[Agent System Overview](../agents/overview.md)** - Complete agent documentation
-- **[Fleet Admiral Guide](../FLEET_ADMIRAL.md)** - Unstructured task orchestration
+- **[Fleet Admiral Guide](fleet-admiral.md)** - Unstructured task orchestration
 - **[Agent Graduation](../agents/graduation.md)** - Promote your agent to higher maturity
 
 ### Explore Blueprints

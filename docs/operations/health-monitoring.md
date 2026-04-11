@@ -497,8 +497,8 @@ assert len(executions) > 0
 
 ### Related Documentation
 
-- [Agent Governance](../AGENT_GOVERNANCE.md) - Agent maturity and confidence
-- [Canvas Recording](../CANVAS_RECORDING_IMPLEMENTATION.md) - Recording system
+- [Agent Governance](../agents/governance.md) - Agent maturity and confidence
+- [Canvas Recording](../canvas/recording.md) - Recording system
 - [Recording Review](../RECORDING_REVIEW_INTEGRATION.md) - Learning integration
 
 ### Related Code

@@ -10,7 +10,7 @@ Atom's agent system is built around **multi-agent coordination** with graduated 
 
 ### Core Orchestration Systems
 - **[Queen Agent (Queen Hive)](../QUEEN_AGENT.md)** - Structured workflow automation (predefined blueprints)
-- **[Fleet Admiral](../FLEET_ADMIRAL.md)** - Unstructured complex tasks (dynamic fleet coordination)
+- **[Fleet Admiral](fleet-admiral.md)** - Unstructured complex tasks (dynamic fleet coordination)
 - **[Unstructured Complex Tasks](unstructured-tasks.md)** - Intent classification and routing
 
 ### Key Concept: Queen Agent vs Fleet Admiral
@@ -97,13 +97,13 @@ Use **Fleet Admiral** when you have:
 - Tasks requiring adaptive planning
 - Need for multiple specialist agents
 
-See: [Fleet Admiral Documentation](../FLEET_ADMIRAL.md)
+See: [Fleet Admiral Documentation](fleet-admiral.md)
 
 ## Related Documentation
 
 ### Root Documentation
 - [QUEEN_AGENT.md](../QUEEN_AGENT.md) - Queen Agent complete guide
-- [FLEET_ADMIRAL.md](../FLEET_ADMIRAL.md) - Fleet Admiral complete guide
+- [FLEET_ADMIRAL.md](fleet-admiral.md) - Fleet Admiral complete guide
 - [Unstructured Tasks](unstructured-tasks.md) - Intent classification system
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](../STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Training system
 - [ATOM_CLI_SKILLS_GUIDE.md](../ATOM_CLI_SKILLS_GUIDE.md) - CLI skills

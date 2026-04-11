@@ -312,10 +312,10 @@ GET /api/marketplace/skills
 - [Domain Marketplace Guide](domains.md) - Specialist knowledge packages
 
 ### Integration & Packages
-- [Community Skills Integration](../COMMUNITY_SKILLS.md) - 5,000+ OpenClaw/ClawHub skills
+- [Community Skills Integration](../INTEGRATIONS/community-skills.md) - 5,000+ OpenClaw/ClawHub skills
 - [Python Package Support](../PYTHON_PACKAGES.md) - NumPy, Pandas, 350K+ packages
 - [npm Package Support](../NPM_PACKAGE_SUPPORT.md) - Lodash, Express, 2M+ packages
-- [Advanced Skill Execution](../ADVANCED_SKILL_EXECUTION.md) - Skill composition and dynamic loading
+- [Advanced Skill Execution](../INTEGRATIONS/advanced-skills.md) - Skill composition and dynamic loading
 
 ---
 

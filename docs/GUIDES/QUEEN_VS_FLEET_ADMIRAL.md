@@ -388,7 +388,7 @@ As your agents mature:
 
 ### Learn More
 - **[Queen Agent User Guide](QUEEN_AGENT_USER_GUIDE.md)** - Complete Queen Agent documentation
-- **[Fleet Admiral Guide](../FLEET_ADMIRAL.md)** - Fleet Admiral deep dive
+- **[Fleet Admiral Guide](fleet-admiral.md)** - Fleet Admiral deep dive
 - **[Agent System Overview](../agents/overview.md)** - Complete agent documentation
 
 ### Explore Examples
