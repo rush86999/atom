@@ -11,7 +11,7 @@ import time
 from decimal import Decimal
 from hypothesis import given, strategies as st, settings, assume
 
-from integrations.stripe_service import StripeService
+from core.integrations.adapters.stripe import StripeService
 from tests.fixtures.payment_fixtures import StripeChargeFactory
 from tests.fixtures.decimal_fixtures import money_strategy
 
