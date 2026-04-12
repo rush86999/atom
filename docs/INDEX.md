@@ -127,10 +127,17 @@
 | [GUIDES/AUTO_DEV_USER_GUIDE.md](GUIDES/AUTO_DEV_USER_GUIDE.md) | **✨ Auto-Dev Module - Self-evolving agent capabilities** | Apr 10, 2026 |
 | [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ NEW: Self-Evolution & Reflection Pool - Complete guide** | Apr 12, 2026 |
 
-### Episodic Memory
+### Intelligence & Learning Systems
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Agent learning framework** | Feb 3, 2026 |
+| [intelligence/overview.md](intelligence/overview.md) | **Intelligence systems overview** - Memory, knowledge, and reasoning | Apr 7, 2026 |
+| [intelligence/episodic-memory.md](intelligence/episodic-memory.md) | **Episodic Memory - Agent learning framework** | Feb 3, 2026 |
+| [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ Self-Evolution & Reflection Pool** - Critique-based learning and Auto-Dev | Apr 12, 2026 |
+| [intelligence/graphrag.md](intelligence/graphrag.md) | **GraphRAG & Entity Types** - Knowledge graph and entity extraction | Mar 24, 2026 |
+| [intelligence/world-model-guide.md](intelligence/world-model-guide.md) | **World Model & Business Facts** - Knowledge management and JIT provision | Apr 7, 2026 |
+| [intelligence/jit-facts.md](intelligence/jit-facts.md) | **JIT Fact Provision** - Real-time fact verification with citations | Apr 7, 2026 |
+| [intelligence/vector-embeddings.md](intelligence/vector-embeddings.md) | **Vector Embeddings** - Semantic search infrastructure (FastEmbed, OpenAI) | Feb 16, 2026 |
+| [intelligence/memory-integration.md](intelligence/memory-integration.md) | Memory integration guide | Feb 4, 2026 |
 | [EPISODIC_MEMORY_QUICK_START.md](EPISODIC_MEMORY_QUICK_START.md) | Episodic memory quick start guide | Feb 4, 2026 |
 | [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) | **Canvas presentations in episodes** | Feb 4, 2026 |
 

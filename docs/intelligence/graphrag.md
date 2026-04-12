@@ -4,7 +4,7 @@
 **Status**: ✅ Production Ready
 **Version**: GraphRAG V2 (PostgreSQL-backed)
 
-> **🚀 Quick Start**: For a brief overview of GraphRAG features and usage, see [GRAPHRAG_PORTED.md](graphrag.md)
+> **🚀 Quick Start**: This document provides a comprehensive overview of GraphRAG V2 features and usage
 
 ---
 

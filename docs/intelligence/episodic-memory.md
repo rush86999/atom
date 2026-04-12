@@ -868,3 +868,21 @@ pytest tests/test_episode_segmentation.py -v
 # Run with coverage
 pytest tests/test_episode_*.py --cov=core.episode_segmentation_service --cov-report=html
 ```
+
+---
+
+## Related Documentation
+
+### Core Intelligence Systems
+- **[Self-Evolution & Reflection Pool](self-evolution.md)** - Critique-based learning, Memento-Skills, and AlphaEvolver for agent improvement
+- **[GraphRAG & Entity Types](graphrag.md)** - Knowledge graph and entity extraction system
+- **[World Model & JIT Facts](world-model-guide.md)** - Knowledge management and real-time fact verification
+- **[Vector Embeddings](vector-embeddings.md)** - Semantic search infrastructure
+
+### Agent Learning & Graduation
+- **[Agent Graduation Guide](../agents/graduation.md)** - Promotion criteria and validation framework
+- **[Student Training System](../agents/training.md)** - Maturity-based routing and training proposals
+
+### Integration Guides
+- **[Memory Integration Guide](memory-integration.md)** - Complete memory system integration
+- **[Canvas Feedback Integration](../canvas/feedback-memory.md)** - Canvas presentations in episodes

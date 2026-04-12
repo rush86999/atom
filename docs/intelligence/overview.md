@@ -65,7 +65,7 @@ AI capabilities, knowledge management, and cognitive systems.
 ## Supervision & Multi-Level Learning
 
 ### Supervision
-- **[Multi-Level Supervision Implementation](MULTI_LEVEL_SUPERVISION_IMPLEMENTATION.md)** - Supervision levels
+- **[Supervision Implementation](../agents/supervision-implementation.md)** - Supervision levels and real-time monitoring
 
 ## Key Concepts
 

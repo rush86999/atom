@@ -743,3 +743,23 @@ For more information:
 - [Episodic Memory Implementation](../intelligence/episodic-memory.md)
 - [Quick Start Guide](EPISODIC_MEMORY_QUICK_START.md)
 - [API Documentation](../api/episode_routes.py)
+
+---
+
+## Related Documentation
+
+### Agent Learning & Intelligence
+- **[Self-Evolution & Reflection Pool](../intelligence/self-evolution.md)** - Critique-based learning, Memento-Skills, and AlphaEvolver for autonomous agent improvement
+- **[Episodic Memory](../intelligence/episodic-memory.md)** - Episode tracking and retrieval system for agent learning
+- **[GraphRAG & Entity Types](../intelligence/graphrag.md)** - Knowledge graph and entity extraction
+- **[World Model & JIT Facts](../intelligence/world-model-guide.md)** - Knowledge management and real-time fact verification
+
+### Agent Systems
+- **[Agent Governance](governance.md)** - Maturity levels and permissions system
+- **[Student Training](training.md)** - Maturity routing and training proposals
+- **[Queen Agent](../GUIDES/QUEEN_AGENT_USER_GUIDE.md)** - Structured workflow automation
+- **[Fleet Admiral](fleet-admiral.md)** - Dynamic agent recruitment for unstructured tasks
+
+### Integration Guides
+- **[Auto-Dev User Guide](../GUIDES/AUTO_DEV_USER_GUIDE.md)** - Self-evolving agent capabilities (Memento-Skills, AlphaEvolver)
+- **[Memory Integration Guide](../intelligence/memory-integration.md)** - Complete memory system integration
