@@ -13,7 +13,7 @@ to verify graceful termination invariants hold for all valid inputs.
 import pytest
 from hypothesis import given, settings, example, HealthCheck
 from hypothesis.strategies import (
-    dictionaries, text, integers, lists, none, none_or, one_of, sampled_from
+    dictionaries, text, integers, lists, none, one_of, sampled_from
 )
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
