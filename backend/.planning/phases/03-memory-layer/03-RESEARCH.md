@@ -787,7 +787,7 @@ async def consolidate_similar_episodes(
 - **Episode Retrieval Invariants** - `tests/property_tests/episodes/test_episode_retrieval_invariants.py` (1,070 lines) - Temporal filtering, semantic ranking, pagination
 - **Canvas/Feedback Integration** - `tests/test_canvas_feedback_episode_integration.py` - Canvas-aware and feedback-linked episodes
 - **Episode Documentation** - `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/EPISODIC_MEMORY_QUICK_START.md`
-- **Graduation Framework** - `backend/docs/AGENT_GRADUATION_GUIDE.md`
+- **Graduation Framework** - `docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md`
 
 ### Secondary (MEDIUM confidence)
 - **LanceDB Documentation** - Vector database for semantic search (https://lancedb.github.io/lancedb/)

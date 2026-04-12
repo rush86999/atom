@@ -473,7 +473,7 @@ SupervisionSession test failed because we didn't provide all required fields (ag
 ## Appendix
 
 ### Related Documentation
-- [Agent Graduation Service Implementation](../../backend/docs/AGENT_GRADUATION_GUIDE.md)
+- [Agent Graduation Service Implementation](../../docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md)
 - [Student Agent Training System](../../docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)
 - [Test Infrastructure](../../backend/tests/README.md)
 

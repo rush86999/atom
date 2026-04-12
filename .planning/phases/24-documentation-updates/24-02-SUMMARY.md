@@ -32,7 +32,7 @@ key-files:
     - docs/CANVAS_IMPLEMENTATION_COMPLETE.md
     - docs/EPISODIC_MEMORY_IMPLEMENTATION.md
     - docs/COMMUNITY_SKILLS.md
-    - backend/docs/AGENT_GRADUATION_GUIDE.md
+    - docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md
     - docs/INSTALLATION.md
 
 key-decisions:
