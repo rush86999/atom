@@ -21,13 +21,8 @@ from hypothesis.strategies import (
 )
 from unittest.mock import patch, MagicMock
 
-
-# Import Hypothesis settings from conftest
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from conftest import (
+# Import Hypothesis settings from local conftest
+from tests.property_tests.api_contracts.conftest import (
     HYPOTHESIS_SETTINGS_STANDARD,
     HYPOTHESIS_SETTINGS_CRITICAL
 )
