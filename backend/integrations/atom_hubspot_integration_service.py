@@ -469,14 +469,14 @@ class AtomHubSpotIntegrationService:
         """Create new campaign in HubSpot"""
         # Start audit logging
         audit_ctx = log_integration_attempt("atom_hubspot_integration", "create_contact", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
-                logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Atom_hubspot_integration integration temporarily disabled"
-                )
+        # Check circuit breaker
+        if not await circuit_breaker.is_enabled("atom_hubspot_integration"):
+            logger.warning(f"Circuit breaker is open for atom_hubspot_integration")
+            log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
+            raise HTTPException(
+                status_code=503,
+                detail=f"Atom_hubspot_integration integration temporarily disabled"
+            )
             # Check rate limiter
             is_limited, remaining = await rate_limiter.is_rate_limited("atom_hubspot_integration")
             if is_limited:
@@ -542,11 +542,12 @@ class AtomHubSpotIntegrationService:
                     # Notify relevant platforms
                     if platform and platform in self.platform_integrations:
                         await self._notify_platform_campaign_created(campaign, platform)
-                    
+
                     # Trigger campaign workflows
                     await self._trigger_campaign_workflows(campaign, 'created')
-                    
+
                     # Ingest to ATOM memory (LanceDB)
+                    try:
                         if atom_ingestion_pipeline:
                             atom_ingestion_pipeline.ingest_record("hubspot", RecordType.CAMPAIGN.value, campaign)
                             logger.info(f"HubSpot campaign {campaign.get('id')} ingested to memory")

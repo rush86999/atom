@@ -4,8 +4,6 @@ from service_delivery.models import Milestone, Project, ProjectTask
 from sqlalchemy.orm import Session
 
 from core.database import get_db_session
-from integrations.asana_real_service import asana_real_service
-from integrations.linear_service import linear_service
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +33,10 @@ class ExternalPMSyncService:
     async def _sync_to_asana(self, project: Project, db: Session) -> Dict[str, Any]:
         """Specific logic for Asana sync"""
         try:
+            from integrations.asana_real_service import AsanaRealService
+            asana_service = AsanaRealService()
             # 1. Create Project
-            asana_project = await asana_real_service.create_project({
+            asana_project = await asana_service.create_project({
                 "name": project.name,
                 "description": project.description or f"Synced from Atom (Project ID: {project.id})"
             })
@@ -54,7 +54,7 @@ class ExternalPMSyncService:
                 # Let's create sections or just tasks with markers.
                 tasks = db.query(ProjectTask).filter(ProjectTask.milestone_id == ms.id).all()
                 for task in tasks:
-                    await asana_real_service.create_task({
+                    await asana_service.create_task({
                         "title": f"[{ms.name}] {task.name}",
                         "description": task.description or "",
                         "project": asana_project_gid
@@ -68,9 +68,11 @@ class ExternalPMSyncService:
     async def _sync_to_linear(self, project: Project, db: Session) -> Dict[str, Any]:
         """Specific logic for Linear sync"""
         try:
+            from integrations.linear_service import LinearService
+            linear_service = LinearService()
             # 1. Create Project (Requires a Team ID - for MVP we'll use a hack or assume default)
             # In a real app, we'd look up the workspace's Linear team.
-            teams = await linear_service.get_teams()
+            teams = await linear_service.get_teams()  # type: ignore
             if not teams:
                 return {"status": "error", "message": "No teams found in Linear to assign project"}
             

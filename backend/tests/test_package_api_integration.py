@@ -455,7 +455,7 @@ class TestAuditEndpoint:
         db_session.add(execution2)
         db_session.commit()
 
-        response = client.get(f"/api/packages/audit?agent_id={autonomous_agent["id"]}")
+        response = client.get(f'/api/packages/audit?agent_id={autonomous_agent["id"]}')
 
         assert response.status_code == 200
         data = response.json()
