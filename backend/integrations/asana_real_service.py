@@ -72,7 +72,7 @@ class AsanaRealService:
     async def create_task(self, task_data: Dict) -> Dict:
         """Create task in Asana"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "get_tasks", locals())
+        audit_ctx = log_integration_attempt("asana_real", "create_task", locals())
         try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
@@ -93,7 +93,7 @@ class AsanaRealService:
                     detail=f"Rate limit exceeded for asana_real"
                 )
 
-        asana_data = {
+            asana_data = {
             "data": {
                 "name": task_data.get("title"),
                 "notes": task_data.get("description", ""),
@@ -107,12 +107,19 @@ class AsanaRealService:
         
         if task_data.get("project"):
             asana_data["data"]["projects"] = [task_data["project"]]
-        
-        result = await self._make_request("POST", "tasks", asana_data)
-        
-        if "data" in result:
-            return self._convert_asana_to_unified(result["data"])
-        return None
+
+            result = await self._make_request("POST", "tasks", asana_data)
+
+            if "data" in result:
+                log_integration_complete(audit_ctx, success=True)
+                return self._convert_asana_to_unified(result["data"])
+            else:
+                log_integration_complete(audit_ctx, error=Exception("Failed to create task"))
+                return None
+        except Exception as e:
+            logger.error(f"Failed to create Asana task: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return None
     
     async def update_task(self, task_id: str, updates: Dict) -> Dict:
         """Update task in Asana"""
