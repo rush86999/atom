@@ -9121,3 +9121,224 @@ class IntegrationHealthMetrics(Base):
     
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+
+# ============================================================================
+# PHASE 265: STUB MODELS FOR MISSING SCHEMA
+# ============================================================================
+# These models are stubs to unblock tests. They will be fully implemented
+# in future phases when the corresponding features are developed.
+# ============================================================================
+
+
+class CommunitySkill(Base):
+    """
+    Community-published skills from marketplace.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for marketplace skills.
+    """
+    __tablename__ = "community_skills"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    skill_type = Column(String(50), nullable=False)  # prompt_only, python_code
+    skill_content = Column(Text, nullable=True)
+    author_id = Column(String(255), nullable=True)
+    is_approved = Column(Boolean, default=False, nullable=False)
+    downloads = Column(Integer, default=0, nullable=False)
+    rating = Column(Float, default=0.0, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class OfflineAction(Base):
+    """
+    Offline actions for mobile devices.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for offline action queue.
+    """
+    __tablename__ = "offline_actions"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    device_id = Column(String(255), nullable=False, index=True)
+    action_type = Column(String(100), nullable=False)
+    payload = Column(JSONColumn, default={}, nullable=False)
+    status = Column(String(50), default="pending", nullable=False)  # pending, syncing, completed, failed
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    executed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class TemplateExecution(Base):
+    """
+    User workflow template executions.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for workflow templates.
+    """
+    __tablename__ = "template_executions"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    template_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    execution_status = Column(String(50), nullable=False)  # running, completed, failed
+    result = Column(JSONColumn, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class MeetingAttendanceStatus(Base):
+    """
+    Meeting attendance tracking.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for meeting management.
+    """
+    __tablename__ = "meeting_attendance"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meeting_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(50), nullable=False)  # accepted, declined, tentative, no_response
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class EmailVerificationToken(Base):
+    """
+    Email verification tokens.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for email verification flow.
+    """
+    __tablename__ = "email_verification_tokens"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class NetWorthSnapshot(Base):
+    """
+    Financial net worth snapshots.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for financial tracking.
+    """
+    __tablename__ = "net_worth_snapshots"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    total_assets = Column(Float, nullable=False)
+    total_liabilities = Column(Float, nullable=False)
+    net_worth = Column(Float, nullable=False)
+    currency = Column(String(10), default="USD", nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
+
+
+class ComponentUsage(Base):
+    """
+    Custom component usage tracking.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for component marketplace.
+    """
+    __tablename__ = "component_usage"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    component_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    workspace_id = Column(String(255), nullable=True)
+    usage_count = Column(Integer, default=1, nullable=False)
+    last_used = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ConditionMonitor(Base):
+    """
+    Condition monitoring for automated alerts.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for condition monitoring system.
+    """
+    __tablename__ = "condition_monitors"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    condition_type = Column(String(100), nullable=False)  # threshold, trend, anomaly
+    condition_config = Column(JSONColumn, default={}, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class ConditionAlert(Base):
+    """
+    Alerts triggered by condition monitors.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for alert management.
+    """
+    __tablename__ = "condition_alerts"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    monitor_id = Column(String(255), ForeignKey("condition_monitors.id", ondelete="CASCADE"), nullable=False)
+    alert_type = Column(String(50), nullable=False)  # info, warning, critical
+    message = Column(Text, nullable=False)
+    is_resolved = Column(Boolean, default=False, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ScheduledMessageStatus(Base):
+    """
+    Scheduled message status tracking.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for scheduled messaging.
+    """
+    __tablename__ = "scheduled_message_status"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    message_id = Column(String(255), nullable=False, unique=True, index=True)
+    status = Column(String(50), nullable=False)  # scheduled, sent, failed, cancelled
+    scheduled_for = Column(DateTime(timezone=True), nullable=False)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ProactiveMessage(Base):
+    """
+    Proactive messaging for user engagement.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for proactive messaging system.
+    """
+    __tablename__ = "proactive_messages"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    message_type = Column(String(100), nullable=False)  # onboarding, tip, reminder
+    content = Column(Text, nullable=False)
+    status = Column(String(50), default="pending", nullable=False)  # pending, sent, dismissed
+    priority = Column(Integer, default=0, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
