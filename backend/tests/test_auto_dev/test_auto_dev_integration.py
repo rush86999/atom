@@ -39,13 +39,13 @@ class TestIntegrationMementoEngineLifecycle:
     """Test MementoEngine full lifecycle (episode → skill)."""
 
     @pytest.mark.asyncio
-    async def test_analyzes_failed_episode(self, mock_auto_dev_llm, auto_dev_db_session):
+    async def test_analyzes_failed_episode(self, mock_auto_dev_llm, auto_dev_db_session, sample_episode):
         """Test analyzes failed episode."""
         from core.auto_dev.memento_engine import MementoEngine
 
         engine = MementoEngine(db=auto_dev_db_session, llm_service=mock_auto_dev_llm)
 
-        result = await engine.analyze_episode("test-episode")
+        result = await engine.analyze_episode(sample_episode.id)
 
         assert "episode_id" in result
 
@@ -106,13 +106,13 @@ class TestIntegrationAlphaEvolverEngineLifecycle:
     """Test AlphaEvolverEngine full lifecycle (episode → variant)."""
 
     @pytest.mark.asyncio
-    async def test_analyzes_successful_episode(self, mock_auto_dev_llm, auto_dev_db_session):
+    async def test_analyzes_successful_episode(self, mock_auto_dev_llm, auto_dev_db_session, sample_episode):
         """Test analyzes successful episode."""
         from core.auto_dev.alpha_evolver_engine import AlphaEvolverEngine
 
         engine = AlphaEvolverEngine(db=auto_dev_db_session, llm_service=mock_auto_dev_llm)
 
-        result = await engine.analyze_episode("test-episode")
+        result = await engine.analyze_episode(sample_episode.id)
 
         assert "episode_id" in result
 
@@ -194,11 +194,18 @@ class TestIntegrationEvolutionEngineMonitoring:
 
         engine = EvolutionEngine(db=auto_dev_db_session)
 
+        # Mock capability gate to return True (bypass AUTONOMOUS check)
+        monkeypatch.setattr(engine, "_should_optimize", lambda agent_id, tenant_id: True)
+
+        # Mock _get_skill_code to return test code
+        monkeypatch.setattr(engine, "_get_skill_code", lambda skill_id, tenant_id: "def test_skill():\n    pass")
+
         # Mock AlphaEvolverEngine
         mock_evolver = MagicMock()
         mock_mutation = MagicMock()
         mock_mutation.id = "mutation-001"
         mock_evolver.generate_tool_mutation = AsyncMock(return_value=mock_mutation)
+        mock_evolver.sandbox_execute_mutation = AsyncMock(return_value={"success": True})
 
         import sys
         original_module = sys.modules.get("core.auto_dev.alpha_evolver_engine")
@@ -216,7 +223,8 @@ class TestIntegrationEvolutionEngineMonitoring:
                 agent_id="agent-001",
                 tenant_id="tenant-001",
                 skill_id="skill-001",
-                execution_seconds=10.0,  # High latency
+                skill_name="test_skill",
+                execution_seconds=10.0,  # High latency > 5s threshold
                 token_usage=1000,
                 success=True,
             )
