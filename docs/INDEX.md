@@ -10,7 +10,7 @@
 ## 🚀 Recent Updates (April 2026)
 
 - **Documentation Updates**: ✨ NEW - Added 7 comprehensive documentation files with verified metrics
-  - [PYTHON_PACKAGES.md](SECURITY/python-packages.md) - Python Package Support system (350K+ PyPI packages)
+  - [PYTHON_PACKAGES.md](security/python-packages.md) - Python Package Support system (350K+ PyPI packages)
   - [FLEET_ADMIRAL.md](agents/fleet-admiral.md) - Multi-agent fleet coordination
   - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API
   - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries
@@ -45,8 +45,8 @@
 |----------|-------------|--------------|
 | [README.md](../README.md) | Project overview and quick start | - |
 | [PERSONAL_EDITION.md](operations/personal-edition.md) | **Personal Edition - Run Atom locally** | Feb 16, 2026 |
-| [COMMUNITY_SKILLS.md](INTEGRATIONS/community-skills.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
-| [DEVELOPMENT.md](DEVELOPMENT/overview.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
+| [COMMUNITY_SKILLS.md](integrations/community-skills.md) | **Community Skills Integration (5,000+ skills)** | Feb 16, 2026 |
+| [DEVELOPMENT.md](development/overview.md) | **Developer setup guide** - Security, testing, deployment | Feb 6, 2026 |
 | [ATOM_ARCHITECTURE_SPEC.md](ATOM_ARCHITECTURE_SPEC.md) | High-level system design | - |
 | [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) | **Vector embeddings guide (FastEmbed, OpenAI, Cohere)** | Feb 16, 2026 |
 
@@ -59,7 +59,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [marketplace/connection.md](marketplace/connection.md) | **✨ NEW: Marketplace connection guide** - Setup, configuration, troubleshooting | Apr 7, 2026 |
-| [GUIDES/MARKETPLACE_QUICKSTART.md](GUIDES/MARKETPLACE_QUICKSTART.md) | **✨ NEW: Marketplace quick start - 5-minute setup** | Apr 10, 2026 |
+| [GUIDES/MARKETPLACE_QUICKSTART.md](guides/MARKETPLACE_QUICKSTART.md) | **✨ NEW: Marketplace quick start - 5-minute setup** | Apr 10, 2026 |
 | [marketplace/canvas-components.md](marketplace/canvas-components.md) | **✨ NEW: Canvas component marketplace** - Browse, install, use components | Apr 7, 2026 |
 | [marketplace/domains.md](marketplace/domains.md) | **✨ NEW: Domain marketplace** - Specialist knowledge domains | Apr 7, 2026 |
 | [marketplace/skills.md](marketplace/skills.md) | **Skills marketplace** - Agent capabilities and integrations | Apr 6, 2026 |
@@ -73,13 +73,13 @@
 |----------|-------------|--------------|
 | [**Marketplace Documentation**](marketplace/) | **✨ NEW: Complete marketplace guide (connection, skills, analytics)** | Apr 7, 2026 |
 | [MARKETPLACE_CONNECTION_GUIDE.md](MARKETPLACE_CONNECTION_GUIDE.md) | **✨ NEW: Connect to Atom SaaS marketplace** | Apr 6, 2026 |
-| [COMMUNITY_SKILLS.md](INTEGRATIONS/community-skills.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
-| [PYTHON_PACKAGES.md](SECURITY/python-packages.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
+| [COMMUNITY_SKILLS.md](integrations/community-skills.md) | **5,000+ OpenClaw/ClawHub skills guide** | Feb 19, 2026 |
+| [PYTHON_PACKAGES.md](security/python-packages.md) | **Python Package Support (NumPy, Pandas, 350K+ packages)** | Apr 7, 2026 |
 | [PACKAGE_GOVERNANCE.md](PACKAGE_GOVERNANCE.md) | Maturity-based access control and approval workflow | Feb 19, 2026 |
-| [PACKAGE_SECURITY.md](SECURITY/packages.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
+| [PACKAGE_SECURITY.md](security/packages.md) | Vulnerability scanning and supply chain security | Feb 19, 2026 |
 | [PYTHON_PACKAGES_DEPLOYMENT.md](PYTHON_PACKAGES_DEPLOYMENT.md) | Production deployment and monitoring | Feb 19, 2026 |
-| [NPM_PACKAGE_SUPPORT.md](SECURITY/npm-packages.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
-| [ADVANCED_SKILL_EXECUTION.md](INTEGRATIONS/advanced-skills.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
+| [NPM_PACKAGE_SUPPORT.md](security/npm-packages.md) | **npm Package Support (Lodash, Express, 2M+ packages)** | Feb 19, 2026 |
+| [ADVANCED_SKILL_EXECUTION.md](integrations/advanced-skills.md) | **Phase 60: Marketplace, composition, dynamic loading** | Feb 19, 2026 |
 | [SKILL_MARKETPLACE_GUIDE.md](SKILL_MARKETPLACE_GUIDE.md) | PostgreSQL-based skill marketplace guide | Feb 19, 2026 |
 | [SKILL_COMPOSITION_PATTERNS.md](SKILL_COMPOSITION_PATTERNS.md) | DAG workflows and skill composition | Feb 19, 2026 |
 | [PERFORMANCE_TUNING.md](operations/performance.md) | Performance optimization and benchmarks | Feb 19, 2026 |
@@ -89,7 +89,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [GUIDES/FEDERATION_INSTANCE_IDENTITY.md](GUIDES/FEDERATION_INSTANCE_IDENTITY.md) | **✨ NEW: Federation & Instance Identity - Multi-instance communication** | Apr 10, 2026 |
+| [GUIDES/FEDERATION_INSTANCE_IDENTITY.md](guides/FEDERATION_INSTANCE_IDENTITY.md) | **✨ NEW: Federation & Instance Identity - Multi-instance communication** | Apr 10, 2026 |
 
 ---
 
@@ -99,9 +99,9 @@
 |----------|-------------|--------------|
 | [AUTHENTICATION.md]# | **OAuth 2.0, session management, request validation** | Feb 6, 2026 |
 | [DATA_PROTECTION.md]# | **Fernet encryption, secrets management, migration** | Feb 6, 2026 |
-| [WEBHOOK_VERIFICATION.md](SECURITY/WEBHOOK_VERIFICATION.md) | **Slack, Teams, Gmail webhook signature verification** | Feb 6, 2026 |
-| [COMPLIANCE.md](SECURITY/COMPLIANCE.md) | GDPR, SOC2, HIPAA considerations | - |
-| [SECURITY_OVERVIEW.md](SECURITY/SECURITY_OVERVIEW.md) | Security architecture overview | - |
+| [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) | **Slack, Teams, Gmail webhook signature verification** | Feb 6, 2026 |
+| [COMPLIANCE.md](security/COMPLIANCE.md) | GDPR, SOC2, HIPAA considerations | - |
+| [SECURITY_OVERVIEW.md](security/SECURITY_OVERVIEW.md) | Security architecture overview | - |
 
 ---
 
@@ -118,13 +118,13 @@
 ### Multi-Agent Coordination
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [QUEEN_AGENT.md](GUIDES/QUEEN_AGENT_USER_GUIDE.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
-| [GUIDES/QUEEN_AGENT_USER_GUIDE.md](GUIDES/QUEEN_AGENT_USER_GUIDE.md) | **✨ NEW: Queen Agent user guide - Blueprints, scheduling, monitoring** | Apr 10, 2026 |
+| [QUEEN_AGENT.md](guides/QUEEN_AGENT_USER_GUIDE.md) | **Queen Agent (Queen Hive) - Structured workflow automation** | Apr 7, 2026 |
+| [GUIDES/QUEEN_AGENT_USER_GUIDE.md](guides/QUEEN_AGENT_USER_GUIDE.md) | **✨ NEW: Queen Agent user guide - Blueprints, scheduling, monitoring** | Apr 10, 2026 |
 | [agents/unstructured-tasks.md](agents/unstructured-tasks.md) | **Intent classification & dynamic routing (CHAT/WORKFLOW/TASK)** | Apr 7, 2026 |
 | [agents/fleet-admiral.md](agents/fleet-admiral.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
 | [agents/overview.md](agents/overview.md) | Agent system overview and intent classification | Apr 7, 2026 |
-| [GUIDES/QUEEN_VS_FLEET_ADMIRAL.md](GUIDES/QUEEN_VS_FLEET_ADMIRAL.md) | **✨ NEW: Queen Agent vs Fleet Admiral - Which orchestrator to use?** | Apr 10, 2026 |
-| [GUIDES/AUTO_DEV_USER_GUIDE.md](GUIDES/AUTO_DEV_USER_GUIDE.md) | **✨ Auto-Dev Module - Self-evolving agent capabilities** | Apr 10, 2026 |
+| [GUIDES/QUEEN_VS_FLEET_ADMIRAL.md](guides/QUEEN_VS_FLEET_ADMIRAL.md) | **✨ NEW: Queen Agent vs Fleet Admiral - Which orchestrator to use?** | Apr 10, 2026 |
+| [GUIDES/AUTO_DEV_USER_GUIDE.md](guides/AUTO_DEV_USER_GUIDE.md) | **✨ Auto-Dev Module - Self-evolving agent capabilities** | Apr 10, 2026 |
 | [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ NEW: Self-Evolution & Reflection Pool - Complete guide** | Apr 12, 2026 |
 
 ### Intelligence & Learning Systems
@@ -180,9 +180,9 @@
 ### Workflow Automation
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) | **Complete workflow guide** | - |
-| [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) | AI-powered workflow optimization | - |
-| [MONITORING_GUIDE.md](DEPLOYMENT/MONITORING_SETUP.md) | Track workflow performance | - |
+| [INTEGRATIONS.md](integrations/OVERVIEW.md) | **Complete workflow guide** | - |
+| [INTEGRATIONS.md](integrations/OVERVIEW.md) | AI-powered workflow optimization | - |
+| [MONITORING_GUIDE.md](deployment/MONITORING_SETUP.md) | Track workflow performance | - |
 | [MULTI_INTEGRATION_WORKFLOW_ENGINE.md](MULTI_INTEGRATION_WORKFLOW_ENGINE.md) | Multi-integration workflows | - |
 
 ---
@@ -222,7 +222,7 @@
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
 | [PERFORMANCE_MONITORING_SETUP.md](PERFORMANCE_MONITORING_SETUP.md) | Performance monitoring setup | - |
-| [CODE_QUALITY_GUIDE.md](DEVELOPMENT/code-quality.md) | Code quality guidelines | Feb 4, 2026 |
+| [CODE_QUALITY_GUIDE.md](development/code-quality.md) | Code quality guidelines | Feb 4, 2026 |
 | [CODEBASE_HEALTH_CHECK.md](CODEBASE_HEALTH_CHECK.md) | Codebase health check | Feb 3, 2026 |
 
 ---
@@ -246,15 +246,15 @@
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Production troubleshooting guide** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](development/code-quality.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
 
 ### Monitoring & Observability
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
+| [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) | **Health checks, Prometheus metrics, logging** | Feb 16, 2026 |
 | [HEALTH_MONITORING_SYSTEM.md](HEALTH_MONITORING_SYSTEM.md) | Health monitoring system | Feb 2, 2026 |
-| [MONITORING_GUIDE.md](DEPLOYMENT/MONITORING_SETUP.md) | Monitoring guide | Feb 2, 2026 |
+| [MONITORING_GUIDE.md](deployment/MONITORING_SETUP.md) | Monitoring guide | Feb 2, 2026 |
 
 ### CI/CD Pipeline
 
@@ -320,7 +320,7 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [CODE_QUALITY_GUIDE.md](DEVELOPMENT/code-quality.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
+| [CODE_QUALITY_GUIDE.md](development/code-quality.md) | **Testing best practices (TQ-01 through TQ-05)** | Feb 16, 2026 |
 | [CI_FIXES.md](CI_FIXES.md) | **CI pipeline fixes (BYOK typo, dependencies, syntax errors)** | Feb 16, 2026 |
 | [TEST_RESULTS_FEB2026.md](TEST_RESULTS_FEB2026.md) | Test results summary | Feb 2026 |
 | [FUNCTIONALITY_TEST.md](FUNCTIONALITY_TEST.md) | Functionality testing guide | - |
@@ -340,7 +340,7 @@
 ### Architecture
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [ARCHITECTURE.md](ARCHITECTURE/SYSTEM_OVERVIEW.md) | System architecture overview | Feb 1, 2026 |
+| [ARCHITECTURE.md](architecture/SYSTEM_OVERVIEW.md) | System architecture overview | Feb 1, 2026 |
 | [CODE_STRUCTURE_OVERVIEW.md](CODE_STRUCTURE_OVERVIEW.md) | Code structure overview | - |
 | [DATABASE_ARCHITECTURE.md](reference/DATABASE_ARCHITECTURE.md) | Database architecture | - |
 
@@ -419,7 +419,7 @@
 **Security**:
 - [AUTHENTICATION.md]# - OAuth and session management
 - [DATA_PROTECTION.md]# - Encryption and secrets
-- [WEBHOOK_VERIFICATION.md](SECURITY/WEBHOOK_VERIFICATION.md) - Webhook security
+- [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) - Webhook security
 
 **Agent Systems**:
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity
@@ -432,7 +432,7 @@
 
 **Integrations**:
 - [BYOK_LLM_INTEGRATION_COMPLETE.md]# - LLM providers
-- [INTEGRATIONS.md](INTEGRATIONS/OVERVIEW.md) - Workflows
+- [INTEGRATIONS.md](integrations/OVERVIEW.md) - Workflows
 
 **Background Jobs**:
 - [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - RQ and Redis setup
@@ -440,15 +440,15 @@
 ### By Date (Most Recent)
 
 **February 2026**:
-- [COMMUNITY_SKILLS.md](INTEGRATIONS/community-skills.md) - **Community Skills Integration guide** (Feb 16)
+- [COMMUNITY_SKILLS.md](integrations/community-skills.md) - **Community Skills Integration guide** (Feb 16)
 - [PERSONAL_EDITION.md](operations/personal-edition.md) - **Personal Edition guide** (Feb 16)
 - [VECTOR_EMBEDDINGS.md](VECTOR_EMBEDDINGS.md) - **Vector embeddings guide** (Feb 16)
 - [API_DOCUMENTATION.md](API/OVERVIEW.md) - **Comprehensive API docs** (Feb 16)
 - [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) - **Deployment runbook** (Feb 16)
 - [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) - **Operations guide** (Feb 16)
 - [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) - **Troubleshooting** (Feb 16)
-- [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
-- [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) - **Code quality** (Feb 16)
+- [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
+- [CODE_QUALITY_STANDARDS.md](development/code-quality.md) - **Code quality** (Feb 16)
 - [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 
 ### Canvas & AI Features (Phase 20-23)
@@ -457,10 +457,10 @@
 - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - **LLM-powered semantic summaries** (Feb 2026)
 
 ### Core Development (Feb 6)
-- [DEVELOPMENT.md](DEVELOPMENT/overview.md) - Updated with security, testing, task queue (Feb 6)
+- [DEVELOPMENT.md](development/overview.md) - Updated with security, testing, task queue (Feb 6)
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Consolidated history (Feb 6)
 - [TASK_QUEUE_GUIDE.md](TASK_QUEUE_GUIDE.md) - Background task queue (Feb 6)
-- [WEBHOOK_VERIFICATION.md](SECURITY/WEBHOOK_VERIFICATION.md) - Webhook security (Feb 6)
+- [WEBHOOK_VERIFICATION.md](security/WEBHOOK_VERIFICATION.md) - Webhook security (Feb 6)
 - [AUTHENTICATION.md]# - Updated with validation (Feb 6)
 - [DATA_PROTECTION.md]# - Updated with encryption (Feb 6)
 - [CANVAS_FEEDBACK_EPISODIC_MEMORY.md](CANVAS_FEEDBACK_EPISODIC_MEMORY.md) - Canvas integration (Feb 4)
@@ -491,8 +491,8 @@
 | [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment runbook** | Feb 16, 2026 |
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Operations guide** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Troubleshooting guide** | Feb 16, 2026 |
-| [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
-| [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) | **Code quality standards** | Feb 16, 2026 |
+| [MONITORING_SETUP.md](deployment/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
+| [CODE_QUALITY_STANDARDS.md](development/code-quality.md) | **Code quality standards** | Feb 16, 2026 |
 | [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
 
 ---
@@ -509,7 +509,7 @@
 ---
 
 **Need Help?**
-- Check [DEVELOPMENT.md](DEVELOPMENT/overview.md) for setup instructions
+- Check [DEVELOPMENT.md](development/overview.md) for setup instructions
 - Review [SECURITY/AUTHENTICATION.md]# for authentication issues
 - See [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) for recent changes
 

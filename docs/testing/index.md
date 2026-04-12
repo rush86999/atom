@@ -271,7 +271,7 @@ Quality standards and reference materials for all platforms.
 
 ### Quality Standards
 
-→ [backend/docs/TEST_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md)
+→ [backend/docs/TEST_QUALITY_STANDARDS.md](development/code-quality.md)
 
 **Standards:**
 - TQ-01: Test Independence

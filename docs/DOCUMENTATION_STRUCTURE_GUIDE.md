@@ -152,32 +152,32 @@ docs/
 **Start Here:**
 1. [INDEX.md](INDEX.md) - Main documentation index
 2. [USER_GUIDE_INDEX.md](USER_GUIDE_INDEX.md) - User guide index
-3. [GETTING_STARTED/](GETTING_STARTED/) - Getting started guides
+3. [GETTING_STARTED/](getting_started/) - Getting started guides
 
 **Key Sections:**
 - [Marketplace](marketplace/) - Commercial marketplace guides
 - [Agents](agents/) - Agent system documentation
 - [Canvas](canvas/) - Canvas presentation system
-- [Integrations](INTEGRATIONS/) - Integration guides
+- [Integrations](integrations/) - Integration guides
 
 ### For Developers
 
 **Start Here:**
-1. [DEVELOPMENT/](DEVELOPMENT/) - Developer setup
+1. [DEVELOPMENT/](development/) - Developer setup
 2. [API/](API/) - API documentation
 3. [testing/](testing/) - Testing guides
 
 **Key Sections:**
-- [ARCHITECTURE/](ARCHITECTURE/) - System architecture
+- [ARCHITECTURE/](architecture/) - System architecture
 - [components/](components/) - Component system
 - [reference/](reference/) - Reference documentation
 
 ### For Operators
 
 **Start Here:**
-1. [DEPLOYMENT/](DEPLOYMENT/) - Deployment guides
+1. [DEPLOYMENT/](deployment/) - Deployment guides
 2. [operations/](operations/) - Operations documentation
-3. [SECURITY/](SECURITY/) - Security documentation
+3. [SECURITY/](security/) - Security documentation
 
 **Key Sections:**
 - [WORKFLOW_AUTOMATION/](WORKFLOW_AUTOMATION/) - Workflow automation
@@ -242,11 +242,11 @@ docs/
 
 | Task | Documentation Location |
 |------|----------------------|
-| **Install Atom** | [GETTING_STARTED/installation.md](GETTING_STARTED/installation.md) |
+| **Install Atom** | [GETTING_STARTED/installation.md](getting_started/installation.md) |
 | **Setup Marketplace** | [marketplace/connection.md](marketplace/connection.md) |
 | **Create Agent** | [agents/overview.md](agents/overview.md) |
-| **Deploy Production** | [DEPLOYMENT/production.md](DEPLOYMENT/production.md) |
-| **Integrate Service** | [INTEGRATIONS/](INTEGRATIONS/) |
+| **Deploy Production** | [DEPLOYMENT/production.md](deployment/production.md) |
+| **Integrate Service** | [INTEGRATIONS/](integrations/) |
 | **Monitor System** | [operations/monitoring.md](operations/monitoring.md) |
 | **Troubleshoot** | [operations/troubleshooting.md](operations/troubleshooting.md) |
 
@@ -254,10 +254,10 @@ docs/
 
 | Role | Start Here |
 |------|-----------|
-| **New User** | [GETTING_STARTED/quick-start.md](GETTING_STARTED/quick-start.md) |
+| **New User** | [GETTING_STARTED/quick-start.md](getting_started/quick-start.md) |
 | **Agent Developer** | [agents/overview.md](agents/overview.md) |
-| **Integration Developer** | [INTEGRATIONS/](INTEGRATIONS/) |
-| **System Administrator** | [DEPLOYMENT/](DEPLOYMENT/) |
+| **Integration Developer** | [INTEGRATIONS/](integrations/) |
+| **System Administrator** | [DEPLOYMENT/](deployment/) |
 | **Platform Operator** | [operations/](operations/) |
 
 ---

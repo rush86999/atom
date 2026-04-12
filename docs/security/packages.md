@@ -711,10 +711,10 @@ assert result.malicious == True
 
 ## See Also
 
-- **[Python Packages Guide](SECURITY/python-packages.md)** - User guide for package installation
+- **[Python Packages Guide](security/python-packages.md)** - User guide for package installation
 - **[Package Governance](PACKAGE_GOVERNANCE.md)** - Approval workflow and access control
 - **[Community Skills Security](COMMUNITY_SKILLS.md#security--governance)** - Overall skill security
-- **[Code Quality Standards](DEVELOPMENT/code-quality.md)** - Secure coding practices
+- **[Code Quality Standards](development/code-quality.md)** - Secure coding practices
 - **[Security Tests](../backend/tests/test_package_security.py)** - Complete security test suite
 
 ---

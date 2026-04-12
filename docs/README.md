@@ -38,11 +38,11 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 - [Student Training](agents/training.md) - Training workflow for student agents
 - [Meta-Agent Routing](agents/meta-agent.md) - Intent classification and orchestration
 - [Queen Agent (Queen Hive)](../QUEEN_AGENT.md) - **Structured workflow automation** ✨ NEW
-- [Queen Agent User Guide](GUIDES/QUEEN_AGENT_USER_GUIDE.md) - **Complete guide to Queen Agent** ✨ NEW
+- [Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md) - **Complete guide to Queen Agent** ✨ NEW
 - [Fleet Admiral](agents/fleet-admiral.md) - Multi-agent orchestration for unstructured tasks
 - [Unstructured Tasks](agents/unstructured-tasks.md) - Intent classification and fleet coordination
-- [Queen vs Fleet Admiral Comparison](GUIDES/QUEEN_VS_FLEET_ADMIRAL.md) - **Which orchestrator to use?** ✨ NEW
-- [Auto-Dev Module](GUIDES/AUTO_DEV_USER_GUIDE.md) - **Self-evolving agent capabilities** ✨ NEW
+- [Queen vs Fleet Admiral Comparison](guides/QUEEN_VS_FLEET_ADMIRAL.md) - **Which orchestrator to use?** ✨ NEW
+- [Auto-Dev Module](guides/AUTO_DEV_USER_GUIDE.md) - **Self-evolving agent capabilities** ✨ NEW
 
 ### Intelligence & Memory 🧠
 - **[Intelligence Overview](intelligence/overview.md)** - Complete intelligence documentation
@@ -68,13 +68,13 @@ Welcome to the Atom documentation hub. This guide helps you find relevant inform
 
 ### Marketplace 🏪
 - [Marketplace Connection](marketplace/connection.md) - Connect to public marketplace
-- [Marketplace Quick Start](GUIDES/MARKETPLACE_QUICKSTART.md) - **5-minute marketplace setup** ✨ NEW
+- [Marketplace Quick Start](guides/MARKETPLACE_QUICKSTART.md) - **5-minute marketplace setup** ✨ NEW
 - [Skill Marketplace](marketplace/skills.md) - Browse and install skills
 - [Marketplace Analytics](marketplace/analytics.md) - Analytics and synchronization
 - [Update Summary](marketplace/update-summary.md) - Recent marketplace updates
 
 ### Federation & Multi-Instance 🌐
-- [Federation & Instance Identity](GUIDES/FEDERATION_INSTANCE_IDENTITY.md) - **Multi-instance communication** ✨ NEW
+- [Federation & Instance Identity](guides/FEDERATION_INSTANCE_IDENTITY.md) - **Multi-instance communication** ✨ NEW
 
 ---
 

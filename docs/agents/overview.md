@@ -59,7 +59,7 @@ Individual capabilities (skills, tools, actions) graduate independently based on
 ## Quick Links
 
 - **[Testing Index](testing/index.md)** - Agent testing documentation
-- **[Development Guide](DEVELOPMENT/overview.md)** - Building agents
+- **[Development Guide](development/overview.md)** - Building agents
 - **[API Documentation](API/OVERVIEW.md)** - Agent API endpoints
 
 ---

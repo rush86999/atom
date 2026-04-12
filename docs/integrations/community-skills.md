@@ -600,7 +600,7 @@ Remove skill image when no longer needed:
 curl -X DELETE http://localhost:8000/api/packages/npm/data-analysis-skill
 ```
 
-**See:** [npm Package Support](SECURITY/npm-packages.md) for comprehensive user guide.
+**See:** [npm Package Support](security/npm-packages.md) for comprehensive user guide.
 
 ---
 
@@ -872,7 +872,7 @@ curl http://localhost:8000/api/skills/email-sorter/executions | jq '.executions[
 - [Agent Graduation →](../agents/graduation.md) - Community skills count toward graduation readiness
 - [API Documentation →](API/OVERVIEW.md)
 - **✨ Phase 60: Advanced Skill Execution**
-  - [Advanced Skill Execution →](INTEGRATIONS/advanced-skills.md) - Marketplace, composition, auto-installation overview
+  - [Advanced Skill Execution →](integrations/advanced-skills.md) - Marketplace, composition, auto-installation overview
   - [Skill Marketplace Guide →](SKILL_MARKETPLACE_GUIDE.md) - Discovery, search, ratings, installation
   - [Skill Composition Patterns →](SKILL_COMPOSITION_PATTERNS.md) - Workflow design with DAG patterns
   - [Performance Tuning →](operations/performance.md) - Optimization and monitoring guide

@@ -239,7 +239,7 @@ Chronological summary of major implementation milestones and fixes.
 ### Security Documentation
 - [SECURITY/AUTHENTICATION.md][<!-- SECURITY/AUTHENTICATION.md -->] - Authentication system
 - [SECURITY/DATA_PROTECTION.md][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets
-- [SECURITY/COMPLIANCE.md](SECURITY/COMPLIANCE.md) - Compliance requirements
+- [SECURITY/COMPLIANCE.md](security/COMPLIANCE.md) - Compliance requirements
 
 ---
 

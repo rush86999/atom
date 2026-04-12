@@ -436,16 +436,16 @@ systemctl start atom-backend atom-workers
 ### Security
 - [Authentication Guide][<!-- SECURITY/AUTHENTICATION.md -->] - OAuth 2.0 and session management
 - [Data Protection][<!-- SECURITY/DATA_PROTECTION.md -->] - Encryption and secrets management
-- [Compliance](SECURITY/COMPLIANCE.md) - GDPR, SOC2, HIPAA considerations
+- [Compliance](security/COMPLIANCE.md) - GDPR, SOC2, HIPAA considerations
 
 ### Deployment
-- [Cloud Deployment](DEPLOYMENT/CLOUD_DEPLOYMENT.md) - AWS, GCP, Azure deployment
+- [Cloud Deployment](deployment/CLOUD_DEPLOYMENT.md) - AWS, GCP, Azure deployment
 - [Production Deployment](docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT_SUMMARY.md) - Production checklist
-- [Docker Deployment](DEPLOYMENT/DOCKER_DEPLOYMENT.md) - Container deployment guide
+- [Docker Deployment](deployment/DOCKER_DEPLOYMENT.md) - Container deployment guide
 - [Monitoring Setup](PERFORMANCE_MONITORING_SETUP.md) - Performance monitoring
 
 ### Integration Development
-- [API Integration Guide](GUIDES/DEVELOPERS/API_INTEGRATION.md) - Build custom integrations
+- [API Integration Guide](guides/DEVELOPERS/API_INTEGRATION.md) - Build custom integrations
 - [Contributing Integrations](backend/docs/CONTRIBUTING_INTEGRATIONS.md) - Integration contribution guide
 - [BYOK LLM Integration](docs/ARCHITECTURE/BYOK_LLM_INTEGRATION_COMPLETE.md) - Multi-provider LLM setup
 

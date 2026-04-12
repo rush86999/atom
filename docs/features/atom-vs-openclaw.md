@@ -366,9 +366,9 @@ Both are excellent choices depending on your use case. For business workflows re
 
 ### Atom
 - [Documentation Index](INDEX.md) - Comprehensive documentation overview
-- [DEVELOPMENT.md](DEVELOPMENT/overview.md) - Developer setup and deployment guide
+- [DEVELOPMENT.md](development/overview.md) - Developer setup and deployment guide
 - [IMPLEMENTATION_HISTORY.md](IMPLEMENTATION_HISTORY.md) - Chronological implementation timeline
-- [PYTHON_PACKAGES.md](SECURITY/python-packages.md) - Python Package Support system (350K+ PyPI packages) ✨ NEW
+- [PYTHON_PACKAGES.md](security/python-packages.md) - Python Package Support system (350K+ PyPI packages) ✨ NEW
 - [FLEET_ADMIRAL.md](agents/fleet-admiral.md) - Multi-agent fleet coordination system ✨ NEW
 - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - Canvas AI accessibility and state API ✨ NEW
 - [LLM_CANVAS_SUMMARIES.md](../canvas/llm-summaries.md) - LLM-generated canvas summaries ✨ NEW
@@ -378,7 +378,7 @@ Both are excellent choices depending on your use case. For business workflows re
 - [agents/graduation.md](../agents/graduation.md) - **Agent promotion criteria and 6-component readiness score formula** ✨ NEW
 - [AGENT_GOVERNANCE_LEARNING_INTEGRATION.md](agents/governance.md) - **Capability graduation logic (5/20/50 rule)** ✨ NEW
 - [Episodic Memory](intelligence/episodic-memory.md) - Agent learning framework
-- [MESSAGING_PLATFORMS.md](GUIDES/MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
+- [MESSAGING_PLATFORMS.md](guides/MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
 - [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 486 comprehensive E2E test functions ✨ NEW
 - [Bug Discovery Infrastructure](docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery ✨ NEW
 - [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices ✨ NEW

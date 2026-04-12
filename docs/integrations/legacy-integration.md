@@ -5,15 +5,15 @@ Platform integrations, automation capabilities, and third-party connections.
 ## Core Integration
 
 ### Platform Integration
-- **[Integrations](INTEGRATIONS/OVERVIEW.md)** - Overview of 46+ platform integrations
+- **[Integrations](integrations/OVERVIEW.md)** - Overview of 46+ platform integrations
 - **[Integration Health Monitoring](INTEGRATION_HEALTH_MONITORING.md)** - Monitoring integration status
 - **[Multi-Integration Workflow Engine](MULTI_INTEGRATION_WORKFLOW_ENGINE.md)** - Cross-platform workflows
 
 ### Skills & Automation
-- **[Advanced Skill Execution](INTEGRATIONS/advanced-skills.md)** - Community skills framework
+- **[Advanced Skill Execution](integrations/advanced-skills.md)** - Community skills framework
 - **[Skill Marketplace Guide](SKILL_MARKETPLACE_GUIDE.md)** - Skill discovery and usage
 - **[Skill Composition Patterns](SKILL_COMPOSITION_PATTERNS.md)** - Composing multiple skills
-- **[Community Skills](INTEGRATIONS/community-skills.md)** - OpenClaw/ClawHub integration
+- **[Community Skills](integrations/community-skills.md)** - OpenClaw/ClawHub integration
 
 ### Automation Capabilities
 - **[Browser Automation](BROWSER_AUTOMATION.md)** - Web scraping and automation
@@ -33,7 +33,7 @@ Platform integrations, automation capabilities, and third-party connections.
 - **[OAuth Token Encryption Migration](OAUTH_TOKEN_ENCRYPTION_MIGRATION.md)** - Security upgrade
 
 ### Security
-- **[Package Security](SECURITY/packages.md)** - Package vulnerability scanning
+- **[Package Security](security/packages.md)** - Package vulnerability scanning
 - **[Package Governance](PACKAGE_GOVERNANCE.md)** - Package access control
 - **[Security Advisory 2025-03-23](SECURITY_ADVISORY_2025-03-23.md)** - Security notices
 - **[Security Audit Final](SECURITY_AUDIT_FINAL.md)** - Audit results
@@ -44,9 +44,9 @@ Platform integrations, automation capabilities, and third-party connections.
 - **[MCP Setup](MCP_SETUP.md)** - MCP server configuration
 
 ### Package Support
-- **[Python Packages](SECURITY/python-packages.md)** - Python package governance
+- **[Python Packages](security/python-packages.md)** - Python package governance
 - **[Python Packages Deployment](PYTHON_PACKAGES_DEPLOYMENT.md)** - Deployment guide
-- **[NPM Package Support](SECURITY/npm-packages.md)** - Node.js package support
+- **[NPM Package Support](security/npm-packages.md)** - Node.js package support
 
 ## Quick Reference
 
@@ -61,7 +61,7 @@ Platform integrations, automation capabilities, and third-party connections.
 
 ### Integration Setup
 1. **OAuth Integration**: See [OAuth Setup Guide](OAUTH_SETUP_GUIDE.md)
-2. **Custom Skills**: See [Advanced Skill Execution](INTEGRATIONS/advanced-skills.md)
+2. **Custom Skills**: See [Advanced Skill Execution](integrations/advanced-skills.md)
 3. **Browser Automation**: See [Browser Quick Start](BROWSER_QUICK_START.md)
 4. **CLI Automation**: See [Atom CLI Skills](ATOM_CLI_SKILLS_GUIDE.md)
 
@@ -69,7 +69,7 @@ Platform integrations, automation capabilities, and third-party connections.
 
 - **[API Documentation](API/OVERVIEW.md)** - REST API for integrations
 - **[Agent System](AGENTS.md)** - Agent capabilities
-- **[Development Guide](DEVELOPMENT/overview.md)** - Building custom integrations
+- **[Development Guide](development/overview.md)** - Building custom integrations
 
 ---
 

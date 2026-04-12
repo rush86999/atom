@@ -18,22 +18,22 @@
     "last_executed": "2026-02-18T04:22:09.947043"
   },
   "simple_workflow": {
-    "execution_count": 24,
+    "execution_count": 54,
     "success_count": 0,
-    "failure_count": 24,
-    "total_duration_seconds": 1.6565210000000001,
+    "failure_count": 54,
+    "total_duration_seconds": 1.7104329999999994,
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
-    "last_executed": "2026-03-15T23:02:03.516002"
+    "last_executed": "2026-04-12T16:52:59.155324"
   },
   "failing_workflow": {
-    "execution_count": 4,
+    "execution_count": 7,
     "success_count": 0,
-    "failure_count": 4,
-    "total_duration_seconds": 0.010266,
+    "failure_count": 7,
+    "total_duration_seconds": 0.017542000000000002,
     "total_time_saved_seconds": 0.0,
     "total_business_value": 0.0,
-    "last_executed": "2026-03-15T23:02:03.526801"
+    "last_executed": "2026-04-12T16:52:59.117455"
   },
   "payroll_compliance_review": {
     "execution_count": 124,
@@ -54,12 +54,12 @@
     "last_executed": "2026-03-15T21:45:12.123456"
   },
   "test-workflow": {
-    "execution_count": 32,
-    "success_count": 0,
+    "execution_count": 35,
+    "success_count": 3,
     "failure_count": 32,
-    "total_duration_seconds": 0.073867,
-    "total_time_saved_seconds": 0.0,
-    "total_business_value": 0.0,
-    "last_executed": "2026-03-26T14:29:29.709172"
+    "total_duration_seconds": 0.103013,
+    "total_time_saved_seconds": 180.0,
+    "total_business_value": 30.0,
+    "last_executed": "2026-04-12T16:52:59.094294"
   }
 }

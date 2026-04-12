@@ -7,7 +7,7 @@ Production deployment, monitoring, and platform-specific guides.
 ### Production Deployment
 - **[Production Readiness](operations/production-readiness.md)** - Deployment checklist
 - **[Production Readiness Report](PRODUCTION_READINESS_REPORT.md)** - Readiness assessment
-- **[Deployment](DEPLOYMENT/PRODUCTION_DEPLOYMENT.md)** - Deployment overview
+- **[Deployment](deployment/PRODUCTION_DEPLOYMENT.md)** - Deployment overview
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Step-by-step deployment
 - **[Rollback Procedure](operations/rollback.md)** - Emergency rollback
 
@@ -16,7 +16,7 @@ Production deployment, monitoring, and platform-specific guides.
 - **[Personal Edition Guide](PERSONAL_EDITION_GUIDE.md)** - Complete guide
 
 ### Installation
-- **[Installation](GETTING_STARTED/INSTALLATION.md)** - Installation overview
+- **[Installation](getting_started/INSTALLATION.md)** - Installation overview
 - **[Installation Options](INSTALLATION_OPTIONS.md)** - Deployment options
 - **[Install Script Guide](INSTALL_SCRIPT_GUIDE.md)** - Automated installation
 - **[Mac Mini Install](MAC_MINI_INSTALL.md)** - Mac-specific setup
@@ -26,12 +26,12 @@ Production deployment, monitoring, and platform-specific guides.
 
 ### Health & Monitoring
 - **[Health Monitoring System](HEALTH_MONITORING_SYSTEM.md)** - Health check endpoints
-- **[Monitoring Guide](DEPLOYMENT/MONITORING_SETUP.md)** - Monitoring setup
+- **[Monitoring Guide](deployment/MONITORING_SETUP.md)** - Monitoring setup
 - **[Performance Monitoring Setup](PERFORMANCE_MONITORING_SETUP.md)** - Metrics and alerts
 - **[Performance Tuning](operations/performance.md)** - Optimization strategies
 
 ### Build & CI/CD
-- **[Build](DEVELOPMENT/build.md)** - Build process
+- **[Build](development/build.md)** - Build process
 - **[CI Fixes](CI_FIXES.md)** - CI/CD troubleshooting
 
 ## Platform-Specific
@@ -76,7 +76,7 @@ Production deployment, monitoring, and platform-specific guides.
 ### Deployment Checklist
 - [ ] Review [Production Readiness](operations/production-readiness.md)
 - [ ] Follow [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- [ ] Configure [Monitoring](DEPLOYMENT/MONITORING_SETUP.md)
+- [ ] Configure [Monitoring](deployment/MONITORING_SETUP.md)
 - [ ] Set up [Health Checks](HEALTH_MONITORING_SYSTEM.md)
 - [ ] Prepare [Rollback Procedure](operations/rollback.md)
 
@@ -97,7 +97,7 @@ curl http://localhost:8000/health/metrics # Prometheus metrics
 
 ## See Also
 
-- **[Development Guide](DEVELOPMENT/overview.md)** - Local development
+- **[Development Guide](development/overview.md)** - Local development
 - **[API Documentation](API/OVERVIEW.md)** - API endpoints
 - **[Integration Guide](INTEGRATION.md)** - Third-party integrations
 

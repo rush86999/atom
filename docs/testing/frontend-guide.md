@@ -956,7 +956,7 @@ afterEach(() => {
 
 ### Quality Standards
 
-- [Test Quality Standards](DEVELOPMENT/code-quality.md) - Backend test independence, pass rates, performance standards
+- [Test Quality Standards](development/code-quality.md) - Backend test independence, pass rates, performance standards
 
 ---
 

@@ -21,7 +21,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
    - Daily workflow guidance
    - Tips and best practices
 
-3. **[Installation Guide](GETTING_STARTED/INSTALLATION.md)** - Detailed installation instructions
+3. **[Installation Guide](getting_started/INSTALLATION.md)** - Detailed installation instructions
    - Docker setup
    - Native installation
    - Platform-specific requirements
@@ -80,7 +80,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
   - Analytics and synchronization
   - Troubleshooting and support
 
-- **[Marketplace Quick Start Guide](GUIDES/MARKETPLACE_QUICKSTART.md)** - **5-minute marketplace setup** ✨ NEW
+- **[Marketplace Quick Start Guide](guides/MARKETPLACE_QUICKSTART.md)** - **5-minute marketplace setup** ✨ NEW
   - Get API token from https://atomagentos.com
   - Configure sync settings
   - Browse and install 5,000+ skills
@@ -102,7 +102,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 ### Federation & Multi-Instance ✨
 
-- **[Federation & Instance Identity Guide](GUIDES/FEDERATION_INSTANCE_IDENTITY.md)** - **Multi-instance communication** ✨ NEW
+- **[Federation & Instance Identity Guide](guides/FEDERATION_INSTANCE_IDENTITY.md)** - **Multi-instance communication** ✨ NEW
   - Instance identity and configuration
   - Federation headers and security
   - Cross-instance resource sharing
@@ -128,9 +128,9 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Developers
 
 - **[Development Setup](DEVELOPMENT_SETUP.md)** - Local development environment
-- **[Development Guide](DEVELOPMENT/overview.md)** - Coding standards and workflows
+- **[Development Guide](development/overview.md)** - Coding standards and workflows
 - **[API Documentation](API.md)** - REST API reference
-- **[Code Quality Guide](DEVELOPMENT/code-quality.md)** - Testing and style guidelines
+- **[Code Quality Guide](development/code-quality.md)** - Testing and style guidelines
 
 **Developer Topics:**
 - [API Integration](guides/DEVELOPERS/API_INTEGRATION.md)
@@ -141,7 +141,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 ### Administrators
 
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment
-- **[Monitoring Guide](DEPLOYMENT/MONITORING_SETUP.md)** - Health checks and metrics
+- **[Monitoring Guide](deployment/MONITORING_SETUP.md)** - Health checks and metrics
 - **[Performance Tuning](operations/performance.md)** - Optimization strategies
 - **[Production Readiness](operations/production-readiness.md)** - Deployment checklist
 
@@ -166,10 +166,10 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 - **[Agent Governance](agents/governance.md)** - Maturity levels and permissions
 - **[Agent Graduation Guide](../agents/graduation.md)** - Learning and promotion
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
-- **[Queen Agent User Guide](GUIDES/QUEEN_AGENT_USER_GUIDE.md)** - **Structured workflow automation** ✨ NEW
-- **[Queen vs Fleet Admiral Comparison](GUIDES/QUEEN_VS_FLEET_ADMIRAL.md)** - **Which orchestrator to use?** ✨ NEW
+- **[Queen Agent User Guide](guides/QUEEN_AGENT_USER_GUIDE.md)** - **Structured workflow automation** ✨ NEW
+- **[Queen vs Fleet Admiral Comparison](guides/QUEEN_VS_FLEET_ADMIRAL.md)** - **Which orchestrator to use?** ✨ NEW
 - **[Unstructured Complex Tasks](agents/unstructured-tasks.md)** - Multi-agent orchestration
-- **[Auto-Dev Module](GUIDES/AUTO_DEV_USER_GUIDE.md)** - **Self-evolving agent capabilities** ✨ NEW
+- **[Auto-Dev Module](guides/AUTO_DEV_USER_GUIDE.md)** - **Self-evolving agent capabilities** ✨ NEW
 
 ### Intelligence & Memory
 
@@ -223,12 +223,12 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 - **[Features List](features/atom-vs-openclaw.md)** - Complete feature list
 - **[Feature Matrix](reference/FEATURE_MATRIX.md)** - Capability comparison
-- **[Use Cases](GUIDES/USE_CASES.md)** - Real-world examples
+- **[Use Cases](guides/USE_CASES.md)** - Real-world examples
 - **[User Personas](guides/USER_PERSONAS_AND_JOURNEYS.md)** - Target users
 
 ### Platform Documentation
 
-- **[Architecture Overview](ARCHITECTURE/SYSTEM_OVERVIEW.md)** - System design and components
+- **[Architecture Overview](architecture/SYSTEM_OVERVIEW.md)** - System design and components
 - **[Technical Overview](reference/TECHNICAL_OVERVIEW.md)** - Deep technical dive
 - **[Database Architecture](reference/DATABASE_ARCHITECTURE.md)** - Data models and schema
 - **[Platform Guide](platform/PLATFORM.md)** - Platform capabilities
@@ -241,22 +241,22 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 1. Read [Quick Start Guide](guides/QUICKSTART.md)
 2. Complete [User Training Guide](guides/USER_TRAINING_GUIDE.md)
-3. Explore [Use Cases](GUIDES/USE_CASES.md)
+3. Explore [Use Cases](guides/USE_CASES.md)
 4. Set up [Integrations](guides/USER_GUIDE.md#integration-setup)
 
 ### For Workflow Creators
 
 1. Learn [Workflow Creation](guides/END_USERS/WORKFLOW_CREATION.md)
 2. Study [Best Practices](guides/END_USERS/BEST_PRACTICES.md)
-3. Explore [Use Cases](GUIDES/USE_CASES.md)
+3. Explore [Use Cases](guides/USE_CASES.md)
 4. Build custom automations
 
 ### For Developers
 
 1. Set up [Development Environment](DEVELOPMENT_SETUP.md)
-2. Read [Development Guide](DEVELOPMENT/overview.md)
+2. Read [Development Guide](development/overview.md)
 3. Study [API Documentation](API.md)
-4. Review [Code Quality Standards](DEVELOPMENT/code-quality.md)
+4. Review [Code Quality Standards](development/code-quality.md)
 
 ### For Administrators
 
@@ -273,7 +273,7 @@ Welcome to the Atom User Guide! This comprehensive guide helps you get started w
 
 - **[Main README](../README.md)** - Project overview
 - **[Documentation Index](README.md)** - Complete docs index
-- **[Development Guide](DEVELOPMENT/overview.md)** - For contributors
+- **[Development Guide](development/overview.md)** - For contributors
 - **[API Documentation](API.md)** - REST API reference
 
 ### Community & Support
