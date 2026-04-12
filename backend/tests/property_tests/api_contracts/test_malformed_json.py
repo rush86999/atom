@@ -149,9 +149,8 @@ class TestMalformedJSONHandling:
         try:
             response = client.post(
                 "/api/v1/agents/execute",
-                headers=headers,
-                content=invalid_utf8,
-                headers={"Content-Type": "application/json; charset=utf-8"}
+                headers={**headers, "Content-Type": "application/json; charset=utf-8"},
+                content=invalid_utf8
             )
         except Exception as e:
             # API should not crash on invalid UTF-8
