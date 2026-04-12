@@ -84,46 +84,30 @@ class CacheAwareRouter:
         # This is sufficient for initial implementation. Can be persisted to DB later.
         self.cache_hit_history = {}
 
-    def calculate_effective_cost(
+    async def calculate_effective_cost(
         self,
         model: str,
         provider: str,
         estimated_input_tokens: int,
-        cache_hit_probability: float = 0.5
+        turn_index: int = 0
     ) -> float:
         """
-        Calculate effective cost accounting for potential cache hits.
+        Calculate effective cost accounting for prompt caching (Deterministic Mode).
 
-        This method adjusts the list price based on:
-        1. Whether the provider supports caching
-        2. Whether the prompt is long enough (min_tokens threshold)
-        3. The probability of a cache hit (historical or default 0.5)
-
-        Effective cost formula:
-        effective_input = input_cost * (cache_hit_prob * cached_ratio + (1 - cache_hit_prob) * 1.0)
-        effective_cost = (effective_input + output_cost) / 2
+        In agentic workflows, Turn 0 creates the cache (full price) and
+        Turn 1..N reuse the cache (10% price).
 
         Args:
-            model: Model name (e.g., "gpt-4o", "claude-3-5-sonnet")
-            provider: Provider name (e.g., "openai", "anthropic")
+            model: Model name
+            provider: Provider name
             estimated_input_tokens: Estimated input token count
-            cache_hit_probability: Estimated likelihood of cache hit (0-1)
+            turn_index: Current interaction index (0 = cache creation, >0 = cache reuse)
 
         Returns:
-            Effective cost per token (float), or float("inf") if model pricing unknown
-
-        Examples:
-            >>> # GPT-4o with 90% cache hit should cost ~10% of list price
-            >>> cost = router.calculate_effective_cost("gpt-4o", "openai", 2000, 0.9)
-            >>> assert cost < 0.000001  # ~10% of ~$0.00001/token
-
-            >>> # DeepSeek with no caching = full price
-            >>> cost = router.calculate_effective_cost("deepseek-chat", "deepseek", 2000, 0.9)
-            >>> assert cost > 0.000001  # Full price, no discount
+            Effective cost per token (float)
         """
         pricing = self.pricing_fetcher.get_model_price(model)
         if not pricing:
-            # Unknown model = infinite cost (will be filtered out in ranking)
             return float("inf")
 
         input_cost = pricing.get("input_cost_per_token", 0)
@@ -132,26 +116,20 @@ class CacheAwareRouter:
         # Get provider cache capabilities
         cache_info = self.get_provider_cache_capability(provider)
 
-        # If provider doesn't support caching, return full price
-        if not cache_info["supports_cache"]:
-            return (input_cost + output_cost) / 2
-
-        # If prompt is below minimum threshold, caching won't be applied
-        if estimated_input_tokens < cache_info["min_tokens"]:
-            # Prompt too short for caching = full price
-            return (input_cost + output_cost) / 2
-
-        # Calculate effective cost with cache hit probability
-        # cached_cost_ratio: 0.10 means cached tokens cost 10% of original price
-        cached_ratio = cache_info["cached_cost_ratio"]
-
-        # Effective input cost = weighted average of cached and uncached cost
-        effective_input_cost = input_cost * (
-            cache_hit_probability * cached_ratio +      # Cached portion
-            (1 - cache_hit_probability) * 1.0           # Uncached portion
+        # Logic: Turn 1+ is deterministic cache reuse IF tokens > min_tokens and provider supports it
+        is_cache_eligible = (
+            cache_info["supports_cache"] and 
+            estimated_input_tokens >= cache_info["min_tokens"] and
+            turn_index > 0
         )
 
-        # Average of input and output cost
+        if not is_cache_eligible:
+            return (input_cost + output_cost) / 2
+
+        # Effective input cost for cache reuse
+        cached_ratio = cache_info["cached_cost_ratio"]
+        effective_input_cost = input_cost * cached_ratio
+
         return (effective_input_cost + output_cost) / 2
 
     def predict_cache_hit_probability(self, prompt_hash: str, workspace_id: str) -> float:

@@ -461,7 +461,8 @@ class AtomMetaAgent:
                 tool_descriptions=tool_descriptions,
                 execution_history=execution_history,
                 context=context,
-                canvas_text=canvas_text  # NEW: Canvas context
+                canvas_text=canvas_text,
+                turn_index=current_step - 1  # NEW: Pass turn index for BPC routing
             )
             
             step_record = {
@@ -630,7 +631,8 @@ class AtomMetaAgent:
 
     async def _react_step(self, request: str, memory_context: Dict, 
                           tool_descriptions: str, execution_history: str, 
-                          context: Dict, canvas_text: str = "") -> ReActStep:
+                          context: Dict, canvas_text: str = "",
+                          turn_index: int = 0) -> ReActStep:
         """
         Generate a single ReAct step with Pydantic validation.
         Uses instructor to ensure structured output.
@@ -735,7 +737,8 @@ What is your next step?"""
             response_model=ReActStep,
             temperature=0.2,
             task_type="reasoning",
-            agent_id="atom_main"
+            agent_id="atom_main",
+            turn_index=turn_index  # NEW: Deterministic BPC
         )
         
         if structured_result:

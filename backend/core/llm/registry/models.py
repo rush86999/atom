@@ -50,6 +50,13 @@ class LLMModel(Base):
         default=uuid.uuid4
     )
 
+    # Tenant isolation
+    tenant_id: Mapped[str] = Column(
+        String,
+        nullable=False,
+        index=True
+    )
+
     # Provider identification
     provider: Mapped[str] = Column(
         String,
@@ -151,10 +158,12 @@ class LLMModel(Base):
     # Table constraints
     __table_args__ = (
         UniqueConstraint(
+            'tenant_id',
             'provider',
             'model_name',
             name='llm_models_unique_model'
         ),
+        Index('idx_llm_models_tenant_provider_model', 'tenant_id', 'provider', 'model_name'),
         # Partial indexes on hybrid columns (only index TRUE values for efficiency)
         Index('idx_llm_models_vision_partial',
               'supports_vision',

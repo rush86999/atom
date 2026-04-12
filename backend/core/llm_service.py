@@ -183,6 +183,7 @@ class LLMService:
             system_instruction=system_instruction,
             model_type=model,
             temperature=temperature,
+            turn_index=kwargs.get("turn_index", 0),
             **kwargs
         )
 
@@ -220,6 +221,7 @@ class LLMService:
             system_instruction=system_instruction,
             model_type=model,
             temperature=temperature,
+            turn_index=kwargs.get("turn_index", 0),
             **kwargs
         )
 
@@ -527,7 +529,7 @@ class LLMService:
         """Check if LLM service is available."""
         return len(self.handler.clients) > 0 if hasattr(self, 'handler') and self.handler else False
 
-    def get_optimal_provider(
+    async def get_optimal_provider(
         self,
         complexity: str = "moderate",
         task_type: Optional[str] = None,
@@ -535,30 +537,21 @@ class LLMService:
         tenant_plan: str = "free",
         is_managed_service: bool = True,
         requires_tools: bool = False,
-        requires_structured: bool = False
+        requires_structured: bool = False,
+        turn_index: int = 0
     ) -> tuple[str, str]:
         """
-        Get the optimal provider and model for a given complexity level.
-
-        Uses the BPC (Benchmark-Price-Capability) algorithm to rank models
-        based on quality benchmarks, pricing, and capabilities.
-
+        Get the optimal provider and model for a given complexity level (Async).
+        
         Args:
-            complexity: Query complexity level ("simple", "moderate", "complex", "advanced")
-            task_type: Optional task type hint (e.g., "summarization", "code_generation")
+            complexity: Query complexity level
+            task_type: Optional task type hint
             prefer_cost: Whether to prefer cost over quality
             tenant_plan: Tenant plan for model restrictions
             is_managed_service: Whether this is managed service or BYOK
             requires_tools: Whether model must support tool calling
             requires_structured: Whether model must support structured output
-
-        Returns:
-            Tuple of (provider_id, model_name)
-
-        Example:
-            >>> service = LLMService()
-            >>> provider, model = service.get_optimal_provider(complexity="moderate")
-            >>> print(f"Using {provider} with {model}")
+            turn_index: Interaction turn (0 = creation, 1+ = reuse)
         """
         # Map complexity string to QueryComplexity enum
         complexity_map = {
@@ -569,17 +562,18 @@ class LLMService:
         }
         complexity_enum = complexity_map.get(complexity.lower(), QueryComplexity.MODERATE)
 
-        return self.handler.get_optimal_provider(
+        return await self.handler.get_optimal_provider(
             complexity=complexity_enum,
             task_type=task_type,
             prefer_cost=prefer_cost,
             tenant_plan=tenant_plan,
             is_managed_service=is_managed_service,
             requires_tools=requires_tools,
-            requires_structured=requires_structured
+            requires_structured=requires_structured,
+            turn_index=turn_index
         )
 
-    def get_ranked_providers(
+    async def get_ranked_providers(
         self,
         complexity: str = "moderate",
         task_type: Optional[str] = None,
@@ -589,43 +583,9 @@ class LLMService:
         requires_tools: bool = False,
         requires_structured: bool = False,
         estimated_tokens: int = 1000,
-        cognitive_tier: Optional[str] = None
+        cognitive_tier: Optional[str] = None,
+        turn_index: int = 0
     ) -> List[tuple[str, str]]:
-        """
-        Get a ranked list of providers and models using the BPC algorithm.
-
-        Cache-Aware Cost Optimization:
-        When estimated_tokens is provided, uses cache-aware effective cost calculation
-        to prioritize models with good prompt caching support (e.g., Anthropic).
-
-        Cognitive Tier Filtering:
-        When cognitive_tier is provided, uses 5-tier quality filtering instead of
-        QueryComplexity for more granular control.
-
-        Args:
-            complexity: Query complexity level ("simple", "moderate", "complex", "advanced")
-            task_type: Optional task type hint
-            prefer_cost: Whether to prefer cost over quality
-            tenant_plan: Tenant plan for model restrictions
-            is_managed_service: Whether this is managed service or BYOK
-            requires_tools: Whether model must support tool calling
-            requires_structured: Whether model must support structured output
-            estimated_tokens: Estimated input token count (for cache hit prediction)
-            cognitive_tier: Optional cognitive tier ("micro", "standard", "versatile", "heavy", "complex")
-
-        Returns:
-            List of (provider_id, model_name) tuples ranked by value score
-
-        Example:
-            >>> service = LLMService()
-            >>> providers = service.get_ranked_providers(
-            ...     complexity="complex",
-            ...     estimated_tokens=5000,
-            ...     cognitive_tier="versatile"
-            ... )
-            >>> for provider, model in providers[:3]:
-            ...     print(f"{provider}: {model}")
-        """
         # Map complexity string to QueryComplexity enum
         complexity_map = {
             "simple": QueryComplexity.SIMPLE,
@@ -647,7 +607,7 @@ class LLMService:
             }
             cognitive_tier_enum = tier_map.get(cognitive_tier.lower())
 
-        return self.handler.get_ranked_providers(
+        return await self.handler.get_ranked_providers(
             complexity=complexity_enum,
             task_type=task_type,
             prefer_cost=prefer_cost,
@@ -657,7 +617,8 @@ class LLMService:
             requires_structured=requires_structured,
             estimated_tokens=estimated_tokens,
             workspace_id=self.workspace_id,
-            cognitive_tier=cognitive_tier_enum
+            cognitive_tier=cognitive_tier_enum,
+            turn_index=turn_index
         )
 
     def get_available_providers(self) -> List[str]:
@@ -791,7 +752,7 @@ class LLMService:
 
             # Get optimal provider based on complexity
             complexity = self.handler.analyze_query_complexity(prompt)
-            optimal_provider, optimal_model = self.handler.get_optimal_provider(complexity)
+            optimal_provider, optimal_model = await self.handler.get_optimal_provider(complexity)
             provider_id = optimal_provider  # Already a string, not an enum
 
             # Map model from "auto" to optimal model for complexity

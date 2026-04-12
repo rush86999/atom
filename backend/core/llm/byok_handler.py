@@ -478,7 +478,7 @@ class BYOKHandler:
         else:
             return QueryComplexity.ADVANCED
 
-    def get_optimal_provider(
+    async def get_optimal_provider(
         self, 
         complexity: QueryComplexity, 
         task_type: Optional[str] = None, 
@@ -486,12 +486,14 @@ class BYOKHandler:
         tenant_plan: str = "free",
         is_managed_service: bool = True,
         requires_tools: bool = False, # Phase 6.6
-        requires_structured: bool = False # Phase 6.6
+        requires_structured: bool = False, # Phase 6.6
+        turn_index: int = 0
     ) -> tuple[str, str]:
         """Get the single most optimal provider and model."""
-        options = self.get_ranked_providers(
+        options = await self.get_ranked_providers(
             complexity, task_type, prefer_cost, tenant_plan, 
-            is_managed_service, requires_tools, requires_structured
+            is_managed_service, requires_tools, requires_structured,
+            turn_index=turn_index
         )
         if options:
             return options[0]
@@ -503,7 +505,7 @@ class BYOKHandler:
             
         raise ValueError("No LLM providers available. Please configure BYOK keys.")
 
-    def get_ranked_providers(
+    async def get_ranked_providers(
         self,
         complexity: QueryComplexity,
         task_type: Optional[str] = None,
@@ -515,15 +517,16 @@ class BYOKHandler:
         estimated_tokens: int = 1000, # Cache-aware routing
         workspace_id: str = "default", # Cache-aware routing
         cognitive_tier: Optional[CognitiveTier] = None,  # Phase 68: Cognitive tier system
-        required_capability: Optional[str] = None  # Phase 226.4-04: Capability-based routing
+        required_capability: Optional[str] = None,  # Phase 226.4-04: Capability-based routing
+        turn_index: int = 0 # NEW: Deterministic BPC
     ) -> List[tuple[str, str]]:
         """
         Get a ranked list of providers and models using the BPC (Benchmark-Price-Capability) algorithm.
         This objectively ranks models based on their value proposition.
 
-        Cache-Aware Extension:
-        When estimated_tokens and workspace_id are provided, uses cache-aware effective cost
-        calculation to prioritize models with good prompt caching support.
+        Cache-Aware Extension (Deterministic):
+        Uses turn_index (0 = first turn, 1+ = repeat turns) to determine whether
+        to use full input price or cached input price.
 
         Phase 68 Extension:
         When cognitive_tier is provided, uses CognitiveTier-based quality filtering instead of
@@ -545,6 +548,7 @@ class BYOKHandler:
             estimated_tokens: Estimated input token count (for cache hit prediction)
             workspace_id: Workspace ID for cache history lookup
             required_capability: Optional capability requirement (e.g., "computer_use", "vision", "tools")
+            turn_index: Interaction turn (0 = creation, 1+ = reuse)
 
         Returns:
             List of (provider, model) tuples ranked by value score
@@ -619,13 +623,9 @@ class BYOKHandler:
                 # Calculate BPC Value Score with Cache-Aware Cost
                 # Value = (Quality^2) / Cost. We use 1e6 to make costs readable.
 
-                # Generate prompt hash for cache prediction
-                prompt_hash = hashlib.sha256(f"{workspace_id}:{model_id}".encode()).hexdigest()
-                cache_hit_prob = self.cache_router.predict_cache_hit_probability(prompt_hash, workspace_id)
-
-                # Calculate cache-aware effective cost
-                effective_cost = self.cache_router.calculate_effective_cost(
-                    model_id, active_provider, estimated_tokens, cache_hit_prob
+                # Calculate DETERMINISTIC cache-aware effective cost (Turn 0 vs Turn N)
+                effective_cost = await self.cache_router.calculate_effective_cost(
+                    model_id, active_provider, estimated_tokens, turn_index=turn_index
                 )
 
                 # Avoid division by zero and handle free models
@@ -640,7 +640,7 @@ class BYOKHandler:
                     "model": model_id,
                     "value_score": value_score,
                     "quality": quality_score,
-                    "cost": avg_cost
+                    "cost": effective_cost
                 })
             
             # Sort by Value Score (Descending)
@@ -732,7 +732,8 @@ class BYOKHandler:
         prefer_cost: bool = True,
         agent_id: Optional[str] = None, # Phase 65
         chain_id: Optional[str] = None, # NEW Phase 11
-        image_payload: Optional[str] = None # Phase 14: Base64 or URL
+        image_payload: Optional[str] = None, # Phase 14: Base64 or URL
+        turn_index: int = 0 # NEW: Deterministic BPC
     ) -> str:
         """
         Generate a response using cost-optimized provider routing.
@@ -789,9 +790,10 @@ class BYOKHandler:
                             requires_tools = agent_id is not None or task_type == "agentic"
 
                             # Temporary provider check for key resolution
-                            temp_provider_id, _ = self.get_optimal_provider(
+                            temp_provider_id, _ = await self.get_optimal_provider(
                                 complexity, task_type, prefer_cost, tenant_plan,
-                                is_managed_service=True, requires_tools=requires_tools
+                                is_managed_service=True, requires_tools=requires_tools,
+                                turn_index=turn_index
                             )
 
                             tenant_key = self.byok_manager.get_tenant_api_key(self.tenant_id, temp_provider_id)
@@ -827,9 +829,10 @@ class BYOKHandler:
             requires_vision = image_payload is not None
             
             # Get ranked list of providers
-            options = self.get_ranked_providers(
+            options = await self.get_ranked_providers(
                 complexity, task_type, prefer_cost, tenant_plan, is_managed,
-                requires_tools=requires_tools, requires_structured=False
+                requires_tools=requires_tools, requires_structured=False,
+                turn_index=turn_index
             )
 
             # --- Phase 14.5: Coordinated Vision Logic ---
