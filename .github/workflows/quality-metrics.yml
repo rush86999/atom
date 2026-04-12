@@ -1,0 +1,74 @@
+name: Quality Metrics
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for trends
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml requests
+
+      - name: Run backend tests and collect metrics
+        run: |
+          cd backend
+          python3 -m pytest \
+            --cov=core --cov=api --cov=tools \
+            --cov-report=json:tests/coverage_reports/metrics/coverage_latest.json \
+            --cov-report=term \
+            --cov-branch \
+            --ignore=tests/database/test_migrations.py \
+            --ignore=tests/e2e_ui \
+            -q
+
+      - name: Collect test count
+        run: |
+          cd backend
+          TEST_COUNT=$(python3 -m pytest --collect-only -q 2>/dev/null | grep "test session starts" -A 100 | grep "collected" || echo "0")
+          echo "TEST_COUNT=$TEST_COUNT" >> $GITHUB_ENV
+          echo "Backend tests collected: $TEST_COUNT"
+
+      - name: Calculate quality metrics
+        run: |
+          python3 .github/scripts/calculate-quality-metrics.py
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: quality-metrics
+          path: backend/tests/coverage_reports/metrics/quality_metrics.json
+          retention-days: 90
+
+      - name: Commit metrics data
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add backend/tests/coverage_reports/metrics/quality_metrics.json
+          git diff --staged --quiet || git commit -m "chore: update quality metrics [skip ci]"
+          git push
