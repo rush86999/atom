@@ -66,7 +66,8 @@ class TestMementoEngineEpisodeAnalysis:
                 id="seg-error-001",
                 episode_id=episode.id,
                 segment_type="error",
-                metadata={"error": "ValueError: Invalid data format"},
+                sequence_order=1,
+                content="ValueError: Invalid data format",
             )
             auto_dev_db_session.add(error_segment)
             auto_dev_db_session.commit()
@@ -109,7 +110,8 @@ class TestMementoEngineEpisodeAnalysis:
                 id="seg-tool-001",
                 episode_id=episode.id,
                 segment_type="tool_call",
-                metadata={"tool_name": "data_processor", "status": "failed"},
+                sequence_order=1,
+                content="Tool call: data_processor - failed",
             )
             auto_dev_db_session.add(segment)
             auto_dev_db_session.commit()
