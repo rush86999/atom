@@ -14,7 +14,7 @@ import pytest
 import uuid
 from hypothesis import given, settings, example, HealthCheck
 from hypothesis.strategies import (
-    uuids, dictionaries, text, integers, tuples, sampled_from
+    uuids, dictionaries, text, integers, tuples, sampled_from, floats
 )
 from datetime import datetime
 from sqlalchemy.orm import Session
