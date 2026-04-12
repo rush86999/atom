@@ -32,7 +32,14 @@ from core.database import SessionLocal
 
 @pytest.fixture
 def db():
-    """Create a test database session."""
+    """Create a test database session using atom_dev.db with migration applied."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    # Use the actual atom_dev.db database that has our migration
+    engine = create_engine('sqlite:///./atom_dev.db', connect_args={"check_same_thread": False})
+    SessionLocal = sessionmaker(bind=engine)
+
     db = SessionLocal()
     try:
         yield db
