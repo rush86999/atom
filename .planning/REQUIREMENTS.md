@@ -60,17 +60,17 @@ Requirements for quality and stability milestone. Each maps to roadmap phases.
 
 ### Quality Gates
 
-- [ ] **QUAL-01**: Coverage thresholds enforced in CI/CD (70% → 75% → 80%)
-- [ ] **QUAL-02**: 100% test pass rate enforced in CI/CD
-- [ ] **QUAL-03**: Build gates prevent merging if build fails
-- [ ] **QUAL-04**: Quality metrics dashboard (coverage, pass rate, trends)
+- [x] **QUAL-01**: Coverage thresholds enforced in CI/CD (70% → 75% → 80%)
+- [x] **QUAL-02**: 100% test pass rate enforced in CI/CD
+- [x] **QUAL-03**: Build gates prevent merging if build fails
+- [x] **QUAL-04**: Quality metrics dashboard (coverage, pass rate, trends)
 
 ### Documentation
 
 - [ ] **DOC-01**: Build process documented (frontend and backend)
 - [ ] **DOC-02**: Test execution documented (how to run, interpret results)
-- [ ] **DOC-03**: Bug fix process documented (TDD workflow)
-- [ ] **DOC-04**: Coverage report documentation (how to measure, improve)
+- [x] **DOC-03**: Bug fix process documented (TDD workflow)
+- [x] **DOC-04**: Coverage report documentation (how to measure, improve)
 
 ## v2 Requirements
 
@@ -131,14 +131,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROP-02 | Phase 252 | Complete |
 | PROP-03 | Phase 253 | Complete |
 | PROP-04 | Phase 257 | Pending |
-| QUAL-01 | Phase 258 | Pending |
-| QUAL-02 | Phase 258 | Pending |
-| QUAL-03 | Phase 258 | Pending |
-| QUAL-04 | Phase 258 | Pending |
+| QUAL-01 | Phase 258 | Complete |
+| QUAL-02 | Phase 258 | Complete |
+| QUAL-03 | Phase 258 | Complete |
+| QUAL-04 | Phase 258 | Complete |
 | DOC-01 | Phase 247 | Pending |
 | DOC-02 | Phase 248 | Pending |
-| DOC-03 | Phase 257 | Pending |
-| DOC-04 | Phase 258 | Pending |
+| DOC-03 | Phase 257 | Complete |
+| DOC-04 | Phase 258 | Complete |
 
 **Coverage:**
 - v10.0 requirements: 36 total

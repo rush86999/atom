@@ -17,15 +17,15 @@
 | 251 - Backend Coverage Baseline | 3/3 | ✅ COMPLETE | 2026-04-11 |
 | 252 - Backend Coverage Push | 3/3 | ✅ COMPLETE | 2026-04-11 |
 | 253a - Property Tests Data Integrity | 1/1 | ✅ COMPLETE | 2026-04-11 |
-| 253b - Coverage Expansion Wave 1 | 0/1 | Not started | - |
+| 253b - Coverage Expansion Wave 1 | 1/1 | ✅ COMPLETE | 2026-04-12 |
 | 253 - Backend 80% & Property Tests | 0/3 | Not started | - |
 | 254 - Frontend Coverage Baseline | 3/3 | ✅ COMPLETE | 2026-04-11 |
 | 255 - Frontend Coverage Push | 2/2 | ✅ COMPLETE | 2026-04-11 |
-| 256 - Frontend 80% | 2/2 | Complete   | 2026-04-12 |
-| 257 - TDD & Property Test Documentation | 0/2 | Not started | - |
-| 258 - Quality Gates & Final Documentation | 0/3 | Not started | - |
+| 256 - Frontend 80% | 2/2 | ✅ COMPLETE | 2026-04-12 |
+| 257 - TDD & Property Test Documentation | 2/2 | ✅ COMPLETE | 2026-04-12 |
+| 258 - Quality Gates & Final Documentation | 4/3 | Complete   | 2026-04-12 |
 
-**Overall:** 24/48 plans complete (50%)
+**Overall:** 27/48 plans complete (56%)
 
 **Total:** 48 plans across 14 phases
 
@@ -38,13 +38,13 @@
 - [x] **Phase 251: Backend Coverage Baseline** - Measure baseline and reach 70% backend coverage (completed 2026-04-11)
 - [x] **Phase 252: Backend Coverage Push** - Reach 75% backend coverage with property tests (completed 2026-04-11)
 - [x] **Phase 253a: Property Tests Data Integrity** - Create property tests for episode and skill execution data integrity (PROP-03) (completed 2026-04-11)
-- [ ] **Phase 253b: Coverage Expansion Wave 1** - Add traditional unit/integration tests for high-impact core services (governance, LLM, episodes) to measurably increase coverage from 4.60% baseline
+- [x] **Phase 253b: Coverage Expansion Wave 1** - Add traditional unit/integration tests for high-impact core services (governance, LLM, episodes) to measurably increase coverage from 4.60% baseline (completed 2026-04-12)
 - [ ] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests
 - [x] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage (completed 2026-04-11)
 - [x] **Phase 255: Frontend Coverage Push** - Reach 75% frontend coverage (completed 2026-04-11)
 - [x] **Phase 256: Frontend 80%** - Achieve 80% frontend coverage (completed 2026-04-12)
-- [ ] **Phase 257: TDD & Property Test Documentation** - Document TDD workflow and property tests
-- [ ] **Phase 258: Quality Gates & Final Documentation** - Enforce quality gates and complete documentation
+- [x] **Phase 257: TDD & Property Test Documentation** - Document TDD workflow and property tests (completed 2026-04-12)
+- [x] **Phase 258: Quality Gates & Final Documentation** - Enforce quality gates and complete documentation (completed 2026-04-12)
 
 ## Phase Details
 
@@ -231,8 +231,8 @@
   4. Property test patterns documented (when to use Hypothesis vs unit tests)
   5. Documentation includes common pitfalls and best practices
 **Plans**: 2 plans
-- [ ] 257-01-PLAN.md — Document TDD workflow with real examples
-- [ ] 257-02-PLAN.md — Document property tests and invariants catalog
+- [x] 257-01-PLAN.md — Document TDD workflow with real examples ✅ COMPLETE
+- [x] 257-02-PLAN.md — Document property tests and invariants catalog ✅ COMPLETE
 
 ### Phase 258: Quality Gates & Final Documentation
 **Goal**: Quality gates enforced, metrics dashboard created, documentation complete
@@ -246,9 +246,9 @@
   5. Bug fix process documented (TDD workflow)
   6. Coverage report documentation complete (how to measure, improve)
 **Plans**: 3 plans
-- [ ] 258-01-PLAN.md — Set up CI/CD quality gates
-- [ ] 258-02-PLAN.md — Create quality metrics dashboard
-- [ ] 258-03-PLAN.md — Complete final documentation
+- [x] 258-01-PLAN.md — Set up CI/CD quality gates
+- [x] 258-02-PLAN.md — Create quality metrics dashboard
+- [x] 258-03-PLAN.md — Complete final documentation
 
 ## Coverage Map
 
