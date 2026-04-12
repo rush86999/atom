@@ -1,18 +1,18 @@
 # Getting Started
 
-Quick start guides and installation for Atom.
+Quick start guides, installation options, and first steps with Atom.
 
 ## 📚 Quick Navigation
 
 ### Essential Guides
-- **[Quick Start](QUICK_START.md)** - Get started in 15 minutes ⭐ START HERE
-- **[Installation](INSTALLATION.md)** - Complete installation guide
-- **[First Steps](FIRST_STEPS.md)** - Your first tasks with Atom
-- **[Troubleshooting](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Installation](installation.md)** - Complete installation guide
+- **[Installation Options](installation-options.md)** - Installation variants
+- **[Mac Mini Install](mac-mini-install.md)** - Mac mini specific setup
+- **[Install Script](install-script.md)** - Automated installation script
 
 ## 🚀 Quick Start
 
-### Option 1: Docker (5 minutes)
+### Option 1: Docker (5 minutes) ⭐ RECOMMENDED
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
@@ -25,12 +25,23 @@ open http://localhost:8000
 ```bash
 git clone https://github.com/rush86999/atom.git
 cd atom
-cd backend && python3 -m venv venv && source venv/bin/activate
+
+# Backend setup
+cd backend
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-cd ../frontend-nextjs && npm install
-cp .env.personal .env
-# Start backend: cd backend && python -m uvicorn main_api_app:app --reload
-# Start frontend: cd frontend-nextjs && npm run dev
+
+# Frontend setup
+cd ../frontend-nextjs
+npm install
+
+# Configure environment
+cp ../.env.personal ../.env
+
+# Start services
+# Terminal 1: cd backend && python -m uvicorn main:app --reload
+# Terminal 2: cd frontend-nextjs && npm run dev
 ```
 
 ### Option 3: DigitalOcean (1 click)
@@ -50,15 +61,31 @@ cp .env.personal .env
 # Add to .env file
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-...
+MINIMAX_API_KEY=...  # Optional: MiniMax M2.7 (204K context)
 ```
 
 ## 🎯 First Steps
 
-1. **Explore the Dashboard**: Open http://localhost:8000
-2. **Create Your First Agent**: Use the agent creation wizard
-3. **Run a Workflow**: Try a simple automation task
-4. **Explore Integrations**: Connect Slack, Gmail, or other services
-5. **Check Documentation**: Visit [User Guide Index](../USER_GUIDE_INDEX.md)
+### 1. Explore the Dashboard
+Open http://localhost:8000 and explore the interface
+
+### 2. Create Your First Agent
+Use the agent creation wizard to set up a specialty agent
+
+### 3. Run a Workflow
+Try a simple automation task:
+- Schedule a meeting
+- Send an email
+- Create a report
+
+### 4. Explore Integrations
+Connect your favorite services:
+- Slack for notifications
+- Gmail for email automation
+- HubSpot for CRM workflows
+
+### 5. Check Documentation
+Visit [User Guide Index](../USER_GUIDE_INDEX.md) for comprehensive guides
 
 ## 🔧 Configuration
 
@@ -74,11 +101,8 @@ OPENAI_API_KEY=sk-...
 # Application
 PORT=8000
 LOG_LEVEL=INFO
-```
 
-### Marketplace Connection (Optional)
-```bash
-# Add to .env
+# Optional: Marketplace connection
 MARKETPLACE_API_TOKEN=at_saas_your_token
 ```
 
@@ -113,11 +137,22 @@ curl https://api.openai.com/v1/models \
   -H "Authorization: Bearer $OPENAI_API_KEY"
 ```
 
+### Docker Issues
+```bash
+# Check Docker is running
+docker ps
+
+# Rebuild containers
+docker-compose -f docker-compose-personal.yml up -d --build
+```
+
 ## 📖 Related Documentation
 
-- **[Installation Options](../getting-started/installation-options.md)** - Installation variants
-- **[Mac Mini Install](../getting-started/mac-mini-install.md)** - Mac mini setup
-- **[Install Script Guide](../getting-started/install-script.md)** - Automated installation
+- **[GETTING_STARTED (uppercase)](../GETTING_STARTED/README.md)** - Additional getting started docs
+- **[Installation](../getting-started/installation.md)** - Detailed installation
+- **[Development](../development/README.md)** - Development setup
+
+> **Note**: This folder (lowercase `getting-started/`) contains quick start and installation guides. Additional getting started docs are in the `GETTING_STARTED/` (uppercase) folder.
 
 ---
 
