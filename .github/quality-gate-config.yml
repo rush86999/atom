@@ -1,0 +1,51 @@
+# Quality Gate Configuration
+# Progressive thresholds: 70% → 75% → 80%
+
+quality_gates:
+  backend:
+    current_threshold: 70  # Starting threshold
+    target_threshold: 80   # Final target
+    progressive_thresholds:
+      - phase: "Phase 1 (Current)"
+        threshold: 70
+        enforcement: "warn"
+        start_date: "2026-04-12"
+      - phase: "Phase 2"
+        threshold: 75
+        enforcement: "block"
+        start_date: "2026-05-01"
+      - phase: "Phase 3"
+        threshold: 80
+        enforcement: "block"
+        start_date: "2026-06-01"
+
+  frontend:
+    current_threshold: 70  # Starting threshold
+    target_threshold: 80   # Final target
+    progressive_thresholds:
+      - phase: "Phase 1 (Current)"
+        threshold: 70
+        enforcement: "warn"
+        start_date: "2026-04-12"
+      - phase: "Phase 2"
+        threshold: 75
+        enforcement: "block"
+        start_date: "2026-05-01"
+      - phase: "Phase 3"
+        threshold: 80
+        enforcement: "block"
+        start_date: "2026-06-01"
+
+test_pass_rate:
+  required: 100  # 100% pass rate required
+  enforcement: "block"  # Always block on test failures
+
+build_gates:
+  require_tests_pass: true
+  require_coverage_threshold: true
+  block_on_failure: true
+
+exemptions:
+  # Allow temporary exemptions for specific files
+  # Format: file_pattern: reason
+  exempt_files: []

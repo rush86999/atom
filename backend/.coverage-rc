@@ -1,0 +1,19 @@
+# Coverage configuration for Atom backend
+[run]
+source = core,api,tools
+omit =
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */migrations/*
+    */database.py
+    */config.py
+branch = True
+
+[report]
+precision = 2
+show_missing = True
+skip_covered = False
+
+[html]
+directory = htmlcov
