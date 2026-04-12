@@ -462,9 +462,9 @@ systemctl start atom-backend atom-workers
 - [Device Capabilities](backend/docs/BROWSER_AUTOMATION.md) - Camera, screen recording, location
 
 ### Workflow Automation
-- [Workflow Automation Engine](WORKFLOW_AUTOMATION/ENHANCED_WORKFLOW_GUIDE.md) - Complete workflow guide
-- [Workflow Intelligence](WORKFLOW_AUTOMATION/WORKFLOW_INTELLIGENCE_ENGINE.md) - AI-powered workflow optimization
-- [Workflow Monitoring](WORKFLOW_AUTOMATION/WORKFLOW_MONITORING_SYSTEM.md) - Track workflow performance
+- [Workflow Automation Engine](workflow_automation/ENHANCED_WORKFLOW_GUIDE.md) - Complete workflow guide
+- [Workflow Intelligence](workflow_automation/WORKFLOW_INTELLIGENCE_ENGINE.md) - AI-powered workflow optimization
+- [Workflow Monitoring](workflow_automation/WORKFLOW_MONITORING_SYSTEM.md) - Track workflow performance
 
 ### Recent Implementation Status
 - [Incomplete Fixes Summary](docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md) - Feb 5, 2026 fixes

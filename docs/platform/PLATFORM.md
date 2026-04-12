@@ -98,7 +98,7 @@ curl http://localhost:8000/health/metrics # Prometheus metrics
 ## See Also
 
 - **[Development Guide](development/overview.md)** - Local development
-- **[API Documentation](API/OVERVIEW.md)** - API endpoints
+- **[API Documentation](api/OVERVIEW.md)** - API endpoints
 - **[Integration Guide](INTEGRATION.md)** - Third-party integrations
 
 ---

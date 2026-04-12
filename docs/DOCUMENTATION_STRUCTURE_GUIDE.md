@@ -164,7 +164,7 @@ docs/
 
 **Start Here:**
 1. [DEVELOPMENT/](development/) - Developer setup
-2. [API/](API/) - API documentation
+2. [API/](api/) - API documentation
 3. [testing/](testing/) - Testing guides
 
 **Key Sections:**
@@ -180,7 +180,7 @@ docs/
 3. [SECURITY/](security/) - Security documentation
 
 **Key Sections:**
-- [WORKFLOW_AUTOMATION/](WORKFLOW_AUTOMATION/) - Workflow automation
+- [WORKFLOW_AUTOMATION/](workflow_automation/) - Workflow automation
 - [features/](features/) - Feature documentation
 - [platform/](platform/) - Platform documentation
 

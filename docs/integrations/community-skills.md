@@ -870,7 +870,7 @@ curl http://localhost:8000/api/skills/email-sorter/executions | jq '.executions[
 - [Agent Governance →](agents/governance.md)
 - [Episodic Memory →](intelligence/episodic-memory.md) - Skill executions create EpisodeSegments for learning
 - [Agent Graduation →](../agents/graduation.md) - Community skills count toward graduation readiness
-- [API Documentation →](API/OVERVIEW.md)
+- [API Documentation →](api/OVERVIEW.md)
 - **✨ Phase 60: Advanced Skill Execution**
   - [Advanced Skill Execution →](integrations/advanced-skills.md) - Marketplace, composition, auto-installation overview
   - [Skill Marketplace Guide →](SKILL_MARKETPLACE_GUIDE.md) - Discovery, search, ratings, installation

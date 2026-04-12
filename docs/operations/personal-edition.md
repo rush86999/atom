@@ -583,7 +583,7 @@ command: uvicorn main_api_app:app --host 0.0.0.0 --port 8000 --reload --log-leve
 ### Documentation
 
 - [Full Documentation](./README.md)
-- [API Documentation](API/OVERVIEW.md)
+- [API Documentation](api/OVERVIEW.md)
 - [Development Guide](./docs/DEVELOPMENT.md)
 - [Architecture](./docs/ARCHITECTURE.md)
 
