@@ -94,19 +94,19 @@ class AsanaRealService:
                 )
 
             asana_data = {
-            "data": {
-                "name": task_data.get("title"),
-                "notes": task_data.get("description", ""),
-                "workspace": self.workspace_gid,
+                "data": {
+                    "name": task_data.get("title"),
+                    "notes": task_data.get("description", ""),
+                    "workspace": self.workspace_gid,
+                }
             }
-        }
-        
-        # Add optional fields
-        if task_data.get("dueDate"):
-            asana_data["data"]["due_on"] = task_data["dueDate"].split("T")[0]
-        
-        if task_data.get("project"):
-            asana_data["data"]["projects"] = [task_data["project"]]
+
+            # Add optional fields
+            if task_data.get("dueDate"):
+                asana_data["data"]["due_on"] = task_data["dueDate"].split("T")[0]
+
+            if task_data.get("project"):
+                asana_data["data"]["projects"] = [task_data["project"]]
 
             result = await self._make_request("POST", "tasks", asana_data)
 
@@ -124,7 +124,8 @@ class AsanaRealService:
     async def update_task(self, task_id: str, updates: Dict) -> Dict:
         """Update task in Asana"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "create_task", locals())
+        audit_ctx = log_integration_attempt("asana_real", "update_task", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -142,27 +143,36 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-        asana_updates = {"data": {}}
-        
-        if "title" in updates:
-            asana_updates["data"]["name"] = updates["title"]
-        if "description" in updates:
-            asana_updates["data"]["notes"] = updates["description"]
-        if "status" in updates:
-            asana_updates["data"]["completed"] = updates["status"] == "completed"
-        if "dueDate" in updates:
-            asana_updates["data"]["due_on"] = updates["dueDate"].split("T")[0]
-        
-        result = await self._make_request("PUT", f"tasks/{task_id}", asana_updates)
-        
-        if "data" in result:
-            return self._convert_asana_to_unified(result["data"])
-        return None
+
+            asana_updates = {"data": {}}
+
+            if "title" in updates:
+                asana_updates["data"]["name"] = updates["title"]
+            if "description" in updates:
+                asana_updates["data"]["notes"] = updates["description"]
+            if "status" in updates:
+                asana_updates["data"]["completed"] = updates["status"] == "completed"
+            if "dueDate" in updates:
+                asana_updates["data"]["due_on"] = updates["dueDate"].split("T")[0]
+
+            result = await self._make_request("PUT", f"tasks/{task_id}", asana_updates)
+
+            if "data" in result:
+                log_integration_complete(audit_ctx, success=True)
+                return self._convert_asana_to_unified(result["data"])
+            else:
+                log_integration_complete(audit_ctx, error=Exception("Failed to update task"))
+                return None
+        except Exception as e:
+            logger.error(f"Failed to update Asana task: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return None
     
     async def delete_task(self, task_id: str) -> bool:
         """Delete task from Asana"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "update_task", locals())
+        audit_ctx = log_integration_attempt("asana_real", "delete_task", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -180,13 +190,20 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-        result = await self._make_request("DELETE", f"tasks/{task_id}")
-        return result.get("success", False)
+
+            result = await self._make_request("DELETE", f"tasks/{task_id}")
+            log_integration_complete(audit_ctx, success=True)
+            return result.get("success", False)
+        except Exception as e:
+            logger.error(f"Failed to delete Asana task: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return False
     
     async def get_projects(self, limit: int = 100) -> List[Dict]:
         """Get projects from Asana workspace"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "delete_task", locals())
+        audit_ctx = log_integration_attempt("asana_real", "get_projects", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -204,18 +221,27 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-        endpoint = f"workspaces/{self.workspace_gid}/projects?limit={limit}&opt_fields=name,notes,color,created_at,modified_at"
-        
-        result = await self._make_request("GET", endpoint)
-        
-        if "data" in result:
-            return [self._convert_asana_project_to_unified(proj) for proj in result["data"]]
-        return []
+
+            endpoint = f"workspaces/{self.workspace_gid}/projects?limit={limit}&opt_fields=name,notes,color,created_at,modified_at"
+
+            result = await self._make_request("GET", endpoint)
+
+            if "data" in result:
+                log_integration_complete(audit_ctx, success=True)
+                return [self._convert_asana_project_to_unified(proj) for proj in result["data"]]
+            else:
+                log_integration_complete(audit_ctx, error=Exception("Failed to get projects"))
+                return []
+        except Exception as e:
+            logger.error(f"Failed to get Asana projects: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return []
     
     async def create_project(self, project_data: Dict) -> Dict:
         """Create project in Asana"""
         # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "get_projects", locals())
+        audit_ctx = log_integration_attempt("asana_real", "create_project", locals())
+        try:
             # Check circuit breaker
             if not await circuit_breaker.is_enabled("asana_real"):
                 logger.warning(f"Circuit breaker is open for asana_real")
@@ -233,44 +259,33 @@ class AsanaRealService:
                     status_code=429,
                     detail=f"Rate limit exceeded for asana_real"
                 )
-        asana_data = {
-            "data": {
-                "name": project_data.get("name"),
-                "notes": project_data.get("description", ""),
-                "workspace": self.workspace_gid,
-                "color": project_data.get("color", "blue"),
+
+            asana_data = {
+                "data": {
+                    "name": project_data.get("name"),
+                    "notes": project_data.get("description", ""),
+                    "workspace": self.workspace_gid,
+                    "color": project_data.get("color", "blue"),
+                }
             }
-        }
-        
-        result = await self._make_request("POST", "projects", asana_data)
-        
-        if "data" in result:
-            return self._convert_asana_project_to_unified(result["data"])
-        return None
+
+            result = await self._make_request("POST", "projects", asana_data)
+
+            if "data" in result:
+                log_integration_complete(audit_ctx, success=True)
+                return self._convert_asana_project_to_unified(result["data"])
+            else:
+                log_integration_complete(audit_ctx, error=Exception("Failed to create project"))
+                return None
+        except Exception as e:
+            logger.error(f"Failed to create Asana project: {e}")
+            log_integration_complete(audit_ctx, error=e)
+            return None
     
     def _convert_asana_to_unified(self, asana_task: Dict) -> Dict:
         """Convert Asana task format to unified format"""
-        # Start audit logging
-        audit_ctx = log_integration_attempt("asana_real", "create_project", locals())
-            # Check circuit breaker
-            if not await circuit_breaker.is_enabled("asana_real"):
-                logger.warning(f"Circuit breaker is open for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Circuit breaker open"))
-                raise HTTPException(
-                    status_code=503,
-                    detail=f"Asana_real integration temporarily disabled"
-                )
-            # Check rate limiter
-            is_limited, remaining = await rate_limiter.is_rate_limited("asana_real")
-            if is_limited:
-                logger.warning(f"Rate limit exceeded for asana_real")
-                log_integration_complete(audit_ctx, error=Exception("Rate limit exceeded"))
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Rate limit exceeded for asana_real"
-                )
         status = "completed" if asana_task.get("completed") else "todo"
-        
+
         return {
             "id": asana_task.get("gid"),
             "title": asana_task.get("name"),

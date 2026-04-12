@@ -497,7 +497,7 @@ class GoogleCalendarService(IntegrationService):
     async def full_sync(self, workspace_id: str) -> Dict[str, Any]:
         """Trigger full dual-pipeline sync for Google Calendar"""
         cache_result = await self.sync_to_postgres_cache(workspace_id)
-        
+
         return {
             "success": True,
             "workspace_id": workspace_id,
@@ -505,8 +505,67 @@ class GoogleCalendarService(IntegrationService):
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return integration capabilities for governance"""
+        return {
+            "operations": ["get_events", "create_event", "update_event", "delete_event", "check_conflicts"],
+            "authentication": "oauth",
+            "rate_limit": "10000 requests/day per user",
+            "features": ["event_management", "conflict_detection", "sync"]
+        }
 
-# NOTE: Singleton instance removed - use IntegrationRegistry instead
-# from core.integration_registry import IntegrationRegistry
-# registry = IntegrationRegistry(db)
-# calendar_service = await registry.get_service_instance("google_calendar", tenant_id)
+    def health_check(self) -> Dict[str, Any]:
+        """Check integration health"""
+        try:
+            is_authenticated = self.authenticate()
+            return {
+                "status": "healthy" if is_authenticated else "unhealthy",
+                "authenticated": is_authenticated,
+                "integration": "google_calendar"
+            }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "integration": "google_calendar"
+            }
+
+    async def execute_operation(self, operation: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a calendar operation"""
+        try:
+            if operation == "get_events":
+                events = await self.get_events(
+                    start_date=params.get("start_date"),
+                    end_date=params.get("end_date"),
+                    max_results=params.get("max_results", 10)
+                )
+                return {"success": True, "data": events}
+            elif operation == "create_event":
+                event = await self.create_event(params.get("event_data"))
+                return {"success": True, "data": event}
+            elif operation == "update_event":
+                event = await self.update_event(
+                    event_id=params.get("event_id"),
+                    event_data=params.get("event_data")
+                )
+                return {"success": True, "data": event}
+            elif operation == "delete_event":
+                success = await self.delete_event(event_id=params.get("event_id"))
+                return {"success": success}
+            elif operation == "check_conflicts":
+                conflicts = await self.check_conflicts(
+                    start_time=params.get("start_time"),
+                    end_time=params.get("end_time"),
+                    attendee_emails=params.get("attendee_emails", [])
+                )
+                return {"success": True, "data": conflicts}
+            else:
+                return {"success": False, "error": f"Unknown operation: {operation}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+# Singleton instance for backward compatibility
+google_calendar_service = GoogleCalendarService()
+
+

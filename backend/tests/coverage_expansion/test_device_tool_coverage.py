@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from datetime import datetime
 import os
 
-from tools.device_tool import DeviceSessionManager, DeviceTool
+from tools.device_tool import DeviceSessionManager
 
 
 class TestDeviceSessionManagerCoverage:
