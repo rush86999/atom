@@ -10,6 +10,7 @@ Tests cover:
 """
 
 import pytest
+from unittest.mock import MagicMock, AsyncMock
 
 from core.auto_dev.capability_gate import (
     AutoDevCapabilityService,
@@ -29,8 +30,9 @@ class TestCapabilityGateMaturityGates:
         service = AutoDevCapabilityService(auto_dev_db_session)
 
         # Mock graduation service to return STUDENT
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=STUDENT)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=STUDENT)
+        service._graduation_service = mock_graduation
 
         result = service.can_use(
             agent_id="agent-001",
@@ -44,8 +46,9 @@ class TestCapabilityGateMaturityGates:
         """Test INTERN maturity blocked for alpha_evolver."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=INTERN)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=INTERN)
+        service._graduation_service = mock_graduation
 
         result = service.can_use(
             agent_id="agent-001",
@@ -59,8 +62,9 @@ class TestCapabilityGateMaturityGates:
         """Test SUPERVISED maturity allowed for memento_skills."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=SUPERVISED)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=SUPERVISED)
+        service._graduation_service = mock_graduation
 
         result = service.can_use(
             agent_id="agent-001",
@@ -74,8 +78,9 @@ class TestCapabilityGateMaturityGates:
         """Test AUTONOMOUS maturity allowed."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        service._graduation_service = mock_graduation
 
         result = service.can_use(
             agent_id="agent-001",
@@ -93,8 +98,9 @@ class TestCapabilityGateTenantOptIn:
         """Test checks tenant_settings.auto_dev_enabled."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        service._graduation_service = mock_graduation
 
         # Auto-dev disabled
         result = service.can_use(
@@ -109,8 +115,9 @@ class TestCapabilityGateTenantOptIn:
         """Test returns False if opt-in disabled."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        service._graduation_service = mock_graduation
 
         # No auto_dev settings at all
         result = service.can_use(
@@ -125,8 +132,9 @@ class TestCapabilityGateTenantOptIn:
         """Test handles missing tenant_settings."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=AUTONOMOUS)
+        service._graduation_service = mock_graduation
 
         # None settings
         result = service.can_use(
@@ -145,8 +153,9 @@ class TestCapabilityGateCapabilityCheck:
         """Test can_use_skill_generation()."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=INTERN)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=INTERN)
+        service._graduation_service = mock_graduation
 
         result = service.can_use(
             agent_id="agent-001",
@@ -160,8 +169,9 @@ class TestCapabilityGateCapabilityCheck:
         """Test can_use_evolution()."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=SUPERVISED)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=SUPERVISED)
+        service._graduation_service = mock_graduation
 
         result = service.can_use(
             agent_id="agent-001",
@@ -175,8 +185,9 @@ class TestCapabilityGateCapabilityCheck:
         """Test different maturity requirements."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(return_value=INTERN)
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(return_value=INTERN)
+        service._graduation_service = mock_graduation
 
         # INTERN can use memento_skills but not alpha_evolver
         memento_result = service.can_use(
@@ -202,8 +213,9 @@ class TestCapabilityGateErrorHandling:
         """Test handles missing agent."""
         service = AutoDevCapabilityService(auto_dev_db_session)
 
-        service.graduation = MagicMock()
-        service.graduation.get_maturity = MagicMock(side_effect=Exception("Agent not found"))
+        mock_graduation = MagicMock()
+        mock_graduation.get_maturity = MagicMock(side_effect=Exception("Agent not found"))
+        service._graduation_service = mock_graduation
 
         result = service.can_use(
             agent_id="nonexistent-agent",
