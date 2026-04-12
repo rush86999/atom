@@ -498,6 +498,253 @@ def test_merge_commutativity(dict1, dict2):
 
 ---
 
+### Pattern 8: Algebraic Properties Testing
+
+**What:** Test algebraic structures (monoids, functors, monads) for their mathematical properties.
+
+**When to use:** Testing data structure operations, collection manipulations, functional programming patterns.
+
+**Frontend Example (List Concatenation Monoid):**
+```typescript
+fc.assert(
+  fc.property(
+    fc.array(fc.integer()),
+    fc.array(fc.integer()),
+    fc.array(fc.integer()),
+    (a, b, c) => {
+      // Monoid: Associativity
+      const left = [...a, ...b, ...c];
+      const right = [...[...a, ...b], ...c];
+      expect(left).toEqual(right);
+
+      // Monoid: Identity element
+      const empty: number[] = [];
+      expect([...a, ...empty]).toEqual(a);
+      expect([...empty, ...a]).toEqual(a);
+    }
+  ),
+  { numRuns: 100 }
+);
+```
+
+**Backend Example (Dictionary Merge Monoid):**
+```python
+@given(st.dictionaries(st.text(), st.integers()),
+       st.dictionaries(st.text(), st.integers()),
+       st.dictionaries(st.text(), st.integers()))
+@settings(max_examples=100)
+def test_dict_merge_associative(dict1, dict2, dict3):
+    """
+    INVARIANT: Dictionary merge is associative
+    (dict1 + dict2) + dict3 == dict1 + (dict2 + dict3)
+    """
+    merged1 = {**dict1, **dict2, **dict3}
+    merged2 = {**dict1, **{**dict2, **dict3}}
+    assert set(merged1.keys()) == set(merged2.keys())
+```
+
+**Key Points:**
+- Test associativity: (a + b) + c == a + (b + c)
+- Test identity element: a + 0 == a
+- Test commutativity (if applicable): a + b == b + a
+- Use case: Data structures, collections, functional programming
+
+**See also:** `backend/tests/property_tests/data_structures/test_algebraic_properties.py`
+
+---
+
+### Pattern 9: Compression Testing
+
+**What:** Test compression/decompression symmetry - data should survive compression round-trip.
+
+**When to use:** Testing data storage optimization, backup/restore, file compression.
+
+**Backend Example (Gzip Round-Trip):**
+```python
+import gzip
+import io
+
+@given(st.binary(min_size=0, max_size=10000))
+@settings(max_examples=50)
+def test_gzip_roundtrip(data):
+    """
+    INVARIANT: Gzip compression round-trip preserves data
+    VALIDATED_BUG: Trailing bytes lost during decompression
+    Root cause: Missing buffer size check
+    Fixed in: commit abc123
+    """
+    # Compress
+    compressed = io.BytesIO()
+    with gzip.GzipFile(fileobj=compressed, mode='wb') as f:
+        f.write(data)
+    compressed_bytes = compressed.getvalue()
+
+    # Decompress
+    decompressed = io.BytesIO(compressed_bytes)
+    with gzip.GzipFile(fileobj=decompressed, mode='rb') as f:
+        recovered_data = f.read()
+
+    # Invariant: Data preserved
+    assert data == recovered_data
+```
+
+**Key Points:**
+- Test compression/decompression symmetry
+- Test various data sizes (empty, small, large)
+- Test with different data types (binary, text, structured)
+- Validate compression ratio is reasonable
+
+**See also:** `backend/tests/property_tests/serialization/test_compression_invariants.py`
+
+---
+
+### Pattern 10: Normalization Testing
+
+**What:** Test normalization invariants - normalized data should be comparable and deduplicatable.
+
+**When to use:** Testing data deduplication, URL normalization, text cleaning.
+
+**Frontend Example (URL Normalization):**
+```typescript
+fc.assert(
+  fc.property(fc.webUrl(), (url) => {
+    // Normalize URL
+    const normalized = normalizeUrl(url);
+
+    // Invariant: Normalized URLs are comparable
+    const normalized2 = normalizeUrl(url + '/');
+    expect(normalized).toBe(normalized2);
+
+    // Invariant: Protocol and path are lowercase
+    expect(normalized).toMatch(/^https?:\/\/[a-z0-9.-]+/i);
+  }),
+  { numRuns: 100 }
+);
+```
+
+**Backend Example (Email Normalization):**
+```python
+@given(st.emails())
+@settings(max_examples=100)
+def test_email_normalization(email):
+    """
+    INVARIANT: Normalized emails are comparable and deduplicatable
+    """
+    # Normalize
+    normalized = normalize_email(email)
+
+    # Invariant: Lowercase local part and domain
+    assert normalized == normalized.lower()
+
+    # Invariant: Same email produces same normalization
+    normalized2 = normalize_email(email)
+    assert normalized == normalized2
+```
+
+**Key Points:**
+- Test normalization is idempotent (normalize(normalize(x)) == normalize(x))
+- Test normalization is deterministic (same input = same output)
+- Test normalized values are comparable
+- Use case: Data deduplication, search indexing, text processing
+
+**See also:** `backend/tests/property_tests/strings/test_normalization_invariants.py`
+
+---
+
+### Pattern 11: Parallel Execution Testing
+
+**What:** Test concurrent operation safety - no race conditions or data corruption.
+
+**When to use:** Testing multi-threaded code, concurrent data structures, shared state.
+
+**Backend Example (Concurrent State Updates):**
+```python
+import threading
+
+@given(st.integers(min_value=0, max_value=100),
+       st.integers(min_value=0, max_value=100))
+@settings(max_examples=50)
+def test_concurrent_state_updates(initial_x, delta):
+    """
+    INVARIANT: Concurrent state updates don't corrupt data
+    VALIDATED_BUG: Lost update anomaly due to missing lock
+    Root cause: No mutex around state update
+    Fixed in: commit def456 (added threading.Lock)
+    """
+    state = {"value": initial_x}
+    threads = []
+
+    def update_state():
+        for _ in range(100):
+            current = state["value"]
+            time.sleep(0.0001)  # Force context switch
+            state["value"] = current + 1
+
+    # Start 10 threads
+    for _ in range(10):
+        t = threading.Thread(target=update_state)
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join()
+
+    # Invariant: Final value is deterministic
+    assert state["value"] == initial_x + 1000
+```
+
+**Key Points:**
+- Test concurrent reads/writes don't corrupt data
+- Test race conditions are handled
+- Test deadlocks don't occur
+- Use thread sanitizers (TSan) for detection
+
+**See also:** `backend/tests/property_tests/concurrency/test_parallel_execution_invariants.py`
+
+---
+
+### Pattern 12: Resource Management Testing
+
+**What:** Test resource cleanup - file handles, connections, memory are properly released.
+
+**When to use:** Testing file I/O, database connections, network sockets.
+
+**Backend Example (File Handle Cleanup):**
+```python
+@given(st.binary(min_size=0, max_size=10000))
+@settings(max_examples=50)
+def test_file_handle_cleanup(data):
+    """
+    INVARIANT: File handles are closed after use
+    VALIDATED_BUG: File handles leaked in error path
+    Root cause: Missing finally block
+    Fixed in: commit ghi789 (added context manager)
+    """
+    import psutil
+    import os
+
+    process = psutil.Process()
+    initial_fds = len(process.open_files())
+
+    # Open file (with context manager)
+    with open('/tmp/test.txt', 'wb') as f:
+        f.write(data)
+
+    # File handle should be closed
+    final_fds = len(process.open_files())
+    assert final_fds == initial_fds, "File handle leaked"
+```
+
+**Key Points:**
+- Test resources are cleaned up on success
+- Test resources are cleaned up on failure
+- Test no resource leaks (file handles, connections, memory)
+- Use context managers and finally blocks
+
+**See also:** `backend/tests/property_tests/resource_management/test_cleanup_invariants.py`
+
+---
+
 ## Best Practices
 
 ### 1. VALIDATED_BUG Documentation
