@@ -11,6 +11,7 @@ to verify determinism invariants hold for all valid inputs.
 """
 
 import pytest
+import uuid
 from hypothesis import given, settings, example, HealthCheck
 from hypothesis.strategies import (
     uuids, dictionaries, text, integers, tuples, sampled_from
