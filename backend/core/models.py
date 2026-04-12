@@ -9342,3 +9342,22 @@ class ProactiveMessage(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     sent_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ConditionAlertStatus(Base):
+    """
+    Status tracking for condition alerts.
+
+    Stub model for Phase 265 to unblock tests.
+    TODO: Implement full schema for alert status tracking.
+    """
+    __tablename__ = "condition_alert_status"
+
+    id = Column(String(255), primary_key=True, default=lambda: str(uuid.uuid4()))
+    alert_id = Column(String(255), ForeignKey("condition_alerts.id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(50), nullable=False)  # triggered, acknowledged, resolved, dismissed
+    acknowledged_by = Column(String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
