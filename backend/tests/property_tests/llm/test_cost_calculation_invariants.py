@@ -287,7 +287,7 @@ class TestCostCalculationAnthropic:
 
 
 class TestCostCalculationDeepSeek:
-    """Test cost calculation invariants for DeepSeek.**
+    """Test cost calculation invariants for DeepSeek."""
 
     # DeepSeek pricing per 1M tokens (as of 2026)
     DEEPSEEK_PRICING = {
