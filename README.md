@@ -237,10 +237,10 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 ### Testing & Quality ✨ NEW
 - [Quality Assurance Guide](backend/docs/QUALITY_ASSURANCE.md) - Comprehensive QA practices and standards
 - [Quality Metrics Dashboard](backend/docs/QUALITY_DASHBOARD.md) - Live quality metrics and trends
-- [Bug Fix Process](backend/docs/BUG_FIX_PROCESS.md) - TDD-based bug fixing workflow
-- [Coverage Report Guide](backend/docs/COVERAGE_REPORT_GUIDE.md) - Coverage measurement and improvement
+- [Bug Fix Process](docs/testing/BUG_FIX_PROCESS.md) - TDD-based bug fixing workflow
+- [Coverage Report Guide](docs/testing/COVERAGE_REPORT_GUIDE.md) - Coverage measurement and improvement
 - [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 91+ comprehensive end-to-end tests
-- [Bug Discovery Infrastructure](backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery
+- [Bug Discovery Infrastructure](docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery
 - [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices
 - [Cross-Platform Testing](.planning/phases/236-cross-platform-and-stress-testing/236-VERIFICATION.md) - Mobile/desktop testing
 

@@ -241,7 +241,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
 - Smoke tests for agent execution, canvas presentation, skill execution
 - Metrics monitoring (error rate, latency) with automatic alerts
 - Slack notifications for deployment status
-- **Docs**: `backend/docs/DEPLOYMENT_RUNBOOK.md`, `backend/docs/OPERATIONS_GUIDE.md`, `backend/docs/TROUBLESHOOTING.md`
+- **Docs**: `docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md`, `backend/docs/OPERATIONS_GUIDE.md`, `backend/docs/TROUBLESHOOTING.md`
 
 ### 22. Personal Edition & Daemon Mode ✨
 **Files**: `cli/daemon.py`, `cli/main.py`, `.env.personal`, `docker-compose-personal.yml`
@@ -539,10 +539,10 @@ allure serve allure-results
 - `backend/tests/e2e_ui/conftest.py` - Pytest fixtures and configuration
 - `backend/tests/e2e_ui/fixtures/auth_fixtures.py` - API-first authentication (10-100x faster)
 - `backend/tests/e2e_ui/pages/page_objects.py` - Page Object Model (LoginPage, DashboardPage, ChatPage)
-- `backend/docs/E2E_TESTING_PHASE_234.md` - Phase 234 test coverage summary (91 tests)
+- `docs/testing/E2E_TESTING_PHASE_234.md` - Phase 234 test coverage summary (91 tests)
 
 **BYOK Migration** ✨:
-- `backend/docs/BYOK_V6_MIGRATION_GUIDE.md` - v6.0 BYOK migration guide
+- `docs/ARCHITECTURE/BYOK_V6_MIGRATION_GUIDE.md` - v6.0 BYOK migration guide
 - `.planning/REQUIREMENTS-v6.0-BYOK.md` - v6.0 BYOK requirements (31 requirements)
 - `backend/core/llm/llm_service.py` - Unified LLM service API (target for migration)
 

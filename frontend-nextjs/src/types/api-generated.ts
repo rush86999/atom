@@ -7450,11 +7450,11 @@ export interface paths {
          *     Returns overall score, individual metrics, and recommendations.
          *
          *     TODO (evaluated: Future) - Integrate with actual APIs (Notion, GitHub, Slack, Calendar)
-         *     See: backend/docs/FUTURE_WORK.md
+         *     See: docs/archive/implementation/FUTURE_WORK.md
          *     TODO (evaluated: Future) - Implement time-series tracking for trends
-         *     See: backend/docs/FUTURE_WORK.md
+         *     See: docs/archive/implementation/FUTURE_WORK.md
          *     TODO (evaluated: Future) - Add alerting thresholds
-         *     See: backend/docs/FUTURE_WORK.md
+         *     See: docs/archive/implementation/FUTURE_WORK.md
          */
         post: operations["check_project_health_api_v1_projects_health_post"];
         delete?: never;

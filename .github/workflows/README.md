@@ -430,7 +430,7 @@ environment:
 
 ## Troubleshooting
 
-See [CI/CD Troubleshooting Guide](../backend/docs/CI_CD_TROUBLESHOOTING.md) for common issues and solutions.
+See [CI/CD Troubleshooting Guide](../docs/DEPLOYMENT/CI_CD_TROUBLESHOOTING.md) for common issues and solutions.
 
 **Quick commands**:
 ```bash
@@ -457,7 +457,7 @@ gh run watch --interval 10
 
 ## Related Documentation
 
-- [CI/CD Runbook](../backend/docs/CI_CD_RUNBOOK.md)
-- [Deployment Guide](../backend/docs/DEPLOYMENT_GUIDE.md)
+- [CI/CD Runbook](../docs/DEPLOYMENT/CI_CD_RUNBOOK.md)
+- [Deployment Guide](../docs/DEPLOYMENT/DEPLOYMENT_GUIDE.md)
 - [Monitoring Setup](../backend/docs/MONITORING_SETUP.md)
-- [Troubleshooting](../backend/docs/CI_CD_TROUBLESHOOTING.md)
+- [Troubleshooting](../docs/DEPLOYMENT/CI_CD_TROUBLESHOOTING.md)
