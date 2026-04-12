@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install -e ".[test]"
+
+      - name: Run backend tests with coverage
+        run: |
+          cd backend
+          python3 -m pytest \
+            --cov-config=.coverage-rc \
+            --cov=core --cov=api --cov=tools \
+            --cov-report=json:tests/coverage_reports/metrics/coverage_pr.json \
+            --cov-report=term-missing \
+            --cov-branch \
+            --tb=short \
+            --ignore=tests/database/test_migrations.py \
+            --ignore=tests/e2e_ui \
+            -v
+
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-coverage
+          path: backend/tests/coverage_reports/metrics/coverage_pr.json
+          retention-days: 7
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-nextjs/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend-nextjs
+          npm ci
+
+      - name: Run frontend tests with coverage
+        run: |
+          cd frontend-nextjs
+          npm run test:coverage -- --reporter=json --reporter=text
+
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-coverage
+          path: frontend-nextjs/coverage/coverage-summary.json
+          retention-days: 7
+
+  quality-gate:
+    needs: [backend-tests, frontend-tests]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-coverage
+          path: backend/coverage
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-coverage
+          path: frontend-nextjs/coverage
+
+      - name: Enforce coverage thresholds
+        run: |
+          # Backend coverage check
+          python3 -c "
+          import json
+          import sys
+          try:
+              with open('backend/coverage/coverage_pr.json') as f:
+                  data = json.load(f)
+              coverage = data['totals']['percent_covered']
+              if coverage < 70.0:
+                  print(f'❌ Backend coverage {coverage:.2f}% below 70% threshold')
+                  sys.exit(1)
+              print(f'✅ Backend coverage {coverage:.2f}% meets threshold')
+          except Exception as e:
+              print(f'⚠️ Could not verify backend coverage: {e}')
+              sys.exit(1)
+          "
+
+          # Frontend coverage check
+          python3 -c "
+          import json
+          import sys
+          try:
+              with open('frontend-nextjs/coverage/coverage-summary.json') as f:
+                  data = json.load(f)
+              coverage = data['total']['lines']['pct']
+              if coverage < 70.0:
+                  print(f'❌ Frontend coverage {coverage:.2f}% below 70% threshold')
+                  sys.exit(1)
+              print(f'✅ Frontend coverage {coverage:.2f}% meets threshold')
+          except Exception as e:
+              print(f'⚠️ Could not verify frontend coverage: {e}')
+              sys.exit(1)
+          "
+
+      - name: Check test pass rate
+        run: |
+          # Ensure 100% test pass rate
+          if [ "${{ needs.backend-tests.result }}" != "success" ] || [ "${{ needs.frontend-tests.result }}" != "success" ]; then
+            echo "❌ Test failures detected. Please fix failing tests before merging."
+            exit 1
+          fi
+          echo "✅ All tests passing (100% pass rate)"
