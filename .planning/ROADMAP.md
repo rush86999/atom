@@ -18,14 +18,14 @@
 | 252 - Backend Coverage Push | 3/3 | ✅ COMPLETE | 2026-04-11 |
 | 253a - Property Tests Data Integrity | 1/1 | ✅ COMPLETE | 2026-04-11 |
 | 253b - Coverage Expansion Wave 1 | 1/1 | ✅ COMPLETE | 2026-04-12 |
-| 253 - Backend 80% & Property Tests | 0/3 | Not started | - |
+| 253 - Backend 80% & Property Tests | 3/3 | Complete   | 2026-04-12 |
 | 254 - Frontend Coverage Baseline | 3/3 | ✅ COMPLETE | 2026-04-11 |
 | 255 - Frontend Coverage Push | 2/2 | ✅ COMPLETE | 2026-04-11 |
 | 256 - Frontend 80% | 2/2 | ✅ COMPLETE | 2026-04-12 |
 | 257 - TDD & Property Test Documentation | 2/2 | ✅ COMPLETE | 2026-04-12 |
-| 258 - Quality Gates & Final Documentation | 4/3 | Complete   | 2026-04-12 |
+| 258 - Quality Gates & Final Documentation | 3/3 | ✅ COMPLETE | 2026-04-12 |
 
-**Overall:** 27/48 plans complete (56%)
+**Overall:** 30/48 plans complete (62.5%)
 
 **Total:** 48 plans across 14 phases
 
@@ -39,7 +39,7 @@
 - [x] **Phase 252: Backend Coverage Push** - Reach 75% backend coverage with property tests (completed 2026-04-11)
 - [x] **Phase 253a: Property Tests Data Integrity** - Create property tests for episode and skill execution data integrity (PROP-03) (completed 2026-04-11)
 - [x] **Phase 253b: Coverage Expansion Wave 1** - Add traditional unit/integration tests for high-impact core services (governance, LLM, episodes) to measurably increase coverage from 4.60% baseline (completed 2026-04-12)
-- [ ] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests
+- [x] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests (completed 2026-04-12)
 - [x] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage (completed 2026-04-11)
 - [x] **Phase 255: Frontend Coverage Push** - Reach 75% frontend coverage (completed 2026-04-11)
 - [x] **Phase 256: Frontend 80%** - Achieve 80% frontend coverage (completed 2026-04-12)
@@ -173,9 +173,9 @@
   4. Coverage gaps identified and documented
   5. Property tests catch edge cases unit tests miss
 **Plans**: 3 plans
-- [ ] 253-01-PLAN.md — Add property tests for episode and skill execution data integrity
-- [ ] 253-02-PLAN.md — Measure coverage and generate gap analysis for 80% target
-- [ ] 253-03-PLAN.md — Generate final Phase 253 coverage report and summary
+- [x] 253-01-PLAN.md — Add property tests for episode and skill execution data integrity
+- [x] 253-02-PLAN.md — Measure coverage and generate gap analysis for 80% target
+- [x] 253-03-PLAN.md — Generate final Phase 253 coverage report and summary
 
 ### Phase 254: Frontend Coverage Baseline
 **Goal**: Frontend coverage baseline measured and 70% coverage achieved
