@@ -49,7 +49,7 @@ Successfully integrated Atom's BYOK (Bring Your Own Key) LLM handler into two ne
 
 ### 3. Documentation (2 files)
 
-#### `backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md` (NEW)
+#### `docs/ARCHITECTURE/BYOK_LLM_INTEGRATION_COMPLETE.md` (NEW)
 Comprehensive documentation of the implementation including:
 - Detailed implementation steps
 - Usage examples with curl commands
@@ -59,7 +59,7 @@ Comprehensive documentation of the implementation including:
 - Error handling strategies
 - Rollback procedures
 
-#### `backend/docs/INCOMPLETE_IMPLEMENTATIONS_COMPLETE.md` (UPDATED)
+#### `docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS_COMPLETE.md` (UPDATED)
 - Marked LLM Integration as COMPLETED
 - Added reference to BYOK integration documentation
 

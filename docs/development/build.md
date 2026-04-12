@@ -498,14 +498,14 @@ After building successfully:
 
 - **Run Tests**: See `TESTING.md` (if exists) or run `pytest backend/` and `npm test` (frontend)
 - **Development Setup**: See `DEVELOPMENT.md` (if exists)
-- **Deployment**: See `backend/docs/DEPLOYMENT_RUNBOOK.md`
+- **Deployment**: See `docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md`
 - **Local Development**: Use Personal Edition (see `docs/PERSONAL_EDITION.md`)
 
 ## Additional Resources
 
 - **Frontend Docs**: `frontend-nextjs/README.md` (if exists)
 - **Backend Docs**: `backend/docs/`
-- **Deployment**: `backend/docs/DEPLOYMENT_RUNBOOK.md`
+- **Deployment**: `docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md`
 - **Operations**: `backend/docs/OPERATIONS_GUIDE.md`
 - **Troubleshooting**: `backend/docs/TROUBLESHOOTING.md`
 - **Personal Edition**: `docs/PERSONAL_EDITION.md`

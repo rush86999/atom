@@ -1351,7 +1351,7 @@ class LLMService:
 
 - **LLMService Implementation**: `backend/core/llm_service.py`
 - **BYOKHandler**: `backend/core/llm/byok_handler.py`
-- **Cognitive Tier System**: `backend/docs/COGNITIVE_TIER_SYSTEM.md`
+- **Cognitive Tier System**: `docs/ARCHITECTURE/COGNITIVE_TIER_SYSTEM.md`
 - **Tests**: `backend/tests/test_llm_service.py`
 
 ---

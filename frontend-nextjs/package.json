@@ -232,6 +232,7 @@
     "eslint": "^10.1.0",
     "eslint-config-next": "^16.2.1",
     "fast-check": "^4.5.3",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^30.0.5",
     "jest-axe": "^10.0.0",
     "jest-environment-jsdom": "^30.0.5",

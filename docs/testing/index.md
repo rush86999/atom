@@ -285,7 +285,7 @@ Quality standards and reference materials for all platforms.
 
 ### API Testing Guide
 
-→ [backend/docs/API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md)
+→ [docs/testing/API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md)
 
 **Topics:**
 - Contract testing with Schemathesis

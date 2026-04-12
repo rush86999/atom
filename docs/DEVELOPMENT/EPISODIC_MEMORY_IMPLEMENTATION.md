@@ -406,7 +406,7 @@ These improvements make it easier to diagnose issues in:
 - Memory retrieval errors
 - Graduation validation problems
 
-See `backend/docs/IMPLEMENTATION_FIXES.md` → Phase 7 for details.
+See `docs/archive/implementation/IMPLEMENTATION_FIXES.md` → Phase 7 for details.
 
 ---
 

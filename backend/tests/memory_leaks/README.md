@@ -462,7 +462,7 @@ def test_llm_streaming_no_memory_leak(memray_session, mock_llm_handler):
 
 ## References
 
-- **Phase 243 Documentation:** `backend/docs/MEMORY_PERFORMANCE_BUG_DISCOVERY.md`
+- **Phase 243 Documentation:** `docs/archive/implementation/MEMORY_PERFORMANCE_BUG_DISCOVERY.md`
 - **memray Documentation:** https://bloomberg.github.io/memray/
 - **Conftest:** `backend/tests/memory_leaks/conftest.py`
 - **Weekly CI:** `.github/workflows/memory-performance-weekly.yml`

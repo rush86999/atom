@@ -130,7 +130,7 @@ Rich interactive presentations (charts, forms, markdown) with live operation vis
 ### 🧠 Autonomous Self-Evolution & Graduation ✨
 Experience-based learning with recursive self-evolution, dual-trigger graduation (SUPERVISED → AUTONOMOUS), and hybrid PostgreSQL + LanceDB storage
 
-[Agent Graduation Guide →](docs/AGENT_GRADUATION_GUIDE.md)
+[Agent Graduation Guide →](docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md)
 
 ### 🛡️ Agent Governance System
 - 4-tier maturity-based routing and approval system

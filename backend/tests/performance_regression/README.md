@@ -503,7 +503,7 @@ def test_cache_hit_rate(benchmark, check_regression):
 
 ## References
 
-- **Phase 243 Documentation:** `backend/docs/MEMORY_PERFORMANCE_BUG_DISCOVERY.md`
+- **Phase 243 Documentation:** `docs/archive/implementation/MEMORY_PERFORMANCE_BUG_DISCOVERY.md`
 - **pytest-benchmark Documentation:** https://pytest-benchmark.readthedocs.io/
 - **Conftest:** `backend/tests/performance_regression/conftest.py`
 - **Weekly CI:** `.github/workflows/memory-performance-weekly.yml`

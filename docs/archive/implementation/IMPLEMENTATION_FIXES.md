@@ -1021,7 +1021,7 @@ These security fixes enhance the **Episodic Memory system** by:
 **Related Documentation**:
 - `docs/EPISODIC_MEMORY_IMPLEMENTATION.md` - Episode segmentation and retrieval
 - `docs/EPISODIC_MEMORY_QUICK_START.md` - Quick start guide
-- `docs/AGENT_GRADUATION_GUIDE.md` - Graduation framework
+- `backend/docs/AGENT_GRADUATION_GUIDE.md` - Graduation framework
 
 ---
 

@@ -223,7 +223,7 @@ if not database_url:
 ## 📚 Documentation
 
 - **Full Guide**: `POSTGRESQL_PRODUCTION_GUIDE.md`
-- **Deployment Runbook**: `backend/docs/DEPLOYMENT_RUNBOOK.md`
+- **Deployment Runbook**: `docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md`
 - **Operations Guide**: `backend/docs/OPERATIONS_GUIDE.md`
 - **Database Module**: `backend/core/database.py` (Lines 1-135)
 - **Model Definitions**: `backend/core/models.py` (8,560 lines)

@@ -595,7 +595,7 @@ Use this checklist before committing property tests:
 ## Related Documentation
 
 - **Property Testing Guide**: `docs/testing/property-testing.md` (1,170 lines)
-- **Decision Tree**: `backend/docs/PROPERTY_TEST_DECISION_TREE.md`
+- **Decision Tree**: `docs/testing/PROPERTY_TEST_DECISION_TREE.md`
 - **Invariants Catalog**: `backend/tests/property_tests/INVARIANTS_CATALOG.md`
 - **Phase 098 Summary**: `.planning/phases/098-property-testing-expansion/`
 

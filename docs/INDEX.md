@@ -237,7 +237,7 @@
 | [DEPLOYMENT_RUNBOOK.md](DEPLOYMENT_GUIDE.md) | **Deployment procedures with rollback** | Feb 16, 2026 |
 | [OPERATIONS_GUIDE.md](DEPLOYMENT_GUIDE.md) | **Daily operations & common tasks** | Feb 16, 2026 |
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Production troubleshooting guide** | Feb 16, 2026 |
-| [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
+| [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide (18,288 lines)** | Feb 16, 2026 |
 | [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) | **Type hints, MyPy, code quality (9,412 lines)** | Feb 16, 2026 |
 
 ### Monitoring & Observability
@@ -280,8 +280,8 @@
 
 | Document | Description | Last Updated |
 |----------|-------------|--------------|
-| [backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md]# | **AI-enhanced bug discovery infrastructure** | Mar 28, 2026 |
-| [backend/docs/BUG_DISCOVERY.md]# | **Bug discovery guide** | Mar 28, 2026 |
+| [docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md]# | **AI-enhanced bug discovery infrastructure** | Mar 28, 2026 |
+| [docs/testing/BUG_DISCOVERY.md]# | **Bug discovery guide** | Mar 28, 2026 |
 | [Phase 237: Bug Discovery Infrastructure](../.planning/phases/237-bug-discovery-infrastructure-foundation/) | **Bug discovery foundation (fuzzing, property-based testing, chaos)** | Mar 24, 2026 |
 
 **Bug Discovery Features (Phase 237)**:
@@ -441,7 +441,7 @@
 - [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) - **Troubleshooting** (Feb 16)
 - [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) - **Monitoring setup** (Feb 16)
 - [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) - **Code quality** (Feb 16)
-- [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
+- [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) - **API testing** (Feb 16)
 
 ### Canvas & AI Features (Phase 20-23)
 - [CANVAS_AI_ACCESSIBILITY.md](../canvas/ai-accessibility.md) - **AI agent accessibility with dual representation** (Feb 2026)
@@ -485,7 +485,7 @@
 | [TROUBLESHOOTING.md](ERROR_HANDLING_GUIDELINES.md) | **Troubleshooting guide** | Feb 16, 2026 |
 | [MONITORING_SETUP.md](DEPLOYMENT/MONITORING_SETUP.md) | **Monitoring setup** | Feb 16, 2026 |
 | [CODE_QUALITY_STANDARDS.md](DEVELOPMENT/code-quality.md) | **Code quality standards** | Feb 16, 2026 |
-| [API_TESTING_GUIDE.md](../backend/docs/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
+| [API_TESTING_GUIDE.md](../docs/testing/API_TESTING_GUIDE.md) | **API testing guide** | Feb 16, 2026 |
 
 ---
 

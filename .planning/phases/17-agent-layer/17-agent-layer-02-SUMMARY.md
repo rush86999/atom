@@ -201,7 +201,7 @@ New tests provide comprehensive coverage of:
 
 The following documentation provides context for this implementation:
 - `docs/EPISODIC_MEMORY_IMPLEMENTATION.md` - Episode creation and retrieval
-- `docs/AGENT_GRADUATION_GUIDE.md` - Graduation criteria and promotion workflow
+- `backend/docs/AGENT_GRADUATION_GUIDE.md` - Graduation criteria and promotion workflow
 - `docs/STUDENT_AGENT_TRAINING_IMPLEMENTATION.md` - Trigger interceptor and maturity-based routing
 
 ## Next Steps

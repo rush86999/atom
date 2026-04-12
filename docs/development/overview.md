@@ -440,14 +440,14 @@ systemctl start atom-backend atom-workers
 
 ### Deployment
 - [Cloud Deployment](DEPLOYMENT/CLOUD_DEPLOYMENT.md) - AWS, GCP, Azure deployment
-- [Production Deployment](backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md) - Production checklist
+- [Production Deployment](docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT_SUMMARY.md) - Production checklist
 - [Docker Deployment](DEPLOYMENT/DOCKER_DEPLOYMENT.md) - Container deployment guide
 - [Monitoring Setup](PERFORMANCE_MONITORING_SETUP.md) - Performance monitoring
 
 ### Integration Development
 - [API Integration Guide](GUIDES/DEVELOPERS/API_INTEGRATION.md) - Build custom integrations
 - [Contributing Integrations](backend/docs/CONTRIBUTING_INTEGRATIONS.md) - Integration contribution guide
-- [BYOK LLM Integration](backend/docs/BYOK_LLM_INTEGRATION_COMPLETE.md) - Multi-provider LLM setup
+- [BYOK LLM Integration](docs/ARCHITECTURE/BYOK_LLM_INTEGRATION_COMPLETE.md) - Multi-provider LLM setup
 
 ### New Features (February 2026)
 - [Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system
@@ -467,6 +467,6 @@ systemctl start atom-backend atom-workers
 - [Workflow Monitoring](WORKFLOW_AUTOMATION/WORKFLOW_MONITORING_SYSTEM.md) - Track workflow performance
 
 ### Recent Implementation Status
-- [Incomplete Fixes Summary](backend/docs/INCOMPLETE_IMPLEMENTATIONS.md) - Feb 5, 2026 fixes
-- [Task Queue Implementation](backend/docs/TASK_QUEUE_IMPLEMENTATION_PLAN.md) - Background task queue
-- [Final Implementation Report](backend/docs/FINAL_IMPLEMENTATION_SUMMARY.md) - Complete change log
+- [Incomplete Fixes Summary](docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md) - Feb 5, 2026 fixes
+- [Task Queue Implementation](docs/ARCHITECTURE/TASK_QUEUE_IMPLEMENTATION_PLAN.md) - Background task queue
+- [Final Implementation Report](docs/archive/implementation/FINAL_IMPLEMENTATION_SUMMARY.md) - Complete change log

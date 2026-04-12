@@ -752,7 +752,7 @@ kubectl get deployment atom -o yaml > atom_deployment_$(date +%Y%m%d).yaml
 
 ## References
 
-- **Deployment Runbook:** backend/docs/DEPLOYMENT_RUNBOOK.md
+- **Deployment Runbook:** docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md
 - **Troubleshooting:** backend/docs/TROUBLESHOOTING.md
 - **Monitoring:** backend/docs/MONITORING.md
 - **Architecture:** CLAUDE.md

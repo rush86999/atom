@@ -159,7 +159,7 @@ Add LanceDB integration tests and enhance unit tests to achieve 80% coverage for
 
     Target 200+ lines of tests.
 
-    Reference the graduation criteria from docs/AGENT_GRADUATION_GUIDE.md:
+    Reference the graduation criteria from backend/docs/AGENT_GRADUATION_GUIDE.md:
     - STUDENT -> INTERN: 10 episodes, 50% intervention rate, 0.70 constitutional score
     - INTERN -> SUPERVISED: 25 episodes, 20% intervention rate, 0.85 constitutional score
     - SUPERVISED -> AUTONOMOUS: 50 episodes, 0% intervention rate, 0.95 constitutional score

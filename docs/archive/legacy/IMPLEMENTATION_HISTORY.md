@@ -51,7 +51,7 @@ Chronological summary of major implementation milestones and fixes.
 - **Mobile**: Device permissions, authentication flow, SettingsScreen
 - **All**: Replaced placeholder responses with actual functionality
 
-**Documentation**: `backend/docs/INCOMPLETE_IMPLEMENTATIONS.md`
+**Documentation**: `docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md`
 
 ---
 
@@ -227,8 +227,8 @@ Chronological summary of major implementation milestones and fixes.
 
 ### Quick Reference
 - [DEVELOPMENT.md](DEVELOPMENT.md) - Developer setup guide
-- [backend/docs/INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../backend/docs/INCOMPLETE_IMPLEMENTATIONS.md -->] - Recent fixes status
-- [backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md][<!-- ../backend/docs/PRODUCTION_DEPLOYMENT_SUMMARY.md -->] - Deployment checklist
+- [docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md -->] - Recent fixes status
+- [docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT_SUMMARY.md][<!-- ../docs/DEPLOYMENT/PRODUCTION_DEPLOYMENT_SUMMARY.md -->] - Deployment checklist
 
 ### Feature Documentation
 - [STUDENT_AGENT_TRAINING_IMPLEMENTATION.md](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md) - Agent maturity system

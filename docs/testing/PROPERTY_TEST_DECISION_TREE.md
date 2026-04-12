@@ -737,7 +737,7 @@ def test_state_immutability(x):
 
 - **Property Testing Guide**: `docs/testing/property-testing.md` (1,170 lines)
 - **Invariants Catalog**: `backend/tests/property_tests/INVARIANTS_CATALOG.md`
-- **Performance Guide**: `backend/docs/PROPERTY_TEST_PERFORMANCE.md` (to be created)
+- **Performance Guide**: `docs/testing/PROPERTY_TEST_PERFORMANCE.md` (to be created)
 - **Phase 098 Summary**: `.planning/phases/098-property-testing-expansion/`
 
 ---

@@ -166,7 +166,7 @@ async def search_health():
 
 **Status**: Implementation plan created, full work deferred
 
-**File Created**: `backend/docs/TASK_QUEUE_IMPLEMENTATION_PLAN.md`
+**File Created**: `docs/ARCHITECTURE/TASK_QUEUE_IMPLEMENTATION_PLAN.md`
 
 **Why Deferred**:
 - Requires 10-14 hours of implementation time
@@ -178,7 +178,7 @@ async def search_health():
 - **Phase 2**: Enable RQ queue without workers (manual testing)
 - **Phase 3**: Deploy workers for production use
 
-**See**: `backend/docs/TASK_QUEUE_IMPLEMENTATION_PLAN.md` for complete implementation plan
+**See**: `docs/ARCHITECTURE/TASK_QUEUE_IMPLEMENTATION_PLAN.md` for complete implementation plan
 
 ---
 
@@ -471,7 +471,7 @@ npm run build
 ## Documentation Updates
 
 ### New Documentation
-- ✅ `backend/docs/TASK_QUEUE_IMPLEMENTATION_PLAN.md` - Background task queue plan
+- ✅ `docs/ARCHITECTURE/TASK_QUEUE_IMPLEMENTATION_PLAN.md` - Background task queue plan
 - ✅ `backend/scripts/validate_config.py` - Configuration validation script
 
 ### Updated Documentation

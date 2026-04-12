@@ -674,7 +674,7 @@ When adding new E2E tests:
 ### Documentation
 - **Main Documentation**: `/Users/rushiparikh/projects/atom/CLAUDE.md`
 - **API Documentation**: `/Users/rushiparikh/projects/atom/backend/docs/API_DOCUMENTATION.md`
-- **Deployment Guide**: `/Users/rushiparikh/projects/atom/backend/docs/DEPLOYMENT_RUNBOOK.md`
+- **Deployment Guide**: `/Users/rushiparikh/projects/atom/docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md`
 - **Operations Guide**: `/Users/rushiparikh/projects/atom/backend/docs/OPERATIONS_GUIDE.md`
 
 ### Source Code

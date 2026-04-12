@@ -773,7 +773,7 @@ normalized_trace = re.sub(r' line \d+', ' line N', stack_trace)
 
 ### Related Documentation
 
-- **Bug Discovery Infrastructure**: `backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md`
+- **Bug Discovery Infrastructure**: `docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md`
 - **Property-Based Testing**: `backend/tests/property/README.md`
 - **E2E Testing**: `backend/tests/e2e_ui/README.md`
 

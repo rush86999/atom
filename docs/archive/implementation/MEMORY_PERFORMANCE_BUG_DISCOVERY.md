@@ -606,7 +606,7 @@ def test_api_get_agent_latency(benchmark, check_regression):
 ## References
 
 - **Phase 243 Research:** `.planning/phases/243-memory-and-performance-bug-discovery/243-RESEARCH.md`
-- **Bug Discovery Infrastructure:** `backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md`
+- **Bug Discovery Infrastructure:** `docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md`
 - **Memory Leak Tests:** `backend/tests/memory_leaks/README.md`
 - **Performance Regression Tests:** `backend/tests/performance_regression/README.md`
 - **Lighthouse Regression Script:** `backend/tests/scripts/check_lighthouse_regression.py`

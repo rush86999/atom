@@ -375,7 +375,7 @@ class AutonomousSupervisorService:
         # TODO (evaluated: Future) - Execute the proposed action
         # Currently marks as executed without actual execution
         # Requires integration with action execution framework
-        # See: backend/docs/FUTURE_WORK.md
+        # See: docs/archive/implementation/FUTURE_WORK.md
         proposal.status = ProposalStatus.EXECUTED.value
         proposal.completed_at = datetime.now()
 
@@ -431,7 +431,7 @@ class AutonomousSupervisorService:
         """
         # TODO (evaluated: Future) - Integrate with actual LLM
         # Currently uses heuristic-based analysis
-        # See: backend/docs/FUTURE_WORK.md
+        # See: docs/archive/implementation/FUTURE_WORK.md
 
         # Simple heuristic-based analysis
         confidence = supervisor.confidence_score
@@ -513,7 +513,7 @@ class AutonomousSupervisorService:
         """Analyze execution result for quality/compliance."""
         # TODO (evaluated: Future) - Implement LLM-based result analysis
         # Returns mock quality scores
-        # See: backend/docs/FUTURE_WORK.md
+        # See: docs/archive/implementation/FUTURE_WORK.md
         return {
             "success": execution.status == "completed",
             "quality_score": 0.8,
@@ -528,7 +528,7 @@ class AutonomousSupervisorService:
         """Analyze execution error for root cause."""
         # TODO (evaluated: Future) - Implement LLM-based error analysis
         # Returns mock error categorization
-        # See: backend/docs/FUTURE_WORK.md
+        # See: docs/archive/implementation/FUTURE_WORK.md
         return {
             "error_type": "execution_error",
             "root_cause": "unknown",
@@ -543,7 +543,7 @@ class AutonomousSupervisorService:
         """Check for concerning patterns during execution."""
         # TODO (evaluated: Future) - Implement concern detection
         # Returns mock concern data
-        # See: backend/docs/FUTURE_WORK.md
+        # See: docs/archive/implementation/FUTURE_WORK.md
         return {
             "has_concerns": False,
             "concerns": [],

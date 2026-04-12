@@ -1670,8 +1670,8 @@ When adding a new invariant to the catalog:
 ## Related Documentation
 
 - **Property Testing Guide**: `docs/testing/property-testing.md` (1,170 lines)
-- **Test Decision Tree**: `backend/docs/PROPERTY_TEST_DECISION_TREE.md` (to be created)
-- **Performance Guide**: `backend/docs/PROPERTY_TEST_PERFORMANCE.md` (to be created)
+- **Test Decision Tree**: `docs/testing/PROPERTY_TEST_DECISION_TREE.md` (to be created)
+- **Performance Guide**: `docs/testing/PROPERTY_TEST_PERFORMANCE.md` (to be created)
 - **Phase 098 Summary**: `.planning/phases/098-property-testing-expansion/`
 - **Phase 252 Summary**: `.planning/phases/252-backend-coverage-push/`
 - **Phase 253a Summary**: `.planning/phases/253a-property-tests-data-integrity/`

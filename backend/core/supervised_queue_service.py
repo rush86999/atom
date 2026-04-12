@@ -448,7 +448,7 @@ class SupervisedQueueService:
         # Currently marks as completed without execution
         # Requires integration with agent execution framework
         # Priority: P1 (Critical) - affects production functionality
-        # See: backend/docs/FUTURE_WORK.md
+        # See: docs/archive/implementation/FUTURE_WORK.md
         execution.status = "completed"
         execution.completed_at = datetime.utcnow()
         execution.output_summary = f"Executed from queue entry {queue_entry.id}"

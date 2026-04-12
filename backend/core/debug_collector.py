@@ -149,7 +149,7 @@ class DebugCollector:
         # TODO (evaluated: Future) - Integrate with StructuredLogger to automatically capture logs
         # Currently components must call collect_event explicitly
         # Would require StructuredLogger hook integration
-        # See: backend/docs/FUTURE_WORK.md
+        # See: docs/archive/implementation/FUTURE_WORK.md
         pass
 
     async def collect_event(

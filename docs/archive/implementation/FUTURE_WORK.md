@@ -14,7 +14,7 @@ The following incomplete implementations have been fixed:
 - ✅ Mobile authentication flow improvements
 - ✅ Mobile navigation with SettingsScreen
 
-**See**: `backend/docs/INCOMPLETE_IMPLEMENTATIONS.md` for detailed information about these fixes.
+**See**: `docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md` for detailed information about these fixes.
 
 ---
 

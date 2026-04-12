@@ -195,7 +195,7 @@ The following are explicitly **out of scope** for v6.0:
 - **Requirements Document**: `.planning/REQUIREMENTS-v6.0-BYOK.md`
 - **Phase Plans**: `.planning/phases/222-*/` through `.planning/phases/232-*/`
 - **Existing BYOK Implementation**: `backend/core/llm/byok_handler.py`
-- **Cognitive Tier System**: `backend/docs/COGNITIVE_TIER_SYSTEM.md`
+- **Cognitive Tier System**: `docs/ARCHITECTURE/COGNITIVE_TIER_SYSTEM.md`
 
 ---
 

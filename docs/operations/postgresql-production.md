@@ -325,7 +325,7 @@ All critical features are in place:
 
 ## 📚 Additional Resources
 
-- **Deployment Runbook**: `backend/docs/DEPLOYMENT_RUNBOOK.md`
+- **Deployment Runbook**: `docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md`
 - **Operations Guide**: `backend/docs/OPERATIONS_GUIDE.md`
 - **Database Schema**: See `backend/core/models.py` (8,560 lines)
 - **Migration Files**: `backend/alembic/versions/` (89 migrations)

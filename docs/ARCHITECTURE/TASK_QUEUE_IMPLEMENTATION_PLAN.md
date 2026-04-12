@@ -117,5 +117,5 @@ This feature is important for production use but can be deployed incrementally:
 - **Phase 3**: Deploy workers for production use
 
 ## See Also
-- `backend/docs/INCOMPLETE_IMPLEMENTATIONS.md` - Other incomplete features
+- `docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md` - Other incomplete features
 - `backend/api/social_media_routes.py:456` - Current TODO location

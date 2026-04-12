@@ -207,7 +207,7 @@ User Request → AgentContextResolver → GovernanceCache → AgentGovernanceSer
   - SUPERVISED → AUTONOMOUS: 50 episodes, 0% intervention rate, 0.95 constitutional score
 - **Performance**: Episode creation <5s, Temporal retrieval ~10ms, Semantic retrieval ~50-100ms
 - **API**: 25+ REST endpoints for episodes, graduation, and canvas/feedback integration
-- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/AGENT_GRADUATION_GUIDE.md`, `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
+- **Docs**: `docs/EPISODIC_MEMORY_IMPLEMENTATION.md`, `docs/DEVELOPMENT/AGENT_GRADUATION_GUIDE.md`, `docs/CANVAS_FEEDBACK_EPISODIC_MEMORY.md`
 
 ### 19. World Model & Business Facts ✨
 **Files**: `core/agent_world_model.py`, `api/admin/business_facts_routes.py`, `core/policy_fact_extractor.py`

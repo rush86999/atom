@@ -588,7 +588,7 @@ WantedBy=multi-user.target
 
 ### Atom Documentation
 - [DEVELOPMENT.md](DEVELOPMENT/overview.md) - Background Task Queue section
-- [backend/docs/INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../backend/docs/INCOMPLETE_IMPLEMENTATIONS.md -->] - Task queue implementation
+- [docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md][<!-- ../docs/archive/implementation/INCOMPLETE_IMPLEMENTATIONS.md -->] - Task queue implementation
 - [backend/core/task_queue.py](../backend/core/task_queue.py) - Core implementation
 
 ### API Endpoints

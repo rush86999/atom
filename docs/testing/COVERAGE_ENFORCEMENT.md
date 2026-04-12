@@ -26,7 +26,7 @@ Move to next phase when:
 ### Phase Transition Process
 
 1. Set `COVERAGE_PHASE=phase_2` in GitHub repository variables
-2. Update backend/docs/COVERAGE_ENFORCEMENT.md with transition date
+2. Update docs/testing/COVERAGE_ENFORCEMENT.md with transition date
 3. Announce phase transition in team Slack
 4. Monitor PR pass rate for 1 week
 5. Rollback to previous phase if >50% of PRs fail

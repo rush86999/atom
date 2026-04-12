@@ -272,7 +272,7 @@ Both **Atom** and **OpenClaw** are open-source, self-hosted AI agent platforms d
 | **Automated Bug Filing** | ✅ GitHub Issues API integration with idempotency | ❌ No automated filing |
 | **CI Pipeline Separation** | ✅ Fast PR tests (<10min) + weekly bug discovery (~2 hours) | ⚠️ Single pipeline |
 
-**Documentation**: [Bug Discovery Infrastructure](backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md)
+**Documentation**: [Bug Discovery Infrastructure](docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md)
 
 ### Stress Testing & Performance ✨ NEW (March 2026)
 
@@ -380,7 +380,7 @@ Both are excellent choices depending on your use case. For business workflows re
 - [Episodic Memory](intelligence/episodic-memory.md) - Agent learning framework
 - [MESSAGING_PLATFORMS.md](GUIDES/MESSAGING_PLATFORMS.md) - 9 messaging platforms guide
 - [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 486 comprehensive E2E test functions ✨ NEW
-- [Bug Discovery Infrastructure](backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery ✨ NEW
+- [Bug Discovery Infrastructure](docs/testing/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery ✨ NEW
 - [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices ✨ NEW
 - [Cross-Platform & Stress Testing](.planning/phases/236-cross-platform-and-stress-testing/236-VERIFICATION.md) - Load testing, network simulation ✨ NEW
 - [Repository](https://github.com/rush86999/atom) - Source code

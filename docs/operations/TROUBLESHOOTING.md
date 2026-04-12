@@ -770,7 +770,7 @@ curl http://atom.example.com/health/ready
 
 ### Emergency Rollback
 
-**See:** backend/docs/DEPLOYMENT_RUNBOOK.md - Rollback Procedure
+**See:** docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md - Rollback Procedure
 
 ### Incident Response
 
@@ -780,7 +780,7 @@ curl http://atom.example.com/health/ready
 
 ## References
 
-- **Deployment Runbook:** backend/docs/DEPLOYMENT_RUNBOOK.md
+- **Deployment Runbook:** docs/DEPLOYMENT/DEPLOYMENT_RUNBOOK.md
 - **Operations Guide:** backend/docs/OPERATIONS_GUIDE.md
 - **Monitoring:** backend/docs/MONITORING.md
 - **Architecture:** CLAUDE.md

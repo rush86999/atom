@@ -509,7 +509,7 @@ pytest --cov=backend --cov-branch --cov-report=json
 - `backend/tests/scripts/progressive_coverage_gate.py` - Progressive rollout orchestration
 
 **Documentation:**
-- `backend/docs/COVERAGE_GUIDE.md` - How-to guide for coverage measurement
+- `docs/testing/COVERAGE_GUIDE.md` - How-to guide for coverage measurement
 - `backend/tests/coverage_reports/backend_163_baseline.md` - Phase 163 baseline report
 - `.planning/phases/163-coverage-baseline-infrastructure/163-VERIFICATION.md` - Phase 163 verification
 
