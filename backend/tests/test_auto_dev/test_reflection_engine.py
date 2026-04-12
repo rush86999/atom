@@ -30,6 +30,8 @@ class TestReflectionEngineEventListening:
     def test_tracks_event_metadata(self, auto_dev_db_session, sample_task_event):
         """Test tracks event metadata."""
         engine = ReflectionEngine(db=auto_dev_db_session)
+        # Mock capability gate to allow processing
+        engine._should_process_agent = lambda agent_id, tenant_id: True
 
         import asyncio
         asyncio.run(engine.process_failure(sample_task_event))
@@ -44,6 +46,8 @@ class TestReflectionEnginePatternDetection:
     async def test_identifies_repeated_failure_patterns(self, auto_dev_db_session, sample_task_event):
         """Test identifies repeated failure patterns."""
         engine = ReflectionEngine(db=auto_dev_db_session, failure_threshold=2)
+        # Mock capability gate to allow processing
+        engine._should_process_agent = lambda agent_id, tenant_id: True
 
         # Process same failure twice
         await engine.process_failure(sample_task_event)
@@ -56,6 +60,8 @@ class TestReflectionEnginePatternDetection:
     async def test_groups_by_error_type(self, auto_dev_db_session):
         """Test groups by error type."""
         engine = ReflectionEngine(db=auto_dev_db_session)
+        # Mock capability gate to allow processing
+        engine._should_process_agent = lambda agent_id, tenant_id: True
 
         event1 = TaskEvent(
             episode_id="ep-001",
@@ -90,6 +96,8 @@ class TestReflectionEngineTriggerThreshold:
     async def test_triggers_after_n_failures(self, auto_dev_db_session, sample_task_event, monkeypatch):
         """Test triggers MementoEngine after N failures."""
         engine = ReflectionEngine(db=auto_dev_db_session, failure_threshold=2)
+        # Mock capability gate to allow processing
+        engine._should_process_agent = lambda agent_id, tenant_id: True
 
         # Mock MementoEngine to avoid database requirements
         mock_memento = MagicMock()
@@ -140,6 +148,8 @@ class TestReflectionEnginePatternTracking:
     async def test_stores_pattern_metadata(self, auto_dev_db_session, sample_task_event):
         """Test stores pattern metadata."""
         engine = ReflectionEngine(db=auto_dev_db_session)
+        # Mock capability gate to allow processing
+        engine._should_process_agent = lambda agent_id, tenant_id: True
 
         await engine.process_failure(sample_task_event)
 
