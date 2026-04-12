@@ -235,6 +235,10 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 - [Student Training](docs/agents/training.md) - Maturity routing
 
 ### Testing & Quality ✨ NEW
+- [Quality Assurance Guide](backend/docs/QUALITY_ASSURANCE.md) - Comprehensive QA practices and standards
+- [Quality Metrics Dashboard](backend/docs/QUALITY_DASHBOARD.md) - Live quality metrics and trends
+- [Bug Fix Process](backend/docs/BUG_FIX_PROCESS.md) - TDD-based bug fixing workflow
+- [Coverage Report Guide](backend/docs/COVERAGE_REPORT_GUIDE.md) - Coverage measurement and improvement
 - [E2E Testing Guide](backend/tests/e2e_ui/README.md) - 91+ comprehensive end-to-end tests
 - [Bug Discovery Infrastructure](backend/docs/BUG_DISCOVERY_INFRASTRUCTURE.md) - AI-enhanced bug discovery
 - [Test Quality Standards](backend/docs/TEST_QUALITY_STANDARDS.md) - Testing best practices
@@ -258,6 +262,16 @@ Self-hosted deployment, BYOK (OpenAI/Anthropic/Gemini/DeepSeek/MiniMax), encrypt
 ## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Quality Standards
+
+All contributions must meet quality standards:
+1. **Tests pass (100% pass rate)** - All tests must pass before merge
+2. **Coverage adequate (≥70%)** - New code must have test coverage
+3. **Code reviewed** - At least one approval required
+4. **Documentation updated** - Update docs for new features
+
+See [Quality Assurance Guide](backend/docs/QUALITY_ASSURANCE.md) for details.
 
 ---
 
