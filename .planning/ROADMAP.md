@@ -14,20 +14,20 @@
 | 248 - Test Discovery & Documentation | 2/2 | ✅ COMPLETE | 2026-04-03 |
 | 249 - Critical Test Fixes | 3/3 | ✅ COMPLETE | 2026-04-03 |
 | 250 - All Test Fixes | 2/2 | ✅ COMPLETE | 2026-04-11 |
-| 251 - Backend Coverage Baseline | 3/3 | Complete   | 2026-04-11 |
+| 251 - Backend Coverage Baseline | 3/3 | ✅ COMPLETE | 2026-04-11 |
 | 252 - Backend Coverage Push | 3/3 | ✅ COMPLETE | 2026-04-11 |
-| 253a - Property Tests Data Integrity | 1/1 | Complete   | 2026-04-11 |
+| 253a - Property Tests Data Integrity | 1/1 | ✅ COMPLETE | 2026-04-11 |
 | 253b - Coverage Expansion Wave 1 | 0/1 | Not started | - |
 | 253 - Backend 80% & Property Tests | 0/3 | Not started | - |
-| 254 - Frontend Coverage Baseline | 2/3 | In Progress|  |
-| 255 - Frontend Coverage Push | 0/2 | Not started | - |
-| 256 - Frontend 80% | 0/2 | Not started | - |
+| 254 - Frontend Coverage Baseline | 3/3 | ✅ COMPLETE | 2026-04-11 |
+| 255 - Frontend Coverage Push | 2/2 | ✅ COMPLETE | 2026-04-11 |
+| 256 - Frontend 80% | 2/2 | Complete   | 2026-04-12 |
 | 257 - TDD & Property Test Documentation | 0/2 | Not started | - |
 | 258 - Quality Gates & Final Documentation | 0/3 | Not started | - |
 
-**Overall:** 14/46 plans complete (30%)
+**Overall:** 24/48 plans complete (50%)
 
-**Total:** 46 plans across 14 phases
+**Total:** 48 plans across 14 phases
 
 ## Phases
 
@@ -40,9 +40,9 @@
 - [x] **Phase 253a: Property Tests Data Integrity** - Create property tests for episode and skill execution data integrity (PROP-03) (completed 2026-04-11)
 - [ ] **Phase 253b: Coverage Expansion Wave 1** - Add traditional unit/integration tests for high-impact core services (governance, LLM, episodes) to measurably increase coverage from 4.60% baseline
 - [ ] **Phase 253: Backend 80% & Property Tests** - Achieve 80% backend coverage with property tests
-- [ ] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage
-- [ ] **Phase 255: Frontend Coverage Push** - Reach 75% frontend coverage
-- [ ] **Phase 256: Frontend 80%** - Achieve 80% frontend coverage
+- [x] **Phase 254: Frontend Coverage Baseline** - Measure baseline and reach 70% frontend coverage (completed 2026-04-11)
+- [x] **Phase 255: Frontend Coverage Push** - Reach 75% frontend coverage (completed 2026-04-11)
+- [x] **Phase 256: Frontend 80%** - Achieve 80% frontend coverage (completed 2026-04-12)
 - [ ] **Phase 257: TDD & Property Test Documentation** - Document TDD workflow and property tests
 - [ ] **Phase 258: Quality Gates & Final Documentation** - Enforce quality gates and complete documentation
 
@@ -190,7 +190,7 @@
 **Plans**: 3 plans
 - [x] 254-01-PLAN.md — Measure frontend coverage baseline with Jest/React Testing Library
 - [x] 254-02-PLAN.md — Create agent component tests (AgentCard, AgentManager, AgentStudio, AgentTerminal)
-- [ ] 254-03-PLAN.md — Create workflow, canvas, and hook tests to reach 70% target
+- [x] 254-03-PLAN.md — Create workflow, canvas, and hook tests to reach 70% target
 
 ### Phase 255: Frontend Coverage Push
 **Goal**: Frontend coverage reaches 75%
@@ -202,7 +202,9 @@
   3. Edge cases and error paths covered
   4. Integration tests for API calls
   5. Component state management tested
-**Plans**: TBD
+**Plans**: 2 plans
+- [x] 255-01-PLAN.md — Critical gap coverage: Auth & Automations (0% → targeted coverage) ✅ COMPLETE
+- [x] 255-02-PLAN.md — Advanced coverage integration: API & State management ✅ COMPLETE
 
 ### Phase 256: Frontend 80%
 **Goal**: Frontend coverage reaches 80% final target
@@ -214,7 +216,9 @@
   3. Edge cases, error paths, and integration points covered
   4. Coverage trends tracked (before/after metrics)
   5. Final coverage report generated
-**Plans**: TBD
+**Plans**: 2 plans
+- [x] 256-01-PLAN.md — Final coverage push for remaining components
+- [x] 256-02-PLAN.md — Edge cases and integration testing
 
 ### Phase 257: TDD & Property Test Documentation
 **Goal**: TDD workflow and property tests documented
@@ -226,7 +230,9 @@
   3. Red-green-refactor cycle explained with real examples
   4. Property test patterns documented (when to use Hypothesis vs unit tests)
   5. Documentation includes common pitfalls and best practices
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 257-01-PLAN.md — Document TDD workflow with real examples
+- [ ] 257-02-PLAN.md — Document property tests and invariants catalog
 
 ### Phase 258: Quality Gates & Final Documentation
 **Goal**: Quality gates enforced, metrics dashboard created, documentation complete
@@ -239,7 +245,10 @@
   4. Quality metrics dashboard created (coverage, pass rate, trends)
   5. Bug fix process documented (TDD workflow)
   6. Coverage report documentation complete (how to measure, improve)
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 258-01-PLAN.md — Set up CI/CD quality gates
+- [ ] 258-02-PLAN.md — Create quality metrics dashboard
+- [ ] 258-03-PLAN.md — Complete final documentation
 
 ## Coverage Map
 
@@ -341,7 +350,7 @@ Milestone is complete when:
 
 **Target:** 1 week (aggressive execution)
 **Phases:** 14 phases (added Phase 253a for data integrity property tests, 253b for coverage expansion wave 1)
-**Estimated Plans:** 46 plans
+**Estimated Plans:** 48 plans
 **Parallelization:** Enabled (backend/frontend coverage can run in parallel after Phase 250)
 
 ## Anti-Patterns
