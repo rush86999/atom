@@ -35,6 +35,12 @@ class TestEvolutionEngineTriggerDetection:
         """Test triggers on high latency (>5s)."""
         engine = EvolutionEngine(db=auto_dev_db_session)
 
+        # Mock capability gate to return True (bypass AUTONOMOUS check)
+        monkeypatch.setattr(engine, "_should_optimize", lambda agent_id, tenant_id: True)
+
+        # Mock _get_skill_code to return test code
+        monkeypatch.setattr(engine, "_get_skill_code", lambda skill_id, tenant_id: "def test_skill():\n    pass")
+
         # Mock AlphaEvolverEngine
         mock_evolver = MagicMock()
         mock_mutation = MagicMock()
@@ -59,7 +65,8 @@ class TestEvolutionEngineTriggerDetection:
                 agent_id="agent-001",
                 tenant_id="tenant-001",
                 skill_id="skill-001",
-                execution_seconds=10.0,  # High latency
+                skill_name="test_skill",
+                execution_seconds=10.0,  # High latency > 5s threshold
                 token_usage=1000,
                 success=True,
             )
@@ -79,10 +86,17 @@ class TestEvolutionEngineTriggerDetection:
         """Test triggers on high token usage."""
         engine = EvolutionEngine(db=auto_dev_db_session)
 
+        # Mock capability gate to return True (bypass AUTONOMOUS check)
+        monkeypatch.setattr(engine, "_should_optimize", lambda agent_id, tenant_id: True)
+
+        # Mock _get_skill_code to return test code
+        monkeypatch.setattr(engine, "_get_skill_code", lambda skill_id, tenant_id: "def test_skill():\n    pass")
+
         mock_evolver = MagicMock()
         mock_mutation = MagicMock()
         mock_mutation.id = "mutation-001"
         mock_evolver.generate_tool_mutation = AsyncMock(return_value=mock_mutation)
+        mock_evolver.sandbox_execute_mutation = AsyncMock(return_value={"success": True})
 
         import sys
         original_module = sys.modules.get("core.auto_dev.alpha_evolver_engine")
@@ -100,8 +114,9 @@ class TestEvolutionEngineTriggerDetection:
                 agent_id="agent-001",
                 tenant_id="tenant-001",
                 skill_id="skill-001",
+                skill_name="test_skill",
                 execution_seconds=2.0,
-                token_usage=10000,  # High token usage
+                token_usage=10000,  # High token usage > 5000 threshold
                 success=True,
             )
 
@@ -122,6 +137,12 @@ class TestEvolutionEngineBackgroundOptimization:
     async def test_spawns_alpha_evolver(self, auto_dev_db_session, monkeypatch):
         """Test spawns AlphaEvolverEngine."""
         engine = EvolutionEngine(db=auto_dev_db_session)
+
+        # Mock capability gate to return True (bypass AUTONOMOUS check)
+        monkeypatch.setattr(engine, "_should_optimize", lambda agent_id, tenant_id: True)
+
+        # Mock _get_skill_code to return test code
+        monkeypatch.setattr(engine, "_get_skill_code", lambda skill_id, tenant_id: "def test_skill():\n    pass")
 
         mock_evolver = MagicMock()
         mock_mutation = MagicMock()
@@ -145,6 +166,7 @@ class TestEvolutionEngineBackgroundOptimization:
                 agent_id="agent-001",
                 tenant_id="tenant-001",
                 skill_id="skill-001",
+                skill_name="test_skill",
                 execution_seconds=8.0,
                 token_usage=6000,
                 success=False,  # Execution failure
@@ -152,7 +174,7 @@ class TestEvolutionEngineBackgroundOptimization:
 
             await engine.process_execution(event)
 
-            # Should have spawned evoker
+            # Should have spawned evolver
             mock_evolver.generate_tool_mutation.assert_called_once()
         finally:
             if original_module:
@@ -171,14 +193,14 @@ class TestEvolutionEngineVariantPruning:
         # Create variants with different fitness scores
         low_fitness = WorkflowVariant(
             tenant_id=sample_tenant_id,
-            workflow_def={},
+            workflow_definition={},
             fitness_score=0.1,
             evaluation_status="evaluated",
         )
 
         high_fitness = WorkflowVariant(
             tenant_id=sample_tenant_id,
-            workflow_def={},
+            workflow_definition={},
             fitness_score=0.9,
             evaluation_status="evaluated",
         )
