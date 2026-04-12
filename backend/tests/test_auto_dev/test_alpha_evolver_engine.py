@@ -20,22 +20,22 @@ class TestAlphaEvolverEngineEpisodeAnalysis:
     """Test analyze_episode() identifies optimization opportunities."""
 
     @pytest.mark.asyncio
-    async def test_analyze_episode_extracts_performance_signals(self, auto_dev_db_session):
+    async def test_analyze_episode_extracts_performance_signals(self, auto_dev_db_session, sample_episode):
         """Test analyzes successful episodes for optimization."""
         engine = AlphaEvolverEngine(db=auto_dev_db_session)
 
-        result = await engine.analyze_episode("episode-001")
+        result = await engine.analyze_episode(sample_episode.id)
 
         # Should return analysis dict
         assert "episode_id" in result
 
     @pytest.mark.asyncio
-    async def test_identifies_slow_tool_calls(self, auto_dev_db_session):
+    async def test_identifies_slow_tool_calls(self, auto_dev_db_session, sample_episode):
         """Test identifies slow tool calls."""
         engine = AlphaEvolverEngine(db=auto_dev_db_session)
 
         # Test with mock episode that has slow segments
-        result = await engine.analyze_episode("episode-001")
+        result = await engine.analyze_episode(sample_episode.id)
 
         assert "optimization_targets" in result
 

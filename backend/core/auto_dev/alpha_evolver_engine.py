@@ -51,10 +51,10 @@ class AlphaEvolverEngine(BaseLearningEngine):
         - Edge case signals (retries, partial failures)
         """
         try:
-            from core.models import Episode, EpisodeSegment
+            from core.models import AgentEpisode, EpisodeSegment
 
             episode = (
-                self.db.query(Episode).filter(Episode.id == episode_id).first()
+                self.db.query(AgentEpisode).filter(AgentEpisode.id == episode_id).first()
             )
             if not episode:
                 return {"error": f"Episode {episode_id} not found"}
