@@ -42,7 +42,7 @@ class TestFitnessServiceInitialProxy:
 
         variant = WorkflowVariant(
             tenant_id=sample_tenant_id,
-            workflow_def={},
+            workflow_definition={},
             evaluation_status="pending",
         )
         auto_dev_db_session.add(variant)
@@ -107,7 +107,7 @@ class TestFitnessServiceDelayedWebhook:
 
         variant = WorkflowVariant(
             tenant_id=sample_tenant_id,
-            workflow_def={},
+            workflow_definition={},
             fitness_score=0.5,
             evaluation_status="pending",
         )
@@ -154,7 +154,7 @@ class TestFitnessServiceTopVariants:
         for i in range(5):
             variant = WorkflowVariant(
                 tenant_id=sample_tenant_id,
-                workflow_def={"index": i},
+                workflow_definition={"index": i},
                 fitness_score=0.1 + (i * 0.1),
                 evaluation_status="evaluated",
             )
@@ -177,7 +177,7 @@ class TestFitnessServiceTopVariants:
         for i in range(3):
             variant = WorkflowVariant(
                 tenant_id=sample_tenant_id,
-                workflow_def={"index": i},
+                workflow_definition={"index": i},
                 fitness_score=0.5,
                 evaluation_status="evaluated",
             )
