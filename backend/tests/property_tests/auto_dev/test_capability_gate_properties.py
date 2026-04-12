@@ -26,7 +26,13 @@ from core.auto_dev.capability_gate import (
 )
 
 # Import strategies from conftest
-from conftest import maturity_levels, auto_dev_capabilities, unknown_capabilities
+from tests.property_tests.auto_dev.conftest import maturity_levels, capabilities
+
+# Alias for consistency
+auto_dev_capabilities = capabilities
+unknown_capabilities = st.text(min_size=1, max_size=50).filter(
+    lambda x: x not in ['file_operations', 'network_access', 'system_commands', 'database_write', 'api_calls']
+)
 
 
 # =============================================================================
