@@ -213,6 +213,112 @@ class SelfEvolutionService:
                 "evolution_recommended": avg_perf < 0.75,
             }
 
+    # --- Auto-Dev Learning Cycles ---
+
+    async def run_memento_cycle(
+        self, agent_id: str, episode_id: str, tenant_id: str
+    ) -> Dict[str, Any]:
+        """
+        Trigger Memento-Skills: generate a new skill from a failed episode.
+
+        Gated by AutoDevCapabilityService (requires INTERN maturity).
+        Returns the generated SkillCandidate or an error dict.
+        """
+        try:
+            from core.auto_dev.capability_gate import AutoDevCapabilityService
+            from core.auto_dev.memento_engine import MementoEngine
+
+            with SessionLocal() as db:
+                gate = AutoDevCapabilityService(db)
+                workspace_settings = self._get_workspace_settings(db, tenant_id)
+
+                if not gate.can_use(agent_id, "auto_dev.memento_skills", workspace_settings):
+                    return {
+                        "skipped": True,
+                        "reason": "Agent has not graduated to INTERN or Auto-Dev is disabled",
+                    }
+
+                engine = MementoEngine(db=db)
+                candidate = await engine.generate_skill_candidate(
+                    tenant_id=tenant_id,
+                    agent_id=agent_id,
+                    episode_id=episode_id,
+                )
+
+                gate.record_usage(agent_id, "auto_dev.memento_skills", success=True)
+
+                return {
+                    "success": True,
+                    "candidate_id": candidate.id,
+                    "skill_name": candidate.skill_name,
+                }
+        except ImportError:
+            return {"skipped": True, "reason": "Auto-Dev module not installed"}
+        except Exception as e:
+            logger.error(f"Memento cycle failed: {e}")
+            return {"error": str(e)}
+
+    async def run_alpha_evolve_cycle(
+        self,
+        agent_id: str,
+        tenant_id: str,
+        base_code: str,
+        research_goal: str,
+        iterations: int = 3,
+    ) -> Dict[str, Any]:
+        """
+        Trigger AlphaEvolver: iteratively mutate and test code.
+
+        Gated by AutoDevCapabilityService (requires SUPERVISED maturity).
+        Returns the list of experiment results.
+        """
+        try:
+            from core.auto_dev.capability_gate import AutoDevCapabilityService
+            from core.auto_dev.alpha_evolver_engine import AlphaEvolverEngine
+
+            with SessionLocal() as db:
+                gate = AutoDevCapabilityService(db)
+                workspace_settings = self._get_workspace_settings(db, tenant_id)
+
+                if not gate.can_use(agent_id, "auto_dev.alpha_evolver", workspace_settings):
+                    return {
+                        "skipped": True,
+                        "reason": "Agent has not graduated to SUPERVISED or Auto-Dev is disabled",
+                    }
+
+                engine = AlphaEvolverEngine(db=db)
+                results = await engine.run_research_experiment(
+                    tenant_id=tenant_id,
+                    base_code=base_code,
+                    research_goal=research_goal,
+                    iterations=iterations,
+                )
+
+                gate.record_usage(agent_id, "auto_dev.alpha_evolver", success=True)
+
+                return {"success": True, "results": results}
+        except ImportError:
+            return {"skipped": True, "reason": "Auto-Dev module not installed"}
+        except Exception as e:
+            logger.error(f"AlphaEvolver cycle failed: {e}")
+            return {"error": str(e)}
+
+    @staticmethod
+    def _get_workspace_settings(db, tenant_id: str) -> Dict[str, Any]:
+        """Retrieve workspace settings for Auto-Dev gating."""
+        try:
+            from core.models import Workspace
+
+            workspace = db.query(Workspace).filter(
+                Workspace.tenant_id == tenant_id
+            ).first()
+            if workspace and workspace.metadata_json:
+                return workspace.metadata_json
+        except Exception:
+            pass
+        return {}
+
 
 # Singleton
 self_evolution_service = SelfEvolutionService()
+

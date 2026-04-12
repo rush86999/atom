@@ -422,6 +422,87 @@ class AgentEvolutionLoop:
                 except Exception as e:
                     logger.error("GEA: Failed to create skill from directive: %s", e)
 
+            # OPTIMIZE_SKILL directive: Mutate and improve existing skills via AlphaEvolver
+            # Format: "OPTIMIZE_SKILL: <skill_name> | <optimization_goal>"
+            # Requires SUPERVISED maturity via AutoDevCapabilityService
+            elif directive.strip().upper().startswith("OPTIMIZE_SKILL:"):
+                try:
+                    logger.info("GEA: Detected skill optimization directive: %s", directive)
+                    optimize_payload = directive.split(":", 1)[1].strip()
+
+                    # Parse "skill_name | optimization_goal"
+                    if "|" in optimize_payload:
+                        skill_name, opt_goal = [
+                            p.strip() for p in optimize_payload.split("|", 1)
+                        ]
+                    else:
+                        skill_name = optimize_payload
+                        opt_goal = "Optimize for performance and reliability"
+
+                    # Gate: check if agent has SUPERVISED maturity for AlphaEvolver
+                    from core.auto_dev.capability_gate import AutoDevCapabilityService
+
+                    gate = AutoDevCapabilityService(self.db)
+                    workspace_settings = self._get_workspace_settings(tenant_id)
+
+                    if not gate.can_use(
+                        agent_id=agent.id,
+                        capability="auto_dev.alpha_evolver",
+                        workspace_settings=workspace_settings,
+                    ):
+                        logger.info(
+                            "GEA: Agent %s not yet SUPERVISED — OPTIMIZE_SKILL skipped",
+                            agent.id,
+                        )
+                        evolved_config["evolution_history"][-1][
+                            "optimize_skill_skipped"
+                        ] = "Agent maturity insufficient"
+                        continue
+
+                    # Retrieve skill source code
+                    skill_code = self._get_skill_code(tenant_id, skill_name)
+                    if not skill_code:
+                        logger.warning(
+                            "GEA: Skill '%s' not found for optimization", skill_name
+                        )
+                        continue
+
+                    # Use AlphaEvolverEngine via SelfEvolutionService
+                    from core.self_evolution_service import self_evolution_service
+
+                    result = await self_evolution_service.run_alpha_evolve_cycle(
+                        agent_id=agent.id,
+                        tenant_id=tenant_id,
+                        base_code=skill_code,
+                        research_goal=opt_goal,
+                        iterations=2,
+                    )
+
+                    if result.get("success"):
+                        logger.info(
+                            "GEA: Skill optimization completed for '%s': %d iterations",
+                            skill_name,
+                            len(result.get("results", [])),
+                        )
+                        evolved_config["evolution_history"][-1][
+                            "skill_optimized"
+                        ] = skill_name
+                    else:
+                        logger.info(
+                            "GEA: Skill optimization skipped/failed for '%s': %s",
+                            skill_name,
+                            result.get("reason", result.get("error", "unknown")),
+                        )
+
+                except ImportError:
+                    logger.debug(
+                        "GEA: Auto-Dev module not available — OPTIMIZE_SKILL skipped"
+                    )
+                except Exception as e:
+                    logger.error(
+                        "GEA: Failed to optimize skill from directive: %s", e
+                    )
+
         directive_block = "\n\n## Evolution Directives\n" + "\n".join(
             f"- {d}" for d in directives
         )
@@ -649,3 +730,55 @@ class AgentEvolutionLoop:
             lineterm="",
         )
         return "\n".join(list(diff)[:100])  # Cap at 100 lines
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Internal: Auto-Dev Helpers
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _get_workspace_settings(self, tenant_id: str) -> Dict[str, Any]:
+        """Retrieve workspace settings for Auto-Dev capability gating."""
+        try:
+            from core.models import Workspace
+
+            workspace = (
+                self.db.query(Workspace)
+                .filter(Workspace.tenant_id == tenant_id)
+                .first()
+            )
+            if workspace and workspace.metadata_json:
+                return workspace.metadata_json
+        except Exception:
+            pass
+        return {}
+
+    def _get_skill_code(self, tenant_id: str, skill_name: str) -> Optional[str]:
+        """
+        Retrieve the source code for a named skill.
+
+        Searches the tenant's skills directory for a matching .py file.
+        """
+        try:
+            from core.skill_builder_service import SkillBuilderService
+
+            builder = SkillBuilderService()
+            skills_dir = builder._get_tenant_skills_dir(tenant_id)
+
+            # Search for skill by name
+            safe_name = "".join(
+                c for c in skill_name if c.isalnum() or c in ("-", "_")
+            ).lower()
+            skill_dir = skills_dir / safe_name
+
+            if skill_dir.exists():
+                for script in skill_dir.glob("*.py"):
+                    return script.read_text()
+
+            # Fallback: search all skill directories
+            for child in skills_dir.iterdir():
+                if child.is_dir() and safe_name in child.name:
+                    for script in child.glob("*.py"):
+                        return script.read_text()
+
+            return None
+        except Exception:
+            return None

@@ -118,6 +118,27 @@ class SandboxExecutor:
         threshold = 0 if strict_mode else self.WARNING_INTERVENTIONS_THRESHOLD
         passed = interventions <= threshold
 
+        # --- Auto-Dev Event Hook ---
+        # Emit skill execution event for the EvolutionEngine.
+        # Fire-and-forget: must not affect core sandbox operation.
+        try:
+            from core.auto_dev.event_hooks import SkillExecutionEvent, event_bus
+            import asyncio
+
+            skill_event = SkillExecutionEvent(
+                execution_id=str(episode_id),
+                agent_id=str(episode.agent_id) if episode else "",
+                tenant_id=str(episode.user_id) if episode and hasattr(episode, "user_id") else "",
+                skill_id=str(episode_id),
+                execution_seconds=0.0,
+                success=passed,
+            )
+            asyncio.ensure_future(event_bus.emit_skill_execution(skill_event))
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
         return SandboxExecutionResult(
             passed=passed,
             interventions=interventions,

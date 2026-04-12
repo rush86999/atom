@@ -515,6 +515,33 @@ class EpisodeService:
             f"(outcome={outcome}, constitutional_score={constitutional_score:.2f})"
         )
 
+        # --- Auto-Dev Event Hooks ---
+        # Emit lifecycle events for the Auto-Dev learning engines.
+        # Wrapped in try/except: Auto-Dev is optional and must never break
+        # the core episodic memory system.
+        try:
+            from core.auto_dev.event_hooks import TaskEvent, event_bus
+
+            task_event = TaskEvent(
+                episode_id=str(episode.id),
+                agent_id=str(execution.agent_id),
+                tenant_id=str(execution.tenant_id),
+                task_description=task_description or "",
+                error_trace=str(merged_metadata.get("error", "")) if not success else None,
+                outcome=outcome,
+                metadata=merged_metadata,
+            )
+
+            import asyncio
+            if success:
+                asyncio.ensure_future(event_bus.emit_task_success(task_event))
+            else:
+                asyncio.ensure_future(event_bus.emit_task_fail(task_event))
+        except ImportError:
+            pass  # Auto-Dev module not installed — skip
+        except Exception as e:
+            logger.debug(f"Auto-Dev event emission skipped: {e}")
+
         return episode
 
     def get_graduation_readiness(
