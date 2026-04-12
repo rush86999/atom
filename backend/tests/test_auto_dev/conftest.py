@@ -261,14 +261,24 @@ def sample_skill_execution_event(sample_tenant_id, sample_agent_id):
 def sample_episode(auto_dev_db_session, sample_agent_id, sample_tenant_id):
     """Sample Episode with tool calls and errors."""
     try:
-        from core.models import Episode
+        from core.models import AgentEpisode
 
-        episode = Episode(
+        episode = AgentEpisode(
             id="episode-001",
             agent_id=sample_agent_id,
             tenant_id=sample_tenant_id,
             task_description="Analyze customer data and generate insights",
+            maturity_at_time="AUTONOMOUS",  # Required field
+            outcome="failure",  # Required field
             success=False,
+            status="active",  # Required field
+            confidence_score=0.5,
+            constitutional_score=1.0,
+            human_intervention_count=0,
+            step_efficiency=1.0,
+            access_count=0,
+            importance_score=0.5,
+            decay_score=1.0,
             metadata_json={
                 "tool_calls": ["analyze_data", "generate_report"],
                 "errors": ["TypeError: Invalid format"],
@@ -420,3 +430,48 @@ def sample_workspace_settings_disabled():
             "background_evolution": False,
         }
     }
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def create_test_episode(
+    session,
+    episode_id: str,
+    agent_id: str,
+    tenant_id: str,
+    task_description: str,
+    outcome: str = "failure",
+    success: bool = False,
+    status: str = "active",
+    **kwargs
+):
+    """Helper function to create test Episode objects with required fields."""
+    try:
+        from core.models import AgentEpisode
+
+        episode = AgentEpisode(
+            id=episode_id,
+            agent_id=agent_id,
+            tenant_id=tenant_id,
+            task_description=task_description,
+            maturity_at_time=kwargs.get("maturity_at_time", "AUTONOMOUS"),
+            outcome=outcome,
+            success=success,
+            status=status,
+            confidence_score=kwargs.get("confidence_score", 0.5),
+            constitutional_score=kwargs.get("constitutional_score", 1.0),
+            human_intervention_count=kwargs.get("human_intervention_count", 0),
+            step_efficiency=kwargs.get("step_efficiency", 1.0),
+            access_count=kwargs.get("access_count", 0),
+            importance_score=kwargs.get("importance_score", 0.5),
+            decay_score=kwargs.get("decay_score", 1.0),
+            metadata_json=kwargs.get("metadata_json", {}),
+        )
+        session.add(episode)
+        session.commit()
+        session.refresh(episode)
+        return episode
+    except ImportError:
+        return None

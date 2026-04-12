@@ -39,15 +39,25 @@ class TestMementoEngineEpisodeAnalysis:
     async def test_analyze_episode_extracts_error_trace(self, auto_dev_db_session):
         """Test analyze_episode() extracts error_trace from failed steps."""
         try:
-            from core.models import Episode, EpisodeSegment
+            from core.models import AgentEpisode, EpisodeSegment
 
             # Create test episode with error segments
-            episode = Episode(
+            episode = AgentEpisode(
                 id="ep-error-001",
                 agent_id="agent-001",
                 tenant_id="tenant-001",
                 task_description="Process data",
+                maturity_at_time="AUTONOMOUS",
+                outcome="failure",
                 success=False,
+                status="active",
+                confidence_score=0.5,
+                constitutional_score=1.0,
+                human_intervention_count=0,
+                step_efficiency=1.0,
+                access_count=0,
+                importance_score=0.5,
+                decay_score=1.0,
             )
             auto_dev_db_session.add(episode)
             auto_dev_db_session.flush()
@@ -73,14 +83,24 @@ class TestMementoEngineEpisodeAnalysis:
     async def test_analyze_episode_extracts_tool_calls(self, auto_dev_db_session):
         """Test analyze_episode() extracts tool_calls from execution data."""
         try:
-            from core.models import Episode, EpisodeSegment
+            from core.models import AgentEpisode, EpisodeSegment
 
-            episode = Episode(
+            episode = AgentEpisode(
                 id="ep-tools-001",
                 agent_id="agent-001",
                 tenant_id="tenant-001",
                 task_description="Execute tools",
+                maturity_at_time="AUTONOMOUS",
+                outcome="failure",
                 success=False,
+                status="active",
+                confidence_score=0.5,
+                constitutional_score=1.0,
+                human_intervention_count=0,
+                step_efficiency=1.0,
+                access_count=0,
+                importance_score=0.5,
+                decay_score=1.0,
             )
             auto_dev_db_session.add(episode)
             auto_dev_db_session.flush()
@@ -107,14 +127,24 @@ class TestMementoEngineEpisodeAnalysis:
     async def test_analyze_episode_identifies_failure_patterns(self, auto_dev_db_session):
         """Test analyze_episode() identifies failure patterns."""
         try:
-            from core.models import Episode
+            from core.models import AgentEpisode
 
-            episode = Episode(
+            episode = AgentEpisode(
                 id="ep-pattern-001",
                 agent_id="agent-001",
                 tenant_id="tenant-001",
                 task_description="Process CSV data with invalid format",
+                maturity_at_time="AUTONOMOUS",
+                outcome="failure",
                 success=False,
+                status="active",
+                confidence_score=0.5,
+                constitutional_score=1.0,
+                human_intervention_count=0,
+                step_efficiency=1.0,
+                access_count=0,
+                importance_score=0.5,
+                decay_score=1.0,
             )
             auto_dev_db_session.add(episode)
             auto_dev_db_session.commit()
@@ -387,14 +417,24 @@ class TestMementoEngineFullPipeline:
     async def test_generate_skill_candidate_full_pipeline(self, auto_dev_db_session, mock_auto_dev_llm, mock_sandbox, sample_tenant_id, sample_agent_id):
         """Test generate_skill_candidate() full pipeline."""
         try:
-            from core.models import Episode
+            from core.models import AgentEpisode
 
-            episode = Episode(
+            episode = AgentEpisode(
                 id="ep-pipeline-001",
                 agent_id=sample_agent_id,
                 tenant_id=sample_tenant_id,
                 task_description="Process complex data",
+                maturity_at_time="AUTONOMOUS",
+                outcome="failure",
                 success=False,
+                status="active",
+                confidence_score=0.5,
+                constitutional_score=1.0,
+                human_intervention_count=0,
+                step_efficiency=1.0,
+                access_count=0,
+                importance_score=0.5,
+                decay_score=1.0,
             )
             auto_dev_db_session.add(episode)
             auto_dev_db_session.commit()
