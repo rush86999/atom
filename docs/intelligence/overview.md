@@ -27,6 +27,13 @@ AI capabilities, knowledge management, and cognitive systems.
 - **[Episodic Memory Quick Start](episodic-quickstart.md)** - Getting started
 - **[Canvas & Feedback Episodic Memory](../canvas/feedback-memory.md)** - Canvas-linked memory
 
+### Self-Evolution ✨ NEW
+- **[Self-Evolution & Reflection Pool](self-evolution.md)** - Agents learn from mistakes, generate skills, optimize capabilities
+  - Reflection Pool (critique-based mistakes storage)
+  - Memento-Skills (generate new skills from failures)
+  - AlphaEvolver (optimize existing skills)
+  - Integration with episodic memory and graduation
+
 ### Agent Learning
 - **[Agent Graduation Guide](../agents/graduation.md)** - Agent promotion system
 - **[Student Agent Training](STUDENT_AGENT_TRAINING_IMPLEMENTATION.md)** - Training workflow
@@ -90,6 +97,7 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 
 ### By Use Case
 - **Learning from Interactions**: [Memory Integration Guide](MEMORY_INTEGRATION_GUIDE.md)
+- **Self-Evolution & Mistakes**: [Self-Evolution & Reflection Pool](self-evolution.md) ✨ NEW
 - **Storing Business Knowledge**: [Citation System Guide](intelligence/jit-facts.md)
 - **AI Summaries**: [LLM Canvas Summaries](../canvas/llm-summaries.md)
 - **Error Recovery**: [Error Handling Guidelines](ERROR_HANDLING_GUIDELINES.md)
@@ -100,15 +108,19 @@ User Request → World Model → Episodic Memory → Knowledge Graph → LLM Res
 |--------|---------|-------|
 | Episodic Recall | ~10-100ms | Temporal vs Semantic |
 | Knowledge Graph | ~50-80ms | Local search |
+| Reflection Pool | ~50-100ms | Vector similarity search |
 | JIT Fact Verification | <500ms | With citation check |
 | Canvas Summary | ~2-3s | LLM generation |
+| Memento-Skill Generation | ~30-60s | LLM code generation |
+| AlphaEvolver Optimization | ~2-5min | Per generation |
 
 ## See Also
 
-- **[Agent System](AGENTS.md)** - Agent governance and learning
-- **[Canvas Documentation](CANVAS.md)** - Canvas presentations (if exists)
-- **[API Documentation](API/OVERVIEW.md)** - Intelligence API endpoints
+- **[Agent System](../agents/)** - Agent governance and learning
+- **[Auto-Dev User Guide](../GUIDES/AUTO_DEV_USER_GUIDE.md)** - Self-evolving agent capabilities
+- **[Canvas Documentation](../canvas/)** - Canvas presentations
+- **[API Documentation](../API/)** - Intelligence API endpoints
 
 ---
 
-*Last Updated: April 5, 2026*
+*Last Updated: April 12, 2026*

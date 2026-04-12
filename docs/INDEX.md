@@ -124,7 +124,8 @@
 | [agents/fleet-admiral.md](agents/fleet-admiral.md) | **Multi-agent fleet coordination for unstructured long-horizon tasks** | Apr 7, 2026 |
 | [agents/overview.md](agents/overview.md) | Agent system overview and intent classification | Apr 7, 2026 |
 | [GUIDES/QUEEN_VS_FLEET_ADMIRAL.md](GUIDES/QUEEN_VS_FLEET_ADMIRAL.md) | **✨ NEW: Queen Agent vs Fleet Admiral - Which orchestrator to use?** | Apr 10, 2026 |
-| [GUIDES/AUTO_DEV_USER_GUIDE.md](GUIDES/AUTO_DEV_USER_GUIDE.md) | **✨ NEW: Auto-Dev Module - Self-evolving agent capabilities** | Apr 10, 2026 |
+| [GUIDES/AUTO_DEV_USER_GUIDE.md](GUIDES/AUTO_DEV_USER_GUIDE.md) | **✨ Auto-Dev Module - Self-evolving agent capabilities** | Apr 10, 2026 |
+| [intelligence/self-evolution.md](intelligence/self-evolution.md) | **✨ NEW: Self-Evolution & Reflection Pool - Complete guide** | Apr 12, 2026 |
 
 ### Episodic Memory
 | Document | Description | Last Updated |

@@ -4,6 +4,8 @@
 **Reading Time:** 10 minutes
 **Difficulty:** Intermediate
 
+> **📚 Comprehensive Documentation**: For complete details on Reflection Pool, self-evolution architecture, and integration with episodic memory, see [Self-Evolution & Reflection Pool](../intelligence/self-evolution.md).
+
 ---
 
 ## Overview
