@@ -16,7 +16,7 @@ from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from datetime import datetime
 import asyncio
 
-from tools.browser_tool import BrowserSession, BrowserTool
+from tools.browser_tool import BrowserSession, BrowserSessionManager
 
 
 class TestBrowserSessionCoverage:
