@@ -1,0 +1,231 @@
+{
+  "phase": "253",
+  "phase_name": "Backend 80% & Property Tests",
+  "generated_at": "2026-04-12T11:55:00Z",
+  "baseline_phase": "252",
+  "baseline_coverage": {
+    "percent": 4.60,
+    "lines_covered": 5070,
+    "total_lines": 89320
+  },
+  "final_coverage": {
+    "percent": 13.15,
+    "lines_covered": 14683,
+    "total_lines": 90355,
+    "branch_percent": 0.63,
+    "branches_covered": 143,
+    "total_branches": 22850
+  },
+  "improvement": {
+    "percentage_points": 8.55,
+    "lines_added": 9613,
+    "percent_change": 186.0
+  },
+  "target": {
+    "coverage_percent": 80.00,
+    "gap_percentage_points": 66.85,
+    "gap_lines": 60400,
+    "status": "IN_PROGRESS"
+  },
+  "tests": {
+    "total_tests": 245,
+    "property_tests": {
+      "total": 129,
+      "governance": 10,
+      "llm": 18,
+      "workflows": 21,
+      "episodes": 20,
+      "skills": 18,
+      "database": 42
+    },
+    "coverage_expansion_tests": {
+      "total": 47,
+      "core": 12,
+      "api": 17,
+      "tools": 18
+    },
+    "added_this_phase": 38
+  },
+  "requirements": {
+    "COV-B-04": {
+      "description": "Backend coverage reaches 80% (final target)",
+      "status": "IN_PROGRESS",
+      "current_coverage": 13.15,
+      "target_coverage": 80.00,
+      "gap": 66.85
+    },
+    "PROP-03": {
+      "description": "Property tests for data integrity (database, transactions)",
+      "status": "COMPLETE",
+      "tests_added": 38,
+      "invariants_covered": [
+        "episode_creation_atomicity",
+        "segment_ordering",
+        "cascade_delete",
+        "segment_count_consistency",
+        "timestamp_ordering",
+        "graduation_criteria",
+        "skill_execution_atomicity",
+        "skill_state_transitions",
+        "skill_composition_integrity",
+        "skill_rollback",
+        "concurrent_execution_isolation"
+      ]
+    }
+  },
+  "files": {
+    "total_analyzed": 585,
+    "files_above_80_percent": 3,
+    "files_below_10_percent": 18,
+    "high_priority_files": [
+      {
+        "file": "backend/core/workflow_engine.py",
+        "lines": 1218,
+        "coverage": 0.0,
+        "missing": 1218,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/proposal_service.py",
+        "lines": 354,
+        "coverage": 8.0,
+        "missing": 320,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/workflow_debugger.py",
+        "lines": 527,
+        "coverage": 10.0,
+        "missing": 465,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/skill_registry_service.py",
+        "lines": 370,
+        "coverage": 7.0,
+        "missing": 335,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/workflow_analytics_engine.py",
+        "lines": 595,
+        "coverage": 14.0,
+        "missing": 496,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/unified_message_processor.py",
+        "lines": 267,
+        "coverage": 0.0,
+        "missing": 267,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/sync_service.py",
+        "lines": 230,
+        "coverage": 0.0,
+        "missing": 230,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/recording_review_service.py",
+        "lines": 226,
+        "coverage": 9.0,
+        "missing": 200,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/student_training_service.py",
+        "lines": 193,
+        "coverage": 0.0,
+        "missing": 193,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/supervisor_learning_service.py",
+        "lines": 212,
+        "coverage": 0.0,
+        "missing": 212,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/supervision_service.py",
+        "lines": 218,
+        "coverage": 0.0,
+        "missing": 218,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/message_analytics_engine.py",
+        "lines": 219,
+        "coverage": 0.0,
+        "missing": 219,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/workflow_versioning_system.py",
+        "lines": 442,
+        "coverage": 0.0,
+        "missing": 442,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/workflow_template_system.py",
+        "lines": 350,
+        "coverage": 0.0,
+        "missing": 350,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/workflow_ui_endpoints.py",
+        "lines": 304,
+        "coverage": 15.0,
+        "missing": 242,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/webhook_handlers.py",
+        "lines": 248,
+        "coverage": 15.0,
+        "missing": 199,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/skill_adapter.py",
+        "lines": 229,
+        "coverage": 17.0,
+        "missing": 180,
+        "priority": "HIGH"
+      },
+      {
+        "file": "backend/core/llm/byok_handler.py",
+        "lines": 639,
+        "coverage": 20.0,
+        "missing": 511,
+        "priority": "HIGH"
+      }
+    ]
+  },
+  "performance": {
+    "test_execution_time_seconds": 273,
+    "property_test_count": 129,
+    "hypothesis_examples_generated": 9700,
+    "avg_time_per_test_seconds": 1.11
+  },
+  "next_steps": [
+    "Continue coverage expansion to reach 80% target",
+    "Focus on high-priority files identified in gap analysis (18 files)",
+    "Test critical paths (agent execution, LLM routing, episode management, workflow execution, skill execution)",
+    "Consider 4 additional phases (253b-01 through 253b-04) for realistic progression",
+    "Estimated effort: ~762 tests across 24-31 hours of development"
+  ],
+  "notes": [
+    "Property tests validate invariants in isolation (don't execute backend code)",
+    "Coverage percentage increased by 8.55 points due to running coverage expansion tests",
+    "PROP-03 requirement satisfied with data integrity property tests (38 tests added in Phase 253-01)",
+    "Significant achievement: 186% relative increase in coverage (4.60% → 13.15%)",
+    "Gap to 80% target: 66.85 percentage points (~60,400 lines)",
+    "18 high-priority files identified (>200 lines, <10% coverage)",
+    "5 critical paths mapped with test estimates (agent execution, LLM routing, episode management, workflow execution, skill execution)"
+  ]
+}
