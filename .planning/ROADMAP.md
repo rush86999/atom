@@ -25,10 +25,11 @@
 | 257 - TDD & Property Test Documentation | 2/2 | ✅ COMPLETE | 2026-04-12 |
 | 258 - Quality Gates & Final Documentation | 3/3 | ✅ COMPLETE | 2026-04-12 |
 | 264 - Coverage Expansion Wave 7 (FINAL) | 1/1 | ✅ COMPLETE | 2026-04-12 |
+| 290 - Comprehensive Test Suite (Gap Closure) | 1/2 | 🚧 IN PROGRESS | 2026-04-12 |
 
-**Overall:** 31/48 plans complete (64.6%)
+**Overall:** 32/49 plans complete (65.3%)
 
-**Total:** 48 plans across 14 phases
+**Total:** 49 plans across 15 phases
 
 ## Phases
 
@@ -47,6 +48,7 @@
 - [x] **Phase 257: TDD & Property Test Documentation** - Document TDD workflow and property tests (completed 2026-04-12)
 - [x] **Phase 258: Quality Gates & Final Documentation** - Enforce quality gates and complete documentation (completed 2026-04-12)
 - [x] **Phase 264: Coverage Expansion Wave 7 (FINAL)** - Pragmatic coverage measurement with partial baseline (completed 2026-04-12)
+- [ ] **Phase 290: Comprehensive Test Suite (Gap Closure)** — Fix 24 failing tests and achieve 80%+ coverage for auto_dev module (IN PROGRESS)
 
 ## Phase Details
 
@@ -378,3 +380,17 @@ Milestone is complete when:
 
 *Roadmap created: 2026-04-02*
 *Last updated: 2026-04-11*
+### Phase 290: Comprehensive Test Suite (Gap Closure)
+**Goal**: Fix all 24 failing auto_dev tests and achieve 80%+ coverage
+**Depends on**: Phase 290-01 (initial test suite created)
+**Requirements**: None (gap closure phase)
+**Success Criteria** (what must be TRUE):
+  1. All 152 auto_dev tests pass (100% pass rate, 0 failures)
+  2. Coverage >=80% for all auto_dev modules
+  3. Episode model database queries work correctly
+  4. Fitness scoring math verified and corrected
+  5. Pattern detection grouping logic working
+  6. Integration tests properly set up with database sessions
+**Plans**: 1 plan (gap closure)
+- [ ] 290-02-PLAN.md — Fix failing tests and achieve 80%+ coverage (6 tasks: fitness service, evolution engine, advisor service, reflection engine, alpha evolver, edge cases)
+
