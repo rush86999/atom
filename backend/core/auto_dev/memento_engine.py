@@ -84,7 +84,8 @@ class MementoEngine(BaseLearningEngine):
             error_trace = ""
             tool_calls = []
             for seg in segments:
-                meta = getattr(seg, "metadata", {}) or {}
+                # Use metadata_json instead of metadata (SQLAlchemy metadata is different)
+                meta = getattr(seg, "metadata_json", {}) or {}
                 if meta.get("error"):
                     error_trace += f"{meta['error']}\n"
                 if meta.get("tool_name"):
