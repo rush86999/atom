@@ -670,3 +670,16 @@ interventions = await graduation.get_intervention_breakdown(agent_id)
 **Authors**: Atom Development Team
 **Version**: 1.0.0
 **Status**: Production Ready ✅
+
+
+---
+
+**⚠️ ARCHIVED - This file has been superseded**
+
+This legacy version is maintained for historical reference only.
+
+**Current Documentation**: See [Agent Graduation Guide](../../agents/graduation.md)
+
+**Archive Date**: April 12, 2026  
+**Reason**: Superseded by more comprehensive guide with "Two Types of Graduation" section
+
